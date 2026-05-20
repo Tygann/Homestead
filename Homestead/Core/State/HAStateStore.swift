@@ -13,12 +13,30 @@ final class HAStateStore {
         }
     }
 
+    var entitiesByDomain: [(domain: EntityDomain, entities: [HomeEntity])] {
+        Dictionary(grouping: allEntities, by: \.domain)
+            .map { domain, entities in
+                (domain: domain, entities: entities)
+            }
+            .sorted { lhs, rhs in
+                if lhs.domain.dashboardPriority != rhs.domain.dashboardPriority {
+                    return lhs.domain.dashboardPriority < rhs.domain.dashboardPriority
+                }
+
+                return lhs.domain.displayName.localizedCaseInsensitiveCompare(rhs.domain.displayName) == .orderedAscending
+            }
+    }
+
     var lightEntityIDs: [String] {
         entityIDs(for: .light)
     }
 
     var sensorEntityIDs: [String] {
         entityIDs(for: .sensor)
+    }
+
+    func entities(for domain: EntityDomain) -> [HomeEntity] {
+        allEntities.filter { $0.domain == domain }
     }
 
     func entity(for entityID: String) -> HomeEntity? {

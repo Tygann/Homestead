@@ -4,6 +4,8 @@ struct DashboardView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @State private var isEditingDashboard = false
 
     private let adaptiveColumns = [
         GridItem(.adaptive(minimum: 160, maximum: 240), spacing: AppSpacing.large)
@@ -12,13 +14,14 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-//                header
-
                 if stateStore.allEntities.isEmpty {
                     EmptyDashboardCard()
+                } else if visibleEntityIDs.isEmpty {
+                    EmptyConfiguredDashboardCard {
+                        dashboardConfiguration.reset(using: stateStore.allEntities)
+                    }
                 } else {
-                    lightsSection
-                    sensorsSection
+                    favoritesSection
                 }
             }
             .padding(.horizontal, AppSpacing.large)
@@ -41,34 +44,26 @@ struct DashboardView: View {
                 optionsMenu
             }
         }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Text("Homestead")
-                .font(.largeTitle.bold())
-            Text(homeAssistantService.connectionStatus.title)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
+        .sheet(isPresented: $isEditingDashboard) {
+            DashboardEditView()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var lightsSection: some View {
-        DashboardSection(title: "Lights", isEmpty: stateStore.lightEntityIDs.isEmpty) {
-            LazyVGrid(columns: adaptiveColumns, spacing: AppSpacing.large) {
-                ForEach(stateStore.lightEntityIDs.prefix(8), id: \.self) { entityID in
-                    LightCard(entityID: entityID)
-                }
-            }
+        .onAppear {
+            dashboardConfiguration.reconcile(with: stateStore.allEntities)
+        }
+        .onChange(of: stateStore.allEntities) { _, entities in
+            dashboardConfiguration.reconcile(with: entities)
         }
     }
 
-    private var sensorsSection: some View {
-        DashboardSection(title: "Sensors", isEmpty: stateStore.sensorEntityIDs.isEmpty) {
+    private var visibleEntityIDs: [String] {
+        dashboardConfiguration.visibleEntityIDs(from: stateStore.allEntities)
+    }
+
+    private var favoritesSection: some View {
+        DashboardSection(title: "Favorites", isEmpty: visibleEntityIDs.isEmpty) {
             LazyVGrid(columns: adaptiveColumns, spacing: AppSpacing.large) {
-                ForEach(stateStore.sensorEntityIDs.prefix(6), id: \.self) { entityID in
-                    SensorCard(entityID: entityID)
+                ForEach(visibleEntityIDs, id: \.self) { entityID in
+                    DashboardCardView(entityID: entityID)
                 }
             }
         }
@@ -79,10 +74,17 @@ struct DashboardView: View {
         Menu {
             Section {
                 Button(action: {
-                    // TODO: Add action to put home view in edit mode. Also need to add an edit mode view, which should allow for adding devices (from the list of connected devices) as well as adding sections, and being able to organize the sections and devices.
+                    isEditingDashboard = true
                 }) {
                     Label("Edit Home View", systemImage: "square.grid.2x2")
                 }
+
+                Button(action: {
+                    dashboardConfiguration.reset(using: stateStore.allEntities)
+                }) {
+                    Label("Reset Home View", systemImage: "arrow.counterclockwise")
+                }
+                .disabled(stateStore.allEntities.isEmpty)
             }
         } label: {
             Image(systemName: "ellipsis")
@@ -118,6 +120,27 @@ private struct EmptyDashboardCard: View {
                 Text("Add your server URL and token in Settings.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct EmptyConfiguredDashboardCard: View {
+    let reset: () -> Void
+
+    var body: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                CardIconView(systemName: "square.grid.2x2")
+                Text("No cards selected")
+                    .font(.headline)
+                Text("Add cards from the Home options menu.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Button("Restore Suggested Cards", action: reset)
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, AppSpacing.small)
             }
         }
     }

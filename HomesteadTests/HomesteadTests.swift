@@ -157,4 +157,62 @@ struct HomesteadTests {
         settings.accessToken = ""
         #expect(try credentialStore.readAccessToken() == nil)
     }
+
+    @MainActor
+    @Test func dashboardConfigurationSeedsPersistsAndReordersEntities() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let entities = [
+            HomeEntity(
+                entityID: "sensor.hallway_temperature",
+                domain: .sensor,
+                displayName: "Hallway Temperature",
+                state: "72",
+                iconName: "thermometer.medium",
+                isAvailable: true,
+                lastUpdated: nil
+            ),
+            HomeEntity(
+                entityID: "light.kitchen",
+                domain: .light,
+                displayName: "Kitchen",
+                state: "on",
+                iconName: "lightbulb",
+                isAvailable: true,
+                lastUpdated: nil
+            )
+        ]
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        configuration.seedIfNeeded(from: entities)
+
+        #expect(configuration.entityIDs == ["light.kitchen", "sensor.hallway_temperature"])
+
+        configuration.move(from: IndexSet(integer: 0), to: 2)
+        #expect(configuration.entityIDs == ["sensor.hallway_temperature", "light.kitchen"])
+
+        configuration.setEntity("sensor.hallway_temperature", isVisible: false)
+        #expect(configuration.entityIDs == ["light.kitchen"])
+
+        configuration.add("light.removed")
+        configuration.reconcile(with: entities)
+        #expect(configuration.entityIDs == ["light.kitchen"])
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.entityIDs == ["light.kitchen"])
+    }
+
+    @MainActor
+    @Test func stateStoreGroupsEntitiesByDomainPriority() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "sensor.temperature", state: "72"),
+            HAEntityDTO(entityID: "cover.shades", state: "open"),
+            HAEntityDTO(entityID: "light.lamp", state: "on")
+        ])
+
+        #expect(store.entitiesByDomain.map(\.domain) == [.light, .cover, .sensor])
+    }
 }

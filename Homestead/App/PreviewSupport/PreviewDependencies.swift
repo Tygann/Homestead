@@ -6,10 +6,13 @@ struct PreviewDependencies {
     let stateStore: HAStateStore
     let connectionSettings: HAConnectionSettings
     let homeAssistantService: HomeAssistantService
+    let dashboardConfiguration: DashboardConfiguration
 
     static var sample: PreviewDependencies {
         let stateStore = HAStateStore()
         stateStore.applyInitialStates(PreviewData.entities)
+        let dashboardConfiguration = DashboardConfiguration(defaults: .preview)
+        dashboardConfiguration.reset(using: stateStore.allEntities)
 
         let settings = HAConnectionSettings(
             baseURL: "http://homeassistant.local:8123",
@@ -26,12 +29,14 @@ struct PreviewDependencies {
         return PreviewDependencies(
             stateStore: stateStore,
             connectionSettings: settings,
-            homeAssistantService: service
+            homeAssistantService: service,
+            dashboardConfiguration: dashboardConfiguration
         )
     }
 
     static var liveHomeAssistant: PreviewDependencies? {
         let stateStore = HAStateStore()
+        let dashboardConfiguration = DashboardConfiguration(defaults: .preview)
 
         let settings = PreviewCredentialProvider.environmentSettings ??
             HAConnectionSettings(defaults: .standard)
@@ -45,7 +50,8 @@ struct PreviewDependencies {
         return PreviewDependencies(
             stateStore: stateStore,
             connectionSettings: settings,
-            homeAssistantService: service
+            homeAssistantService: service,
+            dashboardConfiguration: dashboardConfiguration
         )
     }
 }
@@ -61,6 +67,7 @@ extension View {
         environment(dependencies.stateStore)
             .environment(dependencies.connectionSettings)
             .environment(dependencies.homeAssistantService)
+            .environment(dependencies.dashboardConfiguration)
     }
 }
 
@@ -120,6 +127,14 @@ private enum PreviewData {
                 "current_position": .number(72)
             ],
             lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "climate.downstairs",
+            state: "heat",
+            attributes: [
+                "friendly_name": .string("Downstairs")
+            ],
+            lastUpdated: .now
         )
     ]
 }
@@ -161,6 +176,7 @@ private extension UserDefaults {
     static var preview: UserDefaults {
         let defaults = UserDefaults(suiteName: "com.tyler.Homestead.preview") ?? .standard
         defaults.removeObject(forKey: "homeAssistantBaseURL")
+        defaults.removeObject(forKey: "dashboardEntityIDs")
         return defaults
     }
 }
