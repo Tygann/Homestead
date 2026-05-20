@@ -1,13 +1,13 @@
 //
-//  HavenUITestsLaunchTests.swift
-//  HavenUITests
+//  HomesteadUITestsLaunchTests.swift
+//  HomesteadUITests
 //
 //  Created by Tyler Keegan on 5/20/26.
 //
 
 import XCTest
 
-final class HavenUITestsLaunchTests: XCTestCase {
+final class HomesteadUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true
