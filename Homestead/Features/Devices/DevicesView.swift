@@ -27,6 +27,7 @@ struct DevicesView: View {
             }
         }
         .navigationTitle("Devices")
+        .toolbarTitleDisplayMode(.inlineLarge)
     }
 }
 

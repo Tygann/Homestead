@@ -62,10 +62,46 @@ struct HomesteadTests {
         #expect(light?.displayName == "Kitchen Pendants")
         #expect(light?.isOn == true)
         #expect(light?.brightness == 128)
+        #expect(light?.brightnessPercentage == 50)
         #expect(sensor?.displayName == "Hallway")
-        #expect(sensor?.value == "72")
+        #expect(sensor?.formattedValue == "72°F")
         #expect(sensor?.unit == "F")
         #expect(sensor?.iconName == "thermometer.medium")
+    }
+
+    @Test func sensorFormattingHandlesUnitsAndUnavailableStates() {
+        let humidity = SensorEntity(
+            entityID: "sensor.humidity",
+            displayName: "Humidity",
+            value: "44.2",
+            unit: "%",
+            deviceClass: "humidity",
+            iconName: "humidity",
+            lastUpdated: nil
+        )
+        let energy = SensorEntity(
+            entityID: "sensor.energy",
+            displayName: "Energy",
+            value: "12.3456",
+            unit: "kWh",
+            deviceClass: "energy",
+            iconName: "bolt.fill",
+            lastUpdated: nil
+        )
+        let unavailable = SensorEntity(
+            entityID: "sensor.unavailable",
+            displayName: "Unavailable",
+            value: "unavailable",
+            unit: nil,
+            deviceClass: nil,
+            iconName: "gauge.medium",
+            lastUpdated: nil
+        )
+
+        #expect(humidity.formattedValue == "44%")
+        #expect(energy.formattedValue == "12.35 kWh")
+        #expect(energy.formattedDeviceClass == "Energy")
+        #expect(unavailable.formattedValue == "Unavailable")
     }
 
     @MainActor

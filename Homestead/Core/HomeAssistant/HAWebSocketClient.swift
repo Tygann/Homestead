@@ -127,7 +127,11 @@ actor HAWebSocketClient {
         }
 
         let data = try JSONEncoder().encode(request)
-        try await webSocketTask.send(.data(data))
+        guard let payload = String(data: data, encoding: .utf8) else {
+            throw HAWebSocketError.requestFailed("Could not encode Home Assistant request.")
+        }
+
+        try await webSocketTask.send(.string(payload))
     }
 
     private func receiveIncomingMessage() async throws -> HAWebSocketIncomingMessage {
@@ -135,7 +139,13 @@ actor HAWebSocketClient {
             throw HAWebSocketError.notConnected
         }
 
-        let message = try await webSocketTask.receive()
+        let message: URLSessionWebSocketTask.Message
+
+        do {
+            message = try await webSocketTask.receive()
+        } catch {
+            throw transportError(from: error, task: webSocketTask)
+        }
         let data: Data
 
         switch message {
@@ -148,6 +158,30 @@ actor HAWebSocketClient {
         }
 
         return try JSONDecoder().decode(HAWebSocketIncomingMessage.self, from: data)
+    }
+
+    private func transportError(
+        from error: Error,
+        task: URLSessionWebSocketTask
+    ) -> HAWebSocketError {
+        let nsError = error as NSError
+        var details = [error.localizedDescription]
+
+        if !nsError.domain.isEmpty {
+            details.append("\(nsError.domain) \(nsError.code)")
+        }
+
+        if task.closeCode != .invalid {
+            details.append("WebSocket closed with \(task.closeCode.diagnosticDescription)")
+        }
+
+        if let reason = task.closeReason,
+           let reasonText = String(data: reason, encoding: .utf8),
+           !reasonText.isEmpty {
+            details.append(reasonText)
+        }
+
+        return .transportFailure(details.joined(separator: " · "))
     }
 
     private func startReceiveLoop() {
@@ -213,6 +247,41 @@ actor HAWebSocketClient {
 
         for continuation in continuations {
             continuation.resume(throwing: error)
+        }
+    }
+}
+
+private extension URLSessionWebSocketTask.CloseCode {
+    nonisolated var diagnosticDescription: String {
+        switch self {
+        case .invalid:
+            "invalid close code"
+        case .normalClosure:
+            "normal closure"
+        case .goingAway:
+            "going away"
+        case .protocolError:
+            "protocol error"
+        case .unsupportedData:
+            "unsupported data"
+        case .noStatusReceived:
+            "no status received"
+        case .abnormalClosure:
+            "abnormal closure"
+        case .invalidFramePayloadData:
+            "invalid frame payload data"
+        case .policyViolation:
+            "policy violation"
+        case .messageTooBig:
+            "message too big"
+        case .mandatoryExtensionMissing:
+            "mandatory extension missing"
+        case .internalServerError:
+            "internal server error"
+        case .tlsHandshakeFailure:
+            "TLS handshake failure"
+        @unknown default:
+            "unknown close code \(rawValue)"
         }
     }
 }

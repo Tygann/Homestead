@@ -29,6 +29,25 @@ struct PreviewDependencies {
             homeAssistantService: service
         )
     }
+
+    static var liveHomeAssistant: PreviewDependencies? {
+        let stateStore = HAStateStore()
+
+        let settings = PreviewCredentialProvider.environmentSettings ??
+            HAConnectionSettings(defaults: .standard)
+
+        guard settings.hasCredentials else {
+            return nil
+        }
+
+        let service = HomeAssistantService(stateStore: stateStore)
+
+        return PreviewDependencies(
+            stateStore: stateStore,
+            connectionSettings: settings,
+            homeAssistantService: service
+        )
+    }
 }
 
 extension View {
@@ -103,6 +122,39 @@ private enum PreviewData {
             lastUpdated: .now
         )
     ]
+}
+
+struct MissingLivePreviewCredentialsView: View {
+    var body: some View {
+        ContentUnavailableView {
+            Label("Preview Credentials Missing", systemImage: "key.slash")
+        } description: {
+            Text("Save credentials in the app Settings screen, or set HOMESTEAD_PREVIEW_HA_BASE_URL and HOMESTEAD_PREVIEW_HA_TOKEN in your local Xcode environment.")
+        }
+        .padding()
+    }
+}
+
+private enum PreviewCredentialProvider {
+    private static let baseURLKey = "HOMESTEAD_PREVIEW_HA_BASE_URL"
+    private static let tokenKey = "HOMESTEAD_PREVIEW_HA_TOKEN"
+
+    @MainActor
+    static var environmentSettings: HAConnectionSettings? {
+        let environment = ProcessInfo.processInfo.environment
+
+        guard let baseURL = environment[baseURLKey], !baseURL.isEmpty,
+              let token = environment[tokenKey], !token.isEmpty else {
+            return nil
+        }
+
+        return HAConnectionSettings(
+            baseURL: baseURL,
+            accessToken: token,
+            defaults: .preview,
+            credentialStore: InMemoryHACredentialStore()
+        )
+    }
 }
 
 private extension UserDefaults {

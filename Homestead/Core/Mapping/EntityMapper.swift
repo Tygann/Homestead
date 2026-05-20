@@ -59,6 +59,7 @@ enum EntityMapper {
             displayName: displayName(for: dto),
             value: dto.state,
             unit: dto.attributes["unit_of_measurement"]?.stringValue,
+            deviceClass: dto.attributes["device_class"]?.stringValue,
             iconName: sensorIconName(for: dto),
             lastUpdated: dto.lastUpdated
         )

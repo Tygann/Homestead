@@ -17,7 +17,7 @@ struct ContentView: View {
                 DevicesView()
             }
             .tabItem {
-                Label("Devices", systemImage: "square.grid.2x2.fill")
+                Label("Devices", systemImage: "laptopcomputer.and.iphone")
             }
 
             NavigationStack {
@@ -39,8 +39,22 @@ struct ContentView: View {
 
 // MARK: - Preview
 #if DEBUG
-#Preview {
+#Preview("Sample Data") {
     ContentView()
         .withPreviewEnvironment()
+}
+
+#Preview("Live Home Assistant") {
+    if let dependencies = PreviewDependencies.liveHomeAssistant {
+        ContentView()
+            .withPreviewEnvironment(dependencies)
+            .task {
+                await dependencies.homeAssistantService.connectIfPossible(
+                    settings: dependencies.connectionSettings
+                )
+            }
+    } else {
+        MissingLivePreviewCredentialsView()
+    }
 }
 #endif

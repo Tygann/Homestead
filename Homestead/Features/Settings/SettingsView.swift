@@ -30,6 +30,20 @@ struct SettingsView: View {
                 Button {
                     focusedField = nil
                     Task {
+                        await homeAssistantService.testConnection(
+                            baseURLString: connectionSettings.baseURL,
+                            accessToken: connectionSettings.accessToken
+                        )
+                    }
+                } label: {
+                    Label("Test Connection", systemImage: "network")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .disabled(!connectionSettings.hasCredentials || homeAssistantService.smokeTestState.isTesting)
+
+                Button {
+                    focusedField = nil
+                    Task {
                         await homeAssistantService.connect(
                             baseURLString: connectionSettings.baseURL,
                             accessToken: connectionSettings.accessToken
@@ -57,6 +71,17 @@ struct SettingsView: View {
 
             Section {
                 Label(
+                    homeAssistantService.smokeTestState.title,
+                    systemImage: homeAssistantService.smokeTestState.systemImage
+                )
+
+                if let detail = homeAssistantService.smokeTestState.detail {
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Label(
                     homeAssistantService.connectionStatus.title,
                     systemImage: homeAssistantService.connectionStatus.systemImage
                 )
@@ -73,9 +98,37 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+#if DEBUG
+            Section {
+                LabeledContent("Preview WebSocket URL") {
+                    Text(webSocketEndpointDescription)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
+                }
+            } header: {
+                Text("Diagnostics")
+            } footer: {
+                Text("Safe to share: this endpoint does not include your access token.")
+            }
+#endif
         }
         .navigationTitle("Settings")
+        .toolbarTitleDisplayMode(.inline)
     }
+
+#if DEBUG
+    private var webSocketEndpointDescription: String {
+        do {
+            return try HomeAssistantEndpointBuilder
+                .webSocketURL(from: connectionSettings.baseURL)
+                .absoluteString
+        } catch {
+            return "Invalid Home Assistant URL"
+        }
+    }
+#endif
 
     private enum Field {
         case baseURL

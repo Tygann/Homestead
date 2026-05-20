@@ -21,6 +21,13 @@ struct SensorCard: View {
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
+
+                        if let deviceClass = sensor.formattedDeviceClass {
+                            Text(deviceClass)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
                 }
                 .frame(minHeight: 124, alignment: .topLeading)

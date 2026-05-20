@@ -12,7 +12,7 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                header
+//                header
 
                 if stateStore.allEntities.isEmpty {
                     EmptyDashboardCard()
@@ -25,7 +25,8 @@ struct DashboardView: View {
             .padding(.vertical, AppSpacing.xLarge)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Home")
+        .navigationTitle("Homestead")
+        .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -34,6 +35,10 @@ struct DashboardView: View {
                     Image(systemName: homeAssistantService.connectionStatus.systemImage)
                 }
                 .accessibilityLabel(homeAssistantService.connectionStatus.title)
+            }
+            // Options Button
+            ToolbarItem(placement: .primaryAction) {
+                optionsMenu
             }
         }
     }
@@ -66,6 +71,22 @@ struct DashboardView: View {
                     SensorCard(entityID: entityID)
                 }
             }
+        }
+    }
+    
+    // MARK: - Options Menu
+    private var optionsMenu: some View {
+        Menu {
+            Section {
+                Button(action: {
+                    // TODO: Add action to put home view in edit mode. Also need to add an edit mode view, which should allow for adding devices (from the list of connected devices) as well as adding sections, and being able to organize the sections and devices.
+                }) {
+                    Label("Edit Home View", systemImage: "square.grid.2x2")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .bold()
         }
     }
 }

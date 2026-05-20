@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2FFA783E2FBE4067000606B6 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2FFA783D2FBE4067000606B6 /* AppIcon.icon */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		2FE2DD692FBDFE43009A0E06 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		2FE2DD592FBDFE42009A0E06 /* Homestead.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Homestead.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2FE2DD682FBDFE43009A0E06 /* HomesteadTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HomesteadTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2FE2DD722FBDFE43009A0E06 /* HomesteadUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HomesteadUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2FFA783D2FBE4067000606B6 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -79,6 +84,7 @@
 				2FE2DD6B2FBDFE43009A0E06 /* HomesteadTests */,
 				2FE2DD752FBDFE43009A0E06 /* HomesteadUITests */,
 				2FE2DD5A2FBDFE42009A0E06 /* Products */,
+				2FFA783D2FBE4067000606B6 /* AppIcon.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -212,6 +218,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2FFA783E2FBE4067000606B6 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

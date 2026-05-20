@@ -6,6 +6,7 @@ import Observation
 final class HomeAssistantService {
     private(set) var connectionStatus: HAConnectionStatus = .disconnected
     private(set) var lastErrorMessage: String?
+    private(set) var smokeTestState: HAConnectionSmokeTestState = .idle
 
     @ObservationIgnored private let client: HAWebSocketClient
     @ObservationIgnored private let stateStore: HAStateStore
@@ -58,6 +59,28 @@ final class HomeAssistantService {
         }
     }
 
+    func testConnection(baseURLString: String, accessToken: String) async {
+        let configuration = HAConnectionConfiguration(
+            baseURLString: baseURLString.trimmingCharacters(in: .whitespacesAndNewlines),
+            accessToken: accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        let smokeClient = HAWebSocketClient()
+
+        smokeTestState = .testing
+
+        do {
+            try await smokeClient.connect(configuration: configuration)
+            let states = try await smokeClient.fetchStates()
+            await smokeClient.disconnect()
+
+            smokeTestState = .succeeded(entityCount: states.count)
+            lastErrorMessage = nil
+        } catch {
+            await smokeClient.disconnect()
+            smokeTestState = .failed(error.localizedDescription)
+        }
+    }
+
     func disconnect() async {
         shouldReconnect = false
         reconnectTask?.cancel()
@@ -85,6 +108,18 @@ final class HomeAssistantService {
 
     func turnOffLight(entityID: String) async {
         await callService(domain: "light", service: "turn_off", entityID: entityID)
+    }
+
+    func setLightBrightness(entityID: String, brightnessPercentage: Double) async {
+        let clampedPercentage = min(max(brightnessPercentage, 1), 100)
+        let brightness = Int((clampedPercentage / 100) * 255)
+
+        await callService(
+            domain: "light",
+            service: "turn_on",
+            entityID: entityID,
+            serviceData: ["brightness": .number(Double(max(1, brightness)))]
+        )
     }
 
     func callService(

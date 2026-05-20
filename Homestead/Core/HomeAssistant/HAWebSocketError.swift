@@ -7,6 +7,7 @@ enum HAWebSocketError: LocalizedError, Sendable {
     case authenticationFailed(String?)
     case requestFailed(String?)
     case missingResult
+    case transportFailure(String)
 
     var errorDescription: String? {
         switch self {
@@ -22,6 +23,8 @@ enum HAWebSocketError: LocalizedError, Sendable {
             message ?? "Home Assistant request failed."
         case .missingResult:
             "Home Assistant did not include a result payload."
+        case .transportFailure(let message):
+            message
         }
     }
 }
