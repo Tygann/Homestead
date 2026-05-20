@@ -41,24 +41,30 @@ struct SettingsView: View {
                 }
                 .disabled(!connectionSettings.hasCredentials || homeAssistantService.smokeTestState.isTesting)
 
-                Button {
-                    focusedField = nil
-                    Task {
-                        await homeAssistantService.connect(
-                            baseURLString: connectionSettings.baseURL,
-                            accessToken: connectionSettings.accessToken
-                        )
-                    }
-                } label: {
-                    Label("Connect", systemImage: "bolt.horizontal.circle.fill")
+                if homeAssistantService.connectionStatus == .connected {
+                    Label("Connected", systemImage: homeAssistantService.connectionStatus.systemImage)
+                        .foregroundStyle(.green)
                         .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    Button {
+                        focusedField = nil
+                        Task {
+                            await homeAssistantService.connect(
+                                baseURLString: connectionSettings.baseURL,
+                                accessToken: connectionSettings.accessToken
+                            )
+                        }
+                    } label: {
+                        Label(connectButtonTitle, systemImage: "bolt.horizontal.circle.fill")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(
+                        !connectionSettings.hasCredentials ||
+                        homeAssistantService.connectionStatus == .connecting ||
+                        homeAssistantService.connectionStatus == .reconnecting
+                    )
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(
-                    !connectionSettings.hasCredentials ||
-                    homeAssistantService.connectionStatus == .connecting ||
-                    homeAssistantService.connectionStatus == .reconnecting
-                )
 
                 Button(role: .destructive) {
                     Task { await homeAssistantService.disconnect() }
@@ -70,21 +76,25 @@ struct SettingsView: View {
             }
 
             Section {
-                Label(
-                    homeAssistantService.smokeTestState.title,
-                    systemImage: homeAssistantService.smokeTestState.systemImage
+                SettingsStatusRow(
+                    title: homeAssistantService.connectionStatus.title,
+                    systemImage: homeAssistantService.connectionStatus.systemImage,
+                    tint: connectionStatusTint
                 )
 
-                if let detail = homeAssistantService.smokeTestState.detail {
-                    Text(detail)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                if homeAssistantService.smokeTestState != .idle {
+                    SettingsStatusRow(
+                        title: homeAssistantService.smokeTestState.title,
+                        systemImage: homeAssistantService.smokeTestState.systemImage,
+                        tint: smokeTestTint
+                    )
+
+                    if let detail = homeAssistantService.smokeTestState.detail {
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-
-                Label(
-                    homeAssistantService.connectionStatus.title,
-                    systemImage: homeAssistantService.connectionStatus.systemImage
-                )
 
                 if let message = homeAssistantService.lastErrorMessage {
                     Text(message)
@@ -130,9 +140,64 @@ struct SettingsView: View {
     }
 #endif
 
+    private var connectButtonTitle: String {
+        switch homeAssistantService.connectionStatus {
+        case .failed, .disconnected:
+            "Connect"
+        case .connecting:
+            "Connecting"
+        case .reconnecting:
+            "Reconnecting"
+        case .connected:
+            "Connected"
+        }
+    }
+
+    private var connectionStatusTint: Color {
+        switch homeAssistantService.connectionStatus {
+        case .connected:
+            .green
+        case .failed:
+            .red
+        case .connecting, .reconnecting:
+            .orange
+        case .disconnected:
+            .secondary
+        }
+    }
+
+    private var smokeTestTint: Color {
+        switch homeAssistantService.smokeTestState {
+        case .succeeded:
+            .green
+        case .failed:
+            .red
+        case .testing:
+            .orange
+        case .idle:
+            .secondary
+        }
+    }
+
     private enum Field {
         case baseURL
         case accessToken
+    }
+}
+
+private struct SettingsStatusRow: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        Label {
+            Text(title)
+                .foregroundStyle(.primary)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(tint)
+        }
     }
 }
 

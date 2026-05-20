@@ -2,12 +2,13 @@ import SwiftUI
 
 struct CardContainer<Content: View>: View {
     var isActive = false
+    var minHeight: CGFloat = 132
     @ViewBuilder var content: Content
 
     var body: some View {
         content
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(AppSpacing.large)
+            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
+            .padding(AppSpacing.medium)
             .background(cardBackground, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             .shadow(color: .black.opacity(isActive ? 0.14 : 0.06), radius: isActive ? 18 : 10, y: isActive ? 10 : 5)
             .animation(.smooth(duration: 0.25), value: isActive)

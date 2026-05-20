@@ -136,6 +136,31 @@ struct HomesteadTests {
 
         #expect(store.lightEntity(for: "light.kitchen")?.isOn == true)
         #expect(store.entity(for: "light.kitchen")?.state == "on")
+
+        let offEvent = HAEventDTO(
+            eventType: "state_changed",
+            data: .object([
+                "entity_id": .string("light.kitchen"),
+                "old_state": .null,
+                "new_state": .object([
+                    "entity_id": .string("light.kitchen"),
+                    "state": .string("off"),
+                    "attributes": .object(["friendly_name": .string("Kitchen")]),
+                    "last_changed": .string("2026-05-20T10:01:00.000000+00:00"),
+                    "last_updated": .string("2026-05-20T10:01:00.000000+00:00")
+                ])
+            ])
+        )
+
+        store.apply(event: offEvent)
+
+        #expect(store.lightEntity(for: "light.kitchen")?.isOn == false)
+        #expect(store.entity(for: "light.kitchen")?.state == "off")
+
+        store.applyOptimisticLightState(entityID: "light.kitchen", isOn: true)
+
+        #expect(store.lightEntity(for: "light.kitchen")?.isOn == true)
+        #expect(store.entity(for: "light.kitchen")?.state == "on")
     }
 
     @MainActor

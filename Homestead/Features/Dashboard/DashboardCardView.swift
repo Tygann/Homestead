@@ -27,7 +27,7 @@ private struct EntitySummaryCard: View {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 CardIconView(systemName: entity.iconName)
 
-                Spacer(minLength: AppSpacing.medium)
+                Spacer(minLength: AppSpacing.small)
 
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                     Text(entity.displayName)

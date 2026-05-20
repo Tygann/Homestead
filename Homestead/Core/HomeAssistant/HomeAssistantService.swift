@@ -104,10 +104,16 @@ final class HomeAssistantService {
 
     func turnOnLight(entityID: String) async {
         await callService(domain: "light", service: "turn_on", entityID: entityID)
+        if lastErrorMessage == nil {
+            stateStore.applyOptimisticLightState(entityID: entityID, isOn: true)
+        }
     }
 
     func turnOffLight(entityID: String) async {
         await callService(domain: "light", service: "turn_off", entityID: entityID)
+        if lastErrorMessage == nil {
+            stateStore.applyOptimisticLightState(entityID: entityID, isOn: false)
+        }
     }
 
     func setLightBrightness(entityID: String, brightnessPercentage: Double) async {

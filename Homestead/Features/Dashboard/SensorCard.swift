@@ -8,8 +8,10 @@ struct SensorCard: View {
     var body: some View {
         if let sensor = stateStore.sensorEntity(for: entityID) {
             CardContainer {
-                VStack(alignment: .leading, spacing: AppSpacing.large) {
+                VStack(alignment: .leading, spacing: AppSpacing.medium) {
                     CardIconView(systemName: sensor.iconName)
+
+                    Spacer(minLength: AppSpacing.small)
 
                     VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                         Text(sensor.displayName)
@@ -30,7 +32,6 @@ struct SensorCard: View {
                         }
                     }
                 }
-                .frame(minHeight: 124, alignment: .topLeading)
             }
         }
     }

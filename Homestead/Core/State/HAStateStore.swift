@@ -5,6 +5,10 @@ import Observation
 @Observable
 final class HAStateStore {
     private(set) var entitiesByID: [String: HomeEntity] = [:]
+    private(set) var lightEntitiesByID: [String: LightEntity] = [:]
+    private(set) var climateEntitiesByID: [String: ClimateEntity] = [:]
+    private(set) var coverEntitiesByID: [String: CoverEntity] = [:]
+    private(set) var sensorEntitiesByID: [String: SensorEntity] = [:]
     @ObservationIgnored private var rawEntitiesByID: [String: HAEntityDTO] = [:]
 
     var allEntities: [HomeEntity] {
@@ -44,28 +48,24 @@ final class HAStateStore {
     }
 
     func lightEntity(for entityID: String) -> LightEntity? {
-        guard let dto = rawEntitiesByID[entityID] else { return nil }
-        return EntityMapper.lightEntity(from: dto)
+        lightEntitiesByID[entityID]
     }
 
     func climateEntity(for entityID: String) -> ClimateEntity? {
-        guard let dto = rawEntitiesByID[entityID] else { return nil }
-        return EntityMapper.climateEntity(from: dto)
+        climateEntitiesByID[entityID]
     }
 
     func coverEntity(for entityID: String) -> CoverEntity? {
-        guard let dto = rawEntitiesByID[entityID] else { return nil }
-        return EntityMapper.coverEntity(from: dto)
+        coverEntitiesByID[entityID]
     }
 
     func sensorEntity(for entityID: String) -> SensorEntity? {
-        guard let dto = rawEntitiesByID[entityID] else { return nil }
-        return EntityMapper.sensorEntity(from: dto)
+        sensorEntitiesByID[entityID]
     }
 
     func applyInitialStates(_ entities: [HAEntityDTO]) {
         rawEntitiesByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, $0) })
-        entitiesByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, EntityMapper.homeEntity(from: $0)) })
+        rebuildMappedEntities(from: entities)
     }
 
     func apply(event: HAEventDTO) {
@@ -76,7 +76,23 @@ final class HAStateStore {
         }
 
         rawEntitiesByID[newState.entityID] = newState
-        entitiesByID[newState.entityID] = EntityMapper.homeEntity(from: newState)
+        apply(dto: newState)
+    }
+
+    func applyOptimisticLightState(entityID: String, isOn: Bool) {
+        guard var dto = rawEntitiesByID[entityID] else {
+            return
+        }
+
+        dto = HAEntityDTO(
+            entityID: dto.entityID,
+            state: isOn ? "on" : "off",
+            attributes: dto.attributes,
+            lastChanged: Date(),
+            lastUpdated: Date()
+        )
+        rawEntitiesByID[entityID] = dto
+        apply(dto: dto)
     }
 
     private func entityIDs(for domain: EntityDomain) -> [String] {
@@ -86,5 +102,29 @@ final class HAStateStore {
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map(\.entityID)
+    }
+
+    private func rebuildMappedEntities(from entities: [HAEntityDTO]) {
+        entitiesByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, EntityMapper.homeEntity(from: $0)) })
+        lightEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
+            EntityMapper.lightEntity(from: dto).map { ($0.entityID, $0) }
+        })
+        climateEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
+            EntityMapper.climateEntity(from: dto).map { ($0.entityID, $0) }
+        })
+        coverEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
+            EntityMapper.coverEntity(from: dto).map { ($0.entityID, $0) }
+        })
+        sensorEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
+            EntityMapper.sensorEntity(from: dto).map { ($0.entityID, $0) }
+        })
+    }
+
+    private func apply(dto: HAEntityDTO) {
+        entitiesByID[dto.entityID] = EntityMapper.homeEntity(from: dto)
+        lightEntitiesByID[dto.entityID] = EntityMapper.lightEntity(from: dto)
+        climateEntitiesByID[dto.entityID] = EntityMapper.climateEntity(from: dto)
+        coverEntitiesByID[dto.entityID] = EntityMapper.coverEntity(from: dto)
+        sensorEntitiesByID[dto.entityID] = EntityMapper.sensorEntity(from: dto)
     }
 }

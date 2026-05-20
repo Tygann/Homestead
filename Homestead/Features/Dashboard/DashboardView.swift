@@ -8,7 +8,7 @@ struct DashboardView: View {
     @State private var isEditingDashboard = false
 
     private let adaptiveColumns = [
-        GridItem(.adaptive(minimum: 160, maximum: 240), spacing: AppSpacing.large)
+        GridItem(.adaptive(minimum: 150, maximum: 210), spacing: AppSpacing.medium)
     ]
 
     var body: some View {
@@ -31,15 +31,6 @@ struct DashboardView: View {
         .navigationTitle("Homestead")
         .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
-                } label: {
-                    Image(systemName: homeAssistantService.connectionStatus.systemImage)
-                }
-                .accessibilityLabel(homeAssistantService.connectionStatus.title)
-            }
-            // Options Button
             ToolbarItem(placement: .primaryAction) {
                 optionsMenu
             }
@@ -61,7 +52,7 @@ struct DashboardView: View {
 
     private var favoritesSection: some View {
         DashboardSection(title: "Favorites", isEmpty: visibleEntityIDs.isEmpty) {
-            LazyVGrid(columns: adaptiveColumns, spacing: AppSpacing.large) {
+            LazyVGrid(columns: adaptiveColumns, spacing: AppSpacing.medium) {
                 ForEach(visibleEntityIDs, id: \.self) { entityID in
                     DashboardCardView(entityID: entityID)
                 }
@@ -72,6 +63,17 @@ struct DashboardView: View {
     // MARK: - Options Menu
     private var optionsMenu: some View {
         Menu {
+            Section {
+                Label(homeAssistantService.connectionStatus.title, systemImage: homeAssistantService.connectionStatus.systemImage)
+
+                Button(action: {
+                    Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
+                }) {
+                    Label("Reconnect", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(!connectionSettings.hasCredentials || homeAssistantService.connectionStatus == .connected)
+            }
+
             Section {
                 Button(action: {
                     isEditingDashboard = true
