@@ -96,7 +96,7 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
     }
 }
 
-enum SensorDisplayKind: Sendable {
+nonisolated enum SensorDisplayKind: Equatable, Sendable {
     case temperature
     case humidity
     case battery

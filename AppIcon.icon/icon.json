@@ -19,8 +19,26 @@
     {
       "layers" : [
         {
+          "hidden" : true,
           "image-name" : "Homestead-Icon.png",
           "name" : "Homestead-Icon"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "hidden" : false,
+          "image-name" : "D35630F7-5DF4-4484-B9CC-9F14577C7A86(1).png",
+          "name" : "D35630F7-5DF4-4484-B9CC-9F14577C7A86(1)"
         }
       ],
       "shadow" : {

@@ -37,7 +37,7 @@ struct SettingsView: View {
                     }
                 } label: {
                     Label("Test Connection", systemImage: "network")
-                        .frame(maxWidth: .infinity, alignment: .center)
+//                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .disabled(!connectionSettings.hasCredentials || homeAssistantService.smokeTestState.isTesting)
 
@@ -56,7 +56,7 @@ struct SettingsView: View {
                         }
                     } label: {
                         Label(connectButtonTitle, systemImage: "bolt.horizontal.circle.fill")
-                            .frame(maxWidth: .infinity, alignment: .center)
+//                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(
@@ -70,7 +70,7 @@ struct SettingsView: View {
                     Task { await homeAssistantService.disconnect() }
                 } label: {
                     Label("Disconnect", systemImage: "xmark.circle")
-                        .frame(maxWidth: .infinity, alignment: .center)
+//                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .disabled(homeAssistantService.connectionStatus == .disconnected)
             }
@@ -123,6 +123,11 @@ struct SettingsView: View {
                 Text("Safe to share: this endpoint does not include your access token.")
             }
 #endif
+            Section {
+                NavigationLink(destination: AboutView()) {
+                    Label("About", systemImage: "info.circle")
+                }
+            }
         }
         .navigationTitle("Settings")
         .toolbarTitleDisplayMode(.inline)

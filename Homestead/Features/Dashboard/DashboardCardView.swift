@@ -2,56 +2,256 @@ import SwiftUI
 
 struct DashboardCardView: View {
     let entityID: String
+    let size: DashboardCardSize
 
     @Environment(HAStateStore.self) private var stateStore
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var isShowingLightDetails = false
 
     var body: some View {
         if let entityBox = stateStore.entityBox(for: entityID) {
-            switch entityBox.domain {
-            case .light:
-                LightCard(entityBox: entityBox)
-            case .sensor:
-                SensorCard(entityBox: entityBox)
-            default:
-                EntitySummaryCard(entityBox: entityBox)
+            let presentation = DashboardEntityPresentation(entityBox: entityBox)
+
+            DashboardEntityCard(
+                presentation: presentation,
+                size: size,
+                toggle: primaryAction(for: entityBox),
+                showDetails: detailsAction(for: entityBox)
+            )
+            .sheet(isPresented: $isShowingLightDetails) {
+                LightDetailView(entityBox: entityBox)
             }
+        }
+    }
+
+    private func primaryAction(for entityBox: HAEntityState) -> (() -> Void)? {
+        guard entityBox.lightEntity != nil else { return nil }
+
+        return {
+            Task { await homeAssistantService.toggleLight(entityID: entityBox.entityID) }
+        }
+    }
+
+    private func detailsAction(for entityBox: HAEntityState) -> (() -> Void)? {
+        guard entityBox.lightEntity != nil else { return nil }
+
+        return {
+            isShowingLightDetails = true
         }
     }
 }
 
-private struct EntitySummaryCard: View {
-    let entityBox: HAEntityState
+private struct DashboardEntityCard: View {
+    let presentation: DashboardEntityPresentation
+    let size: DashboardCardSize
+    let toggle: (() -> Void)?
+    let showDetails: (() -> Void)?
 
     var body: some View {
-        let entity = entityBox.homeEntity
+        CardContainer(isActive: presentation.isActive, minHeight: size.minHeight) {
+            ZStack(alignment: .topLeading) {
+                Button {
+                    showDetails?()
+                } label: {
+                    cardContent
+                        .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(HomeCardButtonStyle())
+                .disabled(showDetails == nil)
+                .accessibilityLabel(presentation.title)
+                .accessibilityValue(presentation.accessibilityValue)
 
-        CardContainer {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                CardIconView(systemName: entity.iconName)
-
-                Spacer(minLength: AppSpacing.small)
-
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(entity.displayName)
-                        .font(.headline)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.8)
-
-                    Text(entity.state.capitalized)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(entity.isAvailable ? .secondary : Color.red)
-                        .lineLimit(1)
+                if let toggle {
+                    Button(action: toggle) {
+                        CardIconView(
+                            systemName: presentation.iconName,
+                            isActive: presentation.isActive
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Toggle \(presentation.title)")
+                    .accessibilityValue(presentation.accessibilityValue)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var cardContent: some View {
+        switch size {
+        case .compact:
+            compactContent
+        case .large:
+            largeContent
+        }
+    }
+
+    private var compactContent: some View {
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            iconPlaceholder
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(presentation.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.82)
+
+                Text(presentation.subtitle)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(presentation.subtitleColor)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var largeContent: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.large) {
+            iconPlaceholder
+
+            Spacer(minLength: AppSpacing.small)
+
+            if let headline = presentation.headline {
+                Text(headline)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(presentation.headlineColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(presentation.title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.82)
+
+                Text(presentation.subtitle)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(presentation.subtitleColor)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+    }
+
+    private var iconPlaceholder: some View {
+        Color.clear
+            .frame(width: 44, height: 44)
+            .overlay(alignment: .topLeading) {
+                if toggle == nil {
+                    CardIconView(systemName: presentation.iconName, isActive: presentation.isActive)
+                }
+            }
+    }
+
+    private var cardContentMinHeight: CGFloat {
+        max(0, size.minHeight - (AppSpacing.medium * 2))
+    }
+}
+
+private struct DashboardEntityPresentation {
+    let title: String
+    let subtitle: String
+    let headline: String?
+    let iconName: String
+    let isActive: Bool
+    let isAvailable: Bool
+    let accentColor: Color
+
+    init(entityBox: HAEntityState) {
+        if let light = entityBox.lightEntity {
+            title = light.displayName
+            subtitle = Self.lightSubtitle(for: light)
+            headline = light.isOn ? light.brightnessPercentage.map { "\($0)%" } : nil
+            iconName = light.iconName
+            isActive = light.isOn
+            isAvailable = true
+            accentColor = .accentColor
+        } else if let sensor = entityBox.sensorEntity {
+            title = sensor.displayName
+            subtitle = sensor.displaySubtitle
+            headline = sensor.formattedValue
+            iconName = sensor.iconName
+            isActive = false
+            isAvailable = sensor.isAvailable
+            accentColor = Self.sensorAccentColor(for: sensor)
+        } else {
+            let entity = entityBox.homeEntity
+            title = entity.displayName
+            subtitle = entity.state.replacingOccurrences(of: "_", with: " ").capitalized
+            headline = nil
+            iconName = entity.iconName
+            isActive = entity.state == "on" || entity.state == "open"
+            isAvailable = entity.isAvailable
+            accentColor = .accentColor
+        }
+    }
+
+    var accessibilityValue: String {
+        subtitle
+    }
+
+    var subtitleColor: Color {
+        guard isAvailable else { return .red }
+        return .secondary
+    }
+
+    var headlineColor: Color {
+        guard isAvailable else { return .secondary }
+        return accentColor
+    }
+
+    private static func lightSubtitle(for light: LightEntity) -> String {
+        guard light.isOn else { return "Off" }
+        guard let brightnessPercentage = light.brightnessPercentage else { return "On" }
+
+        return "\(brightnessPercentage)%"
+    }
+
+    private static func sensorAccentColor(for sensor: SensorEntity) -> Color {
+        guard sensor.isAvailable else { return .secondary }
+
+        switch sensor.displayKind {
+        case .temperature:
+            return .orange
+        case .humidity, .water:
+            return .cyan
+        case .battery:
+            return .green
+        case .energy, .power, .voltage, .current, .illuminance:
+            return .yellow
+        case .pressure:
+            return .purple
+        case .signal:
+            return .blue
+        case .gas:
+            return .orange
+        case .problem:
+            return .red
+        case .generic:
+            return .accentColor
         }
     }
 }
 
 #if DEBUG
-#Preview {
-    DashboardCardView(entityID: "cover.primary_shades")
-        .frame(width: 180, height: 180)
+#Preview("Compact") {
+    DashboardCardView(entityID: "light.living_room_lamps", size: .compact)
+        .frame(width: 180)
         .padding()
+        .background(Color(.systemGroupedBackground))
+        .withPreviewEnvironment()
+}
+
+#Preview("Large") {
+    DashboardCardView(entityID: "sensor.hallway_temperature", size: .large)
+        .frame(width: 180)
+        .padding()
+        .background(Color(.systemGroupedBackground))
         .withPreviewEnvironment()
 }
 #endif

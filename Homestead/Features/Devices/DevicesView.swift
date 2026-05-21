@@ -27,7 +27,7 @@ struct DevicesView: View {
                         toggleSection(group.id)
                     } label: {
                         HStack {
-                            Label(group.title, systemImage: group.systemImage)
+                            groupHeaderLabel(for: group)
                             Spacer()
                             Image(systemName: collapsedGroups.contains(group.id) ? "chevron.right" : "chevron.down")
                                 .font(.caption.weight(.bold))
@@ -66,9 +66,18 @@ struct DevicesView: View {
                 }
             }
         } label: {
-            Image(systemName: "square.3.layers.3d")
+            Image(systemName: "line.3.horizontal.decrease")
         }
         .accessibilityLabel("Group devices")
+    }
+
+    @ViewBuilder
+    private func groupHeaderLabel(for group: DevicesEntityGroup) -> some View {
+        if grouping == .device {
+            Text(group.title)
+        } else {
+            Label(group.title, systemImage: group.systemImage)
+        }
     }
 
     private func toggleSection(_ groupID: String) {

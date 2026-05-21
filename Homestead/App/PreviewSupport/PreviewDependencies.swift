@@ -177,6 +177,7 @@ private extension UserDefaults {
         let defaults = UserDefaults(suiteName: "com.tyler.Homestead.preview") ?? .standard
         defaults.removeObject(forKey: "homeAssistantBaseURL")
         defaults.removeObject(forKey: "dashboardEntityIDs")
+        defaults.removeObject(forKey: "dashboardCardSizes")
         return defaults
     }
 }

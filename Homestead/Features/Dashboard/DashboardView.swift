@@ -7,8 +7,9 @@ struct DashboardView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var isEditingDashboard = false
 
-    private let adaptiveColumns = [
-        GridItem(.adaptive(minimum: 150, maximum: 210), spacing: AppSpacing.medium)
+    private let columns = [
+        GridItem(.flexible(), spacing: AppSpacing.medium),
+        GridItem(.flexible(), spacing: AppSpacing.medium)
     ]
 
     var body: some View {
@@ -52,9 +53,12 @@ struct DashboardView: View {
 
     private var favoritesSection: some View {
         DashboardSection(isEmpty: visibleEntityIDs.isEmpty) {
-            LazyVGrid(columns: adaptiveColumns, spacing: AppSpacing.medium) {
+            LazyVGrid(columns: columns, spacing: AppSpacing.medium) {
                 ForEach(visibleEntityIDs, id: \.self) { entityID in
-                    DashboardCardView(entityID: entityID)
+                    DashboardCardView(
+                        entityID: entityID,
+                        size: dashboardConfiguration.cardSize(for: entityID)
+                    )
                 }
             }
         }

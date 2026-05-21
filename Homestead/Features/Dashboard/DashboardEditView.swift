@@ -6,6 +6,7 @@ struct DashboardEditView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var searchText = ""
     @State private var editMode: EditMode = .active
+    @State private var isShowingResetConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -21,7 +22,7 @@ struct DashboardEditView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
-                        dashboardConfiguration.reset(using: stateStore.allEntities)
+                        isShowingResetConfirmation = true
                     } label: {
                         Label("Reset", systemImage: "arrow.counterclockwise")
                     }
@@ -37,6 +38,17 @@ struct DashboardEditView: View {
                     }
                     .accessibilityLabel("Done")
                 }
+            }
+            .confirmationDialog(
+                "Reset Home View?",
+                isPresented: $isShowingResetConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Restore Suggested Cards", role: .destructive) {
+                    dashboardConfiguration.reset(using: stateStore.allEntities)
+                }
+            } message: {
+                Text("This replaces your selected Home cards with the suggested default layout.")
             }
         }
     }
@@ -101,9 +113,21 @@ struct DashboardEditView: View {
                 ForEach(selectedEntities) { entity in
                     DashboardEntityRow(
                         entity: entity,
-                        status: .remove
+                        status: .remove,
+                        cardSize: dashboardConfiguration.cardSize(for: entity.entityID),
+                        setCardSize: { size in
+                            dashboardConfiguration.setCardSize(size, for: entity.entityID)
+                        }
                     ) {
                         dashboardConfiguration.remove(entity.entityID)
+                    }
+                }
+                .onDelete { indexSet in
+                    for index in indexSet {
+                        if index >= 0 && index < selectedEntities.count {
+                            let id = selectedEntities[index].entityID
+                            dashboardConfiguration.remove(id)
+                        }
                     }
                 }
                 .onMove { source, destination in
@@ -150,37 +174,101 @@ struct DashboardEditView: View {
 private struct DashboardEntityRow: View {
     let entity: HomeEntity
     let status: SelectionStatus
+    var cardSize: DashboardCardSize?
+    var setCardSize: ((DashboardCardSize) -> Void)?
     let action: () -> Void
 
     var body: some View {
+        if status == .remove {
+            selectedRow
+        } else {
+            selectionRow
+        }
+    }
+
+    private var selectionRow: some View {
         Button(action: action) {
             Label {
-                HStack(alignment: .center, spacing: AppSpacing.medium) {
-                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                        Text(entity.displayName)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Text(entity.entityID)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer(minLength: AppSpacing.medium)
-
-                    Image(systemName: status.actionSystemImage)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(status.actionColor)
-                }
+                rowContent
             } icon: {
-                Image(systemName: entity.iconName)
-                    .foregroundStyle(entity.isAvailable ? Color.accentColor : Color.secondary)
+                icon
             }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(entity.displayName), \(status.accessibilityAction)")
     }
 
-    enum SelectionStatus {
+    private var selectedRow: some View {
+        Label {
+            rowContent
+        } icon: {
+            icon
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var rowContent: some View {
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(entity.displayName)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Text(entity.entityID)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer(minLength: AppSpacing.medium)
+
+            if status == .remove {
+                sizeMenu
+
+                Button(action: action) {
+                    Image(systemName: status.actionSystemImage)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(status.actionColor)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(entity.displayName)")
+            } else {
+                Image(systemName: status.actionSystemImage)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(status.actionColor)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sizeMenu: some View {
+        if let cardSize, let setCardSize {
+            Menu {
+                ForEach(DashboardCardSize.allCases, id: \.self) { size in
+                    Button {
+                        setCardSize(size)
+                    } label: {
+                        Label(size.displayName, systemImage: cardSize == size ? "checkmark" : size.systemImage)
+                    }
+                }
+            } label: {
+                Label(cardSize.displayName, systemImage: cardSize.systemImage)
+                    .labelStyle(.iconOnly)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityLabel("Card size")
+        }
+    }
+
+    private var icon: some View {
+        Image(systemName: entity.iconName)
+            .foregroundStyle(entity.isAvailable ? Color.accentColor : Color.secondary)
+    }
+
+    enum SelectionStatus: Equatable {
         case add
         case selected
         case remove
@@ -192,7 +280,7 @@ private struct DashboardEntityRow: View {
             case .selected:
                 "checkmark.circle.fill"
             case .remove:
-                "minus.circle"
+                "minus.circle.fill"
             }
         }
 
