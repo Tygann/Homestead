@@ -29,7 +29,7 @@ struct DashboardEditView: View {
                     Button("Reset") {
                         dashboardConfiguration.reset(using: stateStore.allEntities)
                     }
-                    .disabled(stateStore.allEntities.isEmpty)
+                    .disabled(!stateStore.hasEntities)
                 }
             }
         }
@@ -37,7 +37,7 @@ struct DashboardEditView: View {
 
     private var selectedEntities: [HomeEntity] {
         dashboardConfiguration
-            .visibleEntityIDs(from: stateStore.allEntities)
+            .visibleEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
             .compactMap { stateStore.entity(for: $0) }
     }
 

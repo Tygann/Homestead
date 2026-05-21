@@ -37,6 +37,24 @@ struct HAEventDTO: Decodable, Equatable, Sendable {
         timeFired = HADateParser.date(from: try container.decodeIfPresent(String.self, forKey: .timeFired))
         context = try container.decodeIfPresent(HAContextDTO.self, forKey: .context)
     }
+
+    nonisolated var stateChangedNewState: HAEntityDTO? {
+        guard eventType == "state_changed",
+              case .object(let eventData) = data,
+              case .object(let newState)? = eventData["new_state"],
+              case .string(let entityID)? = newState["entity_id"],
+              case .string(let state)? = newState["state"] else {
+            return nil
+        }
+
+        return HAEntityDTO(
+            entityID: entityID,
+            state: state,
+            attributes: newState["attributes"]?.objectValue ?? [:],
+            lastChanged: HADateParser.date(from: newState["last_changed"]?.stringValue),
+            lastUpdated: HADateParser.date(from: newState["last_updated"]?.stringValue)
+        )
+    }
 }
 
 struct HAStateChangedEventDTO: Decodable, Equatable, Sendable {

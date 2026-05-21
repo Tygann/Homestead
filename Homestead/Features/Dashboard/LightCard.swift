@@ -1,38 +1,54 @@
 import SwiftUI
 
 struct LightCard: View {
-    @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var isShowingDetails = false
 
-    let entityID: String
+    let entityBox: HAEntityState
 
     var body: some View {
-        if let light = stateStore.lightEntity(for: entityID) {
+        if let light = entityBox.lightEntity {
             CardContainer(isActive: light.isOn) {
-                Button {
-                    Task { await homeAssistantService.toggleLight(entityID: entityID) }
-                } label: {
-                    VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                        CardIconView(systemName: light.iconName, isActive: light.isOn)
+                ZStack(alignment: .topTrailing) {
+                    Button {
+                        Task { await homeAssistantService.toggleLight(entityID: entityBox.entityID) }
+                    } label: {
+                        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                            CardIconView(systemName: light.iconName, isActive: light.isOn)
 
-                        Spacer(minLength: AppSpacing.small)
+                            Spacer(minLength: AppSpacing.small)
 
-                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                            Text(light.displayName)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.85)
+                            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                                Text(light.displayName)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.85)
 
-                            Text(lightSubtitle(for: light))
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                                Text(lightSubtitle(for: light))
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
                         }
+                        .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
+                    .buttonStyle(HomeCardButtonStyle())
+
+                    Button {
+                        isShowingDetails = true
+                    } label: {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 34, height: 34)
+                            .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                    }
+                    .accessibilityLabel("Show controls for \(light.displayName)")
                 }
-                .buttonStyle(HomeCardButtonStyle())
+            }
+            .sheet(isPresented: $isShowingDetails) {
+                LightDetailView(entityBox: entityBox)
             }
             .accessibilityLabel(light.displayName)
             .accessibilityValue(light.isOn ? "On" : "Off")
@@ -49,9 +65,11 @@ struct LightCard: View {
 
 #if DEBUG
 #Preview {
-    LightCard(entityID: "light.living_room_lamps")
-        .padding()
-        .background(Color(.systemGroupedBackground))
-        .withPreviewEnvironment()
+    if let entityBox = PreviewDependencies.sample.stateStore.entityBox(for: "light.living_room_lamps") {
+        LightCard(entityBox: entityBox)
+            .padding()
+            .background(Color(.systemGroupedBackground))
+            .withPreviewEnvironment()
+    }
 }
 #endif

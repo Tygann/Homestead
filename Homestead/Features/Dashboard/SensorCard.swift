@@ -1,12 +1,10 @@
 import SwiftUI
 
 struct SensorCard: View {
-    @Environment(HAStateStore.self) private var stateStore
-
-    let entityID: String
+    let entityBox: HAEntityState
 
     var body: some View {
-        if let sensor = stateStore.sensorEntity(for: entityID) {
+        if let sensor = entityBox.sensorEntity {
             CardContainer {
                 VStack(alignment: .leading, spacing: AppSpacing.medium) {
                     CardIconView(systemName: sensor.iconName)
@@ -39,9 +37,11 @@ struct SensorCard: View {
 
 #if DEBUG
 #Preview {
-    SensorCard(entityID: "sensor.hallway_temperature")
-        .padding()
-        .background(Color(.systemGroupedBackground))
-        .withPreviewEnvironment()
+    if let entityBox = PreviewDependencies.sample.stateStore.entityBox(for: "sensor.hallway_temperature") {
+        SensorCard(entityBox: entityBox)
+            .padding()
+            .background(Color(.systemGroupedBackground))
+            .withPreviewEnvironment()
+    }
 }
 #endif

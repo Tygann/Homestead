@@ -14,7 +14,7 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                if stateStore.allEntities.isEmpty {
+                if !stateStore.hasEntities {
                     EmptyDashboardCard()
                 } else if visibleEntityIDs.isEmpty {
                     EmptyConfiguredDashboardCard {
@@ -41,17 +41,19 @@ struct DashboardView: View {
         .onAppear {
             dashboardConfiguration.reconcile(with: stateStore.allEntities)
         }
-        .onChange(of: stateStore.allEntities) { _, entities in
-            dashboardConfiguration.reconcile(with: entities)
+        .onChange(of: stateStore.entityCatalogSignature) { _, _ in
+            dashboardConfiguration.reconcile(with: stateStore.allEntities)
         }
     }
 
     private var visibleEntityIDs: [String] {
-        dashboardConfiguration.visibleEntityIDs(from: stateStore.allEntities)
+        dashboardConfiguration.visibleEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
     }
 
     private var favoritesSection: some View {
-        DashboardSection(title: "Favorites", isEmpty: visibleEntityIDs.isEmpty) {
+//        DashboardSection(title: "Favorites", isEmpty:
+        DashboardSection(title: "", isEmpty:
+                            visibleEntityIDs.isEmpty) {
             LazyVGrid(columns: adaptiveColumns, spacing: AppSpacing.medium) {
                 ForEach(visibleEntityIDs, id: \.self) { entityID in
                     DashboardCardView(entityID: entityID)
@@ -86,7 +88,7 @@ struct DashboardView: View {
                 }) {
                     Label("Reset Home View", systemImage: "arrow.counterclockwise")
                 }
-                .disabled(stateStore.allEntities.isEmpty)
+                .disabled(!stateStore.hasEntities)
             }
         } label: {
             Image(systemName: "ellipsis")

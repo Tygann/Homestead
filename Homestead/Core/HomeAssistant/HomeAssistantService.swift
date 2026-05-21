@@ -10,6 +10,7 @@ final class HomeAssistantService {
 
     @ObservationIgnored private let client: HAWebSocketClient
     @ObservationIgnored private let stateStore: HAStateStore
+    @ObservationIgnored private let stateEventBatcher = HAStateEventBatcher()
     @ObservationIgnored private var activeConfiguration: HAConnectionConfiguration?
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
     @ObservationIgnored private var shouldReconnect = false
@@ -126,6 +127,12 @@ final class HomeAssistantService {
             entityID: entityID,
             serviceData: ["brightness": .number(Double(max(1, brightness)))]
         )
+        if lastErrorMessage == nil {
+            stateStore.applyOptimisticLightBrightness(
+                entityID: entityID,
+                brightnessPercentage: clampedPercentage
+            )
+        }
     }
 
     func callService(
@@ -157,8 +164,16 @@ final class HomeAssistantService {
     }
 
     private func configureClientCallbacks() async {
-        await client.setEventHandler { [weak stateStore] event in
-            stateStore?.apply(event: event)
+        await stateEventBatcher.setFlushHandler { [weak stateStore] updates in
+            stateStore?.applyLiveStateUpdates(updates)
+        }
+
+        await client.setEventHandler { [stateEventBatcher] event in
+            guard let newState = event.stateChangedNewState else {
+                return
+            }
+
+            await stateEventBatcher.enqueue(newState)
         }
 
         await client.setDisconnectHandler { [weak self] error in
@@ -214,5 +229,53 @@ final class HomeAssistantService {
         if connectionStatus == .reconnecting {
             connectionStatus = .disconnected
         }
+    }
+}
+
+actor HAStateEventBatcher {
+    private let flushInterval: Duration
+    private var pendingUpdatesByID: [String: HAEntityDTO] = [:]
+    private var flushTask: Task<Void, Never>?
+    private var flushHandler: (@MainActor @Sendable ([HAEntityDTO]) -> Void)?
+
+    init(flushInterval: Duration = .milliseconds(200)) {
+        self.flushInterval = flushInterval
+    }
+
+    func setFlushHandler(_ handler: (@MainActor @Sendable ([HAEntityDTO]) -> Void)?) {
+        flushHandler = handler
+    }
+
+    func enqueue(_ update: HAEntityDTO) {
+        pendingUpdatesByID[update.entityID] = update
+        scheduleFlushIfNeeded()
+    }
+
+    private func scheduleFlushIfNeeded() {
+        guard flushTask == nil else {
+            return
+        }
+
+        flushTask = Task {
+            do {
+                try await Task.sleep(for: flushInterval)
+            } catch {
+                return
+            }
+
+            await flush()
+        }
+    }
+
+    private func flush() async {
+        let updates = Array(pendingUpdatesByID.values)
+        pendingUpdatesByID.removeAll()
+        flushTask = nil
+
+        guard !updates.isEmpty, let flushHandler else {
+            return
+        }
+
+        await flushHandler(updates)
     }
 }

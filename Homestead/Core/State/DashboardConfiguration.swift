@@ -29,18 +29,23 @@ final class DashboardConfiguration {
     }
 
     func reconcile(with entities: [HomeEntity]) {
-        let availableIDs = Set(entities.map(\.entityID))
+        reconcile(withAvailableEntityIDs: Set(entities.map(\.entityID)))
+        seedIfNeeded(from: entities)
+    }
+
+    func reconcile(withAvailableEntityIDs availableIDs: Set<String>) {
         let currentEntityIDs = entityIDs.filter { availableIDs.contains($0) }
 
         if currentEntityIDs != entityIDs {
             entityIDs = currentEntityIDs
         }
-
-        seedIfNeeded(from: entities)
     }
 
     func visibleEntityIDs(from entities: [HomeEntity]) -> [String] {
-        let availableIDs = Set(entities.map(\.entityID))
+        visibleEntityIDs(fromAvailableEntityIDs: Set(entities.map(\.entityID)))
+    }
+
+    func visibleEntityIDs(fromAvailableEntityIDs availableIDs: Set<String>) -> [String] {
         return entityIDs.filter { availableIDs.contains($0) }
     }
 

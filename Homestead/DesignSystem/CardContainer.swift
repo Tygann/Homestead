@@ -10,11 +10,10 @@ struct CardContainer<Content: View>: View {
             .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
             .padding(AppSpacing.medium)
             .background(cardBackground, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-            .shadow(color: .black.opacity(isActive ? 0.14 : 0.06), radius: isActive ? 18 : 10, y: isActive ? 10 : 5)
-            .animation(.smooth(duration: 0.25), value: isActive)
+            .shadow(color: .black.opacity(isActive ? 0.08 : 0.035), radius: isActive ? 8 : 4, y: isActive ? 4 : 2)
     }
 
     private var cardBackground: some ShapeStyle {
-        isActive ? AnyShapeStyle(Color.accentColor.opacity(0.22)) : AnyShapeStyle(.regularMaterial)
+        isActive ? AnyShapeStyle(Color.accentColor.opacity(0.18)) : AnyShapeStyle(Color(.secondarySystemGroupedBackground))
     }
 }

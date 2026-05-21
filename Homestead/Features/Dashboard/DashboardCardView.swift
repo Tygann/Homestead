@@ -6,23 +6,25 @@ struct DashboardCardView: View {
     @Environment(HAStateStore.self) private var stateStore
 
     var body: some View {
-        if let entity = stateStore.entity(for: entityID) {
-            switch entity.domain {
+        if let entityBox = stateStore.entityBox(for: entityID) {
+            switch entityBox.domain {
             case .light:
-                LightCard(entityID: entityID)
+                LightCard(entityBox: entityBox)
             case .sensor:
-                SensorCard(entityID: entityID)
+                SensorCard(entityBox: entityBox)
             default:
-                EntitySummaryCard(entity: entity)
+                EntitySummaryCard(entityBox: entityBox)
             }
         }
     }
 }
 
 private struct EntitySummaryCard: View {
-    let entity: HomeEntity
+    let entityBox: HAEntityState
 
     var body: some View {
+        let entity = entityBox.homeEntity
+
         CardContainer {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 CardIconView(systemName: entity.iconName)

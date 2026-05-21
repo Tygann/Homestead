@@ -9,7 +9,11 @@ struct CardIconView: View {
             .font(.title3.weight(.semibold))
             .foregroundStyle(isActive ? Color.accentColor : Color.primary)
             .frame(width: 44, height: 44)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+            .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
             .accessibilityHidden(true)
+    }
+
+    private var iconBackground: Color {
+        isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
 }

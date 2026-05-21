@@ -65,6 +65,11 @@ enum JSONValue: Codable, Equatable, Hashable, Sendable {
         return value
     }
 
+    nonisolated var objectValue: [String: JSONValue]? {
+        guard case .object(let value) = self else { return nil }
+        return value
+    }
+
     nonisolated func decoded<T: Decodable>(_ type: T.Type) throws -> T {
         let data = try JSONEncoder().encode(self)
         return try JSONDecoder().decode(type, from: data)

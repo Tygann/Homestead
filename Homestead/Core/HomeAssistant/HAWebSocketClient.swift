@@ -6,7 +6,7 @@ actor HAWebSocketClient {
     private var receiveTask: Task<Void, Never>?
     private var nextID = 1
     private var pendingResults: [Int: CheckedContinuation<HAWebSocketIncomingMessage, Error>] = [:]
-    private var eventHandler: (@MainActor @Sendable (HAEventDTO) -> Void)?
+    private var eventHandler: (@Sendable (HAEventDTO) async -> Void)?
     private var disconnectHandler: (@MainActor @Sendable (Error) -> Void)?
     private var isDisconnecting = false
 
@@ -14,7 +14,7 @@ actor HAWebSocketClient {
         self.session = session
     }
 
-    func setEventHandler(_ handler: (@MainActor @Sendable (HAEventDTO) -> Void)?) {
+    func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) {
         eventHandler = handler
     }
 

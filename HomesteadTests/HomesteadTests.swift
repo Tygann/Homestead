@@ -161,6 +161,11 @@ struct HomesteadTests {
 
         #expect(store.lightEntity(for: "light.kitchen")?.isOn == true)
         #expect(store.entity(for: "light.kitchen")?.state == "on")
+
+        store.applyOptimisticLightBrightness(entityID: "light.kitchen", brightnessPercentage: 40)
+
+        #expect(store.lightEntity(for: "light.kitchen")?.isOn == true)
+        #expect(store.lightEntity(for: "light.kitchen")?.brightnessPercentage == 40)
     }
 
     @MainActor

@@ -17,7 +17,7 @@ struct HAEntityDTO: Decodable, Equatable, Identifiable, Sendable {
         case lastUpdated = "last_updated"
     }
 
-    init(
+    nonisolated init(
         entityID: String,
         state: String,
         attributes: [String: JSONValue] = [:],

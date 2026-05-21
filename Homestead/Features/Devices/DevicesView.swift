@@ -7,12 +7,16 @@ struct DevicesView: View {
     @State private var collapsedDomains: Set<EntityDomain> = []
 
     var body: some View {
+        let groups = filteredEntityGroups
+
         List {
-            ForEach(filteredEntityGroups, id: \.domain) { group in
+            ForEach(groups, id: \.domain) { group in
                 Section {
                     if !collapsedDomains.contains(group.domain) {
-                        ForEach(group.entities) { entity in
-                            DeviceEntityRow(entity: entity)
+                        ForEach(group.entityIDs, id: \.self) { entityID in
+                            if let entityBox = stateStore.entityBox(for: entityID) {
+                                DeviceEntityRow(entityBox: entityBox)
+                            }
                         }
                     }
                 } header: {
@@ -32,9 +36,9 @@ struct DevicesView: View {
             }
         }
         .overlay {
-            if stateStore.allEntities.isEmpty {
+            if !stateStore.hasEntities {
                 ContentUnavailableView("No Devices", systemImage: "square.grid.2x2")
-            } else if filteredEntityGroups.isEmpty {
+            } else if groups.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
         }
@@ -78,12 +82,12 @@ struct DevicesView: View {
     }
 
     private var availableDomains: [EntityDomain] {
-        stateStore.entitiesByDomain.map(\.domain)
+        stateStore.entityIDGroupsByDomain.map(\.domain)
     }
 
-    private var filteredEntityGroups: [(domain: EntityDomain, entities: [HomeEntity])] {
+    private var filteredEntityGroups: [EntityDomainGroup] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let domainGroups = stateStore.entitiesByDomain.filter { group in
+        let domainGroups = stateStore.entityIDGroupsByDomain.filter { group in
             selectedDomain == nil || group.domain == selectedDomain
         }
 
@@ -92,25 +96,31 @@ struct DevicesView: View {
         }
 
         return domainGroups.compactMap { group in
-            let matchingEntities = group.entities.filter { entity in
-                entity.displayName.localizedCaseInsensitiveContains(query) ||
+            let matchingEntityIDs = group.entityIDs.filter { entityID in
+                guard let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
+                    return false
+                }
+
+                return entity.displayName.localizedCaseInsensitiveContains(query) ||
                     entity.entityID.localizedCaseInsensitiveContains(query) ||
                     entity.state.localizedCaseInsensitiveContains(query)
             }
 
-            guard !matchingEntities.isEmpty else {
+            guard !matchingEntityIDs.isEmpty else {
                 return nil
             }
 
-            return (domain: group.domain, entities: matchingEntities)
+            return EntityDomainGroup(domain: group.domain, entityIDs: matchingEntityIDs)
         }
     }
 }
 
 private struct DeviceEntityRow: View {
-    let entity: HomeEntity
+    let entityBox: HAEntityState
 
     var body: some View {
+        let entity = entityBox.homeEntity
+
         Label {
             HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
