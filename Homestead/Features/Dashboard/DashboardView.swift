@@ -51,9 +51,7 @@ struct DashboardView: View {
     }
 
     private var favoritesSection: some View {
-//        DashboardSection(title: "Favorites", isEmpty:
-        DashboardSection(title: "", isEmpty:
-                            visibleEntityIDs.isEmpty) {
+        DashboardSection(isEmpty: visibleEntityIDs.isEmpty) {
             LazyVGrid(columns: adaptiveColumns, spacing: AppSpacing.medium) {
                 ForEach(visibleEntityIDs, id: \.self) { entityID in
                     DashboardCardView(entityID: entityID)
@@ -82,13 +80,6 @@ struct DashboardView: View {
                 }) {
                     Label("Edit Home View", systemImage: "square.grid.2x2")
                 }
-
-                Button(action: {
-                    dashboardConfiguration.reset(using: stateStore.allEntities)
-                }) {
-                    Label("Reset Home View", systemImage: "arrow.counterclockwise")
-                }
-                .disabled(!stateStore.hasEntities)
             }
         } label: {
             Image(systemName: "ellipsis")
@@ -98,16 +89,12 @@ struct DashboardView: View {
 }
 
 private struct DashboardSection<Content: View>: View {
-    let title: String
     let isEmpty: Bool
     @ViewBuilder var content: Content
 
     var body: some View {
         if !isEmpty {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                Text(title)
-                    .font(.title2.bold())
-
                 content
             }
         }

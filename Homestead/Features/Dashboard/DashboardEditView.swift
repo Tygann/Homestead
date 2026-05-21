@@ -5,6 +5,7 @@ struct DashboardEditView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var searchText = ""
+    @State private var editMode: EditMode = .active
 
     var body: some View {
         NavigationStack {
@@ -16,20 +17,25 @@ struct DashboardEditView: View {
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
             .navigationTitle("Edit Home")
             .toolbarTitleDisplayMode(.inline)
+            .environment(\.editMode, $editMode)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItemGroup(placement: .primaryAction) {
-                    EditButton()
-
-                    Button("Reset") {
+                    Button {
                         dashboardConfiguration.reset(using: stateStore.allEntities)
+                    } label: {
+                        Label("Reset", systemImage: "arrow.counterclockwise")
                     }
                     .disabled(!stateStore.hasEntities)
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title3.weight(.semibold))
+                    }
+                    .accessibilityLabel("Done")
                 }
             }
         }
@@ -235,7 +241,7 @@ private struct EditSummaryMetric: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AppSpacing.large)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 }
 

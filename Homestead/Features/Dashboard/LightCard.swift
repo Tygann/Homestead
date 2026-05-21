@@ -9,12 +9,13 @@ struct LightCard: View {
     var body: some View {
         if let light = entityBox.lightEntity {
             CardContainer(isActive: light.isOn) {
-                ZStack(alignment: .topTrailing) {
+                ZStack(alignment: .topLeading) {
                     Button {
-                        Task { await homeAssistantService.toggleLight(entityID: entityBox.entityID) }
+                        isShowingDetails = true
                     } label: {
                         VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                            CardIconView(systemName: light.iconName, isActive: light.isOn)
+                            Color.clear
+                                .frame(width: 44, height: 44)
 
                             Spacer(minLength: AppSpacing.small)
 
@@ -32,19 +33,19 @@ struct LightCard: View {
                             }
                         }
                         .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(HomeCardButtonStyle())
+                    .accessibilityLabel("Show controls for \(light.displayName)")
 
                     Button {
-                        isShowingDetails = true
+                        Task { await homeAssistantService.toggleLight(entityID: entityBox.entityID) }
                     } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 34, height: 34)
-                            .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                        CardIconView(systemName: light.iconName, isActive: light.isOn)
                     }
-                    .accessibilityLabel("Show controls for \(light.displayName)")
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Toggle \(light.displayName)")
+                    .accessibilityValue(light.isOn ? "On" : "Off")
                 }
             }
             .sheet(isPresented: $isShowingDetails) {
