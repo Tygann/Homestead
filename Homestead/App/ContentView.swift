@@ -34,6 +34,19 @@ struct ContentView: View {
 
             await homeAssistantService.connectIfPossible(settings: connectionSettings)
         }
+        .overlay(alignment: .bottom) {
+            if let feedback = homeAssistantService.serviceFeedback {
+                ServiceFeedbackBanner(feedback: feedback)
+                    .padding(.horizontal, AppSpacing.large)
+                    .padding(.bottom, AppSpacing.xxLarge + AppSpacing.large)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .task(id: feedback.id) {
+                        try? await Task.sleep(for: .seconds(3))
+                        homeAssistantService.clearServiceFeedback(id: feedback.id)
+                    }
+            }
+        }
+        .animation(.smooth(duration: 0.22), value: homeAssistantService.serviceFeedback?.id)
     }
 }
 

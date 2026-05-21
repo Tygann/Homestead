@@ -36,6 +36,64 @@ struct HomesteadTests {
         #expect(serviceData["brightness"] as? Double == 200)
     }
 
+    @Test func registryCommandEncodesHomeAssistantShape() throws {
+        let request = HAWebSocketRequest.registryCommand(
+            id: 7,
+            type: HAWebSocketMessageType.entityRegistryListForDisplay
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["id"] as? Int == 7)
+        #expect(object["type"] as? String == "config/entity_registry/list_for_display")
+    }
+
+    @Test func entityRegistryDisplayResponseDecodesCompactHomeAssistantPayload() throws {
+        let payload = """
+        {
+            "entities": [
+                {
+                    "ei": "sensor.ashtons_ipad_location_permission",
+                    "di": "ipad",
+                    "en": "Location permission",
+                    "hb": true
+                }
+            ]
+        }
+        """
+
+        let response = try JSONDecoder().decode(
+            HAEntityRegistryDisplayResponseDTO.self,
+            from: Data(payload.utf8)
+        )
+
+        #expect(response.entities.first?.entityID == "sensor.ashtons_ipad_location_permission")
+        #expect(response.entities.first?.deviceID == "ipad")
+        #expect(response.entities.first?.originalName == "Location permission")
+        #expect(response.entities.first?.hiddenBy == true)
+    }
+
+    @Test func entityRegistryDisplayResponseDecodesRawEntityArray() throws {
+        let payload = """
+        [
+            {
+                "ei": "light.kitchen",
+                "di": "kitchen",
+                "en": "Kitchen"
+            }
+        ]
+        """
+
+        let response = try JSONDecoder().decode(
+            HAEntityRegistryDisplayResponseDTO.self,
+            from: Data(payload.utf8)
+        )
+
+        #expect(response.entities.map(\.entityID) == ["light.kitchen"])
+        #expect(response.entities.first?.deviceID == "kitchen")
+    }
+
     @Test func entityMapperMapsLightAndSensorDomainModels() {
         let lightDTO = HAEntityDTO(
             entityID: "light.kitchen_pendants",
@@ -97,6 +155,15 @@ struct HomesteadTests {
             iconName: "gauge.medium",
             lastUpdated: nil
         )
+        let textState = SensorEntity(
+            entityID: "sensor.location_permission",
+            displayName: "Location Permission",
+            value: "authorized_always",
+            unit: nil,
+            deviceClass: nil,
+            iconName: "gauge.medium",
+            lastUpdated: nil
+        )
 
         #expect(humidity.formattedValue == "44%")
         #expect(humidity.valueText == "44")
@@ -113,6 +180,7 @@ struct HomesteadTests {
         #expect(unavailable.unitText == nil)
         #expect(unavailable.isAvailable == false)
         #expect(unavailable.displaySubtitle == "Sensor unavailable")
+        #expect(textState.formattedValue == "Authorized Always")
     }
 
     @MainActor
@@ -255,5 +323,36 @@ struct HomesteadTests {
         ])
 
         #expect(store.entitiesByDomain.map(\.domain) == [.light, .cover, .sensor])
+    }
+
+    @MainActor
+    @Test func stateStoreGroupsEntitiesByDeviceRegistryMetadata() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "sensor.ashtons_ipad_battery_level", state: "72"),
+            HAEntityDTO(entityID: "sensor.ashtons_ipad_location_permission", state: "authorized_always"),
+            HAEntityDTO(entityID: "light.kitchen", state: "off")
+        ])
+
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.ashtons_ipad_battery_level",
+                    deviceID: "ipad",
+                    originalName: "Battery Level"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.ashtons_ipad_location_permission",
+                    deviceID: "ipad",
+                    originalName: "Location permission"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "ipad", name: "Ashton's iPad")
+            ]
+        )
+
+        #expect(store.entityIDGroupsByDevice.map(\.title) == ["Ashton's iPad", "Other Entities"])
+        #expect(store.displayNameForDeviceGroupedEntity(entityID: "sensor.ashtons_ipad_location_permission") == "Location permission")
     }
 }

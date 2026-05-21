@@ -8,6 +8,7 @@ final class HAStateStore {
     private(set) var allEntities: [HomeEntity] = []
     private(set) var entitiesByDomain: [(domain: EntityDomain, entities: [HomeEntity])] = []
     private(set) var entityIDGroupsByDomain: [EntityDomainGroup] = []
+    private(set) var entityIDGroupsByDevice: [EntityDeviceGroup] = []
     private(set) var availableEntityIDs: Set<String> = []
     private(set) var entityCatalogSignature = ""
     private(set) var hasEntities = false
@@ -17,6 +18,8 @@ final class HAStateStore {
     @ObservationIgnored private(set) var sensorEntitiesByID: [String: SensorEntity] = [:]
     @ObservationIgnored private var rawEntitiesByID: [String: HAEntityDTO] = [:]
     @ObservationIgnored private var entityBoxesByID: [String: HAEntityState] = [:]
+    @ObservationIgnored private var entityRegistryByID: [String: HAEntityRegistryDisplayDTO] = [:]
+    @ObservationIgnored private var deviceRegistryByID: [String: HADeviceRegistryDTO] = [:]
 
     var lightEntityIDs: [String] {
         entityIDs(for: .light)
@@ -57,6 +60,15 @@ final class HAStateStore {
     func applyInitialStates(_ entities: [HAEntityDTO]) {
         rawEntitiesByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, $0) })
         rebuildMappedEntities(from: entities)
+    }
+
+    func applyRegistryMetadata(
+        entities: [HAEntityRegistryDisplayDTO],
+        devices: [HADeviceRegistryDTO]
+    ) {
+        entityRegistryByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, $0) })
+        deviceRegistryByID = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
+        refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
     }
 
     func apply(event: HAEventDTO) {
@@ -110,6 +122,26 @@ final class HAStateStore {
         )
         rawEntitiesByID[entityID] = dto
         apply(dto: dto)
+    }
+
+    func displayNameForDeviceGroupedEntity(entityID: String) -> String? {
+        guard let entity = entitiesByID[entityID],
+              let registry = entityRegistryByID[entityID] else {
+            return nil
+        }
+
+        let deviceName = registry.deviceID
+            .flatMap { deviceRegistryByID[$0]?.displayName.nonEmptyValue }
+
+        if let name = registry.name?.nonEmptyValue {
+            return name.removingDeviceNamePrefix(deviceName)
+        }
+
+        if let originalName = registry.originalName?.nonEmptyValue {
+            return originalName.removingDeviceNamePrefix(deviceName)
+        }
+
+        return entity.displayName.removingDeviceNamePrefix(deviceName)
     }
 
     private func entityIDs(for domain: EntityDomain) -> [String] {
@@ -199,6 +231,7 @@ final class HAStateStore {
                 entityIDs: group.entities.map(\.entityID)
             )
         }
+        entityIDGroupsByDevice = makeDeviceGroups()
         availableEntityIDs = Set(entitiesByID.keys)
         hasEntities = !availableEntityIDs.isEmpty
 
@@ -241,11 +274,99 @@ final class HAStateStore {
             )
         }
     }
+
+    private func makeDeviceGroups() -> [EntityDeviceGroup] {
+        var groupsByDeviceID: [String: [HomeEntity]] = [:]
+        var unassignedEntities: [HomeEntity] = []
+
+        for entity in allEntities {
+            guard let deviceID = entityRegistryByID[entity.entityID]?.deviceID?.nonEmptyValue else {
+                unassignedEntities.append(entity)
+                continue
+            }
+
+            groupsByDeviceID[deviceID, default: []].append(entity)
+        }
+
+        var groups = groupsByDeviceID.map { deviceID, entities in
+            EntityDeviceGroup(
+                id: deviceID,
+                title: deviceRegistryByID[deviceID]?.displayName ?? "Unknown Device",
+                entityIDs: entities.sortedByDisplayName.map(\.entityID)
+            )
+        }
+        .sorted { lhs, rhs in
+            lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+        }
+
+        if !unassignedEntities.isEmpty {
+            groups.append(
+                EntityDeviceGroup(
+                    id: "unassigned",
+                    title: "Other Entities",
+                    entityIDs: unassignedEntities.sortedByDisplayName.map(\.entityID)
+                )
+            )
+        }
+
+        return groups
+    }
 }
 
 struct EntityDomainGroup: Equatable, Sendable {
     let domain: EntityDomain
     let entityIDs: [String]
+}
+
+struct EntityDeviceGroup: Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let entityIDs: [String]
+}
+
+private extension HADeviceRegistryDTO {
+    var displayName: String {
+        nameByUser?.nonEmptyValue ?? name?.nonEmptyValue ?? manufacturer?.nonEmptyValue ?? "Unknown Device"
+    }
+}
+
+private extension Array where Element == HomeEntity {
+    var sortedByDisplayName: [HomeEntity] {
+        sorted { lhs, rhs in
+            lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+        }
+    }
+}
+
+private extension String {
+    var nonEmptyValue: String? {
+        let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedValue.isEmpty ? nil : trimmedValue
+    }
+
+    func removingDeviceNamePrefix(_ deviceName: String) -> String {
+        let trimmedName = trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDeviceName = deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedDeviceName.isEmpty,
+              trimmedName.localizedCaseInsensitiveContains(trimmedDeviceName),
+              trimmedName.lowercased().hasPrefix(trimmedDeviceName.lowercased()) else {
+            return trimmedName
+        }
+
+        let suffix = trimmedName.dropFirst(trimmedDeviceName.count)
+            .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+
+        return suffix.isEmpty ? trimmedName : suffix
+    }
+
+    func removingDeviceNamePrefix(_ deviceName: String?) -> String {
+        guard let deviceName else {
+            return trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        return removingDeviceNamePrefix(deviceName)
+    }
 }
 
 @MainActor

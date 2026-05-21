@@ -32,7 +32,7 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
             break
         }
 
-        return formattedNumber ?? value
+        return formattedNumber ?? value.replacingOccurrences(of: "_", with: " ").capitalized
     }
 
     var unitText: String? {

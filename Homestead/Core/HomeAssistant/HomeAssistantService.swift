@@ -7,6 +7,7 @@ final class HomeAssistantService {
     private(set) var connectionStatus: HAConnectionStatus = .disconnected
     private(set) var lastErrorMessage: String?
     private(set) var smokeTestState: HAConnectionSmokeTestState = .idle
+    private(set) var serviceFeedback: HAServiceFeedback?
 
     @ObservationIgnored private let client: HAWebSocketClient
     @ObservationIgnored private let stateStore: HAStateStore
@@ -104,15 +105,23 @@ final class HomeAssistantService {
     }
 
     func turnOnLight(entityID: String) async {
-        await callService(domain: "light", service: "turn_on", entityID: entityID)
-        if lastErrorMessage == nil {
+        let succeeded = await callService(
+            domain: "light",
+            service: "turn_on",
+            entityID: entityID
+        )
+        if succeeded {
             stateStore.applyOptimisticLightState(entityID: entityID, isOn: true)
         }
     }
 
     func turnOffLight(entityID: String) async {
-        await callService(domain: "light", service: "turn_off", entityID: entityID)
-        if lastErrorMessage == nil {
+        let succeeded = await callService(
+            domain: "light",
+            service: "turn_off",
+            entityID: entityID
+        )
+        if succeeded {
             stateStore.applyOptimisticLightState(entityID: entityID, isOn: false)
         }
     }
@@ -121,13 +130,13 @@ final class HomeAssistantService {
         let clampedPercentage = min(max(brightnessPercentage, 1), 100)
         let brightness = Int((clampedPercentage / 100) * 255)
 
-        await callService(
+        let succeeded = await callService(
             domain: "light",
             service: "turn_on",
             entityID: entityID,
             serviceData: ["brightness": .number(Double(max(1, brightness)))]
         )
-        if lastErrorMessage == nil {
+        if succeeded {
             stateStore.applyOptimisticLightBrightness(
                 entityID: entityID,
                 brightnessPercentage: clampedPercentage
@@ -135,12 +144,14 @@ final class HomeAssistantService {
         }
     }
 
+    @discardableResult
     func callService(
         domain: String,
         service: String,
         entityID: String?,
-        serviceData: [String: JSONValue] = [:]
-    ) async {
+        serviceData: [String: JSONValue] = [:],
+        successTitle: String? = nil
+    ) async -> Bool {
         do {
             try await client.callService(
                 domain: domain,
@@ -149,9 +160,33 @@ final class HomeAssistantService {
                 serviceData: serviceData
             )
             lastErrorMessage = nil
+            if let successTitle {
+                serviceFeedback = HAServiceFeedback(
+                    title: successTitle,
+                    message: entityDisplayName(for: entityID),
+                    style: .success
+                )
+            }
+            return true
         } catch {
             lastErrorMessage = error.localizedDescription
+            serviceFeedback = HAServiceFeedback(
+                title: "Action failed",
+                message: serviceFailureMessage(
+                    domain: domain,
+                    service: service,
+                    entityID: entityID,
+                    error: error
+                ),
+                style: .failure
+            )
+            return false
         }
+    }
+
+    func clearServiceFeedback(id: HAServiceFeedback.ID) {
+        guard serviceFeedback?.id == id else { return }
+        serviceFeedback = nil
     }
 
     private func establishConnection(configuration: HAConnectionConfiguration) async throws {
@@ -160,7 +195,26 @@ final class HomeAssistantService {
 
         let states = try await client.fetchStates()
         stateStore.applyInitialStates(states)
+        await fetchRegistryMetadataIfAvailable()
         try await client.subscribeToStateChanges()
+    }
+
+    private func fetchRegistryMetadataIfAvailable() async {
+        do {
+            async let entityRegistry = client.fetchEntityRegistryForDisplay()
+            async let deviceRegistry = client.fetchDeviceRegistry()
+
+            let registryMetadata = try await (entityRegistry, deviceRegistry)
+            stateStore.applyRegistryMetadata(
+                entities: registryMetadata.0.entities,
+                devices: registryMetadata.1
+            )
+        } catch {
+            // Registry metadata improves organization, but live state should still work without it.
+            #if DEBUG
+            print("Home Assistant registry metadata failed: \(error.localizedDescription)")
+            #endif
+        }
     }
 
     private func configureClientCallbacks() async {
@@ -229,6 +283,21 @@ final class HomeAssistantService {
         if connectionStatus == .reconnecting {
             connectionStatus = .disconnected
         }
+    }
+
+    private func entityDisplayName(for entityID: String?) -> String? {
+        guard let entityID else { return nil }
+        return stateStore.entity(for: entityID)?.displayName ?? entityID
+    }
+
+    private func serviceFailureMessage(
+        domain: String,
+        service: String,
+        entityID: String?,
+        error: Error
+    ) -> String {
+        let target = entityDisplayName(for: entityID) ?? "\(domain).\(service)"
+        return "\(target): \(error.localizedDescription)"
     }
 }
 

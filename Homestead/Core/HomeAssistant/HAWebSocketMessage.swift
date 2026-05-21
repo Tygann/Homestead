@@ -10,6 +10,8 @@ enum HAWebSocketMessageType {
     nonisolated static var getStates: String { "get_states" }
     nonisolated static var subscribeEvents: String { "subscribe_events" }
     nonisolated static var callService: String { "call_service" }
+    nonisolated static var entityRegistryListForDisplay: String { "config/entity_registry/list_for_display" }
+    nonisolated static var deviceRegistryList: String { "config/device_registry/list" }
 }
 
 struct HAWebSocketIncomingMessage: Decodable, Sendable {
@@ -63,6 +65,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case auth(accessToken: String)
     case getStates(id: Int)
     case subscribeEvents(id: Int, eventType: String)
+    case registryCommand(id: Int, type: String)
     case callService(
         id: Int,
         domain: String,
@@ -96,6 +99,9 @@ enum HAWebSocketRequest: Encodable, Sendable {
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.subscribeEvents, forKey: .type)
             try container.encode(eventType, forKey: .eventType)
+        case .registryCommand(let id, let type):
+            try container.encode(id, forKey: .id)
+            try container.encode(type, forKey: .type)
         case .callService(let id, let domain, let service, let target, let serviceData):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.callService, forKey: .type)

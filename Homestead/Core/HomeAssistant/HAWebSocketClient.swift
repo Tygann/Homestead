@@ -74,6 +74,34 @@ actor HAWebSocketClient {
         return try result.decoded([HAEntityDTO].self)
     }
 
+    func fetchEntityRegistryForDisplay() async throws -> HAEntityRegistryDisplayResponseDTO {
+        let id = makeRequestID()
+        let response = try await sendRequest(
+            .registryCommand(id: id, type: HAWebSocketMessageType.entityRegistryListForDisplay),
+            id: id
+        )
+
+        guard let result = response.result else {
+            throw HAWebSocketError.missingResult
+        }
+
+        return try result.decoded(HAEntityRegistryDisplayResponseDTO.self)
+    }
+
+    func fetchDeviceRegistry() async throws -> [HADeviceRegistryDTO] {
+        let id = makeRequestID()
+        let response = try await sendRequest(
+            .registryCommand(id: id, type: HAWebSocketMessageType.deviceRegistryList),
+            id: id
+        )
+
+        guard let result = response.result else {
+            throw HAWebSocketError.missingResult
+        }
+
+        return try result.decoded([HADeviceRegistryDTO].self)
+    }
+
     func subscribeToStateChanges() async throws {
         let id = makeRequestID()
         _ = try await sendRequest(

@@ -3,30 +3,33 @@ import SwiftUI
 struct DevicesView: View {
     @Environment(HAStateStore.self) private var stateStore
     @State private var searchText = ""
-    @State private var selectedDomain: EntityDomain?
-    @State private var collapsedDomains: Set<EntityDomain> = []
+    @State private var grouping: DevicesGrouping = .device
+    @State private var collapsedGroups: Set<String> = []
 
     var body: some View {
         let groups = filteredEntityGroups
 
         List {
-            ForEach(groups, id: \.domain) { group in
+            ForEach(groups) { group in
                 Section {
-                    if !collapsedDomains.contains(group.domain) {
+                    if !collapsedGroups.contains(group.id) {
                         ForEach(group.entityIDs, id: \.self) { entityID in
                             if let entityBox = stateStore.entityBox(for: entityID) {
-                                DeviceEntityRow(entityBox: entityBox)
+                                DeviceEntityRow(
+                                    entityBox: entityBox,
+                                    displayNameOverride: displayNameOverride(for: entityID)
+                                )
                             }
                         }
                     }
                 } header: {
                     Button {
-                        toggleSection(group.domain)
+                        toggleSection(group.id)
                     } label: {
                         HStack {
-                            Label(group.domain.displayName, systemImage: group.domain.systemImage)
+                            Label(group.title, systemImage: group.systemImage)
                             Spacer()
-                            Image(systemName: collapsedDomains.contains(group.domain) ? "chevron.right" : "chevron.down")
+                            Image(systemName: collapsedGroups.contains(group.id) ? "chevron.right" : "chevron.down")
                                 .font(.caption.weight(.bold))
                         }
                     }
@@ -46,62 +49,58 @@ struct DevicesView: View {
         .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                domainFilterMenu
+                groupingMenu
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
     }
 
-    private var domainFilterMenu: some View {
+    private var groupingMenu: some View {
         Menu {
-            Button {
-                selectedDomain = nil
-            } label: {
-                Label("All", systemImage: selectedDomain == nil ? "checkmark" : "square.grid.2x2")
-            }
-
-            ForEach(availableDomains, id: \.self) { domain in
+            ForEach(DevicesGrouping.allCases, id: \.self) { option in
                 Button {
-                    selectedDomain = domain
+                    grouping = option
+                    collapsedGroups.removeAll()
                 } label: {
-                    Label(domain.displayName, systemImage: selectedDomain == domain ? "checkmark" : domain.systemImage)
+                    Label(option.displayName, systemImage: grouping == option ? "checkmark" : option.systemImage)
                 }
             }
         } label: {
-            Image(systemName: selectedDomain == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+            Image(systemName: "square.3.layers.3d")
         }
-        .accessibilityLabel("Filter devices")
+        .accessibilityLabel("Group devices")
     }
 
-    private func toggleSection(_ domain: EntityDomain) {
-        if collapsedDomains.contains(domain) {
-            collapsedDomains.remove(domain)
+    private func toggleSection(_ groupID: String) {
+        if collapsedGroups.contains(groupID) {
+            collapsedGroups.remove(groupID)
         } else {
-            collapsedDomains.insert(domain)
+            collapsedGroups.insert(groupID)
         }
     }
 
-    private var availableDomains: [EntityDomain] {
-        stateStore.entityIDGroupsByDomain.map(\.domain)
+    private func displayNameOverride(for entityID: String) -> String? {
+        guard grouping == .device else { return nil }
+        return stateStore.displayNameForDeviceGroupedEntity(entityID: entityID)
     }
 
-    private var filteredEntityGroups: [EntityDomainGroup] {
+    private var filteredEntityGroups: [DevicesEntityGroup] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let domainGroups = stateStore.entityIDGroupsByDomain.filter { group in
-            selectedDomain == nil || group.domain == selectedDomain
-        }
+        let groups = unfilteredEntityGroups
 
         guard !query.isEmpty else {
-            return domainGroups
+            return groups
         }
 
-        return domainGroups.compactMap { group in
+        return groups.compactMap { group in
             let matchingEntityIDs = group.entityIDs.filter { entityID in
                 guard let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
                     return false
                 }
+                let displayName = displayNameOverride(for: entityID) ?? entity.displayName
 
-                return entity.displayName.localizedCaseInsensitiveContains(query) ||
+                return displayName.localizedCaseInsensitiveContains(query) ||
+                    group.title.localizedCaseInsensitiveContains(query) ||
                     entity.entityID.localizedCaseInsensitiveContains(query) ||
                     entity.state.localizedCaseInsensitiveContains(query)
             }
@@ -110,39 +109,151 @@ struct DevicesView: View {
                 return nil
             }
 
-            return EntityDomainGroup(domain: group.domain, entityIDs: matchingEntityIDs)
+            return DevicesEntityGroup(
+                id: group.id,
+                title: group.title,
+                systemImage: group.systemImage,
+                entityIDs: matchingEntityIDs
+            )
+        }
+    }
+
+    private var unfilteredEntityGroups: [DevicesEntityGroup] {
+        switch grouping {
+        case .device:
+            if !stateStore.entityIDGroupsByDevice.isEmpty {
+                return stateStore.entityIDGroupsByDevice.map { group in
+                    DevicesEntityGroup(
+                        id: "device-\(group.id)",
+                        title: group.title,
+                        systemImage: "laptopcomputer.and.iphone",
+                        entityIDs: group.entityIDs
+                    )
+                }
+            }
+
+            fallthrough
+        case .type:
+            return stateStore.entityIDGroupsByDomain.map { group in
+                DevicesEntityGroup(
+                    id: "type-\(group.domain.rawValue)",
+                    title: group.domain.displayName,
+                    systemImage: group.domain.systemImage,
+                    entityIDs: group.entityIDs
+                )
+            }
         }
     }
 }
 
+private enum DevicesGrouping: CaseIterable {
+    case device
+    case type
+
+    var displayName: String {
+        switch self {
+        case .device:
+            "Device"
+        case .type:
+            "Type"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .device:
+            "laptopcomputer.and.iphone"
+        case .type:
+            "square.grid.2x2"
+        }
+    }
+}
+
+private struct DevicesEntityGroup: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let systemImage: String
+    let entityIDs: [String]
+}
+
 private struct DeviceEntityRow: View {
     let entityBox: HAEntityState
+    var displayNameOverride: String?
 
     var body: some View {
         let entity = entityBox.homeEntity
 
         Label {
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
+            HStack(alignment: .center, spacing: AppSpacing.medium) {
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(entity.displayName)
+                    Text(displayNameOverride ?? entity.displayName)
                         .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Text(entity.entityID)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
+                .layoutPriority(1)
 
                 Spacer(minLength: AppSpacing.medium)
 
-                Text(entity.state.capitalized)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(entity.isAvailable ? .secondary : Color.red)
-                    .lineLimit(1)
+                if let detailText {
+                    DeviceEntityDetailSlot(
+                        detailText: detailText,
+                        isAvailable: entity.isAvailable
+                    )
+                }
             }
+            .frame(minHeight: 48)
         } icon: {
             Image(systemName: entity.iconName)
                 .foregroundStyle(entity.isAvailable ? Color.accentColor : Color.secondary)
         }
         .padding(.vertical, AppSpacing.xSmall)
+    }
+
+    private var detailText: String? {
+        let entity = entityBox.homeEntity
+
+        guard entity.isAvailable else {
+            return "Unavailable"
+        }
+
+        if let sensor = entityBox.sensorEntity {
+            return conciseDetail(sensor.formattedValue)
+        }
+
+        return conciseDetail(
+            entity.state
+                .replacingOccurrences(of: "_", with: " ")
+                .capitalized
+        )
+    }
+
+    private func conciseDetail(_ value: String) -> String? {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return trimmedValue.isEmpty ? nil : trimmedValue
+    }
+}
+
+private struct DeviceEntityDetailSlot: View {
+    let detailText: String
+    let isAvailable: Bool
+
+    var body: some View {
+        Text(detailText)
+            .font(.caption.weight(.semibold))
+            .monospacedDigit()
+            .foregroundStyle(isAvailable ? .secondary : Color.red)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .truncationMode(.tail)
+            .frame(width: 86, alignment: .trailing)
+            .accessibilityLabel("State \(detailText)")
     }
 }
 
