@@ -60,6 +60,7 @@ final class HAStateStore {
     func applyInitialStates(_ entities: [HAEntityDTO]) {
         rawEntitiesByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, $0) })
         rebuildMappedEntities(from: entities)
+        saveWidgetLightSnapshots()
     }
 
     func applyRegistryMetadata(
@@ -208,6 +209,10 @@ final class HAStateStore {
         } else {
             refreshEntityIndexes(previousCatalogSignature: previousCatalogSignature)
         }
+
+        if homeEntity.domain == .light {
+            saveWidgetLightSnapshots()
+        }
     }
 
     private func refreshEntityIndexes(previousCatalogSignature: String? = nil) {
@@ -273,6 +278,10 @@ final class HAStateStore {
                 sensorEntity: sensorEntity
             )
         }
+    }
+
+    private func saveWidgetLightSnapshots() {
+        WidgetSharedStore.saveLightSnapshots(Array(lightEntitiesByID.values))
     }
 
     private func makeDeviceGroups() -> [EntityDeviceGroup] {

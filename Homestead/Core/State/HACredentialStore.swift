@@ -24,13 +24,16 @@ enum HACredentialStoreError: LocalizedError {
 struct KeychainHACredentialStore: HACredentialStore {
     private let service: String
     private let account: String
+    private let accessGroup: String?
 
     init(
         service: String = "com.tyler.Homestead.homeAssistant",
-        account: String = "longLivedAccessToken"
+        account: String = "longLivedAccessToken",
+        accessGroup: String? = nil
     ) {
         self.service = service
         self.account = account
+        self.accessGroup = accessGroup
     }
 
     func readAccessToken() throws -> String? {
@@ -89,11 +92,52 @@ struct KeychainHACredentialStore: HACredentialStore {
     }
 
     private var baseQuery: [String: Any] {
-        [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
+
+        if let accessGroup {
+            query[kSecAttrAccessGroup as String] = accessGroup
+        }
+
+        return query
+    }
+}
+
+struct MigratingHACredentialStore: HACredentialStore {
+    private let primary: HACredentialStore
+    private let legacy: HACredentialStore
+
+    init(
+        primary: HACredentialStore = KeychainHACredentialStore(accessGroup: WidgetSharedStore.keychainAccessGroup),
+        legacy: HACredentialStore = KeychainHACredentialStore()
+    ) {
+        self.primary = primary
+        self.legacy = legacy
+    }
+
+    func readAccessToken() throws -> String? {
+        if let token = try primary.readAccessToken() {
+            return token
+        }
+
+        guard let legacyToken = try legacy.readAccessToken() else {
+            return nil
+        }
+
+        try primary.saveAccessToken(legacyToken)
+        return legacyToken
+    }
+
+    func saveAccessToken(_ token: String) throws {
+        try primary.saveAccessToken(token)
+    }
+
+    func deleteAccessToken() throws {
+        try primary.deleteAccessToken()
+        try legacy.deleteAccessToken()
     }
 }
 

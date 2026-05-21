@@ -5,7 +5,10 @@ import Observation
 @Observable
 final class HAConnectionSettings {
     var baseURL: String {
-        didSet { defaults.set(baseURL, forKey: Keys.baseURL) }
+        didSet {
+            defaults.set(baseURL, forKey: Keys.baseURL)
+            WidgetSharedStore.saveBaseURL(baseURL)
+        }
     }
 
     var accessToken: String {
@@ -29,8 +32,11 @@ final class HAConnectionSettings {
         credentialStore: HACredentialStore? = nil
     ) {
         self.defaults = defaults
-        self.credentialStore = credentialStore ?? KeychainHACredentialStore()
-        self.baseURL = baseURL ?? defaults.string(forKey: Keys.baseURL) ?? ""
+        self.credentialStore = credentialStore ?? MigratingHACredentialStore()
+        self.baseURL = baseURL ??
+            defaults.string(forKey: Keys.baseURL) ??
+            UserDefaults(suiteName: WidgetSharedStore.appGroupID)?.string(forKey: Keys.baseURL) ??
+            ""
 
         do {
             let storedToken = try self.credentialStore.readAccessToken()
@@ -40,6 +46,8 @@ final class HAConnectionSettings {
             self.accessToken = accessToken ?? ""
             credentialStorageErrorMessage = error.localizedDescription
         }
+
+        WidgetSharedStore.saveBaseURL(self.baseURL)
     }
 
     private func persistAccessToken() {
