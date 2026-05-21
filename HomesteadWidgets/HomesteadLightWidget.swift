@@ -44,8 +44,21 @@ struct ToggleHomesteadLightIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        try await HAWidgetActionClient().setLight(entityID: entityID, isOn: turnOn)
+        let previousIsOn = HomesteadWidgetSharedStore.lightSnapshot(entityID: entityID)?.isOn
+        HomesteadWidgetSharedStore.updateLightSnapshot(entityID: entityID, isOn: turnOn)
         WidgetCenter.shared.reloadTimelines(ofKind: "HomesteadLightWidget")
+
+        do {
+            try await HAWidgetActionClient().setLight(entityID: entityID, isOn: turnOn)
+        } catch {
+            if let previousIsOn {
+                HomesteadWidgetSharedStore.updateLightSnapshot(entityID: entityID, isOn: previousIsOn)
+                WidgetCenter.shared.reloadTimelines(ofKind: "HomesteadLightWidget")
+            }
+
+            throw error
+        }
+
         return .result()
     }
 }
@@ -112,19 +125,34 @@ struct HomesteadLightTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadLightWidgetConfigurationIntent,
         in context: Context
     ) async -> HomesteadLightEntry {
-        await entry(for: configuration)
+        await entry(for: configuration).entry
     }
 
     func timeline(
         for configuration: HomesteadLightWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadLightEntry> {
-        let entry = await entry(for: configuration)
-        return Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(15 * 60)))
+        let result = await entry(for: configuration)
+        let refreshInterval: TimeInterval = result.usedOptimisticState ? 30 : 15 * 60
+
+        return Timeline(
+            entries: [result.entry],
+            policy: .after(Date().addingTimeInterval(refreshInterval))
+        )
     }
 
-    private func entry(for configuration: HomesteadLightWidgetConfigurationIntent) async -> HomesteadLightEntry {
-        let selectedLight = configuration.light ?? HomesteadWidgetSharedStore.lightSnapshots.first.map { snapshot in
+    private func entry(for configuration: HomesteadLightWidgetConfigurationIntent) async -> TimelineResult {
+        let configuredLight = configuration.light
+        let latestConfiguredSnapshot = configuredLight.flatMap { light in
+            HomesteadWidgetSharedStore.lightSnapshot(entityID: light.id)
+        }
+        let selectedLight = latestConfiguredSnapshot.map { snapshot in
+            HomesteadLightEntity(
+                id: snapshot.entityID,
+                displayName: snapshot.displayName,
+                isOn: snapshot.isOn
+            )
+        } ?? configuredLight ?? HomesteadWidgetSharedStore.lightSnapshots.first.map { snapshot in
             HomesteadLightEntity(
                 id: snapshot.entityID,
                 displayName: snapshot.displayName,
@@ -133,36 +161,65 @@ struct HomesteadLightTimelineProvider: AppIntentTimelineProvider {
         }
 
         guard let selectedLight else {
-            return HomesteadLightEntry(
-                date: Date(),
-                entityID: nil,
-                displayName: "Choose a Light",
-                isOn: false,
-                statusText: "Open Homestead first",
-                isConfigured: false
+            return TimelineResult(
+                entry: HomesteadLightEntry(
+                    date: Date(),
+                    entityID: nil,
+                    displayName: "Choose a Light",
+                    isOn: false,
+                    statusText: "Open Homestead first",
+                    isConfigured: false
+                ),
+                usedOptimisticState: false
+            )
+        }
+
+        if let isOn = HomesteadWidgetSharedStore.optimisticLightState(entityID: selectedLight.id) {
+            return TimelineResult(
+                entry: HomesteadLightEntry(
+                    date: Date(),
+                    entityID: selectedLight.id,
+                    displayName: selectedLight.displayName,
+                    isOn: isOn,
+                    statusText: isOn ? "On" : "Off",
+                    isConfigured: true
+                ),
+                usedOptimisticState: true
             )
         }
 
         do {
             let state = try await HAWidgetActionClient().fetchLightState(entityID: selectedLight.id)
-            return HomesteadLightEntry(
-                date: Date(),
-                entityID: state.entityID,
-                displayName: state.displayName,
-                isOn: state.isOn,
-                statusText: state.isOn ? "On" : "Off",
-                isConfigured: true
+
+            return TimelineResult(
+                entry: HomesteadLightEntry(
+                    date: Date(),
+                    entityID: state.entityID,
+                    displayName: state.displayName,
+                    isOn: state.isOn,
+                    statusText: state.isOn ? "On" : "Off",
+                    isConfigured: true
+                ),
+                usedOptimisticState: false
             )
         } catch {
-            return HomesteadLightEntry(
-                date: Date(),
-                entityID: selectedLight.id,
-                displayName: selectedLight.displayName,
-                isOn: selectedLight.isOn,
-                statusText: "Needs connection",
-                isConfigured: true
+            return TimelineResult(
+                entry: HomesteadLightEntry(
+                    date: Date(),
+                    entityID: selectedLight.id,
+                    displayName: selectedLight.displayName,
+                    isOn: selectedLight.isOn,
+                    statusText: "Needs connection",
+                    isConfigured: true
+                ),
+                usedOptimisticState: false
             )
         }
+    }
+
+    private struct TimelineResult {
+        let entry: HomesteadLightEntry
+        let usedOptimisticState: Bool
     }
 }
 
@@ -199,6 +256,7 @@ struct HomesteadLightWidgetView: View {
                     .lineLimit(1)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var accessoryCircular: some View {

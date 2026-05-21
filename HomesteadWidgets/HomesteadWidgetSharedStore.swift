@@ -7,6 +7,7 @@ enum HomesteadWidgetSharedStore {
 
     private static let baseURLKey = "homeAssistantBaseURL"
     private static let lightSnapshotsKey = "widgetLightSnapshots"
+    private static let optimisticLightStatesKey = "widgetOptimisticLightStates"
     private static let tokenService = "com.tyler.Homestead.homeAssistant"
     private static let tokenAccount = "longLivedAccessToken"
 
@@ -41,8 +42,66 @@ enum HomesteadWidgetSharedStore {
         return snapshots
     }
 
+    static func lightSnapshot(entityID: String) -> WidgetLightSnapshot? {
+        lightSnapshots.first { $0.entityID == entityID }
+    }
+
+    static func optimisticLightState(entityID: String) -> Bool? {
+        guard let optimisticState = optimisticLightStates[entityID],
+              Date().timeIntervalSince(optimisticState.updatedAt) < 10 else {
+            return nil
+        }
+
+        return optimisticState.isOn
+    }
+
+    static func updateLightSnapshot(entityID: String, isOn: Bool) {
+        let updatedSnapshots = lightSnapshots.map { snapshot in
+            guard snapshot.entityID == entityID else {
+                return snapshot
+            }
+
+            return WidgetLightSnapshot(
+                entityID: snapshot.entityID,
+                displayName: snapshot.displayName,
+                isOn: isOn
+            )
+        }
+
+        saveLightSnapshots(updatedSnapshots)
+
+        var optimisticStates = optimisticLightStates
+        optimisticStates[entityID] = OptimisticLightState(isOn: isOn, updatedAt: Date())
+        saveOptimisticLightStates(optimisticStates)
+    }
+
     private static var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
+    }
+
+    private static var optimisticLightStates: [String: OptimisticLightState] {
+        guard let data = sharedDefaults?.data(forKey: optimisticLightStatesKey),
+              let states = try? JSONDecoder().decode([String: OptimisticLightState].self, from: data) else {
+            return [:]
+        }
+
+        return states
+    }
+
+    private static func saveLightSnapshots(_ snapshots: [WidgetLightSnapshot]) {
+        guard let data = try? JSONEncoder().encode(snapshots) else {
+            return
+        }
+
+        sharedDefaults?.set(data, forKey: lightSnapshotsKey)
+    }
+
+    private static func saveOptimisticLightStates(_ states: [String: OptimisticLightState]) {
+        guard let data = try? JSONEncoder().encode(states) else {
+            return
+        }
+
+        sharedDefaults?.set(data, forKey: optimisticLightStatesKey)
     }
 
     private static var baseTokenQuery: [String: Any] {
@@ -59,4 +118,9 @@ struct WidgetLightSnapshot: Codable, Equatable, Sendable {
     let entityID: String
     let displayName: String
     let isOn: Bool
+}
+
+private struct OptimisticLightState: Codable, Equatable {
+    let isOn: Bool
+    let updatedAt: Date
 }
