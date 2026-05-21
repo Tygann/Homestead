@@ -106,10 +106,24 @@ enum EntityMapper {
             "humidity"
         case "battery":
             "battery.75percent"
-        case "energy", "power":
+        case "energy":
+            "bolt.circle.fill"
+        case "power":
             "bolt.fill"
         case "illuminance":
             "sun.max.fill"
+        case "pressure":
+            "gauge.with.dots.needle.50percent"
+        case "signal_strength":
+            "wifi"
+        case "voltage", "current":
+            "waveform.path.ecg"
+        case "water":
+            "drop.fill"
+        case "gas":
+            "flame.fill"
+        case "problem":
+            "exclamationmark.triangle.fill"
         default:
             "gauge.medium"
         }

@@ -11,7 +11,18 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
 
     var id: String { entityID }
 
+    var isAvailable: Bool {
+        !["unknown", "unavailable"].contains(value)
+    }
+
     var formattedValue: String {
+        guard let unitText, !unitText.isEmpty else { return valueText }
+
+        let separator = unitNeedsLeadingSpace(unitText) ? " " : ""
+        return "\(valueText)\(separator)\(unitText)"
+    }
+
+    var valueText: String {
         switch value {
         case "unknown":
             return "Unknown"
@@ -21,16 +32,26 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
             break
         }
 
-        let formattedValue = formattedNumber ?? value
-        guard let unit = displayUnit, !unit.isEmpty else { return formattedValue }
+        return formattedNumber ?? value
+    }
 
-        let separator = unitNeedsLeadingSpace(unit) ? " " : ""
-        return "\(formattedValue)\(separator)\(unit)"
+    var unitText: String? {
+        guard isAvailable else { return nil }
+        return displayUnit
     }
 
     var formattedDeviceClass: String? {
         guard let deviceClass, !deviceClass.isEmpty else { return nil }
         return deviceClass.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+
+    var displayKind: SensorDisplayKind {
+        SensorDisplayKind(deviceClass: deviceClass)
+    }
+
+    var displaySubtitle: String {
+        guard isAvailable else { return "Sensor unavailable" }
+        return formattedDeviceClass ?? "Sensor"
     }
 
     private var formattedNumber: String? {
@@ -61,8 +82,10 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
             0
         case "temperature":
             1
-        case "energy":
+        case "energy", "power":
             2
+        case "illuminance", "signal_strength":
+            0
         default:
             1
         }
@@ -70,5 +93,55 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
 
     private func unitNeedsLeadingSpace(_ unit: String) -> Bool {
         !unit.hasPrefix("°") && unit != "%"
+    }
+}
+
+enum SensorDisplayKind: Sendable {
+    case temperature
+    case humidity
+    case battery
+    case energy
+    case power
+    case illuminance
+    case pressure
+    case signal
+    case voltage
+    case current
+    case water
+    case gas
+    case problem
+    case generic
+
+    init(deviceClass: String?) {
+        switch deviceClass {
+        case "temperature":
+            self = .temperature
+        case "humidity":
+            self = .humidity
+        case "battery":
+            self = .battery
+        case "energy":
+            self = .energy
+        case "power":
+            self = .power
+        case "illuminance":
+            self = .illuminance
+        case "pressure":
+            self = .pressure
+        case "signal_strength":
+            self = .signal
+        case "voltage":
+            self = .voltage
+        case "current":
+            self = .current
+        case "water":
+            self = .water
+        case "gas":
+            self = .gas
+        case "problem":
+            self = .problem
+        default:
+            self = .generic
+        }
     }
 }

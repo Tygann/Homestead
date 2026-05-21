@@ -99,9 +99,20 @@ struct HomesteadTests {
         )
 
         #expect(humidity.formattedValue == "44%")
+        #expect(humidity.valueText == "44")
+        #expect(humidity.unitText == "%")
+        #expect(humidity.displayKind == .humidity)
+        #expect(humidity.displaySubtitle == "Humidity")
         #expect(energy.formattedValue == "12.35 kWh")
+        #expect(energy.valueText == "12.35")
+        #expect(energy.unitText == "kWh")
+        #expect(energy.displayKind == .energy)
         #expect(energy.formattedDeviceClass == "Energy")
         #expect(unavailable.formattedValue == "Unavailable")
+        #expect(unavailable.valueText == "Unavailable")
+        #expect(unavailable.unitText == nil)
+        #expect(unavailable.isAvailable == false)
+        #expect(unavailable.displaySubtitle == "Sensor unavailable")
     }
 
     @MainActor
