@@ -83,7 +83,7 @@ private struct DashboardEntityCard: View {
     let remove: (() -> Void)?
 
     var body: some View {
-        CardContainer(isActive: presentation.isActive, minHeight: size.minHeight) {
+        CardContainer(isActive: presentation.isActive, minHeight: cardContainerMinHeight) {
             ZStack(alignment: .topLeading) {
                 if let showDetails {
                     Button(action: showDetails) {
@@ -116,14 +116,14 @@ private struct DashboardEntityCard: View {
         }
         .overlay(alignment: .topLeading) {
             if isEditing {
-                sizeMenu
-                    .offset(x: -6, y: -6)
+                removeButton
+                    .offset(x: -8, y: -8)
             }
         }
-        .overlay(alignment: .topTrailing) {
+        .overlay(alignment: .bottomTrailing) {
             if isEditing {
-                removeButton
-                    .offset(x: 6, y: -6)
+                sizeMenu
+                    .offset(x: 6, y: 6)
             }
         }
     }
@@ -197,29 +197,78 @@ private struct DashboardEntityCard: View {
                 }
             }
     }
-
+    
+    // TODO: Is there a cleaner way to set this size menu up?
     @ViewBuilder
     private var sizeMenu: some View {
         if let setSize {
+            // Mirror the current size to a local binding for Picker
+            // Use a wrapper view to own the @State
+            SizePickerMenu(
+                current: size,
+                setSize: setSize
+            )
+            .glassEffect()
+            .accessibilityLabel("Card size")
+        }
+    }
+
+    private struct SizePickerMenu: View {
+        @State private var selection: DashboardCardSize
+        let setSize: (DashboardCardSize) -> Void
+
+        init(current: DashboardCardSize, setSize: @escaping (DashboardCardSize) -> Void) {
+            self._selection = State(initialValue: current)
+            self.setSize = setSize
+        }
+
+        var body: some View {
             Menu {
-                ForEach(DashboardCardSize.allCases, id: \.self) { option in
-                    Button {
-                        setSize(option)
-                    } label: {
-                        Label(option.displayName, systemImage: size == option ? "checkmark" : option.systemImage)
+                Picker("", selection: $selection) {
+                    ForEach(DashboardCardSize.allCases, id: \.self) { option in
+                        Label(option.displayName, systemImage: option.systemImage)
+                            .tag(option)
                     }
                 }
+                .pickerStyle(.segmented)
             } label: {
-                Image(systemName: size.systemImage)
+                Image(systemName: "arrow.up.backward.and.arrow.down.forward")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.secondary)
                     .frame(width: 28, height: 28)
                     .background(Color(.secondarySystemGroupedBackground), in: Circle())
-                    .overlay {
-                        Circle()
-                            .strokeBorder(Color(.separator).opacity(0.35), lineWidth: 0.5)
-                    }
             }
+            .onChange(of: selection) { _, newValue in
+                setSize(newValue)
+            }
+            .accessibilityLabel("Card size")
+        }
+    }
+    
+    @ViewBuilder
+    private var sizeMenu_Backup: some View {
+        if let setSize {
+            Menu {
+                ControlGroup {
+                    ForEach(DashboardCardSize.allCases, id: \.self) { option in
+                        Button {
+                            setSize(option)
+                        } label: {
+//                            Label(option.displayName, systemImage: size == option ? "checkmark" : option.systemImage)
+                            Label(option.displayName, systemImage: option.systemImage)
+                                .tint(size == option ? .primary : .gray)
+                        }
+                    }
+                }
+            } label: {
+//                Image(systemName: size.systemImage)
+                Image(systemName: "arrow.up.backward.and.arrow.down.forward")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
+            }
+            .glassEffect()
             .accessibilityLabel("Card size")
         }
     }
@@ -228,19 +277,27 @@ private struct DashboardEntityCard: View {
     private var removeButton: some View {
         if let remove {
             Button(action: remove) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3.weight(.semibold))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, Color.red)
+                Image(systemName: "minus")
+                    .font(.subheadline.weight(.bold))
+//                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.red)
                     .frame(width: 28, height: 28)
+                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
             }
-            .buttonStyle(.plain)
+            .glassEffect()
             .accessibilityLabel("Remove \(presentation.title)")
         }
     }
-
+    
     private var cardContentMinHeight: CGFloat {
-        max(0, size.minHeight - (AppSpacing.medium * 2))
+        max(0, cardContainerMinHeight - (AppSpacing.medium * 2))
+    }
+
+    private var cardContainerMinHeight: CGFloat {
+        size.contentMinHeight(
+            rowSpacing: AppSpacing.medium,
+            cardPadding: AppSpacing.medium
+        )
     }
 }
 
@@ -391,5 +448,55 @@ private struct DashboardEntityPresentation {
         .padding()
         .background(Color(.systemGroupedBackground))
         .withPreviewEnvironment()
+}
+
+// MARK: - DashboardEntityCard Edit Mode Preview Helpers
+// TODO: Is there a cleaner way to display a preview with the edit buttons rather than having to add a separate extension? Possibly by simply setting the preview to editmode = true?
+extension DashboardEntityPresentation {
+    // Convenience initializer for previews only
+    init(
+        previewTitle title: String,
+        subtitle: String,
+        headline: String? = nil,
+        iconName: String,
+        isActive: Bool,
+        isAvailable: Bool,
+        accentColor: Color = .accentColor,
+        isPending: Bool = false
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.headline = headline
+        self.iconName = iconName
+        self.isActive = isActive
+        self.isAvailable = isAvailable
+        self.accentColor = accentColor
+        self.isPending = isPending
+    }
+}
+
+#Preview("Entity Card (Edit Mode)") {
+    DashboardEntityCard(
+        presentation: .init(
+            previewTitle: "Living Room Lamp",
+            subtitle: "Off",
+            headline: nil,
+            iconName: "lightbulb",
+            isActive: false,
+            isAvailable: true,
+            accentColor: .accentColor,
+            isPending: false
+        ),
+        size: .large,
+        isPending: false,
+        isEditing: true,
+        toggle: nil,
+        showDetails: nil,
+        setSize: { _ in },
+        remove: {}
+    )
+    .frame(width: 200)
+    .padding()
+    .background(Color(.systemGroupedBackground))
 }
 #endif

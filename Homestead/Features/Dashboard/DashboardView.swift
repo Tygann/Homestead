@@ -7,7 +7,7 @@ struct DashboardView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var isEditingDashboard = false
     @State private var isShowingAddCardSheet = false
-
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
@@ -32,7 +32,7 @@ struct DashboardView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Homestead")
-//        .navigationSubtitle(connectionSettings.baseURL)
+        //        .navigationSubtitle(connectionSettings.baseURL)
         .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
             if isEditingDashboard {
@@ -44,7 +44,7 @@ struct DashboardView: View {
                     }
                     .disabled(availableEntityIDsToAdd.isEmpty)
                     .accessibilityLabel("Add dashboard card")
-
+                    
                     Button("Done", role: .confirm) {
                         isEditingDashboard = false
                     }
@@ -66,40 +66,42 @@ struct DashboardView: View {
             reconcileDashboardConfigurationIfReady()
         }
     }
-
+    
     private var visibleEntityIDs: [String] {
         dashboardConfiguration.visibleEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
     }
-
+    
     private var availableEntityIDsToAdd: Set<String> {
         dashboardConfiguration.addableEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
     }
-
+    
     private func reconcileDashboardConfigurationIfReady() {
         guard stateStore.hasEntities else {
             return
         }
-
+        
         dashboardConfiguration.reconcile(with: stateStore.allEntities)
     }
-
+    
     private var favoritesSection: some View {
         DashboardSection(isEmpty: visibleEntityIDs.isEmpty) {
             LazyVStack(spacing: AppSpacing.medium) {
-                ForEach(cardRows) { row in
-                    if row.isWide {
-                        dashboardCard(row.items[0])
-                    } else {
-                        HStack(spacing: AppSpacing.medium) {
-                            ForEach(row.items) { item in
-                                dashboardCard(item)
-                            }
-
-                            if row.items.count == 1 {
-                                Spacer()
-                                    .frame(maxWidth: .infinity)
+                ForEach(cardLayoutSections) { section in
+                    switch section.kind {
+                    case .wide(let item):
+                        dashboardCard(item)
+                    case .columns(let columns):
+                        HStack(alignment: .top, spacing: AppSpacing.medium) {
+                            ForEach(columns) { column in
+                                VStack(spacing: AppSpacing.medium) {
+                                    ForEach(column.items) { item in
+                                        dashboardCard(item)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .top)
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .top)
                         .frame(maxWidth: .infinity)
                     }
                 }
@@ -107,41 +109,45 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
-
-    private var cardRows: [DashboardCardRow] {
-        var rows: [DashboardCardRow] = []
-        var pendingHalfWidthItems: [DashboardCardItem] = []
-
+    
+    private var cardLayoutSections: [DashboardCardLayoutSection] {
+        var sections: [DashboardCardLayoutSection] = []
+        var columns = [
+            DashboardCardColumn(position: .leading),
+            DashboardCardColumn(position: .trailing)
+        ]
+        
+        func flushColumns() {
+            guard columns.contains(where: { !$0.items.isEmpty }) else {
+                return
+            }
+            
+            sections.append(DashboardCardLayoutSection(kind: .columns(columns)))
+            columns = [
+                DashboardCardColumn(position: .leading),
+                DashboardCardColumn(position: .trailing)
+            ]
+        }
+        
         for entityID in visibleEntityIDs {
             let item = DashboardCardItem(
                 entityID: entityID,
                 size: dashboardConfiguration.cardSize(for: entityID)
             )
-
-            if item.size == .wide {
-                if !pendingHalfWidthItems.isEmpty {
-                    rows.append(DashboardCardRow(items: pendingHalfWidthItems))
-                    pendingHalfWidthItems.removeAll()
-                }
-
-                rows.append(DashboardCardRow(items: [item]))
+            
+            if item.size.columnSpan == 2 {
+                flushColumns()
+                sections.append(DashboardCardLayoutSection(kind: .wide(item)))
             } else {
-                pendingHalfWidthItems.append(item)
-
-                if pendingHalfWidthItems.count == 2 {
-                    rows.append(DashboardCardRow(items: pendingHalfWidthItems))
-                    pendingHalfWidthItems.removeAll()
-                }
+                let targetColumnIndex = columns[0].height <= columns[1].height ? 0 : 1
+                columns[targetColumnIndex].append(item)
             }
         }
-
-        if !pendingHalfWidthItems.isEmpty {
-            rows.append(DashboardCardRow(items: pendingHalfWidthItems))
-        }
-
-        return rows
+        
+        flushColumns()
+        return sections
     }
-
+    
     private func dashboardCard(_ item: DashboardCardItem) -> some View {
         DashboardCardView(
             entityID: item.entityID,
@@ -161,21 +167,25 @@ struct DashboardView: View {
     private var optionsMenu: some View {
         Menu {
             Section {
-                Label(homeAssistantService.connectionStatus.title, systemImage: homeAssistantService.connectionStatus.systemImage)
-
-                Button(action: {
-                    Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
-                }) {
-                    Label("Reconnect", systemImage: "arrow.triangle.2.circlepath")
+                // Status row
+                Label(homeAssistantService.connectionStatus.title,
+                      systemImage: homeAssistantService.connectionStatus.systemImage)
+                
+                // Only show "Reconnect" when not connected and credentials exist
+                if connectionSettings.hasCredentials && homeAssistantService.connectionStatus != .connected {
+                    Button {
+                        Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
+                    } label: {
+                        Label("Reconnect", systemImage: "arrow.triangle.2.circlepath")
+                    }
                 }
-                .disabled(!connectionSettings.hasCredentials || homeAssistantService.connectionStatus == .connected)
             }
-
+            
             Section {
-                Button(action: {
+                Button {
                     isEditingDashboard = true
-                }) {
-                    Label("Edit Home View", systemImage: "square.grid.2x2")
+                } label: {
+                    Label("Edit Dashboard", systemImage: "square.grid.2x2")
                 }
             }
         } label: {
@@ -234,15 +244,48 @@ private struct DashboardAddCardView: View {
     }
 }
 
-private struct DashboardCardRow: Identifiable {
-    let items: [DashboardCardItem]
-
-    var id: String {
-        items.map(\.entityID).joined(separator: "|")
+private struct DashboardCardLayoutSection: Identifiable {
+    enum Kind {
+        case wide(DashboardCardItem)
+        case columns([DashboardCardColumn])
     }
 
-    var isWide: Bool {
-        items.count == 1 && items[0].size == .wide
+    let kind: Kind
+
+    var id: String {
+        switch kind {
+        case .wide(let item):
+            "wide-\(item.entityID)"
+        case .columns(let columns):
+            "columns-\(columns.map(\.id).joined(separator: "|"))"
+        }
+    }
+}
+
+private struct DashboardCardColumn: Identifiable {
+    enum Position: String {
+        case leading
+        case trailing
+    }
+
+    let position: Position
+    private(set) var items: [DashboardCardItem] = []
+    private(set) var height: CGFloat = 0
+
+    var id: String {
+        "\(position.rawValue)-\(items.map(\.entityID).joined(separator: ","))"
+    }
+
+    mutating func append(_ item: DashboardCardItem) {
+        if !items.isEmpty {
+            height += AppSpacing.medium
+        }
+
+        items.append(item)
+        height += item.size.renderedHeight(
+            rowSpacing: AppSpacing.medium,
+            cardPadding: AppSpacing.medium
+        )
     }
 }
 
