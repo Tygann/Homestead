@@ -3,6 +3,9 @@ import SwiftUI
 struct DashboardCardView: View {
     let entityID: String
     let size: DashboardCardSize
+    var isEditing = false
+    var setSize: ((DashboardCardSize) -> Void)?
+    var remove: (() -> Void)?
 
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
@@ -16,8 +19,11 @@ struct DashboardCardView: View {
                 presentation: presentation,
                 size: size,
                 isPending: entityBox.pendingCommand != nil,
-                toggle: primaryAction(for: entityBox),
-                showDetails: detailsAction(for: entityBox)
+                isEditing: isEditing,
+                toggle: isEditing ? nil : primaryAction(for: entityBox),
+                showDetails: isEditing ? nil : detailsAction(for: entityBox),
+                setSize: isEditing ? setSize : nil,
+                remove: isEditing ? remove : nil
             )
             .sheet(item: $selectedDetail) { detail in
                 if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
@@ -70,23 +76,28 @@ private struct DashboardEntityCard: View {
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
     let isPending: Bool
+    let isEditing: Bool
     let toggle: (() -> Void)?
     let showDetails: (() -> Void)?
+    let setSize: ((DashboardCardSize) -> Void)?
+    let remove: (() -> Void)?
 
     var body: some View {
         CardContainer(isActive: presentation.isActive, minHeight: size.minHeight) {
             ZStack(alignment: .topLeading) {
-                Button {
-                    showDetails?()
-                } label: {
+                if let showDetails {
+                    Button(action: showDetails) {
+                        cardContent
+                            .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HomeCardButtonStyle())
+                    .accessibilityLabel(presentation.title)
+                    .accessibilityValue(presentation.accessibilityValue)
+                } else {
                     cardContent
                         .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(HomeCardButtonStyle())
-                .disabled(showDetails == nil)
-                .accessibilityLabel(presentation.title)
-                .accessibilityValue(presentation.accessibilityValue)
 
                 if let toggle {
                     Button(action: toggle) {
@@ -100,6 +111,19 @@ private struct DashboardEntityCard: View {
                     .accessibilityLabel("Toggle \(presentation.title)")
                     .accessibilityValue(presentation.accessibilityValue)
                 }
+
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if isEditing {
+                sizeMenu
+                    .offset(x: -6, y: -6)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if isEditing {
+                removeButton
+                    .offset(x: 6, y: -6)
             }
         }
     }
@@ -172,6 +196,47 @@ private struct DashboardEntityCard: View {
                     CardIconView(systemName: presentation.iconName, isActive: presentation.isActive)
                 }
             }
+    }
+
+    @ViewBuilder
+    private var sizeMenu: some View {
+        if let setSize {
+            Menu {
+                ForEach(DashboardCardSize.allCases, id: \.self) { option in
+                    Button {
+                        setSize(option)
+                    } label: {
+                        Label(option.displayName, systemImage: size == option ? "checkmark" : option.systemImage)
+                    }
+                }
+            } label: {
+                Image(systemName: size.systemImage)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Color(.separator).opacity(0.35), lineWidth: 0.5)
+                    }
+            }
+            .accessibilityLabel("Card size")
+        }
+    }
+
+    @ViewBuilder
+    private var removeButton: some View {
+        if let remove {
+            Button(action: remove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3.weight(.semibold))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, Color.red)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(presentation.title)")
+        }
     }
 
     private var cardContentMinHeight: CGFloat {

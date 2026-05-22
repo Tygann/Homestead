@@ -2,10 +2,55 @@ import SwiftUI
 
 struct DevicesView: View {
     @Environment(HAStateStore.self) private var stateStore
+    @State private var selectedEntity: SelectedEntity?
+
+    var body: some View {
+        EntityBrowserList(
+            hiddenEntityIDs: [],
+            emptyTitle: "No Devices",
+            emptySystemImage: "square.grid.2x2",
+            rowAction: { entityBox in
+                selectedEntity = SelectedEntity(entityID: entityBox.entityID)
+            },
+            accessory: { entityBox in
+                DeviceEntityStateAccessory(entityBox: entityBox)
+            }
+        )
+        .navigationTitle("Devices")
+        .toolbarTitleDisplayMode(.inlineLarge)
+        .sheet(item: $selectedEntity) { selectedEntity in
+            if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
+                EntityDetailView(entityBox: entityBox)
+            }
+        }
+    }
+}
+
+struct EntityBrowserList<Accessory: View>: View {
+    @Environment(HAStateStore.self) private var stateStore
     @State private var searchText = ""
     @State private var grouping: DevicesGrouping = .device
     @State private var collapsedGroups: Set<String> = []
-    @State private var selectedEntity: SelectedEntity?
+
+    let hiddenEntityIDs: Set<String>
+    let emptyTitle: String
+    let emptySystemImage: String
+    let rowAction: (HAEntityState) -> Void
+    private let accessory: (HAEntityState) -> Accessory
+
+    init(
+        hiddenEntityIDs: Set<String>,
+        emptyTitle: String,
+        emptySystemImage: String,
+        rowAction: @escaping (HAEntityState) -> Void,
+        @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
+    ) {
+        self.hiddenEntityIDs = hiddenEntityIDs
+        self.emptyTitle = emptyTitle
+        self.emptySystemImage = emptySystemImage
+        self.rowAction = rowAction
+        self.accessory = accessory
+    }
 
     var body: some View {
         let groups = filteredEntityGroups
@@ -17,11 +62,12 @@ struct DevicesView: View {
                         ForEach(group.entityIDs, id: \.self) { entityID in
                             if let entityBox = stateStore.entityBox(for: entityID) {
                                 Button {
-                                    selectedEntity = SelectedEntity(entityID: entityID)
+                                    rowAction(entityBox)
                                 } label: {
-                                    DeviceEntityRow(
+                                    EntityBrowserRow(
                                         entityBox: entityBox,
-                                        displayNameOverride: displayNameOverride(for: entityID)
+                                        displayNameOverride: displayNameOverride(for: entityID),
+                                        accessory: accessory(entityBox)
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -46,21 +92,16 @@ struct DevicesView: View {
         }
         .overlay {
             if !stateStore.hasEntities {
-                ContentUnavailableView("No Devices", systemImage: "square.grid.2x2")
+                ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
+            } else if groups.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
             } else if groups.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
         }
-        .navigationTitle("Devices")
-        .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 groupingMenu
-            }
-        }
-        .sheet(item: $selectedEntity) { selectedEntity in
-            if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
-                EntityDetailView(entityBox: entityBox)
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
@@ -142,31 +183,37 @@ struct DevicesView: View {
         switch grouping {
         case .device:
             if !stateStore.entityIDGroupsByDevice.isEmpty {
-                return stateStore.entityIDGroupsByDevice.map { group in
-                    DevicesEntityGroup(
+                return stateStore.entityIDGroupsByDevice.compactMap { group in
+                    let visibleEntityIDs = group.entityIDs.filter { !hiddenEntityIDs.contains($0) }
+                    guard !visibleEntityIDs.isEmpty else { return nil }
+
+                    return DevicesEntityGroup(
                         id: "device-\(group.id)",
                         title: group.title,
                         systemImage: "laptopcomputer.and.iphone",
-                        entityIDs: group.entityIDs
+                        entityIDs: visibleEntityIDs
                     )
                 }
             }
 
             fallthrough
         case .type:
-            return stateStore.entityIDGroupsByDomain.map { group in
-                DevicesEntityGroup(
+            return stateStore.entityIDGroupsByDomain.compactMap { group in
+                let visibleEntityIDs = group.entityIDs.filter { !hiddenEntityIDs.contains($0) }
+                guard !visibleEntityIDs.isEmpty else { return nil }
+
+                return DevicesEntityGroup(
                     id: "type-\(group.domain.rawValue)",
                     title: group.domain.displayName,
                     systemImage: group.domain.systemImage,
-                    entityIDs: group.entityIDs
+                    entityIDs: visibleEntityIDs
                 )
             }
         }
     }
 }
 
-private enum DevicesGrouping: CaseIterable {
+enum DevicesGrouping: CaseIterable {
     case device
     case type
 
@@ -189,7 +236,7 @@ private enum DevicesGrouping: CaseIterable {
     }
 }
 
-private struct DevicesEntityGroup: Identifiable, Equatable {
+struct DevicesEntityGroup: Identifiable, Equatable {
     let id: String
     let title: String
     let systemImage: String
@@ -202,9 +249,10 @@ private struct SelectedEntity: Identifiable {
     var id: String { entityID }
 }
 
-private struct DeviceEntityRow: View {
+private struct EntityBrowserRow<Accessory: View>: View {
     let entityBox: HAEntityState
     var displayNameOverride: String?
+    let accessory: Accessory
 
     var body: some View {
         let entity = entityBox.homeEntity
@@ -226,12 +274,7 @@ private struct DeviceEntityRow: View {
 
                 Spacer(minLength: AppSpacing.medium)
 
-                if let detailText {
-                    DeviceEntityDetailSlot(
-                        detailText: detailText,
-                        isAvailable: entity.isAvailable
-                    )
-                }
+                accessory
             }
             .frame(minHeight: 48)
         } icon: {
@@ -239,6 +282,19 @@ private struct DeviceEntityRow: View {
                 .foregroundStyle(entity.isAvailable ? Color.accentColor : Color.secondary)
         }
         .padding(.vertical, AppSpacing.xSmall)
+    }
+}
+
+private struct DeviceEntityStateAccessory: View {
+    let entityBox: HAEntityState
+
+    var body: some View {
+        if let detailText {
+            DeviceEntityDetailSlot(
+                detailText: detailText,
+                isAvailable: entityBox.homeEntity.isAvailable
+            )
+        }
     }
 
     private var detailText: String? {

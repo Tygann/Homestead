@@ -12,6 +12,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Kept broad entity projections fresh when live per-entity state changes.
 - Added regression tests for stale snapshot handling, attribute confirmation, and cached projection updates.
 
+### In-Place Dashboard Editing
+
+- Replaced the separate dashboard edit sheet with an in-place edit mode on the dashboard.
+- Cards now show lightweight corner controls for remove and size changes only while editing.
+- Added a reusable entity browser list so Devices and the add-card sheet share grouping and search behavior.
+- Live Home Assistant previews now keep dashboard card selection and sizing in preview-specific persistent defaults.
+
 ## 2026-05-21
 
 ### Added Project Memory Docs

@@ -59,6 +59,10 @@ final class DashboardConfiguration {
         return entityIDs.filter { availableIDs.contains($0) }
     }
 
+    func addableEntityIDs(fromAvailableEntityIDs availableIDs: Set<String>) -> Set<String> {
+        availableIDs.subtracting(Set(visibleEntityIDs(fromAvailableEntityIDs: availableIDs)))
+    }
+
     func contains(_ entityID: String) -> Bool {
         entityIDs.contains(entityID)
     }

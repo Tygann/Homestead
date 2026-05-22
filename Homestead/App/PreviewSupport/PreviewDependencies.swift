@@ -11,13 +11,13 @@ struct PreviewDependencies {
     static var sample: PreviewDependencies {
         let stateStore = HAStateStore()
         stateStore.applyInitialStates(PreviewData.entities)
-        let dashboardConfiguration = DashboardConfiguration(defaults: .preview)
+        let dashboardConfiguration = DashboardConfiguration(defaults: .samplePreview)
         dashboardConfiguration.reset(using: stateStore.allEntities)
 
         let settings = HAConnectionSettings(
             baseURL: "http://homeassistant.local:8123",
             accessToken: "preview-token",
-            defaults: .preview,
+            defaults: .samplePreview,
             credentialStore: InMemoryHACredentialStore()
         )
 
@@ -36,7 +36,7 @@ struct PreviewDependencies {
 
     static var liveHomeAssistant: PreviewDependencies? {
         let stateStore = HAStateStore()
-        let dashboardConfiguration = DashboardConfiguration(defaults: .preview)
+        let dashboardConfiguration = DashboardConfiguration(defaults: .livePreview)
 
         let settings = PreviewCredentialProvider.environmentSettings ??
             HAConnectionSettings(defaults: .standard)
@@ -166,19 +166,23 @@ private enum PreviewCredentialProvider {
         return HAConnectionSettings(
             baseURL: baseURL,
             accessToken: token,
-            defaults: .preview,
+            defaults: .livePreview,
             credentialStore: InMemoryHACredentialStore()
         )
     }
 }
 
 private extension UserDefaults {
-    static var preview: UserDefaults {
-        let defaults = UserDefaults(suiteName: "com.tyler.Homestead.preview") ?? .standard
+    static var samplePreview: UserDefaults {
+        let defaults = UserDefaults(suiteName: "com.tyler.Homestead.preview.sample") ?? .standard
         defaults.removeObject(forKey: "homeAssistantBaseURL")
         defaults.removeObject(forKey: "dashboardEntityIDs")
         defaults.removeObject(forKey: "dashboardCardSizes")
         return defaults
+    }
+
+    static var livePreview: UserDefaults {
+        UserDefaults(suiteName: "com.tyler.Homestead.preview.live") ?? .standard
     }
 }
 #endif

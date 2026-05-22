@@ -6,6 +6,7 @@ struct DashboardView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var isEditingDashboard = false
+    @State private var isShowingAddCardSheet = false
 
     var body: some View {
         ScrollView {
@@ -13,9 +14,15 @@ struct DashboardView: View {
                 if !stateStore.hasEntities {
                     EmptyDashboardCard()
                 } else if visibleEntityIDs.isEmpty {
-                    EmptyConfiguredDashboardCard {
-                        dashboardConfiguration.reset(using: stateStore.allEntities)
-                    }
+                    EmptyConfiguredDashboardCard(
+                        isEditing: isEditingDashboard,
+                        addCards: {
+                            isShowingAddCardSheet = true
+                        },
+                        reset: {
+                            dashboardConfiguration.reset(using: stateStore.allEntities)
+                        }
+                    )
                 } else {
                     favoritesSection
                 }
@@ -28,12 +35,29 @@ struct DashboardView: View {
 //        .navigationSubtitle(connectionSettings.baseURL)
         .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                optionsMenu
+            if isEditingDashboard {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        isShowingAddCardSheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .disabled(availableEntityIDsToAdd.isEmpty)
+                    .accessibilityLabel("Add dashboard card")
+
+                    Button("Done", role: .confirm) {
+                        isEditingDashboard = false
+                    }
+                    .bold()
+                }
+            } else {
+                ToolbarItem(placement: .primaryAction) {
+                    optionsMenu
+                }
             }
         }
-        .sheet(isPresented: $isEditingDashboard) {
-            DashboardEditView()
+        .sheet(isPresented: $isShowingAddCardSheet) {
+            DashboardAddCardView()
         }
         .onAppear {
             dashboardConfiguration.reconcile(with: stateStore.allEntities)
@@ -45,6 +69,10 @@ struct DashboardView: View {
 
     private var visibleEntityIDs: [String] {
         dashboardConfiguration.visibleEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
+    }
+
+    private var availableEntityIDsToAdd: Set<String> {
+        dashboardConfiguration.addableEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
     }
 
     private var favoritesSection: some View {
@@ -109,7 +137,14 @@ struct DashboardView: View {
     private func dashboardCard(_ item: DashboardCardItem) -> some View {
         DashboardCardView(
             entityID: item.entityID,
-            size: item.size
+            size: item.size,
+            isEditing: isEditingDashboard,
+            setSize: isEditingDashboard ? { size in
+                dashboardConfiguration.setCardSize(size, for: item.entityID)
+            } : nil,
+            remove: isEditingDashboard ? {
+                dashboardConfiguration.remove(item.entityID)
+            } : nil
         )
         .frame(maxWidth: .infinity)
     }
@@ -139,6 +174,55 @@ struct DashboardView: View {
             Image(systemName: "ellipsis")
                 .bold()
         }
+    }
+}
+
+private struct DashboardAddCardView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(HAStateStore.self) private var stateStore
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+
+    var body: some View {
+        NavigationStack {
+            EntityBrowserList(
+                hiddenEntityIDs: selectedEntityIDs,
+                emptyTitle: emptyTitle,
+                emptySystemImage: emptySystemImage,
+                rowAction: { entityBox in
+                    dashboardConfiguration.add(entityBox.entityID)
+                },
+                accessory: { _ in
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
+                }
+            )
+            .navigationTitle("Add Card")
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", role: .confirm) {
+                        dismiss()
+                    }
+                    .bold()
+                }
+            }
+        }
+    }
+
+    private var selectedEntityIDs: Set<String> {
+        stateStore.availableEntityIDs.subtracting(
+            dashboardConfiguration.addableEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
+        )
+    }
+
+    private var emptyTitle: String {
+        stateStore.hasEntities ? "All Cards Added" : "No Devices"
+    }
+
+    private var emptySystemImage: String {
+        stateStore.hasEntities ? "checkmark.circle" : "square.grid.2x2"
     }
 }
 
@@ -192,6 +276,8 @@ private struct EmptyDashboardCard: View {
 }
 
 private struct EmptyConfiguredDashboardCard: View {
+    let isEditing: Bool
+    let addCards: () -> Void
     let reset: () -> Void
 
     var body: some View {
@@ -200,13 +286,23 @@ private struct EmptyConfiguredDashboardCard: View {
                 CardIconView(systemName: "square.grid.2x2")
                 Text("No cards selected")
                     .font(.headline)
-                Text("Add cards from the Home options menu.")
+                Text(isEditing ? "Use the plus button to add cards." : "Choose Edit Home View to add cards.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Button("Restore Suggested Cards", action: reset)
-                    .buttonStyle(.borderedProminent)
-                    .padding(.top, AppSpacing.small)
+                HStack(spacing: AppSpacing.small) {
+                    if isEditing {
+                        Button("Add Cards", systemImage: "plus", action: addCards)
+                            .buttonStyle(.borderedProminent)
+
+                        Button("Restore Suggested Cards", action: reset)
+                            .buttonStyle(.bordered)
+                    } else {
+                        Button("Restore Suggested Cards", action: reset)
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
+                .padding(.top, AppSpacing.small)
             }
         }
     }

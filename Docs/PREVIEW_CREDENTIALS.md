@@ -20,3 +20,5 @@ Do not commit scheme files or shell scripts containing real tokens. Xcode user d
 ## Notes
 
 The default `Sample Data` preview never connects to Home Assistant. Use it for UI work when you do not need real entities.
+
+The `Live Home Assistant` preview stores dashboard card selection and sizing in a preview-specific `UserDefaults` suite. This keeps live preview layout edits persistent across preview reloads without mixing them into the simulator app's normal on-device dashboard layout.

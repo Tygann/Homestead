@@ -474,8 +474,10 @@ struct HomesteadTests {
 
         let configuration = DashboardConfiguration(defaults: defaults)
         configuration.seedIfNeeded(from: entities)
+        let availableEntityIDs = Set(entities.map(\.entityID))
 
         #expect(configuration.entityIDs == ["light.kitchen", "sensor.hallway_temperature"])
+        #expect(configuration.addableEntityIDs(fromAvailableEntityIDs: availableEntityIDs) == [])
 
         configuration.move(from: IndexSet(integer: 0), to: 2)
         #expect(configuration.entityIDs == ["sensor.hallway_temperature", "light.kitchen"])
@@ -490,6 +492,7 @@ struct HomesteadTests {
         configuration.setEntity("sensor.hallway_temperature", isVisible: false)
         #expect(configuration.entityIDs == ["light.kitchen"])
         #expect(configuration.cardSize(for: "sensor.hallway_temperature") == .compact)
+        #expect(configuration.addableEntityIDs(fromAvailableEntityIDs: availableEntityIDs) == ["sensor.hallway_temperature"])
 
         configuration.add("light.removed")
         configuration.setCardSize(.large, for: "light.removed")
