@@ -484,6 +484,9 @@ struct HomesteadTests {
         #expect(configuration.cardSize(for: "sensor.hallway_temperature") == .large)
         #expect(configuration.cardSize(for: "light.kitchen") == .compact)
 
+        configuration.setCardSize(.wide, for: "sensor.hallway_temperature")
+        #expect(configuration.cardSize(for: "sensor.hallway_temperature") == .wide)
+
         configuration.setEntity("sensor.hallway_temperature", isVisible: false)
         #expect(configuration.entityIDs == ["light.kitchen"])
         #expect(configuration.cardSize(for: "sensor.hallway_temperature") == .compact)
@@ -495,10 +498,11 @@ struct HomesteadTests {
         #expect(configuration.cardSize(for: "light.removed") == .compact)
 
         configuration.setCardSize(.large, for: "light.kitchen")
+        configuration.setCardSize(.wide, for: "light.kitchen")
 
         let restoredConfiguration = DashboardConfiguration(defaults: defaults)
         #expect(restoredConfiguration.entityIDs == ["light.kitchen"])
-        #expect(restoredConfiguration.cardSize(for: "light.kitchen") == .large)
+        #expect(restoredConfiguration.cardSize(for: "light.kitchen") == .wide)
     }
 
     @MainActor

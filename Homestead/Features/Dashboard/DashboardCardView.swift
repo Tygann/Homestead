@@ -109,7 +109,7 @@ private struct DashboardEntityCard: View {
         switch size {
         case .compact:
             compactContent
-        case .large:
+        case .large, .wide:
             largeContent
         }
     }
@@ -124,7 +124,6 @@ private struct DashboardEntityCard: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-//                    .minimumScaleFactor(0.82)
 
                 Text(presentation.subtitle)
                     .font(.caption.weight(.medium))
@@ -138,30 +137,29 @@ private struct DashboardEntityCard: View {
 
     private var largeContent: some View {
         VStack(alignment: .leading, spacing: AppSpacing.large) {
-            iconPlaceholder
-
-            Spacer(minLength: AppSpacing.small)
-
+            HStack(alignment: .center, spacing: AppSpacing.medium) {
+                iconPlaceholder
+                
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    Text(presentation.title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    
+                    Text(presentation.subtitle)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(presentation.subtitleColor)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            
             if let headline = presentation.headline {
                 Text(headline)
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(presentation.headlineColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.82)
-
-                Text(presentation.subtitle)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(presentation.subtitleColor)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
             }
         }
     }
@@ -317,6 +315,14 @@ private struct DashboardEntityPresentation {
 #Preview("Large") {
     DashboardCardView(entityID: "sensor.hallway_temperature", size: .large)
         .frame(width: 180)
+        .padding()
+        .background(Color(.systemGroupedBackground))
+        .withPreviewEnvironment()
+}
+
+#Preview("Wide") {
+    DashboardCardView(entityID: "sensor.hallway_temperature", size: .wide)
+        .frame(width: 376)
         .padding()
         .background(Color(.systemGroupedBackground))
         .withPreviewEnvironment()

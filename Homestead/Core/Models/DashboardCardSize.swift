@@ -4,6 +4,7 @@ import Foundation
 enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Sendable {
     case compact
     case large
+    case wide
 
     var displayName: String {
         switch self {
@@ -11,6 +12,8 @@ enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Sendable {
             "Regular"
         case .large:
             "Large"
+        case .wide:
+            "Wide"
         }
     }
 
@@ -20,6 +23,8 @@ enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Sendable {
             "rectangle"
         case .large:
             "rectangle.grid.1x2"
+        case .wide:
+            "rectangle.fill"
         }
     }
 
@@ -27,8 +32,9 @@ enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Sendable {
         switch self {
         case .compact:
             44
-        case .large:
-            184
+        case .large, .wide:
+            101
         }
     }
+
 }

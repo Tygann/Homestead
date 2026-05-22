@@ -7,11 +7,6 @@ struct DashboardView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var isEditingDashboard = false
 
-    private let columns = [
-        GridItem(.flexible(), spacing: AppSpacing.medium),
-        GridItem(.flexible(), spacing: AppSpacing.medium)
-    ]
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
@@ -54,15 +49,69 @@ struct DashboardView: View {
 
     private var favoritesSection: some View {
         DashboardSection(isEmpty: visibleEntityIDs.isEmpty) {
-            LazyVGrid(columns: columns, spacing: AppSpacing.medium) {
-                ForEach(visibleEntityIDs, id: \.self) { entityID in
-                    DashboardCardView(
-                        entityID: entityID,
-                        size: dashboardConfiguration.cardSize(for: entityID)
-                    )
+            LazyVStack(spacing: AppSpacing.medium) {
+                ForEach(cardRows) { row in
+                    if row.isWide {
+                        dashboardCard(row.items[0])
+                    } else {
+                        HStack(spacing: AppSpacing.medium) {
+                            ForEach(row.items) { item in
+                                dashboardCard(item)
+                            }
+
+                            if row.items.count == 1 {
+                                Spacer()
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var cardRows: [DashboardCardRow] {
+        var rows: [DashboardCardRow] = []
+        var pendingHalfWidthItems: [DashboardCardItem] = []
+
+        for entityID in visibleEntityIDs {
+            let item = DashboardCardItem(
+                entityID: entityID,
+                size: dashboardConfiguration.cardSize(for: entityID)
+            )
+
+            if item.size == .wide {
+                if !pendingHalfWidthItems.isEmpty {
+                    rows.append(DashboardCardRow(items: pendingHalfWidthItems))
+                    pendingHalfWidthItems.removeAll()
+                }
+
+                rows.append(DashboardCardRow(items: [item]))
+            } else {
+                pendingHalfWidthItems.append(item)
+
+                if pendingHalfWidthItems.count == 2 {
+                    rows.append(DashboardCardRow(items: pendingHalfWidthItems))
+                    pendingHalfWidthItems.removeAll()
                 }
             }
         }
+
+        if !pendingHalfWidthItems.isEmpty {
+            rows.append(DashboardCardRow(items: pendingHalfWidthItems))
+        }
+
+        return rows
+    }
+
+    private func dashboardCard(_ item: DashboardCardItem) -> some View {
+        DashboardCardView(
+            entityID: item.entityID,
+            size: item.size
+        )
+        .frame(maxWidth: .infinity)
     }
     
     // MARK: - Options Menu
@@ -90,6 +139,27 @@ struct DashboardView: View {
             Image(systemName: "ellipsis")
                 .bold()
         }
+    }
+}
+
+private struct DashboardCardRow: Identifiable {
+    let items: [DashboardCardItem]
+
+    var id: String {
+        items.map(\.entityID).joined(separator: "|")
+    }
+
+    var isWide: Bool {
+        items.count == 1 && items[0].size == .wide
+    }
+}
+
+private struct DashboardCardItem: Identifiable {
+    let entityID: String
+    let size: DashboardCardSize
+
+    var id: String {
+        entityID
     }
 }
 
