@@ -7,6 +7,8 @@ struct DashboardView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var isEditingDashboard = false
     @State private var isShowingAddCardSheet = false
+    @State private var renamingHeaderID: UUID?
+    @State private var headerTitleDraft = ""
     
     var body: some View {
         ScrollView {
@@ -23,11 +25,14 @@ struct DashboardView: View {
                     )
                 } else if !stateStore.hasEntities {
                     EmptyDashboardCard()
-                } else if visibleEntityIDs.isEmpty {
+                } else if visibleDashboardItems.isEmpty {
                     EmptyConfiguredDashboardCard(
                         isEditing: isEditingDashboard,
                         addCards: {
                             isShowingAddCardSheet = true
+                        },
+                        addHeader: {
+                            addHeaderAndRename()
                         },
                         reset: {
                             dashboardConfiguration.reset(using: stateStore.allEntities)
@@ -47,13 +52,23 @@ struct DashboardView: View {
         .toolbar {
             if isEditingDashboard {
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        isShowingAddCardSheet = true
+                    Menu {
+                        Button {
+                            isShowingAddCardSheet = true
+                        } label: {
+                            Label("Add Card", systemImage: "square.grid.2x2")
+                        }
+                        .disabled(availableEntityIDsToAdd.isEmpty)
+
+                        Button {
+                            addHeaderAndRename()
+                        } label: {
+                            Label("Add Header", systemImage: "textformat.size")
+                        }
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .disabled(availableEntityIDsToAdd.isEmpty)
-                    .accessibilityLabel("Add dashboard card")
+                    .accessibilityLabel("Add dashboard item")
                     
                     Button("Done", role: .confirm) {
                         isEditingDashboard = false
@@ -69,6 +84,18 @@ struct DashboardView: View {
         .sheet(isPresented: $isShowingAddCardSheet) {
             DashboardAddCardView()
         }
+        .alert("Rename Header", isPresented: isRenamingHeader) {
+            TextField("Header Title", text: $headerTitleDraft)
+
+            Button("Cancel", role: .cancel) {
+                renamingHeaderID = nil
+                headerTitleDraft = ""
+            }
+
+            Button("Save", role: .confirm) {
+                saveHeaderRename()
+            }
+        }
         .onAppear {
             reconcileDashboardConfigurationIfReady()
         }
@@ -77,8 +104,8 @@ struct DashboardView: View {
         }
     }
     
-    private var visibleEntityIDs: [String] {
-        dashboardConfiguration.visibleEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
+    private var visibleDashboardItems: [DashboardItemConfiguration] {
+        dashboardConfiguration.visibleItems(fromAvailableEntityIDs: stateStore.availableEntityIDs)
     }
     
     private var availableEntityIDsToAdd: Set<String> {
@@ -92,12 +119,48 @@ struct DashboardView: View {
         
         dashboardConfiguration.reconcile(with: stateStore.allEntities)
     }
+
+    private var isRenamingHeader: Binding<Bool> {
+        Binding(
+            get: { renamingHeaderID != nil },
+            set: { isPresented in
+                if !isPresented {
+                    renamingHeaderID = nil
+                    headerTitleDraft = ""
+                }
+            }
+        )
+    }
+
+    private func addHeaderAndRename() {
+        let title = "New Section"
+        let itemID = dashboardConfiguration.addHeader(title: title)
+        headerTitleDraft = title
+        renamingHeaderID = itemID
+    }
+
+    private func beginRenamingHeader(_ item: DashboardItemConfiguration) {
+        headerTitleDraft = item.resolvedTitle
+        renamingHeaderID = item.id
+    }
+
+    private func saveHeaderRename() {
+        guard let renamingHeaderID else {
+            return
+        }
+
+        dashboardConfiguration.renameHeader(id: renamingHeaderID, title: headerTitleDraft)
+        self.renamingHeaderID = nil
+        headerTitleDraft = ""
+    }
     
     private var favoritesSection: some View {
-        DashboardSection(isEmpty: visibleEntityIDs.isEmpty) {
+        DashboardSection(isEmpty: visibleDashboardItems.isEmpty) {
             LazyVStack(spacing: AppSpacing.medium) {
                 ForEach(cardLayoutSections) { section in
                     switch section.kind {
+                    case .header(let item):
+                        dashboardHeader(item)
                     case .wide(let item):
                         dashboardCard(item)
                     case .columns(let columns):
@@ -139,23 +202,48 @@ struct DashboardView: View {
             ]
         }
         
-        for entityID in visibleEntityIDs {
-            let item = DashboardCardItem(
-                entityID: entityID,
-                size: dashboardConfiguration.cardSize(for: entityID)
-            )
-            
-            if item.size.columnSpan == 2 {
+        for configurationItem in visibleDashboardItems {
+            switch configurationItem.type {
+            case .header:
                 flushColumns()
-                sections.append(DashboardCardLayoutSection(kind: .wide(item)))
-            } else {
-                let targetColumnIndex = columns[0].height <= columns[1].height ? 0 : 1
-                columns[targetColumnIndex].append(item)
+                sections.append(DashboardCardLayoutSection(kind: .header(configurationItem)))
+            case .entity:
+                guard let entityID = configurationItem.entityID else {
+                    continue
+                }
+
+                let item = DashboardCardItem(
+                    id: configurationItem.id,
+                    entityID: entityID,
+                    size: configurationItem.resolvedCardSize
+                )
+
+                if item.size.columnSpan == 2 {
+                    flushColumns()
+                    sections.append(DashboardCardLayoutSection(kind: .wide(item)))
+                } else {
+                    let targetColumnIndex = columns[0].height <= columns[1].height ? 0 : 1
+                    columns[targetColumnIndex].append(item)
+                }
             }
         }
         
         flushColumns()
         return sections
+    }
+
+    private func dashboardHeader(_ item: DashboardItemConfiguration) -> some View {
+        DashboardHeaderCardView(
+            title: item.resolvedTitle,
+            isEditing: isEditingDashboard,
+            rename: isEditingDashboard ? {
+                beginRenamingHeader(item)
+            } : nil,
+            remove: isEditingDashboard ? {
+                dashboardConfiguration.removeItem(id: item.id)
+            } : nil
+        )
+        .frame(maxWidth: .infinity)
     }
     
     private func dashboardCard(_ item: DashboardCardItem) -> some View {
@@ -164,10 +252,10 @@ struct DashboardView: View {
             size: item.size,
             isEditing: isEditingDashboard,
             setSize: isEditingDashboard ? { size in
-                dashboardConfiguration.setCardSize(size, for: item.entityID)
+                dashboardConfiguration.setCardSize(size, forItemID: item.id)
             } : nil,
             remove: isEditingDashboard ? {
-                dashboardConfiguration.remove(item.entityID)
+                dashboardConfiguration.removeItem(id: item.id)
             } : nil
         )
         .frame(maxWidth: .infinity)
@@ -256,6 +344,7 @@ private struct DashboardAddCardView: View {
 
 private struct DashboardCardLayoutSection: Identifiable {
     enum Kind {
+        case header(DashboardItemConfiguration)
         case wide(DashboardCardItem)
         case columns([DashboardCardColumn])
     }
@@ -264,8 +353,10 @@ private struct DashboardCardLayoutSection: Identifiable {
 
     var id: String {
         switch kind {
+        case .header(let item):
+            "header-\(item.id)"
         case .wide(let item):
-            "wide-\(item.entityID)"
+            "wide-\(item.id)"
         case .columns(let columns):
             "columns-\(columns.map(\.id).joined(separator: "|"))"
         }
@@ -283,7 +374,7 @@ private struct DashboardCardColumn: Identifiable {
     private(set) var height: CGFloat = 0
 
     var id: String {
-        "\(position.rawValue)-\(items.map(\.entityID).joined(separator: ","))"
+        "\(position.rawValue)-\(items.map { $0.id.uuidString }.joined(separator: ","))"
     }
 
     mutating func append(_ item: DashboardCardItem) {
@@ -300,11 +391,69 @@ private struct DashboardCardColumn: Identifiable {
 }
 
 private struct DashboardCardItem: Identifiable {
+    let id: UUID
     let entityID: String
     let size: DashboardCardSize
+}
 
-    var id: String {
-        entityID
+private struct DashboardHeaderCardView: View {
+    let title: String
+    let isEditing: Bool
+    var rename: (() -> Void)?
+    var remove: (() -> Void)?
+
+    var body: some View {
+        HStack(alignment: .center, spacing: AppSpacing.small) {
+            Text(title)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: AppSpacing.medium)
+
+            if isEditing {
+                editControls
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(.horizontal, AppSpacing.small)
+        .padding(.top, AppSpacing.small)
+        .padding(.bottom, AppSpacing.xSmall)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color(.separator).opacity(0.32))
+                .frame(height: 1)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var editControls: some View {
+        HStack(spacing: AppSpacing.small) {
+            if let rename {
+                Button(action: rename) {
+                    Image(systemName: "pencil")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                }
+                .glassEffect()
+                .accessibilityLabel("Rename \(title)")
+            }
+
+            if let remove {
+                Button(action: remove) {
+                    Image(systemName: "minus")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.red)
+                        .frame(width: 28, height: 28)
+                        .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                }
+                .glassEffect()
+                .accessibilityLabel("Remove \(title)")
+            }
+        }
     }
 }
 
@@ -525,6 +674,7 @@ private struct EmptyDashboardCard: View {
 private struct EmptyConfiguredDashboardCard: View {
     let isEditing: Bool
     let addCards: () -> Void
+    let addHeader: () -> Void
     let reset: () -> Void
 
     var body: some View {
@@ -533,7 +683,7 @@ private struct EmptyConfiguredDashboardCard: View {
                 CardIconView(systemName: "square.grid.2x2")
                 Text("No cards selected")
                     .font(.headline)
-                Text(isEditing ? "Use the plus button to add cards." : "Choose Edit Home View to add cards.")
+                Text(isEditing ? "Use the plus button to add cards or headers." : "Choose Edit Home View to add cards.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
@@ -541,6 +691,9 @@ private struct EmptyConfiguredDashboardCard: View {
                     if isEditing {
                         Button("Add Cards", systemImage: "plus", action: addCards)
                             .buttonStyle(.borderedProminent)
+
+                        Button("Add Header", systemImage: "textformat.size", action: addHeader)
+                            .buttonStyle(.bordered)
 
                         Button("Restore Suggested Cards", action: reset)
                             .buttonStyle(.bordered)

@@ -1,36 +1,89 @@
 import Foundation
 import Observation
 
+struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
+    var id: UUID
+    var type: DashboardItemType
+    var entityID: String?
+    var title: String?
+    var size: DashboardCardSize?
+
+    static func entity(
+        entityID: String,
+        size: DashboardCardSize = .compact,
+        id: UUID = UUID()
+    ) -> DashboardItemConfiguration {
+        DashboardItemConfiguration(
+            id: id,
+            type: .entity,
+            entityID: entityID,
+            title: nil,
+            size: size
+        )
+    }
+
+    static func header(
+        title: String,
+        id: UUID = UUID()
+    ) -> DashboardItemConfiguration {
+        DashboardItemConfiguration(
+            id: id,
+            type: .header,
+            entityID: nil,
+            title: title,
+            size: nil
+        )
+    }
+
+    var resolvedTitle: String {
+        let trimmedTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedTitle.isEmpty ? "Untitled Section" : trimmedTitle
+    }
+
+    var resolvedCardSize: DashboardCardSize {
+        size ?? .compact
+    }
+}
+
+enum DashboardItemType: String, Codable, Equatable, Sendable {
+    case entity
+    case header
+}
+
 @MainActor
 @Observable
 final class DashboardConfiguration {
-    private(set) var entityIDs: [String] {
-        didSet { saveEntityIDs() }
-    }
-    private(set) var cardSizes: [String: DashboardCardSize] {
-        didSet { saveCardSizes() }
+    private(set) var items: [DashboardItemConfiguration] {
+        didSet { saveItems() }
     }
 
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let entityIDsKey = "dashboardEntityIDs"
-    @ObservationIgnored private let cardSizesKey = "dashboardCardSizes"
+    @ObservationIgnored private let itemsKey = "dashboardItems"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        entityIDs = defaults.stringArray(forKey: entityIDsKey) ?? []
-        cardSizes = Self.loadCardSizes(from: defaults, key: cardSizesKey)
+        items = Self.loadItems(from: defaults, key: itemsKey)
     }
 
     var hasCustomLayout: Bool {
-        !entityIDs.isEmpty
+        !items.isEmpty
+    }
+
+    var entityIDs: [String] {
+        items.compactMap { item in
+            guard item.type == .entity else { return nil }
+            return item.entityID
+        }
     }
 
     func seedIfNeeded(from entities: [HomeEntity]) {
-        guard entityIDs.isEmpty else {
+        guard items.isEmpty else {
             return
         }
 
-        entityIDs = Self.defaultEntityIDs(from: entities)
+        items = Self.defaultEntityIDs(from: entities).map {
+            DashboardItemConfiguration.entity(entityID: $0)
+        }
     }
 
     func reconcile(with entities: [HomeEntity]) {
@@ -39,15 +92,34 @@ final class DashboardConfiguration {
     }
 
     func reconcile(withAvailableEntityIDs availableIDs: Set<String>) {
-        let currentEntityIDs = entityIDs.filter { availableIDs.contains($0) }
-
-        if currentEntityIDs != entityIDs {
-            entityIDs = currentEntityIDs
+        let currentItems = items.filter { item in
+            switch item.type {
+            case .entity:
+                guard let entityID = item.entityID else { return false }
+                return availableIDs.contains(entityID)
+            case .header:
+                return true
+            }
         }
 
-        let currentSizes = cardSizes.filter { availableIDs.contains($0.key) }
-        if currentSizes != cardSizes {
-            cardSizes = currentSizes
+        if currentItems != items {
+            items = currentItems
+        }
+    }
+
+    func visibleItems(from entities: [HomeEntity]) -> [DashboardItemConfiguration] {
+        visibleItems(fromAvailableEntityIDs: Set(entities.map(\.entityID)))
+    }
+
+    func visibleItems(fromAvailableEntityIDs availableIDs: Set<String>) -> [DashboardItemConfiguration] {
+        items.filter { item in
+            switch item.type {
+            case .entity:
+                guard let entityID = item.entityID else { return false }
+                return availableIDs.contains(entityID)
+            case .header:
+                return true
+            }
         }
     }
 
@@ -56,11 +128,14 @@ final class DashboardConfiguration {
     }
 
     func visibleEntityIDs(fromAvailableEntityIDs availableIDs: Set<String>) -> [String] {
-        return entityIDs.filter { availableIDs.contains($0) }
+        visibleItems(fromAvailableEntityIDs: availableIDs).compactMap { item in
+            guard item.type == .entity else { return nil }
+            return item.entityID
+        }
     }
 
     func addableEntityIDs(fromAvailableEntityIDs availableIDs: Set<String>) -> Set<String> {
-        availableIDs.subtracting(Set(visibleEntityIDs(fromAvailableEntityIDs: availableIDs)))
+        availableIDs.subtracting(Set(entityIDs))
     }
 
     func contains(_ entityID: String) -> Bool {
@@ -75,64 +150,107 @@ final class DashboardConfiguration {
         }
     }
 
-    func add(_ entityID: String) {
-        guard !entityIDs.contains(entityID) else {
+    @discardableResult
+    func add(_ entityID: String) -> UUID {
+        if let existingItem = items.first(where: { $0.type == .entity && $0.entityID == entityID }) {
+            return existingItem.id
+        }
+
+        let item = DashboardItemConfiguration.entity(entityID: entityID)
+        items.append(item)
+        return item.id
+    }
+
+    @discardableResult
+    func addHeader(title: String) -> UUID {
+        let item = DashboardItemConfiguration.header(title: normalizedHeaderTitle(title))
+        items.append(item)
+        return item.id
+    }
+
+    func renameHeader(id: UUID, title: String) {
+        guard let index = items.firstIndex(where: { $0.id == id && $0.type == .header }) else {
             return
         }
 
-        entityIDs.append(entityID)
+        var updatedItems = items
+        updatedItems[index].title = normalizedHeaderTitle(title)
+        items = updatedItems
     }
 
     func remove(_ entityID: String) {
-        entityIDs.removeAll { $0 == entityID }
-        cardSizes.removeValue(forKey: entityID)
+        items.removeAll { $0.type == .entity && $0.entityID == entityID }
+    }
+
+    func removeItem(id: UUID) {
+        items.removeAll { $0.id == id }
     }
 
     func move(from source: IndexSet, to destination: Int) {
-        let movingIDs = source.sorted().map { entityIDs[$0] }
-        var updatedIDs = entityIDs
+        let movingItems = source.sorted().map { items[$0] }
+        var updatedItems = items
 
         for index in source.sorted(by: >) {
-            updatedIDs.remove(at: index)
+            updatedItems.remove(at: index)
         }
 
         let adjustedDestination = destination - source.filter { $0 < destination }.count
-        updatedIDs.insert(contentsOf: movingIDs, at: adjustedDestination)
-        entityIDs = updatedIDs
+        updatedItems.insert(contentsOf: movingItems, at: adjustedDestination)
+        items = updatedItems
     }
 
     func reset(using entities: [HomeEntity]) {
-        entityIDs = Self.defaultEntityIDs(from: entities)
-        cardSizes = [:]
+        items = Self.defaultEntityIDs(from: entities).map {
+            DashboardItemConfiguration.entity(entityID: $0)
+        }
+    }
+
+    func cardSize(forItemID itemID: UUID) -> DashboardCardSize {
+        items.first { $0.id == itemID }?.resolvedCardSize ?? .compact
     }
 
     func cardSize(for entityID: String) -> DashboardCardSize {
-        cardSizes[entityID] ?? .compact
+        items.first { $0.type == .entity && $0.entityID == entityID }?.resolvedCardSize ?? .compact
+    }
+
+    func setCardSize(_ size: DashboardCardSize, forItemID itemID: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == itemID && $0.type == .entity }) else {
+            return
+        }
+
+        var updatedItems = items
+        updatedItems[index].size = size
+        items = updatedItems
     }
 
     func setCardSize(_ size: DashboardCardSize, for entityID: String) {
-        if size == .compact {
-            cardSizes.removeValue(forKey: entityID)
-        } else {
-            cardSizes[entityID] = size
-        }
-    }
-
-    private func saveEntityIDs() {
-        defaults.set(entityIDs, forKey: entityIDsKey)
-    }
-
-    private func saveCardSizes() {
-        let rawSizes = cardSizes.mapValues(\.rawValue)
-        defaults.set(rawSizes, forKey: cardSizesKey)
-    }
-
-    private static func loadCardSizes(from defaults: UserDefaults, key: String) -> [String: DashboardCardSize] {
-        guard let rawSizes = defaults.dictionary(forKey: key) as? [String: String] else {
-            return [:]
+        guard let itemID = items.first(where: { $0.type == .entity && $0.entityID == entityID })?.id else {
+            return
         }
 
-        return rawSizes.compactMapValues(DashboardCardSize.init(rawValue:))
+        setCardSize(size, forItemID: itemID)
+    }
+
+    private func saveItems() {
+        guard let data = try? JSONEncoder().encode(items) else {
+            return
+        }
+
+        defaults.set(data, forKey: itemsKey)
+    }
+
+    private func normalizedHeaderTitle(_ title: String) -> String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedTitle.isEmpty ? "Untitled Section" : trimmedTitle
+    }
+
+    private static func loadItems(from defaults: UserDefaults, key: String) -> [DashboardItemConfiguration] {
+        guard let data = defaults.data(forKey: key),
+              let items = try? JSONDecoder().decode([DashboardItemConfiguration].self, from: data) else {
+            return []
+        }
+
+        return items
     }
 
     private static func defaultEntityIDs(from entities: [HomeEntity]) -> [String] {

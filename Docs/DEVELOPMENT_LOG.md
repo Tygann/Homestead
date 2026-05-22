@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-22
 
+### Dashboard Header Items
+
+- Replaced separate dashboard entity and size storage with one ordered dashboard item list.
+- Added user-created header items as full-width dashboard row breakers for lightweight grouping.
+- Kept entity cards backed by Home Assistant state while header items remain local-only dashboard organization.
+- Added regression tests for item persistence, header rename/removal, stale entity reconciliation, and addable entity filtering.
+
 ### Home Assistant Pending Confirmation Hardening
 
 - Pending commands now clear only when a confirmed Home Assistant state satisfies the expected state and attributes.
