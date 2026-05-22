@@ -30,6 +30,7 @@ struct DashboardView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Homestead")
+//        .navigationSubtitle(connectionSettings.baseURL)
         .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

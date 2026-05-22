@@ -122,8 +122,9 @@ private struct DashboardEntityCard: View {
                 Text(presentation.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.82)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+//                    .minimumScaleFactor(0.82)
 
                 Text(presentation.subtitle)
                     .font(.caption.weight(.medium))

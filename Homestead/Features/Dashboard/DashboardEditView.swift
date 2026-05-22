@@ -28,13 +28,10 @@ struct DashboardEditView: View {
                     }
                     .disabled(!stateStore.hasEntities)
                 }
-
+                
                 ToolbarItem(placement: .confirmationAction) {
-                    Button {
+                    Button(role: .confirm) {
                         dismiss()
-                    } label: {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title3.weight(.semibold))
                     }
                     .accessibilityLabel("Done")
                 }
@@ -132,6 +129,13 @@ struct DashboardEditView: View {
                 }
                 .onMove { source, destination in
                     dashboardConfiguration.move(from: source, to: destination)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) {
+                        // Your removal logic here
+                    } label: {
+                        Label("Remove", systemImage: "trash")
+                    }
                 }
             }
         } header: {
@@ -280,7 +284,8 @@ private struct DashboardEntityRow: View {
             case .selected:
                 "checkmark.circle.fill"
             case .remove:
-                "minus.circle.fill"
+//                "minus.circle.fill"
+                ""
             }
         }
 

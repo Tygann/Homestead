@@ -26,7 +26,7 @@ enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Sendable {
     var minHeight: CGFloat {
         switch self {
         case .compact:
-            88
+            44
         case .large:
             184
         }
