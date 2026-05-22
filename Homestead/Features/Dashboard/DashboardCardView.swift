@@ -198,36 +198,18 @@ private struct DashboardEntityCard: View {
             }
     }
     
-    // TODO: Is there a cleaner way to set this size menu up?
     @ViewBuilder
     private var sizeMenu: some View {
         if let setSize {
-            // Mirror the current size to a local binding for Picker
-            // Use a wrapper view to own the @State
-            SizePickerMenu(
-                current: size,
-                setSize: setSize
-            )
-            .glassEffect()
-            .accessibilityLabel("Card size")
-        }
-    }
-
-    private struct SizePickerMenu: View {
-        @State private var selection: DashboardCardSize
-        let setSize: (DashboardCardSize) -> Void
-
-        init(current: DashboardCardSize, setSize: @escaping (DashboardCardSize) -> Void) {
-            self._selection = State(initialValue: current)
-            self.setSize = setSize
-        }
-
-        var body: some View {
             Menu {
-                Picker("", selection: $selection) {
+                Picker("", selection: Binding(
+                    get: { size },
+                    set: { setSize($0) }
+                )) {
                     ForEach(DashboardCardSize.allCases, id: \.self) { option in
                         Label(option.displayName, systemImage: option.systemImage)
                             .tag(option)
+                            .tint(size == option ? .primary : .gray)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -238,9 +220,7 @@ private struct DashboardEntityCard: View {
                     .frame(width: 28, height: 28)
                     .background(Color(.secondarySystemGroupedBackground), in: Circle())
             }
-            .onChange(of: selection) { _, newValue in
-                setSize(newValue)
-            }
+            .glassEffect()
             .accessibilityLabel("Card size")
         }
     }
@@ -426,77 +406,53 @@ private struct DashboardEntityPresentation {
 }
 
 #if DEBUG
-#Preview("Compact") {
-    DashboardCardView(entityID: "light.living_room_lamps", size: .compact)
-        .frame(width: 180)
+private struct DashboardCardDisplaySizesPreview: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            HStack(alignment: .top, spacing: AppSpacing.medium) {
+                DashboardCardView(entityID: "light.living_room_lamps", size: .compact)
+                    .frame(width: 180)
+
+                DashboardCardView(entityID: "sensor.hallway_temperature", size: .large)
+                    .frame(width: 180)
+            }
+
+            DashboardCardView(entityID: "sensor.hallway_temperature", size: .wide)
+                .frame(width: 376)
+        }
         .padding()
         .background(Color(.systemGroupedBackground))
-        .withPreviewEnvironment()
-}
-
-#Preview("Large") {
-    DashboardCardView(entityID: "sensor.hallway_temperature", size: .large)
-        .frame(width: 180)
-        .padding()
-        .background(Color(.systemGroupedBackground))
-        .withPreviewEnvironment()
-}
-
-#Preview("Wide") {
-    DashboardCardView(entityID: "sensor.hallway_temperature", size: .wide)
-        .frame(width: 376)
-        .padding()
-        .background(Color(.systemGroupedBackground))
-        .withPreviewEnvironment()
-}
-
-// MARK: - DashboardEntityCard Edit Mode Preview Helpers
-// TODO: Is there a cleaner way to display a preview with the edit buttons rather than having to add a separate extension? Possibly by simply setting the preview to editmode = true?
-extension DashboardEntityPresentation {
-    // Convenience initializer for previews only
-    init(
-        previewTitle title: String,
-        subtitle: String,
-        headline: String? = nil,
-        iconName: String,
-        isActive: Bool,
-        isAvailable: Bool,
-        accentColor: Color = .accentColor,
-        isPending: Bool = false
-    ) {
-        self.title = title
-        self.subtitle = subtitle
-        self.headline = headline
-        self.iconName = iconName
-        self.isActive = isActive
-        self.isAvailable = isAvailable
-        self.accentColor = accentColor
-        self.isPending = isPending
     }
 }
 
-#Preview("Entity Card (Edit Mode)") {
-    DashboardEntityCard(
-        presentation: .init(
-            previewTitle: "Living Room Lamp",
-            subtitle: "Off",
-            headline: nil,
-            iconName: "lightbulb",
-            isActive: false,
-            isAvailable: true,
-            accentColor: .accentColor,
-            isPending: false
-        ),
-        size: .large,
-        isPending: false,
-        isEditing: true,
-        toggle: nil,
-        showDetails: nil,
-        setSize: { _ in },
-        remove: {}
-    )
-    .frame(width: 200)
-    .padding()
-    .background(Color(.systemGroupedBackground))
+#Preview("Display Sizes") {
+    DashboardCardDisplaySizesPreview()
+        .withPreviewEnvironment()
+}
+
+private struct DashboardCardEditModePreview: View {
+    @State private var size: DashboardCardSize = .large
+
+    var body: some View {
+        DashboardCardView(
+            entityID: "light.living_room_lamps",
+            size: size,
+            isEditing: true,
+            setSize: { size = $0 },
+            remove: {}
+        )
+        .frame(width: previewWidth)
+        .padding()
+        .background(Color(.systemGroupedBackground))
+    }
+
+    private var previewWidth: CGFloat {
+        size == .wide ? 376 : 180
+    }
+}
+
+#Preview("Edit Mode") {
+    DashboardCardEditModePreview()
+        .withPreviewEnvironment()
 }
 #endif
