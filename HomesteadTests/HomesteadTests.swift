@@ -245,6 +245,19 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func stateStoreTracksInitialSnapshotLoadSeparatelyFromEntityCount() {
+        let store = HAStateStore()
+
+        #expect(store.hasLoadedInitialSnapshot == false)
+        #expect(store.hasEntities == false)
+
+        store.applySnapshot([])
+
+        #expect(store.hasLoadedInitialSnapshot == true)
+        #expect(store.hasEntities == false)
+    }
+
+    @MainActor
     @Test func stateStoreDoesNotLetOlderUpdatesOverwriteNewerState() throws {
         let store = HAStateStore()
         store.applySnapshot([

@@ -28,6 +28,8 @@ struct DevicesView: View {
 
 struct EntityBrowserList<Accessory: View>: View {
     @Environment(HAStateStore.self) private var stateStore
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var searchText = ""
     @State private var grouping: DevicesGrouping = .device
     @State private var collapsedGroups: Set<String> = []
@@ -91,7 +93,13 @@ struct EntityBrowserList<Accessory: View>: View {
             }
         }
         .overlay {
-            if !stateStore.hasEntities {
+            if connectionSettings.hasCredentials && !stateStore.hasLoadedInitialSnapshot {
+                ContentUnavailableView {
+                    Label(entityLoadingTitle, systemImage: homeAssistantService.connectionStatus.systemImage)
+                } description: {
+                    Text(entityLoadingMessage)
+                }
+            } else if !stateStore.hasEntities {
                 ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
             } else if groups.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
@@ -105,6 +113,32 @@ struct EntityBrowserList<Accessory: View>: View {
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+    }
+
+    private var entityLoadingTitle: String {
+        switch homeAssistantService.connectionStatus {
+        case .failed:
+            "Unable to Load Devices"
+        case .disconnected:
+            "Loading Home Assistant"
+        case .reconnecting:
+            "Reconnecting"
+        case .connected, .connecting:
+            "Loading Home Assistant"
+        }
+    }
+
+    private var entityLoadingMessage: String {
+        switch homeAssistantService.connectionStatus {
+        case .failed:
+            homeAssistantService.lastErrorMessage ?? "Check your connection settings and try again."
+        case .disconnected:
+            "Preparing to fetch your latest entity state."
+        case .reconnecting:
+            "Restoring your live entity state."
+        case .connected, .connecting:
+            "Fetching your latest entity state."
+        }
     }
 
     private var groupingMenu: some View {

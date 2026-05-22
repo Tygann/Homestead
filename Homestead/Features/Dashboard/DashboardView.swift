@@ -11,7 +11,17 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                if !stateStore.hasEntities {
+                if !connectionSettings.hasCredentials {
+                    DashboardSetupCard()
+                } else if !stateStore.hasLoadedInitialSnapshot {
+                    DashboardInitialSyncView(
+                        connectionStatus: homeAssistantService.connectionStatus,
+                        errorMessage: homeAssistantService.lastErrorMessage,
+                        reconnect: {
+                            Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
+                        }
+                    )
+                } else if !stateStore.hasEntities {
                     EmptyDashboardCard()
                 } else if visibleEntityIDs.isEmpty {
                     EmptyConfiguredDashboardCard(
@@ -311,14 +321,200 @@ private struct DashboardSection<Content: View>: View {
     }
 }
 
-private struct EmptyDashboardCard: View {
+private struct DashboardSetupCard: View {
     var body: some View {
         CardContainer {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 CardIconView(systemName: "house")
-                Text("No Home Assistant entities yet")
+                Text("Connect Home Assistant")
                     .font(.headline)
                 Text("Add your server URL and token in Settings.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct DashboardInitialSyncView: View {
+    let connectionStatus: HAConnectionStatus
+    let errorMessage: String?
+    let reconnect: () -> Void
+
+    var body: some View {
+        switch connectionStatus {
+        case .failed:
+            DashboardInitialSyncFailureCard(
+                errorMessage: errorMessage,
+                reconnect: reconnect
+            )
+        case .disconnected, .connecting, .connected, .reconnecting:
+            DashboardLoadingPlaceholderView(connectionStatus: connectionStatus)
+        }
+    }
+}
+
+private struct DashboardLoadingPlaceholderView: View {
+    let connectionStatus: HAConnectionStatus
+    @State private var isPulsing = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            HStack(spacing: AppSpacing.small) {
+                ProgressView()
+                    .controlSize(.small)
+
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Text(message)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, AppSpacing.medium)
+            .padding(.vertical, AppSpacing.small)
+            .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+            .accessibilityElement(children: .combine)
+
+            VStack(spacing: AppSpacing.medium) {
+                DashboardSkeletonCard(size: .wide)
+
+                HStack(alignment: .top, spacing: AppSpacing.medium) {
+                    VStack(spacing: AppSpacing.medium) {
+                        DashboardSkeletonCard(size: .large)
+                        DashboardSkeletonCard(size: .compact)
+                        DashboardSkeletonCard(size: .compact)
+                    }
+
+                    VStack(spacing: AppSpacing.medium) {
+                        DashboardSkeletonCard(size: .large)
+                        DashboardSkeletonCard(size: .compact)
+                        DashboardSkeletonCard(size: .large)
+                    }
+                }
+            }
+            .opacity(isPulsing ? 0.46 : 0.72)
+            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isPulsing)
+        }
+        .allowsHitTesting(false)
+        .task {
+            isPulsing = true
+        }
+    }
+
+    private var title: String {
+        switch connectionStatus {
+        case .reconnecting:
+            "Reconnecting"
+        case .connecting:
+            "Connecting"
+        case .connected:
+            "Loading Dashboard"
+        case .disconnected, .failed:
+            "Loading Dashboard"
+        }
+    }
+
+    private var message: String {
+        switch connectionStatus {
+        case .reconnecting:
+            "Restoring live state"
+        case .disconnected:
+            "Preparing"
+        case .connecting, .connected, .failed:
+            "Fetching latest state"
+        }
+    }
+}
+
+private struct DashboardSkeletonCard: View {
+    let size: DashboardCardSize
+
+    var body: some View {
+        CardContainer(minHeight: cardContainerMinHeight) {
+            VStack(alignment: .leading, spacing: AppSpacing.large) {
+                HStack(alignment: .center, spacing: AppSpacing.medium) {
+                    RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                        .fill(Color(.tertiarySystemGroupedBackground))
+                        .frame(width: 44, height: 44)
+
+                    VStack(alignment: .leading, spacing: AppSpacing.small) {
+                        skeletonLine(width: titleWidth, height: 13)
+                        skeletonLine(width: 54, height: 11)
+                    }
+                }
+
+                if size != .compact {
+                    skeletonLine(width: 96, height: 24)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
+        }
+    }
+
+    private var cardContainerMinHeight: CGFloat {
+        size.contentMinHeight(
+            rowSpacing: AppSpacing.medium,
+            cardPadding: AppSpacing.medium
+        )
+    }
+
+    private var cardContentMinHeight: CGFloat {
+        max(0, cardContainerMinHeight - (AppSpacing.medium * 2))
+    }
+
+    private var titleWidth: CGFloat {
+        switch size {
+        case .compact:
+            86
+        case .large:
+            112
+        case .wide:
+            154
+        }
+    }
+
+    private func skeletonLine(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+            .fill(Color(.tertiarySystemGroupedBackground))
+            .frame(width: width, height: height)
+    }
+}
+
+private struct DashboardInitialSyncFailureCard: View {
+    let errorMessage: String?
+    let reconnect: () -> Void
+
+    var body: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                CardIconView(systemName: "exclamationmark.triangle.fill")
+
+                Text("Unable to load Home Assistant")
+                    .font(.headline)
+
+                Text(errorMessage ?? "Check your connection settings and try again.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Button("Reconnect", systemImage: "arrow.triangle.2.circlepath", action: reconnect)
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, AppSpacing.small)
+            }
+        }
+    }
+}
+
+private struct EmptyDashboardCard: View {
+    var body: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                CardIconView(systemName: "square.grid.2x2")
+                Text("No Home Assistant entities found")
+                    .font(.headline)
+                Text("Home Assistant loaded successfully, but did not return any entities.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

@@ -12,6 +12,7 @@ final class HAStateStore {
     private(set) var availableEntityIDs: Set<String> = []
     private(set) var entityCatalogSignature = ""
     private(set) var hasEntities = false
+    private(set) var hasLoadedInitialSnapshot = false
     @ObservationIgnored private(set) var lightEntitiesByID: [String: LightEntity] = [:]
     @ObservationIgnored private(set) var climateEntitiesByID: [String: ClimateEntity] = [:]
     @ObservationIgnored private(set) var coverEntitiesByID: [String: CoverEntity] = [:]
@@ -83,6 +84,8 @@ final class HAStateStore {
     }
 
     func applySnapshot(_ entities: [HAEntityDTO]) {
+        hasLoadedInitialSnapshot = true
+
         let snapshotEntityIDs = Set(entities.map(\.entityID))
         let removedEntityIDs = Set(rawEntitiesByID.keys).subtracting(snapshotEntityIDs)
 
