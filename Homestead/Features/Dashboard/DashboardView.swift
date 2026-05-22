@@ -60,10 +60,10 @@ struct DashboardView: View {
             DashboardAddCardView()
         }
         .onAppear {
-            dashboardConfiguration.reconcile(with: stateStore.allEntities)
+            reconcileDashboardConfigurationIfReady()
         }
         .onChange(of: stateStore.entityCatalogSignature) { _, _ in
-            dashboardConfiguration.reconcile(with: stateStore.allEntities)
+            reconcileDashboardConfigurationIfReady()
         }
     }
 
@@ -73,6 +73,14 @@ struct DashboardView: View {
 
     private var availableEntityIDsToAdd: Set<String> {
         dashboardConfiguration.addableEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
+    }
+
+    private func reconcileDashboardConfigurationIfReady() {
+        guard stateStore.hasEntities else {
+            return
+        }
+
+        dashboardConfiguration.reconcile(with: stateStore.allEntities)
     }
 
     private var favoritesSection: some View {
