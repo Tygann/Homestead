@@ -41,6 +41,22 @@ final class HAStateStore {
         entityBoxesByID[entityID]
     }
 
+    func rawEntity(for entityID: String) -> HAEntityDTO? {
+        rawEntitiesByID[entityID]
+    }
+
+    func entityRegistryMetadata(for entityID: String) -> HAEntityRegistryDisplayDTO? {
+        entityRegistryByID[entityID]
+    }
+
+    func deviceRegistryMetadata(for deviceID: String) -> HADeviceRegistryDTO? {
+        deviceRegistryByID[deviceID]
+    }
+
+    func deviceRegistryMetadata(forEntityID entityID: String) -> HADeviceRegistryDTO? {
+        entityRegistryByID[entityID]?.deviceID.flatMap { deviceRegistryByID[$0] }
+    }
+
     func lightEntity(for entityID: String) -> LightEntity? {
         lightEntitiesByID[entityID]
     }

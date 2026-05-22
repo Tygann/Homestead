@@ -6,7 +6,7 @@ struct DashboardCardView: View {
 
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var isShowingLightDetails = false
+    @State private var selectedDetail: DashboardCardDetail?
 
     var body: some View {
         if let entityBox = stateStore.entityBox(for: entityID) {
@@ -18,8 +18,17 @@ struct DashboardCardView: View {
                 toggle: primaryAction(for: entityBox),
                 showDetails: detailsAction(for: entityBox)
             )
-            .sheet(isPresented: $isShowingLightDetails) {
-                LightDetailView(entityBox: entityBox)
+            .sheet(item: $selectedDetail) { detail in
+                if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
+                    switch detail.kind {
+                    case .light:
+                        LightDetailView(entityBox: selectedEntityBox)
+                    case .entity:
+                        EntityDetailView(entityBox: selectedEntityBox)
+                    }
+                } else {
+                    ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
+                }
             }
         }
     }
@@ -33,11 +42,26 @@ struct DashboardCardView: View {
     }
 
     private func detailsAction(for entityBox: HAEntityState) -> (() -> Void)? {
-        guard entityBox.lightEntity != nil else { return nil }
-
         return {
-            isShowingLightDetails = true
+            selectedDetail = DashboardCardDetail(
+                entityID: entityBox.entityID,
+                kind: entityBox.lightEntity == nil ? .entity : .light
+            )
         }
+    }
+}
+
+private struct DashboardCardDetail: Identifiable {
+    enum Kind {
+        case light
+        case entity
+    }
+
+    let entityID: String
+    let kind: Kind
+
+    var id: String {
+        "\(kind)-\(entityID)"
     }
 }
 

@@ -5,6 +5,7 @@ struct DevicesView: View {
     @State private var searchText = ""
     @State private var grouping: DevicesGrouping = .device
     @State private var collapsedGroups: Set<String> = []
+    @State private var selectedEntity: SelectedEntity?
 
     var body: some View {
         let groups = filteredEntityGroups
@@ -15,10 +16,15 @@ struct DevicesView: View {
                     if !collapsedGroups.contains(group.id) {
                         ForEach(group.entityIDs, id: \.self) { entityID in
                             if let entityBox = stateStore.entityBox(for: entityID) {
-                                DeviceEntityRow(
-                                    entityBox: entityBox,
-                                    displayNameOverride: displayNameOverride(for: entityID)
-                                )
+                                Button {
+                                    selectedEntity = SelectedEntity(entityID: entityID)
+                                } label: {
+                                    DeviceEntityRow(
+                                        entityBox: entityBox,
+                                        displayNameOverride: displayNameOverride(for: entityID)
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -50,6 +56,11 @@ struct DevicesView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 groupingMenu
+            }
+        }
+        .sheet(item: $selectedEntity) { selectedEntity in
+            if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
+                EntityDetailView(entityBox: entityBox)
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
@@ -183,6 +194,12 @@ private struct DevicesEntityGroup: Identifiable, Equatable {
     let title: String
     let systemImage: String
     let entityIDs: [String]
+}
+
+private struct SelectedEntity: Identifiable {
+    let entityID: String
+
+    var id: String { entityID }
 }
 
 private struct DeviceEntityRow: View {

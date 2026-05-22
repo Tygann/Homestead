@@ -11,13 +11,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		A100000C2FBDFE43009A0E06 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 2FE2DD512FBDFE42009A0E06 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A10000062FBDFE43009A0E06;
-			remoteInfo = HomesteadWidgets;
-		};
 		2FE2DD692FBDFE43009A0E06 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2FE2DD512FBDFE42009A0E06 /* Project object */;
@@ -32,7 +25,28 @@
 			remoteGlobalIDString = 2FE2DD582FBDFE42009A0E06;
 			remoteInfo = Homestead;
 		};
+		A100000C2FBDFE43009A0E06 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2FE2DD512FBDFE42009A0E06 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000062FBDFE43009A0E06;
+			remoteInfo = HomesteadWidgets;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A100000A2FBDFE43009A0E06 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A100000B2FBDFE43009A0E06 /* HomesteadWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2FE2DD592FBDFE42009A0E06 /* Homestead.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Homestead.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -158,28 +172,6 @@
 			productReference = 2FE2DD592FBDFE42009A0E06 /* Homestead.app */;
 			productType = "com.apple.product-type.application";
 		};
-		A10000062FBDFE43009A0E06 /* HomesteadWidgets */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A10000072FBDFE43009A0E06 /* Build configuration list for PBXNativeTarget "HomesteadWidgets" */;
-			buildPhases = (
-				A10000052FBDFE43009A0E06 /* Sources */,
-				A10000032FBDFE43009A0E06 /* Frameworks */,
-				A10000042FBDFE43009A0E06 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				A10000022FBDFE43009A0E06 /* HomesteadWidgets */,
-			);
-			name = HomesteadWidgets;
-			packageProductDependencies = (
-			);
-			productName = HomesteadWidgets;
-			productReference = A10000012FBDFE43009A0E06 /* HomesteadWidgets.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		2FE2DD672FBDFE43009A0E06 /* HomesteadTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2FE2DD7F2FBDFE43009A0E06 /* Build configuration list for PBXNativeTarget "HomesteadTests" */;
@@ -226,6 +218,28 @@
 			productReference = 2FE2DD722FBDFE43009A0E06 /* HomesteadUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		A10000062FBDFE43009A0E06 /* HomesteadWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000072FBDFE43009A0E06 /* Build configuration list for PBXNativeTarget "HomesteadWidgets" */;
+			buildPhases = (
+				A10000052FBDFE43009A0E06 /* Sources */,
+				A10000032FBDFE43009A0E06 /* Frameworks */,
+				A10000042FBDFE43009A0E06 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10000022FBDFE43009A0E06 /* HomesteadWidgets */,
+			);
+			name = HomesteadWidgets;
+			packageProductDependencies = (
+			);
+			productName = HomesteadWidgets;
+			productReference = A10000012FBDFE43009A0E06 /* HomesteadWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -239,9 +253,6 @@
 					2FE2DD582FBDFE42009A0E06 = {
 						CreatedOnToolsVersion = 26.5;
 					};
-					A10000062FBDFE43009A0E06 = {
-						CreatedOnToolsVersion = 26.5;
-					};
 					2FE2DD672FBDFE43009A0E06 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 2FE2DD582FBDFE42009A0E06;
@@ -249,6 +260,9 @@
 					2FE2DD712FBDFE43009A0E06 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 2FE2DD582FBDFE42009A0E06;
+					};
+					A10000062FBDFE43009A0E06 = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -336,26 +350,7 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		A100000A2FBDFE43009A0E06 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				A100000B2FBDFE43009A0E06 /* HomesteadWidgets.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXTargetDependency section */
-		A100000D2FBDFE43009A0E06 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = A10000062FBDFE43009A0E06 /* HomesteadWidgets */;
-			targetProxy = A100000C2FBDFE43009A0E06 /* PBXContainerItemProxy */;
-		};
 		2FE2DD6A2FBDFE43009A0E06 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 2FE2DD582FBDFE42009A0E06 /* Homestead */;
@@ -365,6 +360,11 @@
 			isa = PBXTargetDependency;
 			target = 2FE2DD582FBDFE42009A0E06 /* Homestead */;
 			targetProxy = 2FE2DD732FBDFE43009A0E06 /* PBXContainerItemProxy */;
+		};
+		A100000D2FBDFE43009A0E06 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000062FBDFE43009A0E06 /* HomesteadWidgets */;
+			targetProxy = A100000C2FBDFE43009A0E06 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
