@@ -2,6 +2,16 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-05-22
+
+### Home Assistant Pending Confirmation Hardening
+
+- Pending commands now clear only when a confirmed Home Assistant state satisfies the expected state and attributes.
+- Stale snapshots can update confirmed state without dismissing pending UI feedback prematurely.
+- Recoverable WebSocket request failures during service calls or refreshes now trigger reconnect handling.
+- Kept broad entity projections fresh when live per-entity state changes.
+- Added regression tests for stale snapshot handling, attribute confirmation, and cached projection updates.
+
 ## 2026-05-21
 
 ### Added Project Memory Docs
@@ -37,6 +47,13 @@ Reason: live Home Assistant data with many entities made dashboard scrolling and
 - Added light cards with tap-to-toggle behavior.
 - Added a light detail sheet for brightness and power controls.
 - Added optimistic updates for light state and brightness after successful service calls.
+
+### Home Assistant Real-Time State Refactor
+
+- Changed initial WebSocket sync to subscribe to `state_changed` before applying the `get_states` snapshot, buffering live events during the snapshot fetch.
+- Removed optimistic writes from confirmed entity state; service calls now set pending UI command state and wait for Home Assistant state confirmation.
+- Added monotonic state application, stable `HAEntityState` identity across snapshots, entity removal for `new_state: null`, WebSocket request timeouts, ping heartbeat, and foreground resume refresh.
+- Added regression tests for stale update prevention, stable boxes, removal events, and pending command clearing.
 
 ### Home Assistant Foundation
 

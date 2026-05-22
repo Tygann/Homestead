@@ -7,8 +7,11 @@ enum HAWebSocketMessageType {
     nonisolated static var authInvalid: String { "auth_invalid" }
     nonisolated static var result: String { "result" }
     nonisolated static var event: String { "event" }
+    nonisolated static var pong: String { "pong" }
     nonisolated static var getStates: String { "get_states" }
     nonisolated static var subscribeEvents: String { "subscribe_events" }
+    nonisolated static var unsubscribeEvents: String { "unsubscribe_events" }
+    nonisolated static var ping: String { "ping" }
     nonisolated static var callService: String { "call_service" }
     nonisolated static var entityRegistryListForDisplay: String { "config/entity_registry/list_for_display" }
     nonisolated static var deviceRegistryList: String { "config/device_registry/list" }
@@ -65,6 +68,8 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case auth(accessToken: String)
     case getStates(id: Int)
     case subscribeEvents(id: Int, eventType: String)
+    case unsubscribeEvents(id: Int, subscription: Int)
+    case ping(id: Int)
     case registryCommand(id: Int, type: String)
     case callService(
         id: Int,
@@ -79,6 +84,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case type
         case accessToken = "access_token"
         case eventType = "event_type"
+        case subscription
         case domain
         case service
         case target
@@ -99,6 +105,13 @@ enum HAWebSocketRequest: Encodable, Sendable {
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.subscribeEvents, forKey: .type)
             try container.encode(eventType, forKey: .eventType)
+        case .unsubscribeEvents(let id, let subscription):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.unsubscribeEvents, forKey: .type)
+            try container.encode(subscription, forKey: .subscription)
+        case .ping(let id):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.ping, forKey: .type)
         case .registryCommand(let id, let type):
             try container.encode(id, forKey: .id)
             try container.encode(type, forKey: .type)

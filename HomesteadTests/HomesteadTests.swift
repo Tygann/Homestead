@@ -236,15 +236,193 @@ struct HomesteadTests {
         #expect(store.lightEntity(for: "light.kitchen")?.isOn == false)
         #expect(store.entity(for: "light.kitchen")?.state == "off")
 
-        store.applyOptimisticLightState(entityID: "light.kitchen", isOn: true)
+        let pendingCommand = HAEntityPendingCommand(entityID: "light.kitchen", expectedState: "on")
+        store.setPendingCommand(pendingCommand)
+
+        #expect(store.lightEntity(for: "light.kitchen")?.isOn == false)
+        #expect(store.pendingCommand(for: "light.kitchen") == pendingCommand)
+        #expect(store.entityBox(for: "light.kitchen")?.pendingCommand == pendingCommand)
+    }
+
+    @MainActor
+    @Test func stateStoreDoesNotLetOlderUpdatesOverwriteNewerState() throws {
+        let store = HAStateStore()
+        store.applySnapshot([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["friendly_name": .string("Kitchen")],
+                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:02:00.000000+00:00"))
+            )
+        ])
+
+        store.applyLiveStateUpdates([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "off",
+                attributes: ["friendly_name": .string("Kitchen")],
+                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:01:00.000000+00:00"))
+            )
+        ])
 
         #expect(store.lightEntity(for: "light.kitchen")?.isOn == true)
-        #expect(store.entity(for: "light.kitchen")?.state == "on")
+        #expect(store.rawEntity(for: "light.kitchen")?.state == "on")
+    }
 
-        store.applyOptimisticLightBrightness(entityID: "light.kitchen", brightnessPercentage: 40)
+    @MainActor
+    @Test func stateStoreSnapshotPreservesEntityBoxIdentity() {
+        let store = HAStateStore()
+        store.applySnapshot([
+            HAEntityDTO(entityID: "light.kitchen", state: "off")
+        ])
+        let firstBox = store.entityBox(for: "light.kitchen")
 
+        store.applySnapshot([
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+
+        #expect(store.entityBox(for: "light.kitchen") === firstBox)
+        #expect(firstBox?.lightEntity?.isOn == true)
+    }
+
+    @MainActor
+    @Test func stateStoreRemovesEntityWhenStateChangedNewStateIsNull() {
+        let store = HAStateStore()
+        store.applySnapshot([
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+
+        let removalEvent = HAEventDTO(
+            eventType: "state_changed",
+            data: .object([
+                "entity_id": .string("light.kitchen"),
+                "old_state": .object([
+                    "entity_id": .string("light.kitchen"),
+                    "state": .string("on")
+                ]),
+                "new_state": .null
+            ])
+        )
+
+        store.apply(event: removalEvent)
+
+        #expect(store.entity(for: "light.kitchen") == nil)
+        #expect(store.entityBox(for: "light.kitchen") == nil)
+        #expect(store.availableEntityIDs.contains("light.kitchen") == false)
+    }
+
+    @MainActor
+    @Test func confirmedStateChangeClearsPendingCommand() {
+        let store = HAStateStore()
+        store.applySnapshot([
+            HAEntityDTO(entityID: "light.kitchen", state: "off")
+        ])
+        store.setPendingCommand(HAEntityPendingCommand(entityID: "light.kitchen", expectedState: "on"))
+
+        let event = HAEventDTO(
+            eventType: "state_changed",
+            data: .object([
+                "entity_id": .string("light.kitchen"),
+                "old_state": .null,
+                "new_state": .object([
+                    "entity_id": .string("light.kitchen"),
+                    "state": .string("on")
+                ])
+            ])
+        )
+
+        store.apply(event: event)
+
+        #expect(store.pendingCommand(for: "light.kitchen") == nil)
+        #expect(store.entityBox(for: "light.kitchen")?.pendingCommand == nil)
         #expect(store.lightEntity(for: "light.kitchen")?.isOn == true)
-        #expect(store.lightEntity(for: "light.kitchen")?.brightnessPercentage == 40)
+    }
+
+    @MainActor
+    @Test func staleSnapshotDoesNotClearPendingCommandUntilExpectedStateIsConfirmed() throws {
+        let store = HAStateStore()
+        store.applySnapshot([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "off",
+                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:00:00.000000+00:00"))
+            )
+        ])
+        let pendingCommand = HAEntityPendingCommand(entityID: "light.kitchen", expectedState: "on")
+        store.setPendingCommand(pendingCommand)
+
+        store.applySnapshot([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "off",
+                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:01:00.000000+00:00"))
+            )
+        ])
+
+        #expect(store.pendingCommand(for: "light.kitchen") == pendingCommand)
+        #expect(store.entityBox(for: "light.kitchen")?.pendingCommand == pendingCommand)
+        #expect(store.lightEntity(for: "light.kitchen")?.isOn == false)
+
+        store.applySnapshot([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:02:00.000000+00:00"))
+            )
+        ])
+
+        #expect(store.pendingCommand(for: "light.kitchen") == nil)
+        #expect(store.entityBox(for: "light.kitchen")?.pendingCommand == nil)
+        #expect(store.lightEntity(for: "light.kitchen")?.isOn == true)
+    }
+
+    @MainActor
+    @Test func pendingCommandWaitsForExpectedAttributes() {
+        let store = HAStateStore()
+        store.applySnapshot([
+            HAEntityDTO(entityID: "light.kitchen", state: "off")
+        ])
+        let pendingCommand = HAEntityPendingCommand(
+            entityID: "light.kitchen",
+            expectedState: "on",
+            expectedAttributes: ["brightness": .number(128)]
+        )
+        store.setPendingCommand(pendingCommand)
+
+        store.applyLiveStateUpdates([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["brightness": .number(64)]
+            )
+        ])
+
+        #expect(store.pendingCommand(for: "light.kitchen") == pendingCommand)
+
+        store.applyLiveStateUpdates([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["brightness": .number(128)]
+            )
+        ])
+
+        #expect(store.pendingCommand(for: "light.kitchen") == nil)
+    }
+
+    @MainActor
+    @Test func liveStateUpdateKeepsAllEntitiesProjectionFresh() {
+        let store = HAStateStore()
+        store.applySnapshot([
+            HAEntityDTO(entityID: "light.kitchen", state: "off")
+        ])
+
+        store.applyLiveStateUpdates([
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+
+        #expect(store.allEntities.first { $0.entityID == "light.kitchen" }?.state == "on")
+        #expect(store.entitiesByDomain.first?.entities.first { $0.entityID == "light.kitchen" }?.state == "on")
     }
 
     @MainActor

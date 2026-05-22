@@ -2,16 +2,27 @@ import Foundation
 
 actor HAWebSocketClient {
     private let session: URLSession
+    private let requestTimeout: Duration
+    private let heartbeatInterval: Duration
     private var webSocketTask: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
+    private var heartbeatTask: Task<Void, Never>?
     private var nextID = 1
     private var pendingResults: [Int: CheckedContinuation<HAWebSocketIncomingMessage, Error>] = [:]
+    private var pendingPongs: [Int: CheckedContinuation<Void, Error>] = [:]
     private var eventHandler: (@Sendable (HAEventDTO) async -> Void)?
     private var disconnectHandler: (@MainActor @Sendable (Error) -> Void)?
+    private var stateChangeSubscriptionID: Int?
     private var isDisconnecting = false
 
-    init(session: URLSession = .shared) {
+    init(
+        session: URLSession = .shared,
+        requestTimeout: Duration = .seconds(15),
+        heartbeatInterval: Duration = .seconds(30)
+    ) {
         self.session = session
+        self.requestTimeout = requestTimeout
+        self.heartbeatInterval = heartbeatInterval
     }
 
     func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) {
@@ -43,6 +54,7 @@ actor HAWebSocketClient {
         switch authResponse.type {
         case HAWebSocketMessageType.authOK:
             startReceiveLoop()
+            startHeartbeatLoop()
         case HAWebSocketMessageType.authInvalid:
             throw HAWebSocketError.authenticationFailed(authResponse.message)
         default:
@@ -58,9 +70,13 @@ actor HAWebSocketClient {
     private func closeCurrentConnection() {
         receiveTask?.cancel()
         receiveTask = nil
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
+        stateChangeSubscriptionID = nil
         resumeAllPending(throwing: HAWebSocketError.notConnected)
+        resumeAllPongs(throwing: HAWebSocketError.notConnected)
     }
 
     func fetchStates() async throws -> [HAEntityDTO] {
@@ -103,11 +119,29 @@ actor HAWebSocketClient {
     }
 
     func subscribeToStateChanges() async throws {
+        guard stateChangeSubscriptionID == nil else {
+            return
+        }
+
         let id = makeRequestID()
         _ = try await sendRequest(
             .subscribeEvents(id: id, eventType: "state_changed"),
             id: id
         )
+        stateChangeSubscriptionID = id
+    }
+
+    func unsubscribeFromStateChanges() async throws {
+        guard let stateChangeSubscriptionID else {
+            return
+        }
+
+        let id = makeRequestID()
+        _ = try await sendRequest(
+            .unsubscribeEvents(id: id, subscription: stateChangeSubscriptionID),
+            id: id
+        )
+        self.stateChangeSubscriptionID = nil
     }
 
     func callService(
@@ -144,6 +178,40 @@ actor HAWebSocketClient {
                     try await self.send(request)
                 } catch {
                     self.resumePendingResult(id: id, throwing: error)
+                }
+            }
+
+            Task {
+                do {
+                    try await Task.sleep(for: requestTimeout)
+                    self.resumePendingResult(id: id, throwing: HAWebSocketError.requestTimedOut)
+                } catch {
+                    return
+                }
+            }
+        }
+    }
+
+    private func sendPing() async throws {
+        let id = makeRequestID()
+
+        try await withCheckedThrowingContinuation { continuation in
+            pendingPongs[id] = continuation
+
+            Task {
+                do {
+                    try await self.send(.ping(id: id))
+                } catch {
+                    self.resumePendingPong(id: id, throwing: error)
+                }
+            }
+
+            Task {
+                do {
+                    try await Task.sleep(for: requestTimeout)
+                    self.resumePendingPong(id: id, throwing: HAWebSocketError.requestTimedOut)
+                } catch {
+                    return
                 }
             }
         }
@@ -219,6 +287,30 @@ actor HAWebSocketClient {
         }
     }
 
+    private func startHeartbeatLoop() {
+        heartbeatTask?.cancel()
+        heartbeatTask = Task { [weak self] in
+            await self?.heartbeatLoop()
+        }
+    }
+
+    private func heartbeatLoop() async {
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(for: heartbeatInterval)
+                try await sendPing()
+            } catch {
+                guard !Task.isCancelled, !isDisconnecting else {
+                    return
+                }
+
+                closeCurrentConnection()
+                await disconnectHandler?(error)
+                return
+            }
+        }
+    }
+
     private func receiveLoop() async {
         do {
             while !Task.isCancelled {
@@ -240,6 +332,8 @@ actor HAWebSocketClient {
         switch message.type {
         case HAWebSocketMessageType.result:
             handleResult(message)
+        case HAWebSocketMessageType.pong:
+            handlePong(message)
         case HAWebSocketMessageType.event:
             if let event = message.event {
                 await eventHandler?(event)
@@ -261,6 +355,14 @@ actor HAWebSocketClient {
         }
     }
 
+    private func handlePong(_ message: HAWebSocketIncomingMessage) {
+        guard let id = message.id, let continuation = pendingPongs.removeValue(forKey: id) else {
+            return
+        }
+
+        continuation.resume()
+    }
+
     private func resumePendingResult(id: Int, throwing error: Error) {
         guard let continuation = pendingResults.removeValue(forKey: id) else {
             return
@@ -272,6 +374,23 @@ actor HAWebSocketClient {
     private func resumeAllPending(throwing error: Error) {
         let continuations = pendingResults.values
         pendingResults.removeAll()
+
+        for continuation in continuations {
+            continuation.resume(throwing: error)
+        }
+    }
+
+    private func resumePendingPong(id: Int, throwing error: Error) {
+        guard let continuation = pendingPongs.removeValue(forKey: id) else {
+            return
+        }
+
+        continuation.resume(throwing: error)
+    }
+
+    private func resumeAllPongs(throwing error: Error) {
+        let continuations = pendingPongs.values
+        pendingPongs.removeAll()
 
         for continuation in continuations {
             continuation.resume(throwing: error)

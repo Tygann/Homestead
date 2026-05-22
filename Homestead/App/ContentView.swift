@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView {
@@ -33,6 +34,18 @@ struct ContentView: View {
             }
 
             await homeAssistantService.connectIfPossible(settings: connectionSettings)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active:
+                Task { await homeAssistantService.resume(settings: connectionSettings) }
+            case .background:
+                homeAssistantService.applicationDidEnterBackground()
+            case .inactive:
+                break
+            @unknown default:
+                break
+            }
         }
         .overlay(alignment: .bottom) {
             if let feedback = homeAssistantService.serviceFeedback {

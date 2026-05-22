@@ -84,7 +84,9 @@ struct LightDetailView: View {
     }
 
     private func powerControls(_ light: LightEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+        let isPending = entityBox.pendingCommand != nil
+
+        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
             Button {
                 Task {
                     if light.isOn {
@@ -94,12 +96,16 @@ struct LightDetailView: View {
                     }
                 }
             } label: {
-                Label(light.isOn ? "Turn Off" : "Turn On", systemImage: light.isOn ? "power" : "lightbulb.fill")
+                Label(
+                    isPending ? "Updating..." : (light.isOn ? "Turn Off" : "Turn On"),
+                    systemImage: light.isOn ? "power" : "lightbulb.fill"
+                )
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
             }
             .buttonStyle(.borderedProminent)
+            .disabled(isPending)
         }
         .controlSize(.large)
     }
@@ -133,6 +139,7 @@ struct LightDetailView: View {
                     }
                 }
             )
+            .disabled(entityBox.pendingCommand != nil)
 
             HStack(spacing: AppSpacing.small) {
                 ForEach(brightnessPresets, id: \.self) { preset in

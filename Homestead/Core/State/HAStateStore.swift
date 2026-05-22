@@ -18,6 +18,7 @@ final class HAStateStore {
     @ObservationIgnored private(set) var sensorEntitiesByID: [String: SensorEntity] = [:]
     @ObservationIgnored private var rawEntitiesByID: [String: HAEntityDTO] = [:]
     @ObservationIgnored private var entityBoxesByID: [String: HAEntityState] = [:]
+    @ObservationIgnored private var pendingCommandsByID: [String: HAEntityPendingCommand] = [:]
     @ObservationIgnored private var entityRegistryByID: [String: HAEntityRegistryDisplayDTO] = [:]
     @ObservationIgnored private var deviceRegistryByID: [String: HADeviceRegistryDTO] = [:]
 
@@ -43,6 +44,10 @@ final class HAStateStore {
 
     func rawEntity(for entityID: String) -> HAEntityDTO? {
         rawEntitiesByID[entityID]
+    }
+
+    func pendingCommand(for entityID: String) -> HAEntityPendingCommand? {
+        pendingCommandsByID[entityID]
     }
 
     func entityRegistryMetadata(for entityID: String) -> HAEntityRegistryDisplayDTO? {
@@ -74,8 +79,25 @@ final class HAStateStore {
     }
 
     func applyInitialStates(_ entities: [HAEntityDTO]) {
-        rawEntitiesByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, $0) })
-        rebuildMappedEntities(from: entities)
+        applySnapshot(entities)
+    }
+
+    func applySnapshot(_ entities: [HAEntityDTO]) {
+        let snapshotEntityIDs = Set(entities.map(\.entityID))
+        let removedEntityIDs = Set(rawEntitiesByID.keys).subtracting(snapshotEntityIDs)
+
+        for entityID in removedEntityIDs {
+            removeEntity(entityID)
+        }
+
+        for dto in entities {
+            let wasApplied = applyConfirmedDTO(dto)
+
+            if wasApplied, pendingCommandsByID[dto.entityID]?.isSatisfied(by: dto) == true {
+                clearPendingCommand(entityID: dto.entityID)
+            }
+        }
+
         saveWidgetLightSnapshots()
     }
 
@@ -89,56 +111,46 @@ final class HAStateStore {
     }
 
     func apply(event: HAEventDTO) {
-        guard let newState = event.stateChangedNewState else {
-            return
-        }
+        guard let stateChanged = event.stateChanged else { return }
+        applyStateChanged(stateChanged)
+    }
 
-        rawEntitiesByID[newState.entityID] = newState
-        apply(dto: newState)
+    func applyStateChanged(_ stateChanged: HAStateChangedEventDTO) {
+        if let newState = stateChanged.newState {
+            if applyConfirmedDTO(newState) {
+                if pendingCommandsByID[newState.entityID]?.isSatisfied(by: newState) == true {
+                    clearPendingCommand(entityID: newState.entityID)
+                }
+            }
+        } else {
+            removeEntity(stateChanged.entityID)
+        }
+    }
+
+    func applyStateChanges(_ changes: [HAStateChangedEventDTO]) {
+        for change in changes {
+            applyStateChanged(change)
+        }
     }
 
     func applyLiveStateUpdates(_ updates: [HAEntityDTO]) {
         for update in updates {
-            rawEntitiesByID[update.entityID] = update
-            apply(dto: update)
+            if applyConfirmedDTO(update) {
+                if pendingCommandsByID[update.entityID]?.isSatisfied(by: update) == true {
+                    clearPendingCommand(entityID: update.entityID)
+                }
+            }
         }
     }
 
-    func applyOptimisticLightState(entityID: String, isOn: Bool) {
-        guard var dto = rawEntitiesByID[entityID] else {
-            return
-        }
-
-        dto = HAEntityDTO(
-            entityID: dto.entityID,
-            state: isOn ? "on" : "off",
-            attributes: dto.attributes,
-            lastChanged: Date(),
-            lastUpdated: Date()
-        )
-        rawEntitiesByID[entityID] = dto
-        apply(dto: dto)
+    func setPendingCommand(_ pendingCommand: HAEntityPendingCommand) {
+        pendingCommandsByID[pendingCommand.entityID] = pendingCommand
+        entityBoxesByID[pendingCommand.entityID]?.pendingCommand = pendingCommand
     }
 
-    func applyOptimisticLightBrightness(entityID: String, brightnessPercentage: Double) {
-        guard var dto = rawEntitiesByID[entityID] else {
-            return
-        }
-
-        let clampedPercentage = min(max(brightnessPercentage, 1), 100)
-        let brightness = Int((clampedPercentage / 100) * 255)
-        var attributes = dto.attributes
-        attributes["brightness"] = .number(Double(max(1, brightness)))
-
-        dto = HAEntityDTO(
-            entityID: dto.entityID,
-            state: "on",
-            attributes: attributes,
-            lastChanged: Date(),
-            lastUpdated: Date()
-        )
-        rawEntitiesByID[entityID] = dto
-        apply(dto: dto)
+    func clearPendingCommand(entityID: String) {
+        pendingCommandsByID[entityID] = nil
+        entityBoxesByID[entityID]?.pendingCommand = nil
     }
 
     func displayNameForDeviceGroupedEntity(entityID: String) -> String? {
@@ -184,20 +196,44 @@ final class HAStateStore {
         sensorEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
             EntityMapper.sensorEntity(from: dto).map { ($0.entityID, $0) }
         })
-        entityBoxesByID = Dictionary(uniqueKeysWithValues: entities.map { dto in
+        var updatedEntityBoxesByID: [String: HAEntityState] = [:]
+        for dto in entities {
             let homeEntity = EntityMapper.homeEntity(from: dto)
-            return (
-                dto.entityID,
-                HAEntityState(
+
+            if let entityBox = entityBoxesByID[dto.entityID] {
+                entityBox.update(
                     homeEntity: homeEntity,
                     lightEntity: EntityMapper.lightEntity(from: dto),
                     climateEntity: EntityMapper.climateEntity(from: dto),
                     coverEntity: EntityMapper.coverEntity(from: dto),
-                    sensorEntity: EntityMapper.sensorEntity(from: dto)
+                    sensorEntity: EntityMapper.sensorEntity(from: dto),
+                    pendingCommand: pendingCommandsByID[dto.entityID]
                 )
-            )
-        })
+                updatedEntityBoxesByID[dto.entityID] = entityBox
+            } else {
+                updatedEntityBoxesByID[dto.entityID] = HAEntityState(
+                    homeEntity: homeEntity,
+                    lightEntity: EntityMapper.lightEntity(from: dto),
+                    climateEntity: EntityMapper.climateEntity(from: dto),
+                    coverEntity: EntityMapper.coverEntity(from: dto),
+                    sensorEntity: EntityMapper.sensorEntity(from: dto),
+                    pendingCommand: pendingCommandsByID[dto.entityID]
+                )
+            }
+        }
+        entityBoxesByID = updatedEntityBoxesByID
         refreshEntityIndexes()
+    }
+
+    @discardableResult
+    private func applyConfirmedDTO(_ dto: HAEntityDTO) -> Bool {
+        guard shouldApply(dto) else {
+            return false
+        }
+
+        rawEntitiesByID[dto.entityID] = dto
+        apply(dto: dto)
+        return true
     }
 
     private func apply(dto: HAEntityDTO) {
@@ -216,7 +252,8 @@ final class HAStateStore {
             lightEntity: lightEntitiesByID[dto.entityID],
             climateEntity: climateEntitiesByID[dto.entityID],
             coverEntity: coverEntitiesByID[dto.entityID],
-            sensorEntity: sensorEntitiesByID[dto.entityID]
+            sensorEntity: sensorEntitiesByID[dto.entityID],
+            pendingCommand: pendingCommandsByID[dto.entityID]
         )
 
         if previousEntity?.domain == homeEntity.domain,
@@ -228,6 +265,32 @@ final class HAStateStore {
 
         if homeEntity.domain == .light {
             saveWidgetLightSnapshots()
+        }
+    }
+
+    private func shouldApply(_ dto: HAEntityDTO) -> Bool {
+        guard let incomingLastUpdated = dto.lastUpdated,
+              let currentLastUpdated = rawEntitiesByID[dto.entityID]?.lastUpdated else {
+            return true
+        }
+
+        return incomingLastUpdated >= currentLastUpdated
+    }
+
+    func removeEntity(_ entityID: String) {
+        let previousCatalogSignature = entityCatalogSignature
+        let removedEntity = entitiesByID.removeValue(forKey: entityID)
+
+        rawEntitiesByID.removeValue(forKey: entityID)
+        lightEntitiesByID.removeValue(forKey: entityID)
+        climateEntitiesByID.removeValue(forKey: entityID)
+        coverEntitiesByID.removeValue(forKey: entityID)
+        sensorEntitiesByID.removeValue(forKey: entityID)
+        entityBoxesByID.removeValue(forKey: entityID)
+        pendingCommandsByID.removeValue(forKey: entityID)
+
+        if removedEntity != nil {
+            refreshEntityIndexes(previousCatalogSignature: previousCatalogSignature)
         }
     }
 
@@ -263,10 +326,20 @@ final class HAStateStore {
     }
 
     private func updateCachedEntity(_ entity: HomeEntity) {
-        guard allEntities.contains(where: { $0.entityID == entity.entityID }) else {
+        guard let entityIndex = allEntities.firstIndex(where: { $0.entityID == entity.entityID }) else {
             refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
             return
         }
+
+        allEntities[entityIndex] = entity
+
+        guard let groupIndex = entitiesByDomain.firstIndex(where: { $0.domain == entity.domain }),
+              let groupedEntityIndex = entitiesByDomain[groupIndex].entities.firstIndex(where: { $0.entityID == entity.entityID }) else {
+            refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
+            return
+        }
+
+        entitiesByDomain[groupIndex].entities[groupedEntityIndex] = entity
     }
 
     private func updateEntityBox(
@@ -275,7 +348,8 @@ final class HAStateStore {
         lightEntity: LightEntity?,
         climateEntity: ClimateEntity?,
         coverEntity: CoverEntity?,
-        sensorEntity: SensorEntity?
+        sensorEntity: SensorEntity?,
+        pendingCommand: HAEntityPendingCommand?
     ) {
         if let entityBox = entityBoxesByID[entityID] {
             entityBox.update(
@@ -283,7 +357,8 @@ final class HAStateStore {
                 lightEntity: lightEntity,
                 climateEntity: climateEntity,
                 coverEntity: coverEntity,
-                sensorEntity: sensorEntity
+                sensorEntity: sensorEntity,
+                pendingCommand: pendingCommand
             )
         } else {
             entityBoxesByID[entityID] = HAEntityState(
@@ -291,7 +366,8 @@ final class HAStateStore {
                 lightEntity: lightEntity,
                 climateEntity: climateEntity,
                 coverEntity: coverEntity,
-                sensorEntity: sensorEntity
+                sensorEntity: sensorEntity,
+                pendingCommand: pendingCommand
             )
         }
     }
@@ -394,6 +470,50 @@ private extension String {
     }
 }
 
+struct HAEntityPendingCommand: Equatable, Sendable {
+    let entityID: String
+    let expectedState: String?
+    let expectedAttributes: [String: JSONValue]
+    let startedAt: Date
+
+    init(
+        entityID: String,
+        expectedState: String? = nil,
+        expectedAttributes: [String: JSONValue] = [:],
+        startedAt: Date = Date()
+    ) {
+        self.entityID = entityID
+        self.expectedState = expectedState
+        self.expectedAttributes = expectedAttributes
+        self.startedAt = startedAt
+    }
+
+    func isSatisfied(by dto: HAEntityDTO) -> Bool {
+        guard dto.entityID == entityID else {
+            return false
+        }
+
+        if let expectedState, dto.state != expectedState {
+            return false
+        }
+
+        return expectedAttributes.allSatisfy { key, expectedValue in
+            dto.attributes[key]?.matchesCommandExpectation(expectedValue) == true
+        }
+    }
+}
+
+private extension JSONValue {
+    func matchesCommandExpectation(_ expectedValue: JSONValue) -> Bool {
+        switch (self, expectedValue) {
+        case (.number(let actual), .number(let expected)):
+            abs(actual - expected) < 0.5
+        default:
+            self == expectedValue
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class HAEntityState: Identifiable {
@@ -402,6 +522,7 @@ final class HAEntityState: Identifiable {
     var climateEntity: ClimateEntity?
     var coverEntity: CoverEntity?
     var sensorEntity: SensorEntity?
+    var pendingCommand: HAEntityPendingCommand?
 
     var id: String { homeEntity.entityID }
     var entityID: String { homeEntity.entityID }
@@ -412,13 +533,15 @@ final class HAEntityState: Identifiable {
         lightEntity: LightEntity? = nil,
         climateEntity: ClimateEntity? = nil,
         coverEntity: CoverEntity? = nil,
-        sensorEntity: SensorEntity? = nil
+        sensorEntity: SensorEntity? = nil,
+        pendingCommand: HAEntityPendingCommand? = nil
     ) {
         self.homeEntity = homeEntity
         self.lightEntity = lightEntity
         self.climateEntity = climateEntity
         self.coverEntity = coverEntity
         self.sensorEntity = sensorEntity
+        self.pendingCommand = pendingCommand
     }
 
     func update(
@@ -426,12 +549,14 @@ final class HAEntityState: Identifiable {
         lightEntity: LightEntity?,
         climateEntity: ClimateEntity?,
         coverEntity: CoverEntity?,
-        sensorEntity: SensorEntity?
+        sensorEntity: SensorEntity?,
+        pendingCommand: HAEntityPendingCommand?
     ) {
         self.homeEntity = homeEntity
         self.lightEntity = lightEntity
         self.climateEntity = climateEntity
         self.coverEntity = coverEntity
         self.sensorEntity = sensorEntity
+        self.pendingCommand = pendingCommand
     }
 }

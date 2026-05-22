@@ -38,21 +38,40 @@ struct HAEventDTO: Decodable, Equatable, Sendable {
         context = try container.decodeIfPresent(HAContextDTO.self, forKey: .context)
     }
 
-    nonisolated var stateChangedNewState: HAEntityDTO? {
+    nonisolated var stateChanged: HAStateChangedEventDTO? {
         guard eventType == "state_changed",
               case .object(let eventData) = data,
-              case .object(let newState)? = eventData["new_state"],
-              case .string(let entityID)? = newState["entity_id"],
-              case .string(let state)? = newState["state"] else {
+              case .string(let entityID)? = eventData["entity_id"] else {
+            return nil
+        }
+
+        let oldState = eventData["old_state"].flatMap(Self.entityDTO)
+        let newState = eventData["new_state"].flatMap(Self.entityDTO)
+
+        return HAStateChangedEventDTO(
+            entityID: entityID,
+            oldState: oldState,
+            newState: newState
+        )
+    }
+
+    nonisolated var stateChangedNewState: HAEntityDTO? {
+        stateChanged?.newState
+    }
+
+    private nonisolated static func entityDTO(from value: JSONValue) -> HAEntityDTO? {
+        guard case .object(let stateObject) = value,
+              case .string(let entityID)? = stateObject["entity_id"],
+              case .string(let state)? = stateObject["state"] else {
             return nil
         }
 
         return HAEntityDTO(
             entityID: entityID,
             state: state,
-            attributes: newState["attributes"]?.objectValue ?? [:],
-            lastChanged: HADateParser.date(from: newState["last_changed"]?.stringValue),
-            lastUpdated: HADateParser.date(from: newState["last_updated"]?.stringValue)
+            attributes: stateObject["attributes"]?.objectValue ?? [:],
+            lastChanged: HADateParser.date(from: stateObject["last_changed"]?.stringValue),
+            lastUpdated: HADateParser.date(from: stateObject["last_updated"]?.stringValue)
         )
     }
 }

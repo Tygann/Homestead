@@ -15,6 +15,7 @@ struct DashboardCardView: View {
             DashboardEntityCard(
                 presentation: presentation,
                 size: size,
+                isPending: entityBox.pendingCommand != nil,
                 toggle: primaryAction(for: entityBox),
                 showDetails: detailsAction(for: entityBox)
             )
@@ -68,6 +69,7 @@ private struct DashboardCardDetail: Identifiable {
 private struct DashboardEntityCard: View {
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
+    let isPending: Bool
     let toggle: (() -> Void)?
     let showDetails: (() -> Void)?
 
@@ -94,6 +96,7 @@ private struct DashboardEntityCard: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .disabled(isPending)
                     .accessibilityLabel("Toggle \(presentation.title)")
                     .accessibilityValue(presentation.accessibilityValue)
                 }
@@ -185,14 +188,25 @@ private struct DashboardEntityPresentation {
     let isActive: Bool
     let isAvailable: Bool
     let accentColor: Color
+    let isPending: Bool
 
     init(entityBox: HAEntityState) {
+        let pendingCommand = entityBox.pendingCommand
+        isPending = pendingCommand != nil
+
         if let light = entityBox.lightEntity {
+            let effectiveIsOn = pendingCommand?.expectedState.map { $0 == "on" } ?? light.isOn
+            let brightnessPercentage = Self.pendingBrightnessPercentage(from: pendingCommand) ?? light.brightnessPercentage
+
             title = light.displayName
-            subtitle = Self.lightSubtitle(for: light)
-            headline = light.isOn ? light.brightnessPercentage.map { "\($0)%" } : nil
+            subtitle = Self.lightSubtitle(
+                isOn: effectiveIsOn,
+                brightnessPercentage: brightnessPercentage,
+                pendingCommand: pendingCommand
+            )
+            headline = effectiveIsOn ? brightnessPercentage.map { "\($0)%" } : nil
             iconName = light.iconName
-            isActive = light.isOn
+            isActive = effectiveIsOn
             isAvailable = true
             accentColor = .accentColor
         } else if let sensor = entityBox.sensorEntity {
@@ -229,11 +243,39 @@ private struct DashboardEntityPresentation {
         return accentColor
     }
 
-    private static func lightSubtitle(for light: LightEntity) -> String {
-        guard light.isOn else { return "Off" }
-        guard let brightnessPercentage = light.brightnessPercentage else { return "On" }
+    private static func lightSubtitle(
+        isOn: Bool,
+        brightnessPercentage: Int?,
+        pendingCommand: HAEntityPendingCommand?
+    ) -> String {
+        if let pendingCommand {
+            if let brightnessPercentage {
+                return "Setting \(brightnessPercentage)%..."
+            }
+
+            switch pendingCommand.expectedState {
+            case "on":
+                return "Turning On..."
+            case "off":
+                return "Turning Off..."
+            default:
+                return "Updating..."
+            }
+        }
+
+        guard isOn else { return "Off" }
+        guard let brightnessPercentage else { return "On" }
 
         return "\(brightnessPercentage)%"
+    }
+
+    private static func pendingBrightnessPercentage(from pendingCommand: HAEntityPendingCommand?) -> Int? {
+        guard let brightness = pendingCommand?.expectedAttributes["brightness"]?.doubleValue else {
+            return nil
+        }
+
+        let percentage = Int((brightness / 255.0) * 100.0)
+        return min(max(percentage, 1), 100)
     }
 
     private static func sensorAccentColor(for sensor: SensorEntity) -> Color {

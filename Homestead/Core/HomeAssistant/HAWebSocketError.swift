@@ -6,6 +6,7 @@ enum HAWebSocketError: LocalizedError, Sendable {
     case unexpectedMessage(String)
     case authenticationFailed(String?)
     case requestFailed(String?)
+    case requestTimedOut
     case missingResult
     case transportFailure(String)
 
@@ -21,6 +22,8 @@ enum HAWebSocketError: LocalizedError, Sendable {
             message ?? "Home Assistant authentication failed."
         case .requestFailed(let message):
             message ?? "Home Assistant request failed."
+        case .requestTimedOut:
+            "Home Assistant did not respond in time."
         case .missingResult:
             "Home Assistant did not include a result payload."
         case .transportFailure(let message):
