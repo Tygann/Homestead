@@ -135,6 +135,22 @@ private enum PreviewData {
                 "friendly_name": .string("Downstairs")
             ],
             lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "scene.movie_night",
+            state: "scening",
+            attributes: [
+                "friendly_name": .string("Movie Night")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "script.good_morning",
+            state: "off",
+            attributes: [
+                "friendly_name": .string("Good Morning")
+            ],
+            lastUpdated: .now
         )
     ]
 }

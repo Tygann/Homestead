@@ -193,6 +193,24 @@ final class HomeAssistantService {
         }
     }
 
+    func activateScene(entityID: String) async {
+        await callService(
+            domain: "scene",
+            service: "turn_on",
+            entityID: entityID,
+            successTitle: "Scene activated"
+        )
+    }
+
+    func runScript(entityID: String) async {
+        await callService(
+            domain: "script",
+            service: "turn_on",
+            entityID: entityID,
+            successTitle: "Script started"
+        )
+    }
+
     @discardableResult
     func callService(
         domain: String,

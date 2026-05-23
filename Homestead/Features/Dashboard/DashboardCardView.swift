@@ -41,10 +41,23 @@ struct DashboardCardView: View {
     }
 
     private func primaryAction(for entityBox: HAEntityState) -> (() -> Void)? {
-        guard entityBox.lightEntity != nil else { return nil }
+        guard entityBox.homeEntity.isAvailable else { return nil }
 
-        return {
-            Task { await homeAssistantService.toggleLight(entityID: entityBox.entityID) }
+        switch entityBox.domain {
+        case .light:
+            return {
+                Task { await homeAssistantService.toggleLight(entityID: entityBox.entityID) }
+            }
+        case .scene:
+            return {
+                Task { await homeAssistantService.activateScene(entityID: entityBox.entityID) }
+            }
+        case .script:
+            return {
+                Task { await homeAssistantService.runScript(entityID: entityBox.entityID) }
+            }
+        case .climate, .cover, .sensor, .other:
+            return nil
         }
     }
 
@@ -321,12 +334,12 @@ private struct DashboardEntityPresentation {
         } else {
             let entity = entityBox.homeEntity
             title = entity.displayName
-            subtitle = entity.state.replacingOccurrences(of: "_", with: " ").capitalized
-            headline = nil
+            subtitle = Self.subtitle(for: entity)
+            headline = Self.headline(for: entity)
             iconName = entity.iconName
-            isActive = entity.state == "on" || entity.state == "open"
+            isActive = Self.isActive(entity)
             isAvailable = entity.isAvailable
-            accentColor = .accentColor
+            accentColor = Self.accentColor(for: entity)
         }
     }
 
@@ -377,6 +390,54 @@ private struct DashboardEntityPresentation {
 
         let percentage = Int((brightness / 255.0) * 100.0)
         return min(max(percentage, 1), 100)
+    }
+
+    private static func subtitle(for entity: HomeEntity) -> String {
+        switch entity.domain {
+        case .scene:
+            entity.isAvailable ? "Scene" : "Scene unavailable"
+        case .script:
+            if !entity.isAvailable {
+                "Script unavailable"
+            } else if entity.state == "on" {
+                "Running"
+            } else {
+                "Script"
+            }
+        case .light, .climate, .cover, .sensor, .other:
+            entity.state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private static func headline(for entity: HomeEntity) -> String? {
+        switch entity.domain {
+        case .scene, .script:
+            entity.isAvailable ? "Run" : nil
+        case .light, .climate, .cover, .sensor, .other:
+            nil
+        }
+    }
+
+    private static func isActive(_ entity: HomeEntity) -> Bool {
+        switch entity.domain {
+        case .script:
+            entity.state == "on"
+        case .scene:
+            false
+        case .light, .climate, .cover, .sensor, .other:
+            entity.state == "on" || entity.state == "open"
+        }
+    }
+
+    private static func accentColor(for entity: HomeEntity) -> Color {
+        switch entity.domain {
+        case .scene:
+            .purple
+        case .script:
+            .accentColor
+        case .light, .climate, .cover, .sensor, .other:
+            .accentColor
+        }
     }
 
     private static func sensorAccentColor(for sensor: SensorEntity) -> Color {

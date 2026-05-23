@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-22
 
+### Scene And Script Dashboard Actions
+
+- Added dashboard actions for Home Assistant scenes and scripts through the existing WebSocket service-call path.
+- Scene and script card actions now surface success and failure through the global service feedback banner.
+- Added sample preview scene/script entities and regression coverage for action-entity mapping.
+
 ### Dashboard Header Items
 
 - Replaced separate dashboard entity and size storage with one ordered dashboard item list.

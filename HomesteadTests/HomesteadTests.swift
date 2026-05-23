@@ -127,6 +127,33 @@ struct HomesteadTests {
         #expect(sensor?.iconName == "thermometer.medium")
     }
 
+    @Test func entityMapperMapsSceneAndScriptActionEntities() {
+        let sceneDTO = HAEntityDTO(
+            entityID: "scene.movie_night",
+            state: "scening",
+            attributes: [
+                "friendly_name": .string("Movie Night")
+            ]
+        )
+        let scriptDTO = HAEntityDTO(
+            entityID: "script.good_morning",
+            state: "off",
+            attributes: [
+                "friendly_name": .string("Good Morning")
+            ]
+        )
+
+        let scene = EntityMapper.homeEntity(from: sceneDTO)
+        let script = EntityMapper.homeEntity(from: scriptDTO)
+
+        #expect(scene.domain == .scene)
+        #expect(scene.displayName == "Movie Night")
+        #expect(scene.iconName == "sparkles")
+        #expect(script.domain == .script)
+        #expect(script.displayName == "Good Morning")
+        #expect(script.iconName == "play.circle")
+    }
+
     @Test func sensorFormattingHandlesUnitsAndUnavailableStates() {
         let humidity = SensorEntity(
             entityID: "sensor.humidity",
