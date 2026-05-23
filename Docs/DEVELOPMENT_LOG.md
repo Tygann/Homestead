@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-22
 
+### Sensor Cards And Add-Card Filtering
+
+- Compact dashboard cards now show headline values, making sensor readings visible without resizing cards.
+- Sensor domain models now identify low-battery and alert-style states such as water, gas, and problem sensors.
+- Alerting sensors use active card styling and clearer dashboard subtitles.
+- The add-card sheet now has domain filters and hides unavailable entities by default while preserving the shared entity browser.
+
 ### Climate Dashboard Controls
 
 - Added dashboard climate detail controls for target temperature and HVAC mode.

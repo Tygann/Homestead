@@ -195,6 +195,16 @@ private struct DashboardEntityCard: View {
                     .truncationMode(.tail)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let headline = presentation.headline {
+                Text(headline)
+                    .font(.headline.weight(.bold).monospacedDigit())
+                    .foregroundStyle(presentation.headlineColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .frame(maxWidth: 86, alignment: .trailing)
+                    .accessibilityHidden(true)
+            }
         }
     }
 
@@ -354,7 +364,7 @@ private struct DashboardEntityPresentation {
             subtitle = sensor.displaySubtitle
             headline = sensor.formattedValue
             iconName = sensor.iconName
-            isActive = false
+            isActive = sensor.isAlerting
             isAvailable = sensor.isAvailable
             accentColor = Self.sensorAccentColor(for: sensor)
         } else if let cover = entityBox.coverEntity {
@@ -525,6 +535,7 @@ private struct DashboardEntityPresentation {
 
     private static func sensorAccentColor(for sensor: SensorEntity) -> Color {
         guard sensor.isAvailable else { return .secondary }
+        guard !sensor.isAlerting else { return .red }
 
         switch sensor.displayKind {
         case .temperature:

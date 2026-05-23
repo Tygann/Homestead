@@ -33,10 +33,13 @@ struct EntityBrowserList<Accessory: View>: View {
     @State private var searchText = ""
     @State private var grouping: DevicesGrouping = .device
     @State private var collapsedGroups: Set<String> = []
+    @State private var selectedDomain: EntityDomain?
+    @State private var includesUnavailable: Bool
 
     let hiddenEntityIDs: Set<String>
     let emptyTitle: String
     let emptySystemImage: String
+    let showsFilters: Bool
     let rowAction: (HAEntityState) -> Void
     private let accessory: (HAEntityState) -> Accessory
 
@@ -44,67 +47,81 @@ struct EntityBrowserList<Accessory: View>: View {
         hiddenEntityIDs: Set<String>,
         emptyTitle: String,
         emptySystemImage: String,
+        showsFilters: Bool = false,
+        includesUnavailableByDefault: Bool = true,
         rowAction: @escaping (HAEntityState) -> Void,
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
         self.hiddenEntityIDs = hiddenEntityIDs
         self.emptyTitle = emptyTitle
         self.emptySystemImage = emptySystemImage
+        self.showsFilters = showsFilters
         self.rowAction = rowAction
         self.accessory = accessory
+        _includesUnavailable = State(initialValue: includesUnavailableByDefault)
     }
 
     var body: some View {
         let groups = filteredEntityGroups
 
-        List {
-            ForEach(groups) { group in
-                Section {
-                    if !collapsedGroups.contains(group.id) {
-                        ForEach(group.entityIDs, id: \.self) { entityID in
-                            if let entityBox = stateStore.entityBox(for: entityID) {
-                                Button {
-                                    rowAction(entityBox)
-                                } label: {
-                                    EntityBrowserRow(
-                                        entityBox: entityBox,
-                                        displayNameOverride: displayNameOverride(for: entityID),
-                                        accessory: accessory(entityBox)
-                                    )
+        VStack(spacing: 0) {
+            if showsFilters {
+                filterBar
+            }
+
+            List {
+                ForEach(groups) { group in
+                    Section {
+                        if !collapsedGroups.contains(group.id) {
+                            ForEach(group.entityIDs, id: \.self) { entityID in
+                                if let entityBox = stateStore.entityBox(for: entityID) {
+                                    Button {
+                                        rowAction(entityBox)
+                                    } label: {
+                                        EntityBrowserRow(
+                                            entityBox: entityBox,
+                                            displayNameOverride: displayNameOverride(for: entityID),
+                                            accessory: accessory(entityBox)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
-                    }
-                } header: {
-                    Button {
-                        toggleSection(group.id)
-                    } label: {
-                        HStack {
-                            groupHeaderLabel(for: group)
-                            Spacer()
-                            Image(systemName: collapsedGroups.contains(group.id) ? "chevron.right" : "chevron.down")
-                                .font(.caption.weight(.bold))
+                    } header: {
+                        Button {
+                            toggleSection(group.id)
+                        } label: {
+                            HStack {
+                                groupHeaderLabel(for: group)
+                                Spacer()
+                                Image(systemName: collapsedGroups.contains(group.id) ? "chevron.right" : "chevron.down")
+                                    .font(.caption.weight(.bold))
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
                 }
             }
-        }
-        .overlay {
-            if connectionSettings.hasCredentials && !stateStore.hasLoadedInitialSnapshot {
-                ContentUnavailableView {
-                    Label(entityLoadingTitle, systemImage: homeAssistantService.connectionStatus.systemImage)
-                } description: {
-                    Text(entityLoadingMessage)
+            .overlay {
+                if connectionSettings.hasCredentials && !stateStore.hasLoadedInitialSnapshot {
+                    ContentUnavailableView {
+                        Label(entityLoadingTitle, systemImage: homeAssistantService.connectionStatus.systemImage)
+                    } description: {
+                        Text(entityLoadingMessage)
+                    }
+                } else if !stateStore.hasEntities {
+                    ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
+                } else if groups.isEmpty && visibleCandidateEntityIDs.isEmpty {
+                    ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
+                } else if groups.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && hasActiveFilters {
+                    ContentUnavailableView("No Matching Entities", systemImage: "line.3.horizontal.decrease.circle")
+                } else if groups.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
+                } else if groups.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
                 }
-            } else if !stateStore.hasEntities {
-                ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
-            } else if groups.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
-            } else if groups.isEmpty {
-                ContentUnavailableView.search(text: searchText)
             }
         }
         .toolbar {
@@ -155,6 +172,66 @@ struct EntityBrowserList<Accessory: View>: View {
             Image(systemName: "line.3.horizontal.decrease")
         }
         .accessibilityLabel("Group devices")
+    }
+
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.small) {
+                filterChip(
+                    title: "All",
+                    systemImage: "square.grid.2x2",
+                    isSelected: selectedDomain == nil
+                ) {
+                    selectedDomain = nil
+                    collapsedGroups.removeAll()
+                }
+
+                ForEach(filterDomains, id: \.self) { domain in
+                    filterChip(
+                        title: domain.displayName,
+                        systemImage: domain.systemImage,
+                        isSelected: selectedDomain == domain
+                    ) {
+                        selectedDomain = domain
+                        collapsedGroups.removeAll()
+                    }
+                }
+
+                Button {
+                    includesUnavailable.toggle()
+                    collapsedGroups.removeAll()
+                } label: {
+                    Label("Unavailable", systemImage: includesUnavailable ? "eye" : "eye.slash")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, AppSpacing.medium)
+                        .frame(height: 34)
+                        .background(includesUnavailable ? Color.accentColor.opacity(0.14) : Color(.tertiarySystemGroupedBackground), in: Capsule())
+                        .foregroundStyle(includesUnavailable ? Color.accentColor : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(includesUnavailable ? "Hide unavailable entities" : "Show unavailable entities")
+            }
+            .padding(.horizontal, AppSpacing.large)
+            .padding(.vertical, AppSpacing.small)
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+
+    private func filterChip(
+        title: String,
+        systemImage: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, AppSpacing.medium)
+                .frame(height: 34)
+                .background(isSelected ? Color.accentColor : Color(.tertiarySystemGroupedBackground), in: Capsule())
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -218,7 +295,7 @@ struct EntityBrowserList<Accessory: View>: View {
         case .device:
             if !stateStore.entityIDGroupsByDevice.isEmpty {
                 return stateStore.entityIDGroupsByDevice.compactMap { group in
-                    let visibleEntityIDs = group.entityIDs.filter { !hiddenEntityIDs.contains($0) }
+                    let visibleEntityIDs = group.entityIDs.filter(entityPassesVisibility)
                     guard !visibleEntityIDs.isEmpty else { return nil }
 
                     return DevicesEntityGroup(
@@ -233,7 +310,7 @@ struct EntityBrowserList<Accessory: View>: View {
             fallthrough
         case .type:
             return stateStore.entityIDGroupsByDomain.compactMap { group in
-                let visibleEntityIDs = group.entityIDs.filter { !hiddenEntityIDs.contains($0) }
+                let visibleEntityIDs = group.entityIDs.filter(entityPassesVisibility)
                 guard !visibleEntityIDs.isEmpty else { return nil }
 
                 return DevicesEntityGroup(
@@ -244,6 +321,39 @@ struct EntityBrowserList<Accessory: View>: View {
                 )
             }
         }
+    }
+
+    private var filterDomains: [EntityDomain] {
+        let domains = Set(visibleCandidateEntityIDs.compactMap { entityID in
+            stateStore.entityBox(for: entityID)?.homeEntity.domain
+        })
+
+        return EntityDomain.allCases.filter { domains.contains($0) }
+    }
+
+    private var visibleCandidateEntityIDs: Set<String> {
+        stateStore.availableEntityIDs.subtracting(hiddenEntityIDs)
+    }
+
+    private var hasActiveFilters: Bool {
+        selectedDomain != nil || !includesUnavailable
+    }
+
+    private func entityPassesVisibility(_ entityID: String) -> Bool {
+        guard !hiddenEntityIDs.contains(entityID),
+              let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
+            return false
+        }
+
+        if let selectedDomain, entity.domain != selectedDomain {
+            return false
+        }
+
+        if !includesUnavailable, !entity.isAvailable {
+            return false
+        }
+
+        return true
     }
 }
 

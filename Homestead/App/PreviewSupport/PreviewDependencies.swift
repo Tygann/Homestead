@@ -120,6 +120,25 @@ private enum PreviewData {
             lastUpdated: .now
         ),
         HAEntityDTO(
+            entityID: "sensor.front_door_battery",
+            state: "18",
+            attributes: [
+                "friendly_name": .string("Front Door Battery"),
+                "device_class": .string("battery"),
+                "unit_of_measurement": .string("%")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "sensor.laundry_leak",
+            state: "off",
+            attributes: [
+                "friendly_name": .string("Laundry Leak"),
+                "device_class": .string("water")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
             entityID: "cover.primary_shades",
             state: "open",
             attributes: [

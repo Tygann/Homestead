@@ -15,6 +15,24 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         !["unknown", "unavailable"].contains(value)
     }
 
+    var isAlerting: Bool {
+        guard isAvailable else { return false }
+
+        switch displayKind {
+        case .battery:
+            guard let numericValue else { return false }
+            return numericValue <= 20
+        case .water:
+            return ["on", "detected", "wet", "moisture"].contains(normalizedState)
+        case .gas:
+            return ["on", "detected", "unsafe"].contains(normalizedState)
+        case .problem:
+            return ["on", "detected", "problem", "unsafe"].contains(normalizedState)
+        case .temperature, .humidity, .energy, .power, .illuminance, .pressure, .signal, .voltage, .current, .generic:
+            return false
+        }
+    }
+
     var formattedValue: String {
         guard let unitText, !unitText.isEmpty else { return valueText }
 
@@ -51,11 +69,29 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
 
     var displaySubtitle: String {
         guard isAvailable else { return "Sensor unavailable" }
+
+        if isAlerting {
+            return alertSubtitle
+        }
+
+        switch displayKind {
+        case .water, .gas, .problem:
+            return "Clear"
+        case .battery where numericValue != nil:
+            return "Battery"
+        case .temperature, .humidity, .energy, .power, .illuminance, .pressure, .signal, .voltage, .current, .battery, .generic:
+            break
+        }
+
         return formattedDeviceClass ?? "Sensor"
     }
 
+    var numericValue: Double? {
+        Double(value)
+    }
+
     private var formattedNumber: String? {
-        guard let number = Double(value) else { return nil }
+        guard let number = numericValue else { return nil }
 
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -93,6 +129,25 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
 
     private func unitNeedsLeadingSpace(_ unit: String) -> Bool {
         !unit.hasPrefix("°") && unit != "%"
+    }
+
+    private var normalizedState: String {
+        value.lowercased()
+    }
+
+    private var alertSubtitle: String {
+        switch displayKind {
+        case .battery:
+            "Low Battery"
+        case .water:
+            "Water Detected"
+        case .gas:
+            "Gas Detected"
+        case .problem:
+            "Problem Detected"
+        case .temperature, .humidity, .energy, .power, .illuminance, .pressure, .signal, .voltage, .current, .generic:
+            formattedDeviceClass ?? "Sensor"
+        }
     }
 }
 

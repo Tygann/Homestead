@@ -316,6 +316,8 @@ private struct DashboardAddCardView: View {
                 hiddenEntityIDs: selectedEntityIDs,
                 emptyTitle: emptyTitle,
                 emptySystemImage: emptySystemImage,
+                showsFilters: true,
+                includesUnavailableByDefault: false,
                 rowAction: { entityBox in
                     dashboardConfiguration.add(entityBox.entityID)
                 },

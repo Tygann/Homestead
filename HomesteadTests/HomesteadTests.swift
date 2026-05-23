@@ -293,11 +293,39 @@ struct HomesteadTests {
             iconName: "gauge.medium",
             lastUpdated: nil
         )
+        let lowBattery = SensorEntity(
+            entityID: "sensor.front_door_battery",
+            displayName: "Front Door Battery",
+            value: "18",
+            unit: "%",
+            deviceClass: "battery",
+            iconName: "battery.75percent",
+            lastUpdated: nil
+        )
+        let waterClear = SensorEntity(
+            entityID: "sensor.laundry_leak",
+            displayName: "Laundry Leak",
+            value: "off",
+            unit: nil,
+            deviceClass: "water",
+            iconName: "drop.fill",
+            lastUpdated: nil
+        )
+        let waterDetected = SensorEntity(
+            entityID: "sensor.laundry_leak",
+            displayName: "Laundry Leak",
+            value: "on",
+            unit: nil,
+            deviceClass: "water",
+            iconName: "drop.fill",
+            lastUpdated: nil
+        )
 
         #expect(humidity.formattedValue == "44%")
         #expect(humidity.valueText == "44")
         #expect(humidity.unitText == "%")
         #expect(humidity.displayKind == .humidity)
+        #expect(humidity.isAlerting == false)
         #expect(humidity.displaySubtitle == "Humidity")
         #expect(energy.formattedValue == "12.35 kWh")
         #expect(energy.valueText == "12.35")
@@ -310,6 +338,12 @@ struct HomesteadTests {
         #expect(unavailable.isAvailable == false)
         #expect(unavailable.displaySubtitle == "Sensor unavailable")
         #expect(textState.formattedValue == "Authorized Always")
+        #expect(lowBattery.isAlerting == true)
+        #expect(lowBattery.displaySubtitle == "Low Battery")
+        #expect(waterClear.isAlerting == false)
+        #expect(waterClear.displaySubtitle == "Clear")
+        #expect(waterDetected.isAlerting == true)
+        #expect(waterDetected.displaySubtitle == "Water Detected")
     }
 
     @MainActor
