@@ -98,6 +98,10 @@ struct EntityDetailView: View {
             return cover.displaySubtitle
         }
 
+        if let climate = entityBox.climateEntity {
+            return climate.displaySubtitle
+        }
+
         return entityBox.homeEntity.state.replacingOccurrences(of: "_", with: " ").capitalized
     }
 }
@@ -158,6 +162,10 @@ private struct EntitySummaryHeader: View {
 
         if let cover = entityBox.coverEntity {
             return cover.positionPercentage.map { "\($0)%" } ?? cover.displayState
+        }
+
+        if let climate = entityBox.climateEntity {
+            return climate.targetTemperatureText ?? climate.currentTemperatureText ?? climate.displayState
         }
 
         return entityBox.homeEntity.state.replacingOccurrences(of: "_", with: " ").capitalized

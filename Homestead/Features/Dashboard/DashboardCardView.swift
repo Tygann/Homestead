@@ -32,6 +32,8 @@ struct DashboardCardView: View {
                         LightDetailView(entityBox: selectedEntityBox)
                     case .cover:
                         CoverDetailView(entityBox: selectedEntityBox)
+                    case .climate:
+                        ClimateDetailView(entityBox: selectedEntityBox)
                     case .entity:
                         EntityDetailView(entityBox: selectedEntityBox)
                     }
@@ -85,6 +87,10 @@ struct DashboardCardView: View {
             return .cover
         }
 
+        if entityBox.climateEntity != nil {
+            return .climate
+        }
+
         return .entity
     }
 }
@@ -93,6 +99,7 @@ private struct DashboardCardDetail: Identifiable {
     enum Kind {
         case light
         case cover
+        case climate
         case entity
     }
 
@@ -358,6 +365,14 @@ private struct DashboardEntityPresentation {
             isActive = cover.isOpen
             isAvailable = entityBox.homeEntity.isAvailable
             accentColor = .accentColor
+        } else if let climate = entityBox.climateEntity {
+            title = climate.displayName
+            subtitle = Self.climateSubtitle(climate, pendingCommand: pendingCommand)
+            headline = climate.targetTemperatureText ?? climate.currentTemperatureText
+            iconName = entityBox.homeEntity.iconName
+            isActive = climate.isActive
+            isAvailable = entityBox.homeEntity.isAvailable
+            accentColor = Self.climateAccentColor(for: climate)
         } else {
             let entity = entityBox.homeEntity
             title = entity.displayName
@@ -441,6 +456,25 @@ private struct DashboardEntityPresentation {
         return cover.displaySubtitle
     }
 
+    private static func climateSubtitle(
+        _ climate: ClimateEntity,
+        pendingCommand: HAEntityPendingCommand?
+    ) -> String {
+        if let pendingCommand {
+            if let temperature = pendingCommand.expectedAttributes["temperature"]?.doubleValue {
+                return "Setting \(climate.formatTemperature(temperature))..."
+            }
+
+            if let expectedState = pendingCommand.expectedState {
+                return "Switching to \(climate.displayName(forHVACMode: expectedState))..."
+            }
+
+            return "Updating..."
+        }
+
+        return climate.displaySubtitle
+    }
+
     private static func subtitle(for entity: HomeEntity) -> String {
         switch entity.domain {
         case .scene:
@@ -510,6 +544,19 @@ private struct DashboardEntityPresentation {
         case .problem:
             return .red
         case .generic:
+            return .accentColor
+        }
+    }
+
+    private static func climateAccentColor(for climate: ClimateEntity) -> Color {
+        switch climate.state {
+        case "heat":
+            return .orange
+        case "cool":
+            return .cyan
+        case "off":
+            return .secondary
+        default:
             return .accentColor
         }
     }

@@ -132,7 +132,19 @@ private enum PreviewData {
             entityID: "climate.downstairs",
             state: "heat",
             attributes: [
-                "friendly_name": .string("Downstairs")
+                "friendly_name": .string("Downstairs"),
+                "current_temperature": .number(68),
+                "temperature": .number(70),
+                "temperature_unit": .string("°F"),
+                "min_temp": .number(50),
+                "max_temp": .number(90),
+                "target_temp_step": .number(1),
+                "hvac_modes": .array([
+                    .string("off"),
+                    .string("heat"),
+                    .string("cool"),
+                    .string("heat_cool")
+                ])
             ],
             lastUpdated: .now
         ),

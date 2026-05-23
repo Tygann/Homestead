@@ -58,6 +58,28 @@ struct HomesteadTests {
         #expect(serviceData["position"] as? Double == 72)
     }
 
+    @Test func climateTemperatureServiceRequestEncodesHomeAssistantShape() throws {
+        let request = HAWebSocketRequest.callService(
+            id: 44,
+            domain: "climate",
+            service: "set_temperature",
+            target: ["entity_id": .string("climate.downstairs")],
+            serviceData: ["temperature": .number(70)]
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let target = try #require(object["target"] as? [String: Any])
+        let serviceData = try #require(object["service_data"] as? [String: Any])
+
+        #expect(object["id"] as? Int == 44)
+        #expect(object["type"] as? String == "call_service")
+        #expect(object["domain"] as? String == "climate")
+        #expect(object["service"] as? String == "set_temperature")
+        #expect(target["entity_id"] as? String == "climate.downstairs")
+        #expect(serviceData["temperature"] as? Double == 70)
+    }
+
     @Test func registryCommandEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.registryCommand(
             id: 7,
@@ -196,6 +218,42 @@ struct HomesteadTests {
         #expect(cover.isClosed == false)
         #expect(cover.displayState == "Open")
         #expect(cover.displaySubtitle == "Open, 72%")
+    }
+
+    @Test func entityMapperMapsClimateControls() throws {
+        let climateDTO = HAEntityDTO(
+            entityID: "climate.downstairs",
+            state: "heat",
+            attributes: [
+                "friendly_name": .string("Downstairs"),
+                "current_temperature": .number(68),
+                "temperature": .number(70),
+                "temperature_unit": .string("°F"),
+                "min_temp": .number(50),
+                "max_temp": .number(90),
+                "target_temp_step": .number(1),
+                "hvac_modes": .array([
+                    .string("off"),
+                    .string("heat"),
+                    .string("cool"),
+                    .string("heat_cool")
+                ])
+            ]
+        )
+
+        let climate = try #require(EntityMapper.climateEntity(from: climateDTO))
+
+        #expect(climate.displayName == "Downstairs")
+        #expect(climate.state == "heat")
+        #expect(climate.currentTemperature == 68)
+        #expect(climate.targetTemperature == 70)
+        #expect(climate.temperatureUnit == "°F")
+        #expect(climate.hvacModes == ["off", "heat", "cool", "heat_cool"])
+        #expect(climate.isActive == true)
+        #expect(climate.displayState == "Heat")
+        #expect(climate.targetTemperatureText == "70°F")
+        #expect(climate.currentTemperatureText == "68°F")
+        #expect(climate.displaySubtitle == "Heat, set to 70°F")
     }
 
     @Test func sensorFormattingHandlesUnitsAndUnavailableStates() {

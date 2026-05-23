@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-22
 
+### Climate Dashboard Controls
+
+- Added dashboard climate detail controls for target temperature and HVAC mode.
+- Mapped Home Assistant climate metadata such as HVAC modes, min/max temperature, step, and unit into the domain model.
+- Climate cards and generic entity details now present target/current temperature through the climate model.
+- Added regression coverage for climate mapping and `set_temperature` request encoding.
+
 ### Cover Dashboard Controls
 
 - Added dashboard actions and a focused detail sheet for Home Assistant cover entities.

@@ -211,6 +211,55 @@ final class HomeAssistantService {
         )
     }
 
+    func setClimateTemperature(entityID: String, temperature: Double) async {
+        guard let climate = stateStore.climateEntity(for: entityID) else {
+            return
+        }
+
+        let step = climate.resolvedTemperatureStep
+        let roundedTemperature = (temperature / step).rounded() * step
+        let clampedTemperature = min(
+            max(roundedTemperature, climate.resolvedMinimumTemperature),
+            climate.resolvedMaximumTemperature
+        )
+        let serviceData = ["temperature": JSONValue.number(clampedTemperature)]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: nil,
+            expectedAttributes: serviceData
+        )
+
+        let succeeded = await callService(
+            domain: "climate",
+            service: "set_temperature",
+            entityID: entityID,
+            serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func setClimateHVACMode(entityID: String, hvacMode: String) async {
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: hvacMode
+        )
+        let succeeded = await callService(
+            domain: "climate",
+            service: "set_hvac_mode",
+            entityID: entityID,
+            serviceData: ["hvac_mode": .string(hvacMode)]
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
     func toggleCover(entityID: String) async {
         guard let cover = stateStore.coverEntity(for: entityID) else {
             return
