@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-22
 
+### Cover Dashboard Controls
+
+- Added dashboard actions and a focused detail sheet for Home Assistant cover entities.
+- Covers now use WebSocket service calls for open, close, stop, and position changes.
+- Dashboard cards and generic entity details show cover position/state through the cover domain model.
+- Added regression coverage for cover mapping and `set_cover_position` request encoding.
+
 ### Scene And Script Dashboard Actions
 
 - Added dashboard actions for Home Assistant scenes and scripts through the existing WebSocket service-call path.

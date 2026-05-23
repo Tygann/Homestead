@@ -36,6 +36,28 @@ struct HomesteadTests {
         #expect(serviceData["brightness"] as? Double == 200)
     }
 
+    @Test func coverPositionServiceRequestEncodesHomeAssistantShape() throws {
+        let request = HAWebSocketRequest.callService(
+            id: 43,
+            domain: "cover",
+            service: "set_cover_position",
+            target: ["entity_id": .string("cover.primary_shades")],
+            serviceData: ["position": .number(72)]
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let target = try #require(object["target"] as? [String: Any])
+        let serviceData = try #require(object["service_data"] as? [String: Any])
+
+        #expect(object["id"] as? Int == 43)
+        #expect(object["type"] as? String == "call_service")
+        #expect(object["domain"] as? String == "cover")
+        #expect(object["service"] as? String == "set_cover_position")
+        #expect(target["entity_id"] as? String == "cover.primary_shades")
+        #expect(serviceData["position"] as? Double == 72)
+    }
+
     @Test func registryCommandEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.registryCommand(
             id: 7,
@@ -152,6 +174,28 @@ struct HomesteadTests {
         #expect(script.domain == .script)
         #expect(script.displayName == "Good Morning")
         #expect(script.iconName == "play.circle")
+    }
+
+    @Test func entityMapperMapsCoverPositionState() throws {
+        let coverDTO = HAEntityDTO(
+            entityID: "cover.primary_shades",
+            state: "open",
+            attributes: [
+                "friendly_name": .string("Primary Shades"),
+                "current_position": .number(72)
+            ]
+        )
+
+        let cover = try #require(EntityMapper.coverEntity(from: coverDTO))
+
+        #expect(cover.displayName == "Primary Shades")
+        #expect(cover.state == "open")
+        #expect(cover.position == 72)
+        #expect(cover.positionPercentage == 72)
+        #expect(cover.isOpen == true)
+        #expect(cover.isClosed == false)
+        #expect(cover.displayState == "Open")
+        #expect(cover.displaySubtitle == "Open, 72%")
     }
 
     @Test func sensorFormattingHandlesUnitsAndUnavailableStates() {

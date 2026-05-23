@@ -7,4 +7,43 @@ struct CoverEntity: Identifiable, Equatable, Sendable {
     let position: Int?
 
     var id: String { entityID }
+
+    var isOpen: Bool {
+        state == "open" || state == "opening"
+    }
+
+    var isClosed: Bool {
+        state == "closed" || state == "closing"
+    }
+
+    var isMoving: Bool {
+        state == "opening" || state == "closing"
+    }
+
+    var displayState: String {
+        switch state {
+        case "open":
+            "Open"
+        case "closed":
+            "Closed"
+        case "opening":
+            "Opening"
+        case "closing":
+            "Closing"
+        default:
+            state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    var positionPercentage: Int? {
+        position.map { min(max($0, 0), 100) }
+    }
+
+    var displaySubtitle: String {
+        if let positionPercentage {
+            "\(displayState), \(positionPercentage)%"
+        } else {
+            displayState
+        }
+    }
 }

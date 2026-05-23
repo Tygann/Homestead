@@ -94,6 +94,10 @@ struct EntityDetailView: View {
             return "On, \(brightnessPercentage)%"
         }
 
+        if let cover = entityBox.coverEntity {
+            return cover.displaySubtitle
+        }
+
         return entityBox.homeEntity.state.replacingOccurrences(of: "_", with: " ").capitalized
     }
 }
@@ -150,6 +154,10 @@ private struct EntitySummaryHeader: View {
             guard let brightnessPercentage = light.brightnessPercentage else { return "On" }
 
             return "\(brightnessPercentage)%"
+        }
+
+        if let cover = entityBox.coverEntity {
+            return cover.positionPercentage.map { "\($0)%" } ?? cover.displayState
         }
 
         return entityBox.homeEntity.state.replacingOccurrences(of: "_", with: " ").capitalized

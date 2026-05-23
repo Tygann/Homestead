@@ -30,6 +30,8 @@ struct DashboardCardView: View {
                     switch detail.kind {
                     case .light:
                         LightDetailView(entityBox: selectedEntityBox)
+                    case .cover:
+                        CoverDetailView(entityBox: selectedEntityBox)
                     case .entity:
                         EntityDetailView(entityBox: selectedEntityBox)
                     }
@@ -56,7 +58,11 @@ struct DashboardCardView: View {
             return {
                 Task { await homeAssistantService.runScript(entityID: entityBox.entityID) }
             }
-        case .climate, .cover, .sensor, .other:
+        case .cover:
+            return {
+                Task { await homeAssistantService.toggleCover(entityID: entityBox.entityID) }
+            }
+        case .climate, .sensor, .other:
             return nil
         }
     }
@@ -65,15 +71,28 @@ struct DashboardCardView: View {
         return {
             selectedDetail = DashboardCardDetail(
                 entityID: entityBox.entityID,
-                kind: entityBox.lightEntity == nil ? .entity : .light
+                kind: detailKind(for: entityBox)
             )
         }
+    }
+
+    private func detailKind(for entityBox: HAEntityState) -> DashboardCardDetail.Kind {
+        if entityBox.lightEntity != nil {
+            return .light
+        }
+
+        if entityBox.coverEntity != nil {
+            return .cover
+        }
+
+        return .entity
     }
 }
 
 private struct DashboardCardDetail: Identifiable {
     enum Kind {
         case light
+        case cover
         case entity
     }
 
@@ -331,6 +350,14 @@ private struct DashboardEntityPresentation {
             isActive = false
             isAvailable = sensor.isAvailable
             accentColor = Self.sensorAccentColor(for: sensor)
+        } else if let cover = entityBox.coverEntity {
+            title = cover.displayName
+            subtitle = Self.coverSubtitle(cover, pendingCommand: pendingCommand)
+            headline = cover.positionPercentage.map { "\($0)%" }
+            iconName = entityBox.homeEntity.iconName
+            isActive = cover.isOpen
+            isAvailable = entityBox.homeEntity.isAvailable
+            accentColor = .accentColor
         } else {
             let entity = entityBox.homeEntity
             title = entity.displayName
@@ -390,6 +417,28 @@ private struct DashboardEntityPresentation {
 
         let percentage = Int((brightness / 255.0) * 100.0)
         return min(max(percentage, 1), 100)
+    }
+
+    private static func coverSubtitle(
+        _ cover: CoverEntity,
+        pendingCommand: HAEntityPendingCommand?
+    ) -> String {
+        if let pendingCommand {
+            if let position = pendingCommand.expectedAttributes["current_position"]?.doubleValue {
+                return "Moving to \(Int(position.rounded()))%..."
+            }
+
+            switch pendingCommand.expectedState {
+            case "open":
+                return "Opening..."
+            case "closed":
+                return "Closing..."
+            default:
+                return "Updating..."
+            }
+        }
+
+        return cover.displaySubtitle
     }
 
     private static func subtitle(for entity: HomeEntity) -> String {

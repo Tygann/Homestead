@@ -211,6 +211,83 @@ final class HomeAssistantService {
         )
     }
 
+    func toggleCover(entityID: String) async {
+        guard let cover = stateStore.coverEntity(for: entityID) else {
+            return
+        }
+
+        if cover.isOpen {
+            await closeCover(entityID: entityID)
+        } else {
+            await openCover(entityID: entityID)
+        }
+    }
+
+    func openCover(entityID: String) async {
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: "open"
+        )
+        let succeeded = await callService(
+            domain: "cover",
+            service: "open_cover",
+            entityID: entityID
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func closeCover(entityID: String) async {
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: "closed"
+        )
+        let succeeded = await callService(
+            domain: "cover",
+            service: "close_cover",
+            entityID: entityID
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func stopCover(entityID: String) async {
+        await callService(
+            domain: "cover",
+            service: "stop_cover",
+            entityID: entityID,
+            successTitle: "Cover stopped"
+        )
+    }
+
+    func setCoverPosition(entityID: String, position: Double) async {
+        let clampedPosition = min(max(position, 0), 100)
+        let roundedPosition = Int(clampedPosition.rounded())
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: roundedPosition == 0 ? "closed" : nil,
+            expectedAttributes: ["current_position": .number(Double(roundedPosition))]
+        )
+
+        let succeeded = await callService(
+            domain: "cover",
+            service: "set_cover_position",
+            entityID: entityID,
+            serviceData: ["position": .number(Double(roundedPosition))]
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
     @discardableResult
     func callService(
         domain: String,
