@@ -7,6 +7,7 @@ struct DashboardView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var isEditingDashboard = false
     @State private var isShowingAddCardSheet = false
+    @State private var isShowingReorderSheet = false
     @State private var renamingHeaderID: UUID?
     @State private var headerTitleDraft = ""
     
@@ -52,6 +53,14 @@ struct DashboardView: View {
         .toolbar {
             if isEditingDashboard {
                 ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        isShowingReorderSheet = true
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
+                    .disabled(dashboardConfiguration.items.count < 2)
+                    .accessibilityLabel("Reorder dashboard")
+
                     Menu {
                         Button {
                             isShowingAddCardSheet = true
@@ -83,6 +92,9 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $isShowingAddCardSheet) {
             DashboardAddCardView()
+        }
+        .sheet(isPresented: $isShowingReorderSheet) {
+            DashboardReorderView()
         }
         .alert("Rename Header", isPresented: isRenamingHeader) {
             TextField("Header Title", text: $headerTitleDraft)
@@ -339,6 +351,93 @@ private struct DashboardAddCardView: View {
 
     private var emptySystemImage: String {
         stateStore.hasEntities ? "checkmark.circle" : "square.grid.2x2"
+    }
+}
+
+private struct DashboardReorderView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(HAStateStore.self) private var stateStore
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(dashboardConfiguration.items) { item in
+                    DashboardReorderRow(
+                        item: item,
+                        entityBox: item.entityID.flatMap { stateStore.entityBox(for: $0) }
+                    )
+                }
+                .onMove { source, destination in
+                    dashboardConfiguration.move(from: source, to: destination)
+                }
+            }
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle("Reorder Dashboard")
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", role: .confirm) {
+                        dismiss()
+                    }
+                    .bold()
+                }
+            }
+        }
+    }
+}
+
+private struct DashboardReorderRow: View {
+    let item: DashboardItemConfiguration
+    let entityBox: HAEntityState?
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(item.type == .header ? Color.secondary : Color.accentColor)
+                .frame(width: 30)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var title: String {
+        switch item.type {
+        case .header:
+            item.resolvedTitle
+        case .entity:
+            entityBox?.homeEntity.displayName ?? item.entityID ?? "Missing Entity"
+        }
+    }
+
+    private var subtitle: String {
+        switch item.type {
+        case .header:
+            "Header"
+        case .entity:
+            entityBox?.homeEntity.entityID ?? item.entityID ?? "Entity"
+        }
+    }
+
+    private var systemImage: String {
+        switch item.type {
+        case .header:
+            "textformat.size"
+        case .entity:
+            entityBox?.homeEntity.iconName ?? "square.grid.2x2"
+        }
     }
 }
 

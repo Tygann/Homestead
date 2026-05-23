@@ -591,6 +591,29 @@ struct HomesteadTests {
         #expect(configuration.addableEntityIDs(fromAvailableEntityIDs: availableEntityIDs) == availableEntityIDs)
     }
 
+    @MainActor
+    @Test func dashboardConfigurationMovesMixedItemsAndPersistsOrder() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        configuration.addHeader(title: "Downstairs")
+        configuration.add("light.kitchen")
+        configuration.add("sensor.hallway_temperature")
+
+        configuration.move(from: IndexSet(integer: 0), to: 3)
+
+        #expect(configuration.items.map(\.type) == [.entity, .entity, .header])
+        #expect(configuration.items.map(\.entityID) == ["light.kitchen", "sensor.hallway_temperature", nil])
+        #expect(configuration.items.last?.resolvedTitle == "Downstairs")
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.items.map(\.type) == [.entity, .entity, .header])
+        #expect(restoredConfiguration.items.map(\.entityID) == ["light.kitchen", "sensor.hallway_temperature", nil])
+        #expect(restoredConfiguration.items.last?.resolvedTitle == "Downstairs")
+    }
+
     private var dashboardTestEntities: [HomeEntity] {
         [
             HomeEntity(

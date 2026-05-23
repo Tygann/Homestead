@@ -8,6 +8,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Replaced separate dashboard entity and size storage with one ordered dashboard item list.
 - Added user-created header items as full-width dashboard row breakers for lightweight grouping.
+- Added an edit-mode reorder sheet backed by the ordered item list.
 - Kept entity cards backed by Home Assistant state while header items remain local-only dashboard organization.
 - Added regression tests for item persistence, header rename/removal, stale entity reconciliation, and addable entity filtering.
 
