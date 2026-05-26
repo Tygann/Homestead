@@ -14,25 +14,34 @@ enum DashboardAreaBuilder {
 
         return grouped
             .map { areaName, entityBoxes in
-                DashboardAreaSummary(
-                    id: areaName,
-                    name: areaName,
-                    entityIDs: entityBoxes
-                        .map(\.entityID)
-                        .sorted { lhs, rhs in
-                            displayName(for: lhs, in: entityBoxes)
-                                .localizedCaseInsensitiveCompare(displayName(for: rhs, in: entityBoxes)) == .orderedAscending
-                        },
-                    activeCount: entityBoxes
-                        .map(DashboardEntityPresentation.init(entityBox:))
-                        .filter(\.isActive)
-                        .count,
-                    unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count
-                )
+                buildArea(named: areaName, from: entityBoxes)
             }
             .sorted { lhs, rhs in
                 lhs.name < rhs.name
             }
+    }
+
+    static func buildArea(
+        named areaName: String,
+        from entityBoxes: [HAEntityState]
+    ) -> DashboardAreaSummary {
+        DashboardAreaSummary(
+            id: areaName,
+            name: areaName,
+            entityIDs: entityBoxes
+                .map(\.entityID)
+                .sorted { lhs, rhs in
+                    displayName(for: lhs, in: entityBoxes)
+                        .localizedCaseInsensitiveCompare(displayName(for: rhs, in: entityBoxes)) == .orderedAscending
+                },
+            activeCount: entityBoxes
+                .map(DashboardEntityPresentation.init(entityBox:))
+                .filter(\.isActive)
+                .count,
+            unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count,
+            domainCounts: Dictionary(grouping: entityBoxes, by: \.domain)
+                .mapValues(\.count)
+        )
     }
 
     private static func displayName(for entityID: String, in entityBoxes: [HAEntityState]) -> String {

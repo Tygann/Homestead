@@ -14,6 +14,8 @@ enum DashboardEntityDetailKind: String, Equatable, Sendable {
     case light
     case cover
     case climate
+    case toggle
+    case lock
     case entity
 }
 
@@ -147,6 +149,15 @@ struct DashboardEntityPresentation {
 
         if entityBox.climateEntity != nil {
             return .climate
+        }
+
+        switch entityBox.domain {
+        case .switch, .fan:
+            return .toggle
+        case .lock:
+            return .lock
+        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+            break
         }
 
         return .entity

@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-26
 
+### Area Detail And Toggle Controls
+
+- Added domain counts to area summaries so Areas can show the leading Home Assistant domains in each area.
+- Upgraded area detail pages with an overview card and domain-grouped entity sections.
+- Added first-class detail sheets for switches, fans, and locks using existing Home Assistant service actions.
+
 ### Connection-Scoped Dashboard Organization
 
 - Added Home Assistant data-source scoping so switching servers clears old cached/live state before showing the next source.

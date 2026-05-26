@@ -997,6 +997,9 @@ struct HomesteadTests {
 
         #expect(kitchen?.entityIDs == ["light.kitchen", "sensor.kitchen_temperature"])
         #expect(kitchen?.activeCount == 1)
+        #expect(kitchen?.domainCounts[.light] == 1)
+        #expect(kitchen?.domainCounts[.sensor] == 1)
+        #expect(kitchen?.topDomains == [.light, .sensor])
         #expect(office?.unavailableCount == 1)
     }
 
@@ -1092,10 +1095,13 @@ struct HomesteadTests {
         let binarySensorPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "binary_sensor.front_door")))
 
         #expect(switchPresentation.primaryAction == .toggleSwitch)
+        #expect(switchPresentation.detailKind == .toggle)
         #expect(switchPresentation.isActive == true)
         #expect(fanPresentation.primaryAction == .toggleFan)
+        #expect(fanPresentation.detailKind == .toggle)
         #expect(fanPresentation.isActive == false)
         #expect(lockPresentation.primaryAction == .toggleLock)
+        #expect(lockPresentation.detailKind == .lock)
         #expect(lockPresentation.subtitle == "Locked")
         #expect(mediaPresentation.primaryAction == nil)
         #expect(mediaPresentation.isActive == true)

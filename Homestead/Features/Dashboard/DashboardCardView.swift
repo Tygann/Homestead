@@ -34,6 +34,10 @@ struct DashboardCardView: View {
                         CoverDetailView(entityBox: selectedEntityBox)
                     case .climate:
                         ClimateDetailView(entityBox: selectedEntityBox)
+                    case .toggle:
+                        ToggleEntityDetailView(entityBox: selectedEntityBox)
+                    case .lock:
+                        ToggleEntityDetailView(entityBox: selectedEntityBox)
                     case .entity:
                         EntityDetailView(entityBox: selectedEntityBox)
                     }
@@ -98,6 +102,10 @@ struct DashboardCardView: View {
             .cover
         case .climate:
             .climate
+        case .toggle:
+            .toggle
+        case .lock:
+            .lock
         case .entity:
             .entity
         }
@@ -109,6 +117,8 @@ private struct DashboardCardDetail: Identifiable {
         case light
         case cover
         case climate
+        case toggle
+        case lock
         case entity
     }
 

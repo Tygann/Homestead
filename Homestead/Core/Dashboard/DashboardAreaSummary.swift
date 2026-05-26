@@ -6,6 +6,7 @@ struct DashboardAreaSummary: Identifiable, Hashable, Sendable {
     let entityIDs: [String]
     let activeCount: Int
     let unavailableCount: Int
+    let domainCounts: [EntityDomain: Int]
 
     var subtitle: String {
         var parts: [String] = []
@@ -19,10 +20,23 @@ struct DashboardAreaSummary: Identifiable, Hashable, Sendable {
         }
 
         if parts.isEmpty {
-            parts.append("\(entityIDs.count) devices")
+            parts.append(entityCountText)
         }
 
         return parts.joined(separator: " • ")
+    }
+
+    var entityCountText: String {
+        "\(entityIDs.count) \(entityIDs.count == 1 ? "entity" : "entities")"
+    }
+
+    var topDomains: [EntityDomain] {
+        domainCounts
+            .filter { $0.value > 0 }
+            .map(\.key)
+            .sorted { lhs, rhs in
+                lhs.dashboardPriority < rhs.dashboardPriority
+            }
     }
 
     var systemImage: String {

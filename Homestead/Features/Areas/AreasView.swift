@@ -55,9 +55,28 @@ private struct AreaSummaryCard: View {
 
                 Spacer(minLength: AppSpacing.medium)
 
+                AreaDomainStrip(domains: Array(area.topDomains.prefix(3)))
+
                 Image(systemName: "chevron.right")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.tertiary)
+            }
+        }
+    }
+}
+
+private struct AreaDomainStrip: View {
+    let domains: [EntityDomain]
+
+    var body: some View {
+        HStack(spacing: AppSpacing.xSmall) {
+            ForEach(domains, id: \.self) { domain in
+                Image(systemName: domain.systemImage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
+                    .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                    .accessibilityLabel(domain.displayName)
             }
         }
     }
