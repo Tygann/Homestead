@@ -15,6 +15,13 @@ struct ContentView: View {
             }
 
             NavigationStack {
+                RoomsView()
+            }
+            .tabItem {
+                Label("Rooms", systemImage: "square.grid.3x3.fill")
+            }
+
+            NavigationStack {
                 DevicesView()
             }
             .tabItem {
@@ -27,13 +34,6 @@ struct ContentView: View {
             .tabItem {
                 Label("Settings", systemImage: "gearshape.fill")
             }
-        }
-        .task {
-            guard !RuntimeEnvironment.isRunningForPreviews else {
-                return
-            }
-
-            await homeAssistantService.connectIfPossible(settings: connectionSettings)
         }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {

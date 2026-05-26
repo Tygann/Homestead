@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DevicesView: View {
     @Environment(HAStateStore.self) private var stateStore
+    @Environment(PinnedEntityStore.self) private var pinnedEntityStore
     @State private var selectedEntity: SelectedEntity?
 
     var body: some View {
@@ -12,8 +13,18 @@ struct DevicesView: View {
             rowAction: { entityBox in
                 selectedEntity = SelectedEntity(entityID: entityBox.entityID)
             },
+            allowsPinning: true,
             accessory: { entityBox in
-                DeviceEntityStateAccessory(entityBox: entityBox)
+                HStack(spacing: AppSpacing.small) {
+                    if pinnedEntityStore.isPinned(entityBox.entityID) {
+                        Image(systemName: "star.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.yellow)
+                            .accessibilityLabel("Favorite")
+                    }
+
+                    DeviceEntityStateAccessory(entityBox: entityBox)
+                }
             }
         )
         .navigationTitle("Devices")
@@ -41,7 +52,10 @@ struct EntityBrowserList<Accessory: View>: View {
     let emptySystemImage: String
     let showsFilters: Bool
     let rowAction: (HAEntityState) -> Void
+    let allowsPinning: Bool
     private let accessory: (HAEntityState) -> Accessory
+
+    @Environment(PinnedEntityStore.self) private var pinnedEntityStore
 
     init(
         hiddenEntityIDs: Set<String>,
@@ -50,6 +64,7 @@ struct EntityBrowserList<Accessory: View>: View {
         showsFilters: Bool = false,
         includesUnavailableByDefault: Bool = true,
         rowAction: @escaping (HAEntityState) -> Void,
+        allowsPinning: Bool = false,
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
         self.hiddenEntityIDs = hiddenEntityIDs
@@ -57,6 +72,7 @@ struct EntityBrowserList<Accessory: View>: View {
         self.emptySystemImage = emptySystemImage
         self.showsFilters = showsFilters
         self.rowAction = rowAction
+        self.allowsPinning = allowsPinning
         self.accessory = accessory
         _includesUnavailable = State(initialValue: includesUnavailableByDefault)
     }
@@ -85,6 +101,19 @@ struct EntityBrowserList<Accessory: View>: View {
                                         )
                                     }
                                     .buttonStyle(.plain)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        if allowsPinning {
+                                            Button {
+                                                pinnedEntityStore.toggle(entityID)
+                                            } label: {
+                                                Label(
+                                                    pinnedEntityStore.isPinned(entityID) ? "Unfavorite" : "Favorite",
+                                                    systemImage: pinnedEntityStore.isPinned(entityID) ? "star.slash" : "star"
+                                                )
+                                            }
+                                            .tint(.yellow)
+                                        }
+                                    }
                                 }
                             }
                         }

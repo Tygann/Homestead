@@ -5,25 +5,39 @@ struct DashboardView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(DashboardPreferences.self) private var dashboardPreferences
+    @Environment(PinnedEntityStore.self) private var pinnedEntityStore
     @State private var isEditingDashboard = false
     @State private var isShowingAddCardSheet = false
     @State private var isShowingReorderSheet = false
     @State private var renamingHeaderID: UUID?
     @State private var headerTitleDraft = ""
+    @State private var showsInitialSyncPlaceholder = false
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                 if !connectionSettings.hasCredentials {
                     DashboardSetupCard()
-                } else if !stateStore.hasLoadedInitialSnapshot {
-                    DashboardInitialSyncView(
-                        connectionStatus: homeAssistantService.connectionStatus,
-                        errorMessage: homeAssistantService.lastErrorMessage,
-                        reconnect: {
-                            Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
-                        }
+                } else {
+                    DashboardStatusPill(
+                        text: statusText,
+                        systemImage: statusSystemImage
                     )
+                }
+
+                if !connectionSettings.hasCredentials {
+                    EmptyView()
+                } else if !stateStore.hasLoadedInitialSnapshot {
+                    if showsInitialSyncPlaceholder {
+                        DashboardInitialSyncView(
+                            connectionStatus: homeAssistantService.connectionStatus,
+                            errorMessage: homeAssistantService.lastErrorMessage,
+                            reconnect: {
+                                Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
+                            }
+                        )
+                    }
                 } else if !stateStore.hasEntities {
                     EmptyDashboardCard()
                 } else if visibleDashboardItems.isEmpty {
@@ -40,7 +54,8 @@ struct DashboardView: View {
                         }
                     )
                 } else {
-                    favoritesSection
+                    pinnedFavoritesSection
+                    configuredDashboardSection
                 }
             }
             .padding(.horizontal, AppSpacing.large)
@@ -82,7 +97,6 @@ struct DashboardView: View {
                     Button("Done", role: .confirm) {
                         isEditingDashboard = false
                     }
-                    .bold()
                 }
             } else {
                 ToolbarItem(placement: .primaryAction) {
@@ -111,13 +125,79 @@ struct DashboardView: View {
         .onAppear {
             reconcileDashboardConfigurationIfReady()
         }
+        .task(id: initialSyncPlaceholderKey) {
+            await updateInitialSyncPlaceholderVisibility()
+        }
         .onChange(of: stateStore.entityCatalogSignature) { _, _ in
             reconcileDashboardConfigurationIfReady()
         }
     }
+
+    private var initialSyncPlaceholderKey: String {
+        [
+            connectionSettings.hasCredentials.description,
+            stateStore.hasLoadedInitialSnapshot.description,
+            homeAssistantService.isLoadingCachedStates.description,
+            homeAssistantService.hasCompletedInitialCacheLoad.description
+        ]
+        .joined(separator: "-")
+    }
+
+    @MainActor
+    private func updateInitialSyncPlaceholderVisibility() async {
+        guard connectionSettings.hasCredentials,
+              !stateStore.hasLoadedInitialSnapshot,
+              homeAssistantService.hasCompletedInitialCacheLoad,
+              !homeAssistantService.isLoadingCachedStates else {
+            showsInitialSyncPlaceholder = false
+            return
+        }
+
+        showsInitialSyncPlaceholder = false
+
+        do {
+            try await Task.sleep(for: .milliseconds(220))
+        } catch {
+            return
+        }
+
+        guard !Task.isCancelled,
+              connectionSettings.hasCredentials,
+              !stateStore.hasLoadedInitialSnapshot,
+              homeAssistantService.hasCompletedInitialCacheLoad,
+              !homeAssistantService.isLoadingCachedStates else {
+            return
+        }
+
+        showsInitialSyncPlaceholder = true
+    }
     
     private var visibleDashboardItems: [DashboardItemConfiguration] {
-        dashboardConfiguration.visibleItems(fromAvailableEntityIDs: stateStore.availableEntityIDs)
+        var visibleEntityCount = 0
+
+        return dashboardConfiguration
+            .visibleItems(fromAvailableEntityIDs: stateStore.availableEntityIDs)
+            .compactMap { item in
+                guard item.type == .entity, let entityID = item.entityID else {
+                    return item
+                }
+
+                guard let entityBox = stateStore.entityBox(for: entityID) else {
+                    return nil
+                }
+
+                if dashboardPreferences.showsOnlyActiveDevices,
+                   !DashboardEntityPresentation(entityBox: entityBox).isActive {
+                    return nil
+                }
+
+                guard visibleEntityCount < dashboardPreferences.density.visibleEntityLimit else {
+                    return nil
+                }
+
+                visibleEntityCount += 1
+                return item
+            }
     }
     
     private var availableEntityIDsToAdd: Set<String> {
@@ -166,7 +246,59 @@ struct DashboardView: View {
         headerTitleDraft = ""
     }
     
-    private var favoritesSection: some View {
+    private var statusText: String {
+        if connectionSettings.hasCredentials,
+           !stateStore.hasLoadedInitialSnapshot,
+           !homeAssistantService.hasCompletedInitialCacheLoad {
+            return "Loading dashboard"
+        }
+
+        return switch homeAssistantService.dataFreshness {
+        case .empty:
+            homeAssistantService.connectionStatus.title
+        case .cached:
+            "Showing cached home state"
+        case .refreshing:
+            "Refreshing devices"
+        case .live:
+            homeAssistantService.connectionStatus.title
+        case .stale:
+            "Connection interrupted"
+        }
+    }
+
+    private var statusSystemImage: String {
+        if connectionSettings.hasCredentials,
+           !stateStore.hasLoadedInitialSnapshot,
+           !homeAssistantService.hasCompletedInitialCacheLoad {
+            return "arrow.clockwise"
+        }
+
+        return homeAssistantService.connectionStatus.systemImage
+    }
+
+    private var pinnedFavoritesSection: some View {
+        DashboardSection(isEmpty: pinnedEntityStore.entityIDs.isEmpty) {
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                DashboardSectionHeader(
+                    title: "Favorites",
+                    subtitle: "Pinned controls stay here even when a device is temporarily missing."
+                )
+
+                LazyVStack(spacing: AppSpacing.medium) {
+                    ForEach(pinnedEntityStore.entityIDs, id: \.self) { entityID in
+                        if stateStore.entityBox(for: entityID) != nil {
+                            DashboardCardView(entityID: entityID, size: .compact)
+                        } else {
+                            MissingPinnedEntityCard(entityID: entityID)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var configuredDashboardSection: some View {
         DashboardSection(isEmpty: visibleDashboardItems.isEmpty) {
             LazyVStack(spacing: AppSpacing.medium) {
                 ForEach(cardLayoutSections) { section in
@@ -261,7 +393,7 @@ struct DashboardView: View {
     private func dashboardCard(_ item: DashboardCardItem) -> some View {
         DashboardCardView(
             entityID: item.entityID,
-            size: item.size,
+            size: dashboardPreferences.density.effectiveCardSize(for: item.size),
             isEditing: isEditingDashboard,
             setSize: isEditingDashboard ? { size in
                 dashboardConfiguration.setCardSize(size, forItemID: item.id)
@@ -291,6 +423,20 @@ struct DashboardView: View {
                 }
             }
             
+            Section {
+                Picker("Density", selection: Bindable(dashboardPreferences).density) {
+                    ForEach(DashboardDensity.allCases) { density in
+                        Text(density.title)
+                            .tag(density)
+                    }
+                }
+
+                Toggle(
+                    "Only show active devices",
+                    isOn: Bindable(dashboardPreferences).showsOnlyActiveDevices
+                )
+            }
+
             Section {
                 Button {
                     isEditingDashboard = true
@@ -335,7 +481,6 @@ private struct DashboardAddCardView: View {
                     Button("Done", role: .confirm) {
                         dismiss()
                     }
-                    .bold()
                 }
             }
         }
@@ -382,7 +527,6 @@ private struct DashboardReorderView: View {
                     Button("Done", role: .confirm) {
                         dismiss()
                     }
-                    .bold()
                 }
             }
         }
@@ -558,6 +702,61 @@ private struct DashboardHeaderCardView: View {
     }
 }
 
+private struct DashboardStatusPill: View {
+    let text: String
+    let systemImage: String
+
+    var body: some View {
+        Label(text, systemImage: systemImage)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, AppSpacing.medium)
+            .frame(height: 34)
+            .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+            .accessibilityElement(children: .combine)
+    }
+}
+
+private struct DashboardSectionHeader: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text(title)
+                .font(.title3.weight(.bold))
+
+            Text(subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct MissingPinnedEntityCard: View {
+    let entityID: String
+
+    var body: some View {
+        CardContainer {
+            HStack(alignment: .center, spacing: AppSpacing.medium) {
+                CardIconView(systemName: "questionmark.circle")
+
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    Text("Favorite unavailable")
+                        .font(.headline)
+
+                    Text(entityID)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+        }
+    }
+}
+
 private struct DashboardSection<Content: View>: View {
     let isEmpty: Bool
     @ViewBuilder var content: Content
@@ -637,17 +836,23 @@ private struct DashboardLoadingPlaceholderView: View {
                         DashboardSkeletonCard(size: .compact)
                         DashboardSkeletonCard(size: .compact)
                     }
+                    .frame(maxWidth: .infinity, alignment: .top)
 
                     VStack(spacing: AppSpacing.medium) {
                         DashboardSkeletonCard(size: .large)
                         DashboardSkeletonCard(size: .compact)
                         DashboardSkeletonCard(size: .large)
                     }
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
+                .frame(maxWidth: .infinity, alignment: .top)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .opacity(isPulsing ? 0.46 : 0.72)
             .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isPulsing)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, AppSpacing.large)
         .allowsHitTesting(false)
         .task {
             isPulsing = true

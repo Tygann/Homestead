@@ -777,6 +777,188 @@ struct HomesteadTests {
         #expect(restoredConfiguration.items.last?.resolvedTitle == "Downstairs")
     }
 
+    @Test func stateCacheRoundTripsEntitySnapshotsAndScopesByConnection() async throws {
+        let cacheDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HomesteadStateCacheTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+        let cache = HAStateCache(directoryURL: cacheDirectory)
+        let primaryConfiguration = HAConnectionConfiguration(
+            baseURLString: "http://homeassistant.local:8123",
+            accessToken: "token-a"
+        )
+        let otherConfiguration = HAConnectionConfiguration(
+            baseURLString: "http://other-home.local:8123",
+            accessToken: "token-a"
+        )
+        let entities = [
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["friendly_name": .string("Kitchen")],
+                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:00:00.000000+00:00"))
+            )
+        ]
+
+        await cache.save(entities, for: primaryConfiguration)
+
+        let restoredSnapshot = try #require(await cache.load(for: primaryConfiguration))
+        #expect(restoredSnapshot.entities == entities)
+        #expect(await cache.load(for: otherConfiguration) == nil)
+        #expect(HAStateCache.cacheFileName(for: primaryConfiguration) != HAStateCache.cacheFileName(for: otherConfiguration))
+    }
+
+    @Test func stateCacheKeyNormalizesEquivalentHomeAssistantURLs() {
+        let hostOnlyConfiguration = HAConnectionConfiguration(
+            baseURLString: "homeassistant.local:8123",
+            accessToken: "token-a"
+        )
+        let httpConfiguration = HAConnectionConfiguration(
+            baseURLString: "http://homeassistant.local:8123/",
+            accessToken: "token-a"
+        )
+        let webSocketConfiguration = HAConnectionConfiguration(
+            baseURLString: "ws://homeassistant.local:8123/api/websocket",
+            accessToken: "token-a"
+        )
+
+        #expect(HAStateCache.cacheFileName(for: hostOnlyConfiguration) == HAStateCache.cacheFileName(for: httpConfiguration))
+        #expect(HAStateCache.cacheFileName(for: httpConfiguration) == HAStateCache.cacheFileName(for: webSocketConfiguration))
+    }
+
+    @MainActor
+    @Test func homeAssistantServiceCanApplyCachedStatesBeforeConnecting() async throws {
+        let cacheDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HomesteadServiceCacheTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+        let cache = HAStateCache(directoryURL: cacheDirectory)
+        let configuration = HAConnectionConfiguration(
+            baseURLString: "http://homeassistant.local:8123",
+            accessToken: "token-a"
+        )
+        let entities = [
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["friendly_name": .string("Kitchen")],
+                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:00:00.000000+00:00"))
+            )
+        ]
+
+        await cache.save(entities, for: configuration)
+
+        let store = HAStateStore()
+        let service = HomeAssistantService(stateStore: store, stateCache: cache)
+        let settings = HAConnectionSettings(
+            baseURL: "homeassistant.local:8123",
+            accessToken: "token-a",
+            credentialStore: InMemoryHACredentialStore()
+        )
+
+        await service.loadCachedStatesIfPossible(settings: settings)
+
+        #expect(store.hasLoadedInitialSnapshot == true)
+        #expect(store.entity(for: "light.kitchen")?.state == "on")
+        if case .cached = service.dataFreshness {
+            // Expected cached-first launch state.
+        } else {
+            Issue.record("Expected cached data freshness after applying the saved snapshot.")
+        }
+    }
+
+    @MainActor
+    @Test func pinnedEntityStorePersistsAndPreservesMissingEntitiesByDefault() throws {
+        let suiteName = "com.tyler.Homestead.pinned.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = PinnedEntityStore(defaults: defaults)
+        store.toggle("light.kitchen")
+        store.toggle("sensor.missing")
+
+        let restoredStore = PinnedEntityStore(defaults: defaults)
+        #expect(restoredStore.entityIDs == ["light.kitchen", "sensor.missing"])
+    }
+
+    @MainActor
+    @Test func dashboardPreferencesPersistDensityAndActiveFilter() throws {
+        let suiteName = "com.tyler.Homestead.preferences.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = DashboardPreferences(defaults: defaults)
+        preferences.density = .compact
+        preferences.showsOnlyActiveDevices = true
+
+        let restoredPreferences = DashboardPreferences(defaults: defaults)
+        #expect(restoredPreferences.density == .compact)
+        #expect(restoredPreferences.showsOnlyActiveDevices == true)
+    }
+
+    @MainActor
+    @Test func roomBuilderGroupsEntitiesAndCountsActivePresentations() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["friendly_name": .string("Kitchen Pendants")]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.kitchen_temperature",
+                state: "72",
+                attributes: ["friendly_name": .string("Kitchen Temperature")]
+            ),
+            HAEntityDTO(
+                entityID: "light.office_lamp",
+                state: "unavailable",
+                attributes: ["friendly_name": .string("Office Lamp")]
+            )
+        ])
+
+        let rooms = DashboardRoomBuilder.buildRooms(from: store.allEntityBoxes())
+        let kitchen = rooms.first { $0.name == "Kitchen" }
+        let office = rooms.first { $0.name == "Office" }
+
+        #expect(kitchen?.entityIDs == ["light.kitchen", "sensor.kitchen_temperature"])
+        #expect(kitchen?.activeCount == 1)
+        #expect(office?.unavailableCount == 1)
+    }
+
+    @MainActor
+    @Test func entityPresentationCentralizesDomainActionsAndDetails() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "on"),
+            HAEntityDTO(entityID: "cover.shades", state: "open"),
+            HAEntityDTO(entityID: "scene.movie_night", state: "scening"),
+            HAEntityDTO(entityID: "sensor.temperature", state: "72")
+        ])
+
+        let lightPresentation = DashboardEntityPresentation(
+            entityBox: try #require(store.entityBox(for: "light.kitchen"))
+        )
+        let coverPresentation = DashboardEntityPresentation(
+            entityBox: try #require(store.entityBox(for: "cover.shades"))
+        )
+        let scenePresentation = DashboardEntityPresentation(
+            entityBox: try #require(store.entityBox(for: "scene.movie_night"))
+        )
+        let sensorPresentation = DashboardEntityPresentation(
+            entityBox: try #require(store.entityBox(for: "sensor.temperature"))
+        )
+
+        #expect(lightPresentation.primaryAction == .toggleLight)
+        #expect(lightPresentation.detailKind == .light)
+        #expect(coverPresentation.primaryAction == .toggleCover)
+        #expect(coverPresentation.detailKind == .cover)
+        #expect(scenePresentation.primaryAction == .activateScene)
+        #expect(scenePresentation.detailKind == .entity)
+        #expect(sensorPresentation.primaryAction == nil)
+        #expect(sensorPresentation.detailKind == .entity)
+    }
+
     private var dashboardTestEntities: [HomeEntity] {
         [
             HomeEntity(
