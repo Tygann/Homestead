@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "HomesteadIcon2.png",
+      "filename" : "Homestead-IconNew2(1).png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,6 @@
           "value" : "dark"
         }
       ],
-      "filename" : "Homestead-Icon-Dark.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
