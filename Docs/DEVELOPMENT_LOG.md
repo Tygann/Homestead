@@ -2,6 +2,17 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-05-26
+
+### Cached Startup And Dashboard Foundation
+
+- Added scoped Home Assistant state caching so the app can render last-known entities before live WebSocket sync completes.
+- Added data freshness tracking for cached, refreshing, live, stale, and empty states.
+- Kept startup state buffering, reconnect handling, registry metadata, service feedback, and per-entity `HAEntityState` from current `main`.
+- Added persistent dashboard density, active-device filtering, pinned favorites, and a Rooms tab.
+- Centralized dashboard entity presentation metadata so cards, favorites, rooms, and devices do not branch on raw entity ID prefixes.
+- Added regression coverage for cache scoping, preference and pin persistence, room grouping, and presentation routing.
+
 ## 2026-05-22
 
 ### Sensor Cards And Add-Card Filtering

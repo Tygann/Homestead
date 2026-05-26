@@ -1,6 +1,6 @@
 import Foundation
 
-struct HAEntityDTO: Decodable, Equatable, Identifiable, Sendable {
+struct HAEntityDTO: Codable, Equatable, Identifiable, Sendable {
     let entityID: String
     let state: String
     let attributes: [String: JSONValue]
@@ -38,5 +38,14 @@ struct HAEntityDTO: Decodable, Equatable, Identifiable, Sendable {
         attributes = try container.decodeIfPresent([String: JSONValue].self, forKey: .attributes) ?? [:]
         lastChanged = HADateParser.date(from: try container.decodeIfPresent(String.self, forKey: .lastChanged))
         lastUpdated = HADateParser.date(from: try container.decodeIfPresent(String.self, forKey: .lastUpdated))
+    }
+
+    nonisolated func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(entityID, forKey: .entityID)
+        try container.encode(state, forKey: .state)
+        try container.encode(attributes, forKey: .attributes)
+        try container.encodeIfPresent(lastChanged, forKey: .lastChanged)
+        try container.encodeIfPresent(lastUpdated, forKey: .lastUpdated)
     }
 }

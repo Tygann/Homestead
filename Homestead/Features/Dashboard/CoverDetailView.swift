@@ -27,7 +27,7 @@ struct CoverDetailView: View {
                 .toolbarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") {
+                        Button("Done", role: .close) {
                             dismiss()
                         }
                     }

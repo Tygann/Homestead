@@ -22,6 +22,8 @@ final class HAStateStore {
     @ObservationIgnored private var pendingCommandsByID: [String: HAEntityPendingCommand] = [:]
     @ObservationIgnored private var entityRegistryByID: [String: HAEntityRegistryDisplayDTO] = [:]
     @ObservationIgnored private var deviceRegistryByID: [String: HADeviceRegistryDTO] = [:]
+    @ObservationIgnored private var isApplyingSnapshotBatch = false
+    @ObservationIgnored private var snapshotBatchNeedsWidgetSave = false
 
     var lightEntityIDs: [String] {
         entityIDs(for: .light)
@@ -45,6 +47,16 @@ final class HAStateStore {
 
     func rawEntity(for entityID: String) -> HAEntityDTO? {
         rawEntitiesByID[entityID]
+    }
+
+    func rawEntitySnapshot() -> [HAEntityDTO] {
+        rawEntitiesByID.values.sorted { lhs, rhs in
+            lhs.entityID.localizedCaseInsensitiveCompare(rhs.entityID) == .orderedAscending
+        }
+    }
+
+    func allEntityBoxes() -> [HAEntityState] {
+        allEntities.compactMap { entityBoxesByID[$0.entityID] }
     }
 
     func pendingCommand(for entityID: String) -> HAEntityPendingCommand? {
@@ -85,6 +97,8 @@ final class HAStateStore {
 
     func applySnapshot(_ entities: [HAEntityDTO]) {
         hasLoadedInitialSnapshot = true
+        isApplyingSnapshotBatch = true
+        snapshotBatchNeedsWidgetSave = false
 
         let snapshotEntityIDs = Set(entities.map(\.entityID))
         let removedEntityIDs = Set(rawEntitiesByID.keys).subtracting(snapshotEntityIDs)
@@ -101,7 +115,13 @@ final class HAStateStore {
             }
         }
 
-        saveWidgetLightSnapshots()
+        isApplyingSnapshotBatch = false
+        refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
+
+        if snapshotBatchNeedsWidgetSave {
+            saveWidgetLightSnapshots()
+        }
+        snapshotBatchNeedsWidgetSave = false
     }
 
     func applyRegistryMetadata(
@@ -259,7 +279,9 @@ final class HAStateStore {
             pendingCommand: pendingCommandsByID[dto.entityID]
         )
 
-        if previousEntity?.domain == homeEntity.domain,
+        if isApplyingSnapshotBatch {
+            // Snapshot batches refresh the catalog once after all entity changes are applied.
+        } else if previousEntity?.domain == homeEntity.domain,
            previousEntity?.displayName == homeEntity.displayName {
             updateCachedEntity(homeEntity)
         } else {
@@ -267,7 +289,11 @@ final class HAStateStore {
         }
 
         if homeEntity.domain == .light {
-            saveWidgetLightSnapshots()
+            if isApplyingSnapshotBatch {
+                snapshotBatchNeedsWidgetSave = true
+            } else {
+                saveWidgetLightSnapshots()
+            }
         }
     }
 
@@ -293,7 +319,13 @@ final class HAStateStore {
         pendingCommandsByID.removeValue(forKey: entityID)
 
         if removedEntity != nil {
-            refreshEntityIndexes(previousCatalogSignature: previousCatalogSignature)
+            if isApplyingSnapshotBatch {
+                if removedEntity?.domain == .light {
+                    snapshotBatchNeedsWidgetSave = true
+                }
+            } else {
+                refreshEntityIndexes(previousCatalogSignature: previousCatalogSignature)
+            }
         }
     }
 

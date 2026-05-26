@@ -5,15 +5,20 @@ import Observation
 @Observable
 final class HomeAssistantService {
     private(set) var connectionStatus: HAConnectionStatus = .disconnected
+    private(set) var dataFreshness: HADataFreshness = .empty
     private(set) var lastErrorMessage: String?
     private(set) var smokeTestState: HAConnectionSmokeTestState = .idle
     private(set) var serviceFeedback: HAServiceFeedback?
+    private(set) var isLoadingCachedStates = false
+    private(set) var hasCompletedInitialCacheLoad = false
 
     @ObservationIgnored private let client: HAWebSocketClient
     @ObservationIgnored private let stateStore: HAStateStore
+    @ObservationIgnored private let stateCache: HAStateCache
     @ObservationIgnored private let stateEventBatcher = HAStateEventBatcher()
     @ObservationIgnored private var activeConfiguration: HAConnectionConfiguration?
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
+    @ObservationIgnored private var stateSyncTask: Task<Void, Never>?
     @ObservationIgnored private var pendingCommandTasksByID: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var bufferedStateChangesByID: [String: HAStateChangedEventDTO] = [:]
     @ObservationIgnored private var isBufferingStateChanges = false
@@ -26,10 +31,12 @@ final class HomeAssistantService {
     init(
         stateStore: HAStateStore,
         client: HAWebSocketClient = HAWebSocketClient(),
+        stateCache: HAStateCache = HAStateCache(),
         connectionStatus: HAConnectionStatus = .disconnected
     ) {
         self.stateStore = stateStore
         self.client = client
+        self.stateCache = stateCache
         self.connectionStatus = connectionStatus
     }
 
@@ -37,11 +44,32 @@ final class HomeAssistantService {
         guard settings.hasCredentials,
               connectionStatus != .connected,
               connectionStatus != .connecting,
-              connectionStatus != .reconnecting else {
+              connectionStatus != .reconnecting,
+              !isLoadingCachedStates else {
             return
         }
 
         await connect(baseURLString: settings.baseURL, accessToken: settings.accessToken)
+    }
+
+    func loadCachedStatesIfPossible(settings: HAConnectionSettings) async {
+        guard settings.hasCredentials, !stateStore.hasLoadedInitialSnapshot else {
+            #if DEBUG
+            if !settings.hasCredentials {
+                print("Home Assistant state cache skipped: missing credentials")
+            } else {
+                print("Home Assistant state cache skipped: state store already has an initial snapshot")
+            }
+            #endif
+            return
+        }
+
+        let configuration = HAConnectionConfiguration(
+            baseURLString: settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            accessToken: settings.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+
+        await applyCachedStatesIfAvailable(for: configuration)
     }
 
     func connect(baseURLString: String, accessToken: String) async {
@@ -52,17 +80,25 @@ final class HomeAssistantService {
 
         reconnectTask?.cancel()
         reconnectTask = nil
+        stateSyncTask?.cancel()
+        stateSyncTask = nil
+        discardBufferedStateChanges()
         shouldReconnect = true
         connectionStatus = .connecting
 
+        await applyCachedStatesIfAvailable(for: configuration)
+
         do {
-            try await establishConnection(configuration: configuration)
+            try await establishTransportConnection(configuration: configuration)
             activeConfiguration = configuration
             lastErrorMessage = nil
             connectionStatus = .connected
+            dataFreshness = .refreshing
+            startStateSync(configuration: configuration)
         } catch {
             shouldReconnect = false
             lastErrorMessage = error.localizedDescription
+            dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
             connectionStatus = .failed(error.localizedDescription)
         }
     }
@@ -93,9 +129,13 @@ final class HomeAssistantService {
         shouldReconnect = false
         reconnectTask?.cancel()
         reconnectTask = nil
+        stateSyncTask?.cancel()
+        stateSyncTask = nil
+        discardBufferedStateChanges()
         cancelPendingCommandTasks()
         await client.disconnect()
         activeConfiguration = nil
+        dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(nil) : .empty
         connectionStatus = .disconnected
     }
 
@@ -383,22 +423,71 @@ final class HomeAssistantService {
         serviceFeedback = nil
     }
 
-    private func establishConnection(configuration: HAConnectionConfiguration) async throws {
+    private func applyCachedStatesIfAvailable(for configuration: HAConnectionConfiguration) async {
+        guard !stateStore.hasLoadedInitialSnapshot else {
+            hasCompletedInitialCacheLoad = true
+            return
+        }
+        guard !isLoadingCachedStates else {
+            #if DEBUG
+            print("Home Assistant state cache skipped: load already in progress")
+            #endif
+            return
+        }
+
+        isLoadingCachedStates = true
+        defer {
+            isLoadingCachedStates = false
+            hasCompletedInitialCacheLoad = true
+        }
+
+        guard let snapshot = await stateCache.load(for: configuration), !snapshot.entities.isEmpty else {
+            dataFreshness = .empty
+            return
+        }
+
+        #if DEBUG
+        let startDate = Date()
+        #endif
+        stateStore.applySnapshot(snapshot.entities)
+        #if DEBUG
+        print(
+            "Home Assistant cached snapshot applied: \(snapshot.entities.count) entities in \(String(format: "%.3f", Date().timeIntervalSince(startDate)))s"
+        )
+        #endif
+        dataFreshness = .cached(snapshot.savedAt)
+    }
+
+    private func establishTransportConnection(configuration: HAConnectionConfiguration) async throws {
         await configureClientCallbacks()
         try await client.connect(configuration: configuration)
+    }
 
+    private func startStateSync(configuration: HAConnectionConfiguration) {
+        stateSyncTask?.cancel()
+        stateSyncTask = Task { [weak self] in
+            await self?.syncInitialStates(configuration: configuration)
+        }
+    }
+
+    private func syncInitialStates(configuration: HAConnectionConfiguration) async {
         beginBufferingStateChanges()
+
         do {
             try await client.subscribeToStateChanges()
             let states = try await client.fetchStates()
             stateStore.applySnapshot(states)
             applyBufferedStateChanges()
+            await stateCache.save(stateStore.rawEntitySnapshot(), for: configuration)
+            await fetchRegistryMetadataIfAvailable()
+            lastErrorMessage = nil
+            dataFreshness = .live(Date())
         } catch {
-            bufferedStateChangesByID.removeAll()
-            isBufferingStateChanges = false
-            throw error
+            discardBufferedStateChanges()
+            lastErrorMessage = error.localizedDescription
+            dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
+            await recoverConnectionIfNeeded(after: error)
         }
-        await fetchRegistryMetadataIfAvailable()
     }
 
     func refreshStates() async {
@@ -407,15 +496,21 @@ final class HomeAssistantService {
         }
 
         beginBufferingStateChanges()
+        dataFreshness = .refreshing
 
         do {
             let states = try await client.fetchStates()
             stateStore.applySnapshot(states)
             applyBufferedStateChanges()
+            if let activeConfiguration {
+                await stateCache.save(stateStore.rawEntitySnapshot(), for: activeConfiguration)
+            }
             lastErrorMessage = nil
+            dataFreshness = .live(Date())
         } catch {
             applyBufferedStateChanges()
             lastErrorMessage = error.localizedDescription
+            dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
             await recoverConnectionIfNeeded(after: error)
         }
     }
@@ -481,12 +576,18 @@ final class HomeAssistantService {
         stateStore.applyStateChanges(bufferedStateChanges)
     }
 
+    private func discardBufferedStateChanges() {
+        bufferedStateChangesByID.removeAll()
+        isBufferingStateChanges = false
+    }
+
     private func handleUnexpectedDisconnect(_ error: Error) {
         guard shouldReconnect, let activeConfiguration else {
             return
         }
 
         lastErrorMessage = error.localizedDescription
+        dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
         scheduleReconnect(configuration: activeConfiguration)
     }
 
@@ -507,6 +608,9 @@ final class HomeAssistantService {
             return
         }
 
+        stateSyncTask?.cancel()
+        stateSyncTask = nil
+        discardBufferedStateChanges()
         connectionStatus = .reconnecting
         reconnectTask = Task { [weak self] in
             await self?.runReconnectLoop(configuration: configuration)
@@ -521,17 +625,20 @@ final class HomeAssistantService {
 
             do {
                 try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
-                try await establishConnection(configuration: configuration)
+                try await establishTransportConnection(configuration: configuration)
 
                 activeConfiguration = configuration
                 lastErrorMessage = nil
                 connectionStatus = .connected
                 reconnectTask = nil
+                dataFreshness = .refreshing
+                startStateSync(configuration: configuration)
                 return
             } catch is CancellationError {
                 break
             } catch {
                 lastErrorMessage = error.localizedDescription
+                dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
                 connectionStatus = .reconnecting
                 attempt += 1
             }
