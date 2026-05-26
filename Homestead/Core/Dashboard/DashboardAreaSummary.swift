@@ -1,6 +1,6 @@
 import Foundation
 
-struct DashboardRoomSummary: Identifiable, Hashable, Sendable {
+struct DashboardAreaSummary: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let entityIDs: [String]

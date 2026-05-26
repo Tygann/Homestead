@@ -53,7 +53,13 @@ final class HomeAssistantService {
     }
 
     func loadCachedStatesIfPossible(settings: HAConnectionSettings) async {
-        guard settings.hasCredentials, !stateStore.hasLoadedInitialSnapshot else {
+        let configuration = HAConnectionConfiguration(
+            baseURLString: settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            accessToken: settings.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+
+        guard settings.hasCredentials,
+              stateStore.dataSourceID != configuration.dataSourceID || !stateStore.hasLoadedInitialSnapshot else {
             #if DEBUG
             if !settings.hasCredentials {
                 print("Home Assistant state cache skipped: missing credentials")
@@ -63,11 +69,6 @@ final class HomeAssistantService {
             #endif
             return
         }
-
-        let configuration = HAConnectionConfiguration(
-            baseURLString: settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
-            accessToken: settings.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
 
         await applyCachedStatesIfAvailable(for: configuration)
     }
@@ -83,6 +84,7 @@ final class HomeAssistantService {
         stateSyncTask?.cancel()
         stateSyncTask = nil
         discardBufferedStateChanges()
+        await stateEventBatcher.discardPendingUpdates()
         shouldReconnect = true
         connectionStatus = .connecting
 
@@ -132,6 +134,7 @@ final class HomeAssistantService {
         stateSyncTask?.cancel()
         stateSyncTask = nil
         discardBufferedStateChanges()
+        await stateEventBatcher.discardPendingUpdates()
         cancelPendingCommandTasks()
         await client.disconnect()
         activeConfiguration = nil
@@ -251,6 +254,46 @@ final class HomeAssistantService {
         )
     }
 
+    func toggleSwitch(entityID: String) async {
+        await callToggleService(
+            domain: "switch",
+            entityID: entityID,
+            onState: "on",
+            offState: "off"
+        )
+    }
+
+    func toggleFan(entityID: String) async {
+        await callToggleService(
+            domain: "fan",
+            entityID: entityID,
+            onState: "on",
+            offState: "off"
+        )
+    }
+
+    func toggleLock(entityID: String) async {
+        guard let entity = stateStore.entity(for: entityID), entity.isAvailable else {
+            return
+        }
+
+        let shouldUnlock = entity.state == "locked"
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: shouldUnlock ? "unlocked" : "locked"
+        )
+        let succeeded = await callService(
+            domain: "lock",
+            service: shouldUnlock ? "unlock" : "lock",
+            entityID: entityID
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
     func setClimateTemperature(entityID: String, temperature: Double) async {
         guard let climate = stateStore.climateEntity(for: entityID) else {
             return
@@ -274,6 +317,33 @@ final class HomeAssistantService {
             service: "set_temperature",
             entityID: entityID,
             serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    private func callToggleService(
+        domain: String,
+        entityID: String,
+        onState: String,
+        offState: String
+    ) async {
+        guard let entity = stateStore.entity(for: entityID), entity.isAvailable else {
+            return
+        }
+
+        let shouldTurnOff = entity.state == onState
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: shouldTurnOff ? offState : onState
+        )
+        let succeeded = await callService(
+            domain: domain,
+            service: shouldTurnOff ? "turn_off" : "turn_on",
+            entityID: entityID
         )
         if succeeded {
             schedulePendingResolution(for: pendingCommand)
@@ -424,6 +494,10 @@ final class HomeAssistantService {
     }
 
     private func applyCachedStatesIfAvailable(for configuration: HAConnectionConfiguration) async {
+        if stateStore.dataSourceID != configuration.dataSourceID {
+            stateStore.replaceDataSourceIfNeeded(configuration.dataSourceID)
+        }
+
         guard !stateStore.hasLoadedInitialSnapshot else {
             hasCompletedInitialCacheLoad = true
             return
@@ -449,7 +523,7 @@ final class HomeAssistantService {
         #if DEBUG
         let startDate = Date()
         #endif
-        stateStore.applySnapshot(snapshot.entities)
+        stateStore.applySnapshot(snapshot.entities, dataSourceID: configuration.dataSourceID)
         #if DEBUG
         print(
             "Home Assistant cached snapshot applied: \(snapshot.entities.count) entities in \(String(format: "%.3f", Date().timeIntervalSince(startDate)))s"
@@ -476,7 +550,7 @@ final class HomeAssistantService {
         do {
             try await client.subscribeToStateChanges()
             let states = try await client.fetchStates()
-            stateStore.applySnapshot(states)
+            stateStore.applySnapshot(states, dataSourceID: configuration.dataSourceID)
             applyBufferedStateChanges()
             await stateCache.save(stateStore.rawEntitySnapshot(), for: configuration)
             await fetchRegistryMetadataIfAvailable()
@@ -491,7 +565,7 @@ final class HomeAssistantService {
     }
 
     func refreshStates() async {
-        guard connectionStatus == .connected else {
+        guard connectionStatus == .connected, let activeConfiguration else {
             return
         }
 
@@ -500,11 +574,9 @@ final class HomeAssistantService {
 
         do {
             let states = try await client.fetchStates()
-            stateStore.applySnapshot(states)
+            stateStore.applySnapshot(states, dataSourceID: activeConfiguration.dataSourceID)
             applyBufferedStateChanges()
-            if let activeConfiguration {
-                await stateCache.save(stateStore.rawEntitySnapshot(), for: activeConfiguration)
-            }
+            await stateCache.save(stateStore.rawEntitySnapshot(), for: activeConfiguration)
             lastErrorMessage = nil
             dataFreshness = .live(Date())
         } catch {
@@ -521,14 +593,26 @@ final class HomeAssistantService {
             async let deviceRegistry = client.fetchDeviceRegistry()
 
             let registryMetadata = try await (entityRegistry, deviceRegistry)
+            let areas: [HAAreaRegistryDTO]
+
+            do {
+                areas = try await client.fetchAreaRegistry()
+            } catch {
+                areas = []
+                #if DEBUG
+                print("Home Assistant area registry metadata failed: \(error.localizedDescription)")
+                #endif
+            }
+
             stateStore.applyRegistryMetadata(
                 entities: registryMetadata.0.entities,
-                devices: registryMetadata.1
+                devices: registryMetadata.1,
+                areas: areas
             )
         } catch {
-            // Registry metadata improves organization, but live state should still work without it.
+            // Entity/device metadata improves organization, but live state should still work without it.
             #if DEBUG
-            print("Home Assistant registry metadata failed: \(error.localizedDescription)")
+            print("Home Assistant entity/device registry metadata failed: \(error.localizedDescription)")
             #endif
         }
     }
@@ -611,6 +695,9 @@ final class HomeAssistantService {
         stateSyncTask?.cancel()
         stateSyncTask = nil
         discardBufferedStateChanges()
+        Task {
+            await stateEventBatcher.discardPendingUpdates()
+        }
         connectionStatus = .reconnecting
         reconnectTask = Task { [weak self] in
             await self?.runReconnectLoop(configuration: configuration)
@@ -787,6 +874,12 @@ actor HAStateEventBatcher {
         }
 
         await flushHandler(updates)
+    }
+
+    func discardPendingUpdates() {
+        flushTask?.cancel()
+        flushTask = nil
+        pendingUpdatesByID.removeAll()
     }
 }
 

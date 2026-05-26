@@ -118,6 +118,20 @@ actor HAWebSocketClient {
         return try result.decoded([HADeviceRegistryDTO].self)
     }
 
+    func fetchAreaRegistry() async throws -> [HAAreaRegistryDTO] {
+        let id = makeRequestID()
+        let response = try await sendRequest(
+            .registryCommand(id: id, type: HAWebSocketMessageType.areaRegistryList),
+            id: id
+        )
+
+        guard let result = response.result else {
+            throw HAWebSocketError.missingResult
+        }
+
+        return try result.decoded([HAAreaRegistryDTO].self)
+    }
+
     func subscribeToStateChanges() async throws {
         guard stateChangeSubscriptionID == nil else {
             return

@@ -64,6 +64,18 @@ struct DashboardCardView: View {
             return {
                 Task { await homeAssistantService.toggleCover(entityID: entityBox.entityID) }
             }
+        case .toggleSwitch:
+            return {
+                Task { await homeAssistantService.toggleSwitch(entityID: entityBox.entityID) }
+            }
+        case .toggleFan:
+            return {
+                Task { await homeAssistantService.toggleFan(entityID: entityBox.entityID) }
+            }
+        case .toggleLock:
+            return {
+                Task { await homeAssistantService.toggleLock(entityID: entityBox.entityID) }
+            }
         case nil:
             return nil
         }
@@ -266,35 +278,6 @@ private struct DashboardEntityCard: View {
                     .frame(width: 28, height: 28)
                     .background(Color(.secondarySystemGroupedBackground), in: Circle())
             }
-            .glassEffect()
-            .accessibilityLabel("Card size")
-        }
-    }
-    
-    @ViewBuilder
-    private var sizeMenu_Backup: some View {
-        if let setSize {
-            Menu {
-                ControlGroup {
-                    ForEach(DashboardCardSize.allCases, id: \.self) { option in
-                        Button {
-                            setSize(option)
-                        } label: {
-//                            Label(option.displayName, systemImage: size == option ? "checkmark" : option.systemImage)
-                            Label(option.displayName, systemImage: option.systemImage)
-                                .tint(size == option ? .primary : .gray)
-                        }
-                    }
-                }
-            } label: {
-//                Image(systemName: size.systemImage)
-                Image(systemName: "arrow.up.backward.and.arrow.down.forward")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
-            }
-            .glassEffect()
             .accessibilityLabel("Card size")
         }
     }
@@ -310,7 +293,6 @@ private struct DashboardEntityCard: View {
                     .frame(width: 28, height: 28)
                     .background(Color(.secondarySystemGroupedBackground), in: Circle())
             }
-            .glassEffect()
             .accessibilityLabel("Remove \(presentation.title)")
         }
     }

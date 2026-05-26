@@ -91,12 +91,11 @@ final class DashboardConfiguration {
         seedIfNeeded(from: entities)
     }
 
-    func reconcile(withAvailableEntityIDs availableIDs: Set<String>) {
+    func reconcile(withAvailableEntityIDs _: Set<String>) {
         let currentItems = items.filter { item in
             switch item.type {
             case .entity:
-                guard let entityID = item.entityID else { return false }
-                return availableIDs.contains(entityID)
+                return item.entityID != nil
             case .header:
                 return true
             }

@@ -5,6 +5,13 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
     case climate
     case cover
     case sensor
+    case binarySensor = "binary_sensor"
+    case `switch`
+    case fan
+    case lock
+    case mediaPlayer = "media_player"
+    case camera
+    case vacuum
     case scene
     case script
     case other
@@ -28,6 +35,20 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
             "Covers"
         case .sensor:
             "Sensors"
+        case .binarySensor:
+            "Binary Sensors"
+        case .switch:
+            "Switches"
+        case .fan:
+            "Fans"
+        case .lock:
+            "Locks"
+        case .mediaPlayer:
+            "Media Players"
+        case .camera:
+            "Cameras"
+        case .vacuum:
+            "Vacuums"
         case .scene:
             "Scenes"
         case .script:
@@ -47,6 +68,20 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
             "blinds.horizontal.closed"
         case .sensor:
             "sensor"
+        case .binarySensor:
+            "sensor.tag.radiowaves.forward"
+        case .switch:
+            "switch.2"
+        case .fan:
+            "fan"
+        case .lock:
+            "lock"
+        case .mediaPlayer:
+            "play.tv"
+        case .camera:
+            "camera"
+        case .vacuum:
+            "washer"
         case .scene:
             "sparkles"
         case .script:
@@ -66,12 +101,26 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
             2
         case .sensor:
             3
-        case .scene:
+        case .binarySensor:
             4
-        case .script:
+        case .switch:
             5
-        case .other:
+        case .fan:
             6
+        case .lock:
+            7
+        case .mediaPlayer:
+            8
+        case .camera:
+            9
+        case .vacuum:
+            10
+        case .scene:
+            11
+        case .script:
+            12
+        case .other:
+            13
         }
     }
 }

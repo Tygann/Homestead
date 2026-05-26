@@ -15,6 +15,7 @@ enum HAWebSocketMessageType {
     nonisolated static var callService: String { "call_service" }
     nonisolated static var entityRegistryListForDisplay: String { "config/entity_registry/list_for_display" }
     nonisolated static var deviceRegistryList: String { "config/device_registry/list" }
+    nonisolated static var areaRegistryList: String { "config/area_registry/list" }
 }
 
 struct HAWebSocketIncomingMessage: Decodable, Sendable {

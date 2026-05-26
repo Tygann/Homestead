@@ -3,6 +3,9 @@ import SwiftUI
 enum DashboardEntityPrimaryAction: Equatable, Sendable {
     case toggleLight
     case toggleCover
+    case toggleSwitch
+    case toggleFan
+    case toggleLock
     case activateScene
     case runScript
 }
@@ -75,13 +78,24 @@ struct DashboardEntityPresentation {
             accentColor = Self.climateAccentColor(for: climate)
         } else {
             let entity = entityBox.homeEntity
+            let effectiveEntity = pendingCommand.map {
+                HomeEntity(
+                    entityID: entity.entityID,
+                    domain: entity.domain,
+                    displayName: entity.displayName,
+                    state: $0.expectedState ?? entity.state,
+                    iconName: entity.iconName,
+                    isAvailable: entity.isAvailable,
+                    lastUpdated: entity.lastUpdated
+                )
+            } ?? entity
             title = entity.displayName
-            subtitle = Self.subtitle(for: entity)
-            headline = Self.headline(for: entity)
-            iconName = entity.iconName
-            isActive = Self.isActive(entity)
+            subtitle = pendingCommand == nil ? Self.subtitle(for: effectiveEntity) : Self.pendingSubtitle(for: effectiveEntity)
+            headline = Self.headline(for: effectiveEntity)
+            iconName = effectiveEntity.iconName
+            isActive = Self.isActive(effectiveEntity)
             isAvailable = entity.isAvailable
-            accentColor = Self.accentColor(for: entity)
+            accentColor = Self.accentColor(for: effectiveEntity)
         }
     }
 
@@ -107,11 +121,17 @@ struct DashboardEntityPresentation {
             return .toggleLight
         case .cover:
             return .toggleCover
+        case .switch:
+            return .toggleSwitch
+        case .fan:
+            return .toggleFan
+        case .lock:
+            return .toggleLock
         case .scene:
             return .activateScene
         case .script:
             return .runScript
-        case .climate, .sensor, .other:
+        case .climate, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .other:
             return nil
         }
     }
@@ -220,8 +240,31 @@ struct DashboardEntityPresentation {
             } else {
                 "Script"
             }
+        case .binarySensor:
+            entity.isAvailable ? binarySensorSubtitle(for: entity) : "Sensor unavailable"
+        case .switch:
+            entity.isAvailable ? onOffSubtitle(for: entity, onTitle: "On", offTitle: "Off") : "Switch unavailable"
+        case .fan:
+            entity.isAvailable ? onOffSubtitle(for: entity, onTitle: "On", offTitle: "Off") : "Fan unavailable"
+        case .lock:
+            entity.isAvailable ? lockSubtitle(for: entity) : "Lock unavailable"
+        case .mediaPlayer:
+            entity.isAvailable ? mediaPlayerSubtitle(for: entity) : "Media player unavailable"
+        case .camera:
+            entity.isAvailable ? "Camera" : "Camera unavailable"
+        case .vacuum:
+            entity.isAvailable ? entity.state.replacingOccurrences(of: "_", with: " ").capitalized : "Vacuum unavailable"
         case .light, .climate, .cover, .sensor, .other:
             entity.state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private static func pendingSubtitle(for entity: HomeEntity) -> String {
+        switch entity.domain {
+        case .switch, .fan, .lock:
+            "Updating..."
+        case .scene, .script, .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .other:
+            subtitle(for: entity)
         }
     }
 
@@ -229,6 +272,8 @@ struct DashboardEntityPresentation {
         switch entity.domain {
         case .scene, .script:
             entity.isAvailable ? "Run" : nil
+        case .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .binarySensor:
+            nil
         case .light, .climate, .cover, .sensor, .other:
             nil
         }
@@ -240,7 +285,15 @@ struct DashboardEntityPresentation {
             entity.state == "on"
         case .scene:
             false
-        case .light, .climate, .cover, .sensor, .other:
+        case .lock:
+            entity.state == "unlocked" || entity.state == "unlocking"
+        case .mediaPlayer:
+            entity.state == "playing"
+        case .vacuum:
+            entity.state == "cleaning"
+        case .camera:
+            false
+        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .other:
             entity.state == "on" || entity.state == "open"
         }
     }
@@ -251,8 +304,70 @@ struct DashboardEntityPresentation {
             .purple
         case .script:
             .accentColor
-        case .light, .climate, .cover, .sensor, .other:
+        case .lock:
+            entity.state == "unlocked" ? .orange : .accentColor
+        case .mediaPlayer:
+            entity.state == "playing" ? .green : .accentColor
+        case .camera:
+            .blue
+        case .vacuum:
+            entity.state == "cleaning" ? .green : .accentColor
+        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .other:
             .accentColor
+        }
+    }
+
+    private static func onOffSubtitle(for entity: HomeEntity, onTitle: String, offTitle: String) -> String {
+        switch entity.state {
+        case "on":
+            onTitle
+        case "off":
+            offTitle
+        default:
+            entity.state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private static func lockSubtitle(for entity: HomeEntity) -> String {
+        switch entity.state {
+        case "locked":
+            "Locked"
+        case "unlocked":
+            "Unlocked"
+        case "locking":
+            "Locking"
+        case "unlocking":
+            "Unlocking"
+        default:
+            entity.state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private static func mediaPlayerSubtitle(for entity: HomeEntity) -> String {
+        switch entity.state {
+        case "playing":
+            "Playing"
+        case "paused":
+            "Paused"
+        case "idle":
+            "Idle"
+        case "standby":
+            "Standby"
+        case "off":
+            "Off"
+        default:
+            entity.state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private static func binarySensorSubtitle(for entity: HomeEntity) -> String {
+        switch entity.state {
+        case "on":
+            "Detected"
+        case "off":
+            "Clear"
+        default:
+            entity.state.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
 

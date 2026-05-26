@@ -7,6 +7,8 @@ struct EntityDetailView: View {
 
     var body: some View {
         let entity = entityBox.homeEntity
+        // Devices is the power-user inventory; this detail screen intentionally exposes raw
+        // Home Assistant diagnostics while cards stay behind mapped domain models.
         let rawEntity = stateStore.rawEntity(for: entity.entityID)
         let registry = stateStore.entityRegistryMetadata(for: entity.entityID)
         let device = stateStore.deviceRegistryMetadata(forEntityID: entity.entityID)
@@ -145,7 +147,7 @@ private struct EntitySummaryHeader: View {
         }
 
         let state = entityBox.homeEntity.state
-        return state == "on" || state == "open" || state == "home"
+        return state == "on" || state == "open" || state == "home" || state == "playing" || state == "cleaning" || state == "unlocked"
     }
 
     private var summaryText: String {

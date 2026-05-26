@@ -15,10 +15,10 @@ struct ContentView: View {
             }
 
             NavigationStack {
-                RoomsView()
+                AreasView()
             }
             .tabItem {
-                Label("Rooms", systemImage: "square.grid.3x3.fill")
+                Label("Areas", systemImage: "square.grid.3x3.fill")
             }
 
             NavigationStack {

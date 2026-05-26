@@ -13,6 +13,7 @@ final class HAStateStore {
     private(set) var entityCatalogSignature = ""
     private(set) var hasEntities = false
     private(set) var hasLoadedInitialSnapshot = false
+    private(set) var dataSourceID: String?
     @ObservationIgnored private(set) var lightEntitiesByID: [String: LightEntity] = [:]
     @ObservationIgnored private(set) var climateEntitiesByID: [String: ClimateEntity] = [:]
     @ObservationIgnored private(set) var coverEntitiesByID: [String: CoverEntity] = [:]
@@ -22,6 +23,7 @@ final class HAStateStore {
     @ObservationIgnored private var pendingCommandsByID: [String: HAEntityPendingCommand] = [:]
     @ObservationIgnored private var entityRegistryByID: [String: HAEntityRegistryDisplayDTO] = [:]
     @ObservationIgnored private var deviceRegistryByID: [String: HADeviceRegistryDTO] = [:]
+    @ObservationIgnored private var areaRegistryByID: [String: HAAreaRegistryDTO] = [:]
     @ObservationIgnored private var isApplyingSnapshotBatch = false
     @ObservationIgnored private var snapshotBatchNeedsWidgetSave = false
 
@@ -75,6 +77,21 @@ final class HAStateStore {
         entityRegistryByID[entityID]?.deviceID.flatMap { deviceRegistryByID[$0] }
     }
 
+    func areaName(for entityID: String) -> String? {
+        if let areaID = entityRegistryByID[entityID]?.areaID?.nonEmptyValue,
+           let areaName = areaRegistryByID[areaID]?.name.nonEmptyValue {
+            return areaName
+        }
+
+        guard let deviceID = entityRegistryByID[entityID]?.deviceID?.nonEmptyValue,
+              let areaID = deviceRegistryByID[deviceID]?.areaID?.nonEmptyValue,
+              let areaName = areaRegistryByID[areaID]?.name.nonEmptyValue else {
+            return nil
+        }
+
+        return areaName
+    }
+
     func lightEntity(for entityID: String) -> LightEntity? {
         lightEntitiesByID[entityID]
     }
@@ -91,11 +108,26 @@ final class HAStateStore {
         sensorEntitiesByID[entityID]
     }
 
-    func applyInitialStates(_ entities: [HAEntityDTO]) {
+    func replaceDataSourceIfNeeded(_ dataSourceID: String) {
+        guard self.dataSourceID != dataSourceID else {
+            return
+        }
+
+        clearAllEntities()
+        self.dataSourceID = dataSourceID
+    }
+
+    func applyInitialStates(_ entities: [HAEntityDTO], dataSourceID: String? = nil) {
+        if let dataSourceID {
+            replaceDataSourceIfNeeded(dataSourceID)
+        }
         applySnapshot(entities)
     }
 
-    func applySnapshot(_ entities: [HAEntityDTO]) {
+    func applySnapshot(_ entities: [HAEntityDTO], dataSourceID: String? = nil) {
+        if let dataSourceID {
+            replaceDataSourceIfNeeded(dataSourceID)
+        }
         hasLoadedInitialSnapshot = true
         isApplyingSnapshotBatch = true
         snapshotBatchNeedsWidgetSave = false
@@ -126,10 +158,12 @@ final class HAStateStore {
 
     func applyRegistryMetadata(
         entities: [HAEntityRegistryDisplayDTO],
-        devices: [HADeviceRegistryDTO]
+        devices: [HADeviceRegistryDTO],
+        areas: [HAAreaRegistryDTO] = []
     ) {
         entityRegistryByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, $0) })
         deviceRegistryByID = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
+        areaRegistryByID = Dictionary(uniqueKeysWithValues: areas.map { ($0.id, $0) })
         refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
     }
 
@@ -203,6 +237,31 @@ final class HAStateStore {
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map(\.entityID)
+    }
+
+    private func clearAllEntities() {
+        entitiesByID.removeAll()
+        allEntities.removeAll()
+        entitiesByDomain.removeAll()
+        entityIDGroupsByDomain.removeAll()
+        entityIDGroupsByDevice.removeAll()
+        availableEntityIDs.removeAll()
+        entityCatalogSignature = ""
+        hasEntities = false
+        hasLoadedInitialSnapshot = false
+        lightEntitiesByID.removeAll()
+        climateEntitiesByID.removeAll()
+        coverEntitiesByID.removeAll()
+        sensorEntitiesByID.removeAll()
+        rawEntitiesByID.removeAll()
+        entityBoxesByID.removeAll()
+        pendingCommandsByID.removeAll()
+        entityRegistryByID.removeAll()
+        deviceRegistryByID.removeAll()
+        areaRegistryByID.removeAll()
+        isApplyingSnapshotBatch = false
+        snapshotBatchNeedsWidgetSave = false
+        saveWidgetLightSnapshots()
     }
 
     private func rebuildMappedEntities(from entities: [HAEntityDTO]) {

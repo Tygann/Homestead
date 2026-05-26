@@ -1,20 +1,23 @@
 import SwiftUI
 
-struct RoomsView: View {
+struct AreasView: View {
     @Environment(HAStateStore.self) private var stateStore
 
-    private var rooms: [DashboardRoomSummary] {
-        DashboardRoomBuilder.buildRooms(from: stateStore.allEntityBoxes())
+    private var areas: [DashboardAreaSummary] {
+        DashboardAreaBuilder.buildAreas(
+            from: stateStore.allEntityBoxes(),
+            areaNameForEntityID: stateStore.areaName(for:)
+        )
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: AppSpacing.large) {
-                ForEach(rooms) { room in
+                ForEach(areas) { area in
                     NavigationLink {
-                        RoomDetailView(room: room)
+                        AreaDetailView(area: area)
                     } label: {
-                        RoomSummaryCard(room: room)
+                        AreaSummaryCard(area: area)
                     }
                     .buttonStyle(.plain)
                 }
@@ -25,27 +28,27 @@ struct RoomsView: View {
         .background(Color(.systemGroupedBackground))
         .overlay {
             if !stateStore.hasEntities {
-                ContentUnavailableView("No Rooms", systemImage: "square.grid.3x3")
+                ContentUnavailableView("No Areas", systemImage: "square.grid.3x3")
             }
         }
-        .navigationTitle("Rooms")
+        .navigationTitle("Areas")
         .toolbarTitleDisplayMode(.inlineLarge)
     }
 }
 
-private struct RoomSummaryCard: View {
-    let room: DashboardRoomSummary
+private struct AreaSummaryCard: View {
+    let area: DashboardAreaSummary
 
     var body: some View {
         CardContainer {
             HStack(alignment: .center, spacing: AppSpacing.medium) {
-                CardIconView(systemName: room.systemImage)
+                CardIconView(systemName: area.systemImage)
 
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(room.name)
+                    Text(area.name)
                         .font(.headline)
 
-                    Text(room.subtitle)
+                    Text(area.subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -63,7 +66,7 @@ private struct RoomSummaryCard: View {
 #if DEBUG
 #Preview {
     NavigationStack {
-        RoomsView()
+        AreasView()
     }
     .withPreviewEnvironment()
 }

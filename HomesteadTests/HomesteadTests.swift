@@ -138,6 +138,25 @@ struct HomesteadTests {
         #expect(response.entities.first?.deviceID == "kitchen")
     }
 
+    @Test func areaRegistryResponseDecodesHomeAssistantAreaID() throws {
+        let payload = """
+        [
+            {
+                "area_id": "living_room",
+                "name": "Living Room"
+            }
+        ]
+        """
+
+        let areas = try JSONDecoder().decode(
+            [HAAreaRegistryDTO].self,
+            from: Data(payload.utf8)
+        )
+
+        #expect(areas.first?.id == "living_room")
+        #expect(areas.first?.name == "Living Room")
+    }
+
     @Test func entityMapperMapsLightAndSensorDomainModels() {
         let lightDTO = HAEntityDTO(
             entityID: "light.kitchen_pendants",
@@ -196,6 +215,24 @@ struct HomesteadTests {
         #expect(script.domain == .script)
         #expect(script.displayName == "Good Morning")
         #expect(script.iconName == "play.circle")
+    }
+
+    @Test func entityMapperMapsExpandedHomeAssistantDomains() {
+        let switchEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "switch.coffee", state: "on"))
+        let fanEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "fan.bedroom", state: "off"))
+        let lockEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "lock.front_door", state: "locked"))
+        let mediaEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "media_player.living_room", state: "playing"))
+        let cameraEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "camera.driveway", state: "idle"))
+        let binarySensorEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "binary_sensor.front_door", state: "on"))
+
+        #expect(switchEntity.domain == .switch)
+        #expect(fanEntity.domain == .fan)
+        #expect(lockEntity.domain == .lock)
+        #expect(mediaEntity.domain == .mediaPlayer)
+        #expect(cameraEntity.domain == .camera)
+        #expect(binarySensorEntity.domain == .binarySensor)
+        #expect(lockEntity.iconName == "lock.fill")
+        #expect(mediaEntity.iconName == "play.tv.fill")
     }
 
     @Test func entityMapperMapsCoverPositionState() throws {
@@ -721,7 +758,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func dashboardConfigurationReconcileRemovesStaleEntitiesAndPreservesHeaders() throws {
+    @Test func dashboardConfigurationReconcilePreservesTemporarilyMissingEntitiesAndHeaders() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -733,9 +770,11 @@ struct HomesteadTests {
 
         configuration.reconcile(with: dashboardTestEntities)
 
-        #expect(configuration.items.map(\.type) == [.entity, .header])
+        #expect(configuration.items.map(\.type) == [.entity, .header, .entity])
         #expect(configuration.items.first?.entityID == "light.kitchen")
-        #expect(configuration.items.last?.resolvedTitle == "Sensors")
+        #expect(configuration.items[1].resolvedTitle == "Sensors")
+        #expect(configuration.items.last?.entityID == "sensor.removed")
+        #expect(configuration.visibleEntityIDs(from: dashboardTestEntities) == ["light.kitchen"])
     }
 
     @MainActor
@@ -868,6 +907,33 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func stateStoreScopesSnapshotsByConnectionDataSource() throws {
+        let store = HAStateStore()
+        let firstConfiguration = HAConnectionConfiguration(
+            baseURLString: "http://first-home.local:8123",
+            accessToken: "token-a"
+        )
+        let secondConfiguration = HAConnectionConfiguration(
+            baseURLString: "http://second-home.local:8123",
+            accessToken: "token-a"
+        )
+
+        store.applySnapshot([
+            HAEntityDTO(entityID: "light.first_home", state: "on")
+        ], dataSourceID: firstConfiguration.dataSourceID)
+
+        #expect(store.dataSourceID == firstConfiguration.dataSourceID)
+        #expect(store.entity(for: "light.first_home") != nil)
+
+        store.replaceDataSourceIfNeeded(secondConfiguration.dataSourceID)
+
+        #expect(store.dataSourceID == secondConfiguration.dataSourceID)
+        #expect(store.hasLoadedInitialSnapshot == false)
+        #expect(store.entity(for: "light.first_home") == nil)
+        #expect(store.hasEntities == false)
+    }
+
+    @MainActor
     @Test func pinnedEntityStorePersistsAndPreservesMissingEntitiesByDefault() throws {
         let suiteName = "com.tyler.Homestead.pinned.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -897,7 +963,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func roomBuilderGroupsEntitiesAndCountsActivePresentations() {
+    @Test func areaBuilderGroupsEntitiesAndCountsActivePresentations() {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(
@@ -916,14 +982,61 @@ struct HomesteadTests {
                 attributes: ["friendly_name": .string("Office Lamp")]
             )
         ])
+        let areaNames = [
+            "light.kitchen": "Kitchen",
+            "sensor.kitchen_temperature": "Kitchen",
+            "light.office_lamp": "Office"
+        ]
 
-        let rooms = DashboardRoomBuilder.buildRooms(from: store.allEntityBoxes())
-        let kitchen = rooms.first { $0.name == "Kitchen" }
-        let office = rooms.first { $0.name == "Office" }
+        let areas = DashboardAreaBuilder.buildAreas(
+            from: store.allEntityBoxes(),
+            areaNameForEntityID: { areaNames[$0] }
+        )
+        let kitchen = areas.first { $0.name == "Kitchen" }
+        let office = areas.first { $0.name == "Office" }
 
         #expect(kitchen?.entityIDs == ["light.kitchen", "sensor.kitchen_temperature"])
         #expect(kitchen?.activeCount == 1)
         #expect(office?.unavailableCount == 1)
+    }
+
+    @MainActor
+    @Test func areaBuilderUsesRegistryAreaNamesAndLeavesMissingAreasUnassigned() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "light.random_name",
+                state: "on",
+                attributes: ["friendly_name": .string("Lamp")]
+            ),
+            HAEntityDTO(
+                entityID: "light.kitchen_counter",
+                state: "off",
+                attributes: ["friendly_name": .string("Kitchen Counter")]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.random_name",
+                    deviceID: "lamp-device",
+                    originalName: "Lamp"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "lamp-device", name: "Lamp", areaID: "den")
+            ],
+            areas: [
+                HAAreaRegistryDTO(id: "den", name: "Den")
+            ]
+        )
+
+        let areas = DashboardAreaBuilder.buildAreas(
+            from: store.allEntityBoxes(),
+            areaNameForEntityID: store.areaName(for:)
+        )
+
+        #expect(areas.map(\.name) == ["Den", "Unassigned"])
     }
 
     @MainActor
@@ -957,6 +1070,37 @@ struct HomesteadTests {
         #expect(scenePresentation.detailKind == .entity)
         #expect(sensorPresentation.primaryAction == nil)
         #expect(sensorPresentation.detailKind == .entity)
+    }
+
+    @MainActor
+    @Test func entityPresentationSupportsExpandedDomainActions() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "switch.coffee", state: "on"),
+            HAEntityDTO(entityID: "fan.bedroom", state: "off"),
+            HAEntityDTO(entityID: "lock.front_door", state: "locked"),
+            HAEntityDTO(entityID: "media_player.living_room", state: "playing"),
+            HAEntityDTO(entityID: "camera.driveway", state: "idle"),
+            HAEntityDTO(entityID: "binary_sensor.front_door", state: "on")
+        ])
+
+        let switchPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "switch.coffee")))
+        let fanPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "fan.bedroom")))
+        let lockPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "lock.front_door")))
+        let mediaPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "media_player.living_room")))
+        let cameraPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "camera.driveway")))
+        let binarySensorPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "binary_sensor.front_door")))
+
+        #expect(switchPresentation.primaryAction == .toggleSwitch)
+        #expect(switchPresentation.isActive == true)
+        #expect(fanPresentation.primaryAction == .toggleFan)
+        #expect(fanPresentation.isActive == false)
+        #expect(lockPresentation.primaryAction == .toggleLock)
+        #expect(lockPresentation.subtitle == "Locked")
+        #expect(mediaPresentation.primaryAction == nil)
+        #expect(mediaPresentation.isActive == true)
+        #expect(cameraPresentation.primaryAction == nil)
+        #expect(binarySensorPresentation.subtitle == "Detected")
     }
 
     private var dashboardTestEntities: [HomeEntity] {

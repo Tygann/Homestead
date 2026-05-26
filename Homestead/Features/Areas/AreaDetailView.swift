@@ -1,12 +1,12 @@
 import SwiftUI
 
-struct RoomDetailView: View {
-    let room: DashboardRoomSummary
+struct AreaDetailView: View {
+    let area: DashboardAreaSummary
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: AppSpacing.medium) {
-                ForEach(room.entityIDs, id: \.self) { entityID in
+                ForEach(area.entityIDs, id: \.self) { entityID in
                     DashboardCardView(entityID: entityID, size: .compact)
                 }
             }
@@ -14,7 +14,7 @@ struct RoomDetailView: View {
             .padding(.vertical, AppSpacing.xLarge)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle(room.name)
+        .navigationTitle(area.name)
         .toolbarTitleDisplayMode(.inlineLarge)
     }
 }

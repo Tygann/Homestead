@@ -83,12 +83,14 @@ actor HAStateCache {
     }
 
     static func cacheFileName(for configuration: HAConnectionConfiguration) -> String {
+        "\(cacheScopeIdentifier(for: configuration)).json"
+    }
+
+    static func cacheScopeIdentifier(for configuration: HAConnectionConfiguration) -> String {
         let normalizedBaseURL = normalizedBaseURLString(configuration.baseURLString)
-        let digest = SHA256.hash(data: Data(normalizedBaseURL.utf8))
+        return SHA256.hash(data: Data(normalizedBaseURL.utf8))
             .map { String(format: "%02x", $0) }
             .joined()
-
-        return "\(digest).json"
     }
 
     private static func normalizedBaseURLString(_ value: String) -> String {

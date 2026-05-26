@@ -4,14 +4,22 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-26
 
+### Connection-Scoped Dashboard Organization
+
+- Added Home Assistant data-source scoping so switching servers clears old cached/live state before showing the next source.
+- Expanded first-class domain presentation for switches, fans, locks, media players, cameras, binary sensors, and vacuums.
+- Added area registry metadata and made the Areas view use Home Assistant area names as source of truth, with unassigned entities grouped separately.
+- Preserved dashboard items for temporarily missing entities while keeping visible cards limited to currently available entity IDs.
+- Cleaned dashboard card edit controls and removed tracked Xcode user scheme management data.
+
 ### Cached Startup And Dashboard Foundation
 
 - Added scoped Home Assistant state caching so the app can render last-known entities before live WebSocket sync completes.
 - Added data freshness tracking for cached, refreshing, live, stale, and empty states.
 - Kept startup state buffering, reconnect handling, registry metadata, service feedback, and per-entity `HAEntityState` from current `main`.
-- Added persistent dashboard density, active-device filtering, pinned favorites, and a Rooms tab.
-- Centralized dashboard entity presentation metadata so cards, favorites, rooms, and devices do not branch on raw entity ID prefixes.
-- Added regression coverage for cache scoping, preference and pin persistence, room grouping, and presentation routing.
+- Added persistent dashboard density, active-device filtering, pinned favorites, and an Areas tab.
+- Centralized dashboard entity presentation metadata so cards, favorites, areas, and devices do not branch on raw entity ID prefixes.
+- Added regression coverage for cache scoping, preference and pin persistence, area grouping, and presentation routing.
 
 ## 2026-05-22
 

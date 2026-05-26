@@ -20,10 +20,7 @@ struct DashboardView: View {
                 if !connectionSettings.hasCredentials {
                     DashboardSetupCard()
                 } else {
-                    DashboardStatusPill(
-                        text: statusText,
-                        systemImage: statusSystemImage
-                    )
+                    dashboardStatusRow
                 }
 
                 if !connectionSettings.hasCredentials {
@@ -275,6 +272,47 @@ struct DashboardView: View {
         }
 
         return homeAssistantService.connectionStatus.systemImage
+    }
+
+    private var dashboardStatusRow: some View {
+        HStack(spacing: AppSpacing.small) {
+            DashboardStatusPill(
+                text: statusText,
+                systemImage: statusSystemImage,
+                tint: isConnectionInterrupted ? .orange : .secondary
+            )
+
+            if isConnectionInterrupted {
+                Button {
+                    Task {
+                        await refreshOrReconnect()
+                    }
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.subheadline.weight(.bold))
+                        .frame(width: 34, height: 34)
+                        .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Refresh Home Assistant")
+            }
+        }
+    }
+
+    private var isConnectionInterrupted: Bool {
+        if case .stale = homeAssistantService.dataFreshness {
+            return true
+        }
+
+        return false
+    }
+
+    private func refreshOrReconnect() async {
+        if homeAssistantService.connectionStatus == .connected {
+            await homeAssistantService.refreshStates()
+        } else {
+            await homeAssistantService.connectIfPossible(settings: connectionSettings)
+        }
     }
 
     private var pinnedFavoritesSection: some View {
@@ -683,7 +721,6 @@ private struct DashboardHeaderCardView: View {
                         .frame(width: 28, height: 28)
                         .background(Color(.secondarySystemGroupedBackground), in: Circle())
                 }
-                .glassEffect()
                 .accessibilityLabel("Rename \(title)")
             }
 
@@ -695,7 +732,6 @@ private struct DashboardHeaderCardView: View {
                         .frame(width: 28, height: 28)
                         .background(Color(.secondarySystemGroupedBackground), in: Circle())
                 }
-                .glassEffect()
                 .accessibilityLabel("Remove \(title)")
             }
         }
@@ -705,11 +741,12 @@ private struct DashboardHeaderCardView: View {
 private struct DashboardStatusPill: View {
     let text: String
     let systemImage: String
+    var tint: Color = .secondary
 
     var body: some View {
         Label(text, systemImage: systemImage)
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(tint)
             .padding(.horizontal, AppSpacing.medium)
             .frame(height: 34)
             .background(Color(.secondarySystemGroupedBackground), in: Capsule())

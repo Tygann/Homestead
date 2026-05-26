@@ -94,12 +94,41 @@ enum EntityMapper {
             "blinds.horizontal.closed"
         case .sensor:
             "gauge.medium"
+        case .binarySensor:
+            binarySensorIconName(state: state)
+        case .switch:
+            state == "on" ? "switch.2" : "switch.2"
+        case .fan:
+            state == "on" ? "fan.fill" : "fan"
+        case .lock:
+            state == "locked" ? "lock.fill" : "lock.open"
+        case .mediaPlayer:
+            mediaPlayerIconName(state: state)
+        case .camera:
+            "camera.fill"
+        case .vacuum:
+            state == "cleaning" ? "washer.fill" : "washer"
         case .scene:
             "sparkles"
         case .script:
             "play.circle"
         case .other:
             "circle.hexagongrid"
+        }
+    }
+
+    private static func binarySensorIconName(state: String) -> String {
+        state == "on" ? "sensor.tag.radiowaves.forward.fill" : "sensor.tag.radiowaves.forward"
+    }
+
+    private static func mediaPlayerIconName(state: String) -> String {
+        switch state {
+        case "playing":
+            "play.tv.fill"
+        case "paused", "idle", "standby", "off":
+            "play.tv"
+        default:
+            "play.tv"
         }
     }
 

@@ -25,6 +25,7 @@ struct HAEntityRegistryDisplayResponseDTO: Decodable, Equatable, Sendable {
 struct HAEntityRegistryDisplayDTO: Decodable, Equatable, Identifiable, Sendable {
     let entityID: String
     let deviceID: String?
+    let areaID: String?
     let originalName: String?
     let name: String?
     let hiddenBy: Bool?
@@ -34,20 +35,27 @@ struct HAEntityRegistryDisplayDTO: Decodable, Equatable, Identifiable, Sendable 
     enum CodingKeys: String, CodingKey {
         case entityID = "ei"
         case deviceID = "di"
+        case areaID = "ai"
         case originalName = "en"
         case name = "n"
         case hiddenBy = "hb"
     }
 
+    enum FullCodingKeys: String, CodingKey {
+        case areaID = "area_id"
+    }
+
     nonisolated init(
         entityID: String,
         deviceID: String?,
+        areaID: String? = nil,
         originalName: String?,
         name: String? = nil,
         hiddenBy: Bool? = nil
     ) {
         self.entityID = entityID
         self.deviceID = deviceID
+        self.areaID = areaID
         self.originalName = originalName
         self.name = name
         self.hiddenBy = hiddenBy
@@ -58,6 +66,9 @@ struct HAEntityRegistryDisplayDTO: Decodable, Equatable, Identifiable, Sendable 
 
         entityID = try container.decode(String.self, forKey: .entityID)
         deviceID = try container.decodeIfPresent(String.self, forKey: .deviceID)
+        let fullContainer = try? decoder.container(keyedBy: FullCodingKeys.self)
+        areaID = try container.decodeIfPresent(String.self, forKey: .areaID) ??
+            fullContainer?.decodeIfPresent(String.self, forKey: .areaID)
         originalName = try container.decodeIfPresent(String.self, forKey: .originalName)
         name = try container.decodeIfPresent(String.self, forKey: .name)
         hiddenBy = try container.decodeLossyBoolIfPresent(forKey: .hiddenBy)
@@ -68,6 +79,7 @@ struct HADeviceRegistryDTO: Decodable, Equatable, Identifiable, Sendable {
     let id: String
     let name: String?
     let nameByUser: String?
+    let areaID: String?
     let manufacturer: String?
     let model: String?
 
@@ -75,6 +87,7 @@ struct HADeviceRegistryDTO: Decodable, Equatable, Identifiable, Sendable {
         case id
         case name
         case nameByUser = "name_by_user"
+        case areaID = "area_id"
         case manufacturer
         case model
     }
@@ -83,12 +96,14 @@ struct HADeviceRegistryDTO: Decodable, Equatable, Identifiable, Sendable {
         id: String,
         name: String?,
         nameByUser: String? = nil,
+        areaID: String? = nil,
         manufacturer: String? = nil,
         model: String? = nil
     ) {
         self.id = id
         self.name = name
         self.nameByUser = nameByUser
+        self.areaID = areaID
         self.manufacturer = manufacturer
         self.model = model
     }
@@ -99,8 +114,24 @@ struct HADeviceRegistryDTO: Decodable, Equatable, Identifiable, Sendable {
         id = try container.decode(String.self, forKey: .id)
         name = try container.decodeIfPresent(String.self, forKey: .name)
         nameByUser = try container.decodeIfPresent(String.self, forKey: .nameByUser)
+        areaID = try container.decodeIfPresent(String.self, forKey: .areaID)
         manufacturer = try container.decodeIfPresent(String.self, forKey: .manufacturer)
         model = try container.decodeIfPresent(String.self, forKey: .model)
+    }
+}
+
+struct HAAreaRegistryDTO: Decodable, Equatable, Identifiable, Sendable {
+    let id: String
+    let name: String
+
+    enum CodingKeys: String, CodingKey {
+        case id = "area_id"
+        case name
+    }
+
+    nonisolated init(id: String, name: String) {
+        self.id = id
+        self.name = name
     }
 }
 
