@@ -42,6 +42,87 @@ struct HomesteadTests {
         #expect(webhookURL.absoluteString == "http://homeassistant.local:8123/api/webhook/webhook-abc")
     }
 
+    @Test func authAuthorizeURLUsesHomeAssistantOAuthShape() throws {
+        let url = try HomeAssistantEndpointBuilder.authAuthorizeURL(
+            from: "https://example.com/ha",
+            clientID: "https://homestead.keegan.pro",
+            redirectURI: "homestead://auth",
+            state: "state-123"
+        )
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let queryItems = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value) })
+
+        #expect(components.scheme == "https")
+        #expect(components.host == "example.com")
+        #expect(components.path == "/ha/auth/authorize")
+        #expect(queryItems["client_id"] == "https://homestead.keegan.pro")
+        #expect(queryItems["redirect_uri"] == "homestead://auth")
+        #expect(queryItems["state"] == "state-123")
+    }
+
+    @Test func authTokenEndpointUsesHomeAssistantOAuthPath() throws {
+        let url = try HomeAssistantEndpointBuilder.authTokenURL(from: "https://example.com/ha")
+
+        #expect(url.absoluteString == "https://example.com/ha/auth/token")
+    }
+
+    @Test func tokenExchangeRequestEncodesFormBody() throws {
+        let request = HAOAuthTokenRequest(
+            grant: .authorizationCode("code with space"),
+            clientID: "https://homestead.keegan.pro"
+        )
+        let body = String(decoding: request.formEncodedBody(), as: UTF8.self)
+
+        #expect(body.contains("grant_type=authorization_code"))
+        #expect(body.contains("code=code%20with%20space"))
+        #expect(body.contains("client_id=https%3A%2F%2Fhomestead.keegan.pro"))
+    }
+
+    @Test func refreshTokenRequestEncodesFormBody() throws {
+        let request = HAOAuthTokenRequest(
+            grant: .refreshToken("refresh-token"),
+            clientID: "https://homestead.keegan.pro"
+        )
+        let body = String(decoding: request.formEncodedBody(), as: UTF8.self)
+
+        #expect(body.contains("grant_type=refresh_token"))
+        #expect(body.contains("refresh_token=refresh-token"))
+        #expect(body.contains("client_id=https%3A%2F%2Fhomestead.keegan.pro"))
+    }
+
+    @Test func tokenResponsesDecodeHomeAssistantShape() throws {
+        let exchangePayload = """
+        {
+            "access_token": "access-a",
+            "expires_in": 1800,
+            "refresh_token": "refresh-a",
+            "token_type": "Bearer"
+        }
+        """
+        let refreshPayload = """
+        {
+            "access_token": "access-b",
+            "expires_in": 1800,
+            "token_type": "Bearer"
+        }
+        """
+
+        let exchange = try JSONDecoder().decode(
+            HAOAuthTokenResponseDTO.self,
+            from: Data(exchangePayload.utf8)
+        )
+        let refresh = try JSONDecoder().decode(
+            HAOAuthTokenResponseDTO.self,
+            from: Data(refreshPayload.utf8)
+        )
+
+        #expect(exchange.accessToken == "access-a")
+        #expect(exchange.refreshToken == "refresh-a")
+        #expect(exchange.expiresIn == 1800)
+        #expect(refresh.accessToken == "access-b")
+        #expect(refresh.refreshToken == nil)
+    }
+
     @Test func callServiceRequestEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.callService(
             id: 42,
@@ -792,24 +873,111 @@ struct HomesteadTests {
         #expect(store.entitiesByDomain.first?.entities.first { $0.entityID == "light.kitchen" }?.state == "on")
     }
 
+    @Test func oauthTokenStorePersistsRefreshTokenAndAccessMetadata() throws {
+        let store = InMemoryHAOAuthTokenStore()
+        let credential = testCredential(
+            baseURL: "http://homeassistant.local:8123",
+            accessToken: "access-a",
+            refreshToken: "refresh-a",
+            expiresAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+
+        try store.saveCredential(credential)
+
+        #expect(try store.readCredential() == credential)
+
+        try store.deleteCredential()
+        #expect(try store.readCredential() == nil)
+    }
+
     @MainActor
-    @Test func connectionSettingsStoresTokenInCredentialStore() throws {
+    @Test func connectionSettingsUsesStoredOAuthCredentialBaseURL() throws {
         let suiteName = "com.tyler.Homestead.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
-        let credentialStore = InMemoryHACredentialStore()
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: "http://homeassistant.local:8123")
+        )
         let settings = HAConnectionSettings(
-            baseURL: "http://homeassistant.local:8123",
             defaults: defaults,
-            credentialStore: credentialStore
+            tokenStore: tokenStore
         )
 
-        settings.accessToken = "abc123"
-        #expect(try credentialStore.readAccessToken() == "abc123")
+        #expect(settings.baseURL == "http://homeassistant.local:8123")
+        #expect(settings.hasServerURL)
+    }
 
-        settings.accessToken = ""
-        #expect(try credentialStore.readAccessToken() == nil)
+    @Test func oauthManagerRefreshesExpiredAccessToken() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let store = InMemoryHAOAuthTokenStore(
+            credential: testCredential(
+                accessToken: "expired-access",
+                refreshToken: "refresh-a",
+                expiresAt: now.addingTimeInterval(-1)
+            )
+        )
+        let client = StubHAOAuthClient(
+            refreshResponse: HAOAuthTokenResponseDTO(
+                accessToken: "fresh-access",
+                expiresIn: 1200,
+                refreshToken: nil,
+                tokenType: "Bearer"
+            )
+        )
+        let manager = HAOAuthManager(
+            client: client,
+            tokenStore: store,
+            now: { now }
+        )
+
+        let configuration = try await manager.validConfiguration(baseURLString: "http://homeassistant.local:8123")
+
+        #expect(configuration.accessToken == "fresh-access")
+        #expect(client.lastRefreshToken == "refresh-a")
+        #expect(try store.readCredential()?.accessToken == "fresh-access")
+        #expect(try store.readCredential()?.accessTokenExpiresAt == now.addingTimeInterval(1200))
+    }
+
+    @MainActor
+    @Test func serviceAuthStateReflectsSignedOutSignedInExpiredAndRefreshFailed() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let store = InMemoryHAOAuthTokenStore()
+        let manager = HAOAuthManager(tokenStore: store, now: { now })
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            authManager: manager
+        )
+
+        await service.refreshAuthState()
+        #expect(service.authState == .signedOut)
+
+        try store.saveCredential(testCredential(expiresAt: now.addingTimeInterval(600)))
+        await service.refreshAuthState()
+        if case .signedIn = service.authState {
+            // Expected signed-in state.
+        } else {
+            Issue.record("Expected signed-in auth state.")
+        }
+
+        try store.saveCredential(testCredential(expiresAt: now.addingTimeInterval(-1)))
+        await service.refreshAuthState()
+        if case .accessTokenExpired = service.authState {
+            // Expected expired access-token state.
+        } else {
+            Issue.record("Expected expired auth state.")
+        }
+
+        let failingService = HomeAssistantService(
+            stateStore: HAStateStore(),
+            authManager: HAOAuthManager(tokenStore: ThrowingHAOAuthTokenStore())
+        )
+        await failingService.refreshAuthState()
+        if case .refreshFailed = failingService.authState {
+            // Expected refresh-failed state.
+        } else {
+            Issue.record("Expected refresh-failed auth state.")
+        }
     }
 
     @MainActor
@@ -833,9 +1001,8 @@ struct HomesteadTests {
         )
         let settings = HAConnectionSettings(
             baseURL: configuration.baseURLString,
-            accessToken: configuration.accessToken,
             defaults: try isolatedDefaults(),
-            credentialStore: InMemoryHACredentialStore()
+            tokenStore: InMemoryHAOAuthTokenStore()
         )
 
         service.refreshMobileAppRegistrationState(settings: settings)
@@ -865,9 +1032,8 @@ struct HomesteadTests {
         )
         let settings = HAConnectionSettings(
             baseURL: "http://homeassistant.local:8123",
-            accessToken: "token-a",
             defaults: try isolatedDefaults(),
-            credentialStore: InMemoryHACredentialStore()
+            tokenStore: InMemoryHAOAuthTokenStore()
         )
 
         service.refreshMobileAppRegistrationState(settings: settings)
@@ -889,13 +1055,17 @@ struct HomesteadTests {
         let service = HomeAssistantService(
             stateStore: HAStateStore(),
             mobileAppClient: client,
-            mobileAppRegistrationStore: store
+            mobileAppRegistrationStore: store,
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(
+                    credential: testCredential(accessToken: "token-a")
+                )
+            )
         )
         let settings = HAConnectionSettings(
             baseURL: "http://homeassistant.local:8123",
-            accessToken: "token-a",
             defaults: try isolatedDefaults(),
-            credentialStore: InMemoryHACredentialStore()
+            tokenStore: InMemoryHAOAuthTokenStore()
         )
 
         await service.registerMobileApp(settings: settings)
@@ -904,7 +1074,7 @@ struct HomesteadTests {
         #expect(savedRegistration.webhookID == "webhook-created")
         #expect(savedRegistration.serverIdentifier == HAConnectionConfiguration(
             baseURLString: settings.baseURL,
-            accessToken: settings.accessToken
+            accessToken: "token-a"
         ).dataSourceID)
 
         guard case .registered(let summary) = service.mobileAppRegistrationState else {
@@ -912,6 +1082,117 @@ struct HomesteadTests {
             return
         }
         #expect(summary.deviceName == savedRegistration.deviceName)
+    }
+
+    @MainActor
+    @Test func serviceConnectionUsesRefreshedAccessToken() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "expired-access", expiresAt: now.addingTimeInterval(-1))
+        )
+        let oauthClient = StubHAOAuthClient(
+            refreshResponse: HAOAuthTokenResponseDTO(
+                accessToken: "fresh-access",
+                expiresIn: 1200,
+                refreshToken: nil,
+                tokenType: "Bearer"
+            )
+        )
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                client: oauthClient,
+                tokenStore: tokenStore,
+                now: { now }
+            )
+        )
+
+        await service.refreshAuthState()
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+
+        #expect(webSocketClient.lastConnectConfiguration?.accessToken == "fresh-access")
+        #expect(try tokenStore.readCredential()?.accessToken == "fresh-access")
+        #expect(service.connectionStatus == .connected)
+    }
+
+    @MainActor
+    @Test func oauthSignInConnectsAndRegistersMobileAppAutomatically() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore()
+        let registrationStore = InMemoryHAMobileAppRegistrationStore()
+        let webSocketClient = StubHAWebSocketClient()
+        let mobileAppClient = StubHAMobileAppClient(
+            registrationResponse: HAMobileAppRegistrationResponseDTO(
+                cloudhookURL: nil,
+                remoteUIURL: nil,
+                secret: nil,
+                webhookID: "webhook-oauth"
+            )
+        )
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: mobileAppClient,
+            mobileAppRegistrationStore: registrationStore,
+            authManager: HAOAuthManager(
+                client: StubHAOAuthClient(
+                    exchangeResponse: HAOAuthTokenResponseDTO(
+                        accessToken: "oauth-access",
+                        expiresIn: 1200,
+                        refreshToken: "oauth-refresh",
+                        tokenType: "Bearer"
+                    )
+                ),
+                tokenStore: tokenStore
+            ),
+            oauthAuthorizer: StubHAOAuthAuthorizer(authorizationCode: "auth-code")
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+
+        await service.signInWithHomeAssistant(settings: settings)
+
+        #expect(try tokenStore.readCredential()?.refreshToken == "oauth-refresh")
+        #expect(webSocketClient.lastConnectConfiguration?.accessToken == "oauth-access")
+        #expect(try registrationStore.readRegistration()?.webhookID == "webhook-oauth")
+        if case .registered = service.mobileAppRegistrationState {
+            // Expected automatic registration after OAuth sign-in.
+        } else {
+            Issue.record("Expected automatic mobile-app registration.")
+        }
+    }
+
+    @MainActor
+    @Test func signOutClearsOAuthCredentialAndMobileAppRegistration() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential())
+        let registrationStore = InMemoryHAMobileAppRegistrationStore(
+            registration: HAMobileAppRegistrationInfo(
+                serverIdentifier: "server-a",
+                deviceID: "device-a",
+                appVersion: "1.0",
+                deviceName: "Test Phone",
+                webhookID: "webhook-a"
+            )
+        )
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            mobileAppRegistrationStore: registrationStore,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+
+        await service.refreshAuthState()
+        await service.signOut()
+
+        #expect(try tokenStore.readCredential() == nil)
+        #expect(try registrationStore.readRegistration() == nil)
+        #expect(service.authState == .signedOut)
+        #expect(service.mobileAppRegistrationState == .unregistered)
     }
 
     @MainActor
@@ -1144,11 +1425,17 @@ struct HomesteadTests {
         await cache.save(entities, for: configuration)
 
         let store = HAStateStore()
-        let service = HomeAssistantService(stateStore: store, stateCache: cache)
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: "homeassistant.local:8123", accessToken: "token-a")
+        )
+        let service = HomeAssistantService(
+            stateStore: store,
+            stateCache: cache,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
         let settings = HAConnectionSettings(
             baseURL: "homeassistant.local:8123",
-            accessToken: "token-a",
-            credentialStore: InMemoryHACredentialStore()
+            tokenStore: tokenStore
         )
 
         await service.loadCachedStatesIfPossible(settings: settings)
@@ -1515,12 +1802,151 @@ struct HomesteadTests {
         #expect(store.displayNameForDeviceGroupedEntity(entityID: "sensor.ashtons_ipad_location_permission") == "Location permission")
     }
 
+    private func testCredential(
+        baseURL: String = "http://homeassistant.local:8123",
+        accessToken: String = "access-token",
+        refreshToken: String = "refresh-token",
+        expiresAt: Date = Date(timeIntervalSince1970: 1_900_000_000)
+    ) -> HAOAuthCredential {
+        HAOAuthCredential(
+            baseURLString: baseURL,
+            clientID: HAOAuthClientMetadata.clientID,
+            refreshToken: refreshToken,
+            accessToken: accessToken,
+            accessTokenExpiresAt: expiresAt,
+            tokenType: "Bearer",
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+    }
+
     private func isolatedDefaults() throws -> UserDefaults {
         let suiteName = "com.tyler.Homestead.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
         return defaults
     }
+}
+
+struct ThrowingHAOAuthTokenStore: HAOAuthTokenStore {
+    func readCredential() throws -> HAOAuthCredential? {
+        throw HAOAuthTokenStoreError.unreadableCredential
+    }
+
+    func saveCredential(_ credential: HAOAuthCredential) throws {
+        throw HAOAuthTokenStoreError.unreadableCredential
+    }
+
+    func deleteCredential() throws {
+        throw HAOAuthTokenStoreError.unreadableCredential
+    }
+}
+
+final class StubHAOAuthClient: HAOAuthClientProtocol {
+    var exchangeResponse: HAOAuthTokenResponseDTO
+    var refreshResponse: HAOAuthTokenResponseDTO
+    private(set) var lastExchangeCode: String?
+    private(set) var lastRefreshToken: String?
+
+    init(
+        exchangeResponse: HAOAuthTokenResponseDTO = HAOAuthTokenResponseDTO(
+            accessToken: "exchange-access",
+            expiresIn: 1200,
+            refreshToken: "exchange-refresh",
+            tokenType: "Bearer"
+        ),
+        refreshResponse: HAOAuthTokenResponseDTO = HAOAuthTokenResponseDTO(
+            accessToken: "refresh-access",
+            expiresIn: 1200,
+            refreshToken: nil,
+            tokenType: "Bearer"
+        )
+    ) {
+        self.exchangeResponse = exchangeResponse
+        self.refreshResponse = refreshResponse
+    }
+
+    func exchangeAuthorizationCode(
+        baseURLString: String,
+        code: String,
+        clientID: String
+    ) async throws -> HAOAuthTokenResponseDTO {
+        lastExchangeCode = code
+        return exchangeResponse
+    }
+
+    func refreshAccessToken(
+        baseURLString: String,
+        refreshToken: String,
+        clientID: String
+    ) async throws -> HAOAuthTokenResponseDTO {
+        lastRefreshToken = refreshToken
+        return refreshResponse
+    }
+}
+
+@MainActor
+final class StubHAOAuthAuthorizer: HAOAuthAuthorizing {
+    let authorizationCode: String
+    private(set) var lastAuthorizationURL: URL?
+
+    init(authorizationCode: String) {
+        self.authorizationCode = authorizationCode
+    }
+
+    func authorize(authorizationURL: URL, callbackScheme: String) async throws -> URL {
+        lastAuthorizationURL = authorizationURL
+        let components = URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false)
+        let state = components?.queryItems?.first { $0.name == "state" }?.value ?? ""
+        return try #require(URL(string: "\(callbackScheme)://auth?code=\(authorizationCode)&state=\(state)"))
+    }
+}
+
+final class StubHAWebSocketClient: HAWebSocketClientProtocol {
+    private(set) var lastConnectConfiguration: HAConnectionConfiguration?
+    private(set) var didDisconnect = false
+
+    func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) async {}
+
+    func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) async {}
+
+    func connect(configuration: HAConnectionConfiguration) async throws {
+        lastConnectConfiguration = configuration
+    }
+
+    func disconnect() async {
+        didDisconnect = true
+    }
+
+    func fetchStates() async throws -> [HAEntityDTO] {
+        []
+    }
+
+    func fetchEntityRegistryForDisplay() async throws -> HAEntityRegistryDisplayResponseDTO {
+        HAEntityRegistryDisplayResponseDTO(entities: [])
+    }
+
+    func fetchDeviceRegistry() async throws -> [HADeviceRegistryDTO] {
+        []
+    }
+
+    func fetchAreaRegistry() async throws -> [HAAreaRegistryDTO] {
+        []
+    }
+
+    func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
+        HACameraCapabilities(frontendStreamTypes: [])
+    }
+
+    func subscribeToStateChanges() async throws {}
+
+    func unsubscribeFromStateChanges() async throws {}
+
+    func callService(
+        domain: String,
+        service: String,
+        entityID: String?,
+        serviceData: [String: JSONValue]
+    ) async throws {}
 }
 
 final class StubHAMobileAppClient: HAMobileAppClientProtocol {

@@ -12,11 +12,14 @@ final class HomeAssistantService {
     private(set) var isLoadingCachedStates = false
     private(set) var hasCompletedInitialCacheLoad = false
     private(set) var mobileAppRegistrationState: HAMobileAppRegistrationState = .unregistered
+    private(set) var authState: HAAuthState = .signedOut
 
-    @ObservationIgnored private let client: HAWebSocketClient
+    @ObservationIgnored private let client: any HAWebSocketClientProtocol
     @ObservationIgnored private let httpClient: HAHTTPClient
     @ObservationIgnored private let mobileAppClient: any HAMobileAppClientProtocol
     @ObservationIgnored private let mobileAppRegistrationStore: any HAMobileAppRegistrationStore
+    @ObservationIgnored private let authManager: HAOAuthManager
+    @ObservationIgnored private let oauthAuthorizer: any HAOAuthAuthorizing
     @ObservationIgnored private let stateStore: HAStateStore
     @ObservationIgnored private let stateCache: HAStateCache
     @ObservationIgnored private let stateEventBatcher = HAStateEventBatcher()
@@ -34,25 +37,30 @@ final class HomeAssistantService {
 
     init(
         stateStore: HAStateStore,
-        client: HAWebSocketClient = HAWebSocketClient(),
+        client: any HAWebSocketClientProtocol = HAWebSocketClient(),
         stateCache: HAStateCache = HAStateCache(),
         connectionStatus: HAConnectionStatus = .disconnected,
         httpClient: HAHTTPClient = HAHTTPClient(),
         mobileAppClient: any HAMobileAppClientProtocol = HAMobileAppClient(),
-        mobileAppRegistrationStore: any HAMobileAppRegistrationStore = KeychainHAMobileAppRegistrationStore()
+        mobileAppRegistrationStore: any HAMobileAppRegistrationStore = KeychainHAMobileAppRegistrationStore(),
+        authManager: HAOAuthManager = HAOAuthManager(),
+        oauthAuthorizer: (any HAOAuthAuthorizing)? = nil
     ) {
         self.stateStore = stateStore
         self.client = client
         self.httpClient = httpClient
         self.mobileAppClient = mobileAppClient
         self.mobileAppRegistrationStore = mobileAppRegistrationStore
+        self.authManager = authManager
+        self.oauthAuthorizer = oauthAuthorizer ?? HAWebAuthenticationSession()
         self.stateCache = stateCache
         self.connectionStatus = connectionStatus
         refreshMobileAppRegistrationState()
     }
 
     func connectIfPossible(settings: HAConnectionSettings) async {
-        guard settings.hasCredentials,
+        guard settings.hasServerURL,
+              authState.isSignedIn,
               connectionStatus != .connected,
               connectionStatus != .connecting,
               connectionStatus != .reconnecting,
@@ -60,20 +68,27 @@ final class HomeAssistantService {
             return
         }
 
-        await connect(baseURLString: settings.baseURL, accessToken: settings.accessToken)
+        await connect(baseURLString: settings.baseURL)
     }
 
     func loadCachedStatesIfPossible(settings: HAConnectionSettings) async {
-        let configuration = HAConnectionConfiguration(
-            baseURLString: settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
-            accessToken: settings.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
+        let configuration: HAConnectionConfiguration?
+        do {
+            configuration = try await authManager.storedConfiguration(baseURLString: settings.baseURL)
+            authState = await authManager.status()
+        } catch {
+            authState = .refreshFailed(error.localizedDescription)
+            configuration = nil
+        }
 
-        guard settings.hasCredentials,
+        guard settings.hasServerURL,
+              let configuration,
               stateStore.dataSourceID != configuration.dataSourceID || !stateStore.hasLoadedInitialSnapshot else {
             #if DEBUG
-            if !settings.hasCredentials {
-                print("Home Assistant state cache skipped: missing credentials")
+            if !settings.hasServerURL {
+                print("Home Assistant state cache skipped: missing server URL")
+            } else if configuration == nil {
+                print("Home Assistant state cache skipped: missing Home Assistant sign-in")
             } else {
                 print("Home Assistant state cache skipped: state store already has an initial snapshot")
             }
@@ -84,12 +99,7 @@ final class HomeAssistantService {
         await applyCachedStatesIfAvailable(for: configuration)
     }
 
-    func connect(baseURLString: String, accessToken: String) async {
-        let configuration = HAConnectionConfiguration(
-            baseURLString: baseURLString.trimmingCharacters(in: .whitespacesAndNewlines),
-            accessToken: accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
-
+    func connect(baseURLString: String) async {
         reconnectTask?.cancel()
         reconnectTask = nil
         stateSyncTask?.cancel()
@@ -99,34 +109,45 @@ final class HomeAssistantService {
         shouldReconnect = true
         connectionStatus = .connecting
 
-        await applyCachedStatesIfAvailable(for: configuration)
-
+        let configuration: HAConnectionConfiguration
         do {
-            try await establishTransportConnection(configuration: configuration)
-            activeConfiguration = configuration
-            refreshMobileAppRegistrationState(for: configuration)
-            lastErrorMessage = nil
-            connectionStatus = .connected
-            dataFreshness = .refreshing
-            startStateSync(configuration: configuration)
+            configuration = try await validConfiguration(baseURLString: baseURLString)
         } catch {
             shouldReconnect = false
             lastErrorMessage = error.localizedDescription
+            authState = authFailureState(for: error)
+            dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
+            connectionStatus = .failed(error.localizedDescription)
+            return
+        }
+
+        await applyCachedStatesIfAvailable(for: configuration)
+
+        do {
+            let connectedConfiguration = try await establishTransportConnectionWithAuthRecovery(configuration: configuration)
+            activeConfiguration = connectedConfiguration
+            refreshMobileAppRegistrationState(for: connectedConfiguration)
+            lastErrorMessage = nil
+            connectionStatus = .connected
+            dataFreshness = .refreshing
+            startStateSync(configuration: connectedConfiguration)
+            await registerMobileAppIfNeeded(configuration: connectedConfiguration)
+        } catch {
+            shouldReconnect = false
+            lastErrorMessage = error.localizedDescription
+            authState = authFailureState(for: error)
             dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
             connectionStatus = .failed(error.localizedDescription)
         }
     }
 
-    func testConnection(baseURLString: String, accessToken: String) async {
-        let configuration = HAConnectionConfiguration(
-            baseURLString: baseURLString.trimmingCharacters(in: .whitespacesAndNewlines),
-            accessToken: accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
+    func testConnection(baseURLString: String) async {
         let smokeClient = HAWebSocketClient()
 
         smokeTestState = .testing
 
         do {
+            let configuration = try await validConfiguration(baseURLString: baseURLString)
             try await smokeClient.connect(configuration: configuration)
             let states = try await smokeClient.fetchStates()
             await smokeClient.disconnect()
@@ -154,6 +175,58 @@ final class HomeAssistantService {
         connectionStatus = .disconnected
     }
 
+    func refreshAuthState() async {
+        authState = await authManager.status()
+    }
+
+    func signInWithHomeAssistant(settings: HAConnectionSettings) async {
+        let baseURLString = settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !baseURLString.isEmpty else {
+            authState = .refreshFailed(HAWebSocketError.invalidURL.localizedDescription)
+            return
+        }
+
+        let state = UUID().uuidString
+        authState = .signingIn
+
+        do {
+            let authorizationURL = try await authManager.authorizeURL(
+                baseURLString: baseURLString,
+                state: state
+            )
+            let callbackURL = try await oauthAuthorizer.authorize(
+                authorizationURL: authorizationURL,
+                callbackScheme: HAOAuthClientMetadata.callbackScheme
+            )
+            let authorizationCode = try authorizationCode(from: callbackURL, expectedState: state)
+            let configuration = try await authManager.signIn(
+                baseURLString: baseURLString,
+                authorizationCode: authorizationCode
+            )
+
+            authState = await authManager.status()
+            lastErrorMessage = nil
+            await connect(baseURLString: configuration.baseURLString)
+        } catch {
+            authState = .refreshFailed(error.localizedDescription)
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    func signOut() async {
+        do {
+            try await authManager.signOut()
+            try mobileAppRegistrationStore.deleteRegistration()
+            await disconnect()
+            authState = .signedOut
+            mobileAppRegistrationState = .unregistered
+            lastErrorMessage = nil
+        } catch {
+            authState = .refreshFailed(error.localizedDescription)
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
     func applicationDidEnterBackground() {
         lastSuspendedAt = Date()
     }
@@ -167,10 +240,10 @@ final class HomeAssistantService {
         case .disconnected, .failed:
             await connectIfPossible(settings: settings)
         case .reconnecting:
-            guard settings.hasCredentials else { return }
+            guard settings.hasServerURL, authState.isSignedIn else { return }
             reconnectTask?.cancel()
             reconnectTask = nil
-            await connect(baseURLString: settings.baseURL, accessToken: settings.accessToken)
+            await connect(baseURLString: settings.baseURL)
         case .connected:
             guard shouldRefreshAfterResume else { return }
             await refreshStates()
@@ -323,9 +396,11 @@ final class HomeAssistantService {
 
     func fetchCameraSnapshot(entityID: String) async throws -> Data {
         let configuration = try cameraConfiguration(for: entityID)
+        let validConfiguration = try await validConfiguration(baseURLString: configuration.baseURLString)
+        activeConfiguration = validConfiguration
 
         return try await httpClient.fetchCameraSnapshot(
-            configuration: configuration,
+            configuration: validConfiguration,
             entityID: entityID
         )
     }
@@ -343,13 +418,11 @@ final class HomeAssistantService {
                 return
             }
 
-            if let settings, settings.hasCredentials {
-                let configuration = HAConnectionConfiguration(
+            if let settings, settings.hasServerURL {
+                guard registration.serverIdentifier == HAConnectionConfiguration(
                     baseURLString: settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
-                    accessToken: settings.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
-
-                guard registration.serverIdentifier == configuration.dataSourceID else {
+                    accessToken: ""
+                ).dataSourceID else {
                     mobileAppRegistrationState = .unregistered
                     return
                 }
@@ -376,15 +449,35 @@ final class HomeAssistantService {
     }
 
     func registerMobileApp(settings: HAConnectionSettings) async {
-        guard settings.hasCredentials else {
-            mobileAppRegistrationState = .failed("Add Home Assistant credentials before registering Homestead.")
+        guard settings.hasServerURL else {
+            mobileAppRegistrationState = .failed("Add your Home Assistant URL before registering Homestead.")
             return
         }
 
-        let configuration = HAConnectionConfiguration(
-            baseURLString: settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
-            accessToken: settings.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
+        let configuration: HAConnectionConfiguration
+        do {
+            configuration = try await validConfiguration(baseURLString: settings.baseURL)
+        } catch {
+            mobileAppRegistrationState = .failed(error.localizedDescription)
+            authState = authFailureState(for: error)
+            return
+        }
+        mobileAppRegistrationState = .registering
+
+        await registerMobileAppIfNeeded(configuration: configuration, force: true)
+    }
+
+    private func registerMobileAppIfNeeded(
+        configuration: HAConnectionConfiguration,
+        force: Bool = false
+    ) async {
+        if !force,
+           let registration = try? mobileAppRegistrationStore.readRegistration(),
+           registration.serverIdentifier == configuration.dataSourceID {
+            mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
+            return
+        }
+
         mobileAppRegistrationState = .registering
 
         do {
@@ -733,6 +826,78 @@ final class HomeAssistantService {
         try await client.connect(configuration: configuration)
     }
 
+    private func establishTransportConnectionWithAuthRecovery(
+        configuration: HAConnectionConfiguration
+    ) async throws -> HAConnectionConfiguration {
+        do {
+            try await establishTransportConnection(configuration: configuration)
+            return configuration
+        } catch HAWebSocketError.authenticationFailed(_) {
+            let refreshedConfiguration = try await refreshConfiguration(baseURLString: configuration.baseURLString)
+            try await establishTransportConnection(configuration: refreshedConfiguration)
+            return refreshedConfiguration
+        }
+    }
+
+    private func validConfiguration(baseURLString: String) async throws -> HAConnectionConfiguration {
+        do {
+            let configuration = try await authManager.validConfiguration(baseURLString: baseURLString)
+            authState = await authManager.status()
+            return configuration
+        } catch {
+            authState = authFailureState(for: error)
+            throw error
+        }
+    }
+
+    private func refreshConfiguration(baseURLString: String) async throws -> HAConnectionConfiguration {
+        authState = .refreshing(authSummary)
+        do {
+            let configuration = try await authManager.refreshConfiguration(baseURLString: baseURLString)
+            authState = await authManager.status()
+            return configuration
+        } catch {
+            authState = .refreshFailed(error.localizedDescription)
+            throw error
+        }
+    }
+
+    private var authSummary: HAAuthSessionSummary? {
+        switch authState {
+        case .signedIn(let summary), .accessTokenExpired(let summary):
+            summary
+        case .refreshing(let summary):
+            summary
+        case .signedOut, .signingIn, .refreshFailed:
+            nil
+        }
+    }
+
+    private func authFailureState(for error: Error) -> HAAuthState {
+        if error as? HAOAuthError == .signedOut {
+            return .signedOut
+        }
+        return .refreshFailed(error.localizedDescription)
+    }
+
+    private func authorizationCode(from callbackURL: URL, expectedState: String) throws -> String {
+        guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false) else {
+            throw HAOAuthError.missingAuthorizationCode
+        }
+
+        let returnedState = components.queryItems?.first { $0.name == "state" }?.value
+        guard returnedState == expectedState else {
+            throw HAOAuthError.stateMismatch
+        }
+
+        guard let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
+              !code.isEmpty else {
+            throw HAOAuthError.missingAuthorizationCode
+        }
+
+        return code
+    }
+
     private func startStateSync(configuration: HAConnectionConfiguration) {
         stateSyncTask?.cancel()
         stateSyncTask = Task { [weak self] in
@@ -908,15 +1073,15 @@ final class HomeAssistantService {
 
             do {
                 try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
-                try await establishTransportConnection(configuration: configuration)
+                let connectedConfiguration = try await establishTransportConnectionWithAuthRecovery(configuration: configuration)
 
-                activeConfiguration = configuration
-                refreshMobileAppRegistrationState(for: configuration)
+                activeConfiguration = connectedConfiguration
+                refreshMobileAppRegistrationState(for: connectedConfiguration)
                 lastErrorMessage = nil
                 connectionStatus = .connected
                 reconnectTask = nil
                 dataFreshness = .refreshing
-                startStateSync(configuration: configuration)
+                startStateSync(configuration: connectedConfiguration)
                 return
             } catch is CancellationError {
                 break

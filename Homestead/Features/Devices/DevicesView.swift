@@ -134,7 +134,7 @@ struct EntityBrowserList<Accessory: View>: View {
                 }
             }
             .overlay {
-                if connectionSettings.hasCredentials && !stateStore.hasLoadedInitialSnapshot {
+                if connectionSettings.hasServerURL && homeAssistantService.authState.isSignedIn && !stateStore.hasLoadedInitialSnapshot {
                     ContentUnavailableView {
                         Label(entityLoadingTitle, systemImage: homeAssistantService.connectionStatus.systemImage)
                     } description: {

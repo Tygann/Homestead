@@ -11,57 +11,39 @@ final class HAConnectionSettings {
         }
     }
 
-    var accessToken: String {
-        didSet { persistAccessToken() }
-    }
-
-    private(set) var credentialStorageErrorMessage: String?
+    private(set) var authStorageErrorMessage: String?
 
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let credentialStore: HACredentialStore
+    @ObservationIgnored private let tokenStore: any HAOAuthTokenStore
 
-    var hasCredentials: Bool {
-        !baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    var hasServerURL: Bool {
+        !baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     init(
         baseURL: String? = nil,
-        accessToken: String? = nil,
         defaults: UserDefaults = .standard,
-        credentialStore: HACredentialStore? = nil
+        tokenStore: (any HAOAuthTokenStore)? = nil
     ) {
         self.defaults = defaults
-        self.credentialStore = credentialStore ?? MigratingHACredentialStore()
+        self.tokenStore = tokenStore ?? KeychainHAOAuthTokenStore()
+
+        let storedCredentialBaseURL: String?
+        do {
+            storedCredentialBaseURL = try self.tokenStore.readCredential()?.baseURLString
+            authStorageErrorMessage = nil
+        } catch {
+            storedCredentialBaseURL = nil
+            authStorageErrorMessage = error.localizedDescription
+        }
+
         self.baseURL = baseURL ??
             defaults.string(forKey: Keys.baseURL) ??
             UserDefaults(suiteName: WidgetSharedStore.appGroupID)?.string(forKey: Keys.baseURL) ??
+            storedCredentialBaseURL ??
             ""
 
-        do {
-            let storedToken = try self.credentialStore.readAccessToken()
-            self.accessToken = accessToken ?? storedToken ?? ""
-            credentialStorageErrorMessage = nil
-        } catch {
-            self.accessToken = accessToken ?? ""
-            credentialStorageErrorMessage = error.localizedDescription
-        }
-
         WidgetSharedStore.saveBaseURL(self.baseURL)
-    }
-
-    private func persistAccessToken() {
-        do {
-            if accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                try credentialStore.deleteAccessToken()
-            } else {
-                try credentialStore.saveAccessToken(accessToken)
-            }
-
-            credentialStorageErrorMessage = nil
-        } catch {
-            credentialStorageErrorMessage = error.localizedDescription
-        }
     }
 
     private enum Keys {

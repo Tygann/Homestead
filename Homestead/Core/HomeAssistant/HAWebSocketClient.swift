@@ -1,6 +1,26 @@
 import Foundation
 
-actor HAWebSocketClient {
+nonisolated protocol HAWebSocketClientProtocol: AnyObject {
+    func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) async
+    func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) async
+    func connect(configuration: HAConnectionConfiguration) async throws
+    func disconnect() async
+    func fetchStates() async throws -> [HAEntityDTO]
+    func fetchEntityRegistryForDisplay() async throws -> HAEntityRegistryDisplayResponseDTO
+    func fetchDeviceRegistry() async throws -> [HADeviceRegistryDTO]
+    func fetchAreaRegistry() async throws -> [HAAreaRegistryDTO]
+    func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities
+    func subscribeToStateChanges() async throws
+    func unsubscribeFromStateChanges() async throws
+    func callService(
+        domain: String,
+        service: String,
+        entityID: String?,
+        serviceData: [String: JSONValue]
+    ) async throws
+}
+
+actor HAWebSocketClient: HAWebSocketClientProtocol {
     private let session: URLSession
     private let requestTimeout: Duration
     private let heartbeatInterval: Duration
@@ -25,11 +45,11 @@ actor HAWebSocketClient {
         self.heartbeatInterval = heartbeatInterval
     }
 
-    func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) {
+    func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) async {
         eventHandler = handler
     }
 
-    func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) {
+    func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) async {
         disconnectHandler = handler
     }
 
@@ -62,7 +82,7 @@ actor HAWebSocketClient {
         }
     }
 
-    func disconnect() {
+    func disconnect() async {
         isDisconnecting = true
         closeCurrentConnection()
     }

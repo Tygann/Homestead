@@ -15,31 +15,35 @@ struct SettingsView: View {
                     .keyboardType(.URL)
                     .autocorrectionDisabled()
                     .focused($focusedField, equals: .baseURL)
-
-                SecureField("Long-lived access token", text: $connectionSettings.accessToken)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focusedField, equals: .accessToken)
             } header: {
                 Text("Home Assistant")
             } footer: {
-                Text("Long-lived access tokens are stored in Keychain.")
+                Text("Sign in opens Home Assistant and stores the refresh token in Keychain.")
             }
 
             Section {
                 Button {
                     focusedField = nil
                     Task {
+                        await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
+                    }
+                } label: {
+                    Label(signInButtonTitle, systemImage: "person.crop.circle.badge.checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!connectionSettings.hasServerURL || homeAssistantService.authState == .signingIn)
+
+                Button {
+                    focusedField = nil
+                    Task {
                         await homeAssistantService.testConnection(
-                            baseURLString: connectionSettings.baseURL,
-                            accessToken: connectionSettings.accessToken
+                            baseURLString: connectionSettings.baseURL
                         )
                     }
                 } label: {
                     Label("Test Connection", systemImage: "network")
-//                        .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .disabled(!connectionSettings.hasCredentials || homeAssistantService.smokeTestState.isTesting)
+                .disabled(!homeAssistantService.authState.isSignedIn || homeAssistantService.smokeTestState.isTesting)
 
                 if homeAssistantService.connectionStatus == .connected {
                     Label("Connected", systemImage: homeAssistantService.connectionStatus.systemImage)
@@ -50,17 +54,15 @@ struct SettingsView: View {
                         focusedField = nil
                         Task {
                             await homeAssistantService.connect(
-                                baseURLString: connectionSettings.baseURL,
-                                accessToken: connectionSettings.accessToken
+                                baseURLString: connectionSettings.baseURL
                             )
                         }
                     } label: {
                         Label(connectButtonTitle, systemImage: "bolt.horizontal.circle.fill")
-//                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(
-                        !connectionSettings.hasCredentials ||
+                        !homeAssistantService.authState.isSignedIn ||
                         homeAssistantService.connectionStatus == .connecting ||
                         homeAssistantService.connectionStatus == .reconnecting
                     )
@@ -70,12 +72,31 @@ struct SettingsView: View {
                     Task { await homeAssistantService.disconnect() }
                 } label: {
                     Label("Disconnect", systemImage: "xmark.circle")
-//                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .disabled(homeAssistantService.connectionStatus == .disconnected)
+
+                Button(role: .destructive) {
+                    focusedField = nil
+                    Task { await homeAssistantService.signOut() }
+                } label: {
+                    Label("Sign Out", systemImage: "person.crop.circle.badge.xmark")
+                }
+                .disabled(!canSignOut)
             }
 
             Section {
+                SettingsStatusRow(
+                    title: homeAssistantService.authState.title,
+                    systemImage: authStatusSystemImage,
+                    tint: authStatusTint
+                )
+
+                if let detail = authStatusDetail {
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
                 SettingsStatusRow(
                     title: homeAssistantService.connectionStatus.title,
                     systemImage: homeAssistantService.connectionStatus.systemImage,
@@ -102,7 +123,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if let message = connectionSettings.credentialStorageErrorMessage {
+                if let message = connectionSettings.authStorageErrorMessage {
                     Text(message)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -129,13 +150,13 @@ struct SettingsView: View {
                     Label("Register App", systemImage: "iphone.gen3")
                 }
                 .disabled(
-                    !connectionSettings.hasCredentials ||
+                    !homeAssistantService.authState.isSignedIn ||
                     homeAssistantService.mobileAppRegistrationState.isRegistering
                 )
             } header: {
                 Text("Native App")
             } footer: {
-                Text("Registration uses Home Assistant's official mobile app API and stores the returned webhook ID in Keychain.")
+                Text("Homestead registers automatically after sign-in when no matching mobile-app registration is saved.")
             }
 
 #if DEBUG
@@ -161,6 +182,7 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .toolbarTitleDisplayMode(.inline)
         .task(id: mobileAppRegistrationTaskID) {
+            await homeAssistantService.refreshAuthState()
             homeAssistantService.refreshMobileAppRegistrationState(settings: connectionSettings)
         }
     }
@@ -188,6 +210,75 @@ struct SettingsView: View {
         case .connected:
             "Connected"
         }
+    }
+
+    private var signInButtonTitle: String {
+        switch homeAssistantService.authState {
+        case .signedOut, .refreshFailed, .accessTokenExpired:
+            "Sign in with Home Assistant"
+        case .signingIn:
+            "Signing In"
+        case .refreshing:
+            "Refreshing"
+        case .signedIn:
+            "Sign in again"
+        }
+    }
+
+    private var authStatusSystemImage: String {
+        switch homeAssistantService.authState {
+        case .signedIn:
+            "checkmark.seal.fill"
+        case .signingIn, .refreshing:
+            "arrow.triangle.2.circlepath"
+        case .accessTokenExpired:
+            "clock.badge.exclamationmark"
+        case .refreshFailed:
+            "exclamationmark.triangle.fill"
+        case .signedOut:
+            "person.crop.circle"
+        }
+    }
+
+    private var authStatusTint: Color {
+        switch homeAssistantService.authState {
+        case .signedIn:
+            .green
+        case .signingIn, .refreshing, .accessTokenExpired:
+            .orange
+        case .refreshFailed:
+            .red
+        case .signedOut:
+            .secondary
+        }
+    }
+
+    private var authStatusDetail: String? {
+        switch homeAssistantService.authState {
+        case .signedIn(let summary), .accessTokenExpired(let summary):
+            return "Access token expires \(summary.accessTokenExpiresAt.formatted(date: .abbreviated, time: .shortened))."
+        case .refreshing(let summary):
+            guard let summary else { return "Refreshing Home Assistant access." }
+            return "Refreshing token for \(summary.baseURLString)."
+        case .refreshFailed(let message):
+            return message
+        case .signedOut:
+            return "No Home Assistant refresh token is saved."
+        case .signingIn:
+            return "Waiting for Home Assistant authorization."
+        }
+    }
+
+    private var canSignOut: Bool {
+        if homeAssistantService.authState.isSignedIn {
+            return true
+        }
+
+        if case .refreshFailed = homeAssistantService.authState {
+            return true
+        }
+
+        return false
     }
 
     private var connectionStatusTint: Color {
@@ -271,13 +362,12 @@ struct SettingsView: View {
     private var mobileAppRegistrationTaskID: String {
         [
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
-            connectionSettings.hasCredentials.description
+            homeAssistantService.authState.title
         ].joined(separator: "|")
     }
 
     private enum Field {
         case baseURL
-        case accessToken
     }
 }
 

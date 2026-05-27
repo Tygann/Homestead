@@ -4,11 +4,19 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-27
 
+### Native OAuth Login
+
+- Replaced manual long-lived access-token login with Home Assistant's OAuth2/IndieAuth native-app flow.
+- Added `/auth/authorize` URL construction, `ASWebAuthenticationSession` callback handling, `/auth/token` authorization-code exchange, refresh-token grant support, and Keychain persistence for refresh tokens plus access-token expiry metadata.
+- `HomeAssistantService` now refreshes short-lived access tokens before WebSocket connects/reconnects and documented HTTP calls, while transport clients still receive a current token through `HAConnectionConfiguration`.
+- Settings now has a native Sign in with Home Assistant flow, signed-in/signed-out/expired/refresh-failed status, and sign-out cleanup for OAuth credentials plus mobile-app registration metadata.
+- Mobile-app registration now runs automatically after OAuth sign-in when no matching registration is saved for the current Home Assistant server.
+
 ### Native App Registration And Auth Direction
 
 - Added Home Assistant mobile/native app registration groundwork using the official `/api/mobile_app/registrations` HTTP surface while preserving WebSocket as Homestead's primary data/control plane.
 - Persisted returned mobile-app registration metadata, especially `webhook_id`, outside SwiftUI so official companion-app handoffs such as `stream_camera` can be layered in without private frontend URLs.
-- Reaffirmed the auth direction: HTTP remains for documented media/auth surfaces, mobile-app registration is only for official companion-app capabilities, and Homestead should move from long-lived-token-only setup toward Home Assistant's OAuth2/refresh-token native app flow.
+- Reaffirmed the auth direction: HTTP remains for documented media/auth surfaces, mobile-app registration is only for official companion-app capabilities, and Homestead should use Home Assistant's OAuth2/refresh-token native app flow.
 
 ### Camera Capability Discovery
 
@@ -137,9 +145,7 @@ Reason: live Home Assistant data with many entities made dashboard scrolling and
 
 - Added a debug-only live Home Assistant preview path.
 - Preferred credential source is local Keychain data entered through the app.
-- Environment variables are available as a fallback:
-  - `HOMESTEAD_PREVIEW_HA_BASE_URL`
-  - `HOMESTEAD_PREVIEW_HA_TOKEN`
+- Historical note: early live previews allowed environment-variable credentials before OAuth became the only supported login path.
 - Preview credential setup is documented in `Docs/PREVIEW_CREDENTIALS.md`.
 
 ### Dashboard Customization And Light Controls

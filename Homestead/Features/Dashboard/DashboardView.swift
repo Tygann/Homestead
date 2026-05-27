@@ -17,13 +17,13 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                if !connectionSettings.hasCredentials {
+                if !hasHomeAssistantSession {
                     DashboardSetupCard()
                 } else if shouldShowDashboardStatusBanner {
                     dashboardStatusBanner
                 }
 
-                if !connectionSettings.hasCredentials {
+                if !hasHomeAssistantSession {
                     EmptyView()
                 } else if !stateStore.hasLoadedInitialSnapshot {
                     if showsInitialSyncPlaceholder {
@@ -132,7 +132,7 @@ struct DashboardView: View {
 
     private var initialSyncPlaceholderKey: String {
         [
-            connectionSettings.hasCredentials.description,
+            hasHomeAssistantSession.description,
             stateStore.hasLoadedInitialSnapshot.description,
             homeAssistantService.isLoadingCachedStates.description,
             homeAssistantService.hasCompletedInitialCacheLoad.description
@@ -140,9 +140,13 @@ struct DashboardView: View {
         .joined(separator: "-")
     }
 
+    private var hasHomeAssistantSession: Bool {
+        connectionSettings.hasServerURL && homeAssistantService.authState.isSignedIn
+    }
+
     @MainActor
     private func updateInitialSyncPlaceholderVisibility() async {
-        guard connectionSettings.hasCredentials,
+        guard hasHomeAssistantSession,
               !stateStore.hasLoadedInitialSnapshot,
               homeAssistantService.hasCompletedInitialCacheLoad,
               !homeAssistantService.isLoadingCachedStates else {
@@ -159,7 +163,7 @@ struct DashboardView: View {
         }
 
         guard !Task.isCancelled,
-              connectionSettings.hasCredentials,
+              hasHomeAssistantSession,
               !stateStore.hasLoadedInitialSnapshot,
               homeAssistantService.hasCompletedInitialCacheLoad,
               !homeAssistantService.isLoadingCachedStates else {
@@ -244,7 +248,7 @@ struct DashboardView: View {
     }
     
     private var statusText: String {
-        if connectionSettings.hasCredentials,
+        if hasHomeAssistantSession,
            !stateStore.hasLoadedInitialSnapshot,
            !homeAssistantService.hasCompletedInitialCacheLoad {
             return "Loading dashboard"
@@ -265,7 +269,7 @@ struct DashboardView: View {
     }
 
     private var statusSystemImage: String {
-        if connectionSettings.hasCredentials,
+        if hasHomeAssistantSession,
            !stateStore.hasLoadedInitialSnapshot,
            !homeAssistantService.hasCompletedInitialCacheLoad {
             return "arrow.clockwise"
@@ -454,13 +458,13 @@ struct DashboardView: View {
             Section {
                 Label(statusText, systemImage: statusSystemImage)
                 
-                if connectionSettings.hasCredentials && homeAssistantService.connectionStatus != .connected {
+                if hasHomeAssistantSession && homeAssistantService.connectionStatus != .connected {
                     Button {
                         Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
                     } label: {
                         Label("Reconnect", systemImage: "arrow.triangle.2.circlepath")
                     }
-                } else if connectionSettings.hasCredentials {
+                } else if hasHomeAssistantSession {
                     Button {
                         Task { await homeAssistantService.refreshStates() }
                     } label: {

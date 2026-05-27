@@ -21,17 +21,23 @@ struct PreviewDependencies {
         pinnedEntityStore.toggle("light.living_room_lamps")
         pinnedEntityStore.toggle("climate.downstairs")
 
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: PreviewCredentialProvider.sampleCredential(
+                baseURL: "http://homeassistant.local:8123",
+                accessToken: "preview-token"
+            )
+        )
         let settings = HAConnectionSettings(
             baseURL: "http://homeassistant.local:8123",
-            accessToken: "preview-token",
             defaults: previewDefaults,
-            credentialStore: InMemoryHACredentialStore()
+            tokenStore: tokenStore
         )
 
         let service = HomeAssistantService(
             stateStore: stateStore,
             connectionStatus: .connected,
-            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore()
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
         )
 
         return PreviewDependencies(
@@ -51,10 +57,9 @@ struct PreviewDependencies {
         let dashboardPreferences = DashboardPreferences(defaults: previewDefaults)
         let pinnedEntityStore = PinnedEntityStore(defaults: previewDefaults)
 
-        let settings = PreviewCredentialProvider.environmentSettings ??
-            HAConnectionSettings(defaults: previewDefaults)
+        let settings = HAConnectionSettings(defaults: previewDefaults)
 
-        guard settings.hasCredentials else {
+        guard settings.hasServerURL else {
             return nil
         }
 
@@ -244,30 +249,22 @@ struct MissingLivePreviewCredentialsView: View {
         ContentUnavailableView {
             Label("Preview Credentials Missing", systemImage: "key.slash")
         } description: {
-            Text("Save credentials in the app Settings screen, or set HOMESTEAD_PREVIEW_HA_BASE_URL and HOMESTEAD_PREVIEW_HA_TOKEN in your local Xcode environment.")
+            Text("Save Home Assistant sign-in data in the app Settings screen before using the live preview.")
         }
         .padding()
     }
 }
 
 private enum PreviewCredentialProvider {
-    private static let baseURLKey = "HOMESTEAD_PREVIEW_HA_BASE_URL"
-    private static let tokenKey = "HOMESTEAD_PREVIEW_HA_TOKEN"
-
-    @MainActor
-    static var environmentSettings: HAConnectionSettings? {
-        let environment = ProcessInfo.processInfo.environment
-
-        guard let baseURL = environment[baseURLKey], !baseURL.isEmpty,
-              let token = environment[tokenKey], !token.isEmpty else {
-            return nil
-        }
-
-        return HAConnectionSettings(
-            baseURL: baseURL,
-            accessToken: token,
-            defaults: .livePreview,
-            credentialStore: InMemoryHACredentialStore()
+    static func sampleCredential(baseURL: String, accessToken: String) -> HAOAuthCredential {
+        HAOAuthCredential(
+            baseURLString: baseURL,
+            clientID: HAOAuthClientMetadata.clientID,
+            refreshToken: "preview-refresh-token",
+            accessToken: accessToken,
+            accessTokenExpiresAt: Date().addingTimeInterval(3600),
+            tokenType: "Bearer",
+            updatedAt: Date()
         )
     }
 }

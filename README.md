@@ -9,7 +9,7 @@ Home Assistant remains the backend and source of truth for integrations, devices
 Homestead currently includes:
 
 - WebSocket-first Home Assistant connection flow
-- Long-lived access token storage through Keychain
+- Native Home Assistant OAuth2/IndieAuth sign-in with refresh-token storage through Keychain
 - Live entity state updates through `state_changed` events
 - Optimistic light toggles and brightness updates
 - Dashboard favorites with editable ordering

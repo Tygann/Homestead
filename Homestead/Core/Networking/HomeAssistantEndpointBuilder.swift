@@ -1,6 +1,51 @@
 import Foundation
 
 enum HomeAssistantEndpointBuilder {
+    nonisolated static func authAuthorizeURL(
+        from baseURLString: String,
+        clientID: String,
+        redirectURI: String,
+        state: String? = nil
+    ) throws -> URL {
+        var components = try baseComponents(from: baseURLString)
+        components.scheme = try httpScheme(from: components.scheme)
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathParts = [basePath, "auth", "authorize"].filter { !$0.isEmpty }
+        components.path = "/" + pathParts.joined(separator: "/")
+        components.queryItems = [
+            URLQueryItem(name: "client_id", value: clientID),
+            URLQueryItem(name: "redirect_uri", value: redirectURI)
+        ]
+        if let state {
+            components.queryItems?.append(URLQueryItem(name: "state", value: state))
+        }
+        components.fragment = nil
+
+        guard let url = components.url else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        return url
+    }
+
+    nonisolated static func authTokenURL(from baseURLString: String) throws -> URL {
+        var components = try baseComponents(from: baseURLString)
+        components.scheme = try httpScheme(from: components.scheme)
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathParts = [basePath, "auth", "token"].filter { !$0.isEmpty }
+        components.path = "/" + pathParts.joined(separator: "/")
+        components.query = nil
+        components.fragment = nil
+
+        guard let url = components.url else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        return url
+    }
+
     nonisolated static func webSocketURL(from baseURLString: String) throws -> URL {
         var components = try baseComponents(from: baseURLString)
         components.scheme = try webSocketScheme(from: components.scheme)
