@@ -108,6 +108,34 @@ struct HomesteadTests {
         #expect(object["type"] as? String == "config/entity_registry/list_for_display")
     }
 
+    @Test func cameraCapabilitiesRequestEncodesHomeAssistantShape() throws {
+        let request = HAWebSocketRequest.cameraCapabilities(
+            id: 8,
+            entityID: "camera.driveway"
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["id"] as? Int == 8)
+        #expect(object["type"] as? String == "camera/capabilities")
+        #expect(object["entity_id"] as? String == "camera.driveway")
+    }
+
+    @Test func cameraCapabilitiesDecodesFrontendStreamTypes() throws {
+        let payload = """
+        {
+            "frontend_stream_types": ["webrtc", "hls"]
+        }
+        """
+
+        let capabilities = try JSONDecoder().decode(HACameraCapabilities.self, from: Data(payload.utf8))
+
+        #expect(capabilities.frontendStreamTypes == [.webRTC, .hls])
+        #expect(capabilities.supportsLiveStream)
+        #expect(capabilities.displayText == "WebRTC, HLS")
+    }
+
     @Test func entityRegistryDisplayResponseDecodesCompactHomeAssistantPayload() throws {
         let payload = """
         {

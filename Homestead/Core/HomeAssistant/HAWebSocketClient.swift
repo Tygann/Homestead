@@ -132,6 +132,20 @@ actor HAWebSocketClient {
         return try result.decoded([HAAreaRegistryDTO].self)
     }
 
+    func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
+        let id = makeRequestID()
+        let response = try await sendRequest(
+            .cameraCapabilities(id: id, entityID: entityID),
+            id: id
+        )
+
+        guard let result = response.result else {
+            throw HAWebSocketError.missingResult
+        }
+
+        return try result.decoded(HACameraCapabilities.self)
+    }
+
     func subscribeToStateChanges() async throws {
         guard stateChangeSubscriptionID == nil else {
             return

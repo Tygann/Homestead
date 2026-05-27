@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-27
 
+### Camera Capability Discovery
+
+- Added Home Assistant `camera/capabilities` WebSocket support so Homestead can choose future live renderers from HA-reported frontend stream types instead of guessing.
+- Camera details now surface discovered live modes alongside the authenticated snapshot path.
+
 ### Camera Snapshot Loading Foundation
 
 - Added an authenticated HTTP camera snapshot path through `HomeAssistantService`, keeping SwiftUI views away from Home Assistant transport details.

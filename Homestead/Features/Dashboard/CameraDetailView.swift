@@ -7,6 +7,7 @@ struct CameraDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var snapshotPhase: SnapshotPhase = .idle
+    @State private var capabilitiesPhase: CameraCapabilitiesPhase = .idle
 
     let entityBox: HAEntityState
 
@@ -39,7 +40,7 @@ struct CameraDetailView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        Task { await loadSnapshot() }
+                        Task { await loadCameraData() }
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -50,7 +51,7 @@ struct CameraDetailView: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .task(id: entity.entityID) {
-            await loadSnapshot()
+            await loadCameraData()
         }
     }
 
@@ -150,6 +151,7 @@ struct CameraDetailView: View {
             rows: [
                 DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
                 DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
+                DashboardEntityDetailRow(title: "Live", value: liveCapabilityText),
                 DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText)
             ]
         )
@@ -176,6 +178,22 @@ struct CameraDetailView: View {
         entity.isAvailable ? presentation.accentColor.opacity(0.12) : Color.red.opacity(0.12)
     }
 
+    private var liveCapabilityText: String {
+        switch capabilitiesPhase {
+        case .idle, .loading:
+            "Checking"
+        case .loaded(let capabilities):
+            capabilities.displayText
+        case .failed:
+            "Unknown"
+        }
+    }
+
+    private func loadCameraData() async {
+        await loadCapabilities()
+        await loadSnapshot()
+    }
+
     private func loadSnapshot() async {
         guard entity.isAvailable else {
             snapshotPhase = .failed
@@ -187,6 +205,20 @@ struct CameraDetailView: View {
             snapshotPhase = .loaded(try await homeAssistantService.fetchCameraSnapshot(entityID: entity.entityID))
         } catch {
             snapshotPhase = .failed
+        }
+    }
+
+    private func loadCapabilities() async {
+        guard entity.isAvailable else {
+            capabilitiesPhase = .failed
+            return
+        }
+
+        capabilitiesPhase = .loading
+        do {
+            capabilitiesPhase = .loaded(try await homeAssistantService.fetchCameraCapabilities(entityID: entity.entityID))
+        } catch {
+            capabilitiesPhase = .failed
         }
     }
 }
@@ -203,6 +235,13 @@ private enum SnapshotPhase: Equatable {
         }
         return false
     }
+}
+
+private enum CameraCapabilitiesPhase: Equatable {
+    case idle
+    case loading
+    case loaded(HACameraCapabilities)
+    case failed
 }
 
 #if DEBUG

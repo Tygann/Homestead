@@ -313,19 +313,17 @@ final class HomeAssistantService {
     }
 
     func fetchCameraSnapshot(entityID: String) async throws -> Data {
-        guard let configuration = activeConfiguration else {
-            throw HAWebSocketError.notConnected
-        }
-        guard let entity = stateStore.entity(for: entityID),
-              entity.domain == .camera,
-              entity.isAvailable else {
-            throw HAWebSocketError.requestFailed("Camera is unavailable.")
-        }
+        let configuration = try cameraConfiguration(for: entityID)
 
         return try await httpClient.fetchCameraSnapshot(
             configuration: configuration,
             entityID: entityID
         )
+    }
+
+    func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
+        _ = try cameraConfiguration(for: entityID)
+        return try await client.fetchCameraCapabilities(entityID: entityID)
     }
 
     func toggleSwitch(entityID: String) async {
@@ -424,6 +422,19 @@ final class HomeAssistantService {
         } else {
             clearPendingCommand(pendingCommand)
         }
+    }
+
+    private func cameraConfiguration(for entityID: String) throws -> HAConnectionConfiguration {
+        guard let configuration = activeConfiguration else {
+            throw HAWebSocketError.notConnected
+        }
+        guard let entity = stateStore.entity(for: entityID),
+              entity.domain == .camera,
+              entity.isAvailable else {
+            throw HAWebSocketError.requestFailed("Camera is unavailable.")
+        }
+
+        return configuration
     }
 
     func setClimateHVACMode(entityID: String, hvacMode: String) async {
