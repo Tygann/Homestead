@@ -43,6 +43,43 @@ enum HomeAssistantEndpointBuilder {
         return url
     }
 
+    nonisolated static func mobileAppRegistrationURL(from baseURLString: String) throws -> URL {
+        var components = try baseComponents(from: baseURLString)
+        components.scheme = try httpScheme(from: components.scheme)
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathParts = [basePath, "api", "mobile_app", "registrations"].filter { !$0.isEmpty }
+        components.path = "/" + pathParts.joined(separator: "/")
+        components.query = nil
+        components.fragment = nil
+
+        guard let url = components.url else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        return url
+    }
+
+    nonisolated static func mobileAppWebhookURL(
+        from baseURLString: String,
+        webhookID: String
+    ) throws -> URL {
+        var components = try baseComponents(from: baseURLString)
+        components.scheme = try httpScheme(from: components.scheme)
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathParts = [basePath, "api", "webhook", webhookID].filter { !$0.isEmpty }
+        components.path = "/" + pathParts.joined(separator: "/")
+        components.query = nil
+        components.fragment = nil
+
+        guard let url = components.url else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        return url
+    }
+
     private nonisolated static func baseComponents(from baseURLString: String) throws -> URLComponents {
         let normalizedString = baseURLString.contains("://") ? baseURLString : "http://\(baseURLString)"
 

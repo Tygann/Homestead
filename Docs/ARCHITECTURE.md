@@ -36,9 +36,13 @@ SwiftUI views call `HomeAssistantService`, not `HAWebSocketClient`. The service 
 
 This keeps transport details out of cards and leaves room for optimistic updates, error presentation, and reconnect handling later.
 
-## Credentials
+## Credentials And Native App Registration
 
 `HAConnectionSettings` stores the Home Assistant base URL in `UserDefaults` and the long-lived access token in Keychain through `HACredentialStore`. Tests and previews use `InMemoryHACredentialStore` so they do not read or write real credentials.
+
+This is a transitional auth setup. Native Home Assistant apps should move toward the official OAuth2/IndieAuth authorization flow, using short-lived access tokens and securely stored refresh tokens instead of assuming long-lived access tokens forever. Keep new auth code in the Home Assistant core layer and continue to expose only app-facing connection state and intents to SwiftUI.
+
+`HAMobileAppClient` owns the official `/api/mobile_app/registrations` HTTP registration call and mobile-app webhook interactions such as `stream_camera`. `HAMobileAppRegistrationStore` persists the returned registration metadata, especially `webhook_id`, in Keychain. These mobile-app paths are only for official companion-app capabilities; entity state and service control remain WebSocket-first.
 
 ## Adding cards
 

@@ -30,7 +30,8 @@ struct PreviewDependencies {
 
         let service = HomeAssistantService(
             stateStore: stateStore,
-            connectionStatus: .connected
+            connectionStatus: .connected,
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore()
         )
 
         return PreviewDependencies(
@@ -57,7 +58,10 @@ struct PreviewDependencies {
             return nil
         }
 
-        let service = HomeAssistantService(stateStore: stateStore)
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore()
+        )
 
         return PreviewDependencies(
             stateStore: stateStore,

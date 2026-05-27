@@ -2,7 +2,7 @@ import Foundation
 
 enum WidgetSharedStore {
     static let appGroupID = "group.com.tyler.Homestead"
-    static let keychainAccessGroup = "XKQ424HQ33.com.tyler.Homestead.shared"
+    nonisolated static let keychainAccessGroup = "XKQ424HQ33.com.tyler.Homestead.shared"
 
     private static let baseURLKey = "homeAssistantBaseURL"
     private static let lightSnapshotsKey = "widgetLightSnapshots"

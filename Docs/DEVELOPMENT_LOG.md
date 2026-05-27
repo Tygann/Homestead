@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-27
 
+### Native App Registration And Auth Direction
+
+- Added Home Assistant mobile/native app registration groundwork using the official `/api/mobile_app/registrations` HTTP surface while preserving WebSocket as Homestead's primary data/control plane.
+- Persisted returned mobile-app registration metadata, especially `webhook_id`, outside SwiftUI so official companion-app handoffs such as `stream_camera` can be layered in without private frontend URLs.
+- Reaffirmed the auth direction: HTTP remains for documented media/auth surfaces, mobile-app registration is only for official companion-app capabilities, and Homestead should move from long-lived-token-only setup toward Home Assistant's OAuth2/refresh-token native app flow.
+
 ### Camera Capability Discovery
 
 - Added Home Assistant `camera/capabilities` WebSocket support so Homestead can choose future live renderers from HA-reported frontend stream types instead of guessing.

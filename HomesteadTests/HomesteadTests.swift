@@ -29,6 +29,19 @@ struct HomesteadTests {
         #expect(nestedURL.absoluteString == "https://example.com/ha/api/camera_proxy/camera.front_door")
     }
 
+    @Test func mobileAppEndpointsUseOfficialHTTPPaths() throws {
+        let registrationURL = try HomeAssistantEndpointBuilder.mobileAppRegistrationURL(
+            from: "https://example.com/ha"
+        )
+        let webhookURL = try HomeAssistantEndpointBuilder.mobileAppWebhookURL(
+            from: "http://homeassistant.local:8123",
+            webhookID: "webhook-abc"
+        )
+
+        #expect(registrationURL.absoluteString == "https://example.com/ha/api/mobile_app/registrations")
+        #expect(webhookURL.absoluteString == "http://homeassistant.local:8123/api/webhook/webhook-abc")
+    }
+
     @Test func callServiceRequestEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.callService(
             id: 42,
@@ -134,6 +147,104 @@ struct HomesteadTests {
         #expect(capabilities.frontendStreamTypes == [.webRTC, .hls])
         #expect(capabilities.supportsLiveStream)
         #expect(capabilities.displayText == "WebRTC, HLS")
+    }
+
+    @Test func mobileAppRegistrationRequestEncodesHomeAssistantShape() throws {
+        let request = HAMobileAppRegistrationRequestFactory.makeRequest(
+            deviceID: "device-123",
+            appVersion: "1.2.3",
+            deviceName: "Test Phone",
+            manufacturer: "Apple, Inc.",
+            model: "iPhone",
+            osName: "iOS",
+            osVersion: "26.5"
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["device_id"] as? String == "device-123")
+        #expect(object["app_id"] as? String == "com.tyler.Homestead")
+        #expect(object["app_name"] as? String == "Homestead")
+        #expect(object["app_version"] as? String == "1.2.3")
+        #expect(object["device_name"] as? String == "Test Phone")
+        #expect(object["manufacturer"] as? String == "Apple, Inc.")
+        #expect(object["model"] as? String == "iPhone")
+        #expect(object["os_name"] as? String == "iOS")
+        #expect(object["os_version"] as? String == "26.5")
+        #expect(object["supports_encryption"] as? Bool == false)
+    }
+
+    @Test func mobileAppRegistrationResponseDecodesHomeAssistantShape() throws {
+        let payload = """
+        {
+            "cloudhook_url": "https://hooks.nabu.casa/abc",
+            "remote_ui_url": "https://remote.ui",
+            "secret": "optional-secret",
+            "webhook_id": "webhook-123"
+        }
+        """
+
+        let response = try JSONDecoder().decode(
+            HAMobileAppRegistrationResponseDTO.self,
+            from: Data(payload.utf8)
+        )
+
+        #expect(response.cloudhookURL == "https://hooks.nabu.casa/abc")
+        #expect(response.remoteUIURL == "https://remote.ui")
+        #expect(response.secret == "optional-secret")
+        #expect(response.webhookID == "webhook-123")
+    }
+
+    @Test func mobileAppRegistrationStorePersistsRegistrationInfo() throws {
+        let store = InMemoryHAMobileAppRegistrationStore()
+        let registration = HAMobileAppRegistrationInfo(
+            serverIdentifier: "server-a",
+            deviceID: "device-a",
+            appVersion: "1.0",
+            deviceName: "Test Phone",
+            webhookID: "webhook-a",
+            secret: "secret-a",
+            registeredAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+
+        try store.saveRegistration(registration)
+
+        #expect(try store.readRegistration() == registration)
+
+        try store.deleteRegistration()
+        #expect(try store.readRegistration() == nil)
+    }
+
+    @Test func cameraStreamWebhookRequestEncodesMobileAppShape() throws {
+        let request = HAMobileAppWebhookRequestDTO(
+            type: HAMobileAppWebhookType.streamCamera,
+            data: HACameraStreamRequestDTO(cameraEntityID: "camera.driveway")
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let requestData = try #require(object["data"] as? [String: Any])
+
+        #expect(object["type"] as? String == "stream_camera")
+        #expect(requestData["camera_entity_id"] as? String == "camera.driveway")
+    }
+
+    @Test func cameraStreamResponseDecodesHandoffPaths() throws {
+        let payload = """
+        {
+            "hls_path": "/api/hls/camera.driveway/master_playlist.m3u8",
+            "mjpeg_path": "/api/camera_proxy_stream/camera.driveway"
+        }
+        """
+
+        let response = try JSONDecoder().decode(HACameraStreamResponseDTO.self, from: Data(payload.utf8))
+        let handoff = HACameraStreamHandoff(entityID: "camera.driveway", response: response)
+
+        #expect(handoff.entityID == "camera.driveway")
+        #expect(handoff.hlsPath == "/api/hls/camera.driveway/master_playlist.m3u8")
+        #expect(handoff.mjpegPath == "/api/camera_proxy_stream/camera.driveway")
+        #expect(handoff.hasPlayablePath)
     }
 
     @Test func entityRegistryDisplayResponseDecodesCompactHomeAssistantPayload() throws {
@@ -699,6 +810,108 @@ struct HomesteadTests {
 
         settings.accessToken = ""
         #expect(try credentialStore.readAccessToken() == nil)
+    }
+
+    @MainActor
+    @Test func serviceRegistrationStateReflectsMatchingStoredMobileAppRegistration() throws {
+        let configuration = HAConnectionConfiguration(
+            baseURLString: "http://homeassistant.local:8123",
+            accessToken: "token-a"
+        )
+        let registration = HAMobileAppRegistrationInfo(
+            serverIdentifier: configuration.dataSourceID,
+            deviceID: "device-a",
+            appVersion: "1.0",
+            deviceName: "Test Phone",
+            webhookID: "webhook-a"
+        )
+        let store = InMemoryHAMobileAppRegistrationStore(registration: registration)
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: store
+        )
+        let settings = HAConnectionSettings(
+            baseURL: configuration.baseURLString,
+            accessToken: configuration.accessToken,
+            defaults: try isolatedDefaults(),
+            credentialStore: InMemoryHACredentialStore()
+        )
+
+        service.refreshMobileAppRegistrationState(settings: settings)
+
+        guard case .registered(let summary) = service.mobileAppRegistrationState else {
+            Issue.record("Expected registered mobile app state.")
+            return
+        }
+        #expect(summary.deviceName == "Test Phone")
+        #expect(summary.appVersion == "1.0")
+    }
+
+    @MainActor
+    @Test func serviceRegistrationStateIgnoresStoredRegistrationForDifferentServer() throws {
+        let registration = HAMobileAppRegistrationInfo(
+            serverIdentifier: "other-server",
+            deviceID: "device-a",
+            appVersion: "1.0",
+            deviceName: "Test Phone",
+            webhookID: "webhook-a"
+        )
+        let store = InMemoryHAMobileAppRegistrationStore(registration: registration)
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: store
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            accessToken: "token-a",
+            defaults: try isolatedDefaults(),
+            credentialStore: InMemoryHACredentialStore()
+        )
+
+        service.refreshMobileAppRegistrationState(settings: settings)
+
+        #expect(service.mobileAppRegistrationState == .unregistered)
+    }
+
+    @MainActor
+    @Test func serviceRegisterMobileAppPersistsRegistrationAndUpdatesState() async throws {
+        let store = InMemoryHAMobileAppRegistrationStore()
+        let client = StubHAMobileAppClient(
+            registrationResponse: HAMobileAppRegistrationResponseDTO(
+                cloudhookURL: nil,
+                remoteUIURL: "https://remote.ui",
+                secret: nil,
+                webhookID: "webhook-created"
+            )
+        )
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            mobileAppClient: client,
+            mobileAppRegistrationStore: store
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            accessToken: "token-a",
+            defaults: try isolatedDefaults(),
+            credentialStore: InMemoryHACredentialStore()
+        )
+
+        await service.registerMobileApp(settings: settings)
+
+        let savedRegistration = try #require(try store.readRegistration())
+        #expect(savedRegistration.webhookID == "webhook-created")
+        #expect(savedRegistration.serverIdentifier == HAConnectionConfiguration(
+            baseURLString: settings.baseURL,
+            accessToken: settings.accessToken
+        ).dataSourceID)
+
+        guard case .registered(let summary) = service.mobileAppRegistrationState else {
+            Issue.record("Expected registered mobile app state.")
+            return
+        }
+        #expect(summary.deviceName == savedRegistration.deviceName)
     }
 
     @MainActor
@@ -1300,5 +1513,52 @@ struct HomesteadTests {
 
         #expect(store.entityIDGroupsByDevice.map(\.title) == ["Ashton's iPad", "Other Entities"])
         #expect(store.displayNameForDeviceGroupedEntity(entityID: "sensor.ashtons_ipad_location_permission") == "Location permission")
+    }
+
+    private func isolatedDefaults() throws -> UserDefaults {
+        let suiteName = "com.tyler.Homestead.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
+    }
+}
+
+final class StubHAMobileAppClient: HAMobileAppClientProtocol {
+    var registrationResponse: HAMobileAppRegistrationResponseDTO
+    var cameraStreamResponse: HACameraStreamResponseDTO
+    private(set) var lastRegistrationRequest: HAMobileAppRegistrationRequestDTO?
+    private(set) var lastCameraStreamEntityID: String?
+
+    init(
+        registrationResponse: HAMobileAppRegistrationResponseDTO = HAMobileAppRegistrationResponseDTO(
+            cloudhookURL: nil,
+            remoteUIURL: nil,
+            secret: nil,
+            webhookID: "webhook-stub"
+        ),
+        cameraStreamResponse: HACameraStreamResponseDTO = HACameraStreamResponseDTO(
+            hlsPath: "/api/hls/camera.driveway/master_playlist.m3u8",
+            mjpegPath: nil
+        )
+    ) {
+        self.registrationResponse = registrationResponse
+        self.cameraStreamResponse = cameraStreamResponse
+    }
+
+    func register(
+        configuration: HAConnectionConfiguration,
+        request: HAMobileAppRegistrationRequestDTO
+    ) async throws -> HAMobileAppRegistrationResponseDTO {
+        lastRegistrationRequest = request
+        return registrationResponse
+    }
+
+    func requestCameraStream(
+        configuration: HAConnectionConfiguration,
+        registration: HAMobileAppRegistrationInfo,
+        entityID: String
+    ) async throws -> HACameraStreamResponseDTO {
+        lastCameraStreamEntityID = entityID
+        return cameraStreamResponse
     }
 }

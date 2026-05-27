@@ -109,6 +109,35 @@ struct SettingsView: View {
                 }
             }
 
+            Section {
+                SettingsStatusRow(
+                    title: mobileAppRegistrationTitle,
+                    systemImage: mobileAppRegistrationSystemImage,
+                    tint: mobileAppRegistrationTint
+                )
+
+                if let detail = mobileAppRegistrationDetail {
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button {
+                    focusedField = nil
+                    Task { await homeAssistantService.registerMobileApp(settings: connectionSettings) }
+                } label: {
+                    Label("Register App", systemImage: "iphone.gen3")
+                }
+                .disabled(
+                    !connectionSettings.hasCredentials ||
+                    homeAssistantService.mobileAppRegistrationState.isRegistering
+                )
+            } header: {
+                Text("Native App")
+            } footer: {
+                Text("Registration uses Home Assistant's official mobile app API and stores the returned webhook ID in Keychain.")
+            }
+
 #if DEBUG
             Section {
                 LabeledContent("Preview WebSocket URL") {
@@ -131,6 +160,9 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .toolbarTitleDisplayMode(.inline)
+        .task(id: mobileAppRegistrationTaskID) {
+            homeAssistantService.refreshMobileAppRegistrationState(settings: connectionSettings)
+        }
     }
 
 #if DEBUG
@@ -182,6 +214,65 @@ struct SettingsView: View {
         case .idle:
             .secondary
         }
+    }
+
+    private var mobileAppRegistrationTitle: String {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .unregistered:
+            "Not Registered"
+        case .registering:
+            "Registering"
+        case .registered:
+            "Registered"
+        case .failed:
+            "Registration Error"
+        }
+    }
+
+    private var mobileAppRegistrationSystemImage: String {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .registered:
+            "checkmark.icloud.fill"
+        case .registering:
+            "arrow.triangle.2.circlepath"
+        case .failed:
+            "exclamationmark.triangle.fill"
+        case .unregistered:
+            "iphone.gen3"
+        }
+    }
+
+    private var mobileAppRegistrationTint: Color {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .registered:
+            .green
+        case .registering:
+            .orange
+        case .failed:
+            .red
+        case .unregistered:
+            .secondary
+        }
+    }
+
+    private var mobileAppRegistrationDetail: String? {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .registered(let summary):
+            "\(summary.deviceName) · Homestead \(summary.appVersion)"
+        case .failed(let message):
+            message
+        case .registering:
+            "Creating a Home Assistant mobile app registration."
+        case .unregistered:
+            nil
+        }
+    }
+
+    private var mobileAppRegistrationTaskID: String {
+        [
+            connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            connectionSettings.hasCredentials.description
+        ].joined(separator: "|")
     }
 
     private enum Field {

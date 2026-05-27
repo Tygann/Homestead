@@ -26,6 +26,7 @@ struct HomesteadApp: App {
         }
 
         Task { @MainActor in
+            homeAssistantService.refreshMobileAppRegistrationState(settings: connectionSettings)
             await homeAssistantService.loadCachedStatesIfPossible(settings: connectionSettings)
             await homeAssistantService.connectIfPossible(settings: connectionSettings)
         }

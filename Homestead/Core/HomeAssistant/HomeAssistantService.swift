@@ -11,9 +11,12 @@ final class HomeAssistantService {
     private(set) var serviceFeedback: HAServiceFeedback?
     private(set) var isLoadingCachedStates = false
     private(set) var hasCompletedInitialCacheLoad = false
+    private(set) var mobileAppRegistrationState: HAMobileAppRegistrationState = .unregistered
 
     @ObservationIgnored private let client: HAWebSocketClient
     @ObservationIgnored private let httpClient: HAHTTPClient
+    @ObservationIgnored private let mobileAppClient: any HAMobileAppClientProtocol
+    @ObservationIgnored private let mobileAppRegistrationStore: any HAMobileAppRegistrationStore
     @ObservationIgnored private let stateStore: HAStateStore
     @ObservationIgnored private let stateCache: HAStateCache
     @ObservationIgnored private let stateEventBatcher = HAStateEventBatcher()
@@ -34,13 +37,18 @@ final class HomeAssistantService {
         client: HAWebSocketClient = HAWebSocketClient(),
         stateCache: HAStateCache = HAStateCache(),
         connectionStatus: HAConnectionStatus = .disconnected,
-        httpClient: HAHTTPClient = HAHTTPClient()
+        httpClient: HAHTTPClient = HAHTTPClient(),
+        mobileAppClient: any HAMobileAppClientProtocol = HAMobileAppClient(),
+        mobileAppRegistrationStore: any HAMobileAppRegistrationStore = KeychainHAMobileAppRegistrationStore()
     ) {
         self.stateStore = stateStore
         self.client = client
         self.httpClient = httpClient
+        self.mobileAppClient = mobileAppClient
+        self.mobileAppRegistrationStore = mobileAppRegistrationStore
         self.stateCache = stateCache
         self.connectionStatus = connectionStatus
+        refreshMobileAppRegistrationState()
     }
 
     func connectIfPossible(settings: HAConnectionSettings) async {
@@ -96,6 +104,7 @@ final class HomeAssistantService {
         do {
             try await establishTransportConnection(configuration: configuration)
             activeConfiguration = configuration
+            refreshMobileAppRegistrationState(for: configuration)
             lastErrorMessage = nil
             connectionStatus = .connected
             dataFreshness = .refreshing
@@ -326,6 +335,99 @@ final class HomeAssistantService {
         return try await client.fetchCameraCapabilities(entityID: entityID)
     }
 
+    func refreshMobileAppRegistrationState(settings: HAConnectionSettings? = nil) {
+        do {
+            let registration = try mobileAppRegistrationStore.readRegistration()
+            guard let registration else {
+                mobileAppRegistrationState = .unregistered
+                return
+            }
+
+            if let settings, settings.hasCredentials {
+                let configuration = HAConnectionConfiguration(
+                    baseURLString: settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+                    accessToken: settings.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+
+                guard registration.serverIdentifier == configuration.dataSourceID else {
+                    mobileAppRegistrationState = .unregistered
+                    return
+                }
+            }
+
+            mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
+        } catch {
+            mobileAppRegistrationState = .failed(error.localizedDescription)
+        }
+    }
+
+    private func refreshMobileAppRegistrationState(for configuration: HAConnectionConfiguration) {
+        do {
+            guard let registration = try mobileAppRegistrationStore.readRegistration(),
+                  registration.serverIdentifier == configuration.dataSourceID else {
+                mobileAppRegistrationState = .unregistered
+                return
+            }
+
+            mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
+        } catch {
+            mobileAppRegistrationState = .failed(error.localizedDescription)
+        }
+    }
+
+    func registerMobileApp(settings: HAConnectionSettings) async {
+        guard settings.hasCredentials else {
+            mobileAppRegistrationState = .failed("Add Home Assistant credentials before registering Homestead.")
+            return
+        }
+
+        let configuration = HAConnectionConfiguration(
+            baseURLString: settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            accessToken: settings.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        mobileAppRegistrationState = .registering
+
+        do {
+            let request = HAMobileAppRegistrationRequestFactory.makeRequest()
+            let response = try await mobileAppClient.register(
+                configuration: configuration,
+                request: request
+            )
+            let registration = HAMobileAppRegistrationInfo(
+                serverIdentifier: configuration.dataSourceID,
+                request: request,
+                response: response
+            )
+            try mobileAppRegistrationStore.saveRegistration(registration)
+            mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
+            lastErrorMessage = nil
+            serviceFeedback = HAServiceFeedback(
+                title: "App registered",
+                message: "Homestead can use official Home Assistant mobile-app handoffs.",
+                style: .success
+            )
+        } catch {
+            mobileAppRegistrationState = .failed(error.localizedDescription)
+            lastErrorMessage = error.localizedDescription
+            serviceFeedback = HAServiceFeedback(
+                title: "Registration failed",
+                message: error.localizedDescription,
+                style: .failure
+            )
+        }
+    }
+
+    func prepareCameraStreamHandoff(entityID: String) async throws -> HACameraStreamHandoff {
+        let configuration = try cameraConfiguration(for: entityID)
+        let registration = try currentMobileAppRegistration(for: configuration)
+        let response = try await mobileAppClient.requestCameraStream(
+            configuration: configuration,
+            registration: registration,
+            entityID: entityID
+        )
+        return HACameraStreamHandoff(entityID: entityID, response: response)
+    }
+
     func toggleSwitch(entityID: String) async {
         await callToggleService(
             domain: "switch",
@@ -435,6 +537,15 @@ final class HomeAssistantService {
         }
 
         return configuration
+    }
+
+    private func currentMobileAppRegistration(for configuration: HAConnectionConfiguration) throws -> HAMobileAppRegistrationInfo {
+        guard let registration = try mobileAppRegistrationStore.readRegistration(),
+              registration.serverIdentifier == configuration.dataSourceID else {
+            throw HAWebSocketError.requestFailed("Register Homestead as a Home Assistant mobile app before starting a live camera stream.")
+        }
+
+        return registration
     }
 
     func setClimateHVACMode(entityID: String, hvacMode: String) async {
@@ -800,6 +911,7 @@ final class HomeAssistantService {
                 try await establishTransportConnection(configuration: configuration)
 
                 activeConfiguration = configuration
+                refreshMobileAppRegistrationState(for: configuration)
                 lastErrorMessage = nil
                 connectionStatus = .connected
                 reconnectTask = nil
