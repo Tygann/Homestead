@@ -13,6 +13,7 @@ final class HomeAssistantService {
     private(set) var hasCompletedInitialCacheLoad = false
 
     @ObservationIgnored private let client: HAWebSocketClient
+    @ObservationIgnored private let httpClient: HAHTTPClient
     @ObservationIgnored private let stateStore: HAStateStore
     @ObservationIgnored private let stateCache: HAStateCache
     @ObservationIgnored private let stateEventBatcher = HAStateEventBatcher()
@@ -32,10 +33,12 @@ final class HomeAssistantService {
         stateStore: HAStateStore,
         client: HAWebSocketClient = HAWebSocketClient(),
         stateCache: HAStateCache = HAStateCache(),
-        connectionStatus: HAConnectionStatus = .disconnected
+        connectionStatus: HAConnectionStatus = .disconnected,
+        httpClient: HAHTTPClient = HAHTTPClient()
     ) {
         self.stateStore = stateStore
         self.client = client
+        self.httpClient = httpClient
         self.stateCache = stateCache
         self.connectionStatus = connectionStatus
     }
@@ -306,6 +309,22 @@ final class HomeAssistantService {
             service: "return_to_base",
             entityID: entityID,
             successTitle: "Vacuum returning"
+        )
+    }
+
+    func fetchCameraSnapshot(entityID: String) async throws -> Data {
+        guard let configuration = activeConfiguration else {
+            throw HAWebSocketError.notConnected
+        }
+        guard let entity = stateStore.entity(for: entityID),
+              entity.domain == .camera,
+              entity.isAvailable else {
+            throw HAWebSocketError.requestFailed("Camera is unavailable.")
+        }
+
+        return try await httpClient.fetchCameraSnapshot(
+            configuration: configuration,
+            entityID: entityID
         )
     }
 

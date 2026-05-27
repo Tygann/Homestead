@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-27
 
+### Camera Snapshot Loading Foundation
+
+- Added an authenticated HTTP camera snapshot path through `HomeAssistantService`, keeping SwiftUI views away from Home Assistant transport details.
+- Camera details now attempt to load `/api/camera_proxy/{entity_id}` snapshots with a lightweight refresh control and graceful unavailable state.
+
 ### Media, Camera, And Vacuum Detail Flows
 
 - Added native dashboard detail sheets for media players, cameras, and vacuums on top of the domain presentation registry.

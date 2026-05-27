@@ -18,7 +18,7 @@ struct ContentView: View {
                 AreasView()
             }
             .tabItem {
-                Label("Areas", systemImage: "square.grid.3x3.fill")
+                Label("Areas", systemImage: "square.split.bottomrightquarter")
             }
 
             NavigationStack {

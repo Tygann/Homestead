@@ -14,6 +14,21 @@ struct HomesteadTests {
         #expect(hostOnlyURL.absoluteString == "ws://homeassistant.local:8123/api/websocket")
     }
 
+    @Test func cameraSnapshotEndpointUsesHTTPBasePathAndProxyRoute() throws {
+        let localURL = try HomeAssistantEndpointBuilder.cameraSnapshotURL(
+            from: "ws://homeassistant.local:8123",
+            entityID: "camera.driveway",
+            cacheBuster: "123"
+        )
+        #expect(localURL.absoluteString == "http://homeassistant.local:8123/api/camera_proxy/camera.driveway?t=123")
+
+        let nestedURL = try HomeAssistantEndpointBuilder.cameraSnapshotURL(
+            from: "https://example.com/ha",
+            entityID: "camera.front_door"
+        )
+        #expect(nestedURL.absoluteString == "https://example.com/ha/api/camera_proxy/camera.front_door")
+    }
+
     @Test func callServiceRequestEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.callService(
             id: 42,

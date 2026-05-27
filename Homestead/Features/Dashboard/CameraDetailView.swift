@@ -1,7 +1,12 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct CameraDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var snapshotPhase: SnapshotPhase = .idle
 
     let entityBox: HAEntityState
 
@@ -18,7 +23,7 @@ struct CameraDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                     statusCard
-                    previewPlaceholder
+                    snapshotPanel
                     contextDetails
                 }
                 .padding(AppSpacing.large)
@@ -32,10 +37,21 @@ struct CameraDetailView: View {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        Task { await loadSnapshot() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .disabled(!entity.isAvailable || snapshotPhase.isLoading)
+                }
             }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .task(id: entity.entityID) {
+            await loadSnapshot()
+        }
     }
 
     private var statusCard: some View {
@@ -74,28 +90,57 @@ struct CameraDetailView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
-    private var previewPlaceholder: some View {
+    private var snapshotPanel: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             Label("Preview", systemImage: "camera.viewfinder")
                 .font(.headline)
 
-            VStack(spacing: AppSpacing.medium) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.secondary)
-
-                Text("Snapshot unavailable")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: 172)
-            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+            snapshotContent
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 172)
+                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var snapshotContent: some View {
+        switch snapshotPhase {
+        case .idle, .loading:
+            ProgressView()
+                .controlSize(.large)
+        case .loaded(let data):
+            #if canImport(UIKit)
+            if let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, minHeight: 172)
+            } else {
+                unavailableSnapshotContent
+            }
+            #else
+            unavailableSnapshotContent
+            #endif
+        case .failed:
+            unavailableSnapshotContent
+        }
+    }
+
+    private var unavailableSnapshotContent: some View {
+        VStack(spacing: AppSpacing.medium) {
+            Image(systemName: "camera.fill")
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Text("Snapshot unavailable")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var contextDetails: some View {
@@ -129,6 +174,34 @@ struct CameraDetailView: View {
 
     private var statusBackground: Color {
         entity.isAvailable ? presentation.accentColor.opacity(0.12) : Color.red.opacity(0.12)
+    }
+
+    private func loadSnapshot() async {
+        guard entity.isAvailable else {
+            snapshotPhase = .failed
+            return
+        }
+
+        snapshotPhase = .loading
+        do {
+            snapshotPhase = .loaded(try await homeAssistantService.fetchCameraSnapshot(entityID: entity.entityID))
+        } catch {
+            snapshotPhase = .failed
+        }
+    }
+}
+
+private enum SnapshotPhase: Equatable {
+    case idle
+    case loading
+    case loaded(Data)
+    case failed
+
+    var isLoading: Bool {
+        if case .loading = self {
+            return true
+        }
+        return false
     }
 }
 
