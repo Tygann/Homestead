@@ -36,8 +36,6 @@ struct DashboardCardView: View {
                         ClimateDetailView(entityBox: selectedEntityBox)
                     case .toggle:
                         ToggleEntityDetailView(entityBox: selectedEntityBox)
-                    case .lock:
-                        ToggleEntityDetailView(entityBox: selectedEntityBox)
                     case .action:
                         ActionEntityDetailView(entityBox: selectedEntityBox)
                     case .entity:
@@ -53,38 +51,15 @@ struct DashboardCardView: View {
     private func primaryAction(for entityBox: HAEntityState) -> (() -> Void)? {
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
 
-        switch presentation.primaryAction {
-        case .toggleLight:
+        if let primaryAction = presentation.primaryAction {
             return {
-                Task { await homeAssistantService.toggleLight(entityID: entityBox.entityID) }
+                Task {
+                    await homeAssistantService.perform(primaryAction, entityID: entityBox.entityID)
+                }
             }
-        case .activateScene:
-            return {
-                Task { await homeAssistantService.activateScene(entityID: entityBox.entityID) }
-            }
-        case .runScript:
-            return {
-                Task { await homeAssistantService.runScript(entityID: entityBox.entityID) }
-            }
-        case .toggleCover:
-            return {
-                Task { await homeAssistantService.toggleCover(entityID: entityBox.entityID) }
-            }
-        case .toggleSwitch:
-            return {
-                Task { await homeAssistantService.toggleSwitch(entityID: entityBox.entityID) }
-            }
-        case .toggleFan:
-            return {
-                Task { await homeAssistantService.toggleFan(entityID: entityBox.entityID) }
-            }
-        case .toggleLock:
-            return {
-                Task { await homeAssistantService.toggleLock(entityID: entityBox.entityID) }
-            }
-        case nil:
-            return nil
         }
+
+        return nil
     }
 
     private func detailsAction(for entityBox: HAEntityState) -> (() -> Void)? {
@@ -106,8 +81,6 @@ struct DashboardCardView: View {
             .climate
         case .toggle:
             .toggle
-        case .lock:
-            .lock
         case .action:
             .action
         case .entity:
@@ -122,7 +95,6 @@ private struct DashboardCardDetail: Identifiable {
         case cover
         case climate
         case toggle
-        case lock
         case action
         case entity
     }
@@ -220,15 +192,6 @@ private struct DashboardEntityCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            if let headline = presentation.headline {
-                Text(headline)
-                    .font(.headline.weight(.bold).monospacedDigit())
-                    .foregroundStyle(presentation.headlineColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .frame(maxWidth: 86, alignment: .trailing)
-                    .accessibilityHidden(true)
-            }
         }
     }
 

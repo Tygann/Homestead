@@ -1,5 +1,15 @@
 import SwiftUI
 
+enum DashboardEntityCardStyle: String, Equatable, Sendable {
+    case control
+    case value
+    case action
+    case media
+    case camera
+    case status
+    case generic
+}
+
 enum DashboardEntityPrimaryAction: Equatable, Sendable {
     case toggleLight
     case toggleCover
@@ -8,6 +18,25 @@ enum DashboardEntityPrimaryAction: Equatable, Sendable {
     case toggleLock
     case activateScene
     case runScript
+
+    var serviceIntent: DashboardEntityServiceIntent {
+        switch self {
+        case .toggleLight:
+            .stateToggle(domain: "light", onService: "turn_on", offService: "turn_off")
+        case .toggleCover:
+            .coverToggle
+        case .toggleSwitch:
+            .stateToggle(domain: "switch", onService: "turn_on", offService: "turn_off")
+        case .toggleFan:
+            .stateToggle(domain: "fan", onService: "turn_on", offService: "turn_off")
+        case .toggleLock:
+            .lockToggle
+        case .activateScene:
+            .call(domain: "scene", service: "turn_on")
+        case .runScript:
+            .call(domain: "script", service: "turn_on")
+        }
+    }
 }
 
 enum DashboardEntityDetailKind: String, Equatable, Sendable {
@@ -15,12 +44,222 @@ enum DashboardEntityDetailKind: String, Equatable, Sendable {
     case cover
     case climate
     case toggle
-    case lock
     case action
     case entity
 }
 
+enum DashboardEntitySecondaryAction: String, Equatable, Sendable {
+    case setBrightness
+    case openCover
+    case closeCover
+    case stopCover
+    case setCoverPosition
+    case setClimateTemperature
+    case setClimateHVACMode
+    case playPause
+    case returnToBase
+    case startCleaning
+    case stopCleaning
+}
+
+enum DashboardEntityServiceIntent: Equatable, Sendable {
+    case stateToggle(domain: String, onService: String, offService: String)
+    case coverToggle
+    case lockToggle
+    case call(domain: String, service: String)
+}
+
+enum DashboardEntityStatusFormatter: Equatable, Sendable {
+    case light
+    case cover
+    case climate
+    case sensor
+    case binarySensor
+    case onOff(unavailableTitle: String)
+    case lock
+    case mediaPlayer
+    case camera
+    case vacuum
+    case action(kind: String, unavailableTitle: String)
+    case rawState
+}
+
+enum DashboardEntityIconAccentBehavior: Equatable, Sendable {
+    case activeAccent
+    case sensorKind
+    case climateMode
+    case lockState
+    case mediaState
+    case camera
+    case vacuumState
+    case actionAccent
+    case defaultAccent
+}
+
+struct DashboardEntityDomainCapability: Equatable, Sendable {
+    let domain: EntityDomain
+    let cardStyle: DashboardEntityCardStyle
+    let primaryAction: DashboardEntityPrimaryAction?
+    let detailKind: DashboardEntityDetailKind
+    let statusFormatter: DashboardEntityStatusFormatter
+    let iconAccentBehavior: DashboardEntityIconAccentBehavior
+    let secondaryActions: [DashboardEntitySecondaryAction]
+
+    var primaryServiceIntent: DashboardEntityServiceIntent? {
+        primaryAction?.serviceIntent
+    }
+}
+
+enum DashboardEntityDomainRegistry {
+    static func capability(for domain: EntityDomain) -> DashboardEntityDomainCapability {
+        switch domain {
+        case .light:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .control,
+                primaryAction: .toggleLight,
+                detailKind: .light,
+                statusFormatter: .light,
+                iconAccentBehavior: .activeAccent,
+                secondaryActions: [.setBrightness]
+            )
+        case .switch:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .control,
+                primaryAction: .toggleSwitch,
+                detailKind: .toggle,
+                statusFormatter: .onOff(unavailableTitle: "Switch unavailable"),
+                iconAccentBehavior: .activeAccent,
+                secondaryActions: []
+            )
+        case .fan:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .control,
+                primaryAction: .toggleFan,
+                detailKind: .toggle,
+                statusFormatter: .onOff(unavailableTitle: "Fan unavailable"),
+                iconAccentBehavior: .activeAccent,
+                secondaryActions: []
+            )
+        case .lock:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .control,
+                primaryAction: .toggleLock,
+                detailKind: .toggle,
+                statusFormatter: .lock,
+                iconAccentBehavior: .lockState,
+                secondaryActions: []
+            )
+        case .cover:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .control,
+                primaryAction: .toggleCover,
+                detailKind: .cover,
+                statusFormatter: .cover,
+                iconAccentBehavior: .activeAccent,
+                secondaryActions: [.openCover, .closeCover, .stopCover, .setCoverPosition]
+            )
+        case .climate:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .status,
+                primaryAction: nil,
+                detailKind: .climate,
+                statusFormatter: .climate,
+                iconAccentBehavior: .climateMode,
+                secondaryActions: [.setClimateTemperature, .setClimateHVACMode]
+            )
+        case .sensor:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .value,
+                primaryAction: nil,
+                detailKind: .entity,
+                statusFormatter: .sensor,
+                iconAccentBehavior: .sensorKind,
+                secondaryActions: []
+            )
+        case .binarySensor:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .status,
+                primaryAction: nil,
+                detailKind: .entity,
+                statusFormatter: .binarySensor,
+                iconAccentBehavior: .activeAccent,
+                secondaryActions: []
+            )
+        case .mediaPlayer:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .media,
+                primaryAction: nil,
+                detailKind: .entity,
+                statusFormatter: .mediaPlayer,
+                iconAccentBehavior: .mediaState,
+                secondaryActions: [.playPause]
+            )
+        case .camera:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .camera,
+                primaryAction: nil,
+                detailKind: .entity,
+                statusFormatter: .camera,
+                iconAccentBehavior: .camera,
+                secondaryActions: []
+            )
+        case .scene:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .action,
+                primaryAction: .activateScene,
+                detailKind: .action,
+                statusFormatter: .action(kind: "Scene", unavailableTitle: "Scene unavailable"),
+                iconAccentBehavior: .actionAccent,
+                secondaryActions: []
+            )
+        case .script:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .action,
+                primaryAction: .runScript,
+                detailKind: .action,
+                statusFormatter: .action(kind: "Script", unavailableTitle: "Script unavailable"),
+                iconAccentBehavior: .actionAccent,
+                secondaryActions: []
+            )
+        case .vacuum:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .status,
+                primaryAction: nil,
+                detailKind: .entity,
+                statusFormatter: .vacuum,
+                iconAccentBehavior: .vacuumState,
+                secondaryActions: [.startCleaning, .stopCleaning, .returnToBase]
+            )
+        case .other:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .generic,
+                primaryAction: nil,
+                detailKind: .entity,
+                statusFormatter: .rawState,
+                iconAccentBehavior: .defaultAccent,
+                secondaryActions: []
+            )
+        }
+    }
+}
+
 struct DashboardEntityPresentation {
+    let capability: DashboardEntityDomainCapability
+    let cardStyle: DashboardEntityCardStyle
     let title: String
     let subtitle: String
     let headline: String?
@@ -30,14 +269,21 @@ struct DashboardEntityPresentation {
     let accentColor: Color
     let isPending: Bool
     let primaryAction: DashboardEntityPrimaryAction?
+    let primaryServiceIntent: DashboardEntityServiceIntent?
     let detailKind: DashboardEntityDetailKind
+    let secondaryActions: [DashboardEntitySecondaryAction]
     let supportsFavorite: Bool
 
     init(entityBox: HAEntityState) {
         let pendingCommand = entityBox.pendingCommand
+        let capability = DashboardEntityDomainRegistry.capability(for: entityBox.domain)
+        self.capability = capability
+        cardStyle = capability.cardStyle
         isPending = pendingCommand != nil
-        primaryAction = Self.primaryAction(for: entityBox)
-        detailKind = Self.detailKind(for: entityBox)
+        primaryAction = entityBox.homeEntity.isAvailable ? capability.primaryAction : nil
+        primaryServiceIntent = entityBox.homeEntity.isAvailable ? capability.primaryServiceIntent : nil
+        detailKind = capability.detailKind
+        secondaryActions = capability.secondaryActions
         supportsFavorite = entityBox.domain != .other
 
         if let light = entityBox.lightEntity {
@@ -54,7 +300,7 @@ struct DashboardEntityPresentation {
             iconName = light.iconName
             isActive = effectiveIsOn
             isAvailable = true
-            accentColor = .accentColor
+            accentColor = Self.accentColor(for: effectiveIsOn, behavior: capability.iconAccentBehavior)
         } else if let sensor = entityBox.sensorEntity {
             title = sensor.displayName
             subtitle = sensor.displaySubtitle
@@ -62,7 +308,7 @@ struct DashboardEntityPresentation {
             iconName = sensor.iconName
             isActive = sensor.isAlerting
             isAvailable = sensor.isAvailable
-            accentColor = Self.sensorAccentColor(for: sensor)
+            accentColor = Self.sensorAccentColor(for: sensor, behavior: capability.iconAccentBehavior)
         } else if let cover = entityBox.coverEntity {
             title = cover.displayName
             subtitle = Self.coverSubtitle(cover, pendingCommand: pendingCommand)
@@ -70,7 +316,7 @@ struct DashboardEntityPresentation {
             iconName = entityBox.homeEntity.iconName
             isActive = cover.isOpen
             isAvailable = entityBox.homeEntity.isAvailable
-            accentColor = .accentColor
+            accentColor = Self.accentColor(for: cover.isOpen, behavior: capability.iconAccentBehavior)
         } else if let climate = entityBox.climateEntity {
             title = climate.displayName
             subtitle = Self.climateSubtitle(climate, pendingCommand: pendingCommand)
@@ -78,7 +324,7 @@ struct DashboardEntityPresentation {
             iconName = entityBox.homeEntity.iconName
             isActive = climate.isActive
             isAvailable = entityBox.homeEntity.isAvailable
-            accentColor = Self.climateAccentColor(for: climate)
+            accentColor = Self.climateAccentColor(for: climate, behavior: capability.iconAccentBehavior)
         } else {
             let entity = entityBox.homeEntity
             let effectiveEntity = pendingCommand.map {
@@ -93,12 +339,12 @@ struct DashboardEntityPresentation {
                 )
             } ?? entity
             title = entity.displayName
-            subtitle = pendingCommand == nil ? Self.subtitle(for: effectiveEntity) : Self.pendingSubtitle(for: effectiveEntity)
-            headline = Self.headline(for: effectiveEntity)
+            subtitle = pendingCommand == nil ? Self.subtitle(for: effectiveEntity, capability: capability) : Self.pendingSubtitle(for: effectiveEntity, capability: capability)
+            headline = Self.headline(for: effectiveEntity, capability: capability)
             iconName = effectiveEntity.iconName
-            isActive = Self.isActive(effectiveEntity)
+            isActive = Self.isActive(effectiveEntity, capability: capability)
             isAvailable = entity.isAvailable
-            accentColor = Self.accentColor(for: effectiveEntity)
+            accentColor = Self.accentColor(for: effectiveEntity, capability: capability)
         }
     }
 
@@ -114,56 +360,6 @@ struct DashboardEntityPresentation {
     var headlineColor: Color {
         guard isAvailable else { return .secondary }
         return accentColor
-    }
-
-    private static func primaryAction(for entityBox: HAEntityState) -> DashboardEntityPrimaryAction? {
-        guard entityBox.homeEntity.isAvailable else { return nil }
-
-        switch entityBox.domain {
-        case .light:
-            return .toggleLight
-        case .cover:
-            return .toggleCover
-        case .switch:
-            return .toggleSwitch
-        case .fan:
-            return .toggleFan
-        case .lock:
-            return .toggleLock
-        case .scene:
-            return .activateScene
-        case .script:
-            return .runScript
-        case .climate, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .other:
-            return nil
-        }
-    }
-
-    private static func detailKind(for entityBox: HAEntityState) -> DashboardEntityDetailKind {
-        if entityBox.lightEntity != nil {
-            return .light
-        }
-
-        if entityBox.coverEntity != nil {
-            return .cover
-        }
-
-        if entityBox.climateEntity != nil {
-            return .climate
-        }
-
-        switch entityBox.domain {
-        case .switch, .fan:
-            return .toggle
-        case .lock:
-            return .lock
-        case .scene, .script:
-            return .action
-        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .other:
-            break
-        }
-
-        return .entity
     }
 
     private static func lightSubtitle(
@@ -242,24 +438,23 @@ struct DashboardEntityPresentation {
         return climate.displaySubtitle
     }
 
-    private static func subtitle(for entity: HomeEntity) -> String {
-        switch entity.domain {
-        case .scene:
-            entity.isAvailable ? "Scene" : "Scene unavailable"
-        case .script:
+    private static func subtitle(
+        for entity: HomeEntity,
+        capability: DashboardEntityDomainCapability
+    ) -> String {
+        switch capability.statusFormatter {
+        case .action(let kind, let unavailableTitle):
             if !entity.isAvailable {
-                "Script unavailable"
-            } else if entity.state == "on" {
+                unavailableTitle
+            } else if entity.domain == .script, entity.state == "on" {
                 "Running"
             } else {
-                "Script"
+                kind
             }
         case .binarySensor:
             entity.isAvailable ? binarySensorSubtitle(for: entity) : "Sensor unavailable"
-        case .switch:
-            entity.isAvailable ? onOffSubtitle(for: entity, onTitle: "On", offTitle: "Off") : "Switch unavailable"
-        case .fan:
-            entity.isAvailable ? onOffSubtitle(for: entity, onTitle: "On", offTitle: "Off") : "Fan unavailable"
+        case .onOff(let unavailableTitle):
+            entity.isAvailable ? onOffSubtitle(for: entity, onTitle: "On", offTitle: "Off") : unavailableTitle
         case .lock:
             entity.isAvailable ? lockSubtitle(for: entity) : "Lock unavailable"
         case .mediaPlayer:
@@ -268,66 +463,86 @@ struct DashboardEntityPresentation {
             entity.isAvailable ? "Camera" : "Camera unavailable"
         case .vacuum:
             entity.isAvailable ? entity.state.replacingOccurrences(of: "_", with: " ").capitalized : "Vacuum unavailable"
-        case .light, .climate, .cover, .sensor, .other:
+        case .light, .cover, .climate, .sensor, .rawState:
             entity.state.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
 
-    private static func pendingSubtitle(for entity: HomeEntity) -> String {
-        switch entity.domain {
-        case .switch, .fan, .lock:
+    private static func pendingSubtitle(
+        for entity: HomeEntity,
+        capability: DashboardEntityDomainCapability
+    ) -> String {
+        switch capability.primaryAction {
+        case .toggleSwitch, .toggleFan, .toggleLock:
             "Updating..."
-        case .scene, .script, .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .other:
-            subtitle(for: entity)
+        case .toggleLight, .toggleCover, .activateScene, .runScript, nil:
+            subtitle(for: entity, capability: capability)
         }
     }
 
-    private static func headline(for entity: HomeEntity) -> String? {
-        switch entity.domain {
-        case .scene, .script:
+    private static func headline(
+        for entity: HomeEntity,
+        capability: DashboardEntityDomainCapability
+    ) -> String? {
+        switch capability.cardStyle {
+        case .action:
             entity.isAvailable ? "Run" : nil
-        case .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .binarySensor:
-            nil
-        case .light, .climate, .cover, .sensor, .other:
+        case .control, .value, .media, .camera, .status, .generic:
             nil
         }
     }
 
-    private static func isActive(_ entity: HomeEntity) -> Bool {
-        switch entity.domain {
-        case .script:
-            entity.state == "on"
-        case .scene:
-            false
-        case .lock:
-            entity.state == "unlocked" || entity.state == "unlocking"
-        case .mediaPlayer:
-            entity.state == "playing"
-        case .vacuum:
-            entity.state == "cleaning"
-        case .camera:
-            false
-        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .other:
-            entity.state == "on" || entity.state == "open"
+    private static func isActive(
+        _ entity: HomeEntity,
+        capability: DashboardEntityDomainCapability
+    ) -> Bool {
+        switch capability.iconAccentBehavior {
+        case .lockState:
+            return entity.state == "unlocked" || entity.state == "unlocking"
+        case .mediaState:
+            return entity.state == "playing"
+        case .vacuumState:
+            return entity.state == "cleaning"
+        case .camera, .actionAccent:
+            return entity.domain == .script && entity.state == "on"
+        case .activeAccent, .sensorKind, .climateMode, .defaultAccent:
+            return entity.state == "on" || entity.state == "open"
         }
     }
 
-    private static func accentColor(for entity: HomeEntity) -> Color {
-        switch entity.domain {
-        case .scene:
-            .purple
-        case .script:
-            .accentColor
-        case .lock:
+    private static func accentColor(
+        for entity: HomeEntity,
+        capability: DashboardEntityDomainCapability
+    ) -> Color {
+        switch capability.iconAccentBehavior {
+        case .actionAccent:
+            entity.domain == .scene ? .purple : .accentColor
+        case .lockState:
             entity.state == "unlocked" ? .orange : .accentColor
-        case .mediaPlayer:
-            entity.state == "playing" ? .green : .accentColor
+        case .mediaState, .vacuumState:
+            isActive(entity, capability: capability) ? .green : .accentColor
         case .camera:
             .blue
-        case .vacuum:
-            entity.state == "cleaning" ? .green : .accentColor
-        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .other:
+        case .activeAccent, .sensorKind, .climateMode, .defaultAccent:
             .accentColor
+        }
+    }
+
+    private static func accentColor(
+        for isActive: Bool,
+        behavior: DashboardEntityIconAccentBehavior
+    ) -> Color {
+        switch behavior {
+        case .mediaState, .vacuumState where isActive:
+            return .green
+        case .lockState where isActive:
+            return .orange
+        case .camera:
+            return .blue
+        case .actionAccent:
+            return .purple
+        case .activeAccent, .sensorKind, .climateMode, .defaultAccent, .mediaState, .vacuumState, .lockState:
+            return .accentColor
         }
     }
 
@@ -385,8 +600,12 @@ struct DashboardEntityPresentation {
         }
     }
 
-    private static func sensorAccentColor(for sensor: SensorEntity) -> Color {
+    private static func sensorAccentColor(
+        for sensor: SensorEntity,
+        behavior: DashboardEntityIconAccentBehavior
+    ) -> Color {
         guard sensor.isAvailable else { return .secondary }
+        guard behavior == .sensorKind else { return .accentColor }
         guard !sensor.isAlerting else { return .red }
 
         switch sensor.displayKind {
@@ -411,7 +630,12 @@ struct DashboardEntityPresentation {
         }
     }
 
-    private static func climateAccentColor(for climate: ClimateEntity) -> Color {
+    private static func climateAccentColor(
+        for climate: ClimateEntity,
+        behavior: DashboardEntityIconAccentBehavior
+    ) -> Color {
+        guard behavior == .climateMode else { return .accentColor }
+
         switch climate.state {
         case "heat":
             return .orange

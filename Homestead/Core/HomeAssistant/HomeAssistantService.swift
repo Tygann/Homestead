@@ -236,6 +236,25 @@ final class HomeAssistantService {
         }
     }
 
+    func perform(_ action: DashboardEntityPrimaryAction, entityID: String) async {
+        switch action {
+        case .toggleLight:
+            await toggleLight(entityID: entityID)
+        case .toggleCover:
+            await toggleCover(entityID: entityID)
+        case .toggleSwitch:
+            await toggleSwitch(entityID: entityID)
+        case .toggleFan:
+            await toggleFan(entityID: entityID)
+        case .toggleLock:
+            await toggleLock(entityID: entityID)
+        case .activateScene:
+            await activateScene(entityID: entityID)
+        case .runScript:
+            await runScript(entityID: entityID)
+        }
+    }
+
     func activateScene(entityID: String) async {
         await callService(
             domain: "scene",

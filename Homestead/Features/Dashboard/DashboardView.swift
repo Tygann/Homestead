@@ -19,8 +19,8 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                 if !connectionSettings.hasCredentials {
                     DashboardSetupCard()
-                } else {
-                    dashboardStatusRow
+                } else if shouldShowDashboardStatusBanner {
+                    dashboardStatusBanner
                 }
 
                 if !connectionSettings.hasCredentials {
@@ -274,29 +274,34 @@ struct DashboardView: View {
         return homeAssistantService.connectionStatus.systemImage
     }
 
-    private var dashboardStatusRow: some View {
-        HStack(spacing: AppSpacing.small) {
-            DashboardStatusPill(
-                text: statusText,
-                systemImage: statusSystemImage,
-                tint: isConnectionInterrupted ? .orange : .secondary
-            )
-
-            if isConnectionInterrupted {
-                Button {
-                    Task {
-                        await refreshOrReconnect()
-                    }
-                } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.subheadline.weight(.bold))
-                        .frame(width: 34, height: 34)
-                        .background(Color(.secondarySystemGroupedBackground), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Refresh Home Assistant")
+    private var dashboardStatusBanner: some View {
+        Button {
+            Task {
+                await refreshOrReconnect()
             }
+        } label: {
+            HStack(spacing: AppSpacing.small) {
+                Label(statusText, systemImage: statusSystemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.orange)
+                    .lineLimit(1)
+
+                Spacer(minLength: AppSpacing.small)
+
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color.orange)
+            }
+            .padding(.horizontal, AppSpacing.medium)
+            .frame(height: 36)
+            .background(Color.orange.opacity(0.12), in: Capsule())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Refresh Home Assistant")
+    }
+
+    private var shouldShowDashboardStatusBanner: Bool {
+        isConnectionInterrupted
     }
 
     private var isConnectionInterrupted: Bool {
@@ -447,16 +452,19 @@ struct DashboardView: View {
     private var optionsMenu: some View {
         Menu {
             Section {
-                // Status row
-                Label(homeAssistantService.connectionStatus.title,
-                      systemImage: homeAssistantService.connectionStatus.systemImage)
+                Label(statusText, systemImage: statusSystemImage)
                 
-                // Only show "Reconnect" when not connected and credentials exist
                 if connectionSettings.hasCredentials && homeAssistantService.connectionStatus != .connected {
                     Button {
                         Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
                     } label: {
                         Label("Reconnect", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                } else if connectionSettings.hasCredentials {
+                    Button {
+                        Task { await homeAssistantService.refreshStates() }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
                     }
                 }
             }
@@ -735,22 +743,6 @@ private struct DashboardHeaderCardView: View {
                 .accessibilityLabel("Remove \(title)")
             }
         }
-    }
-}
-
-private struct DashboardStatusPill: View {
-    let text: String
-    let systemImage: String
-    var tint: Color = .secondary
-
-    var body: some View {
-        Label(text, systemImage: systemImage)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(tint)
-            .padding(.horizontal, AppSpacing.medium)
-            .frame(height: 34)
-            .background(Color(.secondarySystemGroupedBackground), in: Capsule())
-            .accessibilityElement(children: .combine)
     }
 }
 

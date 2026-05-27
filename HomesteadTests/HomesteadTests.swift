@@ -1070,14 +1070,25 @@ struct HomesteadTests {
         )
 
         #expect(lightPresentation.primaryAction == .toggleLight)
+        #expect(lightPresentation.primaryServiceIntent == .stateToggle(domain: "light", onService: "turn_on", offService: "turn_off"))
+        #expect(lightPresentation.cardStyle == .control)
+        #expect(lightPresentation.secondaryActions == [.setBrightness])
         #expect(lightPresentation.detailKind == .light)
         #expect(coverPresentation.primaryAction == .toggleCover)
+        #expect(coverPresentation.primaryServiceIntent == .coverToggle)
+        #expect(coverPresentation.secondaryActions == [.openCover, .closeCover, .stopCover, .setCoverPosition])
         #expect(coverPresentation.detailKind == .cover)
         #expect(scenePresentation.primaryAction == .activateScene)
+        #expect(scenePresentation.primaryServiceIntent == .call(domain: "scene", service: "turn_on"))
+        #expect(scenePresentation.cardStyle == .action)
         #expect(scenePresentation.detailKind == .action)
         #expect(scriptPresentation.primaryAction == .runScript)
+        #expect(scriptPresentation.primaryServiceIntent == .call(domain: "script", service: "turn_on"))
+        #expect(scriptPresentation.cardStyle == .action)
         #expect(scriptPresentation.detailKind == .action)
         #expect(sensorPresentation.primaryAction == nil)
+        #expect(sensorPresentation.primaryServiceIntent == nil)
+        #expect(sensorPresentation.cardStyle == .value)
         #expect(sensorPresentation.detailKind == .entity)
     }
 
@@ -1107,12 +1118,79 @@ struct HomesteadTests {
         #expect(fanPresentation.detailKind == .toggle)
         #expect(fanPresentation.isActive == false)
         #expect(lockPresentation.primaryAction == .toggleLock)
-        #expect(lockPresentation.detailKind == .lock)
+        #expect(lockPresentation.primaryServiceIntent == .lockToggle)
+        #expect(lockPresentation.detailKind == .toggle)
         #expect(lockPresentation.subtitle == "Locked")
         #expect(mediaPresentation.primaryAction == nil)
+        #expect(mediaPresentation.cardStyle == .media)
+        #expect(mediaPresentation.secondaryActions == [.playPause])
         #expect(mediaPresentation.isActive == true)
         #expect(cameraPresentation.primaryAction == nil)
+        #expect(cameraPresentation.cardStyle == .camera)
         #expect(binarySensorPresentation.subtitle == "Detected")
+        #expect(binarySensorPresentation.primaryAction == nil)
+        #expect(binarySensorPresentation.detailKind == .entity)
+    }
+
+    @MainActor
+    @Test func entityDomainRegistryDefinesCommonDomainPresentationCapabilities() throws {
+        let expected: [EntityDomain: (
+            DashboardEntityCardStyle,
+            DashboardEntityPrimaryAction?,
+            DashboardEntityDetailKind
+        )] = [
+            .light: (.control, .toggleLight, .light),
+            .switch: (.control, .toggleSwitch, .toggle),
+            .fan: (.control, .toggleFan, .toggle),
+            .lock: (.control, .toggleLock, .toggle),
+            .cover: (.control, .toggleCover, .cover),
+            .climate: (.status, nil, .climate),
+            .sensor: (.value, nil, .entity),
+            .binarySensor: (.status, nil, .entity),
+            .mediaPlayer: (.media, nil, .entity),
+            .camera: (.camera, nil, .entity),
+            .scene: (.action, .activateScene, .action),
+            .script: (.action, .runScript, .action),
+            .vacuum: (.status, nil, .entity),
+            .other: (.generic, nil, .entity)
+        ]
+
+        for domain in EntityDomain.allCases {
+            let capability = DashboardEntityDomainRegistry.capability(for: domain)
+            let expectation = try #require(expected[domain])
+
+            #expect(capability.domain == domain)
+            #expect(capability.cardStyle == expectation.0)
+            #expect(capability.primaryAction == expectation.1)
+            #expect(capability.detailKind == expectation.2)
+            #expect(capability.primaryServiceIntent == expectation.1?.serviceIntent)
+        }
+    }
+
+    @MainActor
+    @Test func mediaCameraAndVacuumHaveStructuralPresentationWithoutUnsafePrimaryActions() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "media_player.living_room", state: "playing"),
+            HAEntityDTO(entityID: "camera.driveway", state: "idle"),
+            HAEntityDTO(entityID: "vacuum.downstairs", state: "cleaning")
+        ])
+
+        let media = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "media_player.living_room")))
+        let camera = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "camera.driveway")))
+        let vacuum = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "vacuum.downstairs")))
+
+        #expect(media.primaryAction == nil)
+        #expect(media.detailKind == .entity)
+        #expect(media.cardStyle == .media)
+        #expect(media.isActive == true)
+        #expect(camera.primaryAction == nil)
+        #expect(camera.detailKind == .entity)
+        #expect(camera.cardStyle == .camera)
+        #expect(vacuum.primaryAction == nil)
+        #expect(vacuum.detailKind == .entity)
+        #expect(vacuum.cardStyle == .status)
+        #expect(vacuum.secondaryActions == [.startCleaning, .stopCleaning, .returnToBase])
     }
 
     private var dashboardTestEntities: [HomeEntity] {

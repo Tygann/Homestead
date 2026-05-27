@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-05-27
+
+### Entity Domain Presentation Registry
+
+- Added a central dashboard domain capability registry for common Home Assistant domains, covering card style, primary action, detail routing, status formatting, accent behavior, secondary actions, and service intent metadata.
+- Kept dashboard cards per-entity observed while moving domain-specific presentation policy out of card routing.
+- Added regression coverage for action, toggle, read-only, media, camera, vacuum, and fallback domain presentation behavior.
+
 ## 2026-05-26
 
 ### Area Detail And Toggle Controls
