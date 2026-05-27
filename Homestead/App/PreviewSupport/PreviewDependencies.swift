@@ -155,6 +155,39 @@ private enum PreviewData {
             lastUpdated: .now
         ),
         HAEntityDTO(
+            entityID: "binary_sensor.front_door",
+            state: "on",
+            attributes: [
+                "friendly_name": .string("Front Door"),
+                "device_class": .string("door")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "media_player.living_room",
+            state: "playing",
+            attributes: [
+                "friendly_name": .string("Living Room TV")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "camera.driveway",
+            state: "idle",
+            attributes: [
+                "friendly_name": .string("Driveway")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "vacuum.downstairs",
+            state: "docked",
+            attributes: [
+                "friendly_name": .string("Downstairs Vacuum")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
             entityID: "cover.primary_shades",
             state: "open",
             attributes: [

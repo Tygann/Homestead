@@ -273,6 +273,42 @@ final class HomeAssistantService {
         )
     }
 
+    func playPauseMedia(entityID: String) async {
+        await callService(
+            domain: "media_player",
+            service: "media_play_pause",
+            entityID: entityID,
+            successTitle: "Media updated"
+        )
+    }
+
+    func startVacuum(entityID: String) async {
+        await callService(
+            domain: "vacuum",
+            service: "start",
+            entityID: entityID,
+            successTitle: "Vacuum started"
+        )
+    }
+
+    func stopVacuum(entityID: String) async {
+        await callService(
+            domain: "vacuum",
+            service: "stop",
+            entityID: entityID,
+            successTitle: "Vacuum stopped"
+        )
+    }
+
+    func returnVacuumToBase(entityID: String) async {
+        await callService(
+            domain: "vacuum",
+            service: "return_to_base",
+            entityID: entityID,
+            successTitle: "Vacuum returning"
+        )
+    }
+
     func toggleSwitch(entityID: String) async {
         await callToggleService(
             domain: "switch",

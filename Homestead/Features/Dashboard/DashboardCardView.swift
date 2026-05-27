@@ -38,6 +38,14 @@ struct DashboardCardView: View {
                         ToggleEntityDetailView(entityBox: selectedEntityBox)
                     case .action:
                         ActionEntityDetailView(entityBox: selectedEntityBox)
+                    case .sensor:
+                        SensorDetailView(entityBox: selectedEntityBox)
+                    case .mediaPlayer:
+                        MediaPlayerDetailView(entityBox: selectedEntityBox)
+                    case .camera:
+                        CameraDetailView(entityBox: selectedEntityBox)
+                    case .vacuum:
+                        VacuumDetailView(entityBox: selectedEntityBox)
                     case .entity:
                         EntityDetailView(entityBox: selectedEntityBox)
                     }
@@ -83,6 +91,14 @@ struct DashboardCardView: View {
             .toggle
         case .action:
             .action
+        case .sensor:
+            .sensor
+        case .mediaPlayer:
+            .mediaPlayer
+        case .camera:
+            .camera
+        case .vacuum:
+            .vacuum
         case .entity:
             .entity
         }
@@ -96,6 +112,10 @@ private struct DashboardCardDetail: Identifiable {
         case climate
         case toggle
         case action
+        case sensor
+        case mediaPlayer
+        case camera
+        case vacuum
         case entity
     }
 

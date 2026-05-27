@@ -45,6 +45,10 @@ enum DashboardEntityDetailKind: String, Equatable, Sendable {
     case climate
     case toggle
     case action
+    case sensor
+    case mediaPlayer
+    case camera
+    case vacuum
     case entity
 }
 
@@ -178,7 +182,7 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .value,
                 primaryAction: nil,
-                detailKind: .entity,
+                detailKind: .sensor,
                 statusFormatter: .sensor,
                 iconAccentBehavior: .sensorKind,
                 secondaryActions: []
@@ -188,7 +192,7 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .status,
                 primaryAction: nil,
-                detailKind: .entity,
+                detailKind: .sensor,
                 statusFormatter: .binarySensor,
                 iconAccentBehavior: .activeAccent,
                 secondaryActions: []
@@ -198,7 +202,7 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .media,
                 primaryAction: nil,
-                detailKind: .entity,
+                detailKind: .mediaPlayer,
                 statusFormatter: .mediaPlayer,
                 iconAccentBehavior: .mediaState,
                 secondaryActions: [.playPause]
@@ -208,7 +212,7 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .camera,
                 primaryAction: nil,
-                detailKind: .entity,
+                detailKind: .camera,
                 statusFormatter: .camera,
                 iconAccentBehavior: .camera,
                 secondaryActions: []
@@ -238,7 +242,7 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .status,
                 primaryAction: nil,
-                detailKind: .entity,
+                detailKind: .vacuum,
                 statusFormatter: .vacuum,
                 iconAccentBehavior: .vacuumState,
                 secondaryActions: [.startCleaning, .stopCleaning, .returnToBase]
@@ -533,7 +537,9 @@ struct DashboardEntityPresentation {
         behavior: DashboardEntityIconAccentBehavior
     ) -> Color {
         switch behavior {
-        case .mediaState, .vacuumState where isActive:
+        case .mediaState where isActive:
+            return .green
+        case .vacuumState where isActive:
             return .green
         case .lockState where isActive:
             return .orange

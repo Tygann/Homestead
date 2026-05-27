@@ -1089,7 +1089,7 @@ struct HomesteadTests {
         #expect(sensorPresentation.primaryAction == nil)
         #expect(sensorPresentation.primaryServiceIntent == nil)
         #expect(sensorPresentation.cardStyle == .value)
-        #expect(sensorPresentation.detailKind == .entity)
+        #expect(sensorPresentation.detailKind == .sensor)
     }
 
     @MainActor
@@ -1129,7 +1129,7 @@ struct HomesteadTests {
         #expect(cameraPresentation.cardStyle == .camera)
         #expect(binarySensorPresentation.subtitle == "Detected")
         #expect(binarySensorPresentation.primaryAction == nil)
-        #expect(binarySensorPresentation.detailKind == .entity)
+        #expect(binarySensorPresentation.detailKind == .sensor)
     }
 
     @MainActor
@@ -1145,13 +1145,13 @@ struct HomesteadTests {
             .lock: (.control, .toggleLock, .toggle),
             .cover: (.control, .toggleCover, .cover),
             .climate: (.status, nil, .climate),
-            .sensor: (.value, nil, .entity),
-            .binarySensor: (.status, nil, .entity),
-            .mediaPlayer: (.media, nil, .entity),
-            .camera: (.camera, nil, .entity),
+            .sensor: (.value, nil, .sensor),
+            .binarySensor: (.status, nil, .sensor),
+            .mediaPlayer: (.media, nil, .mediaPlayer),
+            .camera: (.camera, nil, .camera),
             .scene: (.action, .activateScene, .action),
             .script: (.action, .runScript, .action),
-            .vacuum: (.status, nil, .entity),
+            .vacuum: (.status, nil, .vacuum),
             .other: (.generic, nil, .entity)
         ]
 
@@ -1181,14 +1181,14 @@ struct HomesteadTests {
         let vacuum = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "vacuum.downstairs")))
 
         #expect(media.primaryAction == nil)
-        #expect(media.detailKind == .entity)
+        #expect(media.detailKind == .mediaPlayer)
         #expect(media.cardStyle == .media)
         #expect(media.isActive == true)
         #expect(camera.primaryAction == nil)
-        #expect(camera.detailKind == .entity)
+        #expect(camera.detailKind == .camera)
         #expect(camera.cardStyle == .camera)
         #expect(vacuum.primaryAction == nil)
-        #expect(vacuum.detailKind == .entity)
+        #expect(vacuum.detailKind == .vacuum)
         #expect(vacuum.cardStyle == .status)
         #expect(vacuum.secondaryActions == [.startCleaning, .stopCleaning, .returnToBase])
     }

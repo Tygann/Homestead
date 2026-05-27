@@ -4,6 +4,16 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-27
 
+### Media, Camera, And Vacuum Detail Flows
+
+- Added native dashboard detail sheets for media players, cameras, and vacuums on top of the domain presentation registry.
+- Added focused service actions for media play/pause and vacuum start, stop, and return-to-base while leaving cameras read-only until authenticated image loading is designed.
+
+### Sensor Detail Flow
+
+- Added native read-only dashboard detail sheets for sensors and binary sensors, preserving the generic raw entity detail for Devices.
+- Routed sensor-style domains through the domain presentation registry and added preview sample data for binary sensors.
+
 ### Entity Domain Presentation Registry
 
 - Added a central dashboard domain capability registry for common Home Assistant domains, covering card style, primary action, detail routing, status formatting, accent behavior, secondary actions, and service intent metadata.
