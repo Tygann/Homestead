@@ -16,6 +16,7 @@ enum DashboardEntityDetailKind: String, Equatable, Sendable {
     case climate
     case toggle
     case lock
+    case action
     case entity
 }
 
@@ -156,7 +157,9 @@ struct DashboardEntityPresentation {
             return .toggle
         case .lock:
             return .lock
-        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+        case .scene, .script:
+            return .action
+        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .other:
             break
         }
 

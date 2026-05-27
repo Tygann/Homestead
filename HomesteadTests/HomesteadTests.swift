@@ -1049,6 +1049,7 @@ struct HomesteadTests {
             HAEntityDTO(entityID: "light.kitchen", state: "on"),
             HAEntityDTO(entityID: "cover.shades", state: "open"),
             HAEntityDTO(entityID: "scene.movie_night", state: "scening"),
+            HAEntityDTO(entityID: "script.good_morning", state: "off"),
             HAEntityDTO(entityID: "sensor.temperature", state: "72")
         ])
 
@@ -1064,13 +1065,18 @@ struct HomesteadTests {
         let sensorPresentation = DashboardEntityPresentation(
             entityBox: try #require(store.entityBox(for: "sensor.temperature"))
         )
+        let scriptPresentation = DashboardEntityPresentation(
+            entityBox: try #require(store.entityBox(for: "script.good_morning"))
+        )
 
         #expect(lightPresentation.primaryAction == .toggleLight)
         #expect(lightPresentation.detailKind == .light)
         #expect(coverPresentation.primaryAction == .toggleCover)
         #expect(coverPresentation.detailKind == .cover)
         #expect(scenePresentation.primaryAction == .activateScene)
-        #expect(scenePresentation.detailKind == .entity)
+        #expect(scenePresentation.detailKind == .action)
+        #expect(scriptPresentation.primaryAction == .runScript)
+        #expect(scriptPresentation.detailKind == .action)
         #expect(sensorPresentation.primaryAction == nil)
         #expect(sensorPresentation.detailKind == .entity)
     }
