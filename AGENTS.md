@@ -6,7 +6,7 @@ This file is durable context for coding agents working on Homestead. Keep it sho
 
 Homestead is a native SwiftUI iOS frontend for Home Assistant. Home Assistant owns backend logic, integrations, devices, entities, automations, scenes, scripts, and service execution. Homestead should stay a focused native UI.
 
-The app is WebSocket-first. Do not add a REST layer unless a specific Home Assistant feature clearly requires it.
+Use Home Assistant's expected API shape whenever possible. The app is WebSocket-first for core state, events, registries, and service calls. Do not add REST, mobile-app/webhook, or custom URL paths unless a specific Home Assistant feature is officially exposed that way.
 
 ## Important Architecture
 
@@ -17,6 +17,7 @@ The app is WebSocket-first. Do not add a REST layer unless a specific Home Assis
 - `EntityMapper` converts Home Assistant DTOs into domain models.
 - Dashboard cards should observe per-entity state through `HAEntityState` where possible to avoid broad store invalidation.
 - Live Home Assistant updates are batched before touching SwiftUI state. Preserve that unless profiling proves it is unnecessary.
+- Use documented Home Assistant APIs in their intended roles: WebSocket for the main data/control plane, HTTP for documented media or auth surfaces, and native-app/mobile-app registration only for companion-app capabilities that require it.
 
 ## UI Direction
 

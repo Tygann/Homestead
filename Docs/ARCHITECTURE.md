@@ -2,9 +2,15 @@
 
 Homestead is a native SwiftUI frontend for Home Assistant. Home Assistant remains the system of record for integrations, devices, entities, automations, scenes, scripts, and service execution.
 
-## WebSocket-first API
+## Home Assistant API Shape
 
-The initial API layer is Home Assistant's WebSocket API only. `HAWebSocketClient` owns the persistent socket, authentication, typed outbound messages, inbound result routing, initial `get_states` snapshots, `state_changed` subscriptions, and `call_service` requests.
+Homestead should follow Home Assistant's intended API shape instead of reverse-engineering frontend URLs or adding workaround transports. The main app data/control plane is Home Assistant's WebSocket API. `HAWebSocketClient` owns the persistent socket, authentication, typed outbound messages, inbound result routing, initial `get_states` snapshots, `state_changed` subscriptions, registry requests, and `call_service` requests.
+
+Use HTTP only for Home Assistant features that are documented as HTTP surfaces, such as authentication/token exchange, camera snapshots, media downloads, or signed media paths. Use native-app/mobile-app registration only for companion-app capabilities that require it, such as official mobile app webhooks, app/device identity, notifications, app-provided sensors, or camera stream handoff.
+
+When adding a Home Assistant feature, first identify the official API family for that feature and keep the integration in the matching layer. Prefer small typed clients and DTOs in `Core/HomeAssistant`, with SwiftUI consuming app-facing models or `HomeAssistantService` intents.
+
+## WebSocket-first API
 
 `HomeAssistantService` owns connection status, reconnect behavior, and UI-facing Home Assistant actions. When the socket drops unexpectedly, it retries with a small backoff sequence, fetches a fresh state snapshot, and resubscribes to `state_changed` events. TODO: add app lifecycle and network reachability awareness before shipping.
 
