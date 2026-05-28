@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Settings View
 struct SettingsView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
@@ -61,6 +62,7 @@ struct SettingsView: View {
     }
 }
 
+// MARK: - Home Assistant Settings View
 struct HomeAssistantSettingsView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
@@ -72,7 +74,8 @@ struct HomeAssistantSettingsView: View {
         Form {
             Section {
                 HStack(spacing: 12) {
-                    HomeAssistantAvatarView(size: 42, tint: statusTint)
+//                    HomeAssistantAvatarView(size: 42, tint: statusTint)
+                    HomeAssistantAvatarView()
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text(accountTitle)
@@ -126,9 +129,10 @@ struct HomeAssistantSettingsView: View {
                                 await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
                             }
                         } label: {
-                            Label(signInButtonTitle, systemImage: "person.crop.circle.badge.checkmark")
+                            Label(signInButtonTitle, systemImage: "")
                         }
                         .disabled(!connectionSettings.hasServerURL || homeAssistantService.authState == .signingIn)
+                        .frame(maxWidth: .infinity)
                     }
 
                     if canRetryConnection {
@@ -140,13 +144,14 @@ struct HomeAssistantSettingsView: View {
                                 )
                             }
                         } label: {
-                            Label("Retry Connection", systemImage: "arrow.clockwise")
+                            Label("Retry Connection", systemImage: "")
                         }
                         .disabled(homeAssistantService.connectionStatus == .connecting ||
                                   homeAssistantService.connectionStatus == .reconnecting)
+                        .frame(maxWidth: .infinity)
                     }
-                } header: {
-                    Text("Account")
+//                } header: {
+//                    Text("Account")
                 }
             }
 
@@ -156,11 +161,12 @@ struct HomeAssistantSettingsView: View {
                         focusedField = nil
                         Task { await homeAssistantService.signOut() }
                     } label: {
-                        Label("Sign Out", systemImage: "person.crop.circle.badge.xmark")
+                        Label("Sign Out", systemImage: "")
                     }
                     .disabled(!canSignOut)
-                } header: {
-                    Text("Session")
+                    .frame(maxWidth: .infinity)
+//                } header: {
+//                    Text("Session")
                 }
             }
         }
@@ -261,6 +267,7 @@ struct HomeAssistantSettingsView: View {
     }
 }
 
+// MARK: - Home Assistant Settings Row
 private struct HomeAssistantSettingsRow: View {
     let title: String
     let server: String
@@ -268,8 +275,35 @@ private struct HomeAssistantSettingsRow: View {
     let tint: Color
 
     var body: some View {
+        HStack(spacing: 15) {
+            HomeAssistantAvatarView()
+            
+            VStack(alignment: .leading) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                
+                Text(server)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+//                    .lineLimit(1)
+            }
+            .fontDesign(.rounded)
+            .lineLimit(1)
+        }
+    }
+}
+
+private struct HomeAssistantSettingsRow_Backup: View {
+    let title: String
+    let server: String
+    let status: String
+    let tint: Color
+
+    var body: some View {
         HStack(spacing: 12) {
-            HomeAssistantAvatarView(size: 32, tint: tint)
+//            HomeAssistantAvatarView(size: 32, tint: tint)
+            HomeAssistantAvatarView()
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -290,13 +324,14 @@ private struct HomeAssistantSettingsRow: View {
     }
 }
 
+// MARK: - Home Assistant Avatar View
 private struct HomeAssistantAvatarView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var image: Image?
 
-    let size: CGFloat
-    let tint: Color
+//    let size: CGFloat
+//    let tint: Color
 
     var body: some View {
         Group {
@@ -305,14 +340,16 @@ private struct HomeAssistantAvatarView: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Image(systemName: "house.and.flag.fill")
-                    .font(.system(size: size * 0.48, weight: .semibold))
-                    .foregroundStyle(tint)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Image(systemName: "person.crop.circle.fill")
+//                    .font(.system(size: size * 0.48, weight: .semibold))
+//                    .foregroundStyle(tint)
+                    .resizable()
+                    .foregroundColor(.gray)
             }
         }
-        .frame(width: size, height: size)
-        .background(.quaternary, in: Circle())
+        .frame(width: 60, height: 60)
+//        .frame(width: size, height: size)
+//        .background(.quaternary, in: Circle())
         .clipShape(Circle())
         .task(id: taskID) {
             await loadImage()
@@ -348,6 +385,7 @@ private struct HomeAssistantAvatarView: View {
     }
 }
 
+// MARK: - Settings Home Assistant Status
 private enum SettingsHomeAssistantStatus {
     static func serverDisplayText(_ baseURL: String) -> String {
         let trimmedURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
