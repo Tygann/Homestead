@@ -75,6 +75,14 @@ final class HomeAssistantService {
         await connect(baseURLString: settings.baseURL)
     }
 
+    func refreshOrReconnect(settings: HAConnectionSettings) async {
+        if connectionStatus == .connected {
+            await refreshStates()
+        } else {
+            await connectIfPossible(settings: settings)
+        }
+    }
+
     func loadCachedStatesIfPossible(settings: HAConnectionSettings) async {
         let configuration: HAConnectionConfiguration?
         do {

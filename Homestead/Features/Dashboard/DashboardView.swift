@@ -18,8 +18,6 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                 if !hasHomeAssistantSession {
                     DashboardSetupCard()
-                } else if shouldShowDashboardStatusBanner {
-                    dashboardStatusBanner
                 }
 
                 if !hasHomeAssistantSession {
@@ -274,52 +272,6 @@ struct DashboardView: View {
         }
 
         return homeAssistantService.connectionStatus.systemImage
-    }
-
-    private var dashboardStatusBanner: some View {
-        Button {
-            Task {
-                await refreshOrReconnect()
-            }
-        } label: {
-            HStack(spacing: AppSpacing.small) {
-                Label(statusText, systemImage: statusSystemImage)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.orange)
-                    .lineLimit(1)
-
-                Spacer(minLength: AppSpacing.small)
-
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(Color.orange)
-            }
-            .padding(.horizontal, AppSpacing.medium)
-            .frame(height: 36)
-            .background(Color.orange.opacity(0.12), in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Refresh Home Assistant")
-    }
-
-    private var shouldShowDashboardStatusBanner: Bool {
-        isConnectionInterrupted
-    }
-
-    private var isConnectionInterrupted: Bool {
-        if case .stale = homeAssistantService.dataFreshness {
-            return true
-        }
-
-        return false
-    }
-
-    private func refreshOrReconnect() async {
-        if homeAssistantService.connectionStatus == .connected {
-            await homeAssistantService.refreshStates()
-        } else {
-            await homeAssistantService.connectIfPossible(settings: connectionSettings)
-        }
     }
 
     private var configuredDashboardSection: some View {

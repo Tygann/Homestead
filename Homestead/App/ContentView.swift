@@ -6,6 +6,13 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
+        let chrome = AppChromePresentation.make(
+            hasServerURL: connectionSettings.hasServerURL,
+            authState: homeAssistantService.authState,
+            connectionStatus: homeAssistantService.connectionStatus,
+            dataFreshness: homeAssistantService.dataFreshness
+        )
+
         TabView {
             NavigationStack {
                 DashboardView()
@@ -51,7 +58,7 @@ struct ContentView: View {
             if let feedback = homeAssistantService.serviceFeedback {
                 ServiceFeedbackBanner(feedback: feedback)
                     .padding(.horizontal, AppSpacing.large)
-                    .padding(.bottom, AppSpacing.xxLarge + AppSpacing.large)
+                    .padding(.bottom, chrome.serviceFeedbackBottomPadding)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .task(id: feedback.id) {
                         try? await Task.sleep(for: .seconds(3))
@@ -61,9 +68,15 @@ struct ContentView: View {
         }
         .animation(.smooth(duration: 0.22), value: homeAssistantService.serviceFeedback?.id)
         .tabBarMinimizeBehavior(.onScrollDown)
-//        .tabViewBottomAccessory {
-            // TODO: Can/should we use this to situationally display the connection status (such as "Reconnecting")? Possibly for the ServiceFeedbackBanner as well?
-//        }
+        .tabViewBottomAccessory(isEnabled: chrome.connectionAccessoryState != nil) {
+            if let connectionAccessoryState = chrome.connectionAccessoryState {
+                ConnectionHealthAccessory(state: connectionAccessoryState) {
+                    Task {
+                        await homeAssistantService.refreshOrReconnect(settings: connectionSettings)
+                    }
+                }
+            }
+        }
     }
 }
 

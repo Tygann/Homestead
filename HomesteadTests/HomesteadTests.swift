@@ -3,6 +3,78 @@ import Testing
 @testable import Homestead
 
 struct HomesteadTests {
+    @Test func connectionHealthAccessoryStateAppearsOnlyForGlobalConnectionIssues() {
+        #expect(ConnectionHealthAccessoryState.make(
+            hasHomeAssistantSession: false,
+            connectionStatus: .reconnecting,
+            dataFreshness: .stale("offline")
+        ) == nil)
+
+        #expect(ConnectionHealthAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .connected,
+            dataFreshness: .live(.now)
+        ) == nil)
+
+        #expect(ConnectionHealthAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .connected,
+            dataFreshness: .stale("offline")
+        ) == .interrupted)
+
+        #expect(ConnectionHealthAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .reconnecting,
+            dataFreshness: .stale("offline")
+        ) == .reconnecting)
+
+        #expect(ConnectionHealthAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .failed("No route to host"),
+            dataFreshness: .empty
+        ) == .failed)
+
+        #expect(ConnectionHealthAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .disconnected,
+            dataFreshness: .empty
+        ) == .disconnected)
+    }
+
+    @Test func appChromePresentationMapsSessionStateAndFeedbackSpacing() {
+        let signedOutChrome = AppChromePresentation.make(
+            hasServerURL: true,
+            authState: .signedOut,
+            connectionStatus: .reconnecting,
+            dataFreshness: .stale("offline")
+        )
+
+        #expect(signedOutChrome.connectionAccessoryState == nil)
+        #expect(signedOutChrome.serviceFeedbackBottomPadding == AppSpacing.xxLarge + AppSpacing.large)
+
+        let credential = HAOAuthCredential(
+            baseURLString: "http://homeassistant.local:8123",
+            clientID: HAOAuthClientMetadata.clientID,
+            refreshToken: "refresh-token",
+            accessToken: "access-token",
+            accessTokenExpiresAt: .distantFuture,
+            tokenType: "Bearer",
+            updatedAt: .now
+        )
+        let signedInChrome = AppChromePresentation.make(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            connectionStatus: .reconnecting,
+            dataFreshness: .stale("offline")
+        )
+
+        #expect(signedInChrome.connectionAccessoryState == .reconnecting)
+        #expect(
+            signedInChrome.serviceFeedbackBottomPadding ==
+            AppSpacing.xxLarge + AppSpacing.xLarge + AppSpacing.large + AppSpacing.small
+        )
+    }
+
     @Test func webSocketEndpointUsesExpectedSchemeAndPath() throws {
         let localURL = try HomeAssistantEndpointBuilder.webSocketURL(from: "http://homeassistant.local:8123")
         #expect(localURL.absoluteString == "ws://homeassistant.local:8123/api/websocket")
