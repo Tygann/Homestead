@@ -51,10 +51,27 @@ final class HAWebAuthenticationSession: NSObject, HAOAuthAuthorizing, ASWebAuthe
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         #if canImport(UIKit)
-        UIApplication.shared.connectedScenes
+        let windowScene = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+            .first { $0.activationState == .foregroundActive } ??
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first
+
+        if let window = windowScene?.windows.first(where: \.isKeyWindow) ??
+            windowScene?.windows.first {
+            return window
+        }
+
+        if #available(iOS 26.0, *) {
+            guard let windowScene else {
+                preconditionFailure("Home Assistant sign-in requires an active window scene.")
+            }
+
+            return ASPresentationAnchor(windowScene: windowScene)
+        } else {
+            return ASPresentationAnchor()
+        }
         #else
         ASPresentationAnchor()
         #endif

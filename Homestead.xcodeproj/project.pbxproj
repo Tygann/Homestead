@@ -56,19 +56,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A10000102FC7B3B100000001 /* Exceptions for "Homestead" folder in "Homestead" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 2FE2DD582FBDFE42009A0E06 /* Homestead */;
-		};
 		A100000E2FBDFE43009A0E06 /* Exceptions for "HomesteadWidgets" folder in "HomesteadWidgets" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = A10000062FBDFE43009A0E06 /* HomesteadWidgets */;
+		};
+		A10000102FC7B3B100000001 /* Exceptions for "Homestead" folder in "Homestead" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2FE2DD582FBDFE42009A0E06 /* Homestead */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 

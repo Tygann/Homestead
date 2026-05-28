@@ -1,6 +1,6 @@
 import Foundation
 
-struct HAEntityDTO: Codable, Equatable, Identifiable, Sendable {
+nonisolated struct HAEntityDTO: Codable, Equatable, Identifiable, Sendable {
     let entityID: String
     let state: String
     let attributes: [String: JSONValue]

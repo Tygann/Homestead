@@ -13,6 +13,7 @@ enum HAWebSocketMessageType {
     nonisolated static var unsubscribeEvents: String { "unsubscribe_events" }
     nonisolated static var ping: String { "ping" }
     nonisolated static var callService: String { "call_service" }
+    nonisolated static var currentUser: String { "auth/current_user" }
     nonisolated static var entityRegistryListForDisplay: String { "config/entity_registry/list_for_display" }
     nonisolated static var deviceRegistryList: String { "config/device_registry/list" }
     nonisolated static var areaRegistryList: String { "config/area_registry/list" }
@@ -66,12 +67,27 @@ struct HAWebSocketErrorDTO: Decodable, Sendable {
     }
 }
 
+nonisolated struct HACurrentUserDTO: Decodable, Equatable, Sendable {
+    let id: String
+    let name: String?
+    let isOwner: Bool?
+    let isAdmin: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case isOwner = "is_owner"
+        case isAdmin = "is_admin"
+    }
+}
+
 enum HAWebSocketRequest: Encodable, Sendable {
     case auth(accessToken: String)
     case getStates(id: Int)
     case subscribeEvents(id: Int, eventType: String)
     case unsubscribeEvents(id: Int, subscription: Int)
     case ping(id: Int)
+    case currentUser(id: Int)
     case registryCommand(id: Int, type: String)
     case cameraCapabilities(id: Int, entityID: String)
     case callService(
@@ -116,6 +132,9 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case .ping(let id):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.ping, forKey: .type)
+        case .currentUser(let id):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.currentUser, forKey: .type)
         case .registryCommand(let id, let type):
             try container.encode(id, forKey: .id)
             try container.encode(type, forKey: .type)

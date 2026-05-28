@@ -1,6 +1,6 @@
 import Foundation
 
-struct HACameraCapabilities: Decodable, Equatable, Sendable {
+nonisolated struct HACameraCapabilities: Decodable, Equatable, Sendable {
     let frontendStreamTypes: [HACameraStreamType]
 
     var supportsLiveStream: Bool {
@@ -29,7 +29,7 @@ struct HACameraCapabilities: Decodable, Equatable, Sendable {
     }
 }
 
-enum HACameraStreamType: String, Decodable, Equatable, Sendable {
+nonisolated enum HACameraStreamType: String, Decodable, Equatable, Sendable {
     case hls
     case webRTC = "webrtc"
     case unknown

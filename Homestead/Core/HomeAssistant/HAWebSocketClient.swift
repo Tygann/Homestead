@@ -5,6 +5,7 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) async
     func connect(configuration: HAConnectionConfiguration) async throws
     func disconnect() async
+    func fetchCurrentUser() async throws -> HACurrentUserDTO
     func fetchStates() async throws -> [HAEntityDTO]
     func fetchEntityRegistryForDisplay() async throws -> HAEntityRegistryDisplayResponseDTO
     func fetchDeviceRegistry() async throws -> [HADeviceRegistryDTO]
@@ -108,6 +109,17 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return try result.decoded([HAEntityDTO].self)
+    }
+
+    func fetchCurrentUser() async throws -> HACurrentUserDTO {
+        let id = makeRequestID()
+        let response = try await sendRequest(.currentUser(id: id), id: id)
+
+        guard let result = response.result else {
+            throw HAWebSocketError.missingResult
+        }
+
+        return try result.decoded(HACurrentUserDTO.self)
     }
 
     func fetchEntityRegistryForDisplay() async throws -> HAEntityRegistryDisplayResponseDTO {

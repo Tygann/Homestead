@@ -42,6 +42,25 @@ struct HomesteadTests {
         #expect(webhookURL.absoluteString == "http://homeassistant.local:8123/api/webhook/webhook-abc")
     }
 
+    @Test func httpEndpointResolvesAbsoluteRootAndRelativePaths() throws {
+        let absoluteURL = try HomeAssistantEndpointBuilder.httpURL(
+            from: "https://example.com/ha",
+            pathOrURL: "https://cdn.example.com/profile.jpg"
+        )
+        let rootRelativeURL = try HomeAssistantEndpointBuilder.httpURL(
+            from: "https://example.com/ha",
+            pathOrURL: "/api/image/abc?token=123"
+        )
+        let relativeURL = try HomeAssistantEndpointBuilder.httpURL(
+            from: "https://example.com/ha",
+            pathOrURL: "local/profile.jpg"
+        )
+
+        #expect(absoluteURL.absoluteString == "https://cdn.example.com/profile.jpg")
+        #expect(rootRelativeURL.absoluteString == "https://example.com/api/image/abc?token=123")
+        #expect(relativeURL.absoluteString == "https://example.com/ha/local/profile.jpg")
+    }
+
     @Test func authAuthorizeURLUsesHomeAssistantOAuthShape() throws {
         let url = try HomeAssistantEndpointBuilder.authAuthorizeURL(
             from: "https://example.com/ha",
@@ -1169,6 +1188,94 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func profileImageRequestUsesOnlyPersonEntityLinkedToCurrentUser() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "profile-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "person.other",
+                state: "home",
+                attributes: [
+                    "user_id": .string("other-user"),
+                    "entity_picture": .string("/api/image/other")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "person.current",
+                state: "home",
+                attributes: [
+                    "user_id": .string("current-user"),
+                    "entity_picture": .string("/api/image/current")
+                ]
+            )
+        ])
+        let webSocketClient = StubHAWebSocketClient(
+            currentUser: HACurrentUserDTO(id: "current-user", name: "Current", isOwner: nil, isAdmin: nil),
+            states: stateStore.rawEntitySnapshot()
+        )
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+
+        await service.connect(baseURLString: settings.baseURL)
+        stateStore.applySnapshot(webSocketClient.states)
+
+        let request = try #require(await service.homeAssistantProfileImageRequest(settings: settings))
+        #expect(request.url?.absoluteString == "http://homeassistant.local:8123/api/image/current")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer profile-access")
+    }
+
+    @MainActor
+    @Test func profileImageRequestDoesNotUseUnrelatedFirstPersonEntity() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "profile-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "person.other",
+                state: "home",
+                attributes: [
+                    "user_id": .string("other-user"),
+                    "entity_picture": .string("/api/image/other")
+                ]
+            )
+        ])
+        let webSocketClient = StubHAWebSocketClient(
+            currentUser: HACurrentUserDTO(id: "current-user", name: "Current", isOwner: nil, isAdmin: nil),
+            states: stateStore.rawEntitySnapshot()
+        )
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+
+        await service.connect(baseURLString: settings.baseURL)
+        stateStore.applySnapshot(webSocketClient.states)
+
+        #expect(await service.homeAssistantProfileImageRequest(settings: settings) == nil)
+    }
+
+    @MainActor
     @Test func signOutClearsOAuthCredentialAndMobileAppRegistration() async throws {
         let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential())
         let registrationStore = InMemoryHAMobileAppRegistrationStore(
@@ -1904,6 +2011,13 @@ final class StubHAOAuthAuthorizer: HAOAuthAuthorizing {
 final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     private(set) var lastConnectConfiguration: HAConnectionConfiguration?
     private(set) var didDisconnect = false
+    var currentUser: HACurrentUserDTO?
+    var states: [HAEntityDTO]
+
+    init(currentUser: HACurrentUserDTO? = nil, states: [HAEntityDTO] = []) {
+        self.currentUser = currentUser
+        self.states = states
+    }
 
     func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) async {}
 
@@ -1917,8 +2031,15 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         didDisconnect = true
     }
 
+    func fetchCurrentUser() async throws -> HACurrentUserDTO {
+        guard let currentUser else {
+            throw HAWebSocketError.missingResult
+        }
+        return currentUser
+    }
+
     func fetchStates() async throws -> [HAEntityDTO] {
-        []
+        states
     }
 
     func fetchEntityRegistryForDisplay() async throws -> HAEntityRegistryDisplayResponseDTO {

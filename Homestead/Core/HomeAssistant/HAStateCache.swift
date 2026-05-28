@@ -130,7 +130,7 @@ actor HAStateCache {
     }
 }
 
-struct HAStateCacheSnapshot: Codable, Equatable, Sendable {
+nonisolated struct HAStateCacheSnapshot: Codable, Equatable, Sendable {
     let savedAt: Date
     let entities: [HAEntityDTO]
 }

@@ -4,15 +4,15 @@ struct AreaDetailView: View {
     let area: DashboardAreaSummary
     @Environment(HAStateStore.self) private var stateStore
 
-    private var entityBoxes: [HAEntityState] {
+    @MainActor private var entityBoxes: [HAEntityState] {
         area.entityIDs.compactMap { stateStore.entityBox(for: $0) }
     }
 
-    private var currentArea: DashboardAreaSummary {
+    @MainActor private var currentArea: DashboardAreaSummary {
         DashboardAreaBuilder.buildArea(named: area.name, from: entityBoxes)
     }
 
-    private var sections: [AreaDomainSection] {
+    @MainActor private var sections: [AreaDomainSection] {
         let grouped = Dictionary(grouping: entityBoxes, by: \.domain)
 
         return grouped

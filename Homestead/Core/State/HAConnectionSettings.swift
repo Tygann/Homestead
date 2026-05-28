@@ -39,8 +39,8 @@ final class HAConnectionSettings {
 
         self.baseURL = baseURL ??
             defaults.string(forKey: Keys.baseURL) ??
-            UserDefaults(suiteName: WidgetSharedStore.appGroupID)?.string(forKey: Keys.baseURL) ??
             storedCredentialBaseURL ??
+            UserDefaults(suiteName: WidgetSharedStore.appGroupID)?.string(forKey: Keys.baseURL) ??
             ""
 
         WidgetSharedStore.saveBaseURL(self.baseURL)

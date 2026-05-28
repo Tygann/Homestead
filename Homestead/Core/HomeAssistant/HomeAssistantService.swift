@@ -13,6 +13,7 @@ final class HomeAssistantService {
     private(set) var hasCompletedInitialCacheLoad = false
     private(set) var mobileAppRegistrationState: HAMobileAppRegistrationState = .unregistered
     private(set) var authState: HAAuthState = .signedOut
+    private(set) var currentUserDisplayName: String?
 
     @ObservationIgnored private let client: any HAWebSocketClientProtocol
     @ObservationIgnored private let httpClient: HAHTTPClient
@@ -24,6 +25,7 @@ final class HomeAssistantService {
     @ObservationIgnored private let stateCache: HAStateCache
     @ObservationIgnored private let stateEventBatcher = HAStateEventBatcher()
     @ObservationIgnored private var activeConfiguration: HAConnectionConfiguration?
+    @ObservationIgnored private var currentUserID: String?
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
     @ObservationIgnored private var stateSyncTask: Task<Void, Never>?
     @ObservationIgnored private var pendingCommandTasksByID: [String: Task<Void, Never>] = [:]
@@ -171,6 +173,8 @@ final class HomeAssistantService {
         cancelPendingCommandTasks()
         await client.disconnect()
         activeConfiguration = nil
+        currentUserID = nil
+        currentUserDisplayName = nil
         dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(nil) : .empty
         connectionStatus = .disconnected
     }
@@ -521,6 +525,30 @@ final class HomeAssistantService {
         return HACameraStreamHandoff(entityID: entityID, response: response)
     }
 
+    func homeAssistantProfileImageRequest(settings: HAConnectionSettings) async -> URLRequest? {
+        guard settings.hasServerURL,
+              let currentUserID,
+              let entityPicture = personEntityPicture(forUserID: currentUserID) else {
+            return nil
+        }
+
+        do {
+            guard let configuration = try await authManager.storedConfiguration(baseURLString: settings.baseURL) else {
+                return nil
+            }
+
+            let url = try HomeAssistantEndpointBuilder.httpURL(
+                from: configuration.baseURLString,
+                pathOrURL: entityPicture
+            )
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(configuration.accessToken)", forHTTPHeaderField: "Authorization")
+            return request
+        } catch {
+            return nil
+        }
+    }
+
     func toggleSwitch(entityID: String) async {
         await callToggleService(
             domain: "switch",
@@ -617,6 +645,28 @@ final class HomeAssistantService {
         } else {
             clearPendingCommand(pendingCommand)
         }
+    }
+
+    private func personEntityPicture(forUserID userID: String) -> String? {
+        let trimmedUserID = userID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedUserID.isEmpty else {
+            return nil
+        }
+
+        return stateStore.rawEntitySnapshot()
+            .filter { $0.entityID.hasPrefix("person.") }
+            .compactMap { entity -> String? in
+                let entityUserID = entity.attributes["user_id"]?.stringValue?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard entityUserID == trimmedUserID else {
+                    return nil
+                }
+
+                let value = entity.attributes["entity_picture"]?.stringValue?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                return value?.isEmpty == false ? value : nil
+            }
+            .first
     }
 
     private func cameraConfiguration(for entityID: String) throws -> HAConnectionConfiguration {
@@ -823,7 +873,13 @@ final class HomeAssistantService {
 
     private func establishTransportConnection(configuration: HAConnectionConfiguration) async throws {
         await configureClientCallbacks()
+        currentUserID = nil
+        currentUserDisplayName = nil
         try await client.connect(configuration: configuration)
+        let currentUser = try? await client.fetchCurrentUser()
+        currentUserID = currentUser?.id
+        let displayName = currentUser?.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        currentUserDisplayName = displayName?.isEmpty == false ? displayName : nil
     }
 
     private func establishTransportConnectionWithAuthRecovery(
