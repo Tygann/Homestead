@@ -11,7 +11,8 @@ struct AboutView: View {
             // Header
             Section {
                 VStack {
-                    Image(systemName: "house.fill")
+//                    Image(systemName: "house.fill")
+                    Image("HomesteadLogo")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 120, height: 120)
@@ -21,10 +22,8 @@ struct AboutView: View {
                     Text("Homestead")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-//                        .foregroundStyle(.purple.gradient)
 
                     Text("Version \(version)")
-//                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
