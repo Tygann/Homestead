@@ -787,11 +787,11 @@ private struct DashboardGridLayout: Layout {
     }
 }
 
-private struct DashboardGridColumnSpanKey: LayoutValueKey {
+nonisolated private struct DashboardGridColumnSpanKey: LayoutValueKey {
     static let defaultValue = DashboardCardSize.compact.columnSpan
 }
 
-private struct DashboardGridRowSpanKey: LayoutValueKey {
+nonisolated private struct DashboardGridRowSpanKey: LayoutValueKey {
     static let defaultValue = DashboardCardSize.compact.rowSpan
 }
 

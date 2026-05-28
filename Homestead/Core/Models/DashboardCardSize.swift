@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Sendable {
+nonisolated enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Sendable {
     case mini
     case compact
     case row
@@ -91,7 +91,7 @@ enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Sendable {
     private static let gridUnitContentMinHeight: CGFloat = 44
 }
 
-struct DashboardCardLayoutMetadata: Codable, Equatable, Sendable {
+nonisolated struct DashboardCardLayoutMetadata: Codable, Equatable, Sendable {
     let columnSpan: Int
     let rowSpan: Int
 }
