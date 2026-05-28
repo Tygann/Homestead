@@ -186,11 +186,17 @@ private struct DashboardEntityCard: View {
     @ViewBuilder
     private var cardContent: some View {
         switch size {
-        case .compact:
+        case .mini:
+            miniContent
+        case .compact, .row:
             compactContent
-        case .large, .wide:
+        case .square, .wide, .large:
             largeContent
         }
+    }
+
+    private var miniContent: some View {
+        iconPlaceholder
     }
 
     private var compactContent: some View {
@@ -312,12 +318,18 @@ private struct DashboardCardDisplaySizesPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             HStack(alignment: .top, spacing: AppSpacing.medium) {
+                DashboardCardView(entityID: "light.living_room_lamps", size: .mini)
+                    .frame(width: 82)
+
                 DashboardCardView(entityID: "light.living_room_lamps", size: .compact)
                     .frame(width: 180)
 
-                DashboardCardView(entityID: "sensor.hallway_temperature", size: .large)
+                DashboardCardView(entityID: "sensor.hallway_temperature", size: .square)
                     .frame(width: 180)
             }
+
+            DashboardCardView(entityID: "sensor.hallway_temperature", size: .row)
+                .frame(width: 376)
 
             DashboardCardView(entityID: "sensor.hallway_temperature", size: .wide)
                 .frame(width: 376)
@@ -333,7 +345,7 @@ private struct DashboardCardDisplaySizesPreview: View {
 }
 
 private struct DashboardCardEditModePreview: View {
-    @State private var size: DashboardCardSize = .large
+    @State private var size: DashboardCardSize = .square
 
     var body: some View {
         DashboardCardView(
@@ -349,7 +361,14 @@ private struct DashboardCardEditModePreview: View {
     }
 
     private var previewWidth: CGFloat {
-        size == .wide ? 376 : 180
+        switch size {
+        case .mini:
+            82
+        case .compact, .square:
+            180
+        case .row, .wide, .large:
+            376
+        }
     }
 }
 

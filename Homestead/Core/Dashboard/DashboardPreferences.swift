@@ -73,11 +73,23 @@ enum DashboardDensity: String, CaseIterable, Identifiable, Sendable {
     func effectiveCardSize(for configuredSize: DashboardCardSize) -> DashboardCardSize {
         switch self {
         case .comfortable:
-            configuredSize == .compact ? .large : configuredSize
+            switch configuredSize {
+            case .compact:
+                .square
+            default:
+                configuredSize
+            }
         case .balanced:
             configuredSize
         case .compact:
-            configuredSize == .wide ? .large : .compact
+            switch configuredSize {
+            case .mini:
+                .mini
+            case .row, .wide:
+                .square
+            default:
+                .compact
+            }
         }
     }
 }

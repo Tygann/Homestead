@@ -2,64 +2,96 @@ import CoreGraphics
 import Foundation
 
 enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Sendable {
+    case mini
     case compact
-    case large
+    case row
+    case square
     case wide
+    case large
 
     var displayName: String {
         switch self {
+        case .mini:
+            "Mini"
         case .compact:
             "Regular"
-        case .large:
-            "Large"
+        case .row:
+            "Row"
+        case .square:
+            "Square"
         case .wide:
             "Wide"
+        case .large:
+            "Large"
         }
     }
 
     var systemImage: String {
         switch self {
+        case .mini:
+            "square"
         case .compact:
-//            "rectangle"
-//            "rectangle.grid.1x2"
-//            "rectangle.ratio.16.to.9"
-//            "rectangle.tophalf.inset.filled"
             "ellipsis.rectangle"
-        case .large:
-//            "rectangle.grid.1x2"
+        case .row:
+            "rectangle"
+        case .square:
             "widget.small"
         case .wide:
-//            "rectangle.fill"
             "widget.medium"
+        case .large:
+            "widget.large"
         }
+    }
+
+    var layoutMetadata: DashboardCardLayoutMetadata {
+        DashboardCardLayoutMetadata(columnSpan: columnSpan, rowSpan: rowSpan)
     }
 
     var columnSpan: Int {
         switch self {
-        case .compact, .large:
+        case .mini:
             1
-        case .wide:
+        case .compact:
             2
+        case .row:
+            4
+        case .square:
+            2
+        case .wide:
+            4
+        case .large:
+            4
         }
     }
 
     var rowSpan: Int {
         switch self {
-        case .compact:
+        case .mini, .compact, .row:
             1
-        case .large, .wide:
+        case .square, .wide:
             2
+        case .large:
+            4
         }
     }
 
+    static func renderedGridUnitHeight(cardPadding: CGFloat) -> CGFloat {
+        gridUnitContentMinHeight + (cardPadding * 2)
+    }
+
     func renderedHeight(rowSpacing: CGFloat, cardPadding: CGFloat) -> CGFloat {
-        let regularRenderedHeight = Self.regularContentMinHeight + (cardPadding * 2)
-        return (regularRenderedHeight * CGFloat(rowSpan)) + (rowSpacing * CGFloat(rowSpan - 1))
+        let gridUnitHeight = Self.renderedGridUnitHeight(cardPadding: cardPadding)
+        return (gridUnitHeight * CGFloat(rowSpan)) + (rowSpacing * CGFloat(rowSpan - 1))
     }
 
     func contentMinHeight(rowSpacing: CGFloat, cardPadding: CGFloat) -> CGFloat {
         max(0, renderedHeight(rowSpacing: rowSpacing, cardPadding: cardPadding) - (cardPadding * 2))
     }
 
-    private static let regularContentMinHeight: CGFloat = 44
+    private static let gridUnitContentMinHeight: CGFloat = 44
+}
+
+struct DashboardCardLayoutMetadata: Codable, Equatable, Sendable {
+    let columnSpan: Int
+    let rowSpan: Int
 }

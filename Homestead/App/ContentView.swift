@@ -60,6 +60,10 @@ struct ContentView: View {
             }
         }
         .animation(.smooth(duration: 0.22), value: homeAssistantService.serviceFeedback?.id)
+        .tabBarMinimizeBehavior(.onScrollDown)
+//        .tabViewBottomAccessory {
+            // TODO: Can/should we use this to situationally display the connection status (such as "Reconnecting")? Possibly for the ServiceFeedbackBanner as well?
+//        }
     }
 }
 
@@ -75,6 +79,7 @@ struct ContentView: View {
         ContentView()
             .withPreviewEnvironment(dependencies)
             .task {
+                await dependencies.homeAssistantService.refreshAuthState()
                 await dependencies.homeAssistantService.connectIfPossible(
                     settings: dependencies.connectionSettings
                 )

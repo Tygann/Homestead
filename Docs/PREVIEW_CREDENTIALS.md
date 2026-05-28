@@ -4,11 +4,24 @@ Homestead includes a debug-only `Live Home Assistant` Xcode preview. It is inten
 
 ## Preferred local setup
 
-Run the app in the simulator once, open Settings, enter your Home Assistant base URL, then use Sign in with Home Assistant. Homestead stores the OAuth refresh token and access-token metadata in Keychain.
+Create a Home Assistant long-lived access token for local preview work, then copy `PreviewCredentials.example.json` to `PreviewCredentials.json` at the repo root and fill in:
+
+```json
+{
+  "baseURL": "https://homeassistant.example.com",
+  "accessToken": "your-preview-only-long-lived-token"
+}
+```
+
+`PreviewCredentials.json` is ignored by git and copied into Debug builds only.
+
+Do not commit this file or reuse a personal token you care about elsewhere.
 
 ## Live Preview Behavior
 
-The live preview uses the saved base URL and OAuth credential from local app storage. There is no long-lived-token environment variable fallback anymore.
+The live preview reads the bundled `PreviewCredentials.json` copied by the Debug build phase. This keeps the native app's OAuth sign-in flow clean while giving Xcode Preview a deterministic credential source.
+
+If `PreviewCredentials.json` is missing, the live preview falls back to the saved base URL and OAuth credential from local app storage. Xcode Preview may not reliably share the simulator app's Keychain/container, so the local JSON file is the recommended live preview path.
 
 ## Notes
 

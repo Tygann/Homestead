@@ -6,7 +6,6 @@ struct DashboardView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(DashboardPreferences.self) private var dashboardPreferences
-    @Environment(PinnedEntityStore.self) private var pinnedEntityStore
     @State private var isEditingDashboard = false
     @State private var isShowingAddCardSheet = false
     @State private var isShowingReorderSheet = false
@@ -51,7 +50,6 @@ struct DashboardView: View {
                         }
                     )
                 } else {
-                    pinnedFavoritesSection
                     configuredDashboardSection
                 }
             }
@@ -324,49 +322,17 @@ struct DashboardView: View {
         }
     }
 
-    private var pinnedFavoritesSection: some View {
-        DashboardSection(isEmpty: pinnedEntityStore.entityIDs.isEmpty) {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                DashboardSectionHeader(
-                    title: "Favorites",
-                    subtitle: "Pinned controls stay here even when a device is temporarily missing."
-                )
-
-                LazyVStack(spacing: AppSpacing.medium) {
-                    ForEach(pinnedEntityStore.entityIDs, id: \.self) { entityID in
-                        if stateStore.entityBox(for: entityID) != nil {
-                            DashboardCardView(entityID: entityID, size: .compact)
-                        } else {
-                            MissingPinnedEntityCard(entityID: entityID)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private var configuredDashboardSection: some View {
         DashboardSection(isEmpty: visibleDashboardItems.isEmpty) {
-            LazyVStack(spacing: AppSpacing.medium) {
-                ForEach(cardLayoutSections) { section in
-                    switch section.kind {
-                    case .header(let item):
-                        dashboardHeader(item)
-                    case .wide(let item):
-                        dashboardCard(item)
-                    case .columns(let columns):
-                        HStack(alignment: .top, spacing: AppSpacing.medium) {
-                            ForEach(columns) { column in
-                                VStack(spacing: AppSpacing.medium) {
-                                    ForEach(column.items) { item in
-                                        dashboardCard(item)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .top)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .top)
-                        .frame(maxWidth: .infinity)
+            DashboardCardGrid {
+                ForEach(dashboardLayoutItems) { item in
+                    switch item.kind {
+                    case .header(let configurationItem):
+                        dashboardHeader(configurationItem)
+                            .dashboardGridSpan(item.layoutMetadata)
+                    case .card(let cardItem):
+                        dashboardCard(cardItem)
+                            .dashboardGridSpan(item.layoutMetadata)
                     }
                 }
             }
@@ -374,53 +340,25 @@ struct DashboardView: View {
         }
     }
     
-    private var cardLayoutSections: [DashboardCardLayoutSection] {
-        var sections: [DashboardCardLayoutSection] = []
-        var columns = [
-            DashboardCardColumn(position: .leading),
-            DashboardCardColumn(position: .trailing)
-        ]
-        
-        func flushColumns() {
-            guard columns.contains(where: { !$0.items.isEmpty }) else {
-                return
-            }
-            
-            sections.append(DashboardCardLayoutSection(kind: .columns(columns)))
-            columns = [
-                DashboardCardColumn(position: .leading),
-                DashboardCardColumn(position: .trailing)
-            ]
-        }
-        
-        for configurationItem in visibleDashboardItems {
+    private var dashboardLayoutItems: [DashboardLayoutItem] {
+        visibleDashboardItems.compactMap { configurationItem in
             switch configurationItem.type {
             case .header:
-                flushColumns()
-                sections.append(DashboardCardLayoutSection(kind: .header(configurationItem)))
+                return DashboardLayoutItem(kind: .header(configurationItem), layoutMetadata: configurationItem.layoutMetadata)
             case .entity:
                 guard let entityID = configurationItem.entityID else {
-                    continue
+                    return nil
                 }
 
-                let item = DashboardCardItem(
+                let effectiveSize = dashboardPreferences.density.effectiveCardSize(for: configurationItem.resolvedCardSize)
+                let cardItem = DashboardCardItem(
                     id: configurationItem.id,
                     entityID: entityID,
-                    size: configurationItem.resolvedCardSize
+                    size: effectiveSize
                 )
-
-                if item.size.columnSpan == 2 {
-                    flushColumns()
-                    sections.append(DashboardCardLayoutSection(kind: .wide(item)))
-                } else {
-                    let targetColumnIndex = columns[0].height <= columns[1].height ? 0 : 1
-                    columns[targetColumnIndex].append(item)
-                }
+                return DashboardLayoutItem(kind: .card(cardItem), layoutMetadata: effectiveSize.layoutMetadata)
             }
         }
-        
-        flushColumns()
-        return sections
     }
 
     private func dashboardHeader(_ item: DashboardItemConfiguration) -> some View {
@@ -440,7 +378,7 @@ struct DashboardView: View {
     private func dashboardCard(_ item: DashboardCardItem) -> some View {
         DashboardCardView(
             entityID: item.entityID,
-            size: dashboardPreferences.density.effectiveCardSize(for: item.size),
+            size: item.size,
             isEditing: isEditingDashboard,
             setSize: isEditingDashboard ? { size in
                 dashboardConfiguration.setCardSize(size, forItemID: item.id)
@@ -637,51 +575,22 @@ private struct DashboardReorderRow: View {
     }
 }
 
-private struct DashboardCardLayoutSection: Identifiable {
+private struct DashboardLayoutItem: Identifiable {
     enum Kind {
         case header(DashboardItemConfiguration)
-        case wide(DashboardCardItem)
-        case columns([DashboardCardColumn])
+        case card(DashboardCardItem)
     }
 
     let kind: Kind
+    let layoutMetadata: DashboardCardLayoutMetadata
 
     var id: String {
         switch kind {
         case .header(let item):
             "header-\(item.id)"
-        case .wide(let item):
-            "wide-\(item.id)"
-        case .columns(let columns):
-            "columns-\(columns.map(\.id).joined(separator: "|"))"
+        case .card(let item):
+            "card-\(item.id)"
         }
-    }
-}
-
-private struct DashboardCardColumn: Identifiable {
-    enum Position: String {
-        case leading
-        case trailing
-    }
-
-    let position: Position
-    private(set) var items: [DashboardCardItem] = []
-    private(set) var height: CGFloat = 0
-
-    var id: String {
-        "\(position.rawValue)-\(items.map { $0.id.uuidString }.joined(separator: ","))"
-    }
-
-    mutating func append(_ item: DashboardCardItem) {
-        if !items.isEmpty {
-            height += AppSpacing.medium
-        }
-
-        items.append(item)
-        height += item.size.renderedHeight(
-            rowSpacing: AppSpacing.medium,
-            cardPadding: AppSpacing.medium
-        )
     }
 }
 
@@ -689,6 +598,218 @@ private struct DashboardCardItem: Identifiable {
     let id: UUID
     let entityID: String
     let size: DashboardCardSize
+}
+
+private struct DashboardCardGrid<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        DashboardGridLayout(
+            spacing: AppSpacing.medium,
+            cardPadding: AppSpacing.medium
+        ) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct DashboardGridLayout: Layout {
+    let spacing: CGFloat
+    let cardPadding: CGFloat
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache _: inout ()
+    ) -> CGSize {
+        let width = proposal.width ?? 0
+        let layout = makeLayout(in: width, subviews: subviews)
+        return CGSize(width: width, height: layout.height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal _: ProposedViewSize,
+        subviews: Subviews,
+        cache _: inout ()
+    ) {
+        let layout = makeLayout(in: bounds.width, subviews: subviews)
+
+        for placement in layout.placements {
+            let origin = CGPoint(
+                x: bounds.minX + placement.frame.minX,
+                y: bounds.minY + placement.frame.minY
+            )
+
+            subviews[placement.index].place(
+                at: origin,
+                anchor: .topLeading,
+                proposal: ProposedViewSize(placement.frame.size)
+            )
+        }
+    }
+
+    private func makeLayout(in width: CGFloat, subviews: Subviews) -> GridLayoutResult {
+        let columnCount = adaptiveColumnCount(for: width)
+        let trackWidth = trackWidth(totalWidth: width, columnCount: columnCount)
+        let rowHeight = DashboardCardSize.renderedGridUnitHeight(cardPadding: cardPadding)
+        var occupancy: [[Bool]] = []
+        var placements: [GridPlacement] = []
+
+        for index in subviews.indices {
+            let requestedColumnSpan = subviews[index][DashboardGridColumnSpanKey.self]
+            let columnSpan = min(max(requestedColumnSpan, 1), columnCount)
+            let rowSpan = max(subviews[index][DashboardGridRowSpanKey.self], 1)
+            let origin = firstAvailableOrigin(
+                columnSpan: columnSpan,
+                rowSpan: rowSpan,
+                columnCount: columnCount,
+                occupancy: &occupancy
+            )
+
+            markOccupied(
+                column: origin.column,
+                row: origin.row,
+                columnSpan: columnSpan,
+                rowSpan: rowSpan,
+                columnCount: columnCount,
+                occupancy: &occupancy
+            )
+
+            let frame = CGRect(
+                x: CGFloat(origin.column) * (trackWidth + spacing),
+                y: CGFloat(origin.row) * (rowHeight + spacing),
+                width: (trackWidth * CGFloat(columnSpan)) + (spacing * CGFloat(columnSpan - 1)),
+                height: (rowHeight * CGFloat(rowSpan)) + (spacing * CGFloat(rowSpan - 1))
+            )
+
+            placements.append(GridPlacement(index: index, frame: frame))
+        }
+
+        let usedRowCount = occupancy.lastIndex { row in
+            row.contains(true)
+        }.map { $0 + 1 } ?? 0
+        let height = usedRowCount > 0
+            ? (CGFloat(usedRowCount) * rowHeight) + (CGFloat(usedRowCount - 1) * spacing)
+            : 0
+
+        return GridLayoutResult(placements: placements, height: height)
+    }
+
+    private func firstAvailableOrigin(
+        columnSpan: Int,
+        rowSpan: Int,
+        columnCount: Int,
+        occupancy: inout [[Bool]]
+    ) -> (column: Int, row: Int) {
+        var row = 0
+
+        while true {
+            ensureRows(upTo: row + rowSpan - 1, columnCount: columnCount, occupancy: &occupancy)
+
+            for column in 0...(columnCount - columnSpan) where isAvailable(
+                column: column,
+                row: row,
+                columnSpan: columnSpan,
+                rowSpan: rowSpan,
+                occupancy: occupancy
+            ) {
+                return (column, row)
+            }
+
+            row += 1
+        }
+    }
+
+    private func isAvailable(
+        column: Int,
+        row: Int,
+        columnSpan: Int,
+        rowSpan: Int,
+        occupancy: [[Bool]]
+    ) -> Bool {
+        for occupiedRow in row..<(row + rowSpan) {
+            for occupiedColumn in column..<(column + columnSpan) where occupancy[occupiedRow][occupiedColumn] {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private func markOccupied(
+        column: Int,
+        row: Int,
+        columnSpan: Int,
+        rowSpan: Int,
+        columnCount: Int,
+        occupancy: inout [[Bool]]
+    ) {
+        ensureRows(upTo: row + rowSpan - 1, columnCount: columnCount, occupancy: &occupancy)
+
+        for occupiedRow in row..<(row + rowSpan) {
+            for occupiedColumn in column..<(column + columnSpan) {
+                occupancy[occupiedRow][occupiedColumn] = true
+            }
+        }
+    }
+
+    private func ensureRows(upTo row: Int, columnCount: Int, occupancy: inout [[Bool]]) {
+        guard row >= occupancy.count else {
+            return
+        }
+
+        occupancy.append(contentsOf: Array(repeating: Array(repeating: false, count: columnCount), count: row - occupancy.count + 1))
+    }
+
+    private func adaptiveColumnCount(for width: CGFloat) -> Int {
+        let baseColumnCount = 4
+        let minimumTrackWidth: CGFloat = 76
+        let candidateCount = max(
+            baseColumnCount,
+            Int((width + spacing) / (minimumTrackWidth + spacing))
+        )
+
+        return max(baseColumnCount, (candidateCount / baseColumnCount) * baseColumnCount)
+    }
+
+    private func trackWidth(totalWidth: CGFloat, columnCount: Int) -> CGFloat {
+        guard columnCount > 0 else {
+            return 0
+        }
+
+        return max(0, (totalWidth - (spacing * CGFloat(columnCount - 1))) / CGFloat(columnCount))
+    }
+}
+
+private struct DashboardGridColumnSpanKey: LayoutValueKey {
+    static let defaultValue = DashboardCardSize.compact.columnSpan
+}
+
+private struct DashboardGridRowSpanKey: LayoutValueKey {
+    static let defaultValue = DashboardCardSize.compact.rowSpan
+}
+
+private extension View {
+    func dashboardGridSpan(_ metadata: DashboardCardLayoutMetadata) -> some View {
+        layoutValue(key: DashboardGridColumnSpanKey.self, value: metadata.columnSpan)
+            .layoutValue(key: DashboardGridRowSpanKey.self, value: metadata.rowSpan)
+    }
+}
+
+private struct GridLayoutResult {
+    let placements: [GridPlacement]
+    let height: CGFloat
+}
+
+private struct GridPlacement {
+    let index: Int
+    let frame: CGRect
 }
 
 private struct DashboardHeaderCardView: View {
@@ -745,46 +866,6 @@ private struct DashboardHeaderCardView: View {
                         .background(Color(.secondarySystemGroupedBackground), in: Circle())
                 }
                 .accessibilityLabel("Remove \(title)")
-            }
-        }
-    }
-}
-
-private struct DashboardSectionHeader: View {
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-            Text(title)
-                .font(.title3.weight(.bold))
-
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-private struct MissingPinnedEntityCard: View {
-    let entityID: String
-
-    var body: some View {
-        CardContainer {
-            HStack(alignment: .center, spacing: AppSpacing.medium) {
-                CardIconView(systemName: "questionmark.circle")
-
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text("Favorite unavailable")
-                        .font(.headline)
-
-                    Text(entityID)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
             }
         }
     }
@@ -863,22 +944,20 @@ private struct DashboardLoadingPlaceholderView: View {
             VStack(spacing: AppSpacing.medium) {
                 DashboardSkeletonCard(size: .wide)
 
-                HStack(alignment: .top, spacing: AppSpacing.medium) {
-                    VStack(spacing: AppSpacing.medium) {
-                        DashboardSkeletonCard(size: .large)
-                        DashboardSkeletonCard(size: .compact)
-                        DashboardSkeletonCard(size: .compact)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .top)
-
-                    VStack(spacing: AppSpacing.medium) {
-                        DashboardSkeletonCard(size: .large)
-                        DashboardSkeletonCard(size: .compact)
-                        DashboardSkeletonCard(size: .large)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .top)
+                DashboardCardGrid {
+                    DashboardSkeletonCard(size: .square)
+                        .dashboardGridSpan(DashboardCardSize.square.layoutMetadata)
+                    DashboardSkeletonCard(size: .compact)
+                        .dashboardGridSpan(DashboardCardSize.compact.layoutMetadata)
+                    DashboardSkeletonCard(size: .compact)
+                        .dashboardGridSpan(DashboardCardSize.compact.layoutMetadata)
+                    DashboardSkeletonCard(size: .square)
+                        .dashboardGridSpan(DashboardCardSize.square.layoutMetadata)
+                    DashboardSkeletonCard(size: .compact)
+                        .dashboardGridSpan(DashboardCardSize.compact.layoutMetadata)
+                    DashboardSkeletonCard(size: .square)
+                        .dashboardGridSpan(DashboardCardSize.square.layoutMetadata)
                 }
-                .frame(maxWidth: .infinity, alignment: .top)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .opacity(isPulsing ? 0.46 : 0.72)
@@ -934,7 +1013,7 @@ private struct DashboardSkeletonCard: View {
                     }
                 }
 
-                if size != .compact {
+                if size.rowSpan > 1 {
                     skeletonLine(width: 96, height: 24)
                 }
             }
@@ -955,12 +1034,18 @@ private struct DashboardSkeletonCard: View {
 
     private var titleWidth: CGFloat {
         switch size {
+        case .mini:
+            0
         case .compact:
             86
-        case .large:
+        case .row:
+            154
+        case .square:
             112
         case .wide:
             154
+        case .large:
+            180
         }
     }
 

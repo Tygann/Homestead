@@ -21,12 +21,11 @@ struct PreviewDependencies {
         pinnedEntityStore.toggle("light.living_room_lamps")
         pinnedEntityStore.toggle("climate.downstairs")
 
-        let tokenStore = InMemoryHAOAuthTokenStore(
-            credential: PreviewCredentialProvider.sampleCredential(
-                baseURL: "http://homeassistant.local:8123",
-                accessToken: "preview-token"
-            )
+        let credential = PreviewCredentialProvider.sampleCredential(
+            baseURL: "http://homeassistant.local:8123",
+            accessToken: "preview-token"
         )
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: credential)
         let settings = HAConnectionSettings(
             baseURL: "http://homeassistant.local:8123",
             defaults: previewDefaults,
@@ -36,6 +35,7 @@ struct PreviewDependencies {
         let service = HomeAssistantService(
             stateStore: stateStore,
             connectionStatus: .connected,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
             authManager: HAOAuthManager(tokenStore: tokenStore)
         )
@@ -56,6 +56,30 @@ struct PreviewDependencies {
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         let dashboardPreferences = DashboardPreferences(defaults: previewDefaults)
         let pinnedEntityStore = PinnedEntityStore(defaults: previewDefaults)
+
+        if let credential = PreviewCredentialProvider.liveCredential() {
+            let tokenStore = InMemoryHAOAuthTokenStore(credential: credential)
+            let settings = HAConnectionSettings(
+                baseURL: credential.baseURLString,
+                defaults: previewDefaults,
+                tokenStore: tokenStore
+            )
+            let service = HomeAssistantService(
+                stateStore: stateStore,
+                authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+                mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+                authManager: HAOAuthManager(tokenStore: tokenStore)
+            )
+
+            return PreviewDependencies(
+                stateStore: stateStore,
+                connectionSettings: settings,
+                homeAssistantService: service,
+                dashboardConfiguration: dashboardConfiguration,
+                dashboardPreferences: dashboardPreferences,
+                pinnedEntityStore: pinnedEntityStore
+            )
+        }
 
         let settings = HAConnectionSettings(defaults: previewDefaults)
 
@@ -256,16 +280,43 @@ struct MissingLivePreviewCredentialsView: View {
 }
 
 private enum PreviewCredentialProvider {
+    private static let bundledCredentialsResource = "PreviewCredentials"
+
+    static func liveCredential() -> HAOAuthCredential? {
+        bundledCredential()
+    }
+
+    private static func bundledCredential() -> HAOAuthCredential? {
+        guard let url = Bundle.main.url(forResource: bundledCredentialsResource, withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let credentials = try? JSONDecoder().decode(PreviewCredentialsFile.self, from: data) else {
+            return nil
+        }
+
+        let baseURL = credentials.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let accessToken = credentials.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !baseURL.isEmpty, !accessToken.isEmpty else {
+            return nil
+        }
+
+        return sampleCredential(baseURL: baseURL, accessToken: accessToken)
+    }
+
     static func sampleCredential(baseURL: String, accessToken: String) -> HAOAuthCredential {
         HAOAuthCredential(
             baseURLString: baseURL,
             clientID: HAOAuthClientMetadata.clientID,
             refreshToken: "preview-refresh-token",
             accessToken: accessToken,
-            accessTokenExpiresAt: Date().addingTimeInterval(3600),
+            accessTokenExpiresAt: Date().addingTimeInterval(60 * 60 * 24 * 365),
             tokenType: "Bearer",
             updatedAt: Date()
         )
+    }
+
+    private struct PreviewCredentialsFile: Decodable {
+        let baseURL: String
+        let accessToken: String
     }
 }
 

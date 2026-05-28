@@ -42,6 +42,7 @@ final class HomeAssistantService {
         client: any HAWebSocketClientProtocol = HAWebSocketClient(),
         stateCache: HAStateCache = HAStateCache(),
         connectionStatus: HAConnectionStatus = .disconnected,
+        authState: HAAuthState = .signedOut,
         httpClient: HAHTTPClient = HAHTTPClient(),
         mobileAppClient: any HAMobileAppClientProtocol = HAMobileAppClient(),
         mobileAppRegistrationStore: any HAMobileAppRegistrationStore = KeychainHAMobileAppRegistrationStore(),
@@ -57,6 +58,7 @@ final class HomeAssistantService {
         self.oauthAuthorizer = oauthAuthorizer ?? HAWebAuthenticationSession()
         self.stateCache = stateCache
         self.connectionStatus = connectionStatus
+        self.authState = authState
         refreshMobileAppRegistrationState()
     }
 

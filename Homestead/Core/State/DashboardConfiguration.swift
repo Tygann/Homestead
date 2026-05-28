@@ -43,6 +43,15 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
     var resolvedCardSize: DashboardCardSize {
         size ?? .compact
     }
+
+    var layoutMetadata: DashboardCardLayoutMetadata {
+        switch type {
+        case .entity:
+            resolvedCardSize.layoutMetadata
+        case .header:
+            DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 1)
+        }
+    }
 }
 
 enum DashboardItemType: String, Codable, Equatable, Sendable {
@@ -59,10 +68,11 @@ final class DashboardConfiguration {
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let itemsKey = "dashboardItems"
+    @ObservationIgnored private let layoutVersionKey = "dashboardItems.layoutVersion"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        items = Self.loadItems(from: defaults, key: itemsKey)
+        items = Self.loadItems(from: defaults, key: itemsKey, layoutVersionKey: layoutVersionKey)
     }
 
     var hasCustomLayout: Bool {
@@ -236,6 +246,7 @@ final class DashboardConfiguration {
         }
 
         defaults.set(data, forKey: itemsKey)
+        defaults.set(Self.currentLayoutVersion, forKey: layoutVersionKey)
     }
 
     private func normalizedHeaderTitle(_ title: String) -> String {
@@ -243,8 +254,23 @@ final class DashboardConfiguration {
         return trimmedTitle.isEmpty ? "Untitled Section" : trimmedTitle
     }
 
-    private static func loadItems(from defaults: UserDefaults, key: String) -> [DashboardItemConfiguration] {
-        guard let data = defaults.data(forKey: key),
+    private static func loadItems(
+        from defaults: UserDefaults,
+        key: String,
+        layoutVersionKey: String
+    ) -> [DashboardItemConfiguration] {
+        guard var data = defaults.data(forKey: key) else {
+            return []
+        }
+
+        if defaults.integer(forKey: layoutVersionKey) < currentLayoutVersion,
+           let migratedData = migrateLegacyCardSizes(in: data) {
+            data = migratedData
+            defaults.set(migratedData, forKey: key)
+            defaults.set(currentLayoutVersion, forKey: layoutVersionKey)
+        }
+
+        guard
               let items = try? JSONDecoder().decode([DashboardItemConfiguration].self, from: data) else {
             return []
         }
@@ -263,4 +289,24 @@ final class DashboardConfiguration {
 
         return Array(sortedEntities.prefix(12).map(\.entityID))
     }
+
+    private static func migrateLegacyCardSizes(in data: Data) -> Data? {
+        guard var items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return nil
+        }
+
+        var didMigrate = false
+        for index in items.indices where items[index]["size"] as? String == "large" {
+            items[index]["size"] = DashboardCardSize.square.rawValue
+            didMigrate = true
+        }
+
+        guard didMigrate else {
+            return data
+        }
+
+        return try? JSONSerialization.data(withJSONObject: items)
+    }
+
+    private static let currentLayoutVersion = 2
 }

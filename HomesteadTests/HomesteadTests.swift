@@ -1360,6 +1360,53 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func dashboardConfigurationMigratesLegacyLargeCardSizeToSquare() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let legacyItem = DashboardItemConfiguration.entity(
+            entityID: "sensor.hallway_temperature",
+            size: .large
+        )
+        defaults.set(try JSONEncoder().encode([legacyItem]), forKey: "dashboardItems")
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.items.first?.resolvedCardSize == .square)
+        #expect(defaults.integer(forKey: "dashboardItems.layoutVersion") == 2)
+    }
+
+    @MainActor
+    @Test func dashboardConfigurationPersistsNewLargeCardSizeAfterMigrationVersion() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let itemID = configuration.add("sensor.hallway_temperature")
+        configuration.setCardSize(.large, forItemID: itemID)
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.items.first?.resolvedCardSize == .large)
+    }
+
+    @MainActor
+    @Test func dashboardCardSizesExposeFourColumnLayoutMetadata() {
+        #expect(DashboardCardSize.mini.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 1, rowSpan: 1))
+        #expect(DashboardCardSize.compact.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1))
+        #expect(DashboardCardSize.row.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 1))
+        #expect(DashboardCardSize.square.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 2))
+        #expect(DashboardCardSize.wide.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 2))
+        #expect(DashboardCardSize.large.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 4))
+    }
+
+    @MainActor
+    @Test func dashboardHeaderItemsExposeFullWidthRowLayoutMetadata() {
+        let header = DashboardItemConfiguration.header(title: "Downstairs")
+        #expect(header.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 1))
+    }
+
+    @MainActor
     @Test func dashboardConfigurationAddHeaderPersists() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))

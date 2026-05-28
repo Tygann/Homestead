@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-05-28
+
+### Four-Column Dashboard Grid
+
+- Replaced the dashboard's implicit two-column card layout with model-driven card spans on a 4-column grid foundation.
+- Added mini, compact, square, wide, and large dashboard card sizes with reusable column/row metadata.
+- Migrated legacy persisted `large` card sizes to the new `square` size so existing dashboards keep their current visual footprint.
+
 ## 2026-05-27
 
 ### Native OAuth Login

@@ -165,6 +165,7 @@
 				2FE2DD552FBDFE42009A0E06 /* Sources */,
 				2FE2DD562FBDFE42009A0E06 /* Frameworks */,
 				2FE2DD572FBDFE42009A0E06 /* Resources */,
+				A10000112FC7CC000000001 /* Copy Local Preview Credentials */,
 				A100000A2FBDFE43009A0E06 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -328,6 +329,30 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A10000112FC7CC000000001 /* Copy Local Preview Credentials */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/PreviewCredentials.json",
+			);
+			name = "Copy Local Preview Credentials";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/PreviewCredentials.json",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\n\nCREDENTIALS_FILE=\"${SRCROOT}/PreviewCredentials.json\"\nDESTINATION=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/PreviewCredentials.json\"\n\nif [ \"${CONFIGURATION}\" = \"Debug\" ] && [ -f \"${CREDENTIALS_FILE}\" ]; then\n    cp \"${CREDENTIALS_FILE}\" \"${DESTINATION}\"\nelse\n    rm -f \"${DESTINATION}\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2FE2DD552FBDFE42009A0E06 /* Sources */ = {
