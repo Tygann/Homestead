@@ -173,7 +173,7 @@ final class HomeAssistantService {
             refreshMobileAppRegistrationState(for: connectedConfiguration)
             lastErrorMessage = nil
             connectionStatus = .connected
-            dataFreshness = .refreshing
+            dataFreshness = .refreshing(lastUpdated: dataFreshness.lastKnownUpdateDate)
             startStateSync(configuration: connectedConfiguration)
             await registerMobileAppIfNeeded(configuration: connectedConfiguration)
         } catch {
@@ -388,7 +388,7 @@ final class HomeAssistantService {
     }
 
     func activateScene(entityID: String) async {
-        await callService(
+        await callTransientEntityService(
             domain: "scene",
             service: "turn_on",
             entityID: entityID,
@@ -397,7 +397,7 @@ final class HomeAssistantService {
     }
 
     func runScript(entityID: String) async {
-        await callService(
+        await callTransientEntityService(
             domain: "script",
             service: "turn_on",
             entityID: entityID,
@@ -406,7 +406,7 @@ final class HomeAssistantService {
     }
 
     func playPauseMedia(entityID: String) async {
-        await callService(
+        await callTransientEntityService(
             domain: "media_player",
             service: "media_play_pause",
             entityID: entityID,
@@ -459,16 +459,17 @@ final class HomeAssistantService {
     }
 
     func startVacuum(entityID: String) async {
-        await callService(
+        await callTransientEntityService(
             domain: "vacuum",
             service: "start",
             entityID: entityID,
+            expectedState: "cleaning",
             successTitle: "Vacuum started"
         )
     }
 
     func stopVacuum(entityID: String) async {
-        await callService(
+        await callTransientEntityService(
             domain: "vacuum",
             service: "stop",
             entityID: entityID,
@@ -477,7 +478,7 @@ final class HomeAssistantService {
     }
 
     func returnVacuumToBase(entityID: String) async {
-        await callService(
+        await callTransientEntityService(
             domain: "vacuum",
             service: "return_to_base",
             entityID: entityID,
@@ -503,6 +504,31 @@ final class HomeAssistantService {
 
     func serviceActionAvailable(domain: String, service: String) -> Bool {
         !serviceRegistry.hasLoaded || serviceRegistry.hasService(domain: domain, service: service)
+    }
+
+    func serviceActionAvailable(_ action: DashboardEntityPrimaryAction, entityID: String) -> Bool {
+        switch action {
+        case .toggleLight:
+            return serviceActionAvailable(domain: "light", service: toggleServiceName(for: entityID))
+        case .toggleSwitch:
+            return serviceActionAvailable(domain: "switch", service: toggleServiceName(for: entityID))
+        case .toggleFan:
+            return serviceActionAvailable(domain: "fan", service: toggleServiceName(for: entityID))
+        case .toggleCover:
+            guard let cover = stateStore.coverEntity(for: entityID) else {
+                return true
+            }
+            return serviceActionAvailable(domain: "cover", service: cover.isOpen ? "close_cover" : "open_cover")
+        case .toggleLock:
+            guard let entity = stateStore.entity(for: entityID) else {
+                return true
+            }
+            return serviceActionAvailable(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock")
+        case .activateScene:
+            return serviceActionAvailable(domain: "scene", service: "turn_on")
+        case .runScript:
+            return serviceActionAvailable(domain: "script", service: "turn_on")
+        }
     }
 
     func refreshMobileAppRegistrationState(settings: HAConnectionSettings? = nil) {
@@ -932,7 +958,7 @@ final class HomeAssistantService {
     }
 
     func stopCover(entityID: String) async {
-        await callService(
+        await callTransientEntityService(
             domain: "cover",
             service: "stop_cover",
             entityID: entityID,
@@ -963,6 +989,41 @@ final class HomeAssistantService {
     }
 
     @discardableResult
+    private func callTransientEntityService(
+        domain: String,
+        service: String,
+        entityID: String,
+        expectedState: String? = nil,
+        serviceData: [String: JSONValue] = [:],
+        successTitle: String? = nil
+    ) async -> Bool {
+        guard let entity = stateStore.entity(for: entityID), entity.isAvailable else {
+            serviceFeedback = HAServiceFeedback(
+                title: "Action unavailable",
+                message: entityDisplayName(for: entityID) ?? entityID,
+                style: .failure
+            )
+            return false
+        }
+
+        let pendingCommand = setPendingCommand(entityID: entityID, expectedState: expectedState)
+        let succeeded = await callService(
+            domain: domain,
+            service: service,
+            entityID: entityID,
+            serviceData: serviceData,
+            successTitle: successTitle
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+
+        return succeeded
+    }
+
+    @discardableResult
     func callService(
         domain: String,
         service: String,
@@ -970,6 +1031,15 @@ final class HomeAssistantService {
         serviceData: [String: JSONValue] = [:],
         successTitle: String? = nil
     ) async -> Bool {
+        guard serviceActionAvailable(domain: domain, service: service) else {
+            serviceFeedback = HAServiceFeedback(
+                title: "Action unavailable",
+                message: "\(domain).\(service) is not available on this Home Assistant server.",
+                style: .failure
+            )
+            return false
+        }
+
         do {
             try await client.callService(
                 domain: domain,
@@ -1051,12 +1121,12 @@ final class HomeAssistantService {
         dataFreshness = .cached(snapshot.savedAt)
     }
 
-    private func staleFreshness(_ errorMessage: String?) -> HADataFreshness {
+    private func staleFreshness(_ errorMessage: String?, lastUpdated: Date? = nil) -> HADataFreshness {
         guard stateStore.hasLoadedInitialSnapshot else {
             return .empty
         }
 
-        return .stale(errorMessage, lastUpdated: dataFreshness.lastKnownUpdateDate)
+        return .stale(errorMessage, lastUpdated: lastUpdated ?? dataFreshness.lastKnownUpdateDate)
     }
 
     private func handleNetworkPathUpdate(
@@ -1215,8 +1285,9 @@ final class HomeAssistantService {
             return
         }
 
+        let previousUpdateDate = dataFreshness.lastKnownUpdateDate
         beginBufferingStateChanges()
-        dataFreshness = .refreshing
+        dataFreshness = .refreshing(lastUpdated: previousUpdateDate)
 
         do {
             let states = try await client.fetchStates()
@@ -1234,7 +1305,7 @@ final class HomeAssistantService {
         } catch {
             applyBufferedStateChanges()
             lastErrorMessage = error.localizedDescription
-            dataFreshness = staleFreshness(error.localizedDescription)
+            dataFreshness = staleFreshness(error.localizedDescription, lastUpdated: previousUpdateDate)
             await recoverConnectionIfNeeded(after: error)
         }
     }
@@ -1387,7 +1458,7 @@ final class HomeAssistantService {
                 lastErrorMessage = nil
                 connectionStatus = .connected
                 reconnectTask = nil
-                dataFreshness = .refreshing
+                dataFreshness = .refreshing(lastUpdated: dataFreshness.lastKnownUpdateDate)
                 startStateSync(configuration: connectedConfiguration)
                 return
             } catch is CancellationError {
@@ -1503,6 +1574,10 @@ final class HomeAssistantService {
         service
             .replacingOccurrences(of: "_", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func toggleServiceName(for entityID: String) -> String {
+        stateStore.entity(for: entityID)?.state == "on" ? "turn_off" : "turn_on"
     }
 }
 

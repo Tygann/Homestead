@@ -25,6 +25,7 @@ struct DashboardCardView: View {
                 size: size,
                 isPending: entityBox.pendingCommand != nil,
                 isEditing: isEditing,
+                isPrimaryActionAvailable: primaryActionAvailability(for: entityBox),
                 toggle: isEditing ? nil : primaryAction(for: entityBox),
                 showDetails: isEditing ? nil : detailsAction(for: entityBox),
                 setSize: isEditing ? setSize : nil,
@@ -79,6 +80,15 @@ struct DashboardCardView: View {
         }
 
         return nil
+    }
+
+    private func primaryActionAvailability(for entityBox: HAEntityState) -> Bool {
+        let presentation = DashboardEntityPresentation(entityBox: entityBox)
+        guard let primaryAction = presentation.primaryAction else {
+            return true
+        }
+
+        return homeAssistantService.serviceActionAvailable(primaryAction, entityID: entityBox.entityID)
     }
 
     private func detailsAction(for entityBox: HAEntityState) -> (() -> Void)? {
@@ -149,6 +159,7 @@ private struct DashboardEntityCard: View {
     let size: DashboardCardSize
     let isPending: Bool
     let isEditing: Bool
+    let isPrimaryActionAvailable: Bool
     let toggle: (() -> Void)?
     let showDetails: (() -> Void)?
     let setSize: ((DashboardCardSize) -> Void)?
@@ -181,7 +192,7 @@ private struct DashboardEntityCard: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .disabled(isPending)
+                    .disabled(isPending || !isPrimaryActionAvailable)
                     .accessibilityLabel(presentation.primaryActionAccessibilityLabel ?? presentation.title)
                     .accessibilityValue(presentation.accessibilityValue)
                     .accessibilityHint(presentation.primaryActionAccessibilityHint)

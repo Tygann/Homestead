@@ -40,53 +40,26 @@ struct ToggleEntityDetailView: View {
     }
 
     private var statusCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: presentation.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(presentation.isActive ? presentation.accentColor : Color.secondary)
-                    .frame(width: 64, height: 64)
-                    .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                Spacer()
-
-                Text(presentation.subtitle)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(presentation.isAvailable ? presentation.headlineColor : Color.red)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(badgeBackground, in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(statusSummary)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        DashboardEntityStatusCard(
+            iconName: presentation.iconName,
+            title: presentation.title,
+            badge: presentation.subtitle,
+            summary: statusSummary,
+            iconColor: presentation.isActive ? presentation.accentColor : Color.secondary,
+            badgeColor: presentation.isAvailable ? presentation.headlineColor : Color.red,
+            iconBackground: iconBackground,
+            badgeBackground: badgeBackground
+        )
     }
 
     private var actionButton: some View {
-        Button {
+        DashboardPrimaryActionButton(
+            title: actionTitle,
+            systemImage: actionSystemImage,
+            isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+        ) {
             Task { await performPrimaryAction() }
-        } label: {
-            Label(actionTitle, systemImage: actionSystemImage)
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(entityBox.pendingCommand != nil || !entity.isAvailable)
     }
 
     private var stateDetails: some View {
@@ -166,6 +139,19 @@ struct ToggleEntityDetailView: View {
             return "power"
         case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
             return "checkmark"
+        }
+    }
+
+    private var isActionServiceAvailable: Bool {
+        switch entity.domain {
+        case .switch:
+            return homeAssistantService.serviceActionAvailable(domain: "switch", service: presentation.isActive ? "turn_off" : "turn_on")
+        case .fan:
+            return homeAssistantService.serviceActionAvailable(domain: "fan", service: presentation.isActive ? "turn_off" : "turn_on")
+        case .lock:
+            return homeAssistantService.serviceActionAvailable(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock")
+        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+            return false
         }
     }
 

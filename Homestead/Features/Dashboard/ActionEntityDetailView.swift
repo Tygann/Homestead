@@ -40,53 +40,25 @@ struct ActionEntityDetailView: View {
     }
 
     private var statusCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: presentation.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 64, height: 64)
-                    .background(iconColor.opacity(0.12), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                Spacer()
-
-                Text(presentation.subtitle)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(presentation.isAvailable ? iconColor : Color.red)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(badgeBackground, in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(statusSummary)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        DashboardEntityStatusCard(
+            iconName: presentation.iconName,
+            title: presentation.title,
+            badge: presentation.subtitle,
+            summary: statusSummary,
+            iconColor: iconColor,
+            badgeColor: presentation.isAvailable ? iconColor : .red,
+            badgeBackground: badgeBackground
+        )
     }
 
     private var runButton: some View {
-        Button {
+        DashboardPrimaryActionButton(
+            title: actionTitle,
+            systemImage: actionSystemImage,
+            isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+        ) {
             Task { await performAction() }
-        } label: {
-            Label(actionTitle, systemImage: actionSystemImage)
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(!entity.isAvailable)
     }
 
     private var stateDetails: some View {
@@ -124,6 +96,7 @@ struct ActionEntityDetailView: View {
 
     private var statusSummary: String {
         guard entity.isAvailable else { return "\(navigationTitle) unavailable" }
+        if entityBox.pendingCommand != nil { return "Waiting for Home Assistant confirmation" }
 
         switch entity.domain {
         case .scene:
@@ -136,7 +109,11 @@ struct ActionEntityDetailView: View {
     }
 
     private var actionTitle: String {
-        switch entity.domain {
+        if entityBox.pendingCommand != nil {
+            return "Updating..."
+        }
+
+        return switch entity.domain {
         case .scene:
             "Activate Scene"
         case .script:
@@ -165,6 +142,17 @@ struct ActionEntityDetailView: View {
             "script.turn_on"
         case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .other:
             "\(entity.domain.rawValue).turn_on"
+        }
+    }
+
+    private var isActionServiceAvailable: Bool {
+        switch entity.domain {
+        case .scene:
+            return homeAssistantService.serviceActionAvailable(domain: "scene", service: "turn_on")
+        case .script:
+            return homeAssistantService.serviceActionAvailable(domain: "script", service: "turn_on")
+        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .other:
+            return false
         }
     }
 

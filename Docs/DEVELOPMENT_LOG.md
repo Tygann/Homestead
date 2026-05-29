@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-29
 
+### iPhone Production Readiness Pass
+
+- Added pending-state handling for stateless Home Assistant actions such as scenes, scripts, media play/pause, cover stop, and vacuum commands.
+- Preserved last-known state timestamps while refreshing so stale/retry UI can show trustworthy data age.
+- Added shared dashboard detail status, action, and control components and migrated common detail sheets onto them.
+- Tightened Home Assistant settings recovery for server mismatches and mobile-app registration status.
+
 ### Expanded Native Domain Controls
 
 - Added fan and media-player domain models so dashboard views can read typed Home Assistant state instead of raw attributes.

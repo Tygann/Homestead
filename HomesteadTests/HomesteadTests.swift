@@ -107,10 +107,11 @@ struct HomesteadTests {
         #expect(staleNotice?.actionTitle == "Retry Now")
 
         let refreshingNotice = DashboardDataFreshnessNoticeState.make(
-            dataFreshness: .refreshing,
+            dataFreshness: .refreshing(lastUpdated: Date(timeIntervalSinceNow: -30)),
             connectionStatus: .connected
         )
         #expect(refreshingNotice?.title == "Refreshing")
+        #expect(refreshingNotice?.message.contains("Last state") == true)
         #expect(refreshingNotice?.actionTitle == nil)
 
         #expect(DashboardDataFreshnessNoticeState.make(
@@ -447,6 +448,14 @@ struct HomesteadTests {
         #expect(registry.hasService(domain: "fan", service: "set_percentage"))
         #expect(!registry.hasService(domain: "fan", service: "set_preset_mode"))
         #expect(registry.domains["light"]?["turn_on"]?.fields["brightness"] != nil)
+    }
+
+    @Test func dataFreshnessRefreshingPreservesLastKnownUpdateDate() {
+        let lastUpdated = Date(timeIntervalSince1970: 1_800_000_000)
+        let freshness = HADataFreshness.refreshing(lastUpdated: lastUpdated)
+
+        #expect(freshness.isUsable)
+        #expect(freshness.lastKnownUpdateDate == lastUpdated)
     }
 
     @Test func cameraCapabilitiesDecodesFrontendStreamTypes() throws {
@@ -1458,6 +1467,67 @@ struct HomesteadTests {
         #expect(service.serviceActionAvailable(domain: "fan", service: "set_percentage"))
         #expect(service.serviceActionAvailable(domain: "media_player", service: "volume_set"))
         #expect(!service.serviceActionAvailable(domain: "fan", service: "set_preset_mode"))
+    }
+
+    @MainActor
+    @Test func transientServiceActionSetsPendingCommandAndSuccessFeedback() async throws {
+        let scene = HAEntityDTO(
+            entityID: "scene.movie_night",
+            state: "scening",
+            attributes: ["friendly_name": .string("Movie Night")]
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([scene])
+        let webSocketClient = StubHAWebSocketClient(states: [scene])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "scene-access"))
+            )
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        stateStore.applySnapshot([scene])
+
+        await service.activateScene(entityID: "scene.movie_night")
+
+        #expect(stateStore.pendingCommand(for: "scene.movie_night") != nil)
+        #expect(service.serviceFeedback?.title == "Scene activated")
+        #expect(webSocketClient.callServiceInvocations.last?.domain == "scene")
+        #expect(webSocketClient.callServiceInvocations.last?.service == "turn_on")
+    }
+
+    @MainActor
+    @Test func transientServiceActionDoesNotCallHomeAssistantWhenEntityUnavailable() async throws {
+        let unavailableScript = HAEntityDTO(
+            entityID: "script.good_morning",
+            state: "unavailable",
+            attributes: ["friendly_name": .string("Good Morning")]
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([unavailableScript])
+        let webSocketClient = StubHAWebSocketClient(states: [unavailableScript])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "script-access"))
+            )
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        stateStore.applySnapshot([unavailableScript])
+
+        await service.runScript(entityID: "script.good_morning")
+
+        #expect(webSocketClient.callServiceInvocations.isEmpty)
+        #expect(stateStore.pendingCommand(for: "script.good_morning") == nil)
+        #expect(service.serviceFeedback?.title == "Action unavailable")
     }
 
     @MainActor

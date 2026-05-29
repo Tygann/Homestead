@@ -54,57 +54,30 @@ struct LockDetailView: View {
     }
 
     private var statusCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: presentation.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 64, height: 64)
-                    .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                Spacer()
-
-                Text(presentation.subtitle)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(statusColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(statusBackground, in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(statusSummary)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        DashboardEntityStatusCard(
+            iconName: presentation.iconName,
+            title: presentation.title,
+            badge: presentation.subtitle,
+            summary: statusSummary,
+            iconColor: iconColor,
+            badgeColor: statusColor,
+            iconBackground: iconBackground,
+            badgeBackground: statusBackground
+        )
     }
 
     private var actionButton: some View {
-        Button {
+        DashboardPrimaryActionButton(
+            title: actionTitle,
+            systemImage: actionSystemImage,
+            isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+        ) {
             if entity.state == "locked" {
                 isShowingUnlockConfirmation = true
             } else {
                 Task { await homeAssistantService.toggleLock(entityID: entity.entityID) }
             }
-        } label: {
-            Label(actionTitle, systemImage: actionSystemImage)
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(entityBox.pendingCommand != nil || !entity.isAvailable)
     }
 
     private var contextDetails: some View {
@@ -132,6 +105,10 @@ struct LockDetailView: View {
 
     private var actionSystemImage: String {
         entity.state == "locked" ? "lock.open" : "lock"
+    }
+
+    private var isActionServiceAvailable: Bool {
+        homeAssistantService.serviceActionAvailable(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock")
     }
 
     private var iconColor: Color {

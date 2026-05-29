@@ -60,39 +60,16 @@ struct MediaPlayerDetailView: View {
     }
 
     private var statusCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: presentation.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 64, height: 64)
-                    .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                Spacer()
-
-                Text(presentation.subtitle)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(statusColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(statusBackground, in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(entityBox.mediaPlayerEntity?.nowPlayingText ?? statusSummary)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        DashboardEntityStatusCard(
+            iconName: presentation.iconName,
+            title: presentation.title,
+            badge: presentation.subtitle,
+            summary: entityBox.mediaPlayerEntity?.nowPlayingText ?? statusSummary,
+            iconColor: iconColor,
+            badgeColor: statusColor,
+            iconBackground: iconBackground,
+            badgeBackground: statusBackground
+        )
     }
 
     private func volumeControls(_ mediaPlayer: MediaPlayerEntity) -> some View {
@@ -177,7 +154,7 @@ struct MediaPlayerDetailView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(!entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause"))
+            .disabled(entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause"))
 
         }
         .padding(AppSpacing.large)
@@ -200,6 +177,7 @@ struct MediaPlayerDetailView: View {
 
     private var statusSummary: String {
         guard entity.isAvailable else { return "Media player unavailable" }
+        if entityBox.pendingCommand != nil { return "Waiting for Home Assistant confirmation" }
         if let source = entityBox.mediaPlayerEntity?.source, !source.isEmpty {
             return source
         }
@@ -223,7 +201,11 @@ struct MediaPlayerDetailView: View {
     }
 
     private var playPauseTitle: String {
-        switch entity.state {
+        if entityBox.pendingCommand != nil {
+            return "Updating..."
+        }
+
+        return switch entity.state {
         case "playing":
             "Pause"
         case "paused":

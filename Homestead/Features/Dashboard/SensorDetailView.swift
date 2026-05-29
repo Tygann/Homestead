@@ -39,89 +39,79 @@ struct SensorDetailView: View {
     }
 
     private var statusCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: presentation.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 64, height: 64)
-                    .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        VStack(alignment: .leading, spacing: AppSpacing.large) {
+            DashboardEntityStatusCard(
+                iconName: presentation.iconName,
+                title: presentation.title,
+                badge: statusBadgeText,
+                summary: presentation.subtitle,
+                iconColor: iconColor,
+                badgeColor: statusColor,
+                iconBackground: iconBackground,
+                badgeBackground: statusBackground
+            )
 
-                Spacer()
-
-                Text(statusBadgeText)
-                    .font(.headline.weight(.semibold))
+            DashboardControlPanel(title: "Current Reading", systemImage: "gauge.medium") {
+                Text(primaryValue)
+                    .font(.system(size: 42, weight: .bold, design: .rounded))
                     .foregroundStyle(statusColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(statusBackground, in: Capsule())
+                    .minimumScaleFactor(0.55)
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(presentation.subtitle)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(primaryValue)
-                .font(.system(size: 42, weight: .bold, design: .rounded))
-                .foregroundStyle(statusColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-                .monospacedDigit()
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
     private var detailMetrics: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Reading", systemImage: "waveform.path.ecg")
-                .font(.headline)
+        DashboardEntityContextPanel(
+            title: "Reading",
+            systemImage: "waveform.path.ecg",
+            rows: readingRows
+        )
+    }
 
-            SensorDetailRow(title: "State", value: primaryValue)
+    private var readingRows: [DashboardEntityDetailRow] {
+        var rows = [DashboardEntityDetailRow(title: "State", value: primaryValue)]
 
-            if let sensor = entityBox.sensorEntity {
-                if let valueText = nonEmpty(sensor.valueText), valueText != sensor.formattedValue {
-                    SensorDetailRow(title: "Value", value: valueText)
-                }
-
-                if let unit = sensor.unitText {
-                    SensorDetailRow(title: "Unit", value: unit)
-                }
-
-                if let deviceClass = sensor.formattedDeviceClass {
-                    SensorDetailRow(title: "Type", value: deviceClass)
-                }
-            } else if entity.domain == .binarySensor {
-                SensorDetailRow(title: "Type", value: "Binary Sensor")
+        if let sensor = entityBox.sensorEntity {
+            if let valueText = nonEmpty(sensor.valueText), valueText != sensor.formattedValue {
+                rows.append(DashboardEntityDetailRow(title: "Value", value: valueText))
             }
+
+            if let unit = sensor.unitText {
+                rows.append(DashboardEntityDetailRow(title: "Unit", value: unit))
+            }
+
+            if let deviceClass = sensor.formattedDeviceClass {
+                rows.append(DashboardEntityDetailRow(title: "Type", value: deviceClass))
+            }
+        } else if entity.domain == .binarySensor {
+            rows.append(DashboardEntityDetailRow(title: "Type", value: "Binary Sensor"))
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+
+        return rows
     }
 
     private var contextDetails: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Home Assistant", systemImage: "house.and.flag")
-                .font(.headline)
+        DashboardEntityContextPanel(
+            title: "Home Assistant",
+            systemImage: "house.and.flag",
+            rows: contextRows
+        )
+    }
 
-            SensorDetailRow(title: "Entity ID", value: entity.entityID)
-            SensorDetailRow(title: "Domain", value: entity.domain.displayName)
+    private var contextRows: [DashboardEntityDetailRow] {
+        var rows = [
+            DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
+            DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName)
+        ]
 
-            if let lastUpdated = entity.lastUpdated {
-                SensorDetailRow(title: "Last Updated", value: lastUpdated.formatted(date: .abbreviated, time: .shortened))
-            }
+        if let lastUpdated = entity.lastUpdated {
+            rows.append(DashboardEntityDetailRow(title: "Last Updated", value: lastUpdated.formatted(date: .abbreviated, time: .shortened)))
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+
+        return rows
     }
 
     private var navigationTitle: String {
@@ -194,29 +184,6 @@ struct SensorDetailView: View {
         guard let value else { return nil }
         let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue
-    }
-}
-
-private struct SensorDetailRow: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Spacer(minLength: AppSpacing.medium)
-
-            Text(value)
-                .font(.body.weight(.medium))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.trailing)
-                .textSelection(.enabled)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, AppSpacing.xSmall)
     }
 }
 

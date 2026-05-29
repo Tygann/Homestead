@@ -98,6 +98,13 @@ struct HomeAssistantSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                if let signedInServerDisplayText {
+                    LabeledContent("Signed-In Server") {
+                        Text(signedInServerDisplayText)
+                            .foregroundStyle(hasServerMismatch ? .orange : .secondary)
+                    }
+                }
+
                 if connectionSettings.hasServerURL {
                     DisclosureGroup("Change Server") {
                         TextField("Base URL", text: $connectionSettings.baseURL)
@@ -117,6 +124,34 @@ struct HomeAssistantSettingsView: View {
                 Text("Home Assistant")
             } footer: {
                 Text("Use the address you normally use to open Home Assistant.")
+            }
+
+            if homeAssistantService.authState.isSignedIn {
+                Section {
+                    LabeledContent("Mobile App") {
+                        Text(mobileAppStatusTitle)
+                            .foregroundStyle(mobileAppStatusTint)
+                    }
+
+                    if let mobileAppStatusMessage {
+                        Text(mobileAppStatusMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        focusedField = nil
+                        Task {
+                            await homeAssistantService.registerMobileApp(settings: connectionSettings)
+                        }
+                    } label: {
+                        Text(mobileAppButtonTitle)
+                    }
+                    .disabled(!connectionSettings.hasServerURL ||
+                              hasServerMismatch ||
+                              homeAssistantService.mobileAppRegistrationState.isRegistering)
+                    .frame(maxWidth: .infinity)
+                }
             }
 
             if shouldShowSignIn || canRetryConnection {
@@ -188,7 +223,11 @@ struct HomeAssistantSettingsView: View {
     }
 
     private var statusMessage: String {
-        SettingsHomeAssistantStatus.detailMessage(
+        if hasServerMismatch {
+            return "This server is different from the saved Home Assistant sign-in. Sign in again for this server."
+        }
+
+        return SettingsHomeAssistantStatus.detailMessage(
             authState: homeAssistantService.authState,
             connectionStatus: homeAssistantService.connectionStatus,
             serviceError: homeAssistantService.lastErrorMessage,
@@ -217,7 +256,11 @@ struct HomeAssistantSettingsView: View {
     }
 
     private var shouldShowSignIn: Bool {
-        switch homeAssistantService.authState {
+        if hasServerMismatch {
+            return true
+        }
+
+        return switch homeAssistantService.authState {
         case .signedOut, .signingIn, .refreshFailed, .accessTokenExpired:
             true
         case .refreshing, .signedIn:
@@ -226,6 +269,10 @@ struct HomeAssistantSettingsView: View {
     }
 
     private var canRetryConnection: Bool {
+        guard !hasServerMismatch else {
+            return false
+        }
+
         guard homeAssistantService.authState.isSignedIn else {
             return false
         }
@@ -250,6 +297,82 @@ struct HomeAssistantSettingsView: View {
         return false
     }
 
+    private var signedInServerDisplayText: String? {
+        guard let summary = homeAssistantService.authState.sessionSummary else {
+            return nil
+        }
+
+        return SettingsHomeAssistantStatus.serverDisplayText(summary.baseURLString)
+    }
+
+    private var hasServerMismatch: Bool {
+        guard connectionSettings.hasServerURL,
+              let summary = homeAssistantService.authState.sessionSummary else {
+            return false
+        }
+
+        let signedInServer = HAConnectionConfiguration(
+            baseURLString: summary.baseURLString,
+            accessToken: ""
+        ).dataSourceID
+        let enteredServer = HAConnectionConfiguration(
+            baseURLString: connectionSettings.baseURL,
+            accessToken: ""
+        ).dataSourceID
+        return signedInServer != enteredServer
+    }
+
+    private var mobileAppStatusTitle: String {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .unregistered:
+            "Not Registered"
+        case .registering:
+            "Registering"
+        case .registered:
+            "Registered"
+        case .failed:
+            "Needs Attention"
+        }
+    }
+
+    private var mobileAppStatusMessage: String? {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .unregistered:
+            return "Homestead will register automatically after sign-in, or you can register again here."
+        case .registering:
+            return "Registering Homestead with Home Assistant."
+        case .registered(let summary):
+            let date = summary.registeredAt.formatted(date: .abbreviated, time: .shortened)
+            return "Registered as \(summary.deviceName) on \(date)."
+        case .failed(let message):
+            return message
+        }
+    }
+
+    private var mobileAppStatusTint: Color {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .registered:
+            .green
+        case .registering:
+            .orange
+        case .failed:
+            .red
+        case .unregistered:
+            .secondary
+        }
+    }
+
+    private var mobileAppButtonTitle: String {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .registering:
+            "Registering"
+        case .registered:
+            "Register Again"
+        case .unregistered, .failed:
+            "Register Mobile App"
+        }
+    }
+
     private var authRefreshTaskID: String {
         [
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -259,6 +382,17 @@ struct HomeAssistantSettingsView: View {
 
     private enum Field {
         case baseURL
+    }
+}
+
+private extension HAAuthState {
+    var sessionSummary: HAAuthSessionSummary? {
+        switch self {
+        case .signedIn(let summary), .accessTokenExpired(let summary), .refreshing(let summary?):
+            summary
+        case .refreshing(nil), .signedOut, .signingIn, .refreshFailed:
+            nil
+        }
     }
 }
 
@@ -284,6 +418,15 @@ private struct HomeAssistantSettingsRow: View {
             }
             .fontDesign(.rounded)
             .lineLimit(1)
+
+            Spacer()
+
+            Text(status)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(tint)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(tint.opacity(0.12), in: Capsule())
         }
     }
 }

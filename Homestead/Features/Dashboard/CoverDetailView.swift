@@ -16,7 +16,8 @@ struct CoverDetailView: View {
                         coverStatusCard(cover)
                         movementControls(cover)
 
-                        if cover.positionPercentage != nil {
+                        if cover.positionPercentage != nil,
+                           homeAssistantService.serviceActionAvailable(domain: "cover", service: "set_cover_position") {
                             positionControls(cover)
                         }
                     }
@@ -95,7 +96,7 @@ struct CoverDetailView: View {
                         .frame(height: 52)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(isPending || cover.state == "open")
+                .disabled(isPending || cover.state == "open" || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover"))
 
                 Button {
                     Task { await homeAssistantService.closeCover(entityID: entityBox.entityID) }
@@ -106,7 +107,7 @@ struct CoverDetailView: View {
                         .frame(height: 52)
                 }
                 .buttonStyle(.bordered)
-                .disabled(isPending || cover.state == "closed")
+                .disabled(isPending || cover.state == "closed" || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "close_cover"))
             }
 
             Button {
@@ -118,7 +119,7 @@ struct CoverDetailView: View {
                     .frame(height: 46)
             }
             .buttonStyle(.bordered)
-            .disabled(isPending)
+            .disabled(isPending || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "stop_cover"))
         }
         .controlSize(.large)
     }
@@ -153,6 +154,8 @@ struct CoverDetailView: View {
                 }
             )
             .disabled(entityBox.pendingCommand != nil)
+            .accessibilityLabel("Cover position")
+            .accessibilityValue("\(Int(position)) percent")
 
             Text("Position is reported by Home Assistant when this cover supports it.")
                 .font(.footnote)

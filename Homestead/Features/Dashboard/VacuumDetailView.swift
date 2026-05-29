@@ -40,43 +40,22 @@ struct VacuumDetailView: View {
     }
 
     private var statusCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: presentation.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 64, height: 64)
-                    .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                Spacer()
-
-                Text(presentation.subtitle)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(statusColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(statusBackground, in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(statusSummary)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        DashboardEntityStatusCard(
+            iconName: presentation.iconName,
+            title: presentation.title,
+            badge: presentation.subtitle,
+            summary: statusSummary,
+            iconColor: iconColor,
+            badgeColor: statusColor,
+            iconBackground: iconBackground,
+            badgeBackground: statusBackground
+        )
     }
 
     private var vacuumControls: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+        let isPending = entityBox.pendingCommand != nil
+
+        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
             HStack(spacing: AppSpacing.small) {
                 Button {
                     Task { await homeAssistantService.startVacuum(entityID: entity.entityID) }
@@ -87,7 +66,7 @@ struct VacuumDetailView: View {
                         .frame(height: 52)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!entity.isAvailable || entity.state == "cleaning")
+                .disabled(isPending || !entity.isAvailable || entity.state == "cleaning" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "start"))
 
                 Button {
                     Task { await homeAssistantService.stopVacuum(entityID: entity.entityID) }
@@ -98,7 +77,7 @@ struct VacuumDetailView: View {
                         .frame(height: 52)
                 }
                 .buttonStyle(.bordered)
-                .disabled(!entity.isAvailable)
+                .disabled(isPending || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "stop"))
             }
 
             Button {
@@ -110,7 +89,7 @@ struct VacuumDetailView: View {
                     .frame(height: 46)
             }
             .buttonStyle(.bordered)
-            .disabled(!entity.isAvailable || entity.state == "docked")
+            .disabled(isPending || !entity.isAvailable || entity.state == "docked" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "return_to_base"))
         }
         .controlSize(.large)
     }
@@ -129,6 +108,7 @@ struct VacuumDetailView: View {
 
     private var statusSummary: String {
         guard entity.isAvailable else { return "Vacuum unavailable" }
+        if entityBox.pendingCommand != nil { return "Waiting for Home Assistant confirmation" }
         return presentation.isActive ? "Cleaning now" : "Ready for command"
     }
 

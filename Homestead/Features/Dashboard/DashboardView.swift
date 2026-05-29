@@ -700,10 +700,10 @@ nonisolated struct DashboardDataFreshnessNoticeState: Equatable {
                 style: .warning,
                 actionTitle: actionTitle(for: connectionStatus)
             )
-        case .refreshing:
+        case .refreshing(let lastUpdated):
             return DashboardDataFreshnessNoticeState(
                 title: "Refreshing",
-                message: "Updating from Home Assistant.",
+                message: refreshingMessage(lastUpdated: lastUpdated),
                 systemImage: "arrow.triangle.2.circlepath",
                 style: .progress,
                 actionTitle: nil
@@ -743,6 +743,16 @@ nonisolated struct DashboardDataFreshnessNoticeState: Equatable {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return "Last updated \(formatter.localizedString(for: date, relativeTo: Date()))."
+    }
+
+    private static func refreshingMessage(lastUpdated: Date?) -> String {
+        guard let lastUpdated else {
+            return "Updating from Home Assistant."
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return "Updating. Last state was \(formatter.localizedString(for: lastUpdated, relativeTo: Date()))."
     }
 }
 

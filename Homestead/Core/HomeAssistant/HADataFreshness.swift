@@ -3,7 +3,7 @@ import Foundation
 enum HADataFreshness: Equatable {
     case empty
     case cached(Date?)
-    case refreshing
+    case refreshing(lastUpdated: Date? = nil)
     case live(Date)
     case stale(String?, lastUpdated: Date? = nil)
 
@@ -24,7 +24,9 @@ enum HADataFreshness: Equatable {
             date
         case .stale(_, let lastUpdated):
             lastUpdated
-        case .empty, .refreshing:
+        case .refreshing(let lastUpdated):
+            lastUpdated
+        case .empty:
             nil
         }
     }

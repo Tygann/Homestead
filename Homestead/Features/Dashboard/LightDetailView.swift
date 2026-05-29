@@ -157,6 +157,7 @@ struct LightDetailView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(isSelectedPreset(preset) ? Color.white : Color.primary)
                     .background(presetBackground(for: preset), in: Capsule())
+                    .disabled(entityBox.pendingCommand != nil)
                     .accessibilityLabel("Set brightness to \(Int(preset)) percent")
                 }
             }
