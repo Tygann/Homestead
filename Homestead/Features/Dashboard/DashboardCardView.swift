@@ -4,8 +4,10 @@ struct DashboardCardView: View {
     let entityID: String
     let size: DashboardCardSize
     var displayNameOverride: String?
+    var iconNameOverride: String?
     var isEditing = false
     var setSize: ((DashboardCardSize) -> Void)?
+    var setIconNameOverride: ((String?) -> Void)?
     var rename: (() -> Void)?
     var remove: (() -> Void)?
 
@@ -17,7 +19,8 @@ struct DashboardCardView: View {
         if let entityBox = stateStore.entityBox(for: entityID) {
             let presentation = DashboardEntityPresentation(
                 entityBox: entityBox,
-                displayNameOverride: displayNameOverride
+                displayNameOverride: displayNameOverride,
+                iconNameOverride: iconNameOverride
             )
 
             DashboardEntityCard(
@@ -29,6 +32,7 @@ struct DashboardCardView: View {
                 toggle: isEditing ? nil : primaryAction(for: entityBox),
                 showDetails: isEditing ? nil : detailsAction(for: entityBox),
                 setSize: isEditing ? setSize : nil,
+                setIconNameOverride: isEditing ? setIconNameOverride : nil,
                 rename: isEditing ? rename : nil,
                 remove: isEditing ? remove : nil
             )
@@ -163,6 +167,7 @@ private struct DashboardEntityCard: View {
     let toggle: (() -> Void)?
     let showDetails: (() -> Void)?
     let setSize: ((DashboardCardSize) -> Void)?
+    let setIconNameOverride: ((String?) -> Void)?
     let rename: (() -> Void)?
     let remove: (() -> Void)?
 
@@ -216,6 +221,12 @@ private struct DashboardEntityCard: View {
             if isEditing {
                 sizeMenu
                     .offset(x: 6, y: 6)
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if isEditing {
+                iconMenu
+                    .offset(x: -6, y: 6)
             }
         }
     }
@@ -334,6 +345,16 @@ private struct DashboardEntityCard: View {
                     .background(Color(.secondarySystemGroupedBackground), in: Circle())
             }
             .accessibilityLabel("Card size")
+        }
+    }
+
+    @ViewBuilder
+    private var iconMenu: some View {
+        if let setIconNameOverride {
+            DashboardIconOverrideMenu(
+                selectedSystemName: presentation.iconName,
+                setIconNameOverride: setIconNameOverride
+            )
         }
     }
 

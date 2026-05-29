@@ -306,9 +306,15 @@ struct DashboardEntityPresentation {
     let secondaryActions: [DashboardEntitySecondaryAction]
     let supportsFavorite: Bool
 
-    init(entityBox: HAEntityState, displayNameOverride: String? = nil) {
+    init(
+        entityBox: HAEntityState,
+        displayNameOverride: String? = nil,
+        iconNameOverride: String? = nil
+    ) {
         let resolvedDisplayNameOverride = displayNameOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
         let overrideTitle = resolvedDisplayNameOverride?.isEmpty == false ? resolvedDisplayNameOverride : nil
+        let resolvedIconNameOverride = iconNameOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let overrideIconName = resolvedIconNameOverride?.isEmpty == false ? resolvedIconNameOverride : nil
         let pendingCommand = entityBox.pendingCommand
         let capability = DashboardEntityDomainRegistry.capability(for: entityBox.domain)
         self.capability = capability
@@ -331,7 +337,7 @@ struct DashboardEntityPresentation {
                 pendingCommand: pendingCommand
             )
             headline = effectiveIsOn ? brightnessPercentage.map { "\($0)%" } : nil
-            iconName = light.iconName
+            iconName = overrideIconName ?? light.iconName
             isActive = effectiveIsOn
             isAvailable = true
             accentColor = Self.accentColor(for: effectiveIsOn, behavior: capability.iconAccentBehavior)
@@ -339,7 +345,7 @@ struct DashboardEntityPresentation {
             title = overrideTitle ?? sensor.displayName
             subtitle = sensor.displaySubtitle
             headline = sensor.formattedValue
-            iconName = sensor.iconName
+            iconName = overrideIconName ?? sensor.iconName
             isActive = sensor.isAlerting
             isAvailable = sensor.isAvailable
             accentColor = Self.sensorAccentColor(for: sensor, behavior: capability.iconAccentBehavior)
@@ -347,7 +353,7 @@ struct DashboardEntityPresentation {
             title = overrideTitle ?? cover.displayName
             subtitle = Self.coverSubtitle(cover, pendingCommand: pendingCommand)
             headline = cover.positionPercentage.map { "\($0)%" }
-            iconName = entityBox.homeEntity.iconName
+            iconName = overrideIconName ?? entityBox.homeEntity.iconName
             isActive = cover.isOpen
             isAvailable = entityBox.homeEntity.isAvailable
             accentColor = Self.accentColor(for: cover.isOpen, behavior: capability.iconAccentBehavior)
@@ -355,7 +361,7 @@ struct DashboardEntityPresentation {
             title = overrideTitle ?? climate.displayName
             subtitle = Self.climateSubtitle(climate, pendingCommand: pendingCommand)
             headline = climate.targetTemperatureText ?? climate.currentTemperatureText
-            iconName = entityBox.homeEntity.iconName
+            iconName = overrideIconName ?? entityBox.homeEntity.iconName
             isActive = climate.isActive
             isAvailable = entityBox.homeEntity.isAvailable
             accentColor = Self.climateAccentColor(for: climate, behavior: capability.iconAccentBehavior)
@@ -371,7 +377,7 @@ struct DashboardEntityPresentation {
                 pendingCommand: pendingCommand
             )
             headline = effectiveIsOn ? percentage.map { "\($0)%" } : nil
-            iconName = entityBox.homeEntity.iconName
+            iconName = overrideIconName ?? entityBox.homeEntity.iconName
             isActive = effectiveIsOn
             isAvailable = fan.isAvailable
             accentColor = Self.accentColor(for: effectiveIsOn, behavior: capability.iconAccentBehavior)
@@ -379,7 +385,7 @@ struct DashboardEntityPresentation {
             title = overrideTitle ?? mediaPlayer.displayName
             subtitle = Self.mediaPlayerSubtitle(mediaPlayer, pendingCommand: pendingCommand)
             headline = mediaPlayer.nowPlayingText
-            iconName = entityBox.homeEntity.iconName
+            iconName = overrideIconName ?? entityBox.homeEntity.iconName
             isActive = mediaPlayer.isPlaying
             isAvailable = mediaPlayer.isAvailable
             accentColor = Self.accentColor(for: mediaPlayer.isPlaying, behavior: capability.iconAccentBehavior)
@@ -399,7 +405,7 @@ struct DashboardEntityPresentation {
             title = overrideTitle ?? entity.displayName
             subtitle = pendingCommand == nil ? Self.subtitle(for: effectiveEntity, capability: capability) : Self.pendingSubtitle(for: effectiveEntity, capability: capability)
             headline = Self.headline(for: effectiveEntity, capability: capability)
-            iconName = effectiveEntity.iconName
+            iconName = overrideIconName ?? effectiveEntity.iconName
             isActive = Self.isActive(effectiveEntity, capability: capability)
             isAvailable = entity.isAvailable
             accentColor = Self.accentColor(for: effectiveEntity, capability: capability)

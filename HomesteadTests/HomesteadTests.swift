@@ -2070,6 +2070,32 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func dashboardChipItemsPersistAsSeparateDashboardComponents() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let summaryID = configuration.addSummaryChip(kind: .lights)
+        let entityID = configuration.addEntityChip(entityID: "sensor.hallway_temperature")
+        configuration.renameDisplayItem(id: summaryID, displayNameOverride: "Lighting")
+        configuration.setIconNameOverride("lamp.table", forItemID: entityID)
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.items.map(\.type) == [.chip, .chip])
+        #expect(restoredConfiguration.items.first?.chipKind == .summary)
+        #expect(restoredConfiguration.items.first?.summaryKind == .lights)
+        #expect(restoredConfiguration.items.first?.resolvedDisplayName(default: "Lights") == "Lighting")
+        #expect(restoredConfiguration.items.last?.chipKind == .entity)
+        #expect(restoredConfiguration.items.last?.entityID == "sensor.hallway_temperature")
+        #expect(restoredConfiguration.items.last?.resolvedIconName(default: "gauge.medium") == "lamp.table")
+        #expect(restoredConfiguration.items.map(\.layoutMetadata) == [
+            DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1),
+            DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1)
+        ])
+    }
+
+    @MainActor
     @Test func dashboardConfigurationAddHeaderPersists() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -2175,6 +2201,7 @@ struct HomesteadTests {
         let headerID = UUID()
         let lightID = UUID()
         let sensorID = UUID()
+        let chipID = UUID()
         let items = [
             DashboardItemConfiguration.header(title: "Downstairs", id: headerID),
             DashboardItemConfiguration(
@@ -2183,7 +2210,10 @@ struct HomesteadTests {
                 entityID: "light.kitchen",
                 title: nil,
                 displayNameOverride: "Counter",
-                size: .row
+                iconNameOverride: "lamp.table",
+                size: .row,
+                chipKind: nil,
+                summaryKind: nil
             ),
             DashboardItemConfiguration(
                 id: sensorID,
@@ -2191,13 +2221,17 @@ struct HomesteadTests {
                 entityID: "sensor.temperature",
                 title: nil,
                 displayNameOverride: nil,
-                size: .large
-            )
+                iconNameOverride: nil,
+                size: .large,
+                chipKind: nil,
+                summaryKind: nil
+            ),
+            DashboardItemConfiguration.summaryChip(kind: .locks, id: chipID)
         ]
 
         let layoutItems = DashboardLayoutItemBuilder.makeItems(from: items)
 
-        #expect(layoutItems.count == 3)
+        #expect(layoutItems.count == 4)
         #expect(layoutItems[0].id == "header-\(headerID)")
         #expect(layoutItems[0].layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 1))
 
@@ -2208,6 +2242,7 @@ struct HomesteadTests {
         #expect(lightCard.id == lightID)
         #expect(lightCard.entityID == "light.kitchen")
         #expect(lightCard.displayNameOverride == "Counter")
+        #expect(lightCard.iconNameOverride == "lamp.table")
         #expect(lightCard.size == .row)
         #expect(layoutItems[1].layoutMetadata == DashboardCardSize.row.layoutMetadata)
 
@@ -2219,6 +2254,15 @@ struct HomesteadTests {
         #expect(sensorCard.entityID == "sensor.temperature")
         #expect(sensorCard.size == .large)
         #expect(layoutItems[2].layoutMetadata == DashboardCardSize.large.layoutMetadata)
+
+        guard case .chip(let chip) = layoutItems[3].kind else {
+            Issue.record("Expected chip layout item.")
+            return
+        }
+        #expect(chip.id == chipID)
+        #expect(chip.chipKind == .summary)
+        #expect(chip.summaryKind == .locks)
+        #expect(layoutItems[3].layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1))
     }
 
     @Test func stateCacheRoundTripsEntitySnapshotsAndScopesByConnection() async throws {
@@ -2728,6 +2772,49 @@ struct HomesteadTests {
         let sceneLarge = DashboardEntityCardContentModel.make(presentation: scenePresentation, size: .large)
         #expect(sceneCompact.metrics.isEmpty)
         #expect(sceneLarge.metrics.contains(DashboardEntityCardMetric(title: "Action", value: "Activate Movie Night", systemImage: "hand.tap")))
+    }
+
+    @MainActor
+    @Test func dashboardSummaryProviderBuildsGlanceableChipPresentations() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "on"),
+            HAEntityDTO(entityID: "light.pantry", state: "off"),
+            HAEntityDTO(entityID: "lock.front_door", state: "unlocked"),
+            HAEntityDTO(entityID: "binary_sensor.back_door", state: "on"),
+            HAEntityDTO(
+                entityID: "sensor.remote_battery",
+                state: "12",
+                attributes: [
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
+            ),
+            HAEntityDTO(entityID: "media_player.living_room", state: "playing")
+        ])
+
+        let boxes = store.allEntityBoxes()
+        let lights = try #require(DashboardSummaryProvider.makeSummary(kind: .lights, entityBoxes: boxes))
+        let doors = try #require(DashboardSummaryProvider.makeSummary(kind: .doors, entityBoxes: boxes))
+        let locks = try #require(DashboardSummaryProvider.makeSummary(kind: .locks, entityBoxes: boxes))
+        let batteries = try #require(DashboardSummaryProvider.makeSummary(kind: .batteries, entityBoxes: boxes))
+        let media = try #require(DashboardSummaryProvider.makeSummary(kind: .media, entityBoxes: boxes))
+
+        #expect(lights.value == "1 on")
+        #expect(lights.isActive)
+        #expect(doors.value == "1 open")
+        #expect(locks.value == "1 unlocked")
+        #expect(batteries.value == "1 low")
+        #expect(media.value == "1 playing")
+
+        let lightChip = DashboardSummaryProvider.makeEntityChip(
+            entityBox: try #require(store.entityBox(for: "light.kitchen")),
+            titleOverride: "Counter",
+            iconNameOverride: "lamp.table"
+        )
+        #expect(lightChip.title == "Counter")
+        #expect(lightChip.systemImage == "lamp.table")
+        #expect(lightChip.isActive)
     }
 
     private var dashboardTestEntities: [HomeEntity] {

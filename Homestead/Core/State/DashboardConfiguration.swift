@@ -7,7 +7,10 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
     var entityID: String?
     var title: String?
     var displayNameOverride: String?
+    var iconNameOverride: String?
     var size: DashboardCardSize?
+    var chipKind: DashboardChipKind?
+    var summaryKind: DashboardSummaryKind?
 
     static func entity(
         entityID: String,
@@ -20,7 +23,10 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
             entityID: entityID,
             title: nil,
             displayNameOverride: nil,
-            size: size
+            iconNameOverride: nil,
+            size: size,
+            chipKind: nil,
+            summaryKind: nil
         )
     }
 
@@ -34,7 +40,44 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
             entityID: nil,
             title: title,
             displayNameOverride: nil,
-            size: nil
+            iconNameOverride: nil,
+            size: nil,
+            chipKind: nil,
+            summaryKind: nil
+        )
+    }
+
+    static func summaryChip(
+        kind: DashboardSummaryKind,
+        id: UUID = UUID()
+    ) -> DashboardItemConfiguration {
+        DashboardItemConfiguration(
+            id: id,
+            type: .chip,
+            entityID: nil,
+            title: nil,
+            displayNameOverride: nil,
+            iconNameOverride: nil,
+            size: nil,
+            chipKind: .summary,
+            summaryKind: kind
+        )
+    }
+
+    static func entityChip(
+        entityID: String,
+        id: UUID = UUID()
+    ) -> DashboardItemConfiguration {
+        DashboardItemConfiguration(
+            id: id,
+            type: .chip,
+            entityID: entityID,
+            title: nil,
+            displayNameOverride: nil,
+            iconNameOverride: nil,
+            size: nil,
+            chipKind: .entity,
+            summaryKind: nil
         )
     }
 
@@ -52,12 +95,19 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
         return trimmedOverride.isEmpty ? defaultDisplayName : trimmedOverride
     }
 
+    func resolvedIconName(default defaultIconName: String) -> String {
+        let trimmedOverride = iconNameOverride?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedOverride.isEmpty ? defaultIconName : trimmedOverride
+    }
+
     var layoutMetadata: DashboardCardLayoutMetadata {
         switch type {
         case .entity:
             resolvedCardSize.layoutMetadata
         case .header:
             DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 1)
+        case .chip:
+            DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1)
         }
     }
 }
@@ -65,6 +115,7 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
 enum DashboardItemType: String, Codable, Equatable, Sendable {
     case entity
     case header
+    case chip
 }
 
 @MainActor
@@ -116,6 +167,8 @@ final class DashboardConfiguration {
                 return item.entityID != nil
             case .header:
                 return true
+            case .chip:
+                return item.chipKind == .summary || item.entityID != nil
             }
         }
 
@@ -136,6 +189,14 @@ final class DashboardConfiguration {
                 return availableIDs.contains(entityID)
             case .header:
                 return true
+            case .chip:
+                switch item.chipKind ?? .summary {
+                case .summary:
+                    return true
+                case .entity:
+                    guard let entityID = item.entityID else { return false }
+                    return availableIDs.contains(entityID)
+                }
             }
         }
     }
@@ -185,6 +246,24 @@ final class DashboardConfiguration {
         return item.id
     }
 
+    @discardableResult
+    func addSummaryChip(kind: DashboardSummaryKind) -> UUID {
+        if let existingItem = items.first(where: { $0.type == .chip && $0.chipKind == .summary && $0.summaryKind == kind }) {
+            return existingItem.id
+        }
+
+        let item = DashboardItemConfiguration.summaryChip(kind: kind)
+        items.append(item)
+        return item.id
+    }
+
+    @discardableResult
+    func addEntityChip(entityID: String) -> UUID {
+        let item = DashboardItemConfiguration.entityChip(entityID: entityID)
+        items.append(item)
+        return item.id
+    }
+
     func renameHeader(id: UUID, title: String) {
         guard let index = items.firstIndex(where: { $0.id == id && $0.type == .header }) else {
             return
@@ -196,12 +275,26 @@ final class DashboardConfiguration {
     }
 
     func renameEntityItem(id: UUID, displayNameOverride: String?) {
-        guard let index = items.firstIndex(where: { $0.id == id && $0.type == .entity }) else {
+        renameDisplayItem(id: id, displayNameOverride: displayNameOverride)
+    }
+
+    func renameDisplayItem(id: UUID, displayNameOverride: String?) {
+        guard let index = items.firstIndex(where: { $0.id == id && ($0.type == .entity || $0.type == .chip) }) else {
             return
         }
 
         var updatedItems = items
         updatedItems[index].displayNameOverride = normalizedDisplayNameOverride(displayNameOverride)
+        items = updatedItems
+    }
+
+    func setIconNameOverride(_ iconNameOverride: String?, forItemID itemID: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == itemID && ($0.type == .entity || $0.type == .chip) }) else {
+            return
+        }
+
+        var updatedItems = items
+        updatedItems[index].iconNameOverride = normalizedDisplayNameOverride(iconNameOverride)
         items = updatedItems
     }
 

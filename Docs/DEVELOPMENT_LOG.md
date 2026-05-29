@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-29
 
+### Dashboard Chips And Icon Overrides
+
+- Added first-class dashboard chip items alongside cards and headers, with summary and entity chip variants persisted in dashboard metadata.
+- Added a reusable dashboard summary provider for glanceable chips such as lights, doors, locks, climate, batteries, cameras, and media.
+- Added curated SF Symbol icon overrides for dashboard cards and chips while keeping live Home Assistant entity state separate from layout/customization metadata.
+- Rendered chips as a lightweight horizontally scrolling summary row above the dashboard grid so they do not compete visually with cards.
+
 ### iPhone Production Readiness Pass
 
 - Added pending-state handling for stateless Home Assistant actions such as scenes, scripts, media play/pause, cover stop, and vacuum commands.

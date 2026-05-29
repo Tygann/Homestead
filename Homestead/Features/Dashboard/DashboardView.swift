@@ -5,11 +5,22 @@ struct DashboardCardItem: Identifiable, Equatable {
     let entityID: String
     let size: DashboardCardSize
     let displayNameOverride: String?
+    let iconNameOverride: String?
+}
+
+struct DashboardChipItem: Identifiable, Equatable {
+    let id: UUID
+    let chipKind: DashboardChipKind
+    let entityID: String?
+    let summaryKind: DashboardSummaryKind?
+    let displayNameOverride: String?
+    let iconNameOverride: String?
 }
 
 enum DashboardLayoutItemKind: Equatable {
     case header(DashboardItemConfiguration)
     case card(DashboardCardItem)
+    case chip(DashboardChipItem)
 }
 
 struct DashboardLayoutItem: Identifiable, Equatable {
@@ -22,6 +33,8 @@ struct DashboardLayoutItem: Identifiable, Equatable {
             "header-\(item.id)"
         case .card(let item):
             "card-\(item.id)"
+        case .chip(let item):
+            "chip-\(item.id)"
         }
     }
 }
@@ -45,11 +58,26 @@ enum DashboardLayoutItemBuilder {
                     id: configurationItem.id,
                     entityID: entityID,
                     size: configuredSize,
-                    displayNameOverride: configurationItem.displayNameOverride
+                    displayNameOverride: configurationItem.displayNameOverride,
+                    iconNameOverride: configurationItem.iconNameOverride
                 )
                 return DashboardLayoutItem(
                     kind: .card(cardItem),
                     layoutMetadata: configuredSize.layoutMetadata
+                )
+            case .chip:
+                let chipKind = configurationItem.chipKind ?? .summary
+                let chipItem = DashboardChipItem(
+                    id: configurationItem.id,
+                    chipKind: chipKind,
+                    entityID: configurationItem.entityID,
+                    summaryKind: configurationItem.summaryKind,
+                    displayNameOverride: configurationItem.displayNameOverride,
+                    iconNameOverride: configurationItem.iconNameOverride
+                )
+                return DashboardLayoutItem(
+                    kind: .chip(chipItem),
+                    layoutMetadata: configurationItem.layoutMetadata
                 )
             }
         }
@@ -63,11 +91,12 @@ struct DashboardView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var isEditingDashboard = false
     @State private var isShowingAddCardSheet = false
+    @State private var isShowingAddChipSheet = false
     @State private var isShowingReorderSheet = false
     @State private var renamingHeaderID: UUID?
-    @State private var renamingEntityItemID: UUID?
+    @State private var renamingDisplayItemID: UUID?
     @State private var headerTitleDraft = ""
-    @State private var entityTitleDraft = ""
+    @State private var displayTitleDraft = ""
     @State private var showsInitialSyncPlaceholder = false
     
     var body: some View {
@@ -138,6 +167,12 @@ struct DashboardView: View {
                         .disabled(availableEntityIDsToAdd.isEmpty)
 
                         Button {
+                            isShowingAddChipSheet = true
+                        } label: {
+                            Label("Add Chip", systemImage: "capsule")
+                        }
+
+                        Button {
                             addHeaderAndRename()
                         } label: {
                             Label("Add Header", systemImage: "textformat.size")
@@ -160,6 +195,9 @@ struct DashboardView: View {
         .sheet(isPresented: $isShowingAddCardSheet) {
             DashboardAddCardView()
         }
+        .sheet(isPresented: $isShowingAddChipSheet) {
+            DashboardAddChipView()
+        }
         .sheet(isPresented: $isShowingReorderSheet) {
             DashboardReorderView()
         }
@@ -175,12 +213,12 @@ struct DashboardView: View {
                 saveHeaderRename()
             }
         }
-        .alert("Rename Card", isPresented: isRenamingEntityItem) {
-            TextField("Card Name", text: $entityTitleDraft)
+        .alert("Rename Item", isPresented: isRenamingDisplayItem) {
+            TextField("Display Name", text: $displayTitleDraft)
 
             Button("Cancel", role: .cancel) {
-                renamingEntityItemID = nil
-                entityTitleDraft = ""
+                renamingDisplayItemID = nil
+                displayTitleDraft = ""
             }
 
             Button("Reset Name", role: .destructive) {
@@ -285,13 +323,13 @@ struct DashboardView: View {
         )
     }
 
-    private var isRenamingEntityItem: Binding<Bool> {
+    private var isRenamingDisplayItem: Binding<Bool> {
         Binding(
-            get: { renamingEntityItemID != nil },
+            get: { renamingDisplayItemID != nil },
             set: { isPresented in
                 if !isPresented {
-                    renamingEntityItemID = nil
-                    entityTitleDraft = ""
+                    renamingDisplayItemID = nil
+                    displayTitleDraft = ""
                 }
             }
         )
@@ -314,8 +352,13 @@ struct DashboardView: View {
             return
         }
 
-        entityTitleDraft = item.displayNameOverride ?? entity.displayName
-        renamingEntityItemID = item.id
+        displayTitleDraft = item.displayNameOverride ?? entity.displayName
+        renamingDisplayItemID = item.id
+    }
+
+    private func beginRenamingChip(_ item: DashboardChipItem) {
+        displayTitleDraft = item.displayNameOverride ?? defaultChipTitle(for: item)
+        renamingDisplayItemID = item.id
     }
 
     private func saveHeaderRename() {
@@ -329,51 +372,89 @@ struct DashboardView: View {
     }
 
     private func saveEntityRename() {
-        guard let renamingEntityItemID else {
+        guard let renamingDisplayItemID else {
             return
         }
 
-        dashboardConfiguration.renameEntityItem(
-            id: renamingEntityItemID,
-            displayNameOverride: entityTitleDraft
+        dashboardConfiguration.renameDisplayItem(
+            id: renamingDisplayItemID,
+            displayNameOverride: displayTitleDraft
         )
-        self.renamingEntityItemID = nil
-        entityTitleDraft = ""
+        self.renamingDisplayItemID = nil
+        displayTitleDraft = ""
     }
 
     private func resetEntityRename() {
-        guard let renamingEntityItemID else {
+        guard let renamingDisplayItemID else {
             return
         }
 
-        dashboardConfiguration.renameEntityItem(
-            id: renamingEntityItemID,
+        dashboardConfiguration.renameDisplayItem(
+            id: renamingDisplayItemID,
             displayNameOverride: nil
         )
-        self.renamingEntityItemID = nil
-        entityTitleDraft = ""
+        self.renamingDisplayItemID = nil
+        displayTitleDraft = ""
     }
     
     private var configuredDashboardSection: some View {
         DashboardSection(isEmpty: visibleDashboardItems.isEmpty) {
-            CardGrid {
-                ForEach(dashboardLayoutItems) { item in
-                    switch item.kind {
-                    case .header(let configurationItem):
-                        dashboardHeader(configurationItem)
-                            .cardGridSpan(item.layoutMetadata)
-                    case .card(let cardItem):
-                        dashboardCard(cardItem)
-                            .cardGridSpan(item.layoutMetadata)
+            VStack(alignment: .leading, spacing: AppSpacing.large) {
+                if !dashboardChipItems.isEmpty {
+                    dashboardChipSummaryRow
+                }
+
+                if !dashboardGridItems.isEmpty {
+                    CardGrid {
+                        ForEach(dashboardGridItems) { item in
+                            switch item.kind {
+                            case .header(let configurationItem):
+                                dashboardHeader(configurationItem)
+                                    .cardGridSpan(item.layoutMetadata)
+                            case .card(let cardItem):
+                                dashboardCard(cardItem)
+                                    .cardGridSpan(item.layoutMetadata)
+                            case .chip:
+                                EmptyView()
+                            }
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
     
     private var dashboardLayoutItems: [DashboardLayoutItem] {
         DashboardLayoutItemBuilder.makeItems(from: visibleDashboardItems)
+    }
+
+    private var dashboardChipItems: [DashboardChipItem] {
+        dashboardLayoutItems.compactMap { item in
+            guard case .chip(let chipItem) = item.kind else { return nil }
+            return chipItem
+        }
+    }
+
+    private var dashboardGridItems: [DashboardLayoutItem] {
+        dashboardLayoutItems.filter { item in
+            guard case .chip = item.kind else { return true }
+            return false
+        }
+    }
+
+    private var dashboardChipSummaryRow: some View {
+        ScrollView(.horizontal) {
+            HStack(alignment: .center, spacing: AppSpacing.small) {
+                ForEach(dashboardChipItems) { chipItem in
+                    dashboardChip(chipItem)
+                }
+            }
+            .padding(.vertical, 1)
+        }
+        .scrollIndicators(.hidden)
+        .contentMargins(.horizontal, 1, for: .scrollContent)
+        .accessibilityElement(children: .contain)
     }
 
     private func dashboardHeader(_ item: DashboardItemConfiguration) -> some View {
@@ -395,9 +476,13 @@ struct DashboardView: View {
             entityID: item.entityID,
             size: item.size,
             displayNameOverride: item.displayNameOverride,
+            iconNameOverride: item.iconNameOverride,
             isEditing: isEditingDashboard,
             setSize: isEditingDashboard ? { size in
                 dashboardConfiguration.setCardSize(size, forItemID: item.id)
+            } : nil,
+            setIconNameOverride: isEditingDashboard ? { iconName in
+                dashboardConfiguration.setIconNameOverride(iconName, forItemID: item.id)
             } : nil,
             rename: isEditingDashboard ? {
                 beginRenamingEntity(item)
@@ -407,6 +492,60 @@ struct DashboardView: View {
             } : nil
         )
         .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func dashboardChip(_ item: DashboardChipItem) -> some View {
+        let presentation = chipPresentation(for: item)
+
+        if let presentation {
+            DashboardChipView(
+                presentation: presentation,
+                isEditing: isEditingDashboard,
+                setIconNameOverride: isEditingDashboard ? { iconName in
+                    dashboardConfiguration.setIconNameOverride(iconName, forItemID: item.id)
+                } : nil,
+                rename: isEditingDashboard ? {
+                    beginRenamingChip(item)
+                } : nil,
+                remove: isEditingDashboard ? {
+                    dashboardConfiguration.removeItem(id: item.id)
+                } : nil
+            )
+        }
+    }
+
+    private func chipPresentation(for item: DashboardChipItem) -> DashboardChipPresentation? {
+        switch item.chipKind {
+        case .summary:
+            guard let summaryKind = item.summaryKind else { return nil }
+            return DashboardSummaryProvider.makeSummary(
+                kind: summaryKind,
+                entityBoxes: stateStore.allEntityBoxes(),
+                titleOverride: item.displayNameOverride,
+                iconNameOverride: item.iconNameOverride
+            )
+        case .entity:
+            guard let entityID = item.entityID,
+                  let entityBox = stateStore.entityBox(for: entityID) else {
+                return nil
+            }
+
+            return DashboardSummaryProvider.makeEntityChip(
+                entityBox: entityBox,
+                titleOverride: item.displayNameOverride,
+                iconNameOverride: item.iconNameOverride
+            )
+        }
+    }
+
+    private func defaultChipTitle(for item: DashboardChipItem) -> String {
+        switch item.chipKind {
+        case .summary:
+            item.summaryKind?.title ?? "Chip"
+        case .entity:
+            item.entityID.flatMap { stateStore.entity(for: $0)?.displayName } ?? "Chip"
+        }
     }
     
     // MARK: - Options Menu
@@ -474,6 +613,103 @@ private struct DashboardAddCardView: View {
     }
 }
 
+private struct DashboardAddChipView: View {
+    private enum Mode: String, CaseIterable, Hashable {
+        case summaries = "Summaries"
+        case entities = "Entities"
+    }
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(HAStateStore.self) private var stateStore
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @State private var mode: Mode = .summaries
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Picker("Chip Type", selection: $mode) {
+                    ForEach(Mode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, AppSpacing.large)
+                .padding(.vertical, AppSpacing.medium)
+
+                switch mode {
+                case .summaries:
+                    List {
+                        Section {
+                            ForEach(availableSummaryKinds, id: \.self) { kind in
+                                Button {
+                                    dashboardConfiguration.addSummaryChip(kind: kind)
+                                } label: {
+                                    Label {
+                                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                                            Text(kind.title)
+                                                .font(.body.weight(.semibold))
+                                                .foregroundStyle(.primary)
+
+                                            Text(summaryPreviewText(for: kind))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } icon: {
+                                        Image(systemName: kind.systemImage)
+                                            .foregroundStyle(Color.accentColor)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                case .entities:
+                    EntityBrowserList(
+                        hiddenEntityIDs: [],
+                        emptyTitle: stateStore.hasEntities ? "No Entities" : "No Devices",
+                        emptySystemImage: "capsule",
+                        showsFilters: true,
+                        includesUnavailableByDefault: false,
+                        rowAction: { entityBox in
+                            dashboardConfiguration.addEntityChip(entityID: entityBox.entityID)
+                        },
+                        accessory: { _ in
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .accessibilityHidden(true)
+                            }
+                    )
+                }
+            }
+            .navigationTitle("Add Chip")
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", role: .confirm) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var availableSummaryKinds: [DashboardSummaryKind] {
+        DashboardSummaryKind.allCases.filter { kind in
+            DashboardSummaryProvider.makeSummary(
+                kind: kind,
+                entityBoxes: stateStore.allEntityBoxes()
+            ) != nil
+        }
+    }
+
+    private func summaryPreviewText(for kind: DashboardSummaryKind) -> String {
+        DashboardSummaryProvider.makeSummary(
+            kind: kind,
+            entityBoxes: stateStore.allEntityBoxes()
+        )?.value ?? "No matching entities"
+    }
+}
+
 private struct DashboardReorderView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(HAStateStore.self) private var stateStore
@@ -538,6 +774,8 @@ private struct DashboardReorderRow: View {
             item.resolvedTitle
         case .entity:
             item.resolvedDisplayName(default: entityBox?.homeEntity.displayName ?? item.entityID ?? "Missing Entity")
+        case .chip:
+            item.resolvedDisplayName(default: defaultChipTitle)
         }
     }
 
@@ -547,6 +785,8 @@ private struct DashboardReorderRow: View {
             "Header"
         case .entity:
             entityBox?.homeEntity.entityID ?? item.entityID ?? "Entity"
+        case .chip:
+            item.chipKind == .entity ? (entityBox?.homeEntity.entityID ?? item.entityID ?? "Entity Chip") : "Summary Chip"
         }
     }
 
@@ -555,7 +795,27 @@ private struct DashboardReorderRow: View {
         case .header:
             "textformat.size"
         case .entity:
-            entityBox?.homeEntity.iconName ?? "square.grid.2x2"
+            item.resolvedIconName(default: entityBox?.homeEntity.iconName ?? "square.grid.2x2")
+        case .chip:
+            item.resolvedIconName(default: defaultChipIconName)
+        }
+    }
+
+    private var defaultChipTitle: String {
+        switch item.chipKind ?? .summary {
+        case .summary:
+            item.summaryKind?.title ?? "Chip"
+        case .entity:
+            entityBox?.homeEntity.displayName ?? item.entityID ?? "Chip"
+        }
+    }
+
+    private var defaultChipIconName: String {
+        switch item.chipKind ?? .summary {
+        case .summary:
+            item.summaryKind?.systemImage ?? "capsule"
+        case .entity:
+            entityBox?.homeEntity.iconName ?? "capsule"
         }
     }
 }
