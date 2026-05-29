@@ -184,7 +184,32 @@ private enum PreviewData {
             entityID: "media_player.living_room",
             state: "playing",
             attributes: [
-                "friendly_name": .string("Living Room TV")
+                "friendly_name": .string("Living Room TV"),
+                "volume_level": .number(0.42),
+                "source": .string("Apple TV"),
+                "source_list": .array([.string("Apple TV"), .string("Music"), .string("Game Console")]),
+                "media_title": .string("Morning Mix"),
+                "media_artist": .string("Homestead Radio")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "fan.bedroom",
+            state: "on",
+            attributes: [
+                "friendly_name": .string("Bedroom Fan"),
+                "percentage": .number(45),
+                "percentage_step": .number(5),
+                "preset_mode": .string("normal"),
+                "preset_modes": .array([.string("sleep"), .string("normal"), .string("boost")])
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "lock.front_door",
+            state: "locked",
+            attributes: [
+                "friendly_name": .string("Front Door")
             ],
             lastUpdated: .now
         ),
@@ -229,7 +254,11 @@ private enum PreviewData {
                     .string("heat"),
                     .string("cool"),
                     .string("heat_cool")
-                ])
+                ]),
+                "fan_mode": .string("auto"),
+                "fan_modes": .array([.string("auto"), .string("low"), .string("high")]),
+                "preset_mode": .string("home"),
+                "preset_modes": .array([.string("home"), .string("away"), .string("sleep")])
             ],
             lastUpdated: .now
         ),

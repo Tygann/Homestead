@@ -17,6 +17,8 @@ final class HAStateStore {
     @ObservationIgnored private(set) var lightEntitiesByID: [String: LightEntity] = [:]
     @ObservationIgnored private(set) var climateEntitiesByID: [String: ClimateEntity] = [:]
     @ObservationIgnored private(set) var coverEntitiesByID: [String: CoverEntity] = [:]
+    @ObservationIgnored private(set) var fanEntitiesByID: [String: FanEntity] = [:]
+    @ObservationIgnored private(set) var mediaPlayerEntitiesByID: [String: MediaPlayerEntity] = [:]
     @ObservationIgnored private(set) var sensorEntitiesByID: [String: SensorEntity] = [:]
     @ObservationIgnored private var rawEntitiesByID: [String: HAEntityDTO] = [:]
     @ObservationIgnored private var entityBoxesByID: [String: HAEntityState] = [:]
@@ -120,6 +122,14 @@ final class HAStateStore {
 
     func coverEntity(for entityID: String) -> CoverEntity? {
         coverEntitiesByID[entityID]
+    }
+
+    func fanEntity(for entityID: String) -> FanEntity? {
+        fanEntitiesByID[entityID]
+    }
+
+    func mediaPlayerEntity(for entityID: String) -> MediaPlayerEntity? {
+        mediaPlayerEntitiesByID[entityID]
     }
 
     func sensorEntity(for entityID: String) -> SensorEntity? {
@@ -278,6 +288,8 @@ final class HAStateStore {
         lightEntitiesByID.removeAll()
         climateEntitiesByID.removeAll()
         coverEntitiesByID.removeAll()
+        fanEntitiesByID.removeAll()
+        mediaPlayerEntitiesByID.removeAll()
         sensorEntitiesByID.removeAll()
         rawEntitiesByID.removeAll()
         entityBoxesByID.removeAll()
@@ -301,6 +313,12 @@ final class HAStateStore {
         coverEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
             EntityMapper.coverEntity(from: dto).map { ($0.entityID, $0) }
         })
+        fanEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
+            EntityMapper.fanEntity(from: dto).map { ($0.entityID, $0) }
+        })
+        mediaPlayerEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
+            EntityMapper.mediaPlayerEntity(from: dto).map { ($0.entityID, $0) }
+        })
         sensorEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
             EntityMapper.sensorEntity(from: dto).map { ($0.entityID, $0) }
         })
@@ -314,6 +332,8 @@ final class HAStateStore {
                     lightEntity: EntityMapper.lightEntity(from: dto),
                     climateEntity: EntityMapper.climateEntity(from: dto),
                     coverEntity: EntityMapper.coverEntity(from: dto),
+                    fanEntity: EntityMapper.fanEntity(from: dto),
+                    mediaPlayerEntity: EntityMapper.mediaPlayerEntity(from: dto),
                     sensorEntity: EntityMapper.sensorEntity(from: dto),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
@@ -324,6 +344,8 @@ final class HAStateStore {
                     lightEntity: EntityMapper.lightEntity(from: dto),
                     climateEntity: EntityMapper.climateEntity(from: dto),
                     coverEntity: EntityMapper.coverEntity(from: dto),
+                    fanEntity: EntityMapper.fanEntity(from: dto),
+                    mediaPlayerEntity: EntityMapper.mediaPlayerEntity(from: dto),
                     sensorEntity: EntityMapper.sensorEntity(from: dto),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
@@ -353,6 +375,8 @@ final class HAStateStore {
         lightEntitiesByID[dto.entityID] = EntityMapper.lightEntity(from: dto)
         climateEntitiesByID[dto.entityID] = EntityMapper.climateEntity(from: dto)
         coverEntitiesByID[dto.entityID] = EntityMapper.coverEntity(from: dto)
+        fanEntitiesByID[dto.entityID] = EntityMapper.fanEntity(from: dto)
+        mediaPlayerEntitiesByID[dto.entityID] = EntityMapper.mediaPlayerEntity(from: dto)
         sensorEntitiesByID[dto.entityID] = EntityMapper.sensorEntity(from: dto)
         updateEntityBox(
             entityID: dto.entityID,
@@ -360,6 +384,8 @@ final class HAStateStore {
             lightEntity: lightEntitiesByID[dto.entityID],
             climateEntity: climateEntitiesByID[dto.entityID],
             coverEntity: coverEntitiesByID[dto.entityID],
+            fanEntity: fanEntitiesByID[dto.entityID],
+            mediaPlayerEntity: mediaPlayerEntitiesByID[dto.entityID],
             sensorEntity: sensorEntitiesByID[dto.entityID],
             pendingCommand: pendingCommandsByID[dto.entityID]
         )
@@ -399,6 +425,8 @@ final class HAStateStore {
         lightEntitiesByID.removeValue(forKey: entityID)
         climateEntitiesByID.removeValue(forKey: entityID)
         coverEntitiesByID.removeValue(forKey: entityID)
+        fanEntitiesByID.removeValue(forKey: entityID)
+        mediaPlayerEntitiesByID.removeValue(forKey: entityID)
         sensorEntitiesByID.removeValue(forKey: entityID)
         entityBoxesByID.removeValue(forKey: entityID)
         pendingCommandsByID.removeValue(forKey: entityID)
@@ -468,6 +496,8 @@ final class HAStateStore {
         lightEntity: LightEntity?,
         climateEntity: ClimateEntity?,
         coverEntity: CoverEntity?,
+        fanEntity: FanEntity?,
+        mediaPlayerEntity: MediaPlayerEntity?,
         sensorEntity: SensorEntity?,
         pendingCommand: HAEntityPendingCommand?
     ) {
@@ -477,6 +507,8 @@ final class HAStateStore {
                 lightEntity: lightEntity,
                 climateEntity: climateEntity,
                 coverEntity: coverEntity,
+                fanEntity: fanEntity,
+                mediaPlayerEntity: mediaPlayerEntity,
                 sensorEntity: sensorEntity,
                 pendingCommand: pendingCommand
             )
@@ -486,6 +518,8 @@ final class HAStateStore {
                 lightEntity: lightEntity,
                 climateEntity: climateEntity,
                 coverEntity: coverEntity,
+                fanEntity: fanEntity,
+                mediaPlayerEntity: mediaPlayerEntity,
                 sensorEntity: sensorEntity,
                 pendingCommand: pendingCommand
             )
@@ -641,6 +675,8 @@ final class HAEntityState: Identifiable {
     var lightEntity: LightEntity?
     var climateEntity: ClimateEntity?
     var coverEntity: CoverEntity?
+    var fanEntity: FanEntity?
+    var mediaPlayerEntity: MediaPlayerEntity?
     var sensorEntity: SensorEntity?
     var pendingCommand: HAEntityPendingCommand?
 
@@ -653,6 +689,8 @@ final class HAEntityState: Identifiable {
         lightEntity: LightEntity? = nil,
         climateEntity: ClimateEntity? = nil,
         coverEntity: CoverEntity? = nil,
+        fanEntity: FanEntity? = nil,
+        mediaPlayerEntity: MediaPlayerEntity? = nil,
         sensorEntity: SensorEntity? = nil,
         pendingCommand: HAEntityPendingCommand? = nil
     ) {
@@ -660,6 +698,8 @@ final class HAEntityState: Identifiable {
         self.lightEntity = lightEntity
         self.climateEntity = climateEntity
         self.coverEntity = coverEntity
+        self.fanEntity = fanEntity
+        self.mediaPlayerEntity = mediaPlayerEntity
         self.sensorEntity = sensorEntity
         self.pendingCommand = pendingCommand
     }
@@ -669,6 +709,8 @@ final class HAEntityState: Identifiable {
         lightEntity: LightEntity?,
         climateEntity: ClimateEntity?,
         coverEntity: CoverEntity?,
+        fanEntity: FanEntity?,
+        mediaPlayerEntity: MediaPlayerEntity?,
         sensorEntity: SensorEntity?,
         pendingCommand: HAEntityPendingCommand?
     ) {
@@ -676,6 +718,8 @@ final class HAEntityState: Identifiable {
         self.lightEntity = lightEntity
         self.climateEntity = climateEntity
         self.coverEntity = coverEntity
+        self.fanEntity = fanEntity
+        self.mediaPlayerEntity = mediaPlayerEntity
         self.sensorEntity = sensorEntity
         self.pendingCommand = pendingCommand
     }

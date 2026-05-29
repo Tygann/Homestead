@@ -43,6 +43,8 @@ enum DashboardEntityDetailKind: String, Equatable, Sendable {
     case light
     case cover
     case climate
+    case fan
+    case lock
     case toggle
     case action
     case sensor
@@ -60,7 +62,13 @@ enum DashboardEntitySecondaryAction: String, Equatable, Sendable {
     case setCoverPosition
     case setClimateTemperature
     case setClimateHVACMode
+    case setClimateFanMode
+    case setClimatePresetMode
+    case setFanPercentage
+    case setFanPresetMode
     case playPause
+    case setMediaVolume
+    case selectMediaSource
     case returnToBase
     case startCleaning
     case stopCleaning
@@ -142,17 +150,17 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .control,
                 primaryAction: .toggleFan,
-                detailKind: .toggle,
+                detailKind: .fan,
                 statusFormatter: .onOff(unavailableTitle: "Fan unavailable"),
                 iconAccentBehavior: .activeAccent,
-                secondaryActions: []
+                secondaryActions: [.setFanPercentage, .setFanPresetMode]
             )
         case .lock:
             DashboardEntityDomainCapability(
                 domain: domain,
                 cardStyle: .control,
-                primaryAction: .toggleLock,
-                detailKind: .toggle,
+                primaryAction: nil,
+                detailKind: .lock,
                 statusFormatter: .lock,
                 iconAccentBehavior: .lockState,
                 secondaryActions: []
@@ -175,7 +183,12 @@ enum DashboardEntityDomainRegistry {
                 detailKind: .climate,
                 statusFormatter: .climate,
                 iconAccentBehavior: .climateMode,
-                secondaryActions: [.setClimateTemperature, .setClimateHVACMode]
+                secondaryActions: [
+                    .setClimateTemperature,
+                    .setClimateHVACMode,
+                    .setClimateFanMode,
+                    .setClimatePresetMode
+                ]
             )
         case .sensor:
             DashboardEntityDomainCapability(
@@ -205,7 +218,7 @@ enum DashboardEntityDomainRegistry {
                 detailKind: .mediaPlayer,
                 statusFormatter: .mediaPlayer,
                 iconAccentBehavior: .mediaState,
-                secondaryActions: [.playPause]
+                secondaryActions: [.playPause, .setMediaVolume, .selectMediaSource]
             )
         case .camera:
             DashboardEntityDomainCapability(
@@ -331,6 +344,30 @@ struct DashboardEntityPresentation {
             isActive = climate.isActive
             isAvailable = entityBox.homeEntity.isAvailable
             accentColor = Self.climateAccentColor(for: climate, behavior: capability.iconAccentBehavior)
+        } else if let fan = entityBox.fanEntity {
+            let effectiveIsOn = pendingCommand?.expectedState.map { $0 == "on" } ?? fan.isOn
+            let percentage = pendingCommand?.expectedAttributes["percentage"]?.intValue ?? fan.percentage
+
+            title = overrideTitle ?? fan.displayName
+            subtitle = Self.fanSubtitle(
+                fan,
+                isOn: effectiveIsOn,
+                percentage: percentage,
+                pendingCommand: pendingCommand
+            )
+            headline = effectiveIsOn ? percentage.map { "\($0)%" } : nil
+            iconName = entityBox.homeEntity.iconName
+            isActive = effectiveIsOn
+            isAvailable = fan.isAvailable
+            accentColor = Self.accentColor(for: effectiveIsOn, behavior: capability.iconAccentBehavior)
+        } else if let mediaPlayer = entityBox.mediaPlayerEntity {
+            title = overrideTitle ?? mediaPlayer.displayName
+            subtitle = Self.mediaPlayerSubtitle(mediaPlayer, pendingCommand: pendingCommand)
+            headline = mediaPlayer.nowPlayingText
+            iconName = entityBox.homeEntity.iconName
+            isActive = mediaPlayer.isPlaying
+            isAvailable = mediaPlayer.isAvailable
+            accentColor = Self.accentColor(for: mediaPlayer.isPlaying, behavior: capability.iconAccentBehavior)
         } else {
             let entity = entityBox.homeEntity
             let effectiveEntity = pendingCommand.map {
@@ -434,6 +471,14 @@ struct DashboardEntityPresentation {
                 return "Setting \(climate.formatTemperature(temperature))..."
             }
 
+            if let fanMode = pendingCommand.expectedAttributes["fan_mode"]?.stringValue {
+                return "Setting fan to \(climate.displayName(forFanMode: fanMode))..."
+            }
+
+            if let presetMode = pendingCommand.expectedAttributes["preset_mode"]?.stringValue {
+                return "Setting \(climate.displayName(forPresetMode: presetMode))..."
+            }
+
             if let expectedState = pendingCommand.expectedState {
                 return "Switching to \(climate.displayName(forHVACMode: expectedState))..."
             }
@@ -442,6 +487,56 @@ struct DashboardEntityPresentation {
         }
 
         return climate.displaySubtitle
+    }
+
+    private static func fanSubtitle(
+        _ fan: FanEntity,
+        isOn: Bool,
+        percentage: Int?,
+        pendingCommand: HAEntityPendingCommand?
+    ) -> String {
+        if let pendingCommand {
+            if let percentage {
+                return "Setting \(percentage)%..."
+            }
+
+            if let presetMode = pendingCommand.expectedAttributes["preset_mode"]?.stringValue {
+                return "Setting \(fan.displayName(forPresetMode: presetMode))..."
+            }
+
+            switch pendingCommand.expectedState {
+            case "on":
+                return "Turning On..."
+            case "off":
+                return "Turning Off..."
+            default:
+                return "Updating..."
+            }
+        }
+
+        guard isOn else { return "Off" }
+        guard let percentage else { return fan.displaySubtitle }
+
+        return "\(percentage)%"
+    }
+
+    private static func mediaPlayerSubtitle(
+        _ mediaPlayer: MediaPlayerEntity,
+        pendingCommand: HAEntityPendingCommand?
+    ) -> String {
+        if let pendingCommand {
+            if let volumeLevel = pendingCommand.expectedAttributes["volume_level"]?.doubleValue {
+                return "Setting volume \(Int((volumeLevel * 100).rounded()))%..."
+            }
+
+            if let source = pendingCommand.expectedAttributes["source"]?.stringValue {
+                return "Switching to \(source)..."
+            }
+
+            return "Updating..."
+        }
+
+        return mediaPlayer.displaySubtitle
     }
 
     private static func subtitle(

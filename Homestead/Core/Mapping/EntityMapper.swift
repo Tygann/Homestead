@@ -41,7 +41,40 @@ enum EntityMapper {
             minTemperature: dto.attributes["min_temp"]?.doubleValue,
             maxTemperature: dto.attributes["max_temp"]?.doubleValue,
             targetTemperatureStep: dto.attributes["target_temp_step"]?.doubleValue,
-            temperatureUnit: dto.attributes["temperature_unit"]?.stringValue
+            temperatureUnit: dto.attributes["temperature_unit"]?.stringValue,
+            fanMode: dto.attributes["fan_mode"]?.stringValue,
+            fanModes: dto.attributes["fan_modes"]?.arrayValue?.compactMap(\.stringValue) ?? [],
+            presetMode: dto.attributes["preset_mode"]?.stringValue,
+            presetModes: dto.attributes["preset_modes"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        )
+    }
+
+    static func fanEntity(from dto: HAEntityDTO) -> FanEntity? {
+        guard EntityDomain(entityID: dto.entityID) == .fan else { return nil }
+
+        return FanEntity(
+            entityID: dto.entityID,
+            displayName: displayName(for: dto),
+            state: dto.state,
+            percentage: dto.attributes["percentage"]?.intValue,
+            percentageStep: dto.attributes["percentage_step"]?.intValue,
+            presetMode: dto.attributes["preset_mode"]?.stringValue,
+            presetModes: dto.attributes["preset_modes"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        )
+    }
+
+    static func mediaPlayerEntity(from dto: HAEntityDTO) -> MediaPlayerEntity? {
+        guard EntityDomain(entityID: dto.entityID) == .mediaPlayer else { return nil }
+
+        return MediaPlayerEntity(
+            entityID: dto.entityID,
+            displayName: displayName(for: dto),
+            state: dto.state,
+            volumeLevel: dto.attributes["volume_level"]?.doubleValue,
+            source: dto.attributes["source"]?.stringValue,
+            sourceList: dto.attributes["source_list"]?.arrayValue?.compactMap(\.stringValue) ?? [],
+            mediaTitle: dto.attributes["media_title"]?.stringValue,
+            mediaArtist: dto.attributes["media_artist"]?.stringValue
         )
     }
 

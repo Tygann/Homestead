@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-29
 
+### Expanded Native Domain Controls
+
+- Added fan and media-player domain models so dashboard views can read typed Home Assistant state instead of raw attributes.
+- Added native fan and lock dashboard detail flows, with lock/unlock guarded behind a detail confirmation instead of an accidental card tap.
+- Expanded media-player details with volume and source controls, and climate details with fan-mode and preset-mode controls.
+- Added WebSocket service helpers and request-shape tests for fan percentage/preset, media volume/source, and climate fan/preset changes.
+- Updated preview Home Assistant data so fan, lock, media, and climate controls can be exercised in native previews.
+
 ### OAuth Widgets And Dashboard State Cleanup
 
 - Updated the widget control path to read the shared OAuth credential and refresh short-lived Home Assistant access tokens instead of looking for the removed long-lived token account.

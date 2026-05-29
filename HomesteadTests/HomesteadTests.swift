@@ -294,6 +294,39 @@ struct HomesteadTests {
         #expect(serviceData["temperature"] as? Double == 70)
     }
 
+    @Test func fanAndMediaControlRequestsEncodeHomeAssistantShape() throws {
+        let fanRequest = HAWebSocketRequest.callService(
+            id: 45,
+            domain: "fan",
+            service: "set_percentage",
+            target: ["entity_id": .string("fan.bedroom")],
+            serviceData: ["percentage": .number(45)]
+        )
+        let mediaRequest = HAWebSocketRequest.callService(
+            id: 46,
+            domain: "media_player",
+            service: "volume_set",
+            target: ["entity_id": .string("media_player.living_room")],
+            serviceData: ["volume_level": .number(0.42)]
+        )
+
+        let fanObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(fanRequest)) as? [String: Any])
+        let fanTarget = try #require(fanObject["target"] as? [String: Any])
+        let fanServiceData = try #require(fanObject["service_data"] as? [String: Any])
+        let mediaObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(mediaRequest)) as? [String: Any])
+        let mediaTarget = try #require(mediaObject["target"] as? [String: Any])
+        let mediaServiceData = try #require(mediaObject["service_data"] as? [String: Any])
+
+        #expect(fanObject["domain"] as? String == "fan")
+        #expect(fanObject["service"] as? String == "set_percentage")
+        #expect(fanTarget["entity_id"] as? String == "fan.bedroom")
+        #expect(fanServiceData["percentage"] as? Double == 45)
+        #expect(mediaObject["domain"] as? String == "media_player")
+        #expect(mediaObject["service"] as? String == "volume_set")
+        #expect(mediaTarget["entity_id"] as? String == "media_player.living_room")
+        #expect(mediaServiceData["volume_level"] as? Double == 0.42)
+    }
+
     @Test func registryCommandEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.registryCommand(
             id: 7,
@@ -597,6 +630,50 @@ struct HomesteadTests {
         #expect(cover.displaySubtitle == "Open, 72%")
     }
 
+    @Test func entityMapperMapsFanAndMediaPlayerControls() throws {
+        let fanDTO = HAEntityDTO(
+            entityID: "fan.bedroom",
+            state: "on",
+            attributes: [
+                "friendly_name": .string("Bedroom Fan"),
+                "percentage": .number(45),
+                "percentage_step": .number(5),
+                "preset_mode": .string("normal"),
+                "preset_modes": .array([.string("sleep"), .string("normal"), .string("boost")])
+            ]
+        )
+        let mediaDTO = HAEntityDTO(
+            entityID: "media_player.living_room",
+            state: "playing",
+            attributes: [
+                "friendly_name": .string("Living Room TV"),
+                "volume_level": .number(0.42),
+                "source": .string("Apple TV"),
+                "source_list": .array([.string("Apple TV"), .string("Music")]),
+                "media_title": .string("Morning Mix"),
+                "media_artist": .string("Homestead Radio")
+            ]
+        )
+
+        let fan = try #require(EntityMapper.fanEntity(from: fanDTO))
+        let media = try #require(EntityMapper.mediaPlayerEntity(from: mediaDTO))
+
+        #expect(fan.displayName == "Bedroom Fan")
+        #expect(fan.isOn)
+        #expect(fan.percentage == 45)
+        #expect(fan.percentageStep == 5)
+        #expect(fan.presetMode == "normal")
+        #expect(fan.presetModes == ["sleep", "normal", "boost"])
+        #expect(fan.displaySubtitle == "45%")
+        #expect(media.displayName == "Living Room TV")
+        #expect(media.isPlaying)
+        #expect(media.volumePercentage == 42)
+        #expect(media.source == "Apple TV")
+        #expect(media.sourceList == ["Apple TV", "Music"])
+        #expect(media.nowPlayingText == "Morning Mix - Homestead Radio")
+        #expect(media.displaySubtitle == "Morning Mix - Homestead Radio")
+    }
+
     @Test func entityMapperMapsClimateControls() throws {
         let climateDTO = HAEntityDTO(
             entityID: "climate.downstairs",
@@ -614,7 +691,11 @@ struct HomesteadTests {
                     .string("heat"),
                     .string("cool"),
                     .string("heat_cool")
-                ])
+                ]),
+                "fan_mode": .string("auto"),
+                "fan_modes": .array([.string("auto"), .string("low"), .string("high")]),
+                "preset_mode": .string("home"),
+                "preset_modes": .array([.string("home"), .string("away")])
             ]
         )
 
@@ -626,6 +707,10 @@ struct HomesteadTests {
         #expect(climate.targetTemperature == 70)
         #expect(climate.temperatureUnit == "°F")
         #expect(climate.hvacModes == ["off", "heat", "cool", "heat_cool"])
+        #expect(climate.fanMode == "auto")
+        #expect(climate.fanModes == ["auto", "low", "high"])
+        #expect(climate.presetMode == "home")
+        #expect(climate.presetModes == ["home", "away"])
         #expect(climate.isActive == true)
         #expect(climate.displayState == "Heat")
         #expect(climate.targetTemperatureText == "70°F")
@@ -2028,9 +2113,24 @@ struct HomesteadTests {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(entityID: "switch.coffee", state: "on"),
-            HAEntityDTO(entityID: "fan.bedroom", state: "off"),
+            HAEntityDTO(
+                entityID: "fan.bedroom",
+                state: "on",
+                attributes: [
+                    "percentage": .number(45),
+                    "preset_modes": .array([.string("sleep"), .string("boost")])
+                ]
+            ),
             HAEntityDTO(entityID: "lock.front_door", state: "locked"),
-            HAEntityDTO(entityID: "media_player.living_room", state: "playing"),
+            HAEntityDTO(
+                entityID: "media_player.living_room",
+                state: "playing",
+                attributes: [
+                    "media_title": .string("Morning Mix"),
+                    "volume_level": .number(0.42),
+                    "source_list": .array([.string("Apple TV"), .string("Music")])
+                ]
+            ),
             HAEntityDTO(entityID: "camera.driveway", state: "idle"),
             HAEntityDTO(entityID: "binary_sensor.front_door", state: "on")
         ])
@@ -2046,15 +2146,18 @@ struct HomesteadTests {
         #expect(switchPresentation.detailKind == .toggle)
         #expect(switchPresentation.isActive == true)
         #expect(fanPresentation.primaryAction == .toggleFan)
-        #expect(fanPresentation.detailKind == .toggle)
-        #expect(fanPresentation.isActive == false)
-        #expect(lockPresentation.primaryAction == .toggleLock)
-        #expect(lockPresentation.primaryServiceIntent == .lockToggle)
-        #expect(lockPresentation.detailKind == .toggle)
+        #expect(fanPresentation.detailKind == .fan)
+        #expect(fanPresentation.secondaryActions == [.setFanPercentage, .setFanPresetMode])
+        #expect(fanPresentation.subtitle == "45%")
+        #expect(fanPresentation.isActive == true)
+        #expect(lockPresentation.primaryAction == nil)
+        #expect(lockPresentation.primaryServiceIntent == nil)
+        #expect(lockPresentation.detailKind == .lock)
         #expect(lockPresentation.subtitle == "Locked")
         #expect(mediaPresentation.primaryAction == nil)
         #expect(mediaPresentation.cardStyle == .media)
-        #expect(mediaPresentation.secondaryActions == [.playPause])
+        #expect(mediaPresentation.secondaryActions == [.playPause, .setMediaVolume, .selectMediaSource])
+        #expect(mediaPresentation.subtitle == "Morning Mix")
         #expect(mediaPresentation.isActive == true)
         #expect(cameraPresentation.primaryAction == nil)
         #expect(cameraPresentation.cardStyle == .camera)
@@ -2072,8 +2175,8 @@ struct HomesteadTests {
         )] = [
             .light: (.control, .toggleLight, .light),
             .switch: (.control, .toggleSwitch, .toggle),
-            .fan: (.control, .toggleFan, .toggle),
-            .lock: (.control, .toggleLock, .toggle),
+            .fan: (.control, .toggleFan, .fan),
+            .lock: (.control, nil, .lock),
             .cover: (.control, .toggleCover, .cover),
             .climate: (.status, nil, .climate),
             .sensor: (.value, nil, .sensor),
@@ -2115,6 +2218,7 @@ struct HomesteadTests {
         #expect(media.detailKind == .mediaPlayer)
         #expect(media.cardStyle == .media)
         #expect(media.isActive == true)
+        #expect(media.secondaryActions == [.playPause, .setMediaVolume, .selectMediaSource])
         #expect(camera.primaryAction == nil)
         #expect(camera.detailKind == .camera)
         #expect(camera.cardStyle == .camera)

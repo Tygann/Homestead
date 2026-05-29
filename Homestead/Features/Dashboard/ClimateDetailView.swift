@@ -22,6 +22,14 @@ struct ClimateDetailView: View {
                         if !climate.hvacModes.isEmpty {
                             modeControls(climate)
                         }
+
+                        if !climate.fanModes.isEmpty {
+                            fanModeControls(climate)
+                        }
+
+                        if !climate.presetModes.isEmpty {
+                            presetModeControls(climate)
+                        }
                     }
                     .padding(AppSpacing.large)
                 }
@@ -178,6 +186,68 @@ struct ClimateDetailView: View {
                     .foregroundStyle(mode == climate.state ? Color.white : Color.primary)
                     .background(modeBackground(for: mode, climate: climate), in: Capsule())
                     .disabled(entityBox.pendingCommand != nil || mode == climate.state)
+                }
+            }
+        }
+        .padding(AppSpacing.large)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    private func fanModeControls(_ climate: ClimateEntity) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Label("Fan", systemImage: "fan")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
+                ForEach(climate.fanModes, id: \.self) { fanMode in
+                    Button {
+                        Task {
+                            await homeAssistantService.setClimateFanMode(
+                                entityID: entityBox.entityID,
+                                fanMode: fanMode
+                            )
+                        }
+                    } label: {
+                        Text(climate.displayName(forFanMode: fanMode))
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 42)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(fanMode == climate.fanMode ? Color.white : Color.primary)
+                    .background(fanMode == climate.fanMode ? Color.accentColor : Color(.tertiarySystemGroupedBackground), in: Capsule())
+                    .disabled(entityBox.pendingCommand != nil || fanMode == climate.fanMode)
+                }
+            }
+        }
+        .padding(AppSpacing.large)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    private func presetModeControls(_ climate: ClimateEntity) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Label("Preset", systemImage: "leaf")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
+                ForEach(climate.presetModes, id: \.self) { presetMode in
+                    Button {
+                        Task {
+                            await homeAssistantService.setClimatePresetMode(
+                                entityID: entityBox.entityID,
+                                presetMode: presetMode
+                            )
+                        }
+                    } label: {
+                        Text(climate.displayName(forPresetMode: presetMode))
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 42)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(presetMode == climate.presetMode ? Color.white : Color.primary)
+                    .background(presetMode == climate.presetMode ? Color.accentColor : Color(.tertiarySystemGroupedBackground), in: Capsule())
+                    .disabled(entityBox.pendingCommand != nil || presetMode == climate.presetMode)
                 }
             }
         }

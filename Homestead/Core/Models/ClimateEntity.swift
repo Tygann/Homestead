@@ -11,6 +11,10 @@ struct ClimateEntity: Identifiable, Equatable, Sendable {
     let maxTemperature: Double?
     let targetTemperatureStep: Double?
     let temperatureUnit: String?
+    let fanMode: String?
+    let fanModes: [String]
+    let presetMode: String?
+    let presetModes: [String]
 
     var id: String { entityID }
 
@@ -74,6 +78,27 @@ struct ClimateEntity: Identifiable, Equatable, Sendable {
             "Auto"
         case "fan_only":
             "Fan"
+        default:
+            mode.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    func displayName(forFanMode mode: String) -> String {
+        mode.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+
+    func displayName(forPresetMode mode: String) -> String {
+        switch mode {
+        case "none":
+            "None"
+        case "eco":
+            "Eco"
+        case "away":
+            "Away"
+        case "home":
+            "Home"
+        case "sleep":
+            "Sleep"
         default:
             mode.replacingOccurrences(of: "_", with: " ").capitalized
         }

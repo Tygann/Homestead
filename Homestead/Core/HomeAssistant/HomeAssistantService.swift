@@ -402,6 +402,50 @@ final class HomeAssistantService {
         )
     }
 
+    func setMediaVolume(entityID: String, volumePercentage: Double) async {
+        let clampedPercentage = min(max(volumePercentage, 0), 100)
+        let volumeLevel = clampedPercentage / 100
+        let serviceData = ["volume_level": JSONValue.number(volumeLevel)]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: nil,
+            expectedAttributes: serviceData
+        )
+
+        let succeeded = await callService(
+            domain: "media_player",
+            service: "volume_set",
+            entityID: entityID,
+            serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func selectMediaSource(entityID: String, source: String) async {
+        let serviceData = ["source": JSONValue.string(source)]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: nil,
+            expectedAttributes: serviceData
+        )
+
+        let succeeded = await callService(
+            domain: "media_player",
+            service: "select_source",
+            entityID: entityID,
+            serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
     func startVacuum(entityID: String) async {
         await callService(
             domain: "vacuum",
@@ -598,6 +642,49 @@ final class HomeAssistantService {
         )
     }
 
+    func setFanPercentage(entityID: String, percentage: Double) async {
+        let roundedPercentage = Int(min(max(percentage, 0), 100).rounded())
+        let serviceData = ["percentage": JSONValue.number(Double(roundedPercentage))]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: roundedPercentage > 0 ? "on" : "off",
+            expectedAttributes: serviceData
+        )
+
+        let succeeded = await callService(
+            domain: "fan",
+            service: "set_percentage",
+            entityID: entityID,
+            serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func setFanPresetMode(entityID: String, presetMode: String) async {
+        let serviceData = ["preset_mode": JSONValue.string(presetMode)]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: nil,
+            expectedAttributes: serviceData
+        )
+
+        let succeeded = await callService(
+            domain: "fan",
+            service: "set_preset_mode",
+            entityID: entityID,
+            serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
     func toggleLock(entityID: String) async {
         guard let entity = stateStore.entity(for: entityID), entity.isAvailable else {
             return
@@ -732,6 +819,48 @@ final class HomeAssistantService {
             service: "set_hvac_mode",
             entityID: entityID,
             serviceData: ["hvac_mode": .string(hvacMode)]
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func setClimateFanMode(entityID: String, fanMode: String) async {
+        let serviceData = ["fan_mode": JSONValue.string(fanMode)]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: nil,
+            expectedAttributes: serviceData
+        )
+
+        let succeeded = await callService(
+            domain: "climate",
+            service: "set_fan_mode",
+            entityID: entityID,
+            serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func setClimatePresetMode(entityID: String, presetMode: String) async {
+        let serviceData = ["preset_mode": JSONValue.string(presetMode)]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: nil,
+            expectedAttributes: serviceData
+        )
+
+        let succeeded = await callService(
+            domain: "climate",
+            service: "set_preset_mode",
+            entityID: entityID,
+            serviceData: serviceData
         )
         if succeeded {
             schedulePendingResolution(for: pendingCommand)
