@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AreasView: View {
     @Environment(HAStateStore.self) private var stateStore
+    private let areaCardSize = DashboardCardSize.square
 
     private var areas: [DashboardAreaSummary] {
         DashboardAreaBuilder.buildAreas(
@@ -12,7 +13,7 @@ struct AreasView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: AppSpacing.large) {
+            CardGrid {
                 ForEach(areas) { area in
                     NavigationLink {
                         AreaDetailView(area: area)
@@ -20,6 +21,7 @@ struct AreasView: View {
                         AreaSummaryCard(area: area)
                     }
                     .buttonStyle(.plain)
+                    .cardGridSpan(areaCardSize.layoutMetadata)
                 }
             }
             .padding(.horizontal, AppSpacing.large)
@@ -40,28 +42,45 @@ private struct AreaSummaryCard: View {
     let area: DashboardAreaSummary
 
     var body: some View {
-        CardContainer {
-            HStack(alignment: .center, spacing: AppSpacing.medium) {
-                CardIconView(systemName: area.systemImage)
+        CardContainer(minHeight: cardContentMinHeight) {
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
+                HStack(alignment: .top, spacing: AppSpacing.small) {
+                    CardIconView(systemName: area.systemImage)
+
+                    Spacer(minLength: AppSpacing.small)
+
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, AppSpacing.small)
+                }
 
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                     Text(area.name)
                         .font(.headline)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
 
                     Text(area.subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
                 }
 
-                Spacer(minLength: AppSpacing.medium)
+                Spacer(minLength: 0)
 
                 AreaDomainStrip(domains: Array(area.topDomains.prefix(3)))
-
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+    }
+
+    private var cardContentMinHeight: CGFloat {
+        DashboardCardSize.square.contentMinHeight(
+            rowSpacing: AppSpacing.medium,
+            cardPadding: AppSpacing.medium
+        )
     }
 }
 

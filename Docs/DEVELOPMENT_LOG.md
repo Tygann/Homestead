@@ -9,6 +9,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Replaced the dashboard's implicit two-column card layout with model-driven card spans on a 4-column grid foundation.
 - Added mini, compact, square, wide, and large dashboard card sizes with reusable column/row metadata.
 - Migrated legacy persisted `large` card sizes to the new `square` size so existing dashboards keep their current visual footprint.
+- Promoted the card grid layout into the design system so non-dashboard card surfaces can share the same 4-column sizing model.
+- Moved Areas summary cards onto the shared grid as square `2x2` cards while keeping their area-specific renderer.
 
 ## 2026-05-27
 
