@@ -42,6 +42,28 @@ actor HAStateCache {
         }
     }
 
+    func metadata(for configuration: HAConnectionConfiguration) async -> HAStateCacheMetadata? {
+        do {
+            let url = try cacheURL(for: configuration)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                return nil
+            }
+
+            let data = try Data(contentsOf: url)
+            let snapshot = try decoder.decode(HAStateCacheSnapshot.self, from: data)
+            return HAStateCacheMetadata(
+                scopeIdentifier: Self.cacheScopeIdentifier(for: configuration),
+                savedAt: snapshot.savedAt,
+                entityCount: snapshot.entities.count,
+                entityRegistryCount: snapshot.registryMetadata?.entities.count,
+                deviceRegistryCount: snapshot.registryMetadata?.devices.count,
+                areaRegistryCount: snapshot.registryMetadata?.areas.count
+            )
+        } catch {
+            return nil
+        }
+    }
+
     func save(
         _ entities: [HAEntityDTO],
         registryMetadata: HARegistryMetadataSnapshot? = nil,
@@ -137,6 +159,19 @@ actor HAStateCache {
         }
 
         return normalizedValue
+    }
+}
+
+nonisolated struct HAStateCacheMetadata: Equatable, Sendable {
+    let scopeIdentifier: String
+    let savedAt: Date
+    let entityCount: Int
+    let entityRegistryCount: Int?
+    let deviceRegistryCount: Int?
+    let areaRegistryCount: Int?
+
+    var shortScopeIdentifier: String {
+        String(scopeIdentifier.prefix(8))
     }
 }
 

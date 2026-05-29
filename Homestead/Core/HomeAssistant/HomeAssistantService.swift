@@ -17,6 +17,7 @@ final class HomeAssistantService {
     private(set) var currentUserDisplayName: String?
     private(set) var isNetworkAvailable = true
     private(set) var serviceRegistry: HAServiceRegistry = .empty
+    private(set) var stateCacheMetadata: HAStateCacheMetadata?
 
     @ObservationIgnored private let client: any HAWebSocketClientProtocol
     @ObservationIgnored private let httpClient: HAHTTPClient
@@ -223,6 +224,7 @@ final class HomeAssistantService {
         currentUserID = nil
         currentUserDisplayName = nil
         serviceRegistry = .empty
+        stateCacheMetadata = nil
         dataFreshness = staleFreshness(nil)
         connectionStatus = .disconnected
     }
@@ -1082,6 +1084,7 @@ final class HomeAssistantService {
     private func applyCachedStatesIfAvailable(for configuration: HAConnectionConfiguration) async {
         if stateStore.dataSourceID != configuration.dataSourceID {
             stateStore.replaceDataSourceIfNeeded(configuration.dataSourceID)
+            stateCacheMetadata = nil
         }
 
         guard !stateStore.hasLoadedInitialSnapshot else {
@@ -1102,6 +1105,7 @@ final class HomeAssistantService {
         }
 
         guard let snapshot = await stateCache.load(for: configuration), !snapshot.entities.isEmpty else {
+            stateCacheMetadata = nil
             dataFreshness = .empty
             return
         }
@@ -1118,6 +1122,14 @@ final class HomeAssistantService {
             "Home Assistant cached snapshot applied: \(snapshot.entities.count) entities in \(String(format: "%.3f", Date().timeIntervalSince(startDate)))s"
         )
         #endif
+        stateCacheMetadata = HAStateCacheMetadata(
+            scopeIdentifier: HAStateCache.cacheScopeIdentifier(for: configuration),
+            savedAt: snapshot.savedAt,
+            entityCount: snapshot.entities.count,
+            entityRegistryCount: snapshot.registryMetadata?.entities.count,
+            deviceRegistryCount: snapshot.registryMetadata?.devices.count,
+            areaRegistryCount: snapshot.registryMetadata?.areas.count
+        )
         dataFreshness = .cached(snapshot.savedAt)
     }
 
@@ -1311,6 +1323,14 @@ final class HomeAssistantService {
     private func scheduleStateCacheSave(configuration: HAConnectionConfiguration) {
         let entities = stateStore.rawEntitySnapshot()
         let registryMetadata = stateStore.registryMetadataSnapshot()
+        stateCacheMetadata = HAStateCacheMetadata(
+            scopeIdentifier: HAStateCache.cacheScopeIdentifier(for: configuration),
+            savedAt: Date(),
+            entityCount: entities.count,
+            entityRegistryCount: registryMetadata?.entities.count,
+            deviceRegistryCount: registryMetadata?.devices.count,
+            areaRegistryCount: registryMetadata?.areas.count
+        )
         Task { [stateCache] in
             await stateCache.save(
                 entities,

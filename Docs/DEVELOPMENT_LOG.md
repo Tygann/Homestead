@@ -4,6 +4,15 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-05-29
 
+### Settings Diagnostics And Release Polish
+
+- Expanded Home Assistant settings into a production support surface with privacy-safe diagnostics for account, auth, connection, state freshness, network, mobile-app registration, app version, device software, and cache counts.
+- Added cache metadata tracking without exposing cache file paths or Home Assistant tokens.
+- Added sign-out confirmation copy so credential and mobile-app registration removal is harder to trigger accidentally.
+- Tightened About app/build details and support navigation, and improved accessibility for global connection/status accessories.
+- Simplified the primary Home Assistant settings flow so normal users see account, server, and recovery actions first, with registration and operational diagnostics moved behind progressive disclosure.
+- Trimmed About and Diagnostics so support details stay nested under Home Assistant settings, with only lightweight connection/state information visible before advanced disclosure.
+
 ### Dashboard Chips And Icon Overrides
 
 - Added first-class dashboard chip items alongside cards and headers, with summary and entity chip variants persisted in dashboard metadata.

@@ -196,6 +196,8 @@ struct AppStatusAccessory: View {
             }
         }
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(state.canRetry ? "Retries the Home Assistant connection." : "")
         .accessibilityAddTraits(state.canRetry ? .isButton : [])
     }
 
@@ -261,6 +263,14 @@ struct AppStatusAccessory: View {
         case .failure:
             Color.red
         }
+    }
+
+    private var accessibilityLabel: String {
+        guard !state.message.isEmpty else {
+            return state.title
+        }
+
+        return "\(state.title), \(state.message)"
     }
 }
 

@@ -97,16 +97,22 @@ struct DashboardIconOverrideMenu: View {
     var body: some View {
         Menu {
             Button {
+                HapticFeedback.selection()
                 setIconNameOverride(nil)
             } label: {
-                Label("Default Icon", systemImage: "arrow.counterclockwise")
+                Label("Default Icon", systemImage: selectedSystemName.isEmpty ? "checkmark" : "arrow.counterclockwise")
             }
 
             ForEach(DashboardIconChoice.choices) { choice in
                 Button {
+                    HapticFeedback.selection()
                     setIconNameOverride(choice.systemName)
                 } label: {
-                    Label(choice.title, systemImage: choice.systemName)
+                    Label {
+                        Text(choice.title)
+                    } icon: {
+                        Image(systemName: choice.systemName == selectedSystemName ? "checkmark.circle.fill" : choice.systemName)
+                    }
                 }
             }
         } label: {
@@ -117,5 +123,10 @@ struct DashboardIconOverrideMenu: View {
                 .background(Color(.tertiarySystemGroupedBackground), in: Circle())
         }
         .accessibilityLabel("Change icon")
+        .accessibilityValue(selectedIconTitle)
+    }
+
+    private var selectedIconTitle: String {
+        DashboardIconChoice.choices.first { $0.systemName == selectedSystemName }?.title ?? "Default"
     }
 }

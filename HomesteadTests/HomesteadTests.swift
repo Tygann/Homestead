@@ -2306,9 +2306,16 @@ struct HomesteadTests {
         await cache.save(entities, registryMetadata: registryMetadata, for: primaryConfiguration)
 
         let restoredSnapshot = try #require(await cache.load(for: primaryConfiguration))
+        let metadata = try #require(await cache.metadata(for: primaryConfiguration))
         #expect(restoredSnapshot.entities == entities)
         #expect(restoredSnapshot.registryMetadata == registryMetadata)
+        #expect(metadata.entityCount == 1)
+        #expect(metadata.entityRegistryCount == 1)
+        #expect(metadata.deviceRegistryCount == 1)
+        #expect(metadata.areaRegistryCount == 1)
+        #expect(metadata.shortScopeIdentifier.count == 8)
         #expect(await cache.load(for: otherConfiguration) == nil)
+        #expect(await cache.metadata(for: otherConfiguration) == nil)
         #expect(HAStateCache.cacheFileName(for: primaryConfiguration) != HAStateCache.cacheFileName(for: otherConfiguration))
     }
 
@@ -2420,6 +2427,8 @@ struct HomesteadTests {
         #expect(store.hasLoadedInitialSnapshot == true)
         #expect(store.entity(for: "light.kitchen")?.state == "on")
         #expect(store.areaName(for: "light.kitchen") == "Kitchen")
+        #expect(service.stateCacheMetadata?.entityCount == 1)
+        #expect(service.stateCacheMetadata?.areaRegistryCount == 1)
         if case .cached = service.dataFreshness {
             // Expected cached-first launch state.
         } else {
