@@ -19,6 +19,22 @@ private func waitUntil(
     }
 }
 
+private func waitUntilAsync(
+    timeout: Duration = .seconds(1),
+    condition: @escaping () async -> Bool
+) async throws {
+    let start = ContinuousClock.now
+
+    while !(await condition()) {
+        if start.duration(to: ContinuousClock.now) >= timeout {
+            Issue.record("Timed out waiting for condition.")
+            return
+        }
+
+        try await Task.sleep(for: .milliseconds(10))
+    }
+}
+
 struct HomesteadTests {
     @Test func connectionHealthAccessoryStateAppearsOnlyForGlobalConnectionIssues() {
         #expect(AppStatusAccessoryState.make(
@@ -1515,6 +1531,45 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func startupSyncPersistsLiveStateBeforeOptionalMetadataCompletes() async throws {
+        let cacheDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HomesteadImmediateLiveCacheTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+        let cache = HAStateCache(directoryURL: cacheDirectory)
+        let baseURLString = "http://homeassistant.local:8123"
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(baseURL: baseURLString, accessToken: "startup-access"))
+        let stateStore = HAStateStore()
+        let webSocketClient = StubHAWebSocketClient(states: [
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+        webSocketClient.fetchServicesDelay = .milliseconds(400)
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            stateCache: cache,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+
+        await service.connect(baseURLString: baseURLString)
+        try await waitUntil {
+            stateStore.hasLoadedInitialSnapshot
+        }
+
+        let configuration = HAConnectionConfiguration(
+            baseURLString: baseURLString,
+            accessToken: "startup-access"
+        )
+        try await waitUntilAsync {
+            await cache.load(for: configuration)?.entities.map(\.entityID) == ["light.kitchen"]
+        }
+
+        #expect(service.serviceRegistry.hasLoaded == false)
+    }
+
+    @MainActor
     @Test func serviceRegistryFailureDoesNotPreventLiveEntityState() async throws {
         let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "startup-access"))
         let stateStore = HAStateStore()
@@ -1661,6 +1716,7 @@ struct HomesteadTests {
         await service.turnOnLight(entityID: "light.kitchen")
 
         #expect(service.connectionStatus == .reconnecting)
+        #expect(webSocketClient.didDisconnect)
         #expect(service.serviceFeedback?.title == "Action failed, reconnecting")
         #expect(service.serviceFeedback?.message?.contains("Kitchen Light") == true)
         #expect(service.serviceFeedback?.message?.contains("Homestead is reconnecting") == true)
@@ -2850,6 +2906,7 @@ final class StubHAOAuthAuthorizer: HAOAuthAuthorizing {
 final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     private(set) var lastConnectConfiguration: HAConnectionConfiguration?
     private(set) var didDisconnect = false
+    private(set) var disconnectCount = 0
     private(set) var callServiceInvocations: [(domain: String, service: String, entityID: String?, serviceData: [String: JSONValue])] = []
     var callServiceError: Error?
     var currentUser: HACurrentUserDTO?
@@ -2873,6 +2930,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func disconnect() async {
         didDisconnect = true
+        disconnectCount += 1
     }
 
     func fetchCurrentUser() async throws -> HACurrentUserDTO {

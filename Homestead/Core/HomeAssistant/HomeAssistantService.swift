@@ -1160,6 +1160,7 @@ final class HomeAssistantService {
             dataFreshness = staleFreshness(lastErrorMessage)
 
             if connectionStatus == .connected, let activeConfiguration {
+                await client.disconnect()
                 scheduleReconnect(configuration: activeConfiguration)
             }
         }
@@ -1265,6 +1266,7 @@ final class HomeAssistantService {
             applyBufferedStateChanges()
             lastErrorMessage = nil
             dataFreshness = .live(Date())
+            scheduleStateCacheSave(configuration: configuration)
             scheduleStateEnrichment(configuration: configuration)
         } catch {
             discardBufferedStateChanges()
@@ -1289,6 +1291,7 @@ final class HomeAssistantService {
             applyBufferedStateChanges()
             lastErrorMessage = nil
             dataFreshness = .live(Date())
+            scheduleStateCacheSave(configuration: activeConfiguration)
             scheduleStateEnrichment(configuration: activeConfiguration)
         } catch {
             applyBufferedStateChanges()
@@ -1302,6 +1305,18 @@ final class HomeAssistantService {
         stateEnrichmentTask?.cancel()
         stateEnrichmentTask = Task { [weak self] in
             await self?.enrichLiveState(configuration: configuration)
+        }
+    }
+
+    private func scheduleStateCacheSave(configuration: HAConnectionConfiguration) {
+        let entities = stateStore.rawEntitySnapshot()
+        let registryMetadata = stateStore.registryMetadataSnapshot()
+        Task { [stateCache] in
+            await stateCache.save(
+                entities,
+                registryMetadata: registryMetadata,
+                for: configuration
+            )
         }
     }
 
@@ -1474,6 +1489,10 @@ final class HomeAssistantService {
 
             do {
                 try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
+                guard isNetworkAvailable else {
+                    attempt += 1
+                    continue
+                }
                 let connectedConfiguration = try await establishTransportConnectionWithAuthRecovery(configuration: configuration)
 
                 activeConfiguration = connectedConfiguration

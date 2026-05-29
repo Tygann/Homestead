@@ -8,6 +8,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Added pending-state handling for stateless Home Assistant actions such as scenes, scripts, media play/pause, cover stop, and vacuum commands.
 - Preserved last-known state timestamps while refreshing so stale/retry UI can show trustworthy data age.
+- Hardened WebSocket setup/recovery cleanup and persisted confirmed live state before optional metadata enrichment so cold launch caches refresh sooner.
 - Added shared dashboard detail status, action, and control components and migrated common detail sheets onto them.
 - Tightened Home Assistant settings recovery for server mismatches and mobile-app registration status.
 

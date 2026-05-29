@@ -12,7 +12,7 @@ When adding a Home Assistant feature, first identify the official API family for
 
 ## WebSocket-first API
 
-`HomeAssistantService` owns connection status, reconnect behavior, and UI-facing Home Assistant actions. When the socket drops unexpectedly, it retries with a small backoff sequence, fetches a fresh state snapshot, and resubscribes to `state_changed` events. TODO: add app lifecycle and network reachability awareness before shipping.
+`HomeAssistantService` owns connection status, reconnect behavior, and UI-facing Home Assistant actions. When the socket drops unexpectedly, it retries with a small backoff sequence, fetches a fresh state snapshot, and resubscribes to `state_changed` events. App foreground/background transitions and network reachability updates feed this lifecycle so stale cached state remains visible while Homestead reconnects.
 
 Live `state_changed` events are batched before they touch SwiftUI-observed state. A large Home Assistant instance can produce frequent background updates, and batching keeps those updates from interrupting scrolling and gestures as often.
 

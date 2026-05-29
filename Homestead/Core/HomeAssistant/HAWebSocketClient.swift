@@ -60,27 +60,34 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         closeCurrentConnection()
         isDisconnecting = false
 
-        let url = try HomeAssistantEndpointBuilder.webSocketURL(from: configuration.baseURLString)
-        let task = session.webSocketTask(with: url)
-        webSocketTask = task
-        task.resume()
+        do {
+            let url = try HomeAssistantEndpointBuilder.webSocketURL(from: configuration.baseURLString)
+            let task = session.webSocketTask(with: url)
+            webSocketTask = task
+            task.resume()
 
-        let authRequired = try await receiveIncomingMessage()
-        guard authRequired.type == HAWebSocketMessageType.authRequired else {
-            throw HAWebSocketError.unexpectedMessage(authRequired.type)
-        }
+            let authRequired = try await receiveIncomingMessage()
+            guard authRequired.type == HAWebSocketMessageType.authRequired else {
+                throw HAWebSocketError.unexpectedMessage(authRequired.type)
+            }
 
-        try await send(.auth(accessToken: configuration.accessToken))
+            try await send(.auth(accessToken: configuration.accessToken))
 
-        let authResponse = try await receiveIncomingMessage()
-        switch authResponse.type {
-        case HAWebSocketMessageType.authOK:
-            startReceiveLoop()
-            startHeartbeatLoop()
-        case HAWebSocketMessageType.authInvalid:
-            throw HAWebSocketError.authenticationFailed(authResponse.message)
-        default:
-            throw HAWebSocketError.unexpectedMessage(authResponse.type)
+            let authResponse = try await receiveIncomingMessage()
+            switch authResponse.type {
+            case HAWebSocketMessageType.authOK:
+                startReceiveLoop()
+                startHeartbeatLoop()
+            case HAWebSocketMessageType.authInvalid:
+                throw HAWebSocketError.authenticationFailed(authResponse.message)
+            default:
+                throw HAWebSocketError.unexpectedMessage(authResponse.type)
+            }
+        } catch {
+            isDisconnecting = true
+            closeCurrentConnection()
+            isDisconnecting = false
+            throw error
         }
     }
 
@@ -391,6 +398,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
             }
         } catch {
             resumeAllPending(throwing: error)
+            resumeAllPongs(throwing: error)
 
             guard !Task.isCancelled, !isDisconnecting else {
                 return
