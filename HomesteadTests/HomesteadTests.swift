@@ -378,18 +378,75 @@ struct HomesteadTests {
         #expect(object["type"] as? String == "config/entity_registry/list_for_display")
     }
 
+    @Test func getServicesRequestEncodesHomeAssistantShape() throws {
+        let request = HAWebSocketRequest.getServices(id: 8)
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["id"] as? Int == 8)
+        #expect(object["type"] as? String == "get_services")
+    }
+
     @Test func cameraCapabilitiesRequestEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.cameraCapabilities(
-            id: 8,
+            id: 9,
             entityID: "camera.driveway"
         )
 
         let data = try JSONEncoder().encode(request)
         let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
-        #expect(object["id"] as? Int == 8)
+        #expect(object["id"] as? Int == 9)
         #expect(object["type"] as? String == "camera/capabilities")
         #expect(object["entity_id"] as? String == "camera.driveway")
+    }
+
+    @Test func serviceRegistryDecodesHomeAssistantServiceCatalog() throws {
+        let payload = """
+        {
+            "light": {
+                "turn_on": {
+                    "name": "Turn on",
+                    "description": "Turn on one or more lights.",
+                    "fields": {
+                        "brightness": {
+                            "name": "Brightness",
+                            "selector": {
+                                "number": {
+                                    "min": 0,
+                                    "max": 255
+                                }
+                            }
+                        }
+                    },
+                    "target": {
+                        "entity": {
+                            "domain": "light"
+                        }
+                    }
+                }
+            },
+            "fan": {
+                "set_percentage": {
+                    "name": "Set percentage",
+                    "fields": {
+                        "percentage": {
+                            "required": true
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        let registry = try JSONDecoder().decode(HAServiceRegistry.self, from: Data(payload.utf8))
+
+        #expect(registry.hasLoaded)
+        #expect(registry.hasService(domain: "light", service: "turn_on"))
+        #expect(registry.hasService(domain: "fan", service: "set_percentage"))
+        #expect(!registry.hasService(domain: "fan", service: "set_preset_mode"))
+        #expect(registry.domains["light"]?["turn_on"]?.fields["brightness"] != nil)
     }
 
     @Test func cameraCapabilitiesDecodesFrontendStreamTypes() throws {
@@ -1372,6 +1429,35 @@ struct HomesteadTests {
         #expect(webSocketClient.lastConnectConfiguration?.accessToken == "fresh-access")
         #expect(try tokenStore.readCredential()?.accessToken == "fresh-access")
         #expect(service.connectionStatus == .connected)
+    }
+
+    @MainActor
+    @Test func serviceRefreshLoadsHomeAssistantServiceRegistry() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "service-catalog-access"))
+        let webSocketClient = StubHAWebSocketClient()
+        webSocketClient.serviceRegistry = HAServiceRegistry(domains: [
+            "fan": [
+                "set_percentage": HAServiceDescription(name: "Set percentage")
+            ],
+            "media_player": [
+                "volume_set": HAServiceDescription(name: "Set volume")
+            ]
+        ])
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        await service.refreshStates()
+
+        #expect(service.serviceRegistry.hasLoaded)
+        #expect(service.serviceActionAvailable(domain: "fan", service: "set_percentage"))
+        #expect(service.serviceActionAvailable(domain: "media_player", service: "volume_set"))
+        #expect(!service.serviceActionAvailable(domain: "fan", service: "set_preset_mode"))
     }
 
     @MainActor
@@ -2511,6 +2597,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var callServiceError: Error?
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
+    var serviceRegistry: HAServiceRegistry = .empty
 
     init(currentUser: HACurrentUserDTO? = nil, states: [HAEntityDTO] = []) {
         self.currentUser = currentUser
@@ -2550,6 +2637,10 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func fetchAreaRegistry() async throws -> [HAAreaRegistryDTO] {
         []
+    }
+
+    func fetchServices() async throws -> HAServiceRegistry {
+        serviceRegistry
     }
 
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {

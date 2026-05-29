@@ -16,11 +16,13 @@ struct FanDetailView: View {
                         statusCard(fan)
                         powerControls(fan)
 
-                        if fan.percentage != nil {
+                        if fan.percentage != nil,
+                           homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_percentage") {
                             percentageControls(fan)
                         }
 
-                        if !fan.presetModes.isEmpty {
+                        if !fan.presetModes.isEmpty,
+                           homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_preset_mode") {
                             presetControls(fan)
                         }
                     }

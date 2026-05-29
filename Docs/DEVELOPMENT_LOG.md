@@ -25,6 +25,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added explicit accessibility labels and values for dashboard detail sliders and context rows.
 - Respected Reduce Motion for card press feedback, service banners, and dashboard skeleton loading.
 
+### Home Assistant Service Discovery
+
+- Added WebSocket `get_services` support so Homestead can discover the active Home Assistant service catalog.
+- Stored service metadata separately from live entity state and treated it as optional startup metadata.
+- Began using discovered services to hide unsupported optional detail controls once the catalog is loaded.
+
 ### OAuth Widgets And Dashboard State Cleanup
 
 - Updated the widget control path to read the shared OAuth credential and refresh short-lived Home Assistant access tokens instead of looking for the removed long-lived token account.

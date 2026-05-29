@@ -15,19 +15,23 @@ struct ClimateDetailView: View {
                     VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                         climateStatusCard(climate)
 
-                        if climate.targetTemperature != nil {
+                        if climate.targetTemperature != nil,
+                           homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
                             temperatureControls(climate)
                         }
 
-                        if !climate.hvacModes.isEmpty {
+                        if !climate.hvacModes.isEmpty,
+                           homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_hvac_mode") {
                             modeControls(climate)
                         }
 
-                        if !climate.fanModes.isEmpty {
+                        if !climate.fanModes.isEmpty,
+                           homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_fan_mode") {
                             fanModeControls(climate)
                         }
 
-                        if !climate.presetModes.isEmpty {
+                        if !climate.presetModes.isEmpty,
+                           homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_preset_mode") {
                             presetModeControls(climate)
                         }
                     }

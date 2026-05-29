@@ -23,11 +23,13 @@ struct MediaPlayerDetailView: View {
                     statusCard
                     playbackControls
                     if let mediaPlayer = entityBox.mediaPlayerEntity {
-                        if mediaPlayer.volumeLevel != nil {
+                        if mediaPlayer.volumeLevel != nil,
+                           homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set") {
                             volumeControls(mediaPlayer)
                         }
 
-                        if !mediaPlayer.sourceList.isEmpty {
+                        if !mediaPlayer.sourceList.isEmpty,
+                           homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source") {
                             sourceControls(mediaPlayer)
                         }
                     }
@@ -175,7 +177,7 @@ struct MediaPlayerDetailView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(!entity.isAvailable)
+            .disabled(!entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause"))
 
         }
         .padding(AppSpacing.large)

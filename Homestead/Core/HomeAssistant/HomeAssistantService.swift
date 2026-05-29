@@ -16,6 +16,7 @@ final class HomeAssistantService {
     private(set) var authState: HAAuthState = .signedOut
     private(set) var currentUserDisplayName: String?
     private(set) var isNetworkAvailable = true
+    private(set) var serviceRegistry: HAServiceRegistry = .empty
 
     @ObservationIgnored private let client: any HAWebSocketClientProtocol
     @ObservationIgnored private let httpClient: HAHTTPClient
@@ -161,6 +162,9 @@ final class HomeAssistantService {
             return
         }
 
+        if activeConfiguration?.dataSourceID != configuration.dataSourceID {
+            serviceRegistry = .empty
+        }
         await applyCachedStatesIfAvailable(for: configuration)
 
         do {
@@ -213,6 +217,7 @@ final class HomeAssistantService {
         activeConfiguration = nil
         currentUserID = nil
         currentUserDisplayName = nil
+        serviceRegistry = .empty
         dataFreshness = staleFreshness(nil)
         connectionStatus = .disconnected
     }
@@ -494,6 +499,10 @@ final class HomeAssistantService {
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
         _ = try cameraConfiguration(for: entityID)
         return try await client.fetchCameraCapabilities(entityID: entityID)
+    }
+
+    func serviceActionAvailable(domain: String, service: String) -> Bool {
+        !serviceRegistry.hasLoaded || serviceRegistry.hasService(domain: domain, service: service)
     }
 
     func refreshMobileAppRegistrationState(settings: HAConnectionSettings? = nil) {
@@ -1185,6 +1194,7 @@ final class HomeAssistantService {
             stateStore.applySnapshot(states, dataSourceID: configuration.dataSourceID)
             applyBufferedStateChanges()
             let registryMetadata = await fetchRegistryMetadataIfAvailable()
+            await refreshServiceRegistryIfAvailable()
             await stateCache.save(
                 stateStore.rawEntitySnapshot(),
                 registryMetadata: registryMetadata ?? stateStore.registryMetadataSnapshot(),
@@ -1213,6 +1223,7 @@ final class HomeAssistantService {
             stateStore.applySnapshot(states, dataSourceID: activeConfiguration.dataSourceID)
             applyBufferedStateChanges()
             let registryMetadata = await fetchRegistryMetadataIfAvailable()
+            await refreshServiceRegistryIfAvailable()
             await stateCache.save(
                 stateStore.rawEntitySnapshot(),
                 registryMetadata: registryMetadata ?? stateStore.registryMetadataSnapshot(),
@@ -1258,6 +1269,17 @@ final class HomeAssistantService {
             print("Home Assistant entity/device registry metadata failed: \(error.localizedDescription)")
             #endif
             return nil
+        }
+    }
+
+    private func refreshServiceRegistryIfAvailable() async {
+        do {
+            serviceRegistry = try await client.fetchServices()
+        } catch {
+            // Service metadata helps tailor controls, but state sync should remain WebSocket-first and resilient.
+            #if DEBUG
+            print("Home Assistant service metadata failed: \(error.localizedDescription)")
+            #endif
         }
     }
 
