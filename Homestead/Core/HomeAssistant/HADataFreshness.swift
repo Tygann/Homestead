@@ -5,7 +5,7 @@ enum HADataFreshness: Equatable {
     case cached(Date?)
     case refreshing
     case live(Date)
-    case stale(String?)
+    case stale(String?, lastUpdated: Date? = nil)
 
     var isUsable: Bool {
         switch self {
@@ -13,6 +13,19 @@ enum HADataFreshness: Equatable {
             true
         case .empty:
             false
+        }
+    }
+
+    var lastKnownUpdateDate: Date? {
+        switch self {
+        case .cached(let date):
+            date
+        case .live(let date):
+            date
+        case .stale(_, let lastUpdated):
+            lastUpdated
+        case .empty, .refreshing:
+            nil
         }
     }
 }

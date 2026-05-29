@@ -28,8 +28,8 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
         case .failed:
             return failed
         case .disconnected:
-            if case .stale = dataFreshness {
-                return interrupted
+            if let staleState = staleState(for: dataFreshness) {
+                return staleState
             }
 
             return disconnected
@@ -39,8 +39,8 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
     }
 
     private static func staleState(for dataFreshness: HADataFreshness) -> ConnectionHealthAccessoryState? {
-        if case .stale = dataFreshness {
-            return interrupted
+        if case .stale(_, let lastUpdated) = dataFreshness {
+            return interrupted(lastUpdated: lastUpdated)
         }
 
         return nil
@@ -54,13 +54,17 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
         canRetry: false
     )
 
-    static let interrupted = ConnectionHealthAccessoryState(
-        title: "Connection interrupted",
-        message: "Using the latest cached state.",
-        systemImage: "wifi.exclamationmark",
-        style: .warning,
-        canRetry: true
-    )
+    static let interrupted = interrupted(lastUpdated: nil)
+
+    static func interrupted(lastUpdated: Date?) -> ConnectionHealthAccessoryState {
+        ConnectionHealthAccessoryState(
+            title: "Connection interrupted",
+            message: staleMessage(lastUpdated: lastUpdated),
+            systemImage: "wifi.exclamationmark",
+            style: .warning,
+            canRetry: true
+        )
+    }
 
     static let failed = ConnectionHealthAccessoryState(
         title: "Connection failed",
@@ -77,6 +81,17 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
         style: .warning,
         canRetry: true
     )
+
+    private static func staleMessage(lastUpdated: Date?) -> String {
+        guard let lastUpdated else {
+            return "Using the latest cached state."
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        let relativeDate = formatter.localizedString(for: lastUpdated, relativeTo: Date())
+        return "Last live update \(relativeDate)."
+    }
 }
 
 struct ConnectionHealthAccessory: View {

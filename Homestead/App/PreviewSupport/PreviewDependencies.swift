@@ -7,7 +7,6 @@ struct PreviewDependencies {
     let connectionSettings: HAConnectionSettings
     let homeAssistantService: HomeAssistantService
     let dashboardConfiguration: DashboardConfiguration
-    let pinnedEntityStore: PinnedEntityStore
 
     static var sample: PreviewDependencies {
         let previewDefaults = UserDefaults.samplePreview
@@ -15,9 +14,6 @@ struct PreviewDependencies {
         stateStore.applyInitialStates(PreviewData.entities)
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         dashboardConfiguration.reset(using: stateStore.allEntities)
-        let pinnedEntityStore = PinnedEntityStore(defaults: previewDefaults)
-        pinnedEntityStore.toggle("light.living_room_lamps")
-        pinnedEntityStore.toggle("climate.downstairs")
 
         let credential = PreviewCredentialProvider.sampleCredential(
             baseURL: "http://homeassistant.local:8123",
@@ -42,8 +38,7 @@ struct PreviewDependencies {
             stateStore: stateStore,
             connectionSettings: settings,
             homeAssistantService: service,
-            dashboardConfiguration: dashboardConfiguration,
-            pinnedEntityStore: pinnedEntityStore
+            dashboardConfiguration: dashboardConfiguration
         )
     }
 
@@ -51,7 +46,6 @@ struct PreviewDependencies {
         let previewDefaults = UserDefaults.livePreview
         let stateStore = HAStateStore()
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
-        let pinnedEntityStore = PinnedEntityStore(defaults: previewDefaults)
 
         if let credential = PreviewCredentialProvider.liveCredential() {
             let tokenStore = InMemoryHAOAuthTokenStore(credential: credential)
@@ -71,8 +65,7 @@ struct PreviewDependencies {
                 stateStore: stateStore,
                 connectionSettings: settings,
                 homeAssistantService: service,
-                dashboardConfiguration: dashboardConfiguration,
-                pinnedEntityStore: pinnedEntityStore
+                dashboardConfiguration: dashboardConfiguration
             )
         }
 
@@ -91,8 +84,7 @@ struct PreviewDependencies {
             stateStore: stateStore,
             connectionSettings: settings,
             homeAssistantService: service,
-            dashboardConfiguration: dashboardConfiguration,
-            pinnedEntityStore: pinnedEntityStore
+            dashboardConfiguration: dashboardConfiguration
         )
     }
 }
@@ -109,7 +101,6 @@ extension View {
             .environment(dependencies.connectionSettings)
             .environment(dependencies.homeAssistantService)
             .environment(dependencies.dashboardConfiguration)
-            .environment(dependencies.pinnedEntityStore)
     }
 }
 
@@ -266,7 +257,7 @@ struct MissingLivePreviewCredentialsView: View {
         ContentUnavailableView {
             Label("Preview Credentials Missing", systemImage: "key.slash")
         } description: {
-            Text("Save Home Assistant sign-in data in the app Settings screen before using the live preview.")
+            Text("Add PreviewCredentials.json or save Home Assistant sign-in data in the app Settings screen before using the live preview.")
         }
         .padding()
     }
@@ -320,7 +311,6 @@ private extension UserDefaults {
         defaults.removeObject(forKey: "dashboardItems")
         defaults.removeObject(forKey: "dashboardEntityIDs")
         defaults.removeObject(forKey: "dashboardCardSizes")
-        defaults.removeObject(forKey: "dashboard.pinnedEntityIDs")
         return defaults
     }
 

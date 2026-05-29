@@ -74,7 +74,6 @@ struct HomeAssistantSettingsView: View {
         Form {
             Section {
                 HStack(spacing: 12) {
-//                    HomeAssistantAvatarView(size: 42, tint: statusTint)
                     HomeAssistantAvatarView()
 
                     VStack(alignment: .leading, spacing: 3) {
@@ -129,7 +128,7 @@ struct HomeAssistantSettingsView: View {
                                 await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
                             }
                         } label: {
-                            Label(signInButtonTitle, systemImage: "")
+                            Text(signInButtonTitle)
                         }
                         .disabled(!connectionSettings.hasServerURL || homeAssistantService.authState == .signingIn)
                         .frame(maxWidth: .infinity)
@@ -144,14 +143,12 @@ struct HomeAssistantSettingsView: View {
                                 )
                             }
                         } label: {
-                            Label("Retry Connection", systemImage: "")
+                            Text("Retry Connection")
                         }
                         .disabled(homeAssistantService.connectionStatus == .connecting ||
                                   homeAssistantService.connectionStatus == .reconnecting)
                         .frame(maxWidth: .infinity)
                     }
-//                } header: {
-//                    Text("Account")
                 }
             }
 
@@ -161,12 +158,10 @@ struct HomeAssistantSettingsView: View {
                         focusedField = nil
                         Task { await homeAssistantService.signOut() }
                     } label: {
-                        Label("Sign Out", systemImage: "")
+                        Text("Sign Out")
                     }
                     .disabled(!canSignOut)
                     .frame(maxWidth: .infinity)
-//                } header: {
-//                    Text("Session")
                 }
             }
         }
@@ -286,40 +281,9 @@ private struct HomeAssistantSettingsRow: View {
                 Text(server)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-//                    .lineLimit(1)
             }
             .fontDesign(.rounded)
             .lineLimit(1)
-        }
-    }
-}
-
-private struct HomeAssistantSettingsRow_Backup: View {
-    let title: String
-    let server: String
-    let status: String
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-//            HomeAssistantAvatarView(size: 32, tint: tint)
-            HomeAssistantAvatarView()
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .foregroundStyle(.primary)
-
-                Text(server)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 8)
-
-            Text(status)
-                .font(.footnote)
-                .foregroundStyle(tint)
         }
     }
 }
@@ -330,9 +294,6 @@ private struct HomeAssistantAvatarView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var image: Image?
 
-//    let size: CGFloat
-//    let tint: Color
-
     var body: some View {
         Group {
             if let image {
@@ -341,15 +302,11 @@ private struct HomeAssistantAvatarView: View {
                     .scaledToFill()
             } else {
                 Image(systemName: "person.crop.circle.fill")
-//                    .font(.system(size: size * 0.48, weight: .semibold))
-//                    .foregroundStyle(tint)
                     .resizable()
                     .foregroundColor(.gray)
             }
         }
         .frame(width: 60, height: 60)
-//        .frame(width: size, height: size)
-//        .background(.quaternary, in: Circle())
         .clipShape(Circle())
         .task(id: taskID) {
             await loadImage()

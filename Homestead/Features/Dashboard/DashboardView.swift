@@ -9,7 +9,9 @@ struct DashboardView: View {
     @State private var isShowingAddCardSheet = false
     @State private var isShowingReorderSheet = false
     @State private var renamingHeaderID: UUID?
+    @State private var renamingEntityItemID: UUID?
     @State private var headerTitleDraft = ""
+    @State private var entityTitleDraft = ""
     @State private var showsInitialSyncPlaceholder = false
     
     var body: some View {
@@ -117,6 +119,22 @@ struct DashboardView: View {
                 saveHeaderRename()
             }
         }
+        .alert("Rename Card", isPresented: isRenamingEntityItem) {
+            TextField("Card Name", text: $entityTitleDraft)
+
+            Button("Cancel", role: .cancel) {
+                renamingEntityItemID = nil
+                entityTitleDraft = ""
+            }
+
+            Button("Reset Name", role: .destructive) {
+                resetEntityRename()
+            }
+
+            Button("Save", role: .confirm) {
+                saveEntityRename()
+            }
+        }
         .onAppear {
             reconcileDashboardConfigurationIfReady()
         }
@@ -211,6 +229,18 @@ struct DashboardView: View {
         )
     }
 
+    private var isRenamingEntityItem: Binding<Bool> {
+        Binding(
+            get: { renamingEntityItemID != nil },
+            set: { isPresented in
+                if !isPresented {
+                    renamingEntityItemID = nil
+                    entityTitleDraft = ""
+                }
+            }
+        )
+    }
+
     private func addHeaderAndRename() {
         let title = "New Section"
         let itemID = dashboardConfiguration.addHeader(title: title)
@@ -223,6 +253,15 @@ struct DashboardView: View {
         renamingHeaderID = item.id
     }
 
+    private func beginRenamingEntity(_ item: DashboardCardItem) {
+        guard let entity = stateStore.entity(for: item.entityID) else {
+            return
+        }
+
+        entityTitleDraft = item.displayNameOverride ?? entity.displayName
+        renamingEntityItemID = item.id
+    }
+
     private func saveHeaderRename() {
         guard let renamingHeaderID else {
             return
@@ -231,6 +270,32 @@ struct DashboardView: View {
         dashboardConfiguration.renameHeader(id: renamingHeaderID, title: headerTitleDraft)
         self.renamingHeaderID = nil
         headerTitleDraft = ""
+    }
+
+    private func saveEntityRename() {
+        guard let renamingEntityItemID else {
+            return
+        }
+
+        dashboardConfiguration.renameEntityItem(
+            id: renamingEntityItemID,
+            displayNameOverride: entityTitleDraft
+        )
+        self.renamingEntityItemID = nil
+        entityTitleDraft = ""
+    }
+
+    private func resetEntityRename() {
+        guard let renamingEntityItemID else {
+            return
+        }
+
+        dashboardConfiguration.renameEntityItem(
+            id: renamingEntityItemID,
+            displayNameOverride: nil
+        )
+        self.renamingEntityItemID = nil
+        entityTitleDraft = ""
     }
     
     private var configuredDashboardSection: some View {
@@ -265,7 +330,8 @@ struct DashboardView: View {
                 let cardItem = DashboardCardItem(
                     id: configurationItem.id,
                     entityID: entityID,
-                    size: configuredSize
+                    size: configuredSize,
+                    displayNameOverride: configurationItem.displayNameOverride
                 )
                 return DashboardLayoutItem(kind: .card(cardItem), layoutMetadata: configuredSize.layoutMetadata)
             }
@@ -290,9 +356,13 @@ struct DashboardView: View {
         DashboardCardView(
             entityID: item.entityID,
             size: item.size,
+            displayNameOverride: item.displayNameOverride,
             isEditing: isEditingDashboard,
             setSize: isEditingDashboard ? { size in
                 dashboardConfiguration.setCardSize(size, forItemID: item.id)
+            } : nil,
+            rename: isEditingDashboard ? {
+                beginRenamingEntity(item)
             } : nil,
             remove: isEditingDashboard ? {
                 dashboardConfiguration.removeItem(id: item.id)
@@ -429,7 +499,7 @@ private struct DashboardReorderRow: View {
         case .header:
             item.resolvedTitle
         case .entity:
-            entityBox?.homeEntity.displayName ?? item.entityID ?? "Missing Entity"
+            item.resolvedDisplayName(default: entityBox?.homeEntity.displayName ?? item.entityID ?? "Missing Entity")
         }
     }
 
@@ -475,6 +545,7 @@ private struct DashboardCardItem: Identifiable {
     let id: UUID
     let entityID: String
     let size: DashboardCardSize
+    let displayNameOverride: String?
 }
 
 private struct DashboardHeaderCardView: View {
@@ -556,7 +627,7 @@ private struct DashboardSetupCard: View {
                 CardIconView(systemName: "house")
                 Text("Connect Home Assistant")
                     .font(.headline)
-                Text("Add your server URL and token in Settings.")
+                Text("Add your server URL in Settings, then sign in with Home Assistant.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

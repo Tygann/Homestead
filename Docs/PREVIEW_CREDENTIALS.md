@@ -4,18 +4,18 @@ Homestead includes a debug-only `Live Home Assistant` Xcode preview. It is inten
 
 ## Preferred local setup
 
-Create a Home Assistant long-lived access token for local preview work, then copy `PreviewCredentials.example.json` to `PreviewCredentials.json` at the repo root and fill in:
+For deterministic Xcode previews only, create a disposable Home Assistant access token, then copy `PreviewCredentials.example.json` to `PreviewCredentials.json` at the repo root and fill in:
 
 ```json
 {
   "baseURL": "https://homeassistant.example.com",
-  "accessToken": "your-preview-only-long-lived-token"
+  "accessToken": "your-preview-only-token"
 }
 ```
 
-`PreviewCredentials.json` is ignored by git and copied into Debug builds only.
+`PreviewCredentials.json` is ignored by git and copied into Debug builds only. It is not used by normal app sign-in; the app uses Home Assistant OAuth through Settings.
 
-Do not commit this file or reuse a personal token you care about elsewhere.
+Do not commit this file or reuse a personal token you care about elsewhere. Revoke the preview token when you are done with live preview work.
 
 ## Live Preview Behavior
 

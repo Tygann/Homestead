@@ -3,8 +3,10 @@ import SwiftUI
 struct DashboardCardView: View {
     let entityID: String
     let size: DashboardCardSize
+    var displayNameOverride: String?
     var isEditing = false
     var setSize: ((DashboardCardSize) -> Void)?
+    var rename: (() -> Void)?
     var remove: (() -> Void)?
 
     @Environment(HAStateStore.self) private var stateStore
@@ -13,7 +15,10 @@ struct DashboardCardView: View {
 
     var body: some View {
         if let entityBox = stateStore.entityBox(for: entityID) {
-            let presentation = DashboardEntityPresentation(entityBox: entityBox)
+            let presentation = DashboardEntityPresentation(
+                entityBox: entityBox,
+                displayNameOverride: displayNameOverride
+            )
 
             DashboardEntityCard(
                 presentation: presentation,
@@ -23,6 +28,7 @@ struct DashboardCardView: View {
                 toggle: isEditing ? nil : primaryAction(for: entityBox),
                 showDetails: isEditing ? nil : detailsAction(for: entityBox),
                 setSize: isEditing ? setSize : nil,
+                rename: isEditing ? rename : nil,
                 remove: isEditing ? remove : nil
             )
             .sheet(item: $selectedDetail) { detail in
@@ -135,6 +141,7 @@ private struct DashboardEntityCard: View {
     let toggle: (() -> Void)?
     let showDetails: (() -> Void)?
     let setSize: ((DashboardCardSize) -> Void)?
+    let rename: (() -> Void)?
     let remove: (() -> Void)?
 
     var body: some View {
@@ -173,6 +180,12 @@ private struct DashboardEntityCard: View {
             if isEditing {
                 removeButton
                     .offset(x: -8, y: -8)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if isEditing {
+                renameButton
+                    .offset(x: 6, y: -8)
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -298,6 +311,20 @@ private struct DashboardEntityCard: View {
                     .background(Color(.secondarySystemGroupedBackground), in: Circle())
             }
             .accessibilityLabel("Remove \(presentation.title)")
+        }
+    }
+
+    @ViewBuilder
+    private var renameButton: some View {
+        if let rename {
+            Button(action: rename) {
+                Image(systemName: "pencil")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
+            }
+            .accessibilityLabel("Rename \(presentation.title)")
         }
     }
     

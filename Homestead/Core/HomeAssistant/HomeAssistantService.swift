@@ -1,4 +1,5 @@
 import Foundation
+@preconcurrency import Network
 import Observation
 
 @MainActor
@@ -14,6 +15,7 @@ final class HomeAssistantService {
     private(set) var mobileAppRegistrationState: HAMobileAppRegistrationState = .unregistered
     private(set) var authState: HAAuthState = .signedOut
     private(set) var currentUserDisplayName: String?
+    private(set) var isNetworkAvailable = true
 
     @ObservationIgnored private let client: any HAWebSocketClientProtocol
     @ObservationIgnored private let httpClient: HAHTTPClient
@@ -33,6 +35,8 @@ final class HomeAssistantService {
     @ObservationIgnored private var isBufferingStateChanges = false
     @ObservationIgnored private var lastSuspendedAt: Date?
     @ObservationIgnored private var shouldReconnect = false
+    @ObservationIgnored private var reachabilityMonitor: NWPathMonitor?
+    @ObservationIgnored private let reachabilityQueue = DispatchQueue(label: "com.tyler.Homestead.homeAssistantReachability")
     @ObservationIgnored private let reconnectDelaySeconds = [1, 2, 5, 10, 30]
     @ObservationIgnored private let pendingCommandTimeout: Duration = .seconds(3)
     @ObservationIgnored private let resumeRefreshInterval: TimeInterval = 5
@@ -73,6 +77,23 @@ final class HomeAssistantService {
         }
 
         await connect(baseURLString: settings.baseURL)
+    }
+
+    func startNetworkMonitoring(settings: HAConnectionSettings) {
+        guard reachabilityMonitor == nil,
+              !RuntimeEnvironment.isRunningForPreviews else {
+            return
+        }
+
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self, weak settings] path in
+            Task { @MainActor in
+                guard let self, let settings else { return }
+                await self.handleNetworkPathUpdate(path.status, settings: settings)
+            }
+        }
+        reachabilityMonitor = monitor
+        monitor.start(queue: reachabilityQueue)
     }
 
     func refreshOrReconnect(settings: HAConnectionSettings) async {
@@ -128,7 +149,7 @@ final class HomeAssistantService {
             shouldReconnect = false
             lastErrorMessage = error.localizedDescription
             authState = authFailureState(for: error)
-            dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
+            dataFreshness = staleFreshness(error.localizedDescription)
             connectionStatus = .failed(error.localizedDescription)
             return
         }
@@ -148,7 +169,7 @@ final class HomeAssistantService {
             shouldReconnect = false
             lastErrorMessage = error.localizedDescription
             authState = authFailureState(for: error)
-            dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
+            dataFreshness = staleFreshness(error.localizedDescription)
             connectionStatus = .failed(error.localizedDescription)
         }
     }
@@ -185,7 +206,7 @@ final class HomeAssistantService {
         activeConfiguration = nil
         currentUserID = nil
         currentUserDisplayName = nil
-        dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(nil) : .empty
+        dataFreshness = staleFreshness(nil)
         connectionStatus = .disconnected
     }
 
@@ -884,6 +905,50 @@ final class HomeAssistantService {
         dataFreshness = .cached(snapshot.savedAt)
     }
 
+    private func staleFreshness(_ errorMessage: String?) -> HADataFreshness {
+        guard stateStore.hasLoadedInitialSnapshot else {
+            return .empty
+        }
+
+        return .stale(errorMessage, lastUpdated: dataFreshness.lastKnownUpdateDate)
+    }
+
+    private func handleNetworkPathUpdate(
+        _ status: NWPath.Status,
+        settings: HAConnectionSettings
+    ) async {
+        let networkIsAvailable = status == .satisfied
+        guard isNetworkAvailable != networkIsAvailable else {
+            return
+        }
+
+        isNetworkAvailable = networkIsAvailable
+
+        if networkIsAvailable {
+            guard settings.hasServerURL, authState.isSignedIn else {
+                return
+            }
+
+            switch connectionStatus {
+            case .connected, .connecting:
+                return
+            case .reconnecting:
+                reconnectTask?.cancel()
+                reconnectTask = nil
+                await connect(baseURLString: settings.baseURL)
+            case .disconnected, .failed:
+                await connectIfPossible(settings: settings)
+            }
+        } else {
+            lastErrorMessage = "Network unavailable"
+            dataFreshness = staleFreshness(lastErrorMessage)
+
+            if connectionStatus == .connected, let activeConfiguration {
+                scheduleReconnect(configuration: activeConfiguration)
+            }
+        }
+    }
+
     private func establishTransportConnection(configuration: HAConnectionConfiguration) async throws {
         await configureClientCallbacks()
         currentUserID = nil
@@ -993,7 +1058,7 @@ final class HomeAssistantService {
         } catch {
             discardBufferedStateChanges()
             lastErrorMessage = error.localizedDescription
-            dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
+            dataFreshness = staleFreshness(error.localizedDescription)
             await recoverConnectionIfNeeded(after: error)
         }
     }
@@ -1021,7 +1086,7 @@ final class HomeAssistantService {
         } catch {
             applyBufferedStateChanges()
             lastErrorMessage = error.localizedDescription
-            dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
+            dataFreshness = staleFreshness(error.localizedDescription)
             await recoverConnectionIfNeeded(after: error)
         }
     }
@@ -1113,7 +1178,7 @@ final class HomeAssistantService {
         }
 
         lastErrorMessage = error.localizedDescription
-        dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
+        dataFreshness = staleFreshness(error.localizedDescription)
         scheduleReconnect(configuration: activeConfiguration)
     }
 
@@ -1168,7 +1233,7 @@ final class HomeAssistantService {
                 break
             } catch {
                 lastErrorMessage = error.localizedDescription
-                dataFreshness = stateStore.hasLoadedInitialSnapshot ? .stale(error.localizedDescription) : .empty
+                dataFreshness = staleFreshness(error.localizedDescription)
                 connectionStatus = .reconnecting
                 attempt += 1
             }

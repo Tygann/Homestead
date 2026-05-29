@@ -6,6 +6,7 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
     var type: DashboardItemType
     var entityID: String?
     var title: String?
+    var displayNameOverride: String?
     var size: DashboardCardSize?
 
     static func entity(
@@ -18,6 +19,7 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
             type: .entity,
             entityID: entityID,
             title: nil,
+            displayNameOverride: nil,
             size: size
         )
     }
@@ -31,6 +33,7 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
             type: .header,
             entityID: nil,
             title: title,
+            displayNameOverride: nil,
             size: nil
         )
     }
@@ -42,6 +45,11 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
 
     var resolvedCardSize: DashboardCardSize {
         size ?? .compact
+    }
+
+    func resolvedDisplayName(default defaultDisplayName: String) -> String {
+        let trimmedOverride = displayNameOverride?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedOverride.isEmpty ? defaultDisplayName : trimmedOverride
     }
 
     var layoutMetadata: DashboardCardLayoutMetadata {
@@ -187,6 +195,16 @@ final class DashboardConfiguration {
         items = updatedItems
     }
 
+    func renameEntityItem(id: UUID, displayNameOverride: String?) {
+        guard let index = items.firstIndex(where: { $0.id == id && $0.type == .entity }) else {
+            return
+        }
+
+        var updatedItems = items
+        updatedItems[index].displayNameOverride = normalizedDisplayNameOverride(displayNameOverride)
+        items = updatedItems
+    }
+
     func remove(_ entityID: String) {
         items.removeAll { $0.type == .entity && $0.entityID == entityID }
     }
@@ -252,6 +270,11 @@ final class DashboardConfiguration {
     private func normalizedHeaderTitle(_ title: String) -> String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedTitle.isEmpty ? "Untitled Section" : trimmedTitle
+    }
+
+    private func normalizedDisplayNameOverride(_ title: String?) -> String? {
+        let trimmedTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedTitle.isEmpty ? nil : trimmedTitle
     }
 
     private static func loadItems(

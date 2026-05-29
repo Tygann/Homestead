@@ -9,28 +9,101 @@ enum HomesteadWidgetSharedStore {
     private static let lightSnapshotsKey = "widgetLightSnapshots"
     private static let optimisticLightStatesKey = "widgetOptimisticLightStates"
     private static let tokenService = "com.tyler.Homestead.homeAssistant"
-    private static let tokenAccount = "longLivedAccessToken"
+    private static let oauthCredentialAccount = "oauthCredential"
+    private static let oauthClientID = "https://homestead.keegan.pro"
+    private static let tokenRefreshLeeway: TimeInterval = 60
 
     static var baseURL: String? {
         sharedDefaults?.string(forKey: baseURLKey)
     }
 
-    static var accessToken: String? {
-        var query = baseTokenQuery
+    static func validAccessToken() async throws -> String {
+        guard let credential = try readOAuthCredential() else {
+            throw HAWidgetActionError.missingCredentials
+        }
+
+        guard credential.accessTokenExpiresSoon(leeway: tokenRefreshLeeway) else {
+            return credential.accessToken
+        }
+
+        let response = try await refreshAccessToken(for: credential)
+        let refreshedCredential = credential.replacingAccessToken(
+            response.accessToken,
+            expiresIn: response.expiresIn,
+            tokenType: response.tokenType
+        )
+        try saveOAuthCredential(refreshedCredential)
+        return refreshedCredential.accessToken
+    }
+
+    static func savedOAuthCredentialForDiagnostics() throws -> WidgetOAuthCredential? {
+        try readOAuthCredential()
+    }
+
+    private static func readOAuthCredential() throws -> WidgetOAuthCredential? {
+        var query = baseOAuthCredentialQuery
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
 
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let token = String(data: data, encoding: .utf8),
-              !token.isEmpty else {
+        if status == errSecItemNotFound {
             return nil
         }
 
-        return token
+        guard status == errSecSuccess,
+              let data = result as? Data else {
+            throw HAWidgetActionError.missingCredentials
+        }
+
+        return try WidgetOAuthCredential.decoder.decode(WidgetOAuthCredential.self, from: data)
+    }
+
+    private static func saveOAuthCredential(_ credential: WidgetOAuthCredential) throws {
+        let data = try WidgetOAuthCredential.encoder.encode(credential)
+        var query = baseOAuthCredentialQuery
+        let updateStatus = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+
+        if updateStatus == errSecSuccess {
+            return
+        }
+
+        guard updateStatus == errSecItemNotFound else {
+            throw HAWidgetActionError.authenticationFailed
+        }
+
+        query[kSecValueData as String] = data
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+
+        let addStatus = SecItemAdd(query as CFDictionary, nil)
+        guard addStatus == errSecSuccess else {
+            throw HAWidgetActionError.authenticationFailed
+        }
+    }
+
+    private static func refreshAccessToken(
+        for credential: WidgetOAuthCredential
+    ) async throws -> WidgetOAuthTokenResponse {
+        let url = try authTokenURL(from: credential.baseURLString)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = formEncodedBody([
+            ("grant_type", "refresh_token"),
+            ("refresh_token", credential.refreshToken),
+            ("client_id", credential.clientID.isEmpty ? oauthClientID : credential.clientID)
+        ])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200..<300).contains(httpResponse.statusCode),
+              !data.isEmpty else {
+            throw HAWidgetActionError.authenticationFailed
+        }
+
+        return try JSONDecoder().decode(WidgetOAuthTokenResponse.self, from: data)
     }
 
     static var lightSnapshots: [WidgetLightSnapshot] {
@@ -104,13 +177,58 @@ enum HomesteadWidgetSharedStore {
         sharedDefaults?.set(data, forKey: optimisticLightStatesKey)
     }
 
-    private static var baseTokenQuery: [String: Any] {
+    private static var baseOAuthCredentialQuery: [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: tokenService,
-            kSecAttrAccount as String: tokenAccount,
+            kSecAttrAccount as String: oauthCredentialAccount,
             kSecAttrAccessGroup as String: keychainAccessGroup
         ]
+    }
+
+    private static func authTokenURL(from baseURLString: String) throws -> URL {
+        let normalizedString = baseURLString.contains("://") ? baseURLString : "http://\(baseURLString)"
+
+        guard var components = URLComponents(string: normalizedString),
+              let scheme = components.scheme,
+              components.host != nil else {
+            throw HAWidgetActionError.invalidURL
+        }
+
+        switch scheme.lowercased() {
+        case "http", "ws":
+            components.scheme = "http"
+        case "https", "wss":
+            components.scheme = "https"
+        default:
+            throw HAWidgetActionError.invalidURL
+        }
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathParts = [basePath, "auth", "token"].filter { !$0.isEmpty }
+        components.path = "/" + pathParts.joined(separator: "/")
+        components.query = nil
+        components.fragment = nil
+
+        guard let url = components.url else {
+            throw HAWidgetActionError.invalidURL
+        }
+
+        return url
+    }
+
+    private static func formEncodedBody(_ items: [(String, String)]) -> Data {
+        let body = items
+            .map { key, value in
+                "\(formEncode(key))=\(formEncode(value))"
+            }
+            .joined(separator: "&")
+        return Data(body.utf8)
+    }
+
+    private static func formEncode(_ value: String) -> String {
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._*")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 }
 
@@ -118,6 +236,74 @@ struct WidgetLightSnapshot: Codable, Equatable, Sendable {
     let entityID: String
     let displayName: String
     let isOn: Bool
+}
+
+struct WidgetOAuthCredential: Codable, Equatable, Sendable {
+    let baseURLString: String
+    let clientID: String
+    let refreshToken: String
+    let accessToken: String
+    let accessTokenExpiresAt: Date
+    let tokenType: String
+    let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case baseURLString
+        case clientID
+        case refreshToken
+        case accessToken
+        case accessTokenExpiresAt
+        case tokenType
+        case updatedAt
+    }
+
+    func accessTokenExpiresSoon(
+        now: Date = Date(),
+        leeway: TimeInterval
+    ) -> Bool {
+        accessTokenExpiresAt.timeIntervalSince(now) <= leeway
+    }
+
+    func replacingAccessToken(
+        _ accessToken: String,
+        expiresIn: TimeInterval,
+        tokenType: String,
+        now: Date = Date()
+    ) -> WidgetOAuthCredential {
+        WidgetOAuthCredential(
+            baseURLString: baseURLString,
+            clientID: clientID,
+            refreshToken: refreshToken,
+            accessToken: accessToken,
+            accessTokenExpiresAt: now.addingTimeInterval(expiresIn),
+            tokenType: tokenType,
+            updatedAt: now
+        )
+    }
+
+    static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }()
+
+    static let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
+}
+
+private struct WidgetOAuthTokenResponse: Decodable {
+    let accessToken: String
+    let expiresIn: TimeInterval
+    let tokenType: String
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case expiresIn = "expires_in"
+        case tokenType = "token_type"
+    }
 }
 
 private struct OptimisticLightState: Codable, Equatable {

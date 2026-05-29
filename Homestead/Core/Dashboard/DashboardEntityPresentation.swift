@@ -278,7 +278,9 @@ struct DashboardEntityPresentation {
     let secondaryActions: [DashboardEntitySecondaryAction]
     let supportsFavorite: Bool
 
-    init(entityBox: HAEntityState) {
+    init(entityBox: HAEntityState, displayNameOverride: String? = nil) {
+        let resolvedDisplayNameOverride = displayNameOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let overrideTitle = resolvedDisplayNameOverride?.isEmpty == false ? resolvedDisplayNameOverride : nil
         let pendingCommand = entityBox.pendingCommand
         let capability = DashboardEntityDomainRegistry.capability(for: entityBox.domain)
         self.capability = capability
@@ -294,7 +296,7 @@ struct DashboardEntityPresentation {
             let effectiveIsOn = pendingCommand?.expectedState.map { $0 == "on" } ?? light.isOn
             let brightnessPercentage = Self.pendingBrightnessPercentage(from: pendingCommand) ?? light.brightnessPercentage
 
-            title = light.displayName
+            title = overrideTitle ?? light.displayName
             subtitle = Self.lightSubtitle(
                 isOn: effectiveIsOn,
                 brightnessPercentage: brightnessPercentage,
@@ -306,7 +308,7 @@ struct DashboardEntityPresentation {
             isAvailable = true
             accentColor = Self.accentColor(for: effectiveIsOn, behavior: capability.iconAccentBehavior)
         } else if let sensor = entityBox.sensorEntity {
-            title = sensor.displayName
+            title = overrideTitle ?? sensor.displayName
             subtitle = sensor.displaySubtitle
             headline = sensor.formattedValue
             iconName = sensor.iconName
@@ -314,7 +316,7 @@ struct DashboardEntityPresentation {
             isAvailable = sensor.isAvailable
             accentColor = Self.sensorAccentColor(for: sensor, behavior: capability.iconAccentBehavior)
         } else if let cover = entityBox.coverEntity {
-            title = cover.displayName
+            title = overrideTitle ?? cover.displayName
             subtitle = Self.coverSubtitle(cover, pendingCommand: pendingCommand)
             headline = cover.positionPercentage.map { "\($0)%" }
             iconName = entityBox.homeEntity.iconName
@@ -322,7 +324,7 @@ struct DashboardEntityPresentation {
             isAvailable = entityBox.homeEntity.isAvailable
             accentColor = Self.accentColor(for: cover.isOpen, behavior: capability.iconAccentBehavior)
         } else if let climate = entityBox.climateEntity {
-            title = climate.displayName
+            title = overrideTitle ?? climate.displayName
             subtitle = Self.climateSubtitle(climate, pendingCommand: pendingCommand)
             headline = climate.targetTemperatureText ?? climate.currentTemperatureText
             iconName = entityBox.homeEntity.iconName
@@ -342,7 +344,7 @@ struct DashboardEntityPresentation {
                     lastUpdated: entity.lastUpdated
                 )
             } ?? entity
-            title = entity.displayName
+            title = overrideTitle ?? entity.displayName
             subtitle = pendingCommand == nil ? Self.subtitle(for: effectiveEntity, capability: capability) : Self.pendingSubtitle(for: effectiveEntity, capability: capability)
             headline = Self.headline(for: effectiveEntity, capability: capability)
             iconName = effectiveEntity.iconName

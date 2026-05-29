@@ -2,6 +2,16 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-05-29
+
+### OAuth Widgets And Dashboard State Cleanup
+
+- Updated the widget control path to read the shared OAuth credential and refresh short-lived Home Assistant access tokens instead of looking for the removed long-lived token account.
+- Added dashboard card display-name overrides while keeping Home Assistant entity names as the source data.
+- Collapsed Devices favorites into dashboard membership and removed the separate pinned-entity store.
+- Preserved last cached/live state timestamps when connection state becomes stale so UI can show the age of displayed Home Assistant data.
+- Added basic network reachability monitoring to reconnect promptly when iOS reports connectivity returning.
+
 ## 2026-05-28
 
 ### Four-Column Dashboard Grid

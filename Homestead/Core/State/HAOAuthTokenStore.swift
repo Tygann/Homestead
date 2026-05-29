@@ -21,6 +21,12 @@ enum HAOAuthTokenStoreError: LocalizedError {
     }
 }
 
+nonisolated enum HAOAuthKeychainCredentialContract {
+    static let service = "com.tyler.Homestead.homeAssistant"
+    static let account = "oauthCredential"
+    static let accessGroup = WidgetSharedStore.keychainAccessGroup
+}
+
 nonisolated struct KeychainHAOAuthTokenStore: HAOAuthTokenStore {
     private let service: String
     private let account: String
@@ -29,9 +35,9 @@ nonisolated struct KeychainHAOAuthTokenStore: HAOAuthTokenStore {
     private let decoder: JSONDecoder
 
     init(
-        service: String = "com.tyler.Homestead.homeAssistant",
-        account: String = "oauthCredential",
-        accessGroup: String? = WidgetSharedStore.keychainAccessGroup
+        service: String = HAOAuthKeychainCredentialContract.service,
+        account: String = HAOAuthKeychainCredentialContract.account,
+        accessGroup: String? = HAOAuthKeychainCredentialContract.accessGroup
     ) {
         self.service = service
         self.account = account

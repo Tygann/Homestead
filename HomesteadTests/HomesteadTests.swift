@@ -22,6 +22,20 @@ struct HomesteadTests {
             dataFreshness: .stale("offline")
         ) == .interrupted)
 
+        let staleWithAge = ConnectionHealthAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .connected,
+            dataFreshness: .stale("offline", lastUpdated: Date(timeIntervalSinceNow: -120))
+        )
+        #expect(staleWithAge?.message.contains("Last live update") == true)
+
+        let disconnectedStaleWithAge = ConnectionHealthAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .disconnected,
+            dataFreshness: .stale("offline", lastUpdated: Date(timeIntervalSinceNow: -120))
+        )
+        #expect(disconnectedStaleWithAge?.message.contains("Last live update") == true)
+
         #expect(ConnectionHealthAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .reconnecting,
@@ -981,6 +995,33 @@ struct HomesteadTests {
         #expect(try store.readCredential() == nil)
     }
 
+    @Test func oauthCredentialStorageMatchesWidgetLookupContract() throws {
+        let credential = testCredential(
+            baseURL: "https://example.com/ha",
+            accessToken: "access-a",
+            refreshToken: "refresh-a",
+            expiresAt: Date(timeIntervalSince1970: 1_800_001_200)
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let data = try encoder.encode(credential)
+        let widgetCredential = try decoder.decode(WidgetOAuthCredentialMirror.self, from: data)
+        let json = String(decoding: data, as: UTF8.self)
+
+        #expect(HAOAuthKeychainCredentialContract.service == "com.tyler.Homestead.homeAssistant")
+        #expect(HAOAuthKeychainCredentialContract.account == "oauthCredential")
+        #expect(HAOAuthKeychainCredentialContract.accessGroup == WidgetSharedStore.keychainAccessGroup)
+        #expect(widgetCredential.baseURLString == "https://example.com/ha")
+        #expect(widgetCredential.clientID == HAOAuthClientMetadata.clientID)
+        #expect(widgetCredential.refreshToken == "refresh-a")
+        #expect(widgetCredential.accessToken == "access-a")
+        #expect(widgetCredential.tokenType == "Bearer")
+        #expect(!json.contains("longLivedAccessToken"))
+    }
+
     @MainActor
     @Test func connectionSettingsUsesStoredOAuthCredentialBaseURL() throws {
         let suiteName = "com.tyler.Homestead.tests.\(UUID().uuidString)"
@@ -1457,6 +1498,24 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func dashboardConfigurationDisplayNameOverridePersistsOnEntityItem() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let itemID = configuration.add("sensor.hallway_temperature")
+        configuration.renameEntityItem(id: itemID, displayNameOverride: "Hallway")
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.items.first?.displayNameOverride == "Hallway")
+        #expect(restoredConfiguration.items.first?.resolvedDisplayName(default: "Hallway Temperature") == "Hallway")
+
+        restoredConfiguration.renameEntityItem(id: itemID, displayNameOverride: " ")
+        #expect(restoredConfiguration.items.first?.displayNameOverride == nil)
+    }
+
+    @MainActor
     @Test func dashboardConfigurationVisibleItemsPreserveAllConfiguredSizes() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -1820,17 +1879,18 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func pinnedEntityStorePersistsAndPreservesMissingEntitiesByDefault() throws {
-        let suiteName = "com.tyler.Homestead.pinned.tests.\(UUID().uuidString)"
+    @Test func dashboardConfigurationReplacesSeparatePinnedEntityStateForDeviceFavorites() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.favorite.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
-        let store = PinnedEntityStore(defaults: defaults)
-        store.toggle("light.kitchen")
-        store.toggle("sensor.missing")
+        let configuration = DashboardConfiguration(defaults: defaults)
+        configuration.setEntity("light.kitchen", isVisible: true)
+        configuration.setEntity("sensor.missing", isVisible: true)
 
-        let restoredStore = PinnedEntityStore(defaults: defaults)
-        #expect(restoredStore.entityIDs == ["light.kitchen", "sensor.missing"])
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.entityIDs == ["light.kitchen", "sensor.missing"])
+        #expect(restoredConfiguration.contains("light.kitchen"))
     }
 
     @MainActor
@@ -2167,6 +2227,14 @@ struct ThrowingHAOAuthTokenStore: HAOAuthTokenStore {
     func deleteCredential() throws {
         throw HAOAuthTokenStoreError.unreadableCredential
     }
+}
+
+private struct WidgetOAuthCredentialMirror: Decodable {
+    let baseURLString: String
+    let clientID: String
+    let refreshToken: String
+    let accessToken: String
+    let tokenType: String
 }
 
 final class StubHAOAuthClient: HAOAuthClientProtocol {

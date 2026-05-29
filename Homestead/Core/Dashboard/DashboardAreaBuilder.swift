@@ -35,7 +35,7 @@ enum DashboardAreaBuilder {
                         .localizedCaseInsensitiveCompare(displayName(for: rhs, in: entityBoxes)) == .orderedAscending
                 },
             activeCount: entityBoxes
-                .map(DashboardEntityPresentation.init(entityBox:))
+                .map { DashboardEntityPresentation(entityBox: $0) }
                 .filter(\.isActive)
                 .count,
             unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count,

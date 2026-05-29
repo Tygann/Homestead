@@ -81,10 +81,10 @@ final class HAWidgetActionClient: Sendable {
     private func withConnectedSocket<T>(
         _ operation: (URLSessionWebSocketTask) async throws -> T
     ) async throws -> T {
-        guard let baseURL = HomesteadWidgetSharedStore.baseURL,
-              let token = HomesteadWidgetSharedStore.accessToken else {
+        guard let baseURL = HomesteadWidgetSharedStore.baseURL else {
             throw HAWidgetActionError.missingCredentials
         }
+        let token = try await HomesteadWidgetSharedStore.validAccessToken()
 
         let url = try webSocketURL(from: baseURL)
         let task = session.webSocketTask(with: url)

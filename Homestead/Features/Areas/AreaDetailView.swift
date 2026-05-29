@@ -25,7 +25,7 @@ struct AreaDetailView: View {
                         }
                         .map(\.entityID),
                     activeCount: entityBoxes
-                        .map(DashboardEntityPresentation.init(entityBox:))
+                        .map { DashboardEntityPresentation(entityBox: $0) }
                         .filter(\.isActive)
                         .count,
                     unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count

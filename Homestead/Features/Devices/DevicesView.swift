@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DevicesView: View {
     @Environment(HAStateStore.self) private var stateStore
-    @Environment(PinnedEntityStore.self) private var pinnedEntityStore
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var selectedEntity: SelectedEntity?
 
     var body: some View {
@@ -16,11 +16,11 @@ struct DevicesView: View {
             allowsPinning: true,
             accessory: { entityBox in
                 HStack(spacing: AppSpacing.small) {
-                    if pinnedEntityStore.isPinned(entityBox.entityID) {
+                    if dashboardConfiguration.contains(entityBox.entityID) {
                         Image(systemName: "star.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(.yellow)
-                            .accessibilityLabel("Favorite")
+                            .accessibilityLabel("On dashboard")
                     }
 
                     DeviceEntityStateAccessory(entityBox: entityBox)
@@ -55,7 +55,7 @@ struct EntityBrowserList<Accessory: View>: View {
     let allowsPinning: Bool
     private let accessory: (HAEntityState) -> Accessory
 
-    @Environment(PinnedEntityStore.self) private var pinnedEntityStore
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
     init(
         hiddenEntityIDs: Set<String>,
@@ -104,11 +104,14 @@ struct EntityBrowserList<Accessory: View>: View {
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         if allowsPinning {
                                             Button {
-                                                pinnedEntityStore.toggle(entityID)
+                                                dashboardConfiguration.setEntity(
+                                                    entityID,
+                                                    isVisible: !dashboardConfiguration.contains(entityID)
+                                                )
                                             } label: {
                                                 Label(
-                                                    pinnedEntityStore.isPinned(entityID) ? "Unfavorite" : "Favorite",
-                                                    systemImage: pinnedEntityStore.isPinned(entityID) ? "star.slash" : "star"
+                                                    dashboardConfiguration.contains(entityID) ? "Remove from Dashboard" : "Add to Dashboard",
+                                                    systemImage: dashboardConfiguration.contains(entityID) ? "star.slash" : "star"
                                                 )
                                             }
                                             .tint(.yellow)
