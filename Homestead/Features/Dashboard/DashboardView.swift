@@ -807,6 +807,8 @@ private struct DashboardDataFreshnessNotice: View {
 }
 
 private struct DashboardLoadingPlaceholderView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let connectionStatus: HAConnectionStatus
     @State private var isPulsing = false
 
@@ -849,15 +851,24 @@ private struct DashboardLoadingPlaceholderView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .opacity(isPulsing ? 0.46 : 0.72)
-            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isPulsing)
+            .opacity(skeletonOpacity)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isPulsing)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, AppSpacing.large)
         .allowsHitTesting(false)
         .task {
+            guard !reduceMotion else {
+                isPulsing = false
+                return
+            }
+
             isPulsing = true
         }
+    }
+
+    private var skeletonOpacity: Double {
+        reduceMotion ? 0.72 : (isPulsing ? 0.46 : 0.72)
     }
 
     private var title: String {

@@ -141,6 +141,8 @@ struct ClimateDetailView: View {
                     }
                 )
                 .disabled(entityBox.pendingCommand != nil)
+                .accessibilityLabel("Target temperature")
+                .accessibilityValue(climate.formatTemperature(targetTemperature))
 
                 Button {
                     adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate)

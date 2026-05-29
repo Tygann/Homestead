@@ -123,6 +123,8 @@ struct MediaPlayerDetailView: View {
                 }
             )
             .disabled(!mediaPlayer.isAvailable || entityBox.pendingCommand != nil)
+            .accessibilityLabel("Volume")
+            .accessibilityValue("\(Int(volumePercentage)) percent")
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))

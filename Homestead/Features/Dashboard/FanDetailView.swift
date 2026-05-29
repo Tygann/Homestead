@@ -130,6 +130,8 @@ struct FanDetailView: View {
                 }
             )
             .disabled(entityBox.pendingCommand != nil || !fan.isAvailable)
+            .accessibilityLabel("Fan speed")
+            .accessibilityValue("\(Int(percentage)) percent")
 
             Text(percentage == 0 ? "Setting speed to 0% may turn this fan off." : "Speed changes are confirmed from Home Assistant live state.")
                 .font(.footnote)

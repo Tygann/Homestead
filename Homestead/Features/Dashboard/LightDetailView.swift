@@ -140,6 +140,8 @@ struct LightDetailView: View {
                 }
             )
             .disabled(entityBox.pendingCommand != nil)
+            .accessibilityLabel("Brightness")
+            .accessibilityValue("\(Int(brightnessPercentage)) percent")
 
             HStack(spacing: AppSpacing.small) {
                 ForEach(brightnessPresets, id: \.self) { preset in

@@ -165,8 +165,9 @@ private struct DashboardEntityCard: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HomeCardButtonStyle())
-                    .accessibilityLabel(presentation.title)
+                    .accessibilityLabel(presentation.accessibilityDetailLabel)
                     .accessibilityValue(presentation.accessibilityValue)
+                    .accessibilityHint(presentation.accessibilityDetailHint)
                 } else {
                     cardContent
                         .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
@@ -181,8 +182,9 @@ private struct DashboardEntityCard: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(isPending)
-                    .accessibilityLabel("Toggle \(presentation.title)")
+                    .accessibilityLabel(presentation.primaryActionAccessibilityLabel ?? presentation.title)
                     .accessibilityValue(presentation.accessibilityValue)
+                    .accessibilityHint(presentation.primaryActionAccessibilityHint)
                 }
 
             }
@@ -270,6 +272,7 @@ private struct DashboardEntityCard: View {
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(presentation.headlineColor)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
         }
     }

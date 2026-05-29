@@ -41,6 +41,8 @@ struct DashboardEntityDetailRow: View, Identifiable {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, AppSpacing.xSmall)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(value)")
     }
 }
 

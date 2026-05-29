@@ -119,6 +119,14 @@ struct HomesteadTests {
         ) == nil)
     }
 
+    @Test func serviceFeedbackDurationMatchesOutcomeSeverity() {
+        let successFeedback = HAServiceFeedback(title: "Done", message: nil, style: .success)
+        let failureFeedback = HAServiceFeedback(title: "Failed", message: nil, style: .failure)
+
+        #expect(successFeedback.displayDuration == .seconds(2))
+        #expect(failureFeedback.displayDuration == .seconds(5))
+    }
+
     @Test func webSocketEndpointUsesExpectedSchemeAndPath() throws {
         let localURL = try HomeAssistantEndpointBuilder.webSocketURL(from: "http://homeassistant.local:8123")
         #expect(localURL.absoluteString == "ws://homeassistant.local:8123/api/websocket")
@@ -2177,19 +2185,24 @@ struct HomesteadTests {
 
         #expect(lightPresentation.primaryAction == .toggleLight)
         #expect(lightPresentation.primaryServiceIntent == .stateToggle(domain: "light", onService: "turn_on", offService: "turn_off"))
+        #expect(lightPresentation.accessibilityDetailLabel == "Open Kitchen details")
+        #expect(lightPresentation.primaryActionAccessibilityLabel == "Turn off Kitchen")
         #expect(lightPresentation.cardStyle == .control)
         #expect(lightPresentation.secondaryActions == [.setBrightness])
         #expect(lightPresentation.detailKind == .light)
         #expect(coverPresentation.primaryAction == .toggleCover)
         #expect(coverPresentation.primaryServiceIntent == .coverToggle)
+        #expect(coverPresentation.primaryActionAccessibilityLabel == "Close Shades")
         #expect(coverPresentation.secondaryActions == [.openCover, .closeCover, .stopCover, .setCoverPosition])
         #expect(coverPresentation.detailKind == .cover)
         #expect(scenePresentation.primaryAction == .activateScene)
         #expect(scenePresentation.primaryServiceIntent == .call(domain: "scene", service: "turn_on"))
+        #expect(scenePresentation.primaryActionAccessibilityLabel == "Activate Movie Night")
         #expect(scenePresentation.cardStyle == .action)
         #expect(scenePresentation.detailKind == .action)
         #expect(scriptPresentation.primaryAction == .runScript)
         #expect(scriptPresentation.primaryServiceIntent == .call(domain: "script", service: "turn_on"))
+        #expect(scriptPresentation.primaryActionAccessibilityLabel == "Run Good Morning")
         #expect(scriptPresentation.cardStyle == .action)
         #expect(scriptPresentation.detailKind == .action)
         #expect(sensorPresentation.primaryAction == nil)

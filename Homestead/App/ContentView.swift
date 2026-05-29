@@ -4,6 +4,7 @@ struct ContentView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let chrome = AppChromePresentation.make(
@@ -69,7 +70,7 @@ struct ContentView: View {
         .onChange(of: homeAssistantService.serviceFeedback?.id) { _, _ in
             playServiceFeedbackHaptic()
         }
-        .animation(.smooth(duration: 0.22), value: homeAssistantService.serviceFeedback?.id)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: homeAssistantService.serviceFeedback?.id)
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory(isEnabled: chrome.connectionAccessoryState != nil) {
             if let connectionAccessoryState = chrome.connectionAccessoryState {

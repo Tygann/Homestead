@@ -37,6 +37,21 @@ enum DashboardEntityPrimaryAction: Equatable, Sendable {
             .call(domain: "script", service: "turn_on")
         }
     }
+
+    func accessibilityLabel(title: String, isActive: Bool) -> String {
+        switch self {
+        case .toggleLight, .toggleSwitch, .toggleFan:
+            "\(isActive ? "Turn off" : "Turn on") \(title)"
+        case .toggleCover:
+            "\(isActive ? "Close" : "Open") \(title)"
+        case .toggleLock:
+            "\(isActive ? "Unlock" : "Lock") \(title)"
+        case .activateScene:
+            "Activate \(title)"
+        case .runScript:
+            "Run \(title)"
+        }
+    }
 }
 
 enum DashboardEntityDetailKind: String, Equatable, Sendable {
@@ -393,6 +408,22 @@ struct DashboardEntityPresentation {
 
     var accessibilityValue: String {
         subtitle
+    }
+
+    var accessibilityDetailLabel: String {
+        "Open \(title) details"
+    }
+
+    var accessibilityDetailHint: String {
+        "Shows controls and Home Assistant state."
+    }
+
+    var primaryActionAccessibilityLabel: String? {
+        primaryAction?.accessibilityLabel(title: title, isActive: isActive)
+    }
+
+    var primaryActionAccessibilityHint: String {
+        "Sends the action to Home Assistant."
     }
 
     var subtitleColor: Color {

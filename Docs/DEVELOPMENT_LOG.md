@@ -19,6 +19,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Improved service-call failure copy when an action failure also starts socket recovery.
 - Added lightweight haptics for dashboard control taps and service success/failure feedback.
 
+### Dashboard Accessibility And Reduced Motion
+
+- Added domain-aware VoiceOver labels for dashboard detail buttons and primary Home Assistant actions.
+- Added explicit accessibility labels and values for dashboard detail sliders and context rows.
+- Respected Reduce Motion for card press feedback, service banners, and dashboard skeleton loading.
+
 ### OAuth Widgets And Dashboard State Cleanup
 
 - Updated the widget control path to read the shared OAuth credential and refresh short-lived Home Assistant access tokens instead of looking for the removed long-lived token account.
