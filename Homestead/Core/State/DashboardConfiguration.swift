@@ -287,7 +287,7 @@ final class DashboardConfiguration {
             return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
         }
 
-        return Array(sortedEntities.prefix(12).map(\.entityID))
+        return Array(sortedEntities.prefix(10).map(\.entityID))
     }
 
     private static func migrateLegacyCardSizes(in data: Data) -> Data? {

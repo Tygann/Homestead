@@ -5,7 +5,6 @@ struct DashboardView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @Environment(DashboardPreferences.self) private var dashboardPreferences
     @State private var isEditingDashboard = false
     @State private var isShowingAddCardSheet = false
     @State private var isShowingReorderSheet = false
@@ -53,6 +52,9 @@ struct DashboardView: View {
             }
             .padding(.horizontal, AppSpacing.large)
             .padding(.vertical, AppSpacing.xLarge)
+        }
+        .refreshable {
+            await homeAssistantService.refreshStates()
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Homestead")
@@ -170,8 +172,6 @@ struct DashboardView: View {
     }
     
     private var visibleDashboardItems: [DashboardItemConfiguration] {
-        var visibleEntityCount = 0
-
         return dashboardConfiguration
             .visibleItems(fromAvailableEntityIDs: stateStore.availableEntityIDs)
             .compactMap { item in
@@ -179,20 +179,10 @@ struct DashboardView: View {
                     return item
                 }
 
-                guard let entityBox = stateStore.entityBox(for: entityID) else {
+                guard stateStore.entityBox(for: entityID) != nil else {
                     return nil
                 }
 
-                if dashboardPreferences.showsOnlyActiveDevices,
-                   !DashboardEntityPresentation(entityBox: entityBox).isActive {
-                    return nil
-                }
-
-                guard visibleEntityCount < dashboardPreferences.density.visibleEntityLimit else {
-                    return nil
-                }
-
-                visibleEntityCount += 1
                 return item
             }
     }
@@ -243,37 +233,6 @@ struct DashboardView: View {
         headerTitleDraft = ""
     }
     
-    private var statusText: String {
-        if hasHomeAssistantSession,
-           !stateStore.hasLoadedInitialSnapshot,
-           !homeAssistantService.hasCompletedInitialCacheLoad {
-            return "Loading dashboard"
-        }
-
-        return switch homeAssistantService.dataFreshness {
-        case .empty:
-            homeAssistantService.connectionStatus.title
-        case .cached:
-            "Showing cached home state"
-        case .refreshing:
-            "Refreshing devices"
-        case .live:
-            homeAssistantService.connectionStatus.title
-        case .stale:
-            "Connection interrupted"
-        }
-    }
-
-    private var statusSystemImage: String {
-        if hasHomeAssistantSession,
-           !stateStore.hasLoadedInitialSnapshot,
-           !homeAssistantService.hasCompletedInitialCacheLoad {
-            return "arrow.clockwise"
-        }
-
-        return homeAssistantService.connectionStatus.systemImage
-    }
-
     private var configuredDashboardSection: some View {
         DashboardSection(isEmpty: visibleDashboardItems.isEmpty) {
             CardGrid {
@@ -302,13 +261,13 @@ struct DashboardView: View {
                     return nil
                 }
 
-                let effectiveSize = dashboardPreferences.density.effectiveCardSize(for: configurationItem.resolvedCardSize)
+                let configuredSize = configurationItem.resolvedCardSize
                 let cardItem = DashboardCardItem(
                     id: configurationItem.id,
                     entityID: entityID,
-                    size: effectiveSize
+                    size: configuredSize
                 )
-                return DashboardLayoutItem(kind: .card(cardItem), layoutMetadata: effectiveSize.layoutMetadata)
+                return DashboardLayoutItem(kind: .card(cardItem), layoutMetadata: configuredSize.layoutMetadata)
             }
         }
     }
@@ -345,44 +304,10 @@ struct DashboardView: View {
     // MARK: - Options Menu
     private var optionsMenu: some View {
         Menu {
-            Section {
-                Label(statusText, systemImage: statusSystemImage)
-                
-                if hasHomeAssistantSession && homeAssistantService.connectionStatus != .connected {
-                    Button {
-                        Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
-                    } label: {
-                        Label("Reconnect", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                } else if hasHomeAssistantSession {
-                    Button {
-                        Task { await homeAssistantService.refreshStates() }
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                }
-            }
-            
-            Section {
-                Picker("Density", selection: Bindable(dashboardPreferences).density) {
-                    ForEach(DashboardDensity.allCases) { density in
-                        Text(density.title)
-                            .tag(density)
-                    }
-                }
-
-                Toggle(
-                    "Only show active devices",
-                    isOn: Bindable(dashboardPreferences).showsOnlyActiveDevices
-                )
-            }
-
-            Section {
-                Button {
-                    isEditingDashboard = true
-                } label: {
-                    Label("Edit Dashboard", systemImage: "square.grid.2x2")
-                }
+            Button {
+                isEditingDashboard = true
+            } label: {
+                Label("Edit Dashboard", systemImage: "square.grid.2x2")
             }
         } label: {
             Image(systemName: "ellipsis")

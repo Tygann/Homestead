@@ -1389,6 +1389,31 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func dashboardConfigurationResetSeedsTenSuggestedEntityItems() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let entities = (0..<14).map { index in
+            HomeEntity(
+                entityID: "sensor.test_\(index)",
+                domain: .sensor,
+                displayName: String(format: "Test %02d", index),
+                state: "\(index)",
+                iconName: "sensor",
+                isAvailable: true,
+                lastUpdated: nil
+            )
+        }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        configuration.reset(using: entities)
+
+        #expect(configuration.items.count == 10)
+        #expect(configuration.items.map(\.entityID) == (0..<10).map { "sensor.test_\($0)" })
+    }
+
+    @MainActor
     @Test func dashboardConfigurationAddEntityItemPersists() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -1429,6 +1454,32 @@ struct HomesteadTests {
         let restoredConfiguration = DashboardConfiguration(defaults: defaults)
         #expect(restoredConfiguration.items.first?.entityID == "sensor.hallway_temperature")
         #expect(restoredConfiguration.items.first?.resolvedCardSize == .wide)
+    }
+
+    @MainActor
+    @Test func dashboardConfigurationVisibleItemsPreserveAllConfiguredSizes() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let miniID = configuration.add("sensor.mini")
+        let rowID = configuration.add("sensor.row")
+        let largeID = configuration.add("sensor.large")
+        configuration.setCardSize(.mini, forItemID: miniID)
+        configuration.setCardSize(.row, forItemID: rowID)
+        configuration.setCardSize(.large, forItemID: largeID)
+
+        let visibleItems = configuration.visibleItems(
+            fromAvailableEntityIDs: ["sensor.mini", "sensor.row", "sensor.large"]
+        )
+
+        #expect(visibleItems.map(\.resolvedCardSize) == [.mini, .row, .large])
+        #expect(visibleItems.map(\.layoutMetadata) == [
+            DashboardCardSize.mini.layoutMetadata,
+            DashboardCardSize.row.layoutMetadata,
+            DashboardCardSize.large.layoutMetadata
+        ])
     }
 
     @MainActor
@@ -1714,21 +1765,6 @@ struct HomesteadTests {
 
         let restoredStore = PinnedEntityStore(defaults: defaults)
         #expect(restoredStore.entityIDs == ["light.kitchen", "sensor.missing"])
-    }
-
-    @MainActor
-    @Test func dashboardPreferencesPersistDensityAndActiveFilter() throws {
-        let suiteName = "com.tyler.Homestead.preferences.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let preferences = DashboardPreferences(defaults: defaults)
-        preferences.density = .compact
-        preferences.showsOnlyActiveDevices = true
-
-        let restoredPreferences = DashboardPreferences(defaults: defaults)
-        #expect(restoredPreferences.density == .compact)
-        #expect(restoredPreferences.showsOnlyActiveDevices == true)
     }
 
     @MainActor

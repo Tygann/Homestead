@@ -7,7 +7,6 @@ struct PreviewDependencies {
     let connectionSettings: HAConnectionSettings
     let homeAssistantService: HomeAssistantService
     let dashboardConfiguration: DashboardConfiguration
-    let dashboardPreferences: DashboardPreferences
     let pinnedEntityStore: PinnedEntityStore
 
     static var sample: PreviewDependencies {
@@ -16,7 +15,6 @@ struct PreviewDependencies {
         stateStore.applyInitialStates(PreviewData.entities)
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         dashboardConfiguration.reset(using: stateStore.allEntities)
-        let dashboardPreferences = DashboardPreferences(defaults: previewDefaults)
         let pinnedEntityStore = PinnedEntityStore(defaults: previewDefaults)
         pinnedEntityStore.toggle("light.living_room_lamps")
         pinnedEntityStore.toggle("climate.downstairs")
@@ -45,7 +43,6 @@ struct PreviewDependencies {
             connectionSettings: settings,
             homeAssistantService: service,
             dashboardConfiguration: dashboardConfiguration,
-            dashboardPreferences: dashboardPreferences,
             pinnedEntityStore: pinnedEntityStore
         )
     }
@@ -54,7 +51,6 @@ struct PreviewDependencies {
         let previewDefaults = UserDefaults.livePreview
         let stateStore = HAStateStore()
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
-        let dashboardPreferences = DashboardPreferences(defaults: previewDefaults)
         let pinnedEntityStore = PinnedEntityStore(defaults: previewDefaults)
 
         if let credential = PreviewCredentialProvider.liveCredential() {
@@ -76,7 +72,6 @@ struct PreviewDependencies {
                 connectionSettings: settings,
                 homeAssistantService: service,
                 dashboardConfiguration: dashboardConfiguration,
-                dashboardPreferences: dashboardPreferences,
                 pinnedEntityStore: pinnedEntityStore
             )
         }
@@ -97,7 +92,6 @@ struct PreviewDependencies {
             connectionSettings: settings,
             homeAssistantService: service,
             dashboardConfiguration: dashboardConfiguration,
-            dashboardPreferences: dashboardPreferences,
             pinnedEntityStore: pinnedEntityStore
         )
     }
@@ -115,7 +109,6 @@ extension View {
             .environment(dependencies.connectionSettings)
             .environment(dependencies.homeAssistantService)
             .environment(dependencies.dashboardConfiguration)
-            .environment(dependencies.dashboardPreferences)
             .environment(dependencies.pinnedEntityStore)
     }
 }
@@ -327,8 +320,6 @@ private extension UserDefaults {
         defaults.removeObject(forKey: "dashboardItems")
         defaults.removeObject(forKey: "dashboardEntityIDs")
         defaults.removeObject(forKey: "dashboardCardSizes")
-        defaults.removeObject(forKey: "dashboard.density")
-        defaults.removeObject(forKey: "dashboard.showsOnlyActiveDevices")
         defaults.removeObject(forKey: "dashboard.pinnedEntityIDs")
         return defaults
     }

@@ -6,7 +6,6 @@ struct HomesteadApp: App {
     @State private var connectionSettings: HAConnectionSettings
     @State private var homeAssistantService: HomeAssistantService
     @State private var dashboardConfiguration: DashboardConfiguration
-    @State private var dashboardPreferences: DashboardPreferences
     @State private var pinnedEntityStore: PinnedEntityStore
 
     init() {
@@ -18,7 +17,6 @@ struct HomesteadApp: App {
         _connectionSettings = State(initialValue: connectionSettings)
         _homeAssistantService = State(initialValue: homeAssistantService)
         _dashboardConfiguration = State(initialValue: DashboardConfiguration())
-        _dashboardPreferences = State(initialValue: DashboardPreferences())
         _pinnedEntityStore = State(initialValue: PinnedEntityStore())
 
         guard !RuntimeEnvironment.isRunningForPreviews else {
@@ -40,7 +38,6 @@ struct HomesteadApp: App {
                 .environment(connectionSettings)
                 .environment(homeAssistantService)
                 .environment(dashboardConfiguration)
-                .environment(dashboardPreferences)
                 .environment(pinnedEntityStore)
         }
     }

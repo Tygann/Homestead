@@ -12,6 +12,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Promoted the card grid layout into the design system so non-dashboard card surfaces can share the same 4-column sizing model.
 - Moved Areas summary cards onto the shared grid as square `2x2` cards while keeping their area-specific renderer.
 
+### Dashboard Density Simplification
+
+- Removed global Comfortable, Balanced, and Compact dashboard density modes so persisted card sizes are the single source of truth for grid layout.
+- Removed the active-device dashboard filter and simplified the dashboard menu to editing only, with manual refresh handled by native pull-to-refresh.
+- Reduced suggested first-run dashboard seeding to 10 cards to preserve the previous balanced starting footprint without a runtime visibility cap.
+
 ## 2026-05-27
 
 ### Native OAuth Login
