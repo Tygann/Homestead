@@ -1,6 +1,6 @@
 import Foundation
 
-struct HAEntityRegistryDisplayResponseDTO: Decodable, Equatable, Sendable {
+nonisolated struct HAEntityRegistryDisplayResponseDTO: Decodable, Equatable, Sendable {
     let entities: [HAEntityRegistryDisplayDTO]
 
     enum CodingKeys: String, CodingKey {
@@ -22,7 +22,7 @@ struct HAEntityRegistryDisplayResponseDTO: Decodable, Equatable, Sendable {
     }
 }
 
-struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable, Sendable {
+nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable, Sendable {
     let entityID: String
     let deviceID: String?
     let areaID: String?
@@ -86,7 +86,7 @@ struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendable {
+nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendable {
     let id: String
     let name: String?
     let nameByUser: String?
@@ -131,7 +131,7 @@ struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct HAAreaRegistryDTO: Codable, Equatable, Identifiable, Sendable {
+nonisolated struct HAAreaRegistryDTO: Codable, Equatable, Identifiable, Sendable {
     let id: String
     let name: String
 
