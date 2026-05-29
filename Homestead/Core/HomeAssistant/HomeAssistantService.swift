@@ -97,9 +97,16 @@ final class HomeAssistantService {
     }
 
     func refreshOrReconnect(settings: HAConnectionSettings) async {
-        if connectionStatus == .connected {
+        switch connectionStatus {
+        case .connected:
             await refreshStates()
-        } else {
+        case .connecting:
+            return
+        case .reconnecting:
+            reconnectTask?.cancel()
+            reconnectTask = nil
+            await connect(baseURLString: settings.baseURL)
+        case .disconnected, .failed:
             await connectIfPossible(settings: settings)
         }
     }
@@ -972,14 +979,15 @@ final class HomeAssistantService {
             return true
         } catch {
             lastErrorMessage = error.localizedDescription
-            await recoverConnectionIfNeeded(after: error)
+            let isRecoveringConnection = await recoverConnectionIfNeeded(after: error)
             serviceFeedback = HAServiceFeedback(
-                title: "Action failed",
+                title: isRecoveringConnection ? "Action failed, reconnecting" : "Action failed",
                 message: serviceFailureMessage(
                     domain: domain,
                     service: service,
                     entityID: entityID,
-                    error: error
+                    error: error,
+                    isRecoveringConnection: isRecoveringConnection
                 ),
                 style: .failure
             )
@@ -1311,16 +1319,18 @@ final class HomeAssistantService {
         scheduleReconnect(configuration: activeConfiguration)
     }
 
-    private func recoverConnectionIfNeeded(after error: Error) async {
+    @discardableResult
+    private func recoverConnectionIfNeeded(after error: Error) async -> Bool {
         guard shouldReconnect,
               reconnectTask == nil,
               let activeConfiguration,
               error.shouldReconnectHomeAssistantSocket else {
-            return
+            return false
         }
 
         await client.disconnect()
         scheduleReconnect(configuration: activeConfiguration)
+        return true
     }
 
     private func scheduleReconnect(configuration: HAConnectionConfiguration) {
@@ -1459,10 +1469,18 @@ final class HomeAssistantService {
         domain: String,
         service: String,
         entityID: String?,
-        error: Error
+        error: Error,
+        isRecoveringConnection: Bool = false
     ) -> String {
         let target = entityDisplayName(for: entityID) ?? "\(domain).\(service)"
-        return "\(target): \(error.localizedDescription)"
+        let recoveryHint = isRecoveringConnection ? " Homestead is reconnecting." : ""
+        return "\(target): \(readableServiceName(service)) failed. \(error.localizedDescription)\(recoveryHint)"
+    }
+
+    private func readableServiceName(_ service: String) -> String {
+        service
+            .replacingOccurrences(of: "_", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

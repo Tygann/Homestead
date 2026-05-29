@@ -89,6 +89,36 @@ struct HomesteadTests {
         )
     }
 
+    @Test func dashboardFreshnessNoticeMapsCachedStaleAndRefreshingStates() {
+        let cachedNotice = DashboardDataFreshnessNoticeState.make(
+            dataFreshness: .cached(Date(timeIntervalSinceNow: -60)),
+            connectionStatus: .connected
+        )
+        #expect(cachedNotice?.title == "Showing Cached State")
+        #expect(cachedNotice?.actionTitle == "Refresh")
+        #expect(cachedNotice?.message.contains("Last updated") == true)
+
+        let staleNotice = DashboardDataFreshnessNoticeState.make(
+            dataFreshness: .stale("Network unavailable", lastUpdated: nil),
+            connectionStatus: .reconnecting
+        )
+        #expect(staleNotice?.title == "Live Updates Paused")
+        #expect(staleNotice?.message == "Network unavailable")
+        #expect(staleNotice?.actionTitle == "Retry Now")
+
+        let refreshingNotice = DashboardDataFreshnessNoticeState.make(
+            dataFreshness: .refreshing,
+            connectionStatus: .connected
+        )
+        #expect(refreshingNotice?.title == "Refreshing")
+        #expect(refreshingNotice?.actionTitle == nil)
+
+        #expect(DashboardDataFreshnessNoticeState.make(
+            dataFreshness: .live(.now),
+            connectionStatus: .connected
+        ) == nil)
+    }
+
     @Test func webSocketEndpointUsesExpectedSchemeAndPath() throws {
         let localURL = try HomeAssistantEndpointBuilder.webSocketURL(from: "http://homeassistant.local:8123")
         #expect(localURL.absoluteString == "ws://homeassistant.local:8123/api/websocket")
@@ -1337,6 +1367,66 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func refreshOrReconnectRetriesImmediatelyWhileReconnecting() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "retry-access"))
+        let storedCredential = try tokenStore.readCredential()
+        let credential = try #require(storedCredential)
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            connectionStatus: .reconnecting,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+
+        await service.refreshOrReconnect(settings: settings)
+
+        #expect(webSocketClient.lastConnectConfiguration?.accessToken == "retry-access")
+        #expect(service.connectionStatus == .connected)
+    }
+
+    @MainActor
+    @Test func serviceFailureFeedbackExplainsReconnectRecovery() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "service-access"))
+        let stateStore = HAStateStore()
+        let light = HAEntityDTO(
+            entityID: "light.kitchen",
+            state: "off",
+            attributes: [
+                "friendly_name": .string("Kitchen Light")
+            ]
+        )
+        stateStore.applySnapshot([light])
+        let webSocketClient = StubHAWebSocketClient(states: [light])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        stateStore.applySnapshot([light])
+        webSocketClient.callServiceError = HAWebSocketError.requestTimedOut
+
+        await service.turnOnLight(entityID: "light.kitchen")
+
+        #expect(service.connectionStatus == .reconnecting)
+        #expect(service.serviceFeedback?.title == "Action failed, reconnecting")
+        #expect(service.serviceFeedback?.message?.contains("Kitchen Light") == true)
+        #expect(service.serviceFeedback?.message?.contains("Homestead is reconnecting") == true)
+    }
+
+    @MainActor
     @Test func oauthSignInConnectsAndRegistersMobileAppAutomatically() async throws {
         let tokenStore = InMemoryHAOAuthTokenStore()
         let registrationStore = InMemoryHAMobileAppRegistrationStore()
@@ -2404,6 +2494,8 @@ final class StubHAOAuthAuthorizer: HAOAuthAuthorizing {
 final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     private(set) var lastConnectConfiguration: HAConnectionConfiguration?
     private(set) var didDisconnect = false
+    private(set) var callServiceInvocations: [(domain: String, service: String, entityID: String?, serviceData: [String: JSONValue])] = []
+    var callServiceError: Error?
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
 
@@ -2460,7 +2552,13 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         service: String,
         entityID: String?,
         serviceData: [String: JSONValue]
-    ) async throws {}
+    ) async throws {
+        callServiceInvocations.append((domain, service, entityID, serviceData))
+
+        if let callServiceError {
+            throw callServiceError
+        }
+    }
 }
 
 final class StubHAMobileAppClient: HAMobileAppClientProtocol {

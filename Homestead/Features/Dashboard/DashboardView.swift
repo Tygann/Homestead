@@ -21,6 +21,17 @@ struct DashboardView: View {
                     DashboardSetupCard()
                 }
 
+                if let freshnessNoticeState {
+                    DashboardDataFreshnessNotice(
+                        state: freshnessNoticeState,
+                        refreshOrReconnect: {
+                            Task {
+                                await homeAssistantService.refreshOrReconnect(settings: connectionSettings)
+                            }
+                        }
+                    )
+                }
+
                 if !hasHomeAssistantSession {
                     EmptyView()
                 } else if !stateStore.hasLoadedInitialSnapshot {
@@ -158,6 +169,17 @@ struct DashboardView: View {
 
     private var hasHomeAssistantSession: Bool {
         connectionSettings.hasServerURL && homeAssistantService.authState.isSignedIn
+    }
+
+    private var freshnessNoticeState: DashboardDataFreshnessNoticeState? {
+        guard hasHomeAssistantSession, stateStore.hasLoadedInitialSnapshot else {
+            return nil
+        }
+
+        return DashboardDataFreshnessNoticeState.make(
+            dataFreshness: homeAssistantService.dataFreshness,
+            connectionStatus: homeAssistantService.connectionStatus
+        )
     }
 
     @MainActor
@@ -649,6 +671,137 @@ private struct DashboardInitialSyncView: View {
             )
         case .disconnected, .connecting, .connected, .reconnecting:
             DashboardLoadingPlaceholderView(connectionStatus: connectionStatus)
+        }
+    }
+}
+
+nonisolated struct DashboardDataFreshnessNoticeState: Equatable {
+    enum Style: Equatable {
+        case progress
+        case warning
+    }
+
+    let title: String
+    let message: String
+    let systemImage: String
+    let style: Style
+    let actionTitle: String?
+
+    static func make(
+        dataFreshness: HADataFreshness,
+        connectionStatus: HAConnectionStatus
+    ) -> DashboardDataFreshnessNoticeState? {
+        switch dataFreshness {
+        case .cached(let date):
+            return DashboardDataFreshnessNoticeState(
+                title: "Showing Cached State",
+                message: lastUpdatedMessage(date: date, fallback: "Waiting for live Home Assistant state."),
+                systemImage: "clock.arrow.circlepath",
+                style: .warning,
+                actionTitle: actionTitle(for: connectionStatus)
+            )
+        case .refreshing:
+            return DashboardDataFreshnessNoticeState(
+                title: "Refreshing",
+                message: "Updating from Home Assistant.",
+                systemImage: "arrow.triangle.2.circlepath",
+                style: .progress,
+                actionTitle: nil
+            )
+        case .stale(let errorMessage, let lastUpdated):
+            let fallback = errorMessage?.isEmpty == false ? errorMessage! : "Live updates are paused."
+            return DashboardDataFreshnessNoticeState(
+                title: "Live Updates Paused",
+                message: lastUpdatedMessage(date: lastUpdated, fallback: fallback),
+                systemImage: "wifi.exclamationmark",
+                style: .warning,
+                actionTitle: actionTitle(for: connectionStatus)
+            )
+        case .empty, .live:
+            return nil
+        }
+    }
+
+    private static func actionTitle(for connectionStatus: HAConnectionStatus) -> String? {
+        switch connectionStatus {
+        case .connected:
+            "Refresh"
+        case .disconnected, .failed:
+            "Reconnect"
+        case .reconnecting:
+            "Retry Now"
+        case .connecting:
+            nil
+        }
+    }
+
+    private static func lastUpdatedMessage(date: Date?, fallback: String) -> String {
+        guard let date else {
+            return fallback
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return "Last updated \(formatter.localizedString(for: date, relativeTo: Date()))."
+    }
+}
+
+private struct DashboardDataFreshnessNotice: View {
+    let state: DashboardDataFreshnessNoticeState
+    let refreshOrReconnect: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            statusIcon
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(state.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text(state.message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: AppSpacing.small)
+
+            if let actionTitle = state.actionTitle {
+                Button(actionTitle, action: refreshOrReconnect)
+                    .font(.caption.weight(.semibold))
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+        .padding(.horizontal, AppSpacing.medium)
+        .padding(.vertical, AppSpacing.small)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        if state.style == .progress {
+            ProgressView()
+                .controlSize(.small)
+                .tint(tint)
+                .frame(width: 28, height: 28)
+        } else {
+            Image(systemName: state.systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 28, height: 28)
+        }
+    }
+
+    private var tint: Color {
+        switch state.style {
+        case .progress:
+            Color.accentColor
+        case .warning:
+            Color.orange
         }
     }
 }

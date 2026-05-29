@@ -71,6 +71,7 @@ struct DashboardCardView: View {
 
         if let primaryAction = presentation.primaryAction {
             return {
+                HapticFeedback.selection()
                 Task {
                     await homeAssistantService.perform(primaryAction, entityID: entityBox.entityID)
                 }

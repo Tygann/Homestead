@@ -61,10 +61,13 @@ struct ContentView: View {
                     .padding(.bottom, chrome.serviceFeedbackBottomPadding)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .task(id: feedback.id) {
-                        try? await Task.sleep(for: .seconds(3))
+                        try? await Task.sleep(for: feedback.displayDuration)
                         homeAssistantService.clearServiceFeedback(id: feedback.id)
                     }
             }
+        }
+        .onChange(of: homeAssistantService.serviceFeedback?.id) { _, _ in
+            playServiceFeedbackHaptic()
         }
         .animation(.smooth(duration: 0.22), value: homeAssistantService.serviceFeedback?.id)
         .tabBarMinimizeBehavior(.onScrollDown)
@@ -77,6 +80,14 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private func playServiceFeedbackHaptic() {
+        guard let feedback = homeAssistantService.serviceFeedback else {
+            return
+        }
+
+        HapticFeedback.notification(for: feedback.style)
     }
 }
 

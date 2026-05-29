@@ -12,6 +12,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added WebSocket service helpers and request-shape tests for fan percentage/preset, media volume/source, and climate fan/preset changes.
 - Updated preview Home Assistant data so fan, lock, media, and climate controls can be exercised in native previews.
 
+### Service Feedback And Reconnect UX
+
+- Added a dashboard freshness notice for cached, refreshing, and stale Home Assistant state with contextual refresh/reconnect actions.
+- Made reconnect retry taps interrupt the backoff loop and attempt a connection immediately.
+- Improved service-call failure copy when an action failure also starts socket recovery.
+- Added lightweight haptics for dashboard control taps and service success/failure feedback.
+
 ### OAuth Widgets And Dashboard State Cleanup
 
 - Updated the widget control path to read the shared OAuth credential and refresh short-lived Home Assistant access tokens instead of looking for the removed long-lived token account.
