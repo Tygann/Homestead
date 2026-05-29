@@ -11,7 +11,8 @@ struct ContentView: View {
             hasServerURL: connectionSettings.hasServerURL,
             authState: homeAssistantService.authState,
             connectionStatus: homeAssistantService.connectionStatus,
-            dataFreshness: homeAssistantService.dataFreshness
+            dataFreshness: homeAssistantService.dataFreshness,
+            serviceFeedback: homeAssistantService.serviceFeedback
         )
 
         TabView {
@@ -55,26 +56,22 @@ struct ContentView: View {
                 break
             }
         }
-        .overlay(alignment: .bottom) {
-            if let feedback = homeAssistantService.serviceFeedback {
-                ServiceFeedbackBanner(feedback: feedback)
-                    .padding(.horizontal, AppSpacing.large)
-                    .padding(.bottom, chrome.serviceFeedbackBottomPadding)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .task(id: feedback.id) {
-                        try? await Task.sleep(for: feedback.displayDuration)
-                        homeAssistantService.clearServiceFeedback(id: feedback.id)
-                    }
-            }
-        }
         .onChange(of: homeAssistantService.serviceFeedback?.id) { _, _ in
             playServiceFeedbackHaptic()
         }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: homeAssistantService.serviceFeedback?.id)
+        .task(id: homeAssistantService.serviceFeedback?.id) {
+            guard let feedback = homeAssistantService.serviceFeedback else {
+                return
+            }
+
+            try? await Task.sleep(for: feedback.displayDuration)
+            homeAssistantService.clearServiceFeedback(id: feedback.id)
+        }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: chrome.statusAccessoryState)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory(isEnabled: chrome.connectionAccessoryState != nil) {
-            if let connectionAccessoryState = chrome.connectionAccessoryState {
-                ConnectionHealthAccessory(state: connectionAccessoryState) {
+        .tabViewBottomAccessory(isEnabled: chrome.statusAccessoryState != nil) {
+            if let statusAccessoryState = chrome.statusAccessoryState {
+                AppStatusAccessory(state: statusAccessoryState) {
                     Task {
                         await homeAssistantService.refreshOrReconnect(settings: connectionSettings)
                     }

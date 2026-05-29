@@ -1,28 +1,28 @@
 import SwiftUI
 
 nonisolated struct AppChromePresentation: Equatable {
-    let connectionAccessoryState: ConnectionHealthAccessoryState?
-
-    var serviceFeedbackBottomPadding: CGFloat {
-        if connectionAccessoryState == nil {
-            return AppSpacing.xxLarge + AppSpacing.large
-        }
-
-        return AppSpacing.xxLarge + AppSpacing.xLarge + AppSpacing.large + AppSpacing.small
-    }
+    let statusAccessoryState: AppStatusAccessoryState?
 
     static func make(
         hasServerURL: Bool,
         authState: HAAuthState,
         connectionStatus: HAConnectionStatus,
-        dataFreshness: HADataFreshness
+        dataFreshness: HADataFreshness,
+        serviceFeedback: HAServiceFeedback?
     ) -> AppChromePresentation {
-        AppChromePresentation(
-            connectionAccessoryState: ConnectionHealthAccessoryState.make(
-                hasHomeAssistantSession: hasServerURL && authState.isSignedIn,
-                connectionStatus: connectionStatus,
-                dataFreshness: dataFreshness
-            )
+        let hasHomeAssistantSession = hasServerURL && authState.isSignedIn
+        guard hasHomeAssistantSession else {
+            return AppChromePresentation(statusAccessoryState: nil)
+        }
+
+        let connectionState = AppStatusAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: connectionStatus,
+            dataFreshness: dataFreshness
+        )
+
+        return AppChromePresentation(
+            statusAccessoryState: connectionState ?? serviceFeedback.map(AppStatusAccessoryState.init(feedback:))
         )
     }
 }

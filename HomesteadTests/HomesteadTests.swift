@@ -21,51 +21,60 @@ private func waitUntil(
 
 struct HomesteadTests {
     @Test func connectionHealthAccessoryStateAppearsOnlyForGlobalConnectionIssues() {
-        #expect(ConnectionHealthAccessoryState.make(
+        #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: false,
             connectionStatus: .reconnecting,
             dataFreshness: .stale("offline")
         ) == nil)
 
-        #expect(ConnectionHealthAccessoryState.make(
+        #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .connected,
             dataFreshness: .live(.now)
         ) == nil)
 
-        #expect(ConnectionHealthAccessoryState.make(
+        let cachedState = AppStatusAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .connected,
+            dataFreshness: .cached(Date(timeIntervalSinceNow: -60))
+        )
+        #expect(cachedState?.title == "Showing cached state")
+        #expect(cachedState?.message.contains("Last updated") == true)
+        #expect(cachedState?.canRetry == true)
+
+        #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .connected,
             dataFreshness: .stale("offline")
         ) == .interrupted)
 
-        let staleWithAge = ConnectionHealthAccessoryState.make(
+        let staleWithAge = AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .connected,
             dataFreshness: .stale("offline", lastUpdated: Date(timeIntervalSinceNow: -120))
         )
         #expect(staleWithAge?.message.contains("Last live update") == true)
 
-        let disconnectedStaleWithAge = ConnectionHealthAccessoryState.make(
+        let disconnectedStaleWithAge = AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .disconnected,
             dataFreshness: .stale("offline", lastUpdated: Date(timeIntervalSinceNow: -120))
         )
         #expect(disconnectedStaleWithAge?.message.contains("Last live update") == true)
 
-        #expect(ConnectionHealthAccessoryState.make(
+        #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .reconnecting,
             dataFreshness: .stale("offline")
         ) == .reconnecting)
 
-        #expect(ConnectionHealthAccessoryState.make(
+        #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .failed("No route to host"),
             dataFreshness: .empty
         ) == .failed)
 
-        #expect(ConnectionHealthAccessoryState.make(
+        #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .disconnected,
             dataFreshness: .empty
@@ -77,11 +86,11 @@ struct HomesteadTests {
             hasServerURL: true,
             authState: .signedOut,
             connectionStatus: .reconnecting,
-            dataFreshness: .stale("offline")
+            dataFreshness: .stale("offline"),
+            serviceFeedback: HAServiceFeedback(title: "Done", message: nil, style: .success)
         )
 
-        #expect(signedOutChrome.connectionAccessoryState == nil)
-        #expect(signedOutChrome.serviceFeedbackBottomPadding == AppSpacing.xxLarge + AppSpacing.large)
+        #expect(signedOutChrome.statusAccessoryState == nil)
 
         let credential = HAOAuthCredential(
             baseURLString: "http://homeassistant.local:8123",
@@ -96,45 +105,22 @@ struct HomesteadTests {
             hasServerURL: true,
             authState: .signedIn(HAAuthSessionSummary(credential: credential)),
             connectionStatus: .reconnecting,
-            dataFreshness: .stale("offline")
+            dataFreshness: .stale("offline"),
+            serviceFeedback: HAServiceFeedback(title: "Done", message: nil, style: .success)
         )
 
-        #expect(signedInChrome.connectionAccessoryState == .reconnecting)
-        #expect(
-            signedInChrome.serviceFeedbackBottomPadding ==
-            AppSpacing.xxLarge + AppSpacing.xLarge + AppSpacing.large + AppSpacing.small
-        )
-    }
+        #expect(signedInChrome.statusAccessoryState == .reconnecting)
 
-    @Test func dashboardFreshnessNoticeMapsCachedStaleAndRefreshingStates() {
-        let cachedNotice = DashboardDataFreshnessNoticeState.make(
-            dataFreshness: .cached(Date(timeIntervalSinceNow: -60)),
-            connectionStatus: .connected
-        )
-        #expect(cachedNotice?.title == "Showing Cached State")
-        #expect(cachedNotice?.actionTitle == "Refresh")
-        #expect(cachedNotice?.message.contains("Last updated") == true)
-
-        let staleNotice = DashboardDataFreshnessNoticeState.make(
-            dataFreshness: .stale("Network unavailable", lastUpdated: nil),
-            connectionStatus: .reconnecting
-        )
-        #expect(staleNotice?.title == "Live Updates Paused")
-        #expect(staleNotice?.message == "Network unavailable")
-        #expect(staleNotice?.actionTitle == "Retry Now")
-
-        let refreshingNotice = DashboardDataFreshnessNoticeState.make(
-            dataFreshness: .refreshing(lastUpdated: Date(timeIntervalSinceNow: -30)),
-            connectionStatus: .connected
-        )
-        #expect(refreshingNotice?.title == "Refreshing")
-        #expect(refreshingNotice?.message.contains("Last state") == true)
-        #expect(refreshingNotice?.actionTitle == nil)
-
-        #expect(DashboardDataFreshnessNoticeState.make(
+        let feedbackChrome = AppChromePresentation.make(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            connectionStatus: .connected,
             dataFreshness: .live(.now),
-            connectionStatus: .connected
-        ) == nil)
+            serviceFeedback: HAServiceFeedback(title: "Done", message: nil, style: .success)
+        )
+        #expect(feedbackChrome.statusAccessoryState?.title == "Done")
+        #expect(feedbackChrome.statusAccessoryState?.style == .success)
+        #expect(feedbackChrome.statusAccessoryState?.canRetry == false)
     }
 
     @Test func serviceFeedbackDurationMatchesOutcomeSeverity() {

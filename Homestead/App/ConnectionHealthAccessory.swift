@@ -1,8 +1,9 @@
 import SwiftUI
 
-nonisolated struct ConnectionHealthAccessoryState: Equatable {
+nonisolated struct AppStatusAccessoryState: Equatable {
     enum Style: Equatable {
         case progress
+        case success
         case warning
         case failure
     }
@@ -13,11 +14,62 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
     let style: Style
     let canRetry: Bool
 
+    init(
+        title: String,
+        message: String,
+        systemImage: String,
+        style: Style,
+        canRetry: Bool
+    ) {
+        self.title = title
+        self.message = message
+        self.systemImage = systemImage
+        self.style = style
+        self.canRetry = canRetry
+    }
+
+    init(feedback: HAServiceFeedback) {
+        self.init(
+            title: feedback.title,
+            message: feedback.message ?? Self.defaultMessage(for: feedback.style),
+            systemImage: Self.systemImage(for: feedback.style),
+            style: Self.style(for: feedback.style),
+            canRetry: false
+        )
+    }
+
+    private static func defaultMessage(for style: HAServiceFeedback.Style) -> String {
+        switch style {
+        case .success:
+            ""
+        case .failure:
+            "Could not complete the action."
+        }
+    }
+
+    private static func style(for feedbackStyle: HAServiceFeedback.Style) -> Style {
+        switch feedbackStyle {
+        case .success:
+            .success
+        case .failure:
+            .failure
+        }
+    }
+
+    private static func systemImage(for feedbackStyle: HAServiceFeedback.Style) -> String {
+        switch feedbackStyle {
+        case .success:
+            "checkmark.circle.fill"
+        case .failure:
+            "exclamationmark.triangle.fill"
+        }
+    }
+
     static func make(
         hasHomeAssistantSession: Bool,
         connectionStatus: HAConnectionStatus,
         dataFreshness: HADataFreshness
-    ) -> ConnectionHealthAccessoryState? {
+    ) -> AppStatusAccessoryState? {
         guard hasHomeAssistantSession else {
             return nil
         }
@@ -34,19 +86,51 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
 
             return disconnected
         case .connecting, .connected:
-            return staleState(for: dataFreshness)
+            return freshnessState(for: dataFreshness)
         }
     }
 
-    private static func staleState(for dataFreshness: HADataFreshness) -> ConnectionHealthAccessoryState? {
-        if case .stale(_, let lastUpdated) = dataFreshness {
+    private static func staleState(for dataFreshness: HADataFreshness) -> AppStatusAccessoryState? {
+        guard case .stale = dataFreshness else {
+            return nil
+        }
+
+        return freshnessState(for: dataFreshness)
+    }
+
+    private static func freshnessState(for dataFreshness: HADataFreshness) -> AppStatusAccessoryState? {
+        switch dataFreshness {
+        case .cached(let date):
+            return cached(lastUpdated: date)
+        case .stale(_, let lastUpdated):
             return interrupted(lastUpdated: lastUpdated)
+        case .empty, .refreshing, .live:
+            return nil
         }
-
-        return nil
     }
 
-    static let reconnecting = ConnectionHealthAccessoryState(
+    static func cached(lastUpdated: Date?) -> AppStatusAccessoryState {
+        AppStatusAccessoryState(
+            title: "Showing cached state",
+            message: lastUpdatedMessage(lastUpdated: lastUpdated, fallback: "Waiting for live Home Assistant state."),
+            systemImage: "clock.arrow.circlepath",
+            style: .warning,
+            canRetry: true
+        )
+    }
+
+    private static func lastUpdatedMessage(lastUpdated: Date?, fallback: String) -> String {
+        guard let lastUpdated else {
+            return fallback
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        let relativeDate = formatter.localizedString(for: lastUpdated, relativeTo: Date())
+        return "Last updated \(relativeDate)."
+    }
+
+    static let reconnecting = AppStatusAccessoryState(
         title: "Reconnecting",
         message: "Restoring live Home Assistant state.",
         systemImage: "arrow.triangle.2.circlepath",
@@ -56,8 +140,8 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
 
     static let interrupted = interrupted(lastUpdated: nil)
 
-    static func interrupted(lastUpdated: Date?) -> ConnectionHealthAccessoryState {
-        ConnectionHealthAccessoryState(
+    static func interrupted(lastUpdated: Date?) -> AppStatusAccessoryState {
+        AppStatusAccessoryState(
             title: "Connection interrupted",
             message: staleMessage(lastUpdated: lastUpdated),
             systemImage: "wifi.exclamationmark",
@@ -66,7 +150,7 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
         )
     }
 
-    static let failed = ConnectionHealthAccessoryState(
+    static let failed = AppStatusAccessoryState(
         title: "Connection failed",
         message: "Tap to retry.",
         systemImage: "exclamationmark.triangle.fill",
@@ -74,7 +158,7 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
         canRetry: true
     )
 
-    static let disconnected = ConnectionHealthAccessoryState(
+    static let disconnected = AppStatusAccessoryState(
         title: "Disconnected",
         message: "Tap to reconnect.",
         systemImage: "wifi.slash",
@@ -94,10 +178,10 @@ nonisolated struct ConnectionHealthAccessoryState: Equatable {
     }
 }
 
-struct ConnectionHealthAccessory: View {
+struct AppStatusAccessory: View {
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
 
-    let state: ConnectionHealthAccessoryState
+    let state: AppStatusAccessoryState
     let retry: () -> Void
 
     var body: some View {
@@ -163,13 +247,15 @@ struct ConnectionHealthAccessory: View {
     }
 
     private var showsMessage: Bool {
-        placement != .inline
+        placement != .inline && !state.message.isEmpty
     }
 
     private var tint: Color {
         switch state.style {
         case .progress:
             Color.accentColor
+        case .success:
+            Color.green
         case .warning:
             Color.orange
         case .failure:
@@ -180,23 +266,23 @@ struct ConnectionHealthAccessory: View {
 
 #if DEBUG
 #Preview("Connection Accessory - Reconnecting") {
-    ConnectionHealthAccessoryPreview(state: .reconnecting)
+    AppStatusAccessoryPreview(state: .reconnecting)
 }
 
 #Preview("Connection Accessory - Interrupted") {
-    ConnectionHealthAccessoryPreview(state: .interrupted)
+    AppStatusAccessoryPreview(state: .interrupted)
 }
 
 #Preview("Connection Accessory - Failed") {
-    ConnectionHealthAccessoryPreview(state: .failed)
+    AppStatusAccessoryPreview(state: .failed)
 }
 
 #Preview("Connection Accessory - Disconnected") {
-    ConnectionHealthAccessoryPreview(state: .disconnected)
+    AppStatusAccessoryPreview(state: .disconnected)
 }
 
-private struct ConnectionHealthAccessoryPreview: View {
-    let state: ConnectionHealthAccessoryState
+private struct AppStatusAccessoryPreview: View {
+    let state: AppStatusAccessoryState
 
     var body: some View {
         TabView {
@@ -222,7 +308,7 @@ private struct ConnectionHealthAccessoryPreview: View {
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory(isEnabled: true) {
-            ConnectionHealthAccessory(state: state) {}
+            AppStatusAccessory(state: state) {}
         }
     }
 }

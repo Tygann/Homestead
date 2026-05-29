@@ -1,6 +1,6 @@
 import Foundation
 
-struct HAServiceFeedback: Identifiable, Equatable, Sendable {
+nonisolated struct HAServiceFeedback: Identifiable, Equatable, Sendable {
     enum Style: Equatable, Sendable {
         case success
         case failure
@@ -17,15 +17,6 @@ struct HAServiceFeedback: Identifiable, Equatable, Sendable {
             .seconds(2)
         case .failure:
             .seconds(5)
-        }
-    }
-
-    var systemImage: String {
-        switch style {
-        case .success:
-            "checkmark.circle.fill"
-        case .failure:
-            "exclamationmark.triangle.fill"
         }
     }
 }

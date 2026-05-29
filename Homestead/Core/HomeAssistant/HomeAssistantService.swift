@@ -620,11 +620,6 @@ final class HomeAssistantService {
             try mobileAppRegistrationStore.saveRegistration(registration)
             mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
             lastErrorMessage = nil
-            serviceFeedback = HAServiceFeedback(
-                title: "App registered",
-                message: "Homestead can use official Home Assistant mobile-app handoffs.",
-                style: .success
-            )
         } catch {
             mobileAppRegistrationState = .failed(error.localizedDescription)
             lastErrorMessage = error.localizedDescription
