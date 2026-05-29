@@ -153,6 +153,9 @@ struct EntityBrowserList<Accessory: View>: View {
                 }
             }
         }
+        .refreshable {
+            await homeAssistantService.refreshStates()
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 groupingMenu

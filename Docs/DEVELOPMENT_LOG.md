@@ -18,6 +18,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Removed the active-device dashboard filter and simplified the dashboard menu to editing only, with manual refresh handled by native pull-to-refresh.
 - Reduced suggested first-run dashboard seeding to 10 cards to preserve the previous balanced starting footprint without a runtime visibility cap.
 
+### Cached Registry Metadata
+
+- Expanded the Home Assistant startup cache to include entity, device, and area registry metadata alongside entity state snapshots.
+- Areas and device grouping now restore from cached registry metadata on relaunch instead of briefly treating everything as unassigned.
+- Added native pull-to-refresh to Areas and entity browser lists, with refreshes updating both state and registry-backed organization.
+
 ## 2026-05-27
 
 ### Native OAuth Login

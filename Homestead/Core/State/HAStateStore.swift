@@ -57,6 +57,24 @@ final class HAStateStore {
         }
     }
 
+    func registryMetadataSnapshot() -> HARegistryMetadataSnapshot? {
+        guard !entityRegistryByID.isEmpty || !deviceRegistryByID.isEmpty || !areaRegistryByID.isEmpty else {
+            return nil
+        }
+
+        return HARegistryMetadataSnapshot(
+            entities: entityRegistryByID.values.sorted {
+                $0.entityID.localizedCaseInsensitiveCompare($1.entityID) == .orderedAscending
+            },
+            devices: deviceRegistryByID.values.sorted {
+                $0.id.localizedCaseInsensitiveCompare($1.id) == .orderedAscending
+            },
+            areas: areaRegistryByID.values.sorted {
+                $0.id.localizedCaseInsensitiveCompare($1.id) == .orderedAscending
+            }
+        )
+    }
+
     func allEntityBoxes() -> [HAEntityState] {
         allEntities.compactMap { entityBoxesByID[$0.entityID] }
     }
@@ -165,6 +183,14 @@ final class HAStateStore {
         deviceRegistryByID = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
         areaRegistryByID = Dictionary(uniqueKeysWithValues: areas.map { ($0.id, $0) })
         refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
+    }
+
+    func applyRegistryMetadata(_ metadata: HARegistryMetadataSnapshot) {
+        applyRegistryMetadata(
+            entities: metadata.entities,
+            devices: metadata.devices,
+            areas: metadata.areas
+        )
     }
 
     func apply(event: HAEventDTO) {

@@ -1652,13 +1652,63 @@ struct HomesteadTests {
                 lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:00:00.000000+00:00"))
             )
         ]
+        let registryMetadata = HARegistryMetadataSnapshot(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.kitchen",
+                    deviceID: "kitchen-device",
+                    originalName: "Kitchen"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "kitchen-device", name: "Kitchen Lamp", areaID: "kitchen")
+            ],
+            areas: [
+                HAAreaRegistryDTO(id: "kitchen", name: "Kitchen")
+            ]
+        )
 
-        await cache.save(entities, for: primaryConfiguration)
+        await cache.save(entities, registryMetadata: registryMetadata, for: primaryConfiguration)
 
         let restoredSnapshot = try #require(await cache.load(for: primaryConfiguration))
         #expect(restoredSnapshot.entities == entities)
+        #expect(restoredSnapshot.registryMetadata == registryMetadata)
         #expect(await cache.load(for: otherConfiguration) == nil)
         #expect(HAStateCache.cacheFileName(for: primaryConfiguration) != HAStateCache.cacheFileName(for: otherConfiguration))
+    }
+
+    @Test func stateCacheLoadsLegacyEntityOnlySnapshots() async throws {
+        let cacheDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HomesteadLegacyStateCacheTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+        let cache = HAStateCache(directoryURL: cacheDirectory)
+        let configuration = HAConnectionConfiguration(
+            baseURLString: "http://homeassistant.local:8123",
+            accessToken: "token-a"
+        )
+        try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        let cacheURL = cacheDirectory.appendingPathComponent(HAStateCache.cacheFileName(for: configuration))
+        let legacyJSON = """
+        {
+          "savedAt": "2026-05-20T10:00:00Z",
+          "entities": [
+            {
+              "entity_id": "light.kitchen",
+              "state": "on",
+              "attributes": {
+                "friendly_name": "Kitchen"
+              }
+            }
+          ]
+        }
+        """
+        let legacyData = try #require(legacyJSON.data(using: .utf8))
+        try legacyData.write(to: cacheURL)
+
+        let restoredSnapshot = try #require(await cache.load(for: configuration))
+        #expect(restoredSnapshot.entities.map(\.entityID) == ["light.kitchen"])
+        #expect(restoredSnapshot.registryMetadata == nil)
     }
 
     @Test func stateCacheKeyNormalizesEquivalentHomeAssistantURLs() {
@@ -1698,8 +1748,23 @@ struct HomesteadTests {
                 lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:00:00.000000+00:00"))
             )
         ]
+        let registryMetadata = HARegistryMetadataSnapshot(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.kitchen",
+                    deviceID: "kitchen-device",
+                    originalName: "Kitchen"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "kitchen-device", name: "Kitchen Lamp", areaID: "kitchen")
+            ],
+            areas: [
+                HAAreaRegistryDTO(id: "kitchen", name: "Kitchen")
+            ]
+        )
 
-        await cache.save(entities, for: configuration)
+        await cache.save(entities, registryMetadata: registryMetadata, for: configuration)
 
         let store = HAStateStore()
         let tokenStore = InMemoryHAOAuthTokenStore(
@@ -1719,6 +1784,7 @@ struct HomesteadTests {
 
         #expect(store.hasLoadedInitialSnapshot == true)
         #expect(store.entity(for: "light.kitchen")?.state == "on")
+        #expect(store.areaName(for: "light.kitchen") == "Kitchen")
         if case .cached = service.dataFreshness {
             // Expected cached-first launch state.
         } else {

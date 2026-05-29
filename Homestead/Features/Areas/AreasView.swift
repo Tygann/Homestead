@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AreasView: View {
     @Environment(HAStateStore.self) private var stateStore
+    @Environment(HomeAssistantService.self) private var homeAssistantService
     private let areaCardSize = DashboardCardSize.square
 
     private var areas: [DashboardAreaSummary] {
@@ -26,6 +27,9 @@ struct AreasView: View {
             }
             .padding(.horizontal, AppSpacing.large)
             .padding(.vertical, AppSpacing.xLarge)
+        }
+        .refreshable {
+            await homeAssistantService.refreshStates()
         }
         .background(Color(.systemGroupedBackground))
         .overlay {

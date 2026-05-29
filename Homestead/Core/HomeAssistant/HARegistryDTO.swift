@@ -22,7 +22,7 @@ struct HAEntityRegistryDisplayResponseDTO: Decodable, Equatable, Sendable {
     }
 }
 
-struct HAEntityRegistryDisplayDTO: Decodable, Equatable, Identifiable, Sendable {
+struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable, Sendable {
     let entityID: String
     let deviceID: String?
     let areaID: String?
@@ -73,9 +73,20 @@ struct HAEntityRegistryDisplayDTO: Decodable, Equatable, Identifiable, Sendable 
         name = try container.decodeIfPresent(String.self, forKey: .name)
         hiddenBy = try container.decodeLossyBoolIfPresent(forKey: .hiddenBy)
     }
+
+    nonisolated func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(entityID, forKey: .entityID)
+        try container.encodeIfPresent(deviceID, forKey: .deviceID)
+        try container.encodeIfPresent(areaID, forKey: .areaID)
+        try container.encodeIfPresent(originalName, forKey: .originalName)
+        try container.encodeIfPresent(name, forKey: .name)
+        try container.encodeIfPresent(hiddenBy, forKey: .hiddenBy)
+    }
 }
 
-struct HADeviceRegistryDTO: Decodable, Equatable, Identifiable, Sendable {
+struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendable {
     let id: String
     let name: String?
     let nameByUser: String?
@@ -120,7 +131,7 @@ struct HADeviceRegistryDTO: Decodable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct HAAreaRegistryDTO: Decodable, Equatable, Identifiable, Sendable {
+struct HAAreaRegistryDTO: Codable, Equatable, Identifiable, Sendable {
     let id: String
     let name: String
 

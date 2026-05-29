@@ -873,6 +873,9 @@ final class HomeAssistantService {
         let startDate = Date()
         #endif
         stateStore.applySnapshot(snapshot.entities, dataSourceID: configuration.dataSourceID)
+        if let registryMetadata = snapshot.registryMetadata {
+            stateStore.applyRegistryMetadata(registryMetadata)
+        }
         #if DEBUG
         print(
             "Home Assistant cached snapshot applied: \(snapshot.entities.count) entities in \(String(format: "%.3f", Date().timeIntervalSince(startDate)))s"
@@ -979,8 +982,12 @@ final class HomeAssistantService {
             let states = try await client.fetchStates()
             stateStore.applySnapshot(states, dataSourceID: configuration.dataSourceID)
             applyBufferedStateChanges()
-            await stateCache.save(stateStore.rawEntitySnapshot(), for: configuration)
-            await fetchRegistryMetadataIfAvailable()
+            let registryMetadata = await fetchRegistryMetadataIfAvailable()
+            await stateCache.save(
+                stateStore.rawEntitySnapshot(),
+                registryMetadata: registryMetadata ?? stateStore.registryMetadataSnapshot(),
+                for: configuration
+            )
             lastErrorMessage = nil
             dataFreshness = .live(Date())
         } catch {
@@ -1003,7 +1010,12 @@ final class HomeAssistantService {
             let states = try await client.fetchStates()
             stateStore.applySnapshot(states, dataSourceID: activeConfiguration.dataSourceID)
             applyBufferedStateChanges()
-            await stateCache.save(stateStore.rawEntitySnapshot(), for: activeConfiguration)
+            let registryMetadata = await fetchRegistryMetadataIfAvailable()
+            await stateCache.save(
+                stateStore.rawEntitySnapshot(),
+                registryMetadata: registryMetadata ?? stateStore.registryMetadataSnapshot(),
+                for: activeConfiguration
+            )
             lastErrorMessage = nil
             dataFreshness = .live(Date())
         } catch {
@@ -1014,7 +1026,7 @@ final class HomeAssistantService {
         }
     }
 
-    private func fetchRegistryMetadataIfAvailable() async {
+    private func fetchRegistryMetadataIfAvailable() async -> HARegistryMetadataSnapshot? {
         do {
             async let entityRegistry = client.fetchEntityRegistryForDisplay()
             async let deviceRegistry = client.fetchDeviceRegistry()
@@ -1031,16 +1043,19 @@ final class HomeAssistantService {
                 #endif
             }
 
-            stateStore.applyRegistryMetadata(
+            let metadata = HARegistryMetadataSnapshot(
                 entities: registryMetadata.0.entities,
                 devices: registryMetadata.1,
                 areas: areas
             )
+            stateStore.applyRegistryMetadata(metadata)
+            return metadata
         } catch {
             // Entity/device metadata improves organization, but live state should still work without it.
             #if DEBUG
             print("Home Assistant entity/device registry metadata failed: \(error.localizedDescription)")
             #endif
+            return nil
         }
     }
 

@@ -30,7 +30,8 @@ actor HAStateCache {
             let data = try Data(contentsOf: url)
             let snapshot = try decoder.decode(HAStateCacheSnapshot.self, from: data)
             #if DEBUG
-            print("Home Assistant state cache hit: \(snapshot.entities.count) entities from \(url.path)")
+            let registryCount = snapshot.registryMetadata?.entities.count ?? 0
+            print("Home Assistant state cache hit: \(snapshot.entities.count) entities, \(registryCount) registry entries from \(url.path)")
             #endif
             return snapshot
         } catch {
@@ -41,7 +42,11 @@ actor HAStateCache {
         }
     }
 
-    func save(_ entities: [HAEntityDTO], for configuration: HAConnectionConfiguration) async {
+    func save(
+        _ entities: [HAEntityDTO],
+        registryMetadata: HARegistryMetadataSnapshot? = nil,
+        for configuration: HAConnectionConfiguration
+    ) async {
         do {
             let url = try cacheURL(for: configuration)
             try FileManager.default.createDirectory(
@@ -49,11 +54,16 @@ actor HAStateCache {
                 withIntermediateDirectories: true
             )
 
-            let snapshot = HAStateCacheSnapshot(savedAt: Date(), entities: entities)
+            let snapshot = HAStateCacheSnapshot(
+                savedAt: Date(),
+                entities: entities,
+                registryMetadata: registryMetadata
+            )
             let data = try encoder.encode(snapshot)
             try data.write(to: url, options: [.atomic])
             #if DEBUG
-            print("Home Assistant state cache saved: \(entities.count) entities to \(url.path)")
+            let registryCount = registryMetadata?.entities.count ?? 0
+            print("Home Assistant state cache saved: \(entities.count) entities, \(registryCount) registry entries to \(url.path)")
             #endif
         } catch {
             #if DEBUG
@@ -130,7 +140,24 @@ actor HAStateCache {
     }
 }
 
+nonisolated struct HARegistryMetadataSnapshot: Codable, Equatable, Sendable {
+    let entities: [HAEntityRegistryDisplayDTO]
+    let devices: [HADeviceRegistryDTO]
+    let areas: [HAAreaRegistryDTO]
+}
+
 nonisolated struct HAStateCacheSnapshot: Codable, Equatable, Sendable {
     let savedAt: Date
     let entities: [HAEntityDTO]
+    let registryMetadata: HARegistryMetadataSnapshot?
+
+    nonisolated init(
+        savedAt: Date,
+        entities: [HAEntityDTO],
+        registryMetadata: HARegistryMetadataSnapshot? = nil
+    ) {
+        self.savedAt = savedAt
+        self.entities = entities
+        self.registryMetadata = registryMetadata
+    }
 }
