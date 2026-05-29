@@ -1,5 +1,61 @@
 import SwiftUI
 
+struct DashboardCardItem: Identifiable, Equatable {
+    let id: UUID
+    let entityID: String
+    let size: DashboardCardSize
+    let displayNameOverride: String?
+}
+
+enum DashboardLayoutItemKind: Equatable {
+    case header(DashboardItemConfiguration)
+    case card(DashboardCardItem)
+}
+
+struct DashboardLayoutItem: Identifiable, Equatable {
+    let kind: DashboardLayoutItemKind
+    let layoutMetadata: DashboardCardLayoutMetadata
+
+    var id: String {
+        switch kind {
+        case .header(let item):
+            "header-\(item.id)"
+        case .card(let item):
+            "card-\(item.id)"
+        }
+    }
+}
+
+enum DashboardLayoutItemBuilder {
+    static func makeItems(from configurationItems: [DashboardItemConfiguration]) -> [DashboardLayoutItem] {
+        return configurationItems.compactMap { configurationItem in
+            switch configurationItem.type {
+            case .header:
+                return DashboardLayoutItem(
+                    kind: .header(configurationItem),
+                    layoutMetadata: configurationItem.layoutMetadata
+                )
+            case .entity:
+                guard let entityID = configurationItem.entityID else {
+                    return nil
+                }
+
+                let configuredSize = configurationItem.resolvedCardSize
+                let cardItem = DashboardCardItem(
+                    id: configurationItem.id,
+                    entityID: entityID,
+                    size: configuredSize,
+                    displayNameOverride: configurationItem.displayNameOverride
+                )
+                return DashboardLayoutItem(
+                    kind: .card(cardItem),
+                    layoutMetadata: configuredSize.layoutMetadata
+                )
+            }
+        }
+    }
+}
+
 struct DashboardView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HAConnectionSettings.self) private var connectionSettings
@@ -339,25 +395,7 @@ struct DashboardView: View {
     }
     
     private var dashboardLayoutItems: [DashboardLayoutItem] {
-        visibleDashboardItems.compactMap { configurationItem in
-            switch configurationItem.type {
-            case .header:
-                return DashboardLayoutItem(kind: .header(configurationItem), layoutMetadata: configurationItem.layoutMetadata)
-            case .entity:
-                guard let entityID = configurationItem.entityID else {
-                    return nil
-                }
-
-                let configuredSize = configurationItem.resolvedCardSize
-                let cardItem = DashboardCardItem(
-                    id: configurationItem.id,
-                    entityID: entityID,
-                    size: configuredSize,
-                    displayNameOverride: configurationItem.displayNameOverride
-                )
-                return DashboardLayoutItem(kind: .card(cardItem), layoutMetadata: configuredSize.layoutMetadata)
-            }
-        }
+        DashboardLayoutItemBuilder.makeItems(from: visibleDashboardItems)
     }
 
     private func dashboardHeader(_ item: DashboardItemConfiguration) -> some View {
@@ -542,32 +580,6 @@ private struct DashboardReorderRow: View {
             entityBox?.homeEntity.iconName ?? "square.grid.2x2"
         }
     }
-}
-
-private struct DashboardLayoutItem: Identifiable {
-    enum Kind {
-        case header(DashboardItemConfiguration)
-        case card(DashboardCardItem)
-    }
-
-    let kind: Kind
-    let layoutMetadata: DashboardCardLayoutMetadata
-
-    var id: String {
-        switch kind {
-        case .header(let item):
-            "header-\(item.id)"
-        case .card(let item):
-            "card-\(item.id)"
-        }
-    }
-}
-
-private struct DashboardCardItem: Identifiable {
-    let id: UUID
-    let entityID: String
-    let size: DashboardCardSize
-    let displayNameOverride: String?
 }
 
 private struct DashboardHeaderCardView: View {

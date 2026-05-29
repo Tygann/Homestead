@@ -31,6 +31,7 @@ final class HomeAssistantService {
     @ObservationIgnored private var currentUserID: String?
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
     @ObservationIgnored private var stateSyncTask: Task<Void, Never>?
+    @ObservationIgnored private var stateEnrichmentTask: Task<Void, Never>?
     @ObservationIgnored private var pendingCommandTasksByID: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var bufferedStateChangesByID: [String: HAStateChangedEventDTO] = [:]
     @ObservationIgnored private var isBufferingStateChanges = false
@@ -145,6 +146,8 @@ final class HomeAssistantService {
         reconnectTask = nil
         stateSyncTask?.cancel()
         stateSyncTask = nil
+        stateEnrichmentTask?.cancel()
+        stateEnrichmentTask = nil
         discardBufferedStateChanges()
         await stateEventBatcher.discardPendingUpdates()
         shouldReconnect = true
@@ -210,6 +213,8 @@ final class HomeAssistantService {
         reconnectTask = nil
         stateSyncTask?.cancel()
         stateSyncTask = nil
+        stateEnrichmentTask?.cancel()
+        stateEnrichmentTask = nil
         discardBufferedStateChanges()
         await stateEventBatcher.discardPendingUpdates()
         cancelPendingCommandTasks()
@@ -1263,15 +1268,9 @@ final class HomeAssistantService {
             let states = try await client.fetchStates()
             stateStore.applySnapshot(states, dataSourceID: configuration.dataSourceID)
             applyBufferedStateChanges()
-            let registryMetadata = await fetchRegistryMetadataIfAvailable()
-            await refreshServiceRegistryIfAvailable()
-            await stateCache.save(
-                stateStore.rawEntitySnapshot(),
-                registryMetadata: registryMetadata ?? stateStore.registryMetadataSnapshot(),
-                for: configuration
-            )
             lastErrorMessage = nil
             dataFreshness = .live(Date())
+            scheduleStateEnrichment(configuration: configuration)
         } catch {
             discardBufferedStateChanges()
             lastErrorMessage = error.localizedDescription
@@ -1293,15 +1292,9 @@ final class HomeAssistantService {
             let states = try await client.fetchStates()
             stateStore.applySnapshot(states, dataSourceID: activeConfiguration.dataSourceID)
             applyBufferedStateChanges()
-            let registryMetadata = await fetchRegistryMetadataIfAvailable()
-            await refreshServiceRegistryIfAvailable()
-            await stateCache.save(
-                stateStore.rawEntitySnapshot(),
-                registryMetadata: registryMetadata ?? stateStore.registryMetadataSnapshot(),
-                for: activeConfiguration
-            )
             lastErrorMessage = nil
             dataFreshness = .live(Date())
+            scheduleStateEnrichment(configuration: activeConfiguration)
         } catch {
             applyBufferedStateChanges()
             lastErrorMessage = error.localizedDescription
@@ -1310,7 +1303,33 @@ final class HomeAssistantService {
         }
     }
 
-    private func fetchRegistryMetadataIfAvailable() async -> HARegistryMetadataSnapshot? {
+    private func scheduleStateEnrichment(configuration: HAConnectionConfiguration) {
+        stateEnrichmentTask?.cancel()
+        stateEnrichmentTask = Task { [weak self] in
+            await self?.enrichLiveState(configuration: configuration)
+        }
+    }
+
+    private func enrichLiveState(configuration: HAConnectionConfiguration) async {
+        guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+            return
+        }
+
+        let registryMetadata = await fetchRegistryMetadataIfAvailable(configuration: configuration)
+        await refreshServiceRegistryIfAvailable(configuration: configuration)
+
+        guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+            return
+        }
+
+        await stateCache.save(
+            stateStore.rawEntitySnapshot(),
+            registryMetadata: registryMetadata ?? stateStore.registryMetadataSnapshot(),
+            for: configuration
+        )
+    }
+
+    private func fetchRegistryMetadataIfAvailable(configuration: HAConnectionConfiguration) async -> HARegistryMetadataSnapshot? {
         do {
             async let entityRegistry = client.fetchEntityRegistryForDisplay()
             async let deviceRegistry = client.fetchDeviceRegistry()
@@ -1332,6 +1351,9 @@ final class HomeAssistantService {
                 devices: registryMetadata.1,
                 areas: areas
             )
+            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+                return nil
+            }
             stateStore.applyRegistryMetadata(metadata)
             return metadata
         } catch {
@@ -1343,9 +1365,13 @@ final class HomeAssistantService {
         }
     }
 
-    private func refreshServiceRegistryIfAvailable() async {
+    private func refreshServiceRegistryIfAvailable(configuration: HAConnectionConfiguration) async {
         do {
-            serviceRegistry = try await client.fetchServices()
+            let registry = try await client.fetchServices()
+            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+                return
+            }
+            serviceRegistry = registry
         } catch {
             // Service metadata helps tailor controls, but state sync should remain WebSocket-first and resilient.
             #if DEBUG
@@ -1433,6 +1459,8 @@ final class HomeAssistantService {
 
         stateSyncTask?.cancel()
         stateSyncTask = nil
+        stateEnrichmentTask?.cancel()
+        stateEnrichmentTask = nil
         discardBufferedStateChanges()
         Task {
             await stateEventBatcher.discardPendingUpdates()

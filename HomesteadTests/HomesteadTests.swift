@@ -2,6 +2,23 @@ import Foundation
 import Testing
 @testable import Homestead
 
+@MainActor
+private func waitUntil(
+    timeout: Duration = .seconds(1),
+    condition: @escaping @MainActor () -> Bool
+) async throws {
+    let start = ContinuousClock.now
+
+    while !condition() {
+        if start.duration(to: ContinuousClock.now) >= timeout {
+            Issue.record("Timed out waiting for condition.")
+            return
+        }
+
+        try await Task.sleep(for: .milliseconds(10))
+    }
+}
+
 struct HomesteadTests {
     @Test func connectionHealthAccessoryStateAppearsOnlyForGlobalConnectionIssues() {
         #expect(ConnectionHealthAccessoryState.make(
@@ -1462,11 +1479,84 @@ struct HomesteadTests {
 
         await service.connect(baseURLString: "http://homeassistant.local:8123")
         await service.refreshStates()
+        try await waitUntil {
+            service.serviceRegistry.hasLoaded
+        }
 
         #expect(service.serviceRegistry.hasLoaded)
         #expect(service.serviceActionAvailable(domain: "fan", service: "set_percentage"))
         #expect(service.serviceActionAvailable(domain: "media_player", service: "volume_set"))
         #expect(!service.serviceActionAvailable(domain: "fan", service: "set_preset_mode"))
+    }
+
+    @MainActor
+    @Test func startupSyncMarksEntityStateLiveBeforeOptionalMetadataCompletes() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "startup-access"))
+        let stateStore = HAStateStore()
+        let webSocketClient = StubHAWebSocketClient(states: [
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+        webSocketClient.fetchServicesDelay = .milliseconds(250)
+        webSocketClient.serviceRegistry = HAServiceRegistry(domains: [
+            "light": [
+                "turn_on": HAServiceDescription(name: "Turn on")
+            ]
+        ])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        try await waitUntil {
+            stateStore.hasLoadedInitialSnapshot
+        }
+
+        if case .live = service.dataFreshness {
+            // Expected: entity state is usable before optional service metadata finishes.
+        } else {
+            Issue.record("Expected live data freshness after entity state sync.")
+        }
+        #expect(service.serviceRegistry.hasLoaded == false)
+
+        try await waitUntil(timeout: .seconds(2)) {
+            service.serviceRegistry.hasLoaded
+        }
+        #expect(service.serviceActionAvailable(domain: "light", service: "turn_on"))
+    }
+
+    @MainActor
+    @Test func serviceRegistryFailureDoesNotPreventLiveEntityState() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "startup-access"))
+        let stateStore = HAStateStore()
+        let webSocketClient = StubHAWebSocketClient(states: [
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+        webSocketClient.fetchServicesError = HAWebSocketError.requestFailed("Service registry unavailable")
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        try await waitUntil {
+            stateStore.hasLoadedInitialSnapshot
+        }
+        try await Task.sleep(for: .milliseconds(30))
+
+        #expect(stateStore.entity(for: "light.kitchen")?.state == "on")
+        if case .live = service.dataFreshness {
+            // Expected: optional metadata failure should not stale otherwise live state.
+        } else {
+            Issue.record("Expected live data freshness despite service registry failure.")
+        }
+        #expect(service.serviceRegistry.hasLoaded == false)
     }
 
     @MainActor
@@ -1922,6 +2012,16 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func dashboardCardSizeLabelsExposeLayoutSpans() {
+        #expect(DashboardCardSize.mini.displayName == "Mini 1x1")
+        #expect(DashboardCardSize.compact.displayName == "Compact 2x1")
+        #expect(DashboardCardSize.row.displayName == "Row 4x1")
+        #expect(DashboardCardSize.square.displayName == "Square 2x2")
+        #expect(DashboardCardSize.wide.displayName == "Wide 4x2")
+        #expect(DashboardCardSize.large.displayName == "Large 4x4")
+    }
+
+    @MainActor
     @Test func dashboardHeaderItemsExposeFullWidthRowLayoutMetadata() {
         let header = DashboardItemConfiguration.header(title: "Downstairs")
         #expect(header.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 1))
@@ -2026,6 +2126,57 @@ struct HomesteadTests {
         #expect(restoredConfiguration.items.map(\.type) == [.entity, .entity, .header])
         #expect(restoredConfiguration.items.map(\.entityID) == ["light.kitchen", "sensor.hallway_temperature", nil])
         #expect(restoredConfiguration.items.last?.resolvedTitle == "Downstairs")
+    }
+
+    @MainActor
+    @Test func dashboardLayoutBuilderPreservesHeadersEntityOverridesAndSizes() throws {
+        let headerID = UUID()
+        let lightID = UUID()
+        let sensorID = UUID()
+        let items = [
+            DashboardItemConfiguration.header(title: "Downstairs", id: headerID),
+            DashboardItemConfiguration(
+                id: lightID,
+                type: .entity,
+                entityID: "light.kitchen",
+                title: nil,
+                displayNameOverride: "Counter",
+                size: .row
+            ),
+            DashboardItemConfiguration(
+                id: sensorID,
+                type: .entity,
+                entityID: "sensor.temperature",
+                title: nil,
+                displayNameOverride: nil,
+                size: .large
+            )
+        ]
+
+        let layoutItems = DashboardLayoutItemBuilder.makeItems(from: items)
+
+        #expect(layoutItems.count == 3)
+        #expect(layoutItems[0].id == "header-\(headerID)")
+        #expect(layoutItems[0].layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 1))
+
+        guard case .card(let lightCard) = layoutItems[1].kind else {
+            Issue.record("Expected light card layout item.")
+            return
+        }
+        #expect(lightCard.id == lightID)
+        #expect(lightCard.entityID == "light.kitchen")
+        #expect(lightCard.displayNameOverride == "Counter")
+        #expect(lightCard.size == .row)
+        #expect(layoutItems[1].layoutMetadata == DashboardCardSize.row.layoutMetadata)
+
+        guard case .card(let sensorCard) = layoutItems[2].kind else {
+            Issue.record("Expected sensor card layout item.")
+            return
+        }
+        #expect(sensorCard.id == sensorID)
+        #expect(sensorCard.entityID == "sensor.temperature")
+        #expect(sensorCard.size == .large)
+        #expect(layoutItems[2].layoutMetadata == DashboardCardSize.large.layoutMetadata)
     }
 
     @Test func stateCacheRoundTripsEntitySnapshotsAndScopesByConnection() async throws {
@@ -2487,6 +2638,56 @@ struct HomesteadTests {
         #expect(vacuum.secondaryActions == [.startCleaning, .stopCleaning, .returnToBase])
     }
 
+    @MainActor
+    @Test func wideAndLargeCardContentModelsExposeDomainSpecificMetrics() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "fan.bedroom",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Bedroom Fan"),
+                    "percentage": .number(45)
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "climate.downstairs",
+                state: "cool",
+                attributes: [
+                    "friendly_name": .string("Downstairs"),
+                    "temperature": .number(72),
+                    "current_temperature": .number(74),
+                    "temperature_unit": .string("°F")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "scene.movie_night",
+                state: "scening",
+                attributes: ["friendly_name": .string("Movie Night")]
+            )
+        ])
+
+        let fanPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "fan.bedroom")))
+        let fanWide = DashboardEntityCardContentModel.make(presentation: fanPresentation, size: .wide)
+        let fanLarge = DashboardEntityCardContentModel.make(presentation: fanPresentation, size: .large)
+        #expect(fanWide.metrics.map(\.title) == ["Status"])
+        #expect(fanWide.metrics.map(\.value) == ["On"])
+        #expect(fanLarge.metrics.contains(DashboardEntityCardMetric(title: "Level", value: "45%", systemImage: "fan")))
+        #expect(fanLarge.metrics.contains(DashboardEntityCardMetric(title: "Action", value: "Turn off Bedroom Fan", systemImage: "hand.tap")))
+
+        let climatePresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "climate.downstairs")))
+        let climateLarge = DashboardEntityCardContentModel.make(presentation: climatePresentation, size: .large)
+        #expect(climateLarge.metrics.first == DashboardEntityCardMetric(title: "Mode", value: "Cool, set to 72°F", systemImage: "thermometer.medium"))
+        #expect(climateLarge.metrics.contains(DashboardEntityCardMetric(title: "Setpoint", value: "72°F", systemImage: "target")))
+        #expect(climateLarge.metrics.contains(DashboardEntityCardMetric(title: "Action", value: "Open details", systemImage: "hand.tap")))
+
+        let scenePresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "scene.movie_night")))
+        let sceneCompact = DashboardEntityCardContentModel.make(presentation: scenePresentation, size: .compact)
+        let sceneLarge = DashboardEntityCardContentModel.make(presentation: scenePresentation, size: .large)
+        #expect(sceneCompact.metrics.isEmpty)
+        #expect(sceneLarge.metrics.contains(DashboardEntityCardMetric(title: "Action", value: "Activate Movie Night", systemImage: "hand.tap")))
+    }
+
     private var dashboardTestEntities: [HomeEntity] {
         [
             HomeEntity(
@@ -2668,6 +2869,8 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
     var serviceRegistry: HAServiceRegistry = .empty
+    var fetchServicesDelay: Duration?
+    var fetchServicesError: Error?
 
     init(currentUser: HACurrentUserDTO? = nil, states: [HAEntityDTO] = []) {
         self.currentUser = currentUser
@@ -2710,7 +2913,15 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func fetchServices() async throws -> HAServiceRegistry {
-        serviceRegistry
+        if let fetchServicesDelay {
+            try await Task.sleep(for: fetchServicesDelay)
+        }
+
+        if let fetchServicesError {
+            throw fetchServicesError
+        }
+
+        return serviceRegistry
     }
 
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {

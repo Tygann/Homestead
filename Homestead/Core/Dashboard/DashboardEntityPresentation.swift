@@ -782,3 +782,194 @@ struct DashboardEntityPresentation {
         }
     }
 }
+
+struct DashboardEntityCardMetric: Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let value: String
+    let systemImage: String
+
+    init(title: String, value: String, systemImage: String) {
+        self.id = "\(title)-\(value)-\(systemImage)"
+        self.title = title
+        self.value = value
+        self.systemImage = systemImage
+    }
+}
+
+struct DashboardEntityCardContentModel: Equatable, Sendable {
+    let headline: String?
+    let metrics: [DashboardEntityCardMetric]
+
+    static func make(
+        presentation: DashboardEntityPresentation,
+        size: DashboardCardSize
+    ) -> DashboardEntityCardContentModel {
+        guard size.supportsExtendedDashboardContent else {
+            return DashboardEntityCardContentModel(
+                headline: presentation.headline,
+                metrics: []
+            )
+        }
+
+        let metrics = extendedMetrics(for: presentation)
+        return DashboardEntityCardContentModel(
+            headline: presentation.headline,
+            metrics: Array(metrics.prefix(size.maximumDashboardMetricCount))
+        )
+    }
+
+    private static func extendedMetrics(for presentation: DashboardEntityPresentation) -> [DashboardEntityCardMetric] {
+        let statusMetric = DashboardEntityCardMetric(
+            title: statusTitle(for: presentation),
+            value: statusValue(for: presentation),
+            systemImage: statusSystemImage(for: presentation)
+        )
+
+        var metrics = [statusMetric]
+
+        if let headline = presentation.headline, headline != statusMetric.value {
+            metrics.append(
+                DashboardEntityCardMetric(
+                    title: headlineTitle(for: presentation),
+                    value: headline,
+                    systemImage: headlineSystemImage(for: presentation)
+                )
+            )
+        }
+
+        if let actionTitle = actionTitle(for: presentation) {
+            metrics.append(
+                DashboardEntityCardMetric(
+                    title: "Action",
+                    value: actionTitle,
+                    systemImage: "hand.tap"
+                )
+            )
+        }
+
+        return metrics
+    }
+
+    private static func statusTitle(for presentation: DashboardEntityPresentation) -> String {
+        switch presentation.capability.domain {
+        case .climate:
+            "Mode"
+        case .sensor, .binarySensor:
+            "Reading"
+        case .mediaPlayer:
+            "Now"
+        case .scene:
+            "Scene"
+        case .script:
+            "Script"
+        default:
+            "Status"
+        }
+    }
+
+    private static func statusValue(for presentation: DashboardEntityPresentation) -> String {
+        switch presentation.capability.domain {
+        case .light, .fan, .switch:
+            return presentation.isActive ? "On" : "Off"
+        case .cover:
+            return presentation.isActive ? "Open" : "Closed"
+        case .lock:
+            return presentation.isActive ? "Locked" : "Unlocked"
+        default:
+            return presentation.subtitle
+        }
+    }
+
+    private static func statusSystemImage(for presentation: DashboardEntityPresentation) -> String {
+        switch presentation.capability.domain {
+        case .climate:
+            "thermometer.medium"
+        case .sensor, .binarySensor:
+            "gauge.medium"
+        case .mediaPlayer:
+            "play.tv"
+        case .camera:
+            "camera"
+        case .vacuum:
+            "washer"
+        case .scene, .script:
+            "sparkles"
+        default:
+            "circle.fill"
+        }
+    }
+
+    private static func headlineTitle(for presentation: DashboardEntityPresentation) -> String {
+        switch presentation.capability.domain {
+        case .light, .fan, .cover:
+            "Level"
+        case .climate:
+            "Setpoint"
+        case .sensor, .binarySensor:
+            "Value"
+        case .scene, .script:
+            "Command"
+        default:
+            "Detail"
+        }
+    }
+
+    private static func headlineSystemImage(for presentation: DashboardEntityPresentation) -> String {
+        switch presentation.capability.domain {
+        case .light:
+            "slider.horizontal.below.sun.max"
+        case .fan:
+            "fan"
+        case .cover:
+            "arrow.up.and.down"
+        case .climate:
+            "target"
+        case .sensor, .binarySensor:
+            "number"
+        case .scene, .script:
+            "play.circle"
+        default:
+            "text.alignleft"
+        }
+    }
+
+    private static func actionTitle(for presentation: DashboardEntityPresentation) -> String? {
+        guard presentation.isAvailable else {
+            return nil
+        }
+
+        if let label = presentation.primaryActionAccessibilityLabel {
+            return label
+        }
+
+        switch presentation.capability.domain {
+        case .camera, .climate, .lock, .mediaPlayer, .sensor, .binarySensor, .vacuum:
+            return "Open details"
+        case .light, .cover, .switch, .fan, .scene, .script, .other:
+            return nil
+        }
+    }
+}
+
+private extension DashboardCardSize {
+    var supportsExtendedDashboardContent: Bool {
+        switch self {
+        case .wide, .large:
+            true
+        case .mini, .compact, .row, .square:
+            false
+        }
+    }
+
+    var maximumDashboardMetricCount: Int {
+        switch self {
+        case .wide:
+            1
+        case .large:
+            3
+        case .mini, .compact, .row, .square:
+            0
+        }
+    }
+}

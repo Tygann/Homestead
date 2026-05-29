@@ -259,7 +259,12 @@ private struct DashboardEntityCard: View {
     }
 
     private var largeContent: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.large) {
+        let contentModel = DashboardEntityCardContentModel.make(
+            presentation: presentation,
+            size: size
+        )
+
+        return VStack(alignment: .leading, spacing: AppSpacing.large) {
             HStack(alignment: .center, spacing: AppSpacing.medium) {
                 iconPlaceholder
                 
@@ -278,12 +283,20 @@ private struct DashboardEntityCard: View {
                 }
             }
             
-            if let headline = presentation.headline {
+            if let headline = contentModel.headline {
                 Text(headline)
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(presentation.headlineColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+            }
+
+            if !contentModel.metrics.isEmpty {
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    ForEach(contentModel.metrics) { metric in
+                        DashboardCardMetricRow(metric: metric)
+                    }
+                }
             }
         }
     }
@@ -362,6 +375,33 @@ private struct DashboardEntityCard: View {
             rowSpacing: AppSpacing.medium,
             cardPadding: AppSpacing.medium
         )
+    }
+}
+
+private struct DashboardCardMetricRow: View {
+    let metric: DashboardEntityCardMetric
+
+    var body: some View {
+        HStack(alignment: .center, spacing: AppSpacing.small) {
+            Image(systemName: metric.systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+
+            Text(metric.title)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Spacer(minLength: AppSpacing.small)
+
+            Text(metric.value)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .multilineTextAlignment(.trailing)
+        }
     }
 }
 
