@@ -430,7 +430,7 @@ private struct DashboardCardMetricRow: View {
 private struct DashboardCardDisplaySizesPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            HStack(alignment: .top, spacing: AppSpacing.medium) {
+//            HStack(alignment: .top, spacing: AppSpacing.medium) {/
                 DashboardCardView(entityID: "light.living_room_lamps", size: .mini)
                     .frame(width: 82)
 
@@ -439,7 +439,7 @@ private struct DashboardCardDisplaySizesPreview: View {
 
                 DashboardCardView(entityID: "sensor.hallway_temperature", size: .square)
                     .frame(width: 180)
-            }
+//            }
 
             DashboardCardView(entityID: "sensor.hallway_temperature", size: .row)
                 .frame(width: 376)

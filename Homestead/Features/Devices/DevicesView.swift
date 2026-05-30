@@ -41,16 +41,19 @@ struct EntityBrowserList<Accessory: View>: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var searchText = ""
+    @State private var localSearchText = ""
     @State private var grouping: DevicesGrouping = .device
     @State private var collapsedGroups: Set<String> = []
     @State private var selectedDomain: EntityDomain?
     @State private var includesUnavailable: Bool
 
+    private let externalSearchText: Binding<String>?
     let hiddenEntityIDs: Set<String>
     let emptyTitle: String
     let emptySystemImage: String
     let showsFilters: Bool
+    let showsSearchField: Bool
+    let showsGroupingMenu: Bool
     let rowAction: (HAEntityState) -> Void
     let allowsPinning: Bool
     private let accessory: (HAEntityState) -> Accessory
@@ -63,14 +66,20 @@ struct EntityBrowserList<Accessory: View>: View {
         emptySystemImage: String,
         showsFilters: Bool = false,
         includesUnavailableByDefault: Bool = true,
+        searchText: Binding<String>? = nil,
+        showsSearchField: Bool = true,
+        showsGroupingMenu: Bool = true,
         rowAction: @escaping (HAEntityState) -> Void,
         allowsPinning: Bool = false,
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
+        self.externalSearchText = searchText
         self.hiddenEntityIDs = hiddenEntityIDs
         self.emptyTitle = emptyTitle
         self.emptySystemImage = emptySystemImage
         self.showsFilters = showsFilters
+        self.showsSearchField = showsSearchField
+        self.showsGroupingMenu = showsGroupingMenu
         self.rowAction = rowAction
         self.allowsPinning = allowsPinning
         self.accessory = accessory
@@ -147,12 +156,12 @@ struct EntityBrowserList<Accessory: View>: View {
                     ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
                 } else if groups.isEmpty && visibleCandidateEntityIDs.isEmpty {
                     ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
-                } else if groups.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && hasActiveFilters {
+                } else if groups.isEmpty && currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && hasActiveFilters {
                     ContentUnavailableView("No Matching Entities", systemImage: "line.3.horizontal.decrease.circle")
-                } else if groups.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                } else if groups.isEmpty && currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
                 } else if groups.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
+                    ContentUnavailableView.search(text: currentSearchText)
                 }
             }
         }
@@ -160,11 +169,13 @@ struct EntityBrowserList<Accessory: View>: View {
             await homeAssistantService.refreshStates()
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                groupingMenu
+            if showsGroupingMenu {
+                ToolbarItem(placement: .primaryAction) {
+                    groupingMenu
+                }
             }
         }
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+        .modifier(EntityBrowserSearchModifier(searchText: searchTextBinding, isEnabled: showsSearchField))
     }
 
     private var entityLoadingTitle: String {
@@ -292,7 +303,7 @@ struct EntityBrowserList<Accessory: View>: View {
     }
 
     private var filteredEntityGroups: [DevicesEntityGroup] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let groups = unfilteredEntityGroups
 
         guard !query.isEmpty else {
@@ -374,6 +385,14 @@ struct EntityBrowserList<Accessory: View>: View {
         selectedDomain != nil || !includesUnavailable
     }
 
+    private var currentSearchText: String {
+        externalSearchText?.wrappedValue ?? localSearchText
+    }
+
+    private var searchTextBinding: Binding<String> {
+        externalSearchText ?? $localSearchText
+    }
+
     private func entityPassesVisibility(_ entityID: String) -> Bool {
         guard !hiddenEntityIDs.contains(entityID),
               let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
@@ -389,6 +408,19 @@ struct EntityBrowserList<Accessory: View>: View {
         }
 
         return true
+    }
+}
+
+private struct EntityBrowserSearchModifier: ViewModifier {
+    @Binding var searchText: String
+    let isEnabled: Bool
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+        } else {
+            content
+        }
     }
 }
 

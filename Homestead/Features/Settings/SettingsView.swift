@@ -73,37 +73,9 @@ struct HomeAssistantSettingsView: View {
         @Bindable var connectionSettings = connectionSettings
 
         Form {
-            Section {
-                HStack(spacing: 12) {
-                    HomeAssistantAvatarView()
+            accountSection
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(accountTitle)
-                            .foregroundStyle(.primary)
-
-                        Text(serverDisplayText)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 2)
-
-                if let primaryStatusMessage {
-                    Text(primaryStatusMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                if hasServerMismatch, let signedInServerDisplayText {
-                    LabeledContent("Signed-In Server") {
-                        Text(signedInServerDisplayText)
-                            .foregroundStyle(.orange)
-                    }
-                }
-            } header: {
-                Text("Account")
-            }
-
+            // MARK: - Server Section
             Section {
                 if connectionSettings.hasServerURL {
                     DisclosureGroup("Change Server") {
@@ -126,6 +98,7 @@ struct HomeAssistantSettingsView: View {
                 Text("Use the address you normally use to open Home Assistant.")
             }
 
+            // MARK: - Server Section
             if shouldShowSignIn || canRetryConnection {
                 Section {
                     if shouldShowSignIn {
@@ -213,6 +186,7 @@ struct HomeAssistantSettingsView: View {
         }
         .navigationTitle("Home Assistant")
         .toolbarTitleDisplayMode(.inline)
+        .padding(.top, -30)
         .task(id: authRefreshTaskID) {
             await homeAssistantService.refreshAuthState()
         }
@@ -228,6 +202,45 @@ struct HomeAssistantSettingsView: View {
         } message: {
             Text("This removes saved Home Assistant credentials and mobile app registration from this device.")
         }
+    }
+    
+    // MARK: - Account Section
+    private var accountSection: some View {
+        Section {
+            VStack(alignment: .center, spacing: 10) {
+                HomeAssistantAvatarView()
+                    .frame(width: 100, height: 100)
+                
+                Text(accountTitle)
+//                    .foregroundStyle(.primary)
+                    .font(.title)
+                    .fontWeight(.bold)
+//                    .fontDesign(.rounded)
+                
+                Text(serverDisplayText)
+//                    .font(.subheadline)
+//                    .foregroundStyle(.secondary)
+                    .foregroundColor(.gray)
+                    .fontDesign(.rounded)
+            }
+            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity)
+            
+
+            if let primaryStatusMessage {
+                Text(primaryStatusMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if hasServerMismatch, let signedInServerDisplayText {
+                LabeledContent("Signed-In Server") {
+                    Text(signedInServerDisplayText)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+        .listRowBackground(Color.clear)
     }
 
     private var serverDisplayText: String {
@@ -793,6 +806,7 @@ private struct HomeAssistantSettingsRow: View {
     var body: some View {
         HStack(spacing: 15) {
             HomeAssistantAvatarView()
+                .frame(width: 60, height: 60)
             
             VStack(alignment: .leading) {
                 Text(title)
@@ -836,7 +850,7 @@ private struct HomeAssistantAvatarView: View {
                     .foregroundColor(.gray)
             }
         }
-        .frame(width: 60, height: 60)
+//        .frame(width: 60, height: 60)
         .clipShape(Circle())
         .task(id: taskID) {
             await loadImage()
