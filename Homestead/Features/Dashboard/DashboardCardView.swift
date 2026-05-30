@@ -6,10 +6,6 @@ struct DashboardCardView: View {
     var displayNameOverride: String?
     var iconNameOverride: String?
     var isEditing = false
-    var setSize: ((DashboardCardSize) -> Void)?
-    var setIconNameOverride: ((String?) -> Void)?
-    var rename: (() -> Void)?
-    var remove: (() -> Void)?
 
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
@@ -27,14 +23,9 @@ struct DashboardCardView: View {
                 presentation: presentation,
                 size: size,
                 isPending: entityBox.pendingCommand != nil,
-                isEditing: isEditing,
                 isPrimaryActionAvailable: primaryActionAvailability(for: entityBox),
                 toggle: isEditing ? nil : primaryAction(for: entityBox),
-                showDetails: isEditing ? nil : detailsAction(for: entityBox),
-                setSize: isEditing ? setSize : nil,
-                setIconNameOverride: isEditing ? setIconNameOverride : nil,
-                rename: isEditing ? rename : nil,
-                remove: isEditing ? remove : nil
+                showDetails: isEditing ? nil : detailsAction(for: entityBox)
             )
             .sheet(item: $selectedDetail) { detail in
                 if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
@@ -162,14 +153,9 @@ private struct DashboardEntityCard: View {
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
     let isPending: Bool
-    let isEditing: Bool
     let isPrimaryActionAvailable: Bool
     let toggle: (() -> Void)?
     let showDetails: (() -> Void)?
-    let setSize: ((DashboardCardSize) -> Void)?
-    let setIconNameOverride: ((String?) -> Void)?
-    let rename: (() -> Void)?
-    let remove: (() -> Void)?
 
     var body: some View {
         CardContainer(isActive: presentation.isActive, minHeight: cardContainerMinHeight) {
@@ -203,30 +189,6 @@ private struct DashboardEntityCard: View {
                     .accessibilityHint(presentation.primaryActionAccessibilityHint)
                 }
 
-            }
-        }
-        .overlay(alignment: .topLeading) {
-            if isEditing {
-                removeButton
-                    .offset(x: -8, y: -8)
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            if isEditing {
-                renameButton
-                    .offset(x: 6, y: -8)
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if isEditing {
-                sizeMenu
-                    .offset(x: 6, y: 6)
-            }
-        }
-        .overlay(alignment: .bottomLeading) {
-            if isEditing {
-                iconMenu
-                    .offset(x: -6, y: 6)
             }
         }
     }
@@ -322,71 +284,6 @@ private struct DashboardEntityCard: View {
             }
     }
     
-    @ViewBuilder
-    private var sizeMenu: some View {
-        if let setSize {
-            Menu {
-                Picker("", selection: Binding(
-                    get: { size },
-                    set: { setSize($0) }
-                )) {
-                    ForEach(DashboardCardSize.allCases, id: \.self) { option in
-                        Label(option.displayName, systemImage: option.systemImage)
-                            .tag(option)
-                            .tint(size == option ? .primary : .gray)
-                    }
-                }
-                .pickerStyle(.segmented)
-            } label: {
-                Image(systemName: "arrow.up.backward.and.arrow.down.forward")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
-            }
-            .accessibilityLabel("Card size")
-        }
-    }
-
-    @ViewBuilder
-    private var iconMenu: some View {
-        if let setIconNameOverride {
-            DashboardIconOverrideMenu(
-                selectedSystemName: presentation.iconName,
-                setIconNameOverride: setIconNameOverride
-            )
-        }
-    }
-
-    @ViewBuilder
-    private var removeButton: some View {
-        if let remove {
-            Button(action: remove) {
-                Image(systemName: "minus")
-                    .font(.subheadline.weight(.bold))
-//                    .foregroundStyle(.secondary)
-                    .foregroundStyle(.red)
-                    .frame(width: 28, height: 28)
-                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
-            }
-            .accessibilityLabel("Remove \(presentation.title)")
-        }
-    }
-
-    @ViewBuilder
-    private var renameButton: some View {
-        if let rename {
-            Button(action: rename) {
-                Image(systemName: "pencil")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
-            }
-            .accessibilityLabel("Rename \(presentation.title)")
-        }
-    }
-    
     private var cardContentMinHeight: CGFloat {
         max(0, cardContainerMinHeight - (AppSpacing.medium * 2))
     }
@@ -464,9 +361,7 @@ private struct DashboardCardEditModePreview: View {
         DashboardCardView(
             entityID: "light.living_room_lamps",
             size: size,
-            isEditing: true,
-            setSize: { size = $0 },
-            remove: {}
+            isEditing: true
         )
         .frame(width: previewWidth)
         .padding()

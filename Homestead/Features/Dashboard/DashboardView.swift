@@ -148,34 +148,11 @@ struct DashboardView: View {
         .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
             if isEditingDashboard {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Menu {
-                        Button {
-                            addSheetMode = .cards
-                        } label: {
-                            Label("Add to Dashboard", systemImage: "plus.app")
-                        }
+                ToolbarItem(placement: .primaryAction) {
+                    editActionsMenu
+                }
 
-                        Button {
-                            addHeaderAndRename()
-                        } label: {
-                            Label("Add Section Header", systemImage: "textformat.size")
-                        }
-
-                        Divider()
-
-                        Button {
-                            isShowingReorderSheet = true
-                        } label: {
-                            Label("Reorder Dashboard", systemImage: "arrow.up.arrow.down")
-                        }
-                        .disabled(dashboardConfiguration.items.count < 2)
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .bold()
-                    }
-                    .accessibilityLabel("Dashboard edit actions")
-                    
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done", role: .confirm) {
                         isEditingDashboard = false
                     }
@@ -444,41 +421,49 @@ struct DashboardView: View {
         .accessibilityElement(children: .contain)
     }
 
+    @ViewBuilder
     private func dashboardHeader(_ item: DashboardItemConfiguration) -> some View {
-        DashboardHeaderCardView(
-            title: item.resolvedTitle,
-            isEditing: isEditingDashboard,
-            rename: isEditingDashboard ? {
-                beginRenamingHeader(item)
-            } : nil,
-            remove: isEditingDashboard ? {
-                dashboardConfiguration.removeItem(id: item.id)
-            } : nil
-        )
-        .frame(maxWidth: .infinity)
+        if isEditingDashboard {
+            Menu {
+                headerEditMenuContent(for: item)
+            } label: {
+                DashboardHeaderCardView(title: item.resolvedTitle)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            DashboardHeaderCardView(title: item.resolvedTitle)
+                .frame(maxWidth: .infinity)
+        }
     }
     
+    @ViewBuilder
     private func dashboardCard(_ item: DashboardCardItem) -> some View {
-        DashboardCardView(
-            entityID: item.entityID,
-            size: item.size,
-            displayNameOverride: item.displayNameOverride,
-            iconNameOverride: item.iconNameOverride,
-            isEditing: isEditingDashboard,
-            setSize: isEditingDashboard ? { size in
-                dashboardConfiguration.setCardSize(size, forItemID: item.id)
-            } : nil,
-            setIconNameOverride: isEditingDashboard ? { iconName in
-                dashboardConfiguration.setIconNameOverride(iconName, forItemID: item.id)
-            } : nil,
-            rename: isEditingDashboard ? {
-                beginRenamingEntity(item)
-            } : nil,
-            remove: isEditingDashboard ? {
-                dashboardConfiguration.removeItem(id: item.id)
-            } : nil
-        )
-        .frame(maxWidth: .infinity)
+        if isEditingDashboard {
+            Menu {
+                cardEditMenuContent(for: item)
+            } label: {
+                DashboardCardView(
+                    entityID: item.entityID,
+                    size: item.size,
+                    displayNameOverride: item.displayNameOverride,
+                    iconNameOverride: item.iconNameOverride,
+                    isEditing: true
+                )
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            DashboardCardView(
+                entityID: item.entityID,
+                size: item.size,
+                displayNameOverride: item.displayNameOverride,
+                iconNameOverride: item.iconNameOverride
+            )
+            .frame(maxWidth: .infinity)
+        }
     }
 
     @ViewBuilder
@@ -486,20 +471,138 @@ struct DashboardView: View {
         let presentation = chipPresentation(for: item)
 
         if let presentation {
-            DashboardChipView(
-                presentation: presentation,
-                isEditing: isEditingDashboard,
-                setIconNameOverride: isEditingDashboard ? { iconName in
-                    dashboardConfiguration.setIconNameOverride(iconName, forItemID: item.id)
-                } : nil,
-                rename: isEditingDashboard ? {
-                    beginRenamingChip(item)
-                } : nil,
-                remove: isEditingDashboard ? {
-                    dashboardConfiguration.removeItem(id: item.id)
-                } : nil
-            )
+            if isEditingDashboard {
+                Menu {
+                    chipEditMenuContent(for: item, presentation: presentation)
+                } label: {
+                    DashboardChipView(presentation: presentation)
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            } else {
+                DashboardChipView(presentation: presentation)
+            }
         }
+    }
+
+    @ViewBuilder
+    private func headerEditMenuContent(for item: DashboardItemConfiguration) -> some View {
+        Button {
+            beginRenamingHeader(item)
+        } label: {
+            Label("Rename", systemImage: "pencil")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            dashboardConfiguration.removeItem(id: item.id)
+        } label: {
+            Label("Remove Header", systemImage: "trash")
+        }
+    }
+
+    @ViewBuilder
+    private func cardEditMenuContent(for item: DashboardCardItem) -> some View {
+        Picker("Card Size", selection: Binding(
+            get: { dashboardConfiguration.cardSize(forItemID: item.id) },
+            set: { size in
+                HapticFeedback.selection()
+                dashboardConfiguration.setCardSize(size, forItemID: item.id)
+            }
+        )) {
+            ForEach(DashboardCardSize.allCases, id: \.self) { option in
+                Label(option.displayName, systemImage: option.systemImage)
+                    .tag(option)
+                    .tint(item.size == option ? .primary : .gray)
+            }
+        }
+        .pickerStyle(.segmented)
+
+        Divider()
+
+        Button {
+            beginRenamingEntity(item)
+        } label: {
+            Label("Rename", systemImage: "pencil")
+        }
+
+        Menu {
+            iconOverrideMenuContent(
+                selectedSystemName: currentCardIconName(for: item),
+                setIconNameOverride: { iconName in
+                    dashboardConfiguration.setIconNameOverride(iconName, forItemID: item.id)
+                }
+            )
+        } label: {
+            Label("Change Icon", systemImage: "circle.grid.2x2")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            dashboardConfiguration.removeItem(id: item.id)
+        } label: {
+            Label("Remove Card", systemImage: "trash")
+        }
+    }
+
+    @ViewBuilder
+    private func chipEditMenuContent(for item: DashboardChipItem, presentation: DashboardChipPresentation) -> some View {
+        Button {
+            beginRenamingChip(item)
+        } label: {
+            Label("Rename", systemImage: "pencil")
+        }
+
+        Menu {
+            iconOverrideMenuContent(
+                selectedSystemName: presentation.systemImage,
+                setIconNameOverride: { iconName in
+                    dashboardConfiguration.setIconNameOverride(iconName, forItemID: item.id)
+                }
+            )
+        } label: {
+            Label("Change Icon", systemImage: "circle.grid.2x2")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            dashboardConfiguration.removeItem(id: item.id)
+        } label: {
+            Label("Remove Chip", systemImage: "trash")
+        }
+    }
+
+    @ViewBuilder
+    private func iconOverrideMenuContent(
+        selectedSystemName: String,
+        setIconNameOverride: @escaping (String?) -> Void
+    ) -> some View {
+        Button {
+            HapticFeedback.selection()
+            setIconNameOverride(nil)
+        } label: {
+            Label("Default Icon", systemImage: "arrow.counterclockwise")
+        }
+
+        ForEach(DashboardIconChoice.choices) { choice in
+            Button {
+                HapticFeedback.selection()
+                setIconNameOverride(choice.systemName)
+            } label: {
+                Label {
+                    Text(choice.title)
+                } icon: {
+                    Image(systemName: choice.systemName == selectedSystemName ? "checkmark.circle.fill" : choice.systemName)
+                }
+            }
+        }
+    }
+
+    private func currentCardIconName(for item: DashboardCardItem) -> String {
+        item.iconNameOverride ?? stateStore.entity(for: item.entityID)?.iconName ?? "square.grid.2x2"
     }
 
     private func chipPresentation(for item: DashboardChipItem) -> DashboardChipPresentation? {
@@ -536,6 +639,35 @@ struct DashboardView: View {
     }
     
     // MARK: - Options Menu
+    private var editActionsMenu: some View {
+        Menu {
+            Button {
+                addSheetMode = .cards
+            } label: {
+                Label("Add to Dashboard", systemImage: "plus.app")
+            }
+
+            Button {
+                addHeaderAndRename()
+            } label: {
+                Label("Add Section Header", systemImage: "textformat.size")
+            }
+
+            Divider()
+
+            Button {
+                isShowingReorderSheet = true
+            } label: {
+                Label("Reorder Dashboard", systemImage: "arrow.up.arrow.down")
+            }
+            .disabled(dashboardConfiguration.items.count < 2)
+        } label: {
+            Image(systemName: "ellipsis")
+                .bold()
+        }
+        .accessibilityLabel("Dashboard edit actions")
+    }
+
     private var optionsMenu: some View {
         Menu {
             Button {
@@ -1256,9 +1388,6 @@ private struct DashboardReorderRow: View {
 
 private struct DashboardHeaderCardView: View {
     let title: String
-    let isEditing: Bool
-    var rename: (() -> Void)?
-    var remove: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .center, spacing: AppSpacing.small) {
@@ -1269,10 +1398,6 @@ private struct DashboardHeaderCardView: View {
                 .truncationMode(.tail)
 
             Spacer(minLength: AppSpacing.medium)
-
-            if isEditing {
-                editControls
-            }
         }
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .padding(.horizontal, AppSpacing.small)
@@ -1284,32 +1409,6 @@ private struct DashboardHeaderCardView: View {
                 .frame(height: 1)
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private var editControls: some View {
-        HStack(spacing: AppSpacing.small) {
-            if let rename {
-                Button(action: rename) {
-                    Image(systemName: "pencil")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 28)
-                        .background(Color(.secondarySystemGroupedBackground), in: Circle())
-                }
-                .accessibilityLabel("Rename \(title)")
-            }
-
-            if let remove {
-                Button(action: remove) {
-                    Image(systemName: "minus")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.red)
-                        .frame(width: 28, height: 28)
-                        .background(Color(.secondarySystemGroupedBackground), in: Circle())
-                }
-                .accessibilityLabel("Remove \(title)")
-            }
-        }
     }
 }
 
