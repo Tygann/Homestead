@@ -42,12 +42,20 @@ struct DashboardChipView: View {
 
     private var iconColor: Color {
         guard presentation.isAvailable else { return .red }
-        return presentation.isActive ? .accentColor : .secondary
-    }
-
-    private var iconBackground: Color {
-        guard presentation.isAvailable else { return Color.red.opacity(0.12) }
-        return presentation.isActive ? Color.accentColor.opacity(0.14) : Color(.tertiarySystemGroupedBackground)
+        switch presentation.iconTint {
+        case .status:
+            return presentation.isActive ? .accentColor : .secondary
+        case .lights:
+            return .yellow
+        case .security:
+            return .mint
+        case .climate:
+            return .blue
+        case .battery:
+            return .orange
+        case .media:
+            return .gray
+        }
     }
 }
 

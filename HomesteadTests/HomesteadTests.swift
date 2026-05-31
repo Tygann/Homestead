@@ -2925,14 +2925,22 @@ struct HomesteadTests {
         let batteries = try #require(DashboardSummaryProvider.makeSummary(kind: .batteries, entityBoxes: boxes))
         let media = try #require(DashboardSummaryProvider.makeSummary(kind: .media, entityBoxes: boxes))
 
-        #expect(lights.value == "1 on")
+        #expect(lights.value == "1 On")
         #expect(lights.isActive)
+        #expect(lights.systemImage == "lightbulb.fill")
+        #expect(lights.iconTint == .lights)
         #expect(security.title == "Security")
-        #expect(security.value == "2 open")
-        #expect(security.systemImage == "shield.fill")
+        #expect(security.value == "2 Open")
+        #expect(security.systemImage == "lock.fill")
+        #expect(security.iconTint == .security)
         #expect(climate.value == "74.5°F")
-        #expect(batteries.value == "1 low")
-        #expect(media.value == "1 playing")
+        #expect(climate.iconTint == .climate)
+        #expect(batteries.value == "1 Low")
+        #expect(batteries.systemImage == "battery.75percent")
+        #expect(batteries.iconTint == .battery)
+        #expect(media.value == "1 Playing")
+        #expect(media.systemImage == "play.tv.fill")
+        #expect(media.iconTint == .media)
         #expect(DashboardSummaryKind.allCases == [.lights, .security, .climate, .batteries, .media])
 
         let lightChip = DashboardSummaryProvider.makeEntityChip(
@@ -2943,6 +2951,7 @@ struct HomesteadTests {
         #expect(lightChip.title == "Counter")
         #expect(lightChip.systemImage == "lamp.table")
         #expect(lightChip.isActive)
+        #expect(lightChip.iconTint == .status)
     }
 
     @MainActor

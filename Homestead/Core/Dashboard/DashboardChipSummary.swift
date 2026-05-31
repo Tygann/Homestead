@@ -48,17 +48,17 @@ nonisolated enum DashboardSummaryKind: String, CaseIterable, Codable, Equatable,
     var systemImage: String {
         switch canonicalKind {
         case .lights:
-            "lightbulb"
+            "lightbulb.fill"
         case .security:
-            "shield.fill"
+            "lock.fill"
         case .climate:
-            "thermometer.medium"
+            "fan.fill"
         case .batteries:
             "battery.75percent"
         case .media:
-            "play.tv"
+            "play.tv.fill"
         case .doors, .locks, .cameras:
-            "shield.fill"
+            "lock.fill"
         }
     }
 }
@@ -69,10 +69,36 @@ struct DashboardChipPresentation: Equatable, Sendable {
     let systemImage: String
     let isActive: Bool
     let isAvailable: Bool
+    let iconTint: DashboardChipIconTint
 
     var accessibilityValue: String {
         value
     }
+
+    init(
+        title: String,
+        value: String,
+        systemImage: String,
+        isActive: Bool,
+        isAvailable: Bool,
+        iconTint: DashboardChipIconTint = .status
+    ) {
+        self.title = title
+        self.value = value
+        self.systemImage = systemImage
+        self.isActive = isActive
+        self.isAvailable = isAvailable
+        self.iconTint = iconTint
+    }
+}
+
+nonisolated enum DashboardChipIconTint: Equatable, Sendable {
+    case status
+    case lights
+    case security
+    case climate
+    case battery
+    case media
 }
 
 struct DashboardSummaryDetailPresentation: Equatable, Sendable {
@@ -132,9 +158,10 @@ enum DashboardSummaryProvider {
             return DashboardChipPresentation(
                 title: title,
                 value: countValue(activeCount, activeWord: "on", inactiveWord: "off"),
-                systemImage: activeCount > 0 ? "lightbulb.fill" : defaultSystemImage,
+                systemImage: defaultSystemImage,
                 isActive: activeCount > 0,
-                isAvailable: lights.contains { $0.homeEntity.isAvailable }
+                isAvailable: lights.contains { $0.homeEntity.isAvailable },
+                iconTint: .lights
             )
         case .security:
             let securityItems = entityBoxes.compactMap(securityContext)
@@ -146,7 +173,8 @@ enum DashboardSummaryProvider {
                 value: issueValue,
                 systemImage: defaultSystemImage,
                 isActive: !issues.isEmpty,
-                isAvailable: securityItems.contains { $0.entityBox.homeEntity.isAvailable }
+                isAvailable: securityItems.contains { $0.entityBox.homeEntity.isAvailable },
+                iconTint: .security
             )
         case .climate:
             let climateItems = entityBoxes.filter(isClimateSummaryEntity)
@@ -154,10 +182,11 @@ enum DashboardSummaryProvider {
             let activeCount = climateItems.filter(isClimateActive).count
             return DashboardChipPresentation(
                 title: title,
-                value: primaryClimateTemperatureText(from: climateItems) ?? (activeCount == 0 ? "All idle" : "\(activeCount) active"),
+                value: primaryClimateTemperatureText(from: climateItems) ?? countValue(activeCount, activeWord: "active", inactiveWord: "idle"),
                 systemImage: defaultSystemImage,
                 isActive: activeCount > 0,
-                isAvailable: climateItems.contains { $0.homeEntity.isAvailable }
+                isAvailable: climateItems.contains { $0.homeEntity.isAvailable },
+                iconTint: .climate
             )
         case .batteries:
             let batteries = entityBoxes.compactMap(\.sensorEntity).filter { $0.displayKind == .battery }
@@ -166,9 +195,10 @@ enum DashboardSummaryProvider {
             return DashboardChipPresentation(
                 title: title,
                 value: countValue(lowCount, activeWord: "low", inactiveWord: "ok"),
-                systemImage: lowCount > 0 ? "battery.25percent" : defaultSystemImage,
+                systemImage: defaultSystemImage,
                 isActive: lowCount > 0,
-                isAvailable: batteries.contains(where: \.isAvailable)
+                isAvailable: batteries.contains(where: \.isAvailable),
+                iconTint: .battery
             )
         case .media:
             let players = entityBoxes.filter { $0.domain == .mediaPlayer }
@@ -177,9 +207,10 @@ enum DashboardSummaryProvider {
             return DashboardChipPresentation(
                 title: title,
                 value: countValue(playingCount, activeWord: "playing", inactiveWord: "idle"),
-                systemImage: playingCount > 0 ? "play.tv.fill" : defaultSystemImage,
+                systemImage: defaultSystemImage,
                 isActive: playingCount > 0,
-                isAvailable: players.contains { $0.homeEntity.isAvailable }
+                isAvailable: players.contains { $0.homeEntity.isAvailable },
+                iconTint: .media
             )
         case .doors, .locks, .cameras:
             return makeSummary(
@@ -252,7 +283,7 @@ enum DashboardSummaryProvider {
     }
 
     private static func countValue(_ count: Int, activeWord: String, inactiveWord: String) -> String {
-        count == 0 ? "All \(inactiveWord)" : "\(count) \(activeWord)"
+        count == 0 ? "All \(inactiveWord.capitalizedFirstLetter)" : "\(count) \(activeWord.capitalizedFirstLetter)"
     }
 
     private static func normalizedOverride(_ value: String?) -> String? {
@@ -492,10 +523,10 @@ enum DashboardSummaryProvider {
                 continue
             }
 
-            return "\(count) \(issueKind.summaryWord)"
+            return "\(count) \(issueKind.summaryWord.capitalizedFirstLetter)"
         }
 
-        return "\(issues.count) need attention"
+        return "\(issues.count) \("need attention".capitalizedFirstLetter)"
     }
 
     private static func securityContext(for entityBox: HAEntityState) -> SecurityContext? {
@@ -702,6 +733,11 @@ private enum SecurityIssueKind {
 }
 
 private extension String {
+    var capitalizedFirstLetter: String {
+        guard let first else { return self }
+        return first.uppercased() + dropFirst()
+    }
+
     var nonEmptyValue: String? {
         let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue
