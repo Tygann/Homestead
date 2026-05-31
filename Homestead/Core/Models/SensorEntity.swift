@@ -151,6 +151,135 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
     }
 }
 
+struct BinarySensorEntity: Identifiable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let state: String
+    let deviceClass: String?
+    let iconName: String
+    let lastUpdated: Date?
+
+    var id: String { entityID }
+
+    var isAvailable: Bool {
+        !["unknown", "unavailable"].contains(state)
+    }
+
+    var isActive: Bool {
+        state == "on"
+    }
+
+    var displayKind: BinarySensorDisplayKind {
+        BinarySensorDisplayKind(deviceClass: deviceClass)
+    }
+
+    var displaySubtitle: String {
+        guard isAvailable else { return "Sensor unavailable" }
+
+        switch displayKind {
+        case .door, .window, .garageDoor, .opening:
+            return isActive ? "Open" : "Closed"
+        case .lock:
+            return isActive ? "Unlocked" : "Locked"
+        case .moisture:
+            return isActive ? "Wet" : "Dry"
+        case .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas:
+            return isActive ? "Detected" : "Clear"
+        case .connectivity:
+            return isActive ? "Connected" : "Disconnected"
+        case .plug, .power:
+            return isActive ? "On" : "Off"
+        case .light:
+            return isActive ? "Light" : "Clear"
+        case .generic:
+            return isActive ? "Detected" : "Clear"
+        }
+    }
+
+    var isSecurityRelevant: Bool {
+        switch displayKind {
+        case .door, .window, .garageDoor, .opening, .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas:
+            return true
+        case .moisture, .connectivity, .plug, .power, .light, .generic:
+            return false
+        }
+    }
+
+    var isEntryPoint: Bool {
+        switch displayKind {
+        case .door, .window, .garageDoor, .opening:
+            return true
+        case .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .moisture, .connectivity, .plug, .power, .light, .generic:
+            return false
+        }
+    }
+}
+
+nonisolated enum BinarySensorDisplayKind: Equatable, Sendable {
+    case door
+    case window
+    case garageDoor
+    case opening
+    case lock
+    case motion
+    case occupancy
+    case presence
+    case tamper
+    case safety
+    case problem
+    case smoke
+    case gas
+    case moisture
+    case connectivity
+    case plug
+    case power
+    case light
+    case generic
+
+    init(deviceClass: String?) {
+        switch deviceClass {
+        case "door":
+            self = .door
+        case "window":
+            self = .window
+        case "garage_door":
+            self = .garageDoor
+        case "opening":
+            self = .opening
+        case "lock":
+            self = .lock
+        case "motion":
+            self = .motion
+        case "occupancy":
+            self = .occupancy
+        case "presence":
+            self = .presence
+        case "tamper":
+            self = .tamper
+        case "safety":
+            self = .safety
+        case "problem":
+            self = .problem
+        case "smoke":
+            self = .smoke
+        case "gas":
+            self = .gas
+        case "moisture":
+            self = .moisture
+        case "connectivity":
+            self = .connectivity
+        case "plug":
+            self = .plug
+        case "power":
+            self = .power
+        case "light":
+            self = .light
+        default:
+            self = .generic
+        }
+    }
+}
+
 nonisolated enum SensorDisplayKind: Equatable, Sendable {
     case temperature
     case humidity

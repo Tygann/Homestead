@@ -20,6 +20,7 @@ final class HAStateStore {
     @ObservationIgnored private(set) var fanEntitiesByID: [String: FanEntity] = [:]
     @ObservationIgnored private(set) var mediaPlayerEntitiesByID: [String: MediaPlayerEntity] = [:]
     @ObservationIgnored private(set) var sensorEntitiesByID: [String: SensorEntity] = [:]
+    @ObservationIgnored private(set) var binarySensorEntitiesByID: [String: BinarySensorEntity] = [:]
     @ObservationIgnored private var rawEntitiesByID: [String: HAEntityDTO] = [:]
     @ObservationIgnored private var entityBoxesByID: [String: HAEntityState] = [:]
     @ObservationIgnored private var pendingCommandsByID: [String: HAEntityPendingCommand] = [:]
@@ -134,6 +135,10 @@ final class HAStateStore {
 
     func sensorEntity(for entityID: String) -> SensorEntity? {
         sensorEntitiesByID[entityID]
+    }
+
+    func binarySensorEntity(for entityID: String) -> BinarySensorEntity? {
+        binarySensorEntitiesByID[entityID]
     }
 
     func replaceDataSourceIfNeeded(_ dataSourceID: String) {
@@ -291,6 +296,7 @@ final class HAStateStore {
         fanEntitiesByID.removeAll()
         mediaPlayerEntitiesByID.removeAll()
         sensorEntitiesByID.removeAll()
+        binarySensorEntitiesByID.removeAll()
         rawEntitiesByID.removeAll()
         entityBoxesByID.removeAll()
         pendingCommandsByID.removeAll()
@@ -322,6 +328,9 @@ final class HAStateStore {
         sensorEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
             EntityMapper.sensorEntity(from: dto).map { ($0.entityID, $0) }
         })
+        binarySensorEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
+            EntityMapper.binarySensorEntity(from: dto).map { ($0.entityID, $0) }
+        })
         var updatedEntityBoxesByID: [String: HAEntityState] = [:]
         for dto in entities {
             let homeEntity = EntityMapper.homeEntity(from: dto)
@@ -335,6 +344,7 @@ final class HAStateStore {
                     fanEntity: EntityMapper.fanEntity(from: dto),
                     mediaPlayerEntity: EntityMapper.mediaPlayerEntity(from: dto),
                     sensorEntity: EntityMapper.sensorEntity(from: dto),
+                    binarySensorEntity: EntityMapper.binarySensorEntity(from: dto),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
                 updatedEntityBoxesByID[dto.entityID] = entityBox
@@ -347,6 +357,7 @@ final class HAStateStore {
                     fanEntity: EntityMapper.fanEntity(from: dto),
                     mediaPlayerEntity: EntityMapper.mediaPlayerEntity(from: dto),
                     sensorEntity: EntityMapper.sensorEntity(from: dto),
+                    binarySensorEntity: EntityMapper.binarySensorEntity(from: dto),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
             }
@@ -378,6 +389,7 @@ final class HAStateStore {
         fanEntitiesByID[dto.entityID] = EntityMapper.fanEntity(from: dto)
         mediaPlayerEntitiesByID[dto.entityID] = EntityMapper.mediaPlayerEntity(from: dto)
         sensorEntitiesByID[dto.entityID] = EntityMapper.sensorEntity(from: dto)
+        binarySensorEntitiesByID[dto.entityID] = EntityMapper.binarySensorEntity(from: dto)
         updateEntityBox(
             entityID: dto.entityID,
             homeEntity: homeEntity,
@@ -387,6 +399,7 @@ final class HAStateStore {
             fanEntity: fanEntitiesByID[dto.entityID],
             mediaPlayerEntity: mediaPlayerEntitiesByID[dto.entityID],
             sensorEntity: sensorEntitiesByID[dto.entityID],
+            binarySensorEntity: binarySensorEntitiesByID[dto.entityID],
             pendingCommand: pendingCommandsByID[dto.entityID]
         )
 
@@ -428,6 +441,7 @@ final class HAStateStore {
         fanEntitiesByID.removeValue(forKey: entityID)
         mediaPlayerEntitiesByID.removeValue(forKey: entityID)
         sensorEntitiesByID.removeValue(forKey: entityID)
+        binarySensorEntitiesByID.removeValue(forKey: entityID)
         entityBoxesByID.removeValue(forKey: entityID)
         pendingCommandsByID.removeValue(forKey: entityID)
 
@@ -499,6 +513,7 @@ final class HAStateStore {
         fanEntity: FanEntity?,
         mediaPlayerEntity: MediaPlayerEntity?,
         sensorEntity: SensorEntity?,
+        binarySensorEntity: BinarySensorEntity?,
         pendingCommand: HAEntityPendingCommand?
     ) {
         if let entityBox = entityBoxesByID[entityID] {
@@ -510,6 +525,7 @@ final class HAStateStore {
                 fanEntity: fanEntity,
                 mediaPlayerEntity: mediaPlayerEntity,
                 sensorEntity: sensorEntity,
+                binarySensorEntity: binarySensorEntity,
                 pendingCommand: pendingCommand
             )
         } else {
@@ -521,6 +537,7 @@ final class HAStateStore {
                 fanEntity: fanEntity,
                 mediaPlayerEntity: mediaPlayerEntity,
                 sensorEntity: sensorEntity,
+                binarySensorEntity: binarySensorEntity,
                 pendingCommand: pendingCommand
             )
         }
@@ -678,6 +695,7 @@ final class HAEntityState: Identifiable {
     var fanEntity: FanEntity?
     var mediaPlayerEntity: MediaPlayerEntity?
     var sensorEntity: SensorEntity?
+    var binarySensorEntity: BinarySensorEntity?
     var pendingCommand: HAEntityPendingCommand?
 
     var id: String { homeEntity.entityID }
@@ -692,6 +710,7 @@ final class HAEntityState: Identifiable {
         fanEntity: FanEntity? = nil,
         mediaPlayerEntity: MediaPlayerEntity? = nil,
         sensorEntity: SensorEntity? = nil,
+        binarySensorEntity: BinarySensorEntity? = nil,
         pendingCommand: HAEntityPendingCommand? = nil
     ) {
         self.homeEntity = homeEntity
@@ -701,6 +720,7 @@ final class HAEntityState: Identifiable {
         self.fanEntity = fanEntity
         self.mediaPlayerEntity = mediaPlayerEntity
         self.sensorEntity = sensorEntity
+        self.binarySensorEntity = binarySensorEntity
         self.pendingCommand = pendingCommand
     }
 
@@ -712,6 +732,7 @@ final class HAEntityState: Identifiable {
         fanEntity: FanEntity?,
         mediaPlayerEntity: MediaPlayerEntity?,
         sensorEntity: SensorEntity?,
+        binarySensorEntity: BinarySensorEntity?,
         pendingCommand: HAEntityPendingCommand?
     ) {
         self.homeEntity = homeEntity
@@ -721,6 +742,7 @@ final class HAEntityState: Identifiable {
         self.fanEntity = fanEntity
         self.mediaPlayerEntity = mediaPlayerEntity
         self.sensorEntity = sensorEntity
+        self.binarySensorEntity = binarySensorEntity
         self.pendingCommand = pendingCommand
     }
 }

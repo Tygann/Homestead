@@ -103,6 +103,19 @@ enum EntityMapper {
         )
     }
 
+    static func binarySensorEntity(from dto: HAEntityDTO) -> BinarySensorEntity? {
+        guard EntityDomain(entityID: dto.entityID) == .binarySensor else { return nil }
+
+        return BinarySensorEntity(
+            entityID: dto.entityID,
+            displayName: displayName(for: dto),
+            state: dto.state,
+            deviceClass: dto.attributes["device_class"]?.stringValue,
+            iconName: binarySensorIconName(for: dto),
+            lastUpdated: dto.lastUpdated
+        )
+    }
+
     private static func displayName(for dto: HAEntityDTO) -> String {
         if let friendlyName = dto.attributes["friendly_name"]?.stringValue, !friendlyName.isEmpty {
             return friendlyName
@@ -128,7 +141,7 @@ enum EntityMapper {
         case .sensor:
             "gauge.medium"
         case .binarySensor:
-            binarySensorIconName(state: state)
+            binarySensorIconName(deviceClass: nil, state: state)
         case .switch:
             state == "on" ? "switch.2" : "switch.2"
         case .fan:
@@ -150,8 +163,48 @@ enum EntityMapper {
         }
     }
 
-    private static func binarySensorIconName(state: String) -> String {
-        state == "on" ? "sensor.tag.radiowaves.forward.fill" : "sensor.tag.radiowaves.forward"
+    private static func binarySensorIconName(for dto: HAEntityDTO) -> String {
+        binarySensorIconName(
+            deviceClass: dto.attributes["device_class"]?.stringValue,
+            state: dto.state
+        )
+    }
+
+    private static func binarySensorIconName(deviceClass: String?, state: String) -> String {
+        let isActive = state == "on"
+
+        switch BinarySensorDisplayKind(deviceClass: deviceClass) {
+        case .door:
+            return isActive ? "door.left.hand.open" : "door.left.hand.closed"
+        case .window:
+            return isActive ? "window.vertical.open" : "window.vertical.closed"
+        case .garageDoor:
+            return isActive ? "door.garage.open" : "door.garage.closed"
+        case .opening:
+            return isActive ? "rectangle.portrait.and.arrow.right" : "rectangle.portrait"
+        case .lock:
+            return isActive ? "lock.open" : "lock"
+        case .motion, .occupancy, .presence:
+            return isActive ? "figure.motion" : "figure.stand"
+        case .tamper, .safety, .problem:
+            return isActive ? "exclamationmark.triangle.fill" : "checkmark.shield"
+        case .smoke:
+            return isActive ? "smoke.fill" : "smoke"
+        case .gas:
+            return isActive ? "flame.fill" : "flame"
+        case .moisture:
+            return isActive ? "drop.fill" : "drop"
+        case .connectivity:
+            return isActive ? "wifi" : "wifi.slash"
+        case .plug:
+            return isActive ? "powerplug.fill" : "powerplug"
+        case .power:
+            return isActive ? "power.circle.fill" : "power.circle"
+        case .light:
+            return isActive ? "lightbulb.fill" : "lightbulb"
+        case .generic:
+            return isActive ? "sensor.tag.radiowaves.forward.fill" : "sensor.tag.radiowaves.forward"
+        }
     }
 
     private static func mediaPlayerIconName(state: String) -> String {

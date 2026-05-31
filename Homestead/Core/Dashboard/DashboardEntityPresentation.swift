@@ -349,6 +349,14 @@ struct DashboardEntityPresentation {
             isActive = sensor.isAlerting
             isAvailable = sensor.isAvailable
             accentColor = Self.sensorAccentColor(for: sensor, behavior: capability.iconAccentBehavior)
+        } else if let binarySensor = entityBox.binarySensorEntity {
+            title = overrideTitle ?? binarySensor.displayName
+            subtitle = binarySensor.displaySubtitle
+            headline = nil
+            iconName = overrideIconName ?? binarySensor.iconName
+            isActive = binarySensor.isActive
+            isAvailable = binarySensor.isAvailable
+            accentColor = Self.accentColor(for: binarySensor.isActive, behavior: capability.iconAccentBehavior)
         } else if let cover = entityBox.coverEntity {
             title = overrideTitle ?? cover.displayName
             subtitle = Self.coverSubtitle(cover, pendingCommand: pendingCommand)

@@ -719,7 +719,13 @@ struct HomesteadTests {
         let lockEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "lock.front_door", state: "locked"))
         let mediaEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "media_player.living_room", state: "playing"))
         let cameraEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "camera.driveway", state: "idle"))
-        let binarySensorEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "binary_sensor.front_door", state: "on"))
+        let binarySensorDTO = HAEntityDTO(
+            entityID: "binary_sensor.front_door",
+            state: "on",
+            attributes: ["device_class": .string("door")]
+        )
+        let binarySensorEntity = EntityMapper.homeEntity(from: binarySensorDTO)
+        let binarySensor = EntityMapper.binarySensorEntity(from: binarySensorDTO)
 
         #expect(switchEntity.domain == .switch)
         #expect(fanEntity.domain == .fan)
@@ -729,6 +735,8 @@ struct HomesteadTests {
         #expect(binarySensorEntity.domain == .binarySensor)
         #expect(lockEntity.iconName == "lock.fill")
         #expect(mediaEntity.iconName == "play.tv.fill")
+        #expect(binarySensor?.displayKind == .door)
+        #expect(binarySensor?.displaySubtitle == "Open")
     }
 
     @Test func entityMapperMapsCoverPositionState() throws {
@@ -2226,7 +2234,7 @@ struct HomesteadTests {
                 chipKind: nil,
                 summaryKind: nil
             ),
-            DashboardItemConfiguration.summaryChip(kind: .locks, id: chipID)
+            DashboardItemConfiguration.summaryChip(kind: .security, id: chipID)
         ]
 
         let layoutItems = DashboardLayoutItemBuilder.makeItems(from: items)
@@ -2261,7 +2269,7 @@ struct HomesteadTests {
         }
         #expect(chip.id == chipID)
         #expect(chip.chipKind == .summary)
-        #expect(chip.summaryKind == .locks)
+        #expect(chip.summaryKind == .security)
         #expect(layoutItems[3].layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1))
     }
 
@@ -2789,8 +2797,22 @@ struct HomesteadTests {
         store.applyInitialStates([
             HAEntityDTO(entityID: "light.kitchen", state: "on"),
             HAEntityDTO(entityID: "light.pantry", state: "off"),
-            HAEntityDTO(entityID: "lock.front_door", state: "unlocked"),
-            HAEntityDTO(entityID: "binary_sensor.back_door", state: "on"),
+            HAEntityDTO(entityID: "lock.front_door", state: "locked"),
+            HAEntityDTO(
+                entityID: "binary_sensor.back_door",
+                state: "on",
+                attributes: ["device_class": .string("door")]
+            ),
+            HAEntityDTO(entityID: "cover.garage_door", state: "open"),
+            HAEntityDTO(entityID: "camera.driveway", state: "idle"),
+            HAEntityDTO(
+                entityID: "climate.downstairs",
+                state: "heat_cool",
+                attributes: [
+                    "current_temperature": .number(74.5),
+                    "temperature_unit": .string("°F")
+                ]
+            ),
             HAEntityDTO(
                 entityID: "sensor.remote_battery",
                 state: "12",
@@ -2804,17 +2826,20 @@ struct HomesteadTests {
 
         let boxes = store.allEntityBoxes()
         let lights = try #require(DashboardSummaryProvider.makeSummary(kind: .lights, entityBoxes: boxes))
-        let doors = try #require(DashboardSummaryProvider.makeSummary(kind: .doors, entityBoxes: boxes))
-        let locks = try #require(DashboardSummaryProvider.makeSummary(kind: .locks, entityBoxes: boxes))
+        let security = try #require(DashboardSummaryProvider.makeSummary(kind: .security, entityBoxes: boxes))
+        let climate = try #require(DashboardSummaryProvider.makeSummary(kind: .climate, entityBoxes: boxes))
         let batteries = try #require(DashboardSummaryProvider.makeSummary(kind: .batteries, entityBoxes: boxes))
         let media = try #require(DashboardSummaryProvider.makeSummary(kind: .media, entityBoxes: boxes))
 
         #expect(lights.value == "1 on")
         #expect(lights.isActive)
-        #expect(doors.value == "1 open")
-        #expect(locks.value == "1 unlocked")
+        #expect(security.title == "Security")
+        #expect(security.value == "2 open")
+        #expect(security.systemImage == "shield.fill")
+        #expect(climate.value == "74.5°F")
         #expect(batteries.value == "1 low")
         #expect(media.value == "1 playing")
+        #expect(DashboardSummaryKind.allCases == [.lights, .security, .climate, .batteries, .media])
 
         let lightChip = DashboardSummaryProvider.makeEntityChip(
             entityBox: try #require(store.entityBox(for: "light.kitchen")),
@@ -2824,6 +2849,77 @@ struct HomesteadTests {
         #expect(lightChip.title == "Counter")
         #expect(lightChip.systemImage == "lamp.table")
         #expect(lightChip.isActive)
+    }
+
+    @MainActor
+    @Test func dashboardSummaryProviderBuildsFilteredSummaryDetailSections() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "on"),
+            HAEntityDTO(entityID: "light.bedroom", state: "off"),
+            HAEntityDTO(
+                entityID: "binary_sensor.back_door",
+                state: "on",
+                attributes: ["device_class": .string("door")]
+            ),
+            HAEntityDTO(
+                entityID: "binary_sensor.doorbell_ding",
+                state: "on",
+                attributes: ["device_class": .string("sound")]
+            ),
+            HAEntityDTO(entityID: "lock.front_door", state: "unlocked"),
+            HAEntityDTO(entityID: "cover.garage_door", state: "closed"),
+            HAEntityDTO(entityID: "camera.driveway", state: "idle"),
+            HAEntityDTO(
+                entityID: "sensor.remote_battery",
+                state: "12",
+                attributes: [
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.wall_remote_battery",
+                state: "84",
+                attributes: [
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
+            )
+        ])
+
+        let boxes = store.allEntityBoxes()
+        let areaNames = [
+            "binary_sensor.back_door": "Entryway",
+            "binary_sensor.doorbell_ding": "Entryway",
+            "lock.front_door": "Entryway",
+            "camera.driveway": "Entryway",
+            "cover.garage_door": "Garage",
+            "sensor.remote_battery": "Entryway",
+            "sensor.wall_remote_battery": "Garage"
+        ]
+        let securityDetail = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .security,
+            entityBoxes: boxes,
+            areaNameForEntityID: { areaNames[$0] }
+        ))
+        #expect(securityDetail.summary.value == "1 unlocked")
+        #expect(securityDetail.sections.map(\.title) == ["Entryway", "Garage"])
+        #expect(securityDetail.sections.first?.items.map(\.entityID) == [
+            "lock.front_door",
+            "binary_sensor.back_door",
+            "camera.driveway"
+        ])
+        #expect(securityDetail.sections.first?.items.contains { $0.entityID == "binary_sensor.doorbell_ding" } == false)
+        #expect(securityDetail.sections.first?.items.first { $0.entityID == "camera.driveway" }?.visualStyle == .camera)
+
+        let batteryDetail = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .batteries,
+            entityBoxes: boxes,
+            areaNameForEntityID: { areaNames[$0] }
+        ))
+        #expect(batteryDetail.sections.map(\.title) == ["Entryway", "Garage"])
+        #expect(batteryDetail.sections.first?.items.map(\.entityID) == ["sensor.remote_battery"])
     }
 
     private var dashboardTestEntities: [HomeEntity] {

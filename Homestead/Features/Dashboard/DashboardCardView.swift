@@ -29,32 +29,7 @@ struct DashboardCardView: View {
             )
             .sheet(item: $selectedDetail) { detail in
                 if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
-                    switch detail.kind {
-                    case .light:
-                        LightDetailView(entityBox: selectedEntityBox)
-                    case .cover:
-                        CoverDetailView(entityBox: selectedEntityBox)
-                    case .climate:
-                        ClimateDetailView(entityBox: selectedEntityBox)
-                    case .fan:
-                        FanDetailView(entityBox: selectedEntityBox)
-                    case .lock:
-                        LockDetailView(entityBox: selectedEntityBox)
-                    case .toggle:
-                        ToggleEntityDetailView(entityBox: selectedEntityBox)
-                    case .action:
-                        ActionEntityDetailView(entityBox: selectedEntityBox)
-                    case .sensor:
-                        SensorDetailView(entityBox: selectedEntityBox)
-                    case .mediaPlayer:
-                        MediaPlayerDetailView(entityBox: selectedEntityBox)
-                    case .camera:
-                        CameraDetailView(entityBox: selectedEntityBox)
-                    case .vacuum:
-                        VacuumDetailView(entityBox: selectedEntityBox)
-                    case .entity:
-                        EntityDetailView(entityBox: selectedEntityBox)
-                    }
+                    DashboardEntityDetailSheet(entityBox: selectedEntityBox)
                 } else {
                     ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
                 }
@@ -146,6 +121,39 @@ private struct DashboardCardDetail: Identifiable {
 
     var id: String {
         "\(kind)-\(entityID)"
+    }
+}
+
+struct DashboardEntityDetailSheet: View {
+    let entityBox: HAEntityState
+
+    var body: some View {
+        switch DashboardEntityPresentation(entityBox: entityBox).detailKind {
+        case .light:
+            LightDetailView(entityBox: entityBox)
+        case .cover:
+            CoverDetailView(entityBox: entityBox)
+        case .climate:
+            ClimateDetailView(entityBox: entityBox)
+        case .fan:
+            FanDetailView(entityBox: entityBox)
+        case .lock:
+            LockDetailView(entityBox: entityBox)
+        case .toggle:
+            ToggleEntityDetailView(entityBox: entityBox)
+        case .action:
+            ActionEntityDetailView(entityBox: entityBox)
+        case .sensor:
+            SensorDetailView(entityBox: entityBox)
+        case .mediaPlayer:
+            MediaPlayerDetailView(entityBox: entityBox)
+        case .camera:
+            CameraDetailView(entityBox: entityBox)
+        case .vacuum:
+            VacuumDetailView(entityBox: entityBox)
+        case .entity:
+            EntityDetailView(entityBox: entityBox)
+        }
     }
 }
 

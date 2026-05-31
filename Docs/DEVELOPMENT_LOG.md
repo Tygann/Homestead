@@ -2,6 +2,18 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-05-30
+
+### Smart-Home Summary Chips
+
+- Replaced addable door, lock, and camera summary chips with a higher-level Security summary while keeping legacy stored kinds decodable as Security.
+- Added summary-detail models so the provider can return chip text plus filtered, grouped, and sorted entity rows for summary views.
+- Added lightweight native Summary Views opened from dashboard summary chips, with rows that can open existing domain detail sheets and show simple available primary actions.
+- Expanded summaries beyond domain-only counts: Security aggregates entry points, locks, garage/gate covers, cameras, alarm entities, and security-like sensors; Climate includes climate, fan, temperature, and humidity items.
+- Added binary sensor `device_class` mapping so summaries can distinguish doors, windows, locks, motion, alarms, moisture, and other binary sensor types without relying on entity-name guesses.
+- Refined summary views to group by area, show camera snapshots in Security, prefer current temperature for Climate chip text, and use prioritized Security issue wording such as `1 unlocked` or `2 open`.
+- Added regression coverage for modern summary chip ordering and filtered summary detail sections.
+
 ## 2026-05-29
 
 ### Settings Diagnostics And Release Polish
