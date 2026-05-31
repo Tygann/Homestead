@@ -782,6 +782,45 @@ final class HomeAssistantService {
         }
     }
 
+    func setClimateTemperatureRange(entityID: String, lowTemperature: Double, highTemperature: Double) async {
+        guard let climate = stateStore.climateEntity(for: entityID) else {
+            return
+        }
+
+        let step = climate.resolvedTemperatureStep
+        let roundedLowTemperature = (lowTemperature / step).rounded() * step
+        let roundedHighTemperature = (highTemperature / step).rounded() * step
+        let clampedLowTemperature = min(
+            max(roundedLowTemperature, climate.resolvedMinimumTemperature),
+            climate.resolvedMaximumTemperature
+        )
+        let clampedHighTemperature = min(
+            max(roundedHighTemperature, clampedLowTemperature),
+            climate.resolvedMaximumTemperature
+        )
+        let serviceData = [
+            "target_temp_low": JSONValue.number(clampedLowTemperature),
+            "target_temp_high": JSONValue.number(clampedHighTemperature)
+        ]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: nil,
+            expectedAttributes: serviceData
+        )
+
+        let succeeded = await callService(
+            domain: "climate",
+            service: "set_temperature",
+            entityID: entityID,
+            serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
     private func callToggleService(
         domain: String,
         entityID: String,

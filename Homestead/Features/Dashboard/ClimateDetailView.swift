@@ -4,7 +4,10 @@ struct ClimateDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var targetTemperature = 70.0
+    @State private var targetLowTemperature = 68.0
+    @State private var targetHighTemperature = 76.0
     @State private var isEditingTemperature = false
+    @State private var isEditingTemperatureRange = false
 
     let entityBox: HAEntityState
 
@@ -15,8 +18,11 @@ struct ClimateDetailView: View {
                     VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                         climateStatusCard(climate)
 
-                        if climate.targetTemperature != nil,
+                        if climate.usesTemperatureRange,
                            homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
+                            temperatureRangeControls(climate)
+                        } else if climate.targetTemperature != nil,
+                                  homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
                             temperatureControls(climate)
                         }
 
@@ -49,10 +55,19 @@ struct ClimateDetailView: View {
                 }
                 .onAppear {
                     syncTargetTemperature(with: climate)
+                    syncTargetTemperatureRange(with: climate)
                 }
                 .onChange(of: climate.targetTemperature) { _, _ in
                     guard !isEditingTemperature else { return }
                     syncTargetTemperature(with: climate)
+                }
+                .onChange(of: climate.targetTemperatureLow) { _, _ in
+                    guard !isEditingTemperatureRange else { return }
+                    syncTargetTemperatureRange(with: climate)
+                }
+                .onChange(of: climate.targetTemperatureHigh) { _, _ in
+                    guard !isEditingTemperatureRange else { return }
+                    syncTargetTemperatureRange(with: climate)
                 }
             } else {
                 ContentUnavailableView("Climate Unavailable", systemImage: "thermometer.medium")
@@ -168,6 +183,112 @@ struct ClimateDetailView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
+    private func temperatureRangeControls(_ climate: ClimateEntity) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.large) {
+            HStack {
+                Label("Temperature Range", systemImage: "slider.horizontal.below.sun.max")
+                    .font(.headline)
+
+                Spacer()
+
+                Text("\(climate.formatTemperature(targetLowTemperature))-\(climate.formatTemperature(targetHighTemperature))")
+                    .font(.title3.bold().monospacedDigit())
+                    .foregroundStyle(climate.isActive ? Color.accentColor : Color.secondary)
+            }
+
+            temperatureRangeRow(
+                title: "Heat to",
+                systemImage: "flame.fill",
+                value: $targetLowTemperature,
+                range: climate.resolvedMinimumTemperature...targetHighTemperature,
+                climate: climate,
+                decreaseAction: {
+                    adjustLowTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
+                },
+                increaseAction: {
+                    adjustLowTemperature(by: climate.resolvedTemperatureStep, climate: climate)
+                }
+            )
+
+            temperatureRangeRow(
+                title: "Cool to",
+                systemImage: "snowflake",
+                value: $targetHighTemperature,
+                range: targetLowTemperature...climate.resolvedMaximumTemperature,
+                climate: climate,
+                decreaseAction: {
+                    adjustHighTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
+                },
+                increaseAction: {
+                    adjustHighTemperature(by: climate.resolvedTemperatureStep, climate: climate)
+                }
+            )
+
+            Text("Auto mode uses Home Assistant's heating and cooling setpoints.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding(AppSpacing.large)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    private func temperatureRangeRow(
+        title: String,
+        systemImage: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        climate: ClimateEntity,
+        decreaseAction: @escaping () -> Void,
+        increaseAction: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            HStack {
+                Label(title, systemImage: systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text(climate.formatTemperature(value.wrappedValue))
+                    .font(.headline.monospacedDigit())
+            }
+
+            HStack(spacing: AppSpacing.medium) {
+                Button(action: decreaseAction) {
+                    Image(systemName: "minus")
+                        .font(.headline.weight(.bold))
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.bordered)
+                .disabled(entityBox.pendingCommand != nil || value.wrappedValue <= range.lowerBound)
+                .accessibilityLabel("Decrease \(title.lowercased())")
+
+                Slider(
+                    value: value,
+                    in: range,
+                    step: climate.resolvedTemperatureStep,
+                    onEditingChanged: { editing in
+                        isEditingTemperatureRange = editing
+                        guard !editing else { return }
+                        setTargetTemperatureRange()
+                    }
+                )
+                .disabled(entityBox.pendingCommand != nil)
+                .accessibilityLabel(title)
+                .accessibilityValue(climate.formatTemperature(value.wrappedValue))
+
+                Button(action: increaseAction) {
+                    Image(systemName: "plus")
+                        .font(.headline.weight(.bold))
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.bordered)
+                .disabled(entityBox.pendingCommand != nil || value.wrappedValue >= range.upperBound)
+                .accessibilityLabel("Increase \(title.lowercased())")
+            }
+        }
+    }
+
     private func modeControls(_ climate: ClimateEntity) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             Label("Mode", systemImage: "dial.medium")
@@ -269,11 +390,37 @@ struct ClimateDetailView: View {
         setTargetTemperature()
     }
 
+    private func adjustLowTemperature(by delta: Double, climate: ClimateEntity) {
+        targetLowTemperature = min(
+            max(targetLowTemperature + delta, climate.resolvedMinimumTemperature),
+            targetHighTemperature
+        )
+        setTargetTemperatureRange()
+    }
+
+    private func adjustHighTemperature(by delta: Double, climate: ClimateEntity) {
+        targetHighTemperature = min(
+            max(targetHighTemperature + delta, targetLowTemperature),
+            climate.resolvedMaximumTemperature
+        )
+        setTargetTemperatureRange()
+    }
+
     private func setTargetTemperature() {
         Task {
             await homeAssistantService.setClimateTemperature(
                 entityID: entityBox.entityID,
                 temperature: targetTemperature
+            )
+        }
+    }
+
+    private func setTargetTemperatureRange() {
+        Task {
+            await homeAssistantService.setClimateTemperatureRange(
+                entityID: entityBox.entityID,
+                lowTemperature: targetLowTemperature,
+                highTemperature: targetHighTemperature
             )
         }
     }
@@ -284,6 +431,14 @@ struct ClimateDetailView: View {
 
     private func syncTargetTemperature(with climate: ClimateEntity) {
         targetTemperature = climate.targetTemperature ?? climate.currentTemperature ?? 70
+    }
+
+    private func syncTargetTemperatureRange(with climate: ClimateEntity) {
+        targetLowTemperature = climate.targetTemperatureLow ?? climate.targetTemperature ?? climate.currentTemperature ?? 68
+        targetHighTemperature = climate.targetTemperatureHigh ?? max(targetLowTemperature, climate.targetTemperature ?? climate.currentTemperature ?? 76)
+        if targetHighTemperature < targetLowTemperature {
+            targetHighTemperature = targetLowTemperature
+        }
     }
 }
 

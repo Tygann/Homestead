@@ -124,14 +124,20 @@ final class DashboardConfiguration {
     private(set) var items: [DashboardItemConfiguration] {
         didSet { saveItems() }
     }
+    private(set) var entityDisplayNameOverrides: [String: String] {
+        didSet { saveEntityDisplayNameOverrides() }
+    }
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let itemsKey = "dashboardItems"
     @ObservationIgnored private let layoutVersionKey = "dashboardItems.layoutVersion"
+    @ObservationIgnored private let entityDisplayNameOverridesKey = "entityDisplayNameOverrides"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         items = Self.loadItems(from: defaults, key: itemsKey, layoutVersionKey: layoutVersionKey)
+        entityDisplayNameOverrides = Self.loadEntityDisplayNameOverrides(from: defaults, key: entityDisplayNameOverridesKey)
+        migrateEntityItemDisplayNameOverridesIfNeeded()
     }
 
     var hasCustomLayout: Bool {
@@ -220,6 +226,10 @@ final class DashboardConfiguration {
         entityIDs.contains(entityID)
     }
 
+    func itemType(for itemID: UUID) -> DashboardItemType? {
+        items.first { $0.id == itemID }?.type
+    }
+
     func setEntity(_ entityID: String, isVisible: Bool) {
         if isVisible {
             add(entityID)
@@ -275,7 +285,11 @@ final class DashboardConfiguration {
     }
 
     func renameEntityItem(id: UUID, displayNameOverride: String?) {
-        renameDisplayItem(id: id, displayNameOverride: displayNameOverride)
+        guard let entityID = items.first(where: { $0.id == id && $0.type == .entity })?.entityID else {
+            return
+        }
+
+        setEntityDisplayNameOverride(displayNameOverride, for: entityID)
     }
 
     func renameDisplayItem(id: UUID, displayNameOverride: String?) {
@@ -286,6 +300,16 @@ final class DashboardConfiguration {
         var updatedItems = items
         updatedItems[index].displayNameOverride = normalizedDisplayNameOverride(displayNameOverride)
         items = updatedItems
+    }
+
+    func entityDisplayNameOverride(for entityID: String) -> String? {
+        entityDisplayNameOverrides[entityID]
+    }
+
+    func setEntityDisplayNameOverride(_ displayNameOverride: String?, for entityID: String) {
+        var updatedOverrides = entityDisplayNameOverrides
+        updatedOverrides[entityID] = normalizedDisplayNameOverride(displayNameOverride)
+        entityDisplayNameOverrides = updatedOverrides
     }
 
     func setIconNameOverride(_ iconNameOverride: String?, forItemID itemID: UUID) {
@@ -360,6 +384,14 @@ final class DashboardConfiguration {
         defaults.set(Self.currentLayoutVersion, forKey: layoutVersionKey)
     }
 
+    private func saveEntityDisplayNameOverrides() {
+        guard let data = try? JSONEncoder().encode(entityDisplayNameOverrides) else {
+            return
+        }
+
+        defaults.set(data, forKey: entityDisplayNameOverridesKey)
+    }
+
     private func normalizedHeaderTitle(_ title: String) -> String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedTitle.isEmpty ? "Untitled Section" : trimmedTitle
@@ -392,6 +424,42 @@ final class DashboardConfiguration {
         }
 
         return items
+    }
+
+    private static func loadEntityDisplayNameOverrides(from defaults: UserDefaults, key: String) -> [String: String] {
+        guard let data = defaults.data(forKey: key),
+              let overrides = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return [:]
+        }
+
+        return overrides
+    }
+
+    private func migrateEntityItemDisplayNameOverridesIfNeeded() {
+        var updatedItems = items
+        var updatedOverrides = entityDisplayNameOverrides
+        var didMigrate = false
+
+        for index in updatedItems.indices {
+            guard updatedItems[index].type == .entity,
+                  let entityID = updatedItems[index].entityID,
+                  let displayNameOverride = normalizedDisplayNameOverride(updatedItems[index].displayNameOverride) else {
+                continue
+            }
+
+            if updatedOverrides[entityID] == nil {
+                updatedOverrides[entityID] = displayNameOverride
+            }
+            updatedItems[index].displayNameOverride = nil
+            didMigrate = true
+        }
+
+        guard didMigrate else {
+            return
+        }
+
+        items = updatedItems
+        entityDisplayNameOverrides = updatedOverrides
     }
 
     private static func defaultEntityIDs(from entities: [HomeEntity]) -> [String] {

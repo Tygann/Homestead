@@ -37,6 +37,8 @@ enum EntityMapper {
             state: dto.state,
             currentTemperature: dto.attributes["current_temperature"]?.doubleValue,
             targetTemperature: dto.attributes["temperature"]?.doubleValue,
+            targetTemperatureLow: dto.attributes["target_temp_low"]?.doubleValue,
+            targetTemperatureHigh: dto.attributes["target_temp_high"]?.doubleValue,
             hvacModes: dto.attributes["hvac_modes"]?.arrayValue?.compactMap(\.stringValue) ?? [],
             minTemperature: dto.attributes["min_temp"]?.doubleValue,
             maxTemperature: dto.attributes["max_temp"]?.doubleValue,

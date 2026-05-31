@@ -368,7 +368,7 @@ struct DashboardEntityPresentation {
         } else if let climate = entityBox.climateEntity {
             title = overrideTitle ?? climate.displayName
             subtitle = Self.climateSubtitle(climate, pendingCommand: pendingCommand)
-            headline = climate.targetTemperatureText ?? climate.currentTemperatureText
+            headline = climate.targetTemperatureRangeText ?? climate.targetTemperatureText ?? climate.currentTemperatureText
             iconName = overrideIconName ?? entityBox.homeEntity.iconName
             isActive = climate.isActive
             isAvailable = entityBox.homeEntity.isAvailable

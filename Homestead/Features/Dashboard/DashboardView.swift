@@ -1,7 +1,4 @@
 import SwiftUI
-#if canImport(UIKit)
-import UIKit
-#endif
 
 struct DashboardCardItem: Identifiable, Equatable {
     let id: UUID
@@ -327,7 +324,9 @@ struct DashboardView: View {
             return
         }
 
-        displayTitleDraft = item.displayNameOverride ?? entity.displayName
+        displayTitleDraft = dashboardConfiguration.entityDisplayNameOverride(for: item.entityID)
+            ?? item.displayNameOverride
+            ?? entity.displayName
         renamingDisplayItemID = item.id
     }
 
@@ -351,10 +350,17 @@ struct DashboardView: View {
             return
         }
 
-        dashboardConfiguration.renameDisplayItem(
-            id: renamingDisplayItemID,
-            displayNameOverride: displayTitleDraft
-        )
+        if dashboardConfiguration.itemType(for: renamingDisplayItemID) == .entity {
+            dashboardConfiguration.renameEntityItem(
+                id: renamingDisplayItemID,
+                displayNameOverride: displayTitleDraft
+            )
+        } else {
+            dashboardConfiguration.renameDisplayItem(
+                id: renamingDisplayItemID,
+                displayNameOverride: displayTitleDraft
+            )
+        }
         self.renamingDisplayItemID = nil
         displayTitleDraft = ""
     }
@@ -364,10 +370,17 @@ struct DashboardView: View {
             return
         }
 
-        dashboardConfiguration.renameDisplayItem(
-            id: renamingDisplayItemID,
-            displayNameOverride: nil
-        )
+        if dashboardConfiguration.itemType(for: renamingDisplayItemID) == .entity {
+            dashboardConfiguration.renameEntityItem(
+                id: renamingDisplayItemID,
+                displayNameOverride: nil
+            )
+        } else {
+            dashboardConfiguration.renameDisplayItem(
+                id: renamingDisplayItemID,
+                displayNameOverride: nil
+            )
+        }
         self.renamingDisplayItemID = nil
         displayTitleDraft = ""
     }
@@ -650,7 +663,7 @@ struct DashboardView: View {
 
             return DashboardSummaryProvider.makeEntityChip(
                 entityBox: entityBox,
-                titleOverride: item.displayNameOverride,
+                titleOverride: item.displayNameOverride ?? dashboardConfiguration.entityDisplayNameOverride(for: entityID),
                 iconNameOverride: item.iconNameOverride
             )
         }
@@ -661,27 +674,15 @@ struct DashboardView: View {
         case .summary:
             item.summaryKind?.title ?? "Chip"
         case .entity:
-            item.entityID.flatMap { stateStore.entity(for: $0)?.displayName } ?? "Chip"
+            item.entityID.flatMap { entityID in
+                dashboardConfiguration.entityDisplayNameOverride(for: entityID) ?? stateStore.entity(for: entityID)?.displayName
+            } ?? "Chip"
         }
     }
     
     // MARK: - Options Menu
     private var editActionsMenu: some View {
         Menu {
-            Button {
-                addSheetMode = .cards
-            } label: {
-                Label("Add to Dashboard", systemImage: "plus.app")
-            }
-
-            Button {
-                addHeaderAndRename()
-            } label: {
-                Label("Add Section Header", systemImage: "textformat.size")
-            }
-
-            Divider()
-
             Button {
                 isShowingReorderSheet = true
             } label: {
@@ -697,6 +698,20 @@ struct DashboardView: View {
 
     private var optionsMenu: some View {
         Menu {
+            Button {
+                addSheetMode = .cards
+            } label: {
+                Label("Add to Dashboard", systemImage: "plus.app")
+            }
+
+            Button {
+                addHeaderAndRename()
+            } label: {
+                Label("Add Section Header", systemImage: "textformat.size")
+            }
+
+            Divider()
+
             Button {
                 isEditingDashboard = true
             } label: {
@@ -1729,8 +1744,6 @@ private struct DashboardSelectedSummaryChip: Identifiable {
 private struct DashboardSummaryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(HAStateStore.self) private var stateStore
-    @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var selectedEntityID: DashboardSummarySelectedEntity?
 
     let kind: DashboardSummaryKind
     let titleOverride: String?
@@ -1750,21 +1763,33 @@ private struct DashboardSummaryView: View {
         NavigationStack {
             Group {
                 if let detail {
-                    List {
-                        Section {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                             DashboardSummaryHeader(presentation: detail.summary)
-                                .listRowInsets(EdgeInsets())
-                                .listRowBackground(Color.clear)
-                        }
 
-                        ForEach(detail.sections) { section in
-                            Section(section.title) {
-                                ForEach(section.items) { item in
-                                    summaryRow(for: item)
+                            ForEach(detail.sections) { section in
+                                VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                                    Text(section.title)
+                                        .font(.title3.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+
+                                    CardGrid {
+                                        ForEach(section.items) { item in
+                                            DashboardCardView(
+                                                entityID: item.entityID,
+                                                size: .compact,
+                                                contextualAreaName: section.title
+                                            )
+                                                .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+                                        }
+                                    }
                                 }
                             }
                         }
+                        .padding(.horizontal, AppSpacing.large)
+                        .padding(.vertical, AppSpacing.xLarge)
                     }
+                    .background(Color(.systemGroupedBackground))
                 } else {
                     ContentUnavailableView("No Summary Available", systemImage: kind.canonicalKind.systemImage)
                 }
@@ -1779,64 +1804,9 @@ private struct DashboardSummaryView: View {
                 }
             }
         }
-        .sheet(item: $selectedEntityID) { selection in
-            if let entityBox = stateStore.entityBox(for: selection.entityID) {
-                DashboardEntityDetailSheet(entityBox: entityBox)
-            } else {
-                ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
-            }
-        }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
-
-    @ViewBuilder
-    private func summaryRow(for item: DashboardSummaryEntityPresentation) -> some View {
-        switch item.visualStyle {
-        case .camera:
-            DashboardSummaryCameraRow(
-                item: item,
-                showDetails: {
-                    selectedEntityID = DashboardSummarySelectedEntity(entityID: item.entityID)
-                }
-            )
-        case .row:
-            DashboardSummaryEntityRow(
-                item: item,
-                isActionAvailable: isActionAvailable(for: item),
-                performPrimaryAction: {
-                    performPrimaryAction(for: item)
-                },
-                showDetails: {
-                    selectedEntityID = DashboardSummarySelectedEntity(entityID: item.entityID)
-                }
-            )
-        }
-    }
-
-    private func isActionAvailable(for item: DashboardSummaryEntityPresentation) -> Bool {
-        guard let action = item.primaryAction else {
-            return false
-        }
-
-        return homeAssistantService.serviceActionAvailable(action, entityID: item.entityID)
-    }
-
-    private func performPrimaryAction(for item: DashboardSummaryEntityPresentation) {
-        guard let action = item.primaryAction else {
-            return
-        }
-
-        HapticFeedback.selection()
-        Task {
-            await homeAssistantService.perform(action, entityID: item.entityID)
-        }
-    }
-}
-
-private struct DashboardSummarySelectedEntity: Identifiable {
-    let entityID: String
-    var id: String { entityID }
 }
 
 private struct DashboardSummaryHeader: View {
@@ -1886,187 +1856,6 @@ private struct DashboardSummaryHeader: View {
         guard presentation.isAvailable else { return Color.red.opacity(0.12) }
         return presentation.isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
-}
-
-private struct DashboardSummaryEntityRow: View {
-    let item: DashboardSummaryEntityPresentation
-    let isActionAvailable: Bool
-    let performPrimaryAction: () -> Void
-    let showDetails: () -> Void
-
-    var body: some View {
-        HStack(alignment: .center, spacing: AppSpacing.medium) {
-            if item.primaryAction != nil {
-                Button(action: performPrimaryAction) {
-                    rowIcon
-                }
-                .buttonStyle(.plain)
-                .disabled(!isActionAvailable)
-                .accessibilityLabel(item.primaryAction?.accessibilityLabel(title: item.title, isActive: item.isActive) ?? item.title)
-            } else {
-                rowIcon
-            }
-
-            Button(action: showDetails) {
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(item.title)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    HStack(spacing: AppSpacing.xSmall) {
-                        Text(item.subtitle)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(subtitleColor)
-                            .lineLimit(1)
-
-                        if let detail = item.detail, detail != item.subtitle {
-                            Text(detail)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                    }
-                }
-                .layoutPriority(1)
-                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    private var rowIcon: some View {
-        Image(systemName: item.systemImage)
-            .font(.body.weight(.semibold))
-            .foregroundStyle(iconColor)
-            .frame(width: 34, height: 34)
-            .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-            .accessibilityHidden(true)
-    }
-
-    private var iconColor: Color {
-        guard item.isAvailable else { return .red }
-        return item.isActive ? .accentColor : .secondary
-    }
-
-    private var subtitleColor: Color {
-        item.isAvailable ? .secondary : .red
-    }
-
-    private var iconBackground: Color {
-        guard item.isAvailable else { return Color.red.opacity(0.12) }
-        return item.isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
-    }
-
-}
-
-private struct DashboardSummaryCameraRow: View {
-    @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var snapshotPhase: SummaryCameraSnapshotPhase = .idle
-
-    let item: DashboardSummaryEntityPresentation
-    let showDetails: () -> Void
-
-    var body: some View {
-        Button(action: showDetails) {
-            VStack(alignment: .leading, spacing: 0) {
-                snapshotContent
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 132)
-                    .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                HStack(alignment: .center, spacing: AppSpacing.small) {
-                    Image(systemName: item.systemImage)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(item.isAvailable ? Color.accentColor : Color.red)
-                        .accessibilityHidden(true)
-
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(item.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-
-                        Text(item.subtitle)
-                            .font(.caption)
-                            .foregroundStyle(item.isAvailable ? Color.secondary : Color.red)
-                            .lineLimit(1)
-                    }
-                    .layoutPriority(1)
-                }
-                .padding(.horizontal, AppSpacing.medium)
-                .padding(.vertical, AppSpacing.small)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .task(id: item.entityID) {
-            await loadSnapshotIfNeeded()
-        }
-    }
-
-    @ViewBuilder
-    private var snapshotContent: some View {
-        switch snapshotPhase {
-        case .idle, .loading:
-            ProgressView()
-                .controlSize(.regular)
-        case .loaded(let data):
-            #if canImport(UIKit)
-            if let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, minHeight: 132)
-            } else {
-                unavailableSnapshotContent
-            }
-            #else
-            unavailableSnapshotContent
-            #endif
-        case .failed:
-            unavailableSnapshotContent
-        }
-    }
-
-    private var unavailableSnapshotContent: some View {
-        VStack(spacing: AppSpacing.xSmall) {
-            Image(systemName: item.systemImage)
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text("Snapshot unavailable")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func loadSnapshotIfNeeded() async {
-        guard item.isAvailable else {
-            snapshotPhase = .failed
-            return
-        }
-
-        if case .loaded = snapshotPhase {
-            return
-        }
-
-        snapshotPhase = .loading
-        do {
-            snapshotPhase = .loaded(try await homeAssistantService.fetchCameraSnapshot(entityID: item.entityID))
-        } catch {
-            snapshotPhase = .failed
-        }
-    }
-}
-
-private enum SummaryCameraSnapshotPhase: Equatable {
-    case idle
-    case loading
-    case loaded(Data)
-    case failed
 }
 
 #if DEBUG

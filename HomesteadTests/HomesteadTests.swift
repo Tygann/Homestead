@@ -350,6 +350,27 @@ struct HomesteadTests {
         #expect(object["service"] as? String == "set_temperature")
         #expect(target["entity_id"] as? String == "climate.downstairs")
         #expect(serviceData["temperature"] as? Double == 70)
+
+        let rangeRequest = HAWebSocketRequest.callService(
+            id: 45,
+            domain: "climate",
+            service: "set_temperature",
+            target: ["entity_id": .string("climate.downstairs")],
+            serviceData: [
+                "target_temp_low": .number(68),
+                "target_temp_high": .number(76)
+            ]
+        )
+
+        let rangeData = try JSONEncoder().encode(rangeRequest)
+        let rangeObject = try #require(JSONSerialization.jsonObject(with: rangeData) as? [String: Any])
+        let rangeServiceData = try #require(rangeObject["service_data"] as? [String: Any])
+
+        #expect(rangeObject["id"] as? Int == 45)
+        #expect(rangeObject["domain"] as? String == "climate")
+        #expect(rangeObject["service"] as? String == "set_temperature")
+        #expect(rangeServiceData["target_temp_low"] as? Double == 68)
+        #expect(rangeServiceData["target_temp_high"] as? Double == 76)
     }
 
     @Test func fanAndMediaControlRequestsEncodeHomeAssistantShape() throws {
@@ -813,6 +834,8 @@ struct HomesteadTests {
                 "friendly_name": .string("Downstairs"),
                 "current_temperature": .number(68),
                 "temperature": .number(70),
+                "target_temp_low": .number(66),
+                "target_temp_high": .number(76),
                 "temperature_unit": .string("°F"),
                 "min_temp": .number(50),
                 "max_temp": .number(90),
@@ -836,6 +859,8 @@ struct HomesteadTests {
         #expect(climate.state == "heat")
         #expect(climate.currentTemperature == 68)
         #expect(climate.targetTemperature == 70)
+        #expect(climate.targetTemperatureLow == 66)
+        #expect(climate.targetTemperatureHigh == 76)
         #expect(climate.temperatureUnit == "°F")
         #expect(climate.hvacModes == ["off", "heat", "cool", "heat_cool"])
         #expect(climate.fanMode == "auto")
@@ -845,8 +870,22 @@ struct HomesteadTests {
         #expect(climate.isActive == true)
         #expect(climate.displayState == "Heat")
         #expect(climate.targetTemperatureText == "70°F")
+        #expect(climate.targetTemperatureRangeText == "66°F-76°F")
         #expect(climate.currentTemperatureText == "68°F")
         #expect(climate.displaySubtitle == "Heat, set to 70°F")
+
+        let autoClimateDTO = HAEntityDTO(
+            entityID: "climate.downstairs",
+            state: "heat_cool",
+            attributes: [
+                "target_temp_low": .number(66),
+                "target_temp_high": .number(76),
+                "temperature_unit": .string("°F")
+            ]
+        )
+        let autoClimate = try #require(EntityMapper.climateEntity(from: autoClimateDTO))
+        #expect(autoClimate.usesTemperatureRange)
+        #expect(autoClimate.displaySubtitle == "Auto, 66°F-76°F")
     }
 
     @Test func sensorFormattingHandlesUnitsAndUnavailableStates() {
@@ -1987,11 +2026,43 @@ struct HomesteadTests {
         configuration.renameEntityItem(id: itemID, displayNameOverride: "Hallway")
 
         let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.first?.displayNameOverride == "Hallway")
-        #expect(restoredConfiguration.items.first?.resolvedDisplayName(default: "Hallway Temperature") == "Hallway")
+        #expect(restoredConfiguration.items.first?.displayNameOverride == nil)
+        #expect(restoredConfiguration.entityDisplayNameOverride(for: "sensor.hallway_temperature") == "Hallway")
 
         restoredConfiguration.renameEntityItem(id: itemID, displayNameOverride: " ")
+        #expect(restoredConfiguration.entityDisplayNameOverride(for: "sensor.hallway_temperature") == nil)
+    }
+
+    @MainActor
+    @Test func dashboardConfigurationMigratesLegacyEntityDisplayNameOverridesToGlobalPreferences() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let itemID = UUID()
+        let legacyItems = [
+            DashboardItemConfiguration(
+                id: itemID,
+                type: .entity,
+                entityID: "light.primary_bedroom_light",
+                title: nil,
+                displayNameOverride: "Lamp",
+                iconNameOverride: nil,
+                size: .compact,
+                chipKind: nil,
+                summaryKind: nil
+            )
+        ]
+        defaults.set(try JSONEncoder().encode(legacyItems), forKey: "dashboardItems")
+        defaults.set(2, forKey: "dashboardItems.layoutVersion")
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        #expect(configuration.items.first?.displayNameOverride == nil)
+        #expect(configuration.entityDisplayNameOverride(for: "light.primary_bedroom_light") == "Lamp")
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
         #expect(restoredConfiguration.items.first?.displayNameOverride == nil)
+        #expect(restoredConfiguration.entityDisplayNameOverride(for: "light.primary_bedroom_light") == "Lamp")
     }
 
     @MainActor
@@ -2069,6 +2140,29 @@ struct HomesteadTests {
         #expect(DashboardCardSize.square.displayName == "Square 2x2")
         #expect(DashboardCardSize.wide.displayName == "Wide 4x2")
         #expect(DashboardCardSize.large.displayName == "Large 4x4")
+    }
+
+    @Test func entityDisplayNameResolverShortensNamesOnlyInMatchingAreaContext() {
+        #expect(EntityDisplayNameResolver.contextualDisplayName("Primary Bedroom Light", areaName: "Primary Bedroom") == "Light")
+        #expect(EntityDisplayNameResolver.contextualDisplayName("Primary Bedroom - Lamp", areaName: "Primary Bedroom") == "Lamp")
+        #expect(EntityDisplayNameResolver.contextualDisplayName("Kitchen Island", areaName: "Primary Bedroom") == "Kitchen Island")
+        #expect(EntityDisplayNameResolver.contextualDisplayName("Primary Bedroom", areaName: "Primary Bedroom") == "Primary Bedroom")
+
+        #expect(EntityDisplayNameResolver.displayName(
+            canonicalName: "Primary Bedroom Light",
+            overrideName: nil,
+            contextualAreaName: "Primary Bedroom"
+        ) == "Light")
+        #expect(EntityDisplayNameResolver.displayName(
+            canonicalName: "Kitchen Island",
+            overrideName: nil,
+            contextualAreaName: "Primary Bedroom"
+        ) == nil)
+        #expect(EntityDisplayNameResolver.displayName(
+            canonicalName: "Primary Bedroom Light",
+            overrideName: "Bedside Lamp",
+            contextualAreaName: "Primary Bedroom"
+        ) == "Bedside Lamp")
     }
 
     @MainActor

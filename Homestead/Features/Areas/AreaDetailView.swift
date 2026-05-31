@@ -50,7 +50,11 @@ struct AreaDetailView: View {
                             spacing: AppSpacing.medium
                         ) {
                             ForEach(section.entityIDs, id: \.self) { entityID in
-                                DashboardCardView(entityID: entityID, size: .compact)
+                                DashboardCardView(
+                                    entityID: entityID,
+                                    size: .compact,
+                                    contextualAreaName: area.name
+                                )
                             }
                         }
                     }

@@ -6,6 +6,8 @@ struct ClimateEntity: Identifiable, Equatable, Sendable {
     let state: String
     let currentTemperature: Double?
     let targetTemperature: Double?
+    let targetTemperatureLow: Double?
+    let targetTemperatureHigh: Double?
     let hvacModes: [String]
     let minTemperature: Double?
     let maxTemperature: Double?
@@ -42,7 +44,9 @@ struct ClimateEntity: Identifiable, Equatable, Sendable {
     }
 
     var displaySubtitle: String {
-        if let targetTemperature {
+        if state == "heat_cool", let targetTemperatureLow, let targetTemperatureHigh {
+            "\(displayState), \(formatTemperature(targetTemperatureLow))-\(formatTemperature(targetTemperatureHigh))"
+        } else if let targetTemperature {
             "\(displayState), set to \(formatTemperature(targetTemperature))"
         } else if let currentTemperature {
             "\(displayState), \(formatTemperature(currentTemperature)) now"
@@ -54,6 +58,16 @@ struct ClimateEntity: Identifiable, Equatable, Sendable {
     var targetTemperatureText: String? {
         targetTemperature.map(formatTemperature)
     }
+
+    var targetTemperatureRangeText: String? {
+        guard let targetTemperatureLow, let targetTemperatureHigh else { return nil }
+        return "\(formatTemperature(targetTemperatureLow))-\(formatTemperature(targetTemperatureHigh))"
+    }
+
+    var usesTemperatureRange: Bool {
+        state == "heat_cool" && targetTemperatureLow != nil && targetTemperatureHigh != nil
+    }
+
 
     var currentTemperatureText: String? {
         currentTemperature.map(formatTemperature)

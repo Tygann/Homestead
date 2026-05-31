@@ -11,7 +11,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added lightweight native Summary Views opened from dashboard summary chips, with rows that can open existing domain detail sheets and show simple available primary actions.
 - Expanded summaries beyond domain-only counts: Security aggregates entry points, locks, garage/gate covers, cameras, alarm entities, and security-like sensors; Climate includes climate, fan, temperature, and humidity items.
 - Added binary sensor `device_class` mapping so summaries can distinguish doors, windows, locks, motion, alarms, moisture, and other binary sensor types without relying on entity-name guesses.
-- Refined summary views to group by area, show camera snapshots in Security, prefer current temperature for Climate chip text, and use prioritized Security issue wording such as `1 unlocked` or `2 open`.
+- Refined summary views to group by area, prefer current temperature for Climate chip text, and use prioritized Security issue wording such as `1 unlocked` or `2 open`.
+- Added thermostat auto-mode temperature range support by mapping `target_temp_low` / `target_temp_high`, showing dual heat/cool controls, and sending Home Assistant's `climate.set_temperature` range payload.
+- Aligned Summary Views with Area detail by rendering filtered entities in the shared `CardGrid` using fixed compact dashboard cards instead of bespoke summary rows.
+- Moved entity display-name overrides from dashboard-item state to global Homestead preferences keyed by `entity_id`, with migration for older dashboard card overrides and contextual area-name trimming for area/summary cards.
+- Moved add-card and add-section actions to the main dashboard menu so edit mode can stay focused on item editing and reorder.
 - Added regression coverage for modern summary chip ordering and filtered summary detail sections.
 
 ## 2026-05-29

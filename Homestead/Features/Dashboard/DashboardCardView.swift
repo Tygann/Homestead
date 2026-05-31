@@ -5,17 +5,19 @@ struct DashboardCardView: View {
     let size: DashboardCardSize
     var displayNameOverride: String?
     var iconNameOverride: String?
+    var contextualAreaName: String?
     var isEditing = false
 
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var selectedDetail: DashboardCardDetail?
 
     var body: some View {
         if let entityBox = stateStore.entityBox(for: entityID) {
             let presentation = DashboardEntityPresentation(
                 entityBox: entityBox,
-                displayNameOverride: displayNameOverride,
+                displayNameOverride: resolvedDisplayNameOverride(for: entityBox),
                 iconNameOverride: iconNameOverride
             )
 
@@ -35,6 +37,14 @@ struct DashboardCardView: View {
                 }
             }
         }
+    }
+
+    private func resolvedDisplayNameOverride(for entityBox: HAEntityState) -> String? {
+        EntityDisplayNameResolver.displayName(
+            canonicalName: entityBox.homeEntity.displayName,
+            overrideName: displayNameOverride ?? dashboardConfiguration.entityDisplayNameOverride(for: entityID),
+            contextualAreaName: contextualAreaName
+        )
     }
 
     private func primaryAction(for entityBox: HAEntityState) -> (() -> Void)? {
