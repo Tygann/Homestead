@@ -1796,7 +1796,7 @@ struct DashboardSummaryView: View {
                                     CardGrid {
                                         ForEach(section.items) { item in
                                             let entityBox = stateStore.entityBox(for: item.entityID)
-                                            let size = entityBox.map(DashboardCardSize.compactOrSquareForAvailableFeatures) ?? .compact
+                                            let size = cardSize(for: entityBox)
 
                                             DashboardCardView(
                                                 entityID: item.entityID,
@@ -1829,6 +1829,12 @@ struct DashboardSummaryView: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    @MainActor
+    private func cardSize(for entityBox: HAEntityState?) -> DashboardCardSize {
+        guard let entityBox else { return .compact }
+        return DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
     }
 }
 

@@ -72,7 +72,7 @@ struct AreaDetailView: View {
                         CardGrid {
                             ForEach(section.entityIDs, id: \.self) { entityID in
                                 let entityBox = stateStore.entityBox(for: entityID)
-                                let size = entityBox.map(DashboardCardSize.compactOrSquareForAvailableFeatures) ?? .compact
+                                let size = cardSize(for: entityBox)
 
                                 DashboardCardView(
                                     entityID: entityID,
@@ -124,6 +124,12 @@ struct AreaDetailView: View {
 
     private func displayNameAscending(_ lhs: HAEntityState, _ rhs: HAEntityState) -> Bool {
         lhs.homeEntity.displayName.localizedCaseInsensitiveCompare(rhs.homeEntity.displayName) == .orderedAscending
+    }
+
+    @MainActor
+    private func cardSize(for entityBox: HAEntityState?) -> DashboardCardSize {
+        guard let entityBox else { return .compact }
+        return DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
     }
 }
 
