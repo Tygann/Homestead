@@ -10,6 +10,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added stable feature keys for brightness, climate setpoints, cover movement, and cover position so future per-card feature visibility can persist against feature identity instead of view structure.
 - Added adaptive feature layout rules: Mini and Compact cards stay informational, Row cards can host a trailing feature, Square/Wide cards show one stacked feature, and Large cards can show multiple features.
 - Added lock/unlock as a reusable command feature and kept feature cards visually consistent while dashboard edit mode disables interaction.
+- Added native long-press customization shortcuts for normal-mode dashboard cards and chips while reusing the same edit actions.
 - Added regression coverage for feature provider output and card-size feature gating.
 
 ## 2026-05-30

@@ -487,6 +487,9 @@ struct DashboardView: View {
                 iconNameOverride: item.iconNameOverride
             )
             .frame(maxWidth: .infinity)
+            .contextMenu {
+                cardEditMenuContent(for: item)
+            }
         }
     }
 
@@ -517,9 +520,15 @@ struct DashboardView: View {
                             DashboardChipView(presentation: presentation)
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            chipEditMenuContent(for: item, presentation: presentation)
+                        }
                     }
                 case .entity:
                     DashboardChipView(presentation: presentation)
+                        .contextMenu {
+                            chipEditMenuContent(for: item, presentation: presentation)
+                        }
                 }
             }
         }
