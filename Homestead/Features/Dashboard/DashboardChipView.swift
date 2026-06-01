@@ -45,15 +45,15 @@ struct DashboardChipView: View {
         switch presentation.iconTint {
         case .status:
             return presentation.isActive ? .accentColor : .secondary
+        case .climate:
+            return .blue
         case .lights:
             return .yellow
         case .security:
             return .mint
-        case .climate:
-            return .blue
-        case .maintenance:
-            return .orange
         case .media:
+            return .indigo
+        case .maintenance:
             return .gray
         }
     }
