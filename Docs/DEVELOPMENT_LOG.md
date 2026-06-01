@@ -2,6 +2,16 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-01
+
+### Dashboard Card Features
+
+- Moved interactive dashboard card controls into reusable card feature models and renderers, keeping card views focused on composition and Home Assistant service wiring.
+- Added stable feature keys for brightness, climate setpoints, cover movement, and cover position so future per-card feature visibility can persist against feature identity instead of view structure.
+- Added adaptive feature layout rules: Mini and Compact cards stay informational, Row cards can host a trailing feature, Square/Wide cards show one stacked feature, and Large cards can show multiple features.
+- Added lock/unlock as a reusable command feature and kept feature cards visually consistent while dashboard edit mode disables interaction.
+- Added regression coverage for feature provider output and card-size feature gating.
+
 ## 2026-05-30
 
 ### Smart-Home Summary Chips

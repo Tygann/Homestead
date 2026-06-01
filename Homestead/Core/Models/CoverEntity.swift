@@ -40,8 +40,8 @@ struct CoverEntity: Identifiable, Equatable, Sendable {
     }
 
     var displaySubtitle: String {
-        if let positionPercentage {
-            "\(displayState), \(positionPercentage)%"
+        if let positionPercentage, positionPercentage > 0 {
+            "\(displayState) • \(positionPercentage)%"
         } else {
             displayState
         }

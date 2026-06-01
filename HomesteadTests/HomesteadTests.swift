@@ -800,7 +800,14 @@ struct HomesteadTests {
         #expect(cover.isOpen == true)
         #expect(cover.isClosed == false)
         #expect(cover.displayState == "Open")
-        #expect(cover.displaySubtitle == "Open, 72%")
+        #expect(cover.displaySubtitle == "Open • 72%")
+
+        let closedCover = try #require(EntityMapper.coverEntity(from: HAEntityDTO(
+            entityID: "cover.garage_door",
+            state: "closed",
+            attributes: ["current_position": .number(0)]
+        )))
+        #expect(closedCover.displaySubtitle == "Closed")
     }
 
     @Test func entityMapperMapsFanAndMediaPlayerControls() throws {
@@ -2904,6 +2911,135 @@ struct HomesteadTests {
         let sceneLarge = DashboardEntityCardContentModel.make(presentation: scenePresentation, size: .large)
         #expect(sceneCompact.metrics.isEmpty)
         #expect(sceneLarge.metrics.contains(DashboardEntityCardMetric(title: "Action", value: "Activate Movie Night", systemImage: "hand.tap")))
+    }
+
+    @MainActor
+    @Test func dashboardCardFeatureProviderBuildsReusableInteractiveFeatures() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Kitchen"),
+                    "brightness": .number(128)
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "climate.downstairs",
+                state: "cool",
+                attributes: [
+                    "friendly_name": .string("Downstairs"),
+                    "temperature": .number(72),
+                    "current_temperature": .number(74),
+                    "temperature_unit": .string("°F"),
+                    "min_temp": .number(60),
+                    "max_temp": .number(80),
+                    "target_temp_step": .number(0.5)
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "cover.garage_door",
+                state: "closed",
+                attributes: [
+                    "friendly_name": .string("Garage Door"),
+                    "current_position": .number(0)
+                ]
+            ),
+            HAEntityDTO(entityID: "lock.front_door", state: "locked")
+        ])
+
+        let lightBox = try #require(store.entityBox(for: "light.kitchen"))
+        let lightFeatures = DashboardCardFeatureProvider.features(
+            for: lightBox,
+            presentation: DashboardEntityPresentation(entityBox: lightBox)
+        )
+        #expect(lightFeatures.map(\.key) == [.lightBrightness])
+        guard case .level(let brightness) = try #require(lightFeatures.first?.content) else {
+            Issue.record("Expected light brightness level feature")
+            return
+        }
+        #expect(brightness.value == 50)
+        #expect(brightness.action == .setLightBrightness)
+
+        let climateBox = try #require(store.entityBox(for: "climate.downstairs"))
+        let climateFeatures = DashboardCardFeatureProvider.features(
+            for: climateBox,
+            presentation: DashboardEntityPresentation(entityBox: climateBox)
+        )
+        #expect(climateFeatures.map(\.key) == [.climateSetpoint])
+        guard case .setpoint(let setpoint) = try #require(climateFeatures.first?.content) else {
+            Issue.record("Expected climate setpoint feature")
+            return
+        }
+        #expect(setpoint.action == .setClimateTemperature)
+        #expect(setpoint.values.first?.value == 72)
+        #expect(setpoint.values.first?.step == 0.5)
+
+        let coverBox = try #require(store.entityBox(for: "cover.garage_door"))
+        let coverFeatures = DashboardCardFeatureProvider.features(
+            for: coverBox,
+            presentation: DashboardEntityPresentation(entityBox: coverBox)
+        )
+        #expect(coverFeatures.map(\.key) == [.coverControls, .coverPosition])
+        guard case .commandGroup(let commands) = try #require(coverFeatures.first?.content) else {
+            Issue.record("Expected cover command feature")
+            return
+        }
+        #expect(commands.commands.map(\.action) == [.openCover, .stopCover, .closeCover])
+        #expect(commands.commands.first?.isDisabled == false)
+        #expect(commands.commands.last?.isDisabled == true)
+
+        let lockBox = try #require(store.entityBox(for: "lock.front_door"))
+        let lockFeatures = DashboardCardFeatureProvider.features(
+            for: lockBox,
+            presentation: DashboardEntityPresentation(entityBox: lockBox)
+        )
+        #expect(lockFeatures.map(\.key) == [.lockControls])
+        guard case .commandGroup(let lockCommands) = try #require(lockFeatures.first?.content) else {
+            Issue.record("Expected lock command feature")
+            return
+        }
+        #expect(lockCommands.commands.map(\.action) == [.lock, .unlock])
+        #expect(lockCommands.commands.first?.isDisabled == true)
+        #expect(lockCommands.commands.last?.isDisabled == false)
+    }
+
+    @MainActor
+    @Test func dashboardCardSizesGateInteractiveFeatureRendering() throws {
+        let features = [
+            DashboardCardFeature(
+                key: .coverControls,
+                title: "Cover",
+                content: .commandGroup(DashboardCardCommandGroupFeature(commands: []))
+            ),
+            DashboardCardFeature(
+                key: .coverPosition,
+                title: "Position",
+                content: .level(
+                    DashboardCardLevelFeature(
+                        value: 40,
+                        range: 0...100,
+                        step: 1,
+                        valueLabel: "40%",
+                        accessibilityLabel: "Cover position",
+                        action: .setCoverPosition
+                    )
+                )
+            )
+        ]
+
+        #expect(DashboardCardSize.mini.featureLayout == .hidden)
+        #expect(DashboardCardSize.compact.featureLayout == .hidden)
+        #expect(DashboardCardSize.row.featureLayout == .trailing)
+        #expect(DashboardCardSize.square.featureLayout == .stacked)
+        #expect(DashboardCardSize.wide.featureLayout == .stacked)
+        #expect(DashboardCardSize.large.featureLayout == .stacked)
+        #expect(DashboardCardSize.mini.visibleFeatures(from: features).isEmpty)
+        #expect(DashboardCardSize.compact.visibleFeatures(from: features).isEmpty)
+        #expect(DashboardCardSize.row.visibleFeatures(from: features).map(\.key) == [.coverControls])
+        #expect(DashboardCardSize.square.visibleFeatures(from: features).map(\.key) == [.coverControls])
+        #expect(DashboardCardSize.large.visibleFeatures(from: features).map(\.key) == [.coverControls, .coverPosition])
     }
 
     @MainActor

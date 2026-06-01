@@ -25,13 +25,13 @@ struct DashboardCardView: View {
                 entityBox: entityBox,
                 presentation: presentation,
                 size: size,
+                features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
                 isPending: entityBox.pendingCommand != nil,
                 isPrimaryActionAvailable: primaryActionAvailability(for: entityBox),
                 toggle: isEditing ? nil : primaryAction(for: entityBox),
                 showDetails: isEditing ? nil : detailsAction(for: entityBox),
-                setLightBrightness: isEditing ? nil : setLightBrightnessAction(for: entityBox),
-                setClimateTemperature: isEditing ? nil : setClimateTemperatureAction(for: entityBox),
-                setClimateTemperatureRange: isEditing ? nil : setClimateTemperatureRangeAction(for: entityBox)
+                featureActions: featureActions(for: entityBox),
+                isFeatureInteractionEnabled: !isEditing
             )
             .sheet(item: $selectedDetail) { detail in
                 if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
@@ -136,6 +136,107 @@ struct DashboardCardView: View {
         }
     }
 
+    private func openCoverAction(for entityBox: HAEntityState) -> (() -> Void)? {
+        guard entityBox.coverEntity != nil,
+              homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover") else {
+            return nil
+        }
+
+        return {
+            HapticFeedback.selection()
+            Task {
+                await homeAssistantService.openCover(entityID: entityBox.entityID)
+            }
+        }
+    }
+
+    private func stopCoverAction(for entityBox: HAEntityState) -> (() -> Void)? {
+        guard entityBox.coverEntity != nil,
+              homeAssistantService.serviceActionAvailable(domain: "cover", service: "stop_cover") else {
+            return nil
+        }
+
+        return {
+            HapticFeedback.selection()
+            Task {
+                await homeAssistantService.stopCover(entityID: entityBox.entityID)
+            }
+        }
+    }
+
+    private func closeCoverAction(for entityBox: HAEntityState) -> (() -> Void)? {
+        guard entityBox.coverEntity != nil,
+              homeAssistantService.serviceActionAvailable(domain: "cover", service: "close_cover") else {
+            return nil
+        }
+
+        return {
+            HapticFeedback.selection()
+            Task {
+                await homeAssistantService.closeCover(entityID: entityBox.entityID)
+            }
+        }
+    }
+
+    private func setCoverPositionAction(for entityBox: HAEntityState) -> ((Double) -> Void)? {
+        guard entityBox.coverEntity?.positionPercentage != nil,
+              homeAssistantService.serviceActionAvailable(domain: "cover", service: "set_cover_position") else {
+            return nil
+        }
+
+        return { position in
+            HapticFeedback.selection()
+            Task {
+                await homeAssistantService.setCoverPosition(
+                    entityID: entityBox.entityID,
+                    position: position
+                )
+            }
+        }
+    }
+
+    private func lockAction(for entityBox: HAEntityState) -> (() -> Void)? {
+        guard entityBox.homeEntity.domain == .lock,
+              homeAssistantService.serviceActionAvailable(domain: "lock", service: "lock") else {
+            return nil
+        }
+
+        return {
+            HapticFeedback.selection()
+            Task {
+                await homeAssistantService.toggleLock(entityID: entityBox.entityID)
+            }
+        }
+    }
+
+    private func unlockAction(for entityBox: HAEntityState) -> (() -> Void)? {
+        guard entityBox.homeEntity.domain == .lock,
+              homeAssistantService.serviceActionAvailable(domain: "lock", service: "unlock") else {
+            return nil
+        }
+
+        return {
+            HapticFeedback.selection()
+            Task {
+                await homeAssistantService.toggleLock(entityID: entityBox.entityID)
+            }
+        }
+    }
+
+    private func featureActions(for entityBox: HAEntityState) -> DashboardCardFeatureActions {
+        DashboardCardFeatureActions(
+            setLightBrightness: setLightBrightnessAction(for: entityBox),
+            setClimateTemperature: setClimateTemperatureAction(for: entityBox),
+            setClimateTemperatureRange: setClimateTemperatureRangeAction(for: entityBox),
+            openCover: openCoverAction(for: entityBox),
+            stopCover: stopCoverAction(for: entityBox),
+            closeCover: closeCoverAction(for: entityBox),
+            setCoverPosition: setCoverPositionAction(for: entityBox),
+            lock: lockAction(for: entityBox),
+            unlock: unlockAction(for: entityBox)
+        )
+    }
+
     private func detailKind(for entityBox: HAEntityState) -> DashboardCardDetail.Kind {
         switch DashboardEntityPresentation(entityBox: entityBox).detailKind {
         case .light:
@@ -227,18 +328,18 @@ private struct DashboardEntityCard: View {
     let entityBox: HAEntityState
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
+    let features: [DashboardCardFeature]
     let isPending: Bool
     let isPrimaryActionAvailable: Bool
     let toggle: (() -> Void)?
     let showDetails: (() -> Void)?
-    let setLightBrightness: ((Double) -> Void)?
-    let setClimateTemperature: ((Double) -> Void)?
-    let setClimateTemperatureRange: ((Double, Double) -> Void)?
+    let featureActions: DashboardCardFeatureActions
+    let isFeatureInteractionEnabled: Bool
 
     var body: some View {
         CardContainer(isActive: presentation.isActive, minHeight: cardContainerMinHeight) {
             ZStack(alignment: .topLeading) {
-                if usesInlineControls {
+                if rendersInteractiveFeatures {
                     cardContent
                         .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
                 } else if let showDetails {
@@ -279,18 +380,26 @@ private struct DashboardEntityCard: View {
         switch size {
         case .mini:
             miniContent
-        case .compact, .row:
+        case .compact:
             compactContent
-        case .square:
-            if let climate = entityBox.climateEntity {
-                climateSquareContent(climate)
-            } else if let light = entityBox.lightEntity, light.supportsBrightness {
-                lightSquareContent(light)
+        case .row:
+            if visibleFeatures.isEmpty {
+                compactContent
             } else {
+                rowFeatureContent
+            }
+        case .square:
+            if visibleFeatures.isEmpty {
                 largeContent
+            } else {
+                stackedFeatureContent
             }
         case .wide, .large:
-            largeContent
+            if visibleFeatures.isEmpty {
+                largeContent
+            } else {
+                stackedFeatureContent
+            }
         }
     }
 
@@ -363,11 +472,84 @@ private struct DashboardEntityCard: View {
         }
     }
 
-    private func climateSquareContent(_ climate: ClimateEntity) -> some View {
+    private var rowFeatureContent: some View {
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            featureHeader
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            ForEach(visibleFeatures) { feature in
+                DashboardCardFeatureView(
+                    feature: feature,
+                    isPending: isPending,
+                    isActive: presentation.isActive,
+                    fillColor: iconColor,
+                    trackColor: iconBackground,
+                    isInteractionEnabled: isFeatureInteractionEnabled,
+                    actions: featureActions
+                )
+                .frame(maxWidth: 180)
+            }
+        }
+    }
+
+    private var stackedFeatureContent: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            featureHeader
+
+            if size == .large {
+                largeFeatureContext
+            } else {
+                Spacer(minLength: AppSpacing.xSmall)
+            }
+
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
+                ForEach(visibleFeatures) { feature in
+                    DashboardCardFeatureView(
+                        feature: feature,
+                        isPending: isPending,
+                        isActive: presentation.isActive,
+                        fillColor: iconColor,
+                        trackColor: iconBackground,
+                        isInteractionEnabled: isFeatureInteractionEnabled,
+                        actions: featureActions
+                    )
+                }
+            }
+        }
+    }
+
+    private var largeFeatureContext: some View {
+        let contentModel = DashboardEntityCardContentModel.make(
+            presentation: presentation,
+            size: size
+        )
+
+        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            if let headline = contentModel.headline {
+                Text(headline)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(presentation.headlineColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+
+            if !contentModel.metrics.isEmpty {
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    ForEach(contentModel.metrics.prefix(2)) { metric in
+                        DashboardCardMetricRow(metric: metric)
+                    }
+                }
+            }
+
+            Spacer(minLength: AppSpacing.xSmall)
+        }
+    }
+
+    private var featureHeader: some View {
+        Group {
             if let showDetails {
                 Button(action: showDetails) {
-                    climateHeader
+                    cardHeader(subtitle: featureHeaderSubtitle, subtitleFont: .caption.weight(.semibold))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HomeCardButtonStyle())
@@ -375,54 +557,12 @@ private struct DashboardEntityCard: View {
                 .accessibilityValue(presentation.accessibilityValue)
                 .accessibilityHint(presentation.accessibilityDetailHint)
             } else {
-                climateHeader
-            }
-
-            Spacer(minLength: AppSpacing.xSmall)
-
-            if climate.usesTemperatureRange,
-               let setClimateTemperatureRange {
-                climateRangeStepperControls(
-                    climate,
-                    setTemperatureRange: setClimateTemperatureRange
-                )
-            } else if climate.targetTemperature != nil,
-                      let setClimateTemperature {
-                climateSingleStepperControl(
-                    climate,
-                    setTemperature: setClimateTemperature
-                )
+                cardHeader(subtitle: featureHeaderSubtitle, subtitleFont: .caption.weight(.semibold))
             }
         }
     }
 
-    private func lightSquareContent(_ light: LightEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            if let showDetails {
-                Button(action: showDetails) {
-                    lightHeader
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(HomeCardButtonStyle())
-                .accessibilityLabel(presentation.accessibilityDetailLabel)
-                .accessibilityValue(presentation.accessibilityValue)
-                .accessibilityHint(presentation.accessibilityDetailHint)
-            } else {
-                lightHeader
-            }
-
-            Spacer(minLength: AppSpacing.xSmall)
-
-            if let setLightBrightness {
-                brightnessSliderControl(
-                    light,
-                    setBrightness: setLightBrightness
-                )
-            }
-        }
-    }
-
-    private var lightHeader: some View {
+    private func cardHeader(subtitle: String, subtitleFont: Font) -> some View {
         HStack(alignment: .center, spacing: AppSpacing.medium) {
             iconPlaceholder
 
@@ -433,8 +573,8 @@ private struct DashboardEntityCard: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
 
-                Text(presentation.subtitle)
-                    .font(.caption.weight(.semibold))
+                Text(subtitle)
+                    .font(subtitleFont)
                     .foregroundStyle(presentation.subtitleColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -442,27 +582,7 @@ private struct DashboardEntityCard: View {
         }
     }
 
-    private var climateHeader: some View {
-        HStack(alignment: .center, spacing: AppSpacing.medium) {
-            iconPlaceholder
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                Text(climateSquareSubtitle)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(presentation.subtitleColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-        }
-    }
-
-    private var climateSquareSubtitle: String {
+    private var featureHeaderSubtitle: String {
         guard let climate = entityBox.climateEntity else {
             return presentation.subtitle
         }
@@ -473,94 +593,6 @@ private struct DashboardEntityCard: View {
         }
 
         return "\(mode) • \(currentTemperatureText)"
-    }
-
-    private func brightnessSliderControl(
-        _ light: LightEntity,
-        setBrightness: @escaping (Double) -> Void
-    ) -> some View {
-        let brightnessPercentage = effectiveBrightnessPercentage(for: light)
-
-        return InlineLevelSliderControl(
-            value: brightnessPercentage,
-            range: 0...100,
-            fillColor: iconColor,
-            trackColor: iconBackground,
-            isDisabled: isPending,
-            accessibilityLabel: "Brightness",
-            setValue: setBrightness
-        )
-    }
-
-    private func climateSingleStepperControl(
-        _ climate: ClimateEntity,
-        setTemperature: @escaping (Double) -> Void
-    ) -> some View {
-        let targetTemperature = effectiveTargetTemperature(for: climate)
-
-        return InlineStepperControl(
-            value: climateStepperText(targetTemperature),
-            isActive: presentation.isActive,
-            decrementAccessibilityLabel: "Decrease temperature",
-            incrementAccessibilityLabel: "Increase temperature",
-            isDecrementDisabled: isPending || targetTemperature <= climate.resolvedMinimumTemperature,
-            isIncrementDisabled: isPending || targetTemperature >= climate.resolvedMaximumTemperature,
-            decrement: {
-                setTemperature(targetTemperature - climate.resolvedTemperatureStep)
-            },
-            increment: {
-                setTemperature(targetTemperature + climate.resolvedTemperatureStep)
-            }
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Target temperature")
-        .accessibilityValue(climate.formatTemperature(targetTemperature))
-    }
-
-    private func climateRangeStepperControls(
-        _ climate: ClimateEntity,
-        setTemperatureRange: @escaping (Double, Double) -> Void
-    ) -> some View {
-        let lowTemperature = effectiveTargetLowTemperature(for: climate)
-        let highTemperature = effectiveTargetHighTemperature(for: climate, lowTemperature: lowTemperature)
-
-        return HStack(spacing: AppSpacing.xSmall) {
-            InlineStepperControl(
-                value: climateStepperText(lowTemperature),
-                isActive: presentation.isActive,
-                decrementAccessibilityLabel: "Decrease heat setpoint",
-                incrementAccessibilityLabel: "Increase heat setpoint",
-                isDecrementDisabled: isPending || lowTemperature <= climate.resolvedMinimumTemperature,
-                isIncrementDisabled: isPending || lowTemperature >= highTemperature,
-                decrement: {
-                    setTemperatureRange(lowTemperature - climate.resolvedTemperatureStep, highTemperature)
-                },
-                increment: {
-                    setTemperatureRange(lowTemperature + climate.resolvedTemperatureStep, highTemperature)
-                }
-            )
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Heat setpoint")
-            .accessibilityValue(climate.formatTemperature(lowTemperature))
-
-            InlineStepperControl(
-                value: climateStepperText(highTemperature),
-                isActive: presentation.isActive,
-                decrementAccessibilityLabel: "Decrease cool setpoint",
-                incrementAccessibilityLabel: "Increase cool setpoint",
-                isDecrementDisabled: isPending || highTemperature <= lowTemperature,
-                isIncrementDisabled: isPending || highTemperature >= climate.resolvedMaximumTemperature,
-                decrement: {
-                    setTemperatureRange(lowTemperature, highTemperature - climate.resolvedTemperatureStep)
-                },
-                increment: {
-                    setTemperatureRange(lowTemperature, highTemperature + climate.resolvedTemperatureStep)
-                }
-            )
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Cool setpoint")
-            .accessibilityValue(climate.formatTemperature(highTemperature))
-        }
     }
 
     private var iconPlaceholder: some View {
@@ -592,208 +624,12 @@ private struct DashboardEntityCard: View {
         )
     }
 
-    private var usesInlineControls: Bool {
-        size == .square && (entityBox.climateEntity != nil || entityBox.lightEntity?.supportsBrightness == true)
+    private var visibleFeatures: [DashboardCardFeature] {
+        size.visibleFeatures(from: features).filter { featureActions.canRender($0) }
     }
 
-    private func effectiveBrightnessPercentage(for light: LightEntity) -> Double {
-        if let pendingBrightness = entityBox.pendingCommand?.expectedAttributes["brightness"]?.doubleValue {
-            return min(max((pendingBrightness / 255.0) * 100.0, 0), 100)
-        }
-
-        guard light.isOn else { return 0 }
-
-        return Double(light.brightnessPercentage ?? 100)
-    }
-
-    private func effectiveTargetTemperature(for climate: ClimateEntity) -> Double {
-        entityBox.pendingCommand?.expectedAttributes["temperature"]?.doubleValue
-            ?? climate.targetTemperature
-            ?? climate.currentTemperature
-            ?? 70
-    }
-
-    private func effectiveTargetLowTemperature(for climate: ClimateEntity) -> Double {
-        entityBox.pendingCommand?.expectedAttributes["target_temp_low"]?.doubleValue
-            ?? climate.targetTemperatureLow
-            ?? climate.targetTemperature
-            ?? climate.currentTemperature
-            ?? 68
-    }
-
-    private func effectiveTargetHighTemperature(for climate: ClimateEntity, lowTemperature: Double) -> Double {
-        max(
-            lowTemperature,
-            entityBox.pendingCommand?.expectedAttributes["target_temp_high"]?.doubleValue
-                ?? climate.targetTemperatureHigh
-                ?? climate.targetTemperature
-                ?? climate.currentTemperature
-                ?? 76
-        )
-    }
-
-    private func climateStepperText(_ temperature: Double) -> String {
-        Self.climateStepperFormatter.string(from: NSNumber(value: temperature)) ?? "\(temperature)"
-    }
-
-    private static let climateStepperFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 1
-        formatter.minimumFractionDigits = 0
-        return formatter
-    }()
-}
-
-private struct InlineStepperControl: View {
-    let value: String
-    let isActive: Bool
-    let decrementAccessibilityLabel: String
-    let incrementAccessibilityLabel: String
-    let isDecrementDisabled: Bool
-    let isIncrementDisabled: Bool
-    let decrement: () -> Void
-    let increment: () -> Void
-
-    var body: some View {
-        HStack(spacing: 2) {
-            Button(action: decrement) {
-                Image(systemName: "minus")
-                    .font(.caption.weight(.bold))
-                    .frame(width: 22, height: 30)
-            }
-            .buttonStyle(.plain)
-            .disabled(isDecrementDisabled)
-            .accessibilityLabel(decrementAccessibilityLabel)
-
-            Text(value)
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .frame(minWidth: 22, maxWidth: .infinity)
-
-            Button(action: increment) {
-                Image(systemName: "plus")
-                    .font(.caption.weight(.bold))
-                    .frame(width: 22, height: 30)
-            }
-            .buttonStyle(.plain)
-            .disabled(isIncrementDisabled)
-            .accessibilityLabel(incrementAccessibilityLabel)
-        }
-        .foregroundStyle(.primary)
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, AppSpacing.xSmall)
-        .frame(height: 44)
-        .background(controlBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-    }
-
-    private var controlBackground: Color {
-        isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
-    }
-}
-
-private struct InlineLevelSliderControl: View {
-    let value: Double
-    let range: ClosedRange<Double>
-    let fillColor: Color
-    let trackColor: Color
-    let isDisabled: Bool
-    let accessibilityLabel: String
-    let setValue: (Double) -> Void
-    @State private var currentValue: Double
-    @State private var isEditing = false
-
-    init(
-        value: Double,
-        range: ClosedRange<Double> = 0...100,
-        fillColor: Color,
-        trackColor: Color,
-        isDisabled: Bool,
-        accessibilityLabel: String,
-        setValue: @escaping (Double) -> Void
-    ) {
-        self.value = value
-        self.range = range
-        self.fillColor = fillColor
-        self.trackColor = trackColor
-        self.isDisabled = isDisabled
-        self.accessibilityLabel = accessibilityLabel
-        self.setValue = setValue
-        _currentValue = State(initialValue: value)
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            let fillWidth = fillWidth(in: proxy.size.width)
-
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                    .fill(trackColor)
-
-                RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                    .fill(fillColor)
-                    .frame(width: fillWidth)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        isEditing = true
-                        currentValue = sliderValue(at: value.location.x, width: proxy.size.width)
-                    }
-                    .onEnded { value in
-                        let finalValue = sliderValue(at: value.location.x, width: proxy.size.width)
-                        currentValue = finalValue
-                        isEditing = false
-                        setValue(finalValue)
-                    }
-            )
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 44)
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-        .opacity(isDisabled ? 0.55 : 1)
-        .disabled(isDisabled)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityValue("\(Int(currentValue.rounded())) percent")
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment:
-                adjustValue(by: 5)
-            case .decrement:
-                adjustValue(by: -5)
-            @unknown default:
-                break
-            }
-        }
-        .onChange(of: value) { _, newValue in
-            guard !isEditing else { return }
-            currentValue = newValue
-        }
-    }
-
-    private func fillWidth(in width: CGFloat) -> CGFloat {
-        guard range.upperBound > range.lowerBound else { return 0 }
-        let normalizedValue = (clampedValue - range.lowerBound) / (range.upperBound - range.lowerBound)
-        return width * CGFloat(normalizedValue)
-    }
-
-    private var clampedValue: Double {
-        min(max(currentValue, range.lowerBound), range.upperBound)
-    }
-
-    private func sliderValue(at locationX: CGFloat, width: CGFloat) -> Double {
-        guard width > 0 else { return clampedValue }
-        let normalized = min(max(locationX / width, 0), 1)
-        return range.lowerBound + (Double(normalized) * (range.upperBound - range.lowerBound))
-    }
-
-    private func adjustValue(by delta: Double) {
-        let updatedValue = min(max(currentValue + delta, range.lowerBound), range.upperBound)
-        currentValue = updatedValue
-        setValue(updatedValue)
+    private var rendersInteractiveFeatures: Bool {
+        !visibleFeatures.isEmpty
     }
 }
 
