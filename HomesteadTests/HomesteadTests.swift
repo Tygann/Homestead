@@ -700,11 +700,32 @@ struct HomesteadTests {
         #expect(light?.displayName == "Kitchen Pendants")
         #expect(light?.isOn == true)
         #expect(light?.brightness == 128)
+        #expect(light?.supportsBrightness == true)
         #expect(light?.brightnessPercentage == 50)
         #expect(sensor?.displayName == "Hallway")
         #expect(sensor?.formattedValue == "72°F")
         #expect(sensor?.unit == "F")
         #expect(sensor?.iconName == "thermometer.medium")
+    }
+
+    @Test func entityMapperMapsLightBrightnessSupportForOffDimmableLights() {
+        let dimmableLightDTO = HAEntityDTO(
+            entityID: "light.bed_lamp",
+            state: "off",
+            attributes: [
+                "supported_color_modes": .array([.string("brightness")])
+            ]
+        )
+        let toggleOnlyLightDTO = HAEntityDTO(
+            entityID: "light.closet",
+            state: "off",
+            attributes: [
+                "supported_color_modes": .array([.string("onoff")])
+            ]
+        )
+
+        #expect(EntityMapper.lightEntity(from: dimmableLightDTO)?.supportsBrightness == true)
+        #expect(EntityMapper.lightEntity(from: toggleOnlyLightDTO)?.supportsBrightness == false)
     }
 
     @Test func entityMapperMapsSceneAndScriptActionEntities() {

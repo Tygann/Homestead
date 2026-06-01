@@ -23,6 +23,7 @@ enum EntityMapper {
             displayName: displayName(for: dto),
             isOn: dto.state == "on",
             brightness: dto.attributes["brightness"]?.intValue,
+            supportsBrightness: supportsLightBrightness(dto),
             iconName: dto.state == "on" ? "lightbulb.fill" : "lightbulb",
             lastUpdated: dto.lastUpdated
         )
@@ -130,6 +131,25 @@ enum EntityMapper {
             .replacingOccurrences(of: "_", with: " ")
 
         return name.capitalized.isEmpty ? dto.entityID : name.capitalized
+    }
+
+    private static func supportsLightBrightness(_ dto: HAEntityDTO) -> Bool {
+        if dto.attributes["brightness"]?.intValue != nil {
+            return true
+        }
+
+        let brightnessModes: Set<String> = [
+            "brightness",
+            "color_temp",
+            "hs",
+            "rgb",
+            "rgbw",
+            "rgbww",
+            "white",
+            "xy"
+        ]
+        let supportedModes = dto.attributes["supported_color_modes"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        return supportedModes.contains { brightnessModes.contains($0) }
     }
 
     private static func iconName(for domain: EntityDomain, state: String) -> String {
