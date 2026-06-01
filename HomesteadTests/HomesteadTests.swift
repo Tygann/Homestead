@@ -618,9 +618,13 @@ struct HomesteadTests {
                     "ei": "sensor.ashtons_ipad_location_permission",
                     "di": "ipad",
                     "en": "Location permission",
-                    "hb": true
+                    "hb": true,
+                    "ec": 1
                 }
-            ]
+            ],
+            "entity_categories": {
+                "1": "diagnostic"
+            }
         }
         """
 
@@ -633,6 +637,8 @@ struct HomesteadTests {
         #expect(response.entities.first?.deviceID == "ipad")
         #expect(response.entities.first?.originalName == "Location permission")
         #expect(response.entities.first?.hiddenBy == true)
+        #expect(response.entities.first?.entityCategory == "diagnostic")
+        #expect(response.entities.first?.entityCategoryIndex == 1)
     }
 
     @Test func entityRegistryDisplayResponseDecodesRawEntityArray() throws {
@@ -660,7 +666,9 @@ struct HomesteadTests {
         [
             {
                 "area_id": "living_room",
-                "name": "Living Room"
+                "name": "Living Room",
+                "temperature_entity_id": "sensor.living_room_temperature",
+                "humidity_entity_id": "sensor.living_room_humidity"
             }
         ]
         """
@@ -672,6 +680,8 @@ struct HomesteadTests {
 
         #expect(areas.first?.id == "living_room")
         #expect(areas.first?.name == "Living Room")
+        #expect(areas.first?.temperatureEntityID == "sensor.living_room_temperature")
+        #expect(areas.first?.humidityEntityID == "sensor.living_room_humidity")
     }
 
     @Test func entityMapperMapsLightAndSensorDomainModels() {
@@ -761,6 +771,7 @@ struct HomesteadTests {
         let lockEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "lock.front_door", state: "locked"))
         let mediaEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "media_player.living_room", state: "playing"))
         let cameraEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "camera.driveway", state: "idle"))
+        let automationEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "automation.good_night", state: "on"))
         let binarySensorDTO = HAEntityDTO(
             entityID: "binary_sensor.front_door",
             state: "on",
@@ -774,9 +785,11 @@ struct HomesteadTests {
         #expect(lockEntity.domain == .lock)
         #expect(mediaEntity.domain == .mediaPlayer)
         #expect(cameraEntity.domain == .camera)
+        #expect(automationEntity.domain == .automation)
         #expect(binarySensorEntity.domain == .binarySensor)
         #expect(lockEntity.iconName == "lock.fill")
         #expect(mediaEntity.iconName == "play.tv.fill")
+        #expect(automationEntity.iconName == "calendar.badge.clock")
         #expect(binarySensor?.displayKind == .door)
         #expect(binarySensor?.displaySubtitle == "Open")
     }
@@ -797,6 +810,8 @@ struct HomesteadTests {
         #expect(cover.state == "open")
         #expect(cover.position == 72)
         #expect(cover.positionPercentage == 72)
+        #expect(cover.deviceClass == nil)
+        #expect(cover.iconName == "blinds.horizontal.open")
         #expect(cover.isOpen == true)
         #expect(cover.isClosed == false)
         #expect(cover.displayState == "Open")
@@ -808,6 +823,22 @@ struct HomesteadTests {
             attributes: ["current_position": .number(0)]
         )))
         #expect(closedCover.displaySubtitle == "Closed")
+
+        let garageDTO = HAEntityDTO(
+            entityID: "cover.garage_door",
+            state: "closed",
+            attributes: [
+                "friendly_name": .string("Garage Door"),
+                "device_class": .string("garage"),
+                "current_position": .number(0)
+            ]
+        )
+        let garageCover = try #require(EntityMapper.coverEntity(from: garageDTO))
+        let garageHomeEntity = EntityMapper.homeEntity(from: garageDTO)
+
+        #expect(garageCover.deviceClass == "garage")
+        #expect(garageCover.iconName == "door.garage.closed")
+        #expect(garageHomeEntity.iconName == "door.garage.closed")
     }
 
     @Test func entityMapperMapsFanAndMediaPlayerControls() throws {
@@ -1704,6 +1735,36 @@ struct HomesteadTests {
         #expect(service.serviceFeedback?.title == "Scene activated")
         #expect(webSocketClient.callServiceInvocations.last?.domain == "scene")
         #expect(webSocketClient.callServiceInvocations.last?.service == "turn_on")
+    }
+
+    @MainActor
+    @Test func automationToggleUsesHomeAssistantAutomationDomain() async throws {
+        let automation = HAEntityDTO(
+            entityID: "automation.good_night",
+            state: "on",
+            attributes: ["friendly_name": .string("Good Night")]
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([automation])
+        let webSocketClient = StubHAWebSocketClient(states: [automation])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "automation-access"))
+            )
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        stateStore.applySnapshot([automation])
+
+        await service.toggleAutomation(entityID: "automation.good_night")
+
+        #expect(stateStore.pendingCommand(for: "automation.good_night")?.expectedState == "off")
+        #expect(webSocketClient.callServiceInvocations.last?.domain == "automation")
+        #expect(webSocketClient.callServiceInvocations.last?.service == "turn_off")
     }
 
     @MainActor
@@ -2696,6 +2757,7 @@ struct HomesteadTests {
             HAEntityDTO(entityID: "cover.shades", state: "open"),
             HAEntityDTO(entityID: "scene.movie_night", state: "scening"),
             HAEntityDTO(entityID: "script.good_morning", state: "off"),
+            HAEntityDTO(entityID: "automation.good_night", state: "on"),
             HAEntityDTO(entityID: "sensor.temperature", state: "72")
         ])
 
@@ -2713,6 +2775,9 @@ struct HomesteadTests {
         )
         let scriptPresentation = DashboardEntityPresentation(
             entityBox: try #require(store.entityBox(for: "script.good_morning"))
+        )
+        let automationPresentation = DashboardEntityPresentation(
+            entityBox: try #require(store.entityBox(for: "automation.good_night"))
         )
 
         #expect(lightPresentation.primaryAction == .toggleLight)
@@ -2737,6 +2802,11 @@ struct HomesteadTests {
         #expect(scriptPresentation.primaryActionAccessibilityLabel == "Run Good Morning")
         #expect(scriptPresentation.cardStyle == .action)
         #expect(scriptPresentation.detailKind == .action)
+        #expect(automationPresentation.primaryAction == .toggleAutomation)
+        #expect(automationPresentation.primaryServiceIntent == .stateToggle(domain: "automation", onService: "turn_on", offService: "turn_off"))
+        #expect(automationPresentation.primaryActionAccessibilityLabel == "Turn off Good Night")
+        #expect(automationPresentation.cardStyle == .control)
+        #expect(automationPresentation.detailKind == .toggle)
         #expect(sensorPresentation.primaryAction == nil)
         #expect(sensorPresentation.primaryServiceIntent == nil)
         #expect(sensorPresentation.cardStyle == .value)
@@ -2820,6 +2890,7 @@ struct HomesteadTests {
             .camera: (.camera, nil, .camera),
             .scene: (.action, .activateScene, .action),
             .script: (.action, .runScript, .action),
+            .automation: (.control, .toggleAutomation, .toggle),
             .vacuum: (.status, nil, .vacuum),
             .other: (.generic, nil, .entity)
         ]
@@ -3054,7 +3125,11 @@ struct HomesteadTests {
                 state: "on",
                 attributes: ["device_class": .string("door")]
             ),
-            HAEntityDTO(entityID: "cover.garage_door", state: "open"),
+            HAEntityDTO(
+                entityID: "cover.garage_door",
+                state: "open",
+                attributes: ["device_class": .string("garage")]
+            ),
             HAEntityDTO(entityID: "camera.driveway", state: "idle"),
             HAEntityDTO(
                 entityID: "climate.downstairs",
@@ -3079,7 +3154,8 @@ struct HomesteadTests {
         let lights = try #require(DashboardSummaryProvider.makeSummary(kind: .lights, entityBoxes: boxes))
         let security = try #require(DashboardSummaryProvider.makeSummary(kind: .security, entityBoxes: boxes))
         let climate = try #require(DashboardSummaryProvider.makeSummary(kind: .climate, entityBoxes: boxes))
-        let batteries = try #require(DashboardSummaryProvider.makeSummary(kind: .batteries, entityBoxes: boxes))
+        let maintenance = try #require(DashboardSummaryProvider.makeSummary(kind: .maintenance, entityBoxes: boxes))
+        let legacyBatteries = try #require(DashboardSummaryProvider.makeSummary(kind: .batteries, entityBoxes: boxes))
         let media = try #require(DashboardSummaryProvider.makeSummary(kind: .media, entityBoxes: boxes))
 
         #expect(lights.value == "1 On")
@@ -3092,13 +3168,16 @@ struct HomesteadTests {
         #expect(security.iconTint == .security)
         #expect(climate.value == "74.5°F")
         #expect(climate.iconTint == .climate)
-        #expect(batteries.value == "1 Low")
-        #expect(batteries.systemImage == "battery.75percent")
-        #expect(batteries.iconTint == .battery)
+        #expect(maintenance.title == "Maintenance")
+        #expect(maintenance.value == "1 Issue")
+        #expect(maintenance.systemImage == "wrench.fill")
+        #expect(maintenance.iconTint == .maintenance)
+        #expect(legacyBatteries.title == "Maintenance")
         #expect(media.value == "1 Playing")
         #expect(media.systemImage == "play.tv.fill")
         #expect(media.iconTint == .media)
-        #expect(DashboardSummaryKind.allCases == [.lights, .security, .climate, .batteries, .media])
+        #expect(DashboardSummaryKind.allCases == [.lights, .security, .climate, .maintenance, .media])
+        #expect(DashboardSummaryKind.areasOverviewOrder == [.climate, .lights, .security, .media, .maintenance])
 
         let lightChip = DashboardSummaryProvider.makeEntityChip(
             entityBox: try #require(store.entityBox(for: "light.kitchen")),
@@ -3109,6 +3188,148 @@ struct HomesteadTests {
         #expect(lightChip.systemImage == "lamp.table")
         #expect(lightChip.isActive)
         #expect(lightChip.iconTint == .status)
+    }
+
+    @MainActor
+    @Test func climateSummaryUsesHomeAssistantAreaClimateReadings() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "fan.office", state: "off"),
+            HAEntityDTO(
+                entityID: "sensor.office_temperature",
+                state: "72",
+                attributes: [
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.office_device_temperature",
+                state: "82",
+                attributes: [
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            )
+        ])
+
+        let detail = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .climate,
+            entityBoxes: store.allEntityBoxes(),
+            preferredClimateReadingEntityIDs: ["sensor.office_temperature"],
+            areaNameForEntityID: { _ in "Office" }
+        ))
+
+        #expect(detail.sections.first?.items.map(\.entityID) == [
+            "fan.office",
+            "sensor.office_temperature"
+        ])
+        #expect(detail.sections.first?.items.contains { $0.entityID == "sensor.office_device_temperature" } == false)
+    }
+
+    @MainActor
+    @Test func summariesFilterNonPrimaryEntitiesLikeHomeAssistantStrategies() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.room", state: "on"),
+            HAEntityDTO(entityID: "light.room_diagnostic", state: "on"),
+            HAEntityDTO(entityID: "media_player.tv", state: "playing"),
+            HAEntityDTO(entityID: "media_player.tv_diagnostic", state: "playing"),
+            HAEntityDTO(
+                entityID: "sensor.remote_battery",
+                state: "50",
+                attributes: [
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.remote_diagnostic_battery",
+                state: "5",
+                attributes: [
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "binary_sensor.remote_low_battery",
+                state: "on",
+                attributes: ["device_class": .string("battery")]
+            ),
+            HAEntityDTO(
+                entityID: "binary_sensor.case_tamper",
+                state: "on",
+                attributes: ["device_class": .string("tamper")]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.room_diagnostic",
+                    deviceID: nil,
+                    originalName: "Room Diagnostic",
+                    entityCategory: "diagnostic"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "media_player.tv_diagnostic",
+                    deviceID: nil,
+                    originalName: "TV Diagnostic",
+                    entityCategory: "diagnostic"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.remote_diagnostic_battery",
+                    deviceID: nil,
+                    originalName: "Remote Diagnostic Battery",
+                    entityCategory: "diagnostic"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "binary_sensor.case_tamper",
+                    deviceID: nil,
+                    originalName: "Case Tamper",
+                    entityCategory: "diagnostic"
+                )
+            ],
+            devices: []
+        )
+
+        let boxes = store.allEntityBoxes()
+        let nonPrimaryEntityIDs = store.nonPrimaryEntityIDs()
+        let diagnosticEntityIDs = store.diagnosticEntityIDs()
+
+        let lights = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .lights,
+            entityBoxes: boxes,
+            nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+            diagnosticEntityIDs: diagnosticEntityIDs
+        ))
+        #expect(lights.sections.flatMap(\.items).map(\.entityID) == ["light.room"])
+
+        let maintenance = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .maintenance,
+            entityBoxes: boxes,
+            nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+            diagnosticEntityIDs: diagnosticEntityIDs
+        ))
+        #expect(maintenance.sections.flatMap(\.items).map(\.entityID) == [
+            "binary_sensor.remote_low_battery",
+            "sensor.remote_battery"
+        ])
+
+        let media = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .media,
+            entityBoxes: boxes,
+            nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+            diagnosticEntityIDs: diagnosticEntityIDs
+        ))
+        #expect(media.sections.flatMap(\.items).map(\.entityID) == ["media_player.tv"])
+
+        let security = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .security,
+            entityBoxes: boxes,
+            nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+            diagnosticEntityIDs: diagnosticEntityIDs
+        ))
+        #expect(security.sections.flatMap(\.items).map(\.entityID) == ["binary_sensor.case_tamper"])
     }
 
     @MainActor
@@ -3127,8 +3348,17 @@ struct HomesteadTests {
                 state: "on",
                 attributes: ["device_class": .string("sound")]
             ),
+            HAEntityDTO(
+                entityID: "binary_sensor.leak_sensor",
+                state: "off",
+                attributes: ["device_class": .string("moisture")]
+            ),
             HAEntityDTO(entityID: "lock.front_door", state: "unlocked"),
-            HAEntityDTO(entityID: "cover.garage_door", state: "closed"),
+            HAEntityDTO(
+                entityID: "cover.garage_door",
+                state: "closed",
+                attributes: ["device_class": .string("garage")]
+            ),
             HAEntityDTO(entityID: "camera.driveway", state: "idle"),
             HAEntityDTO(
                 entityID: "sensor.remote_battery",
@@ -3152,6 +3382,7 @@ struct HomesteadTests {
         let areaNames = [
             "binary_sensor.back_door": "Entryway",
             "binary_sensor.doorbell_ding": "Entryway",
+            "binary_sensor.leak_sensor": "Entryway",
             "lock.front_door": "Entryway",
             "camera.driveway": "Entryway",
             "cover.garage_door": "Garage",
@@ -3168,18 +3399,19 @@ struct HomesteadTests {
         #expect(securityDetail.sections.first?.items.map(\.entityID) == [
             "lock.front_door",
             "binary_sensor.back_door",
-            "camera.driveway"
+            "camera.driveway",
+            "binary_sensor.leak_sensor"
         ])
         #expect(securityDetail.sections.first?.items.contains { $0.entityID == "binary_sensor.doorbell_ding" } == false)
         #expect(securityDetail.sections.first?.items.first { $0.entityID == "camera.driveway" }?.visualStyle == .camera)
 
-        let batteryDetail = try #require(DashboardSummaryProvider.makeDetail(
-            kind: .batteries,
+        let maintenanceDetail = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .maintenance,
             entityBoxes: boxes,
             areaNameForEntityID: { areaNames[$0] }
         ))
-        #expect(batteryDetail.sections.map(\.title) == ["Entryway", "Garage"])
-        #expect(batteryDetail.sections.first?.items.map(\.entityID) == ["sensor.remote_battery"])
+        #expect(maintenanceDetail.sections.map(\.title) == ["Entryway", "Garage"])
+        #expect(maintenanceDetail.sections.first?.items.map(\.entityID) == ["sensor.remote_battery"])
     }
 
     private var dashboardTestEntities: [HomeEntity] {

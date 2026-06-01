@@ -113,6 +113,28 @@ final class HAStateStore {
         return areaName
     }
 
+    func preferredClimateReadingEntityIDs() -> Set<String> {
+        Set(areaRegistryByID.values.flatMap { area in
+            [area.temperatureEntityID, area.humidityEntityID].compactMap { $0?.nonEmptyValue }
+        })
+    }
+
+    func nonPrimaryEntityIDs() -> Set<String> {
+        Set(entityRegistryByID.values.compactMap { metadata in
+            guard metadata.hiddenBy == true || metadata.entityCategory != nil else {
+                return nil
+            }
+
+            return metadata.entityID
+        })
+    }
+
+    func diagnosticEntityIDs() -> Set<String> {
+        Set(entityRegistryByID.values.compactMap { metadata in
+            metadata.entityCategory == "diagnostic" ? metadata.entityID : nil
+        })
+    }
+
     func lightEntity(for entityID: String) -> LightEntity? {
         lightEntitiesByID[entityID]
     }

@@ -51,7 +51,7 @@ struct CoverDetailView: View {
     private func coverStatusCard(_ cover: CoverEntity) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
             HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: entityBox.homeEntity.iconName)
+                Image(systemName: cover.iconName)
                     .font(.system(size: 34, weight: .semibold))
                     .foregroundStyle(cover.isOpen ? Color.accentColor : Color.secondary)
                     .frame(width: 64, height: 64)

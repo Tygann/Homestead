@@ -387,6 +387,8 @@ final class HomeAssistantService {
             await toggleFan(entityID: entityID)
         case .toggleLock:
             await toggleLock(entityID: entityID)
+        case .toggleAutomation:
+            await toggleAutomation(entityID: entityID)
         case .activateScene:
             await activateScene(entityID: entityID)
         case .runScript:
@@ -521,6 +523,8 @@ final class HomeAssistantService {
             return serviceActionAvailable(domain: "switch", service: toggleServiceName(for: entityID))
         case .toggleFan:
             return serviceActionAvailable(domain: "fan", service: toggleServiceName(for: entityID))
+        case .toggleAutomation:
+            return serviceActionAvailable(domain: "automation", service: toggleServiceName(for: entityID))
         case .toggleCover:
             guard let cover = stateStore.coverEntity(for: entityID) else {
                 return true
@@ -680,6 +684,15 @@ final class HomeAssistantService {
     func toggleFan(entityID: String) async {
         await callToggleService(
             domain: "fan",
+            entityID: entityID,
+            onState: "on",
+            offState: "off"
+        )
+    }
+
+    func toggleAutomation(entityID: String) async {
+        await callToggleService(
+            domain: "automation",
             entityID: entityID,
             onState: "on",
             offState: "off"

@@ -3,6 +3,7 @@ import SwiftUI
 struct AreasView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var selectedSummaryKind: DashboardSummaryKind?
     private let areaCardSize = DashboardCardSize.square
 
     private var areas: [DashboardAreaSummary] {
@@ -12,17 +13,35 @@ struct AreasView: View {
         )
     }
 
+    private var summaryChips: [(kind: DashboardSummaryKind, presentation: DashboardChipPresentation)] {
+        DashboardSummaryKind.areasOverviewOrder.compactMap { kind in
+            DashboardSummaryProvider.makeSummary(
+                kind: kind,
+                entityBoxes: stateStore.allEntityBoxes(),
+                preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
+                nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
+                diagnosticEntityIDs: stateStore.diagnosticEntityIDs()
+            ).map { (kind, $0) }
+        }
+    }
+
     var body: some View {
         ScrollView {
-            CardGrid {
-                ForEach(areas) { area in
-                    NavigationLink {
-                        AreaDetailView(area: area)
-                    } label: {
-                        AreaSummaryCard(area: area)
+            VStack(alignment: .leading, spacing: AppSpacing.large) {
+                if !summaryChips.isEmpty {
+                    areaSummaryChipRow
+                }
+
+                CardGrid {
+                    ForEach(areas) { area in
+                        NavigationLink {
+                            AreaDetailView(area: area)
+                        } label: {
+                            AreaSummaryCard(area: area)
+                        }
+                        .buttonStyle(.plain)
+                        .cardGridSpan(areaCardSize.layoutMetadata)
                     }
-                    .buttonStyle(.plain)
-                    .cardGridSpan(areaCardSize.layoutMetadata)
                 }
             }
             .padding(.horizontal, AppSpacing.large)
@@ -32,6 +51,9 @@ struct AreasView: View {
             await homeAssistantService.refreshStates()
         }
         .background(Color(.systemGroupedBackground))
+        .sheet(item: $selectedSummaryKind) { kind in
+            DashboardSummaryView(kind: kind)
+        }
         .overlay {
             if !stateStore.hasEntities {
                 ContentUnavailableView("No Areas", systemImage: "square.grid.3x3")
@@ -39,6 +61,25 @@ struct AreasView: View {
         }
         .navigationTitle("Areas")
         .toolbarTitleDisplayMode(.inlineLarge)
+    }
+
+    private var areaSummaryChipRow: some View {
+        ScrollView(.horizontal) {
+            HStack(alignment: .center, spacing: AppSpacing.small) {
+                ForEach(summaryChips, id: \.kind) { item in
+                    Button {
+                        selectedSummaryKind = item.kind
+                    } label: {
+                        DashboardChipView(presentation: item.presentation)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 1)
+        }
+        .scrollIndicators(.hidden)
+        .contentMargins(.horizontal, 1, for: .scrollContent)
+        .accessibilityElement(children: .contain)
     }
 }
 

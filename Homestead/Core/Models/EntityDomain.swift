@@ -14,6 +14,7 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
     case vacuum
     case scene
     case script
+    case automation
     case other
 
     init(entityID: String) {
@@ -53,6 +54,8 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
             "Scenes"
         case .script:
             "Scripts"
+        case .automation:
+            "Automations"
         case .other:
             "Other"
         }
@@ -86,6 +89,8 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
             "sparkles"
         case .script:
             "play.rectangle"
+        case .automation:
+            "calendar.badge.clock"
         case .other:
             "square.grid.2x2"
         }
@@ -119,8 +124,10 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
             11
         case .script:
             12
-        case .other:
+        case .automation:
             13
+        case .other:
+            14
         }
     }
 }

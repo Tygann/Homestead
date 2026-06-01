@@ -105,7 +105,7 @@ enum DashboardCardFeatureProvider {
             return coverFeatures(cover, entityBox: entityBox)
         case .lock:
             return lockFeatures(entityBox.homeEntity)
-        case .switch, .fan, .sensor, .binarySensor, .mediaPlayer, .camera, .scene, .script, .vacuum, .other:
+        case .switch, .fan, .sensor, .binarySensor, .mediaPlayer, .camera, .scene, .script, .automation, .vacuum, .other:
             return []
         }
     }
@@ -404,5 +404,15 @@ extension DashboardCardSize {
     func visibleFeatures(from features: [DashboardCardFeature]) -> [DashboardCardFeature] {
         guard featureLayout != .hidden else { return [] }
         return Array(features.prefix(maximumVisibleFeatureCount))
+    }
+
+    static func compactOrSquareForAvailableFeatures(entityBox: HAEntityState) -> DashboardCardSize {
+        let presentation = DashboardEntityPresentation(entityBox: entityBox)
+        let features = DashboardCardFeatureProvider.features(
+            for: entityBox,
+            presentation: presentation
+        )
+
+        return DashboardCardSize.square.visibleFeatures(from: features).isEmpty ? .compact : .square
     }
 }

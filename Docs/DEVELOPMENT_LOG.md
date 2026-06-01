@@ -11,6 +11,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added adaptive feature layout rules: Mini and Compact cards stay informational, Row cards can host a trailing feature, Square/Wide cards show one stacked feature, and Large cards can show multiple features.
 - Added lock/unlock as a reusable command feature and kept feature cards visually consistent while dashboard edit mode disables interaction.
 - Added native long-press customization shortcuts for normal-mode dashboard cards and chips while reusing the same edit actions.
+- Added cover device-class icon mapping, simplified edit-mode reorder access, and let area views upgrade feature-capable entities from Compact to Square cards.
+- Added summary chips to the main Areas view and grouped area detail entities through the shared summary categories for Lights, Climate, Security, Media Players, and Maintenance before falling back to raw domains.
+- Added Automations as a first-class mapped entity domain, rendering them as enabled/disabled toggle controls through Home Assistant's `automation.turn_on` / `automation.turn_off` services rather than accidental trigger actions.
+- Switched area detail entity sections to the shared card grid so mixed Compact and Square cards align consistently with dashboard layout behavior.
+- Tightened summary category filtering toward Home Assistant's frontend strategies, including area-selected temperature/humidity readings for Climate summaries and feature-aware Square cards in summary sheets.
+- Added entity-category awareness from Home Assistant's compact entity registry so summaries can exclude hidden/secondary entities while preserving HA's diagnostic tamper exception for Security.
+- Replaced the Homestead-specific Batteries summary with Home Assistant-style Maintenance, including numeric battery sensors, primary binary low-battery sensors, and legacy Batteries chip decoding.
 - Added regression coverage for feature provider output and card-size feature gating.
 
 ## 2026-05-30
@@ -43,7 +50,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### Dashboard Chips And Icon Overrides
 
 - Added first-class dashboard chip items alongside cards and headers, with summary and entity chip variants persisted in dashboard metadata.
-- Added a reusable dashboard summary provider for glanceable chips such as lights, doors, locks, climate, batteries, cameras, and media.
+- Added a reusable dashboard summary provider for glanceable chips such as lights, doors, locks, climate, maintenance, cameras, and media.
 - Added curated SF Symbol icon overrides for dashboard cards and chips while keeping live Home Assistant entity state separate from layout/customization metadata.
 - Rendered chips as a lightweight horizontally scrolling summary row above the dashboard grid so they do not compete visually with cards.
 

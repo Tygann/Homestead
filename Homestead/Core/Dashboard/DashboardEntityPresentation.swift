@@ -16,6 +16,7 @@ enum DashboardEntityPrimaryAction: Equatable, Sendable {
     case toggleSwitch
     case toggleFan
     case toggleLock
+    case toggleAutomation
     case activateScene
     case runScript
 
@@ -31,6 +32,8 @@ enum DashboardEntityPrimaryAction: Equatable, Sendable {
             .stateToggle(domain: "fan", onService: "turn_on", offService: "turn_off")
         case .toggleLock:
             .lockToggle
+        case .toggleAutomation:
+            .stateToggle(domain: "automation", onService: "turn_on", offService: "turn_off")
         case .activateScene:
             .call(domain: "scene", service: "turn_on")
         case .runScript:
@@ -40,7 +43,7 @@ enum DashboardEntityPrimaryAction: Equatable, Sendable {
 
     func accessibilityLabel(title: String, isActive: Bool) -> String {
         switch self {
-        case .toggleLight, .toggleSwitch, .toggleFan:
+        case .toggleLight, .toggleSwitch, .toggleFan, .toggleAutomation:
             "\(isActive ? "Turn off" : "Turn on") \(title)"
         case .toggleCover:
             "\(isActive ? "Close" : "Open") \(title)"
@@ -265,6 +268,16 @@ enum DashboardEntityDomainRegistry {
                 iconAccentBehavior: .actionAccent,
                 secondaryActions: []
             )
+        case .automation:
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .control,
+                primaryAction: .toggleAutomation,
+                detailKind: .toggle,
+                statusFormatter: .onOff(unavailableTitle: "Automation unavailable"),
+                iconAccentBehavior: .activeAccent,
+                secondaryActions: []
+            )
         case .vacuum:
             DashboardEntityDomainCapability(
                 domain: domain,
@@ -361,7 +374,7 @@ struct DashboardEntityPresentation {
             title = overrideTitle ?? cover.displayName
             subtitle = Self.coverSubtitle(cover, pendingCommand: pendingCommand)
             headline = cover.positionPercentage.map { "\($0)%" }
-            iconName = overrideIconName ?? entityBox.homeEntity.iconName
+            iconName = overrideIconName ?? cover.iconName
             isActive = cover.isOpen
             isAvailable = entityBox.homeEntity.isAvailable
             accentColor = Self.accentColor(for: cover.isOpen, behavior: capability.iconAccentBehavior)
@@ -619,7 +632,7 @@ struct DashboardEntityPresentation {
         capability: DashboardEntityDomainCapability
     ) -> String {
         switch capability.primaryAction {
-        case .toggleSwitch, .toggleFan, .toggleLock:
+        case .toggleSwitch, .toggleFan, .toggleLock, .toggleAutomation:
             "Updating..."
         case .toggleLight, .toggleCover, .activateScene, .runScript, nil:
             subtitle(for: entity, capability: capability)
@@ -884,7 +897,7 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
 
     private static func statusValue(for presentation: DashboardEntityPresentation) -> String {
         switch presentation.capability.domain {
-        case .light, .fan, .switch:
+        case .light, .fan, .switch, .automation:
             return presentation.isActive ? "On" : "Off"
         case .cover:
             return presentation.isActive ? "Open" : "Closed"
@@ -960,7 +973,7 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
         switch presentation.capability.domain {
         case .camera, .climate, .lock, .mediaPlayer, .sensor, .binarySensor, .vacuum:
             return "Open details"
-        case .light, .cover, .switch, .fan, .scene, .script, .other:
+        case .light, .cover, .switch, .fan, .scene, .script, .automation, .other:
             return nil
         }
     }

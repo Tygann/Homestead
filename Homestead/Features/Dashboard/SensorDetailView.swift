@@ -120,7 +120,7 @@ struct SensorDetailView: View {
             "Binary Sensor"
         case .sensor:
             "Sensor"
-        case .light, .climate, .cover, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+        case .light, .climate, .cover, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .scene, .script, .automation, .other:
             "Entity"
         }
     }

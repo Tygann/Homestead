@@ -5,6 +5,7 @@ nonisolated struct HAEntityRegistryDisplayResponseDTO: Decodable, Equatable, Sen
 
     enum CodingKeys: String, CodingKey {
         case entities
+        case entityCategories = "entity_categories"
     }
 
     nonisolated init(entities: [HAEntityRegistryDisplayDTO]) {
@@ -13,7 +14,19 @@ nonisolated struct HAEntityRegistryDisplayResponseDTO: Decodable, Equatable, Sen
 
     nonisolated init(from decoder: Decoder) throws {
         if let container = try? decoder.container(keyedBy: CodingKeys.self),
-           let entities = try? container.decode([HAEntityRegistryDisplayDTO].self, forKey: .entities) {
+           var entities = try? container.decode([HAEntityRegistryDisplayDTO].self, forKey: .entities) {
+            let categories = try container.decodeIfPresent([String: String].self, forKey: .entityCategories) ?? [:]
+            if !categories.isEmpty {
+                entities = entities.map { entity in
+                    guard entity.entityCategory == nil,
+                          let categoryIndex = entity.entityCategoryIndex,
+                          let category = categories[String(categoryIndex)] else {
+                        return entity
+                    }
+
+                    return entity.withEntityCategory(category)
+                }
+            }
             self.entities = entities
             return
         }
@@ -29,6 +42,8 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
     let originalName: String?
     let name: String?
     let hiddenBy: Bool?
+    let entityCategory: String?
+    let entityCategoryIndex: Int?
 
     var id: String { entityID }
 
@@ -39,10 +54,13 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
         case originalName = "en"
         case name = "n"
         case hiddenBy = "hb"
+        case entityCategoryIndex = "ec"
+        case entityCategory = "entity_category"
     }
 
     enum FullCodingKeys: String, CodingKey {
         case areaID = "area_id"
+        case entityCategory = "entity_category"
     }
 
     nonisolated init(
@@ -51,7 +69,9 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
         areaID: String? = nil,
         originalName: String?,
         name: String? = nil,
-        hiddenBy: Bool? = nil
+        hiddenBy: Bool? = nil,
+        entityCategory: String? = nil,
+        entityCategoryIndex: Int? = nil
     ) {
         self.entityID = entityID
         self.deviceID = deviceID
@@ -59,6 +79,8 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
         self.originalName = originalName
         self.name = name
         self.hiddenBy = hiddenBy
+        self.entityCategory = entityCategory
+        self.entityCategoryIndex = entityCategoryIndex
     }
 
     nonisolated init(from decoder: Decoder) throws {
@@ -72,6 +94,9 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
         originalName = try container.decodeIfPresent(String.self, forKey: .originalName)
         name = try container.decodeIfPresent(String.self, forKey: .name)
         hiddenBy = try container.decodeLossyBoolIfPresent(forKey: .hiddenBy)
+        entityCategoryIndex = try container.decodeIfPresent(Int.self, forKey: .entityCategoryIndex)
+        entityCategory = try container.decodeIfPresent(String.self, forKey: .entityCategory) ??
+            fullContainer?.decodeIfPresent(String.self, forKey: .entityCategory)
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -83,6 +108,21 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
         try container.encodeIfPresent(originalName, forKey: .originalName)
         try container.encodeIfPresent(name, forKey: .name)
         try container.encodeIfPresent(hiddenBy, forKey: .hiddenBy)
+        try container.encodeIfPresent(entityCategory, forKey: .entityCategory)
+        try container.encodeIfPresent(entityCategoryIndex, forKey: .entityCategoryIndex)
+    }
+
+    nonisolated func withEntityCategory(_ category: String?) -> HAEntityRegistryDisplayDTO {
+        HAEntityRegistryDisplayDTO(
+            entityID: entityID,
+            deviceID: deviceID,
+            areaID: areaID,
+            originalName: originalName,
+            name: name,
+            hiddenBy: hiddenBy,
+            entityCategory: category,
+            entityCategoryIndex: entityCategoryIndex
+        )
     }
 }
 
@@ -134,15 +174,26 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
 nonisolated struct HAAreaRegistryDTO: Codable, Equatable, Identifiable, Sendable {
     let id: String
     let name: String
+    let temperatureEntityID: String?
+    let humidityEntityID: String?
 
     enum CodingKeys: String, CodingKey {
         case id = "area_id"
         case name
+        case temperatureEntityID = "temperature_entity_id"
+        case humidityEntityID = "humidity_entity_id"
     }
 
-    nonisolated init(id: String, name: String) {
+    nonisolated init(
+        id: String,
+        name: String,
+        temperatureEntityID: String? = nil,
+        humidityEntityID: String? = nil
+    ) {
         self.id = id
         self.name = name
+        self.temperatureEntityID = temperatureEntityID
+        self.humidityEntityID = humidityEntityID
     }
 }
 

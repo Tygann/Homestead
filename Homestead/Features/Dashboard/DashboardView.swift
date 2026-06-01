@@ -150,7 +150,14 @@ struct DashboardView: View {
         .toolbar {
             if isEditingDashboard {
                 ToolbarItem(placement: .primaryAction) {
-                    editActionsMenu
+                    Button {
+                        isShowingReorderSheet = true
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .bold()
+                    }
+                    .disabled(dashboardConfiguration.items.count < 2)
+                    .accessibilityLabel("Reorder Dashboard")
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -662,7 +669,10 @@ struct DashboardView: View {
                 kind: summaryKind,
                 entityBoxes: stateStore.allEntityBoxes(),
                 titleOverride: item.displayNameOverride,
-                iconNameOverride: item.iconNameOverride
+                iconNameOverride: item.iconNameOverride,
+                preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
+                nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
+                diagnosticEntityIDs: stateStore.diagnosticEntityIDs()
             )
         case .entity:
             guard let entityID = item.entityID,
@@ -690,21 +700,6 @@ struct DashboardView: View {
     }
     
     // MARK: - Options Menu
-    private var editActionsMenu: some View {
-        Menu {
-            Button {
-                isShowingReorderSheet = true
-            } label: {
-                Label("Reorder Dashboard", systemImage: "arrow.up.arrow.down")
-            }
-            .disabled(dashboardConfiguration.items.count < 2)
-        } label: {
-            Image(systemName: "ellipsis")
-                .bold()
-        }
-        .accessibilityLabel("Dashboard edit actions")
-    }
-
     private var optionsMenu: some View {
         Menu {
             Button {
@@ -1136,7 +1131,10 @@ private struct DashboardAddItemView: View {
             guard !configuredKinds.contains(kind),
                   let presentation = DashboardSummaryProvider.makeSummary(
                     kind: kind,
-                    entityBoxes: entityBoxes
+                    entityBoxes: entityBoxes,
+                    preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
+                    nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
+                    diagnosticEntityIDs: stateStore.diagnosticEntityIDs()
                   ) else {
                 return nil
             }
@@ -1750,7 +1748,7 @@ private struct DashboardSelectedSummaryChip: Identifiable {
     }
 }
 
-private struct DashboardSummaryView: View {
+struct DashboardSummaryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(HAStateStore.self) private var stateStore
 
@@ -1758,12 +1756,25 @@ private struct DashboardSummaryView: View {
     let titleOverride: String?
     let iconNameOverride: String?
 
+    init(
+        kind: DashboardSummaryKind,
+        titleOverride: String? = nil,
+        iconNameOverride: String? = nil
+    ) {
+        self.kind = kind
+        self.titleOverride = titleOverride
+        self.iconNameOverride = iconNameOverride
+    }
+
     private var detail: DashboardSummaryDetailPresentation? {
         DashboardSummaryProvider.makeDetail(
             kind: kind,
             entityBoxes: stateStore.allEntityBoxes(),
             titleOverride: titleOverride,
             iconNameOverride: iconNameOverride,
+            preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
+            nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
+            diagnosticEntityIDs: stateStore.diagnosticEntityIDs(),
             areaNameForEntityID: stateStore.areaName(for:)
         )
     }
@@ -1784,12 +1795,15 @@ private struct DashboardSummaryView: View {
 
                                     CardGrid {
                                         ForEach(section.items) { item in
+                                            let entityBox = stateStore.entityBox(for: item.entityID)
+                                            let size = entityBox.map(DashboardCardSize.compactOrSquareForAvailableFeatures) ?? .compact
+
                                             DashboardCardView(
                                                 entityID: item.entityID,
-                                                size: .compact,
+                                                size: size,
                                                 contextualAreaName: section.title
                                             )
-                                                .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+                                                .cardGridSpan(size.layoutMetadata)
                                         }
                                     }
                                 }

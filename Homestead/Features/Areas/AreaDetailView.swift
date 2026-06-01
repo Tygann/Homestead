@@ -12,28 +12,52 @@ struct AreaDetailView: View {
         DashboardAreaBuilder.buildArea(named: area.name, from: entityBoxes)
     }
 
-    @MainActor private var sections: [AreaDomainSection] {
-        let grouped = Dictionary(grouping: entityBoxes, by: \.domain)
+    @MainActor private var sections: [AreaEntitySection] {
+        var categorizedEntityIDs = Set<String>()
 
-        return grouped
+        let summarySections = DashboardSummaryKind.areaSectionOrder.compactMap { kind -> AreaEntitySection? in
+            guard let detail = DashboardSummaryProvider.makeDetail(
+                kind: kind,
+                entityBoxes: entityBoxes,
+                preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
+                nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
+                diagnosticEntityIDs: stateStore.diagnosticEntityIDs()
+            ) else {
+                return nil
+            }
+
+            let entityIDs = detail.sections.flatMap { section in
+                section.items.map(\.entityID)
+            }
+            guard !entityIDs.isEmpty else {
+                return nil
+            }
+
+            categorizedEntityIDs.formUnion(entityIDs)
+            return makeSection(
+                id: "summary-\(kind.rawValue)",
+                title: kind.areaSectionTitle,
+                systemImage: kind.systemImage,
+                entityBoxes: entityBoxes(for: entityIDs)
+            )
+        }
+
+        let remainingEntityBoxes = entityBoxes.filter { !categorizedEntityIDs.contains($0.entityID) }
+        let grouped = Dictionary(grouping: remainingEntityBoxes, by: \.domain)
+        let domainSections = grouped
             .map { domain, entityBoxes in
-                AreaDomainSection(
-                    domain: domain,
-                    entityIDs: entityBoxes
-                        .sorted {
-                            $0.homeEntity.displayName.localizedCaseInsensitiveCompare($1.homeEntity.displayName) == .orderedAscending
-                        }
-                        .map(\.entityID),
-                    activeCount: entityBoxes
-                        .map { DashboardEntityPresentation(entityBox: $0) }
-                        .filter(\.isActive)
-                        .count,
-                    unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count
+                makeSection(
+                    id: "domain-\(domain.rawValue)",
+                    title: domain.displayName,
+                    systemImage: domain.systemImage,
+                    entityBoxes: entityBoxes.sorted(by: displayNameAscending)
                 )
             }
             .sorted { lhs, rhs in
-                lhs.domain.dashboardPriority < rhs.domain.dashboardPriority
+                lhs.sortPriority < rhs.sortPriority
             }
+
+        return summarySections + domainSections
     }
 
     var body: some View {
@@ -45,16 +69,17 @@ struct AreaDetailView: View {
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
                         AreaSectionHeader(section: section)
 
-                        LazyVGrid(
-                            columns: [GridItem(.adaptive(minimum: 158), spacing: AppSpacing.medium)],
-                            spacing: AppSpacing.medium
-                        ) {
+                        CardGrid {
                             ForEach(section.entityIDs, id: \.self) { entityID in
+                                let entityBox = stateStore.entityBox(for: entityID)
+                                let size = entityBox.map(DashboardCardSize.compactOrSquareForAvailableFeatures) ?? .compact
+
                                 DashboardCardView(
                                     entityID: entityID,
-                                    size: .compact,
+                                    size: size,
                                     contextualAreaName: area.name
                                 )
+                                .cardGridSpan(size.layoutMetadata)
                             }
                         }
                     }
@@ -67,15 +92,49 @@ struct AreaDetailView: View {
         .navigationTitle(area.name)
         .toolbarTitleDisplayMode(.inlineLarge)
     }
+
+    private func entityBoxes(for entityIDs: [String]) -> [HAEntityState] {
+        let boxesByID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
+        return entityIDs.compactMap { boxesByID[$0] }
+    }
+
+    private func makeSection(
+        id: String,
+        title: String,
+        systemImage: String,
+        entityBoxes: [HAEntityState]
+    ) -> AreaEntitySection {
+        AreaEntitySection(
+            id: id,
+            title: title,
+            systemImage: systemImage,
+            entityIDs: entityBoxes
+                .sorted(by: displayNameAscending)
+                .map(\.entityID),
+            activeCount: entityBoxes
+                .map { DashboardEntityPresentation(entityBox: $0) }
+                .filter(\.isActive)
+                .count,
+            unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count,
+            sortPriority: entityBoxes
+                .map(\.domain.dashboardPriority)
+                .min() ?? EntityDomain.other.dashboardPriority
+        )
+    }
+
+    private func displayNameAscending(_ lhs: HAEntityState, _ rhs: HAEntityState) -> Bool {
+        lhs.homeEntity.displayName.localizedCaseInsensitiveCompare(rhs.homeEntity.displayName) == .orderedAscending
+    }
 }
 
-private struct AreaDomainSection: Identifiable {
-    let domain: EntityDomain
+private struct AreaEntitySection: Identifiable {
+    let id: String
+    let title: String
+    let systemImage: String
     let entityIDs: [String]
     let activeCount: Int
     let unavailableCount: Int
-
-    var id: EntityDomain { domain }
+    let sortPriority: Int
 
     var subtitle: String {
         var parts = ["\(entityIDs.count) \(entityIDs.count == 1 ? "entity" : "entities")"]
@@ -147,18 +206,18 @@ private struct AreaMetricPill: View {
 }
 
 private struct AreaSectionHeader: View {
-    let section: AreaDomainSection
+    let section: AreaEntitySection
 
     var body: some View {
         HStack(alignment: .center, spacing: AppSpacing.medium) {
-            Image(systemName: section.domain.systemImage)
+            Image(systemName: section.systemImage)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(section.domain.displayName)
+                Text(section.title)
                     .font(.headline)
 
                 Text(section.subtitle)
@@ -167,6 +226,17 @@ private struct AreaSectionHeader: View {
             }
 
             Spacer(minLength: AppSpacing.medium)
+        }
+    }
+}
+
+private extension DashboardSummaryKind {
+    var areaSectionTitle: String {
+        switch canonicalKind {
+        case .media:
+            "Media Players"
+        default:
+            title
         }
     }
 }

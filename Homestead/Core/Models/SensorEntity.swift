@@ -183,6 +183,8 @@ struct BinarySensorEntity: Identifiable, Equatable, Sendable {
             return isActive ? "Unlocked" : "Locked"
         case .moisture:
             return isActive ? "Wet" : "Dry"
+        case .battery:
+            return isActive ? "Low Battery" : "Battery OK"
         case .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas:
             return isActive ? "Detected" : "Clear"
         case .connectivity:
@@ -198,9 +200,9 @@ struct BinarySensorEntity: Identifiable, Equatable, Sendable {
 
     var isSecurityRelevant: Bool {
         switch displayKind {
-        case .door, .window, .garageDoor, .opening, .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas:
+        case .door, .window, .garageDoor, .opening, .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .moisture:
             return true
-        case .moisture, .connectivity, .plug, .power, .light, .generic:
+        case .battery, .connectivity, .plug, .power, .light, .generic:
             return false
         }
     }
@@ -209,7 +211,7 @@ struct BinarySensorEntity: Identifiable, Equatable, Sendable {
         switch displayKind {
         case .door, .window, .garageDoor, .opening:
             return true
-        case .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .moisture, .connectivity, .plug, .power, .light, .generic:
+        case .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .moisture, .battery, .connectivity, .plug, .power, .light, .generic:
             return false
         }
     }
@@ -230,6 +232,7 @@ nonisolated enum BinarySensorDisplayKind: Equatable, Sendable {
     case smoke
     case gas
     case moisture
+    case battery
     case connectivity
     case plug
     case power
@@ -262,10 +265,12 @@ nonisolated enum BinarySensorDisplayKind: Equatable, Sendable {
             self = .problem
         case "smoke":
             self = .smoke
-        case "gas":
+        case "carbon_monoxide", "gas":
             self = .gas
         case "moisture":
             self = .moisture
+        case "battery":
+            self = .battery
         case "connectivity":
             self = .connectivity
         case "plug":

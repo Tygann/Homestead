@@ -9,7 +9,7 @@ enum EntityMapper {
             domain: domain,
             displayName: displayName(for: dto),
             state: dto.state,
-            iconName: iconName(for: domain, state: dto.state),
+            iconName: iconName(for: dto),
             isAvailable: !["unavailable", "unknown"].contains(dto.state),
             lastUpdated: dto.lastUpdated
         )
@@ -88,7 +88,9 @@ enum EntityMapper {
             entityID: dto.entityID,
             displayName: displayName(for: dto),
             state: dto.state,
-            position: dto.attributes["current_position"]?.intValue
+            position: dto.attributes["current_position"]?.intValue,
+            deviceClass: dto.attributes["device_class"]?.stringValue,
+            iconName: coverIconName(for: dto)
         )
     }
 
@@ -152,6 +154,16 @@ enum EntityMapper {
         return supportedModes.contains { brightnessModes.contains($0) }
     }
 
+    private static func iconName(for dto: HAEntityDTO) -> String {
+        let domain = EntityDomain(entityID: dto.entityID)
+
+        if domain == .cover {
+            return coverIconName(for: dto)
+        }
+
+        return iconName(for: domain, state: dto.state)
+    }
+
     private static func iconName(for domain: EntityDomain, state: String) -> String {
         switch domain {
         case .light:
@@ -180,8 +192,28 @@ enum EntityMapper {
             "sparkles"
         case .script:
             "play.circle"
+        case .automation:
+            state == "on" ? "calendar.badge.clock" : "calendar"
         case .other:
             "circle.hexagongrid"
+        }
+    }
+
+    private static func coverIconName(for dto: HAEntityDTO) -> String {
+        coverIconName(
+            deviceClass: dto.attributes["device_class"]?.stringValue,
+            state: dto.state
+        )
+    }
+
+    private static func coverIconName(deviceClass: String?, state: String) -> String {
+        let isOpen = state == "open" || state == "opening"
+
+        switch deviceClass {
+        case "garage":
+            return isOpen ? "door.garage.open" : "door.garage.closed"
+        default:
+            return isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
         }
     }
 
@@ -216,6 +248,8 @@ enum EntityMapper {
             return isActive ? "flame.fill" : "flame"
         case .moisture:
             return isActive ? "drop.fill" : "drop"
+        case .battery:
+            return isActive ? "battery.25percent" : "battery.100percent"
         case .connectivity:
             return isActive ? "wifi" : "wifi.slash"
         case .plug:

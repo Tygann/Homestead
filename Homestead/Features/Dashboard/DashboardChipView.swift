@@ -51,7 +51,7 @@ struct DashboardChipView: View {
             return .mint
         case .climate:
             return .blue
-        case .battery:
+        case .maintenance:
             return .orange
         case .media:
             return .gray
@@ -113,9 +113,9 @@ private struct DashboardChipPreviewContainer: View {
 
         DashboardChipView(
             presentation: .init(
-                title: "Batteries",
-                value: "1 low",
-                systemImage: "battery.25percent",
+                title: "Maintenance",
+                value: "1 issue",
+                systemImage: "wrench.fill",
                 isActive: true,
                 isAvailable: true
             )
