@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -8,6 +9,8 @@ struct CameraDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var snapshotPhase: SnapshotPhase = .idle
     @State private var capabilitiesPhase: CameraCapabilitiesPhase = .idle
+    @State private var livePhase: CameraLivePhase = .idle
+    @State private var player: AVPlayer?
 
     let entityBox: HAEntityState
 
@@ -23,8 +26,8 @@ struct CameraDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                    cameraViewPanel
                     statusCard
-                    snapshotPanel
                     contextDetails
                 }
                 .padding(AppSpacing.large)
@@ -52,6 +55,9 @@ struct CameraDetailView: View {
         .presentationDragIndicator(.visible)
         .task(id: entity.entityID) {
             await loadCameraData()
+        }
+        .onDisappear {
+            player?.pause()
         }
     }
 
@@ -91,19 +97,63 @@ struct CameraDetailView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
-    private var snapshotPanel: some View {
+    private var cameraViewPanel: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Preview", systemImage: "camera.viewfinder")
-                .font(.headline)
+            HStack(alignment: .center, spacing: AppSpacing.medium) {
+                Label(cameraPanelTitle, systemImage: cameraPanelSystemImage)
+                    .font(.headline)
 
-            snapshotContent
+                Spacer(minLength: AppSpacing.medium)
+
+                if case .live = livePhase {
+                    Text("Live")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, AppSpacing.small)
+                        .padding(.vertical, AppSpacing.xSmall)
+                        .background(Color.green.opacity(0.14), in: Capsule())
+                }
+            }
+
+            cameraViewContent
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 172)
+                .frame(minHeight: 220)
                 .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var cameraViewContent: some View {
+        if !entity.isAvailable {
+            unavailableCameraContent(title: "Camera unavailable", systemImage: "video.slash")
+        } else {
+            switch livePhase {
+            case .idle, .loading:
+                VStack(spacing: AppSpacing.medium) {
+                    ProgressView()
+                        .controlSize(.large)
+
+                    Text("Preparing camera")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            case .live:
+                if let player {
+                    VideoPlayer(player: player)
+                        .frame(maxWidth: .infinity, minHeight: 220)
+                        .onAppear {
+                            player.play()
+                        }
+                } else {
+                    snapshotContent
+                }
+            case .snapshotOnly, .failed:
+                snapshotContent
+            }
+        }
     }
 
     @ViewBuilder
@@ -131,12 +181,16 @@ struct CameraDetailView: View {
     }
 
     private var unavailableSnapshotContent: some View {
+        unavailableCameraContent(title: "Snapshot unavailable", systemImage: "camera.fill")
+    }
+
+    private func unavailableCameraContent(title: String, systemImage: String) -> some View {
         VStack(spacing: AppSpacing.medium) {
-            Image(systemName: "camera.fill")
+            Image(systemName: systemImage)
                 .font(.system(size: 34, weight: .semibold))
                 .foregroundStyle(.secondary)
 
-            Text("Snapshot unavailable")
+            Text(title)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -183,14 +237,64 @@ struct CameraDetailView: View {
         case .idle, .loading:
             "Checking"
         case .loaded(let capabilities):
-            capabilities.displayText
+            switch livePhase {
+            case .live:
+                "Live HLS"
+            case .failed:
+                "Snapshot fallback (\(capabilities.displayText))"
+            case .snapshotOnly:
+                capabilities.supportsLiveStream ? "Snapshot fallback (\(capabilities.displayText))" : capabilities.displayText
+            case .idle, .loading:
+                capabilities.displayText
+            }
         case .failed:
-            "Unknown"
+            "Snapshot fallback"
+        }
+    }
+
+    private var cameraPanelTitle: String {
+        switch livePhase {
+        case .live:
+            "Live View"
+        case .loading:
+            "Preparing Live View"
+        case .idle:
+            "Camera"
+        case .snapshotOnly:
+            "Snapshot Preview"
+        case .failed:
+            "Snapshot Fallback"
+        }
+    }
+
+    private var cameraPanelSystemImage: String {
+        switch livePhase {
+        case .live, .loading:
+            "video.fill"
+        case .idle, .snapshotOnly, .failed:
+            "camera.viewfinder"
         }
     }
 
     private func loadCameraData() async {
-        await loadCapabilities()
+        player?.pause()
+        player = nil
+        livePhase = .idle
+        snapshotPhase = .idle
+
+        guard entity.isAvailable else {
+            capabilitiesPhase = .failed
+            livePhase = .failed
+            snapshotPhase = .failed
+            return
+        }
+
+        let capabilities = await loadCapabilities()
+
+        if await loadLiveStreamIfPossible(capabilities: capabilities) {
+            return
+        }
+
         await loadSnapshot()
     }
 
@@ -208,17 +312,48 @@ struct CameraDetailView: View {
         }
     }
 
-    private func loadCapabilities() async {
+    @discardableResult
+    private func loadCapabilities() async -> HACameraCapabilities? {
         guard entity.isAvailable else {
             capabilitiesPhase = .failed
-            return
+            return nil
         }
 
         capabilitiesPhase = .loading
         do {
-            capabilitiesPhase = .loaded(try await homeAssistantService.fetchCameraCapabilities(entityID: entity.entityID))
+            let capabilities = try await homeAssistantService.fetchCameraCapabilities(entityID: entity.entityID)
+            capabilitiesPhase = .loaded(capabilities)
+            return capabilities
         } catch {
             capabilitiesPhase = .failed
+            return nil
+        }
+    }
+
+    private func loadLiveStreamIfPossible(capabilities: HACameraCapabilities?) async -> Bool {
+        guard capabilities?.supportsHLSStream == true else {
+            livePhase = .snapshotOnly
+            return false
+        }
+
+        livePhase = .loading
+        do {
+            let handoff = try await homeAssistantService.prepareCameraStreamHandoff(entityID: entity.entityID)
+            guard let hlsPath = handoff.hlsPath?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !hlsPath.isEmpty else {
+                livePhase = .snapshotOnly
+                return false
+            }
+
+            let url = try homeAssistantService.cameraStreamURL(pathOrURL: hlsPath, entityID: entity.entityID)
+            let player = AVPlayer(url: url)
+            self.player = player
+            livePhase = .live
+            player.play()
+            return true
+        } catch {
+            livePhase = .failed
+            return false
         }
     }
 }
@@ -241,6 +376,14 @@ private enum CameraCapabilitiesPhase: Equatable {
     case idle
     case loading
     case loaded(HACameraCapabilities)
+    case failed
+}
+
+private enum CameraLivePhase: Equatable {
+    case idle
+    case loading
+    case live
+    case snapshotOnly
     case failed
 }
 

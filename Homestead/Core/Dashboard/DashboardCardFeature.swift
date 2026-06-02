@@ -438,6 +438,10 @@ extension DashboardCardSize {
     }
 
     static func compactOrSquareForAvailableFeatures(entityBox: HAEntityState) -> DashboardCardSize {
+        guard entityBox.domain != .camera else {
+            return .square
+        }
+
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
         let features = DashboardCardFeatureProvider.features(
             for: entityBox,

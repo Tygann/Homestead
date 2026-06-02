@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct DashboardCardView: View {
     let entityID: String
@@ -7,6 +10,7 @@ struct DashboardCardView: View {
     var iconNameOverride: String?
     var featureVisibility: DashboardCardFeatureVisibility = .automatic
     var contextualAreaName: String?
+    var cameraRefreshGeneration = 0
     var isEditing = false
 
     @Environment(HAStateStore.self) private var stateStore
@@ -27,6 +31,8 @@ struct DashboardCardView: View {
                 size: size,
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
                 featureVisibility: featureVisibility,
+                contextualAreaName: contextualAreaName,
+                cameraRefreshGeneration: cameraRefreshGeneration,
                 isPending: entityBox.pendingCommand != nil,
                 isPrimaryActionAvailable: primaryActionAvailability(
                     primaryAction: presentation.primaryAction,
@@ -54,11 +60,17 @@ struct DashboardCardView: View {
     }
 
     private func resolvedDisplayNameOverride(for entityBox: HAEntityState) -> String? {
-        EntityDisplayNameResolver.displayName(
+        let resolvedName = EntityDisplayNameResolver.displayName(
             canonicalName: entityBox.homeEntity.displayName,
             overrideName: displayNameOverride,
             contextualAreaName: contextualAreaName
-        )
+        ) ?? entityBox.homeEntity.displayName
+
+        let displayName = entityBox.domain == .camera
+            ? EntityDisplayNameResolver.cameraDisplayName(resolvedName)
+            : resolvedName
+
+        return displayName == entityBox.homeEntity.displayName ? nil : displayName
     }
 
     private func primaryAction(
@@ -344,6 +356,8 @@ private struct DashboardEntityCard: View {
     let size: DashboardCardSize
     let features: [DashboardCardFeature]
     let featureVisibility: DashboardCardFeatureVisibility
+    let contextualAreaName: String?
+    let cameraRefreshGeneration: Int
     let isPending: Bool
     let isPrimaryActionAvailable: Bool
     let toggle: (() -> Void)?
@@ -354,6 +368,37 @@ private struct DashboardEntityCard: View {
     var body: some View {
         let visibleFeatureSnapshot = visibleFeatures
 
+        if shouldUseCameraPreviewCard {
+            fullBleedCameraCard
+        } else {
+            standardCard(visibleFeatures: visibleFeatureSnapshot)
+        }
+    }
+
+    private var fullBleedCameraCard: some View {
+        Group {
+            if let showDetails {
+                Button(action: showDetails) {
+                    cameraPreviewContent
+                        .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+                }
+                .buttonStyle(HomeCardButtonStyle())
+                .accessibilityLabel(presentation.accessibilityDetailLabel)
+                .accessibilityValue(presentation.accessibilityValue)
+                .accessibilityHint(presentation.accessibilityDetailHint)
+            } else {
+                cameraPreviewContent
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: renderedCardHeight)
+        .background(cameraCardBackground, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .clipped()
+        .shadow(color: .black.opacity(presentation.isActive ? 0.08 : 0.035), radius: presentation.isActive ? 8 : 4, y: presentation.isActive ? 4 : 2)
+    }
+
+    private func standardCard(visibleFeatures visibleFeatureSnapshot: [DashboardCardFeature]) -> some View {
         CardContainer(isActive: presentation.isActive, minHeight: cardContainerMinHeight) {
             ZStack(alignment: .topLeading) {
                 if !visibleFeatureSnapshot.isEmpty {
@@ -394,6 +439,15 @@ private struct DashboardEntityCard: View {
 
     @ViewBuilder
     private func cardContent(visibleFeatures: [DashboardCardFeature]) -> some View {
+        if shouldUseCameraPreviewCard {
+            cameraPreviewContent
+        } else {
+            standardCardContent(visibleFeatures: visibleFeatures)
+        }
+    }
+
+    @ViewBuilder
+    private func standardCardContent(visibleFeatures: [DashboardCardFeature]) -> some View {
         switch size {
         case .mini:
             miniContent
@@ -487,6 +541,18 @@ private struct DashboardEntityCard: View {
                 }
             }
         }
+    }
+
+    private var cameraPreviewContent: some View {
+        CameraCardPreview(
+            entityID: entityBox.entityID,
+            isAvailable: entityBox.homeEntity.isAvailable,
+            title: cameraPreviewTitle,
+            accessibilityTitle: presentation.title,
+            fallbackSystemImage: presentation.iconName,
+            refreshGeneration: cameraRefreshGeneration,
+            height: renderedCardHeight
+        )
     }
 
     private func rowFeatureContent(visibleFeatures: [DashboardCardFeature]) -> some View {
@@ -612,6 +678,20 @@ private struct DashboardEntityCard: View {
         return "\(mode) • \(currentTemperatureText)"
     }
 
+    private var cameraPreviewTitle: String {
+        guard presentation.capability.domain == .camera else {
+            return presentation.title
+        }
+
+        let trimmedTitle = presentation.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard contextualAreaName != nil,
+              trimmedTitle.localizedCaseInsensitiveCompare("Camera") == .orderedSame else {
+            return presentation.title
+        }
+
+        return ""
+    }
+
     private var iconPlaceholder: some View {
         Color.clear
             .frame(width: 44, height: 44)
@@ -629,6 +709,10 @@ private struct DashboardEntityCard: View {
     private var iconBackground: Color {
         presentation.isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
+
+    private var cameraCardBackground: Color {
+        presentation.isActive ? Color.accentColor.opacity(0.18) : Color(.secondarySystemGroupedBackground)
+    }
     
     private var cardContentMinHeight: CGFloat {
         max(0, cardContainerMinHeight - (AppSpacing.medium * 2))
@@ -641,8 +725,302 @@ private struct DashboardEntityCard: View {
         )
     }
 
+    private var renderedCardHeight: CGFloat {
+        size.renderedHeight(
+            rowSpacing: AppSpacing.medium,
+            cardPadding: AppSpacing.medium
+        )
+    }
+
     private var visibleFeatures: [DashboardCardFeature] {
         size.visibleFeatures(from: features, visibility: featureVisibility).filter { featureActions.canRender($0) }
+    }
+
+    private var shouldUseCameraPreviewCard: Bool {
+        guard presentation.capability.domain == .camera else {
+            return false
+        }
+
+        switch size {
+        case .square, .wide, .large:
+            return true
+        case .mini, .compact, .row:
+            return false
+        }
+    }
+}
+
+private struct CameraCardPreview: View {
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var snapshotPhase: CameraCardSnapshotPhase = .idle
+
+    let entityID: String
+    let isAvailable: Bool
+    let title: String
+    let accessibilityTitle: String
+    let fallbackSystemImage: String
+    let refreshGeneration: Int
+    let height: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .bottomLeading) {
+                snapshotContent(width: proxy.size.width)
+                    .frame(width: proxy.size.width, height: height)
+                    .background(Color(.tertiarySystemGroupedBackground))
+
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.62)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+                .frame(width: proxy.size.width, height: height)
+
+                if shouldShowTextOverlay {
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .opacity(0.52)
+                            .background(Color.black.opacity(0.18))
+
+                        Text(title)
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .padding(.horizontal, AppSpacing.small)
+                    }
+                    .frame(width: proxy.size.width, height: footerHeight)
+                } else {
+                    EmptyView()
+                        .frame(width: proxy.size.width, alignment: .bottomLeading)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipped()
+        .task(id: refreshTaskID) {
+            await refreshSnapshotsWhileVisible()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityTitle)
+        .accessibilityValue(snapshotSubtitle)
+    }
+
+    @ViewBuilder
+    private func snapshotContent(width: CGFloat) -> some View {
+        switch snapshotPhase {
+        case .idle, .loading:
+            cameraPlaceholder(status: placeholderStatus)
+                .frame(width: width, height: height)
+        case .loaded(let data):
+            #if canImport(UIKit)
+            if let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: width, height: height)
+                    .clipped()
+            } else {
+                cameraPlaceholder(status: .failed)
+                    .frame(width: width, height: height)
+            }
+            #else
+            cameraPlaceholder(status: .failed)
+                .frame(width: width, height: height)
+            #endif
+        case .failed:
+            cameraPlaceholder(status: placeholderStatus)
+                .frame(width: width, height: height)
+        }
+    }
+
+    private var snapshotSubtitle: String {
+        guard isAvailable else {
+            return "Unavailable"
+        }
+
+        switch snapshotPhase {
+        case .idle, .loading:
+            return "Loading preview"
+        case .loaded:
+            return ""
+        case .failed:
+            return "Preview unavailable"
+        }
+    }
+
+    private var shouldShowTextOverlay: Bool {
+        !title.isEmpty
+    }
+
+    private var footerHeight: CGFloat {
+        min(max(42, height * 0.2), 56)
+    }
+
+    private var placeholderStatus: CameraCardPlaceholderStatus {
+        guard isAvailable else {
+            return .unavailable
+        }
+
+        switch snapshotPhase {
+        case .idle, .loading:
+            return .loading
+        case .loaded:
+            return .failed
+        case .failed:
+            return .failed
+        }
+    }
+
+    private func cameraPlaceholder(status: CameraCardPlaceholderStatus) -> some View {
+        ZStack {
+            Color(.tertiarySystemGroupedBackground)
+
+            if status == .loading {
+                ProgressView()
+                    .controlSize(.regular)
+            } else {
+                Image(systemName: status.systemImage)
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var refreshTaskID: String {
+        "\(entityID)-\(isAvailable)-\(scenePhase == .active)-\(refreshGeneration)"
+    }
+
+    @MainActor
+    private func refreshSnapshotsWhileVisible() async {
+        guard isAvailable else {
+            snapshotPhase = .failed
+            return
+        }
+
+        guard scenePhase == .active else {
+            return
+        }
+
+        await loadSnapshot(useCache: refreshGeneration == 0)
+
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(nanoseconds: refreshIntervalNanoseconds)
+            } catch {
+                return
+            }
+
+            await loadSnapshot(useCache: false)
+        }
+    }
+
+    @MainActor
+    private func loadSnapshot(useCache: Bool) async {
+        if useCache,
+           let cachedSnapshot = await CameraCardSnapshotCache.shared.snapshot(for: entityID) {
+            snapshotPhase = .loaded(cachedSnapshot)
+            return
+        }
+
+        let shouldShowLoadingState = !snapshotPhase.hasLoadedSnapshot
+        if shouldShowLoadingState {
+            snapshotPhase = .loading
+        }
+
+        do {
+            let snapshot = try await homeAssistantService.fetchCameraSnapshot(entityID: entityID)
+            await CameraCardSnapshotCache.shared.store(snapshot, for: entityID)
+            guard !Task.isCancelled else { return }
+            snapshotPhase = .loaded(snapshot)
+        } catch {
+            guard !Task.isCancelled else { return }
+            if shouldShowLoadingState {
+                snapshotPhase = .failed
+            }
+        }
+    }
+
+    private var refreshIntervalNanoseconds: UInt64 {
+        CameraCardSnapshotCache.baseRefreshIntervalNanoseconds + refreshJitterNanoseconds
+    }
+
+    private var refreshJitterNanoseconds: UInt64 {
+        UInt64(entityID.hashValue.magnitude % 8) * 1_000_000_000
+    }
+}
+
+private enum CameraCardSnapshotPhase: Equatable {
+    case idle
+    case loading
+    case loaded(Data)
+    case failed
+
+    var hasLoadedSnapshot: Bool {
+        if case .loaded = self {
+            return true
+        }
+
+        return false
+    }
+}
+
+private enum CameraCardPlaceholderStatus {
+    case loading
+    case unavailable
+    case failed
+
+    var title: String {
+        switch self {
+        case .loading:
+            return "Loading preview"
+        case .unavailable:
+            return "Unavailable"
+        case .failed:
+            return "Preview unavailable"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .loading:
+            return "progress.indicator"
+        case .unavailable, .failed:
+            return "photo.badge.exclamationmark"
+        }
+    }
+}
+
+private actor CameraCardSnapshotCache {
+    static let shared = CameraCardSnapshotCache()
+    nonisolated static let baseRefreshIntervalNanoseconds: UInt64 = 45_000_000_000
+
+    private struct Entry {
+        let data: Data
+        let date: Date
+    }
+
+    private var entriesByEntityID: [String: Entry] = [:]
+    private let timeToLive: TimeInterval = 45
+
+    func snapshot(for entityID: String, now: Date = Date()) -> Data? {
+        guard let entry = entriesByEntityID[entityID] else {
+            return nil
+        }
+
+        guard now.timeIntervalSince(entry.date) <= timeToLive else {
+            entriesByEntityID[entityID] = nil
+            return nil
+        }
+
+        return entry.data
+    }
+
+    func store(_ data: Data, for entityID: String, now: Date = Date()) {
+        entriesByEntityID[entityID] = Entry(data: data, date: now)
     }
 }
 

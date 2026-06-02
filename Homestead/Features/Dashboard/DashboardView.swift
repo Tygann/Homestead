@@ -100,6 +100,7 @@ struct DashboardView: View {
     @State private var headerTitleDraft = ""
     @State private var displayTitleDraft = ""
     @State private var showsInitialSyncPlaceholder = false
+    @State private var cameraRefreshGeneration = 0
     
     var body: some View {
         let visibleItemsSnapshot = visibleDashboardItems
@@ -146,6 +147,7 @@ struct DashboardView: View {
         }
         .refreshable {
             await homeAssistantService.refreshStates()
+            cameraRefreshGeneration += 1
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Homestead")
@@ -477,6 +479,7 @@ struct DashboardView: View {
                     displayNameOverride: currentCardDisplayNameOverride(for: item),
                     iconNameOverride: item.iconNameOverride,
                     featureVisibility: item.featureVisibility,
+                    cameraRefreshGeneration: cameraRefreshGeneration,
                     isEditing: true
                 )
                 .frame(maxWidth: .infinity)
@@ -489,7 +492,8 @@ struct DashboardView: View {
                 size: item.size,
                 displayNameOverride: currentCardDisplayNameOverride(for: item),
                 iconNameOverride: item.iconNameOverride,
-                featureVisibility: item.featureVisibility
+                featureVisibility: item.featureVisibility,
+                cameraRefreshGeneration: cameraRefreshGeneration
             )
             .frame(maxWidth: .infinity)
             .contextMenu {

@@ -7,6 +7,10 @@ nonisolated struct HACameraCapabilities: Decodable, Equatable, Sendable {
         !frontendStreamTypes.isEmpty
     }
 
+    var supportsHLSStream: Bool {
+        frontendStreamTypes.contains(.hls)
+    }
+
     var displayText: String {
         guard !frontendStreamTypes.isEmpty else {
             return "Snapshot only"

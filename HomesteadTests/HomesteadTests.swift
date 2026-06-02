@@ -509,6 +509,7 @@ struct HomesteadTests {
 
         #expect(capabilities.frontendStreamTypes == [.webRTC, .hls])
         #expect(capabilities.supportsLiveStream)
+        #expect(capabilities.supportsHLSStream)
         #expect(capabilities.displayText == "WebRTC, HLS")
     }
 
@@ -2382,6 +2383,23 @@ struct HomesteadTests {
         #expect(DashboardCardSize.large.displayName == "Large 4x4")
     }
 
+    @MainActor
+    @Test func generatedCameraCardsPreferSquarePreviewSize() {
+        let camera = HAEntityState(
+            homeEntity: HomeEntity(
+                entityID: "camera.driveway",
+                domain: .camera,
+                displayName: "Driveway",
+                state: "idle",
+                iconName: "camera.fill",
+                isAvailable: true,
+                lastUpdated: nil
+            )
+        )
+
+        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: camera) == .square)
+    }
+
     @Test func entityDisplayNameResolverShortensNamesOnlyInMatchingAreaContext() {
         #expect(EntityDisplayNameResolver.contextualDisplayName("Primary Bedroom Light", areaName: "Primary Bedroom") == "Light")
         #expect(EntityDisplayNameResolver.contextualDisplayName("Primary Bedroom - Lamp", areaName: "Primary Bedroom") == "Lamp")
@@ -2403,6 +2421,13 @@ struct HomesteadTests {
             overrideName: "Bedside Lamp",
             contextualAreaName: "Primary Bedroom"
         ) == "Bedside Lamp")
+    }
+
+    @Test func entityDisplayNameResolverShortensCameraSuffixWhenUseful() {
+        #expect(EntityDisplayNameResolver.cameraDisplayName("Front Door Camera") == "Front Door")
+        #expect(EntityDisplayNameResolver.cameraDisplayName("Living Room - Camera") == "Living Room")
+        #expect(EntityDisplayNameResolver.cameraDisplayName("Camera") == "Camera")
+        #expect(EntityDisplayNameResolver.cameraDisplayName("Driveway Cam") == "Driveway Cam")
     }
 
     @MainActor

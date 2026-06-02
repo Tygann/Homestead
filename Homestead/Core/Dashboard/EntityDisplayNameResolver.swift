@@ -38,4 +38,19 @@ nonisolated enum EntityDisplayNameResolver {
 
         return suffix.isEmpty ? displayName : suffix
     }
+
+    static func cameraDisplayName(_ displayName: String) -> String {
+        let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cameraSuffix = "camera"
+        guard trimmedName.lowercased().hasSuffix(cameraSuffix),
+              trimmedName.count > cameraSuffix.count else {
+            return displayName
+        }
+
+        let suffixStart = trimmedName.index(trimmedName.endIndex, offsetBy: -cameraSuffix.count)
+        let prefix = String(trimmedName[..<suffixStart])
+            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters))
+
+        return prefix.isEmpty ? displayName : prefix
+    }
 }

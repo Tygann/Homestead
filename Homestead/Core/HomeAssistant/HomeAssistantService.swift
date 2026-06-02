@@ -648,6 +648,14 @@ final class HomeAssistantService {
         return HACameraStreamHandoff(entityID: entityID, response: response)
     }
 
+    func cameraStreamURL(pathOrURL: String, entityID: String) throws -> URL {
+        let configuration = try cameraConfiguration(for: entityID)
+        return try HomeAssistantEndpointBuilder.httpURL(
+            from: configuration.baseURLString,
+            pathOrURL: pathOrURL
+        )
+    }
+
     func homeAssistantProfileImageRequest(settings: HAConnectionSettings) async -> URLRequest? {
         guard settings.hasServerURL,
               let currentUserID,
