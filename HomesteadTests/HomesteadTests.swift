@@ -2945,8 +2945,39 @@ struct HomesteadTests {
         #expect(kitchen?.activeCount == 1)
         #expect(kitchen?.domainCounts[.light] == 1)
         #expect(kitchen?.domainCounts[.sensor] == 1)
+        #expect(kitchen?.activeDomainCounts[.light] == 1)
         #expect(kitchen?.topDomains == [.light, .sensor])
+        #expect(kitchen?.domainChips == [
+            DashboardAreaDomainChip(domain: .light, isActive: true),
+            DashboardAreaDomainChip(domain: .sensor, isActive: false)
+        ])
         #expect(office?.unavailableCount == 1)
+    }
+
+    @MainActor
+    @Test func areaBuilderPrioritizesActiveDomainChipsBeforeInactiveDomains() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.living_room_lamp", state: "off"),
+            HAEntityDTO(entityID: "sensor.living_room_temperature", state: "72"),
+            HAEntityDTO(entityID: "media_player.living_room_tv", state: "playing"),
+            HAEntityDTO(entityID: "camera.living_room", state: "idle")
+        ])
+
+        let areaNames = [
+            "light.living_room_lamp": "Living Room",
+            "sensor.living_room_temperature": "Living Room",
+            "media_player.living_room_tv": "Living Room",
+            "camera.living_room": "Living Room"
+        ]
+
+        let area = DashboardAreaBuilder.buildAreas(
+            from: store.allEntityBoxes(),
+            areaNameForEntityID: { areaNames[$0] }
+        ).first
+
+        #expect(area?.domainChips.prefix(3).map(\.domain) == [.mediaPlayer, .light, .sensor])
+        #expect(area?.domainChips.first?.isActive == true)
     }
 
     @MainActor

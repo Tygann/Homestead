@@ -116,25 +116,19 @@ private struct AreaGroupHeader: View {
     let section: DashboardAreaSection
 
     var body: some View {
-        HStack(alignment: .lastTextBaseline, spacing: AppSpacing.small) {
-            Text(section.title ?? "")
-                .font(.title3.weight(.semibold))
-
-            Text(section.subtitle)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-        }
+        Text(section.title ?? "")
+            .font(.title3.weight(.semibold))
         .accessibilityElement(children: .combine)
     }
 }
 
 private struct AreaSummaryCard: View {
     let area: DashboardAreaSummary
-    private let visibleDomains: [EntityDomain]
+    private let visibleDomainChips: [DashboardAreaDomainChip]
 
     init(area: DashboardAreaSummary) {
         self.area = area
-        self.visibleDomains = Array(area.topDomains.prefix(3))
+        self.visibleDomainChips = Array(area.domainChips.prefix(3))
     }
 
     var body: some View {
@@ -156,17 +150,11 @@ private struct AreaSummaryCard: View {
                         .font(.headline)
                         .lineLimit(2)
                         .minimumScaleFactor(0.85)
-
-                    Text(area.subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.85)
                 }
 
                 Spacer(minLength: 0)
 
-                AreaDomainStrip(domains: visibleDomains)
+                AreaDomainStrip(chips: visibleDomainChips)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -181,19 +169,43 @@ private struct AreaSummaryCard: View {
 }
 
 private struct AreaDomainStrip: View {
-    let domains: [EntityDomain]
+    let chips: [DashboardAreaDomainChip]
 
     var body: some View {
         HStack(spacing: AppSpacing.xSmall) {
-            ForEach(domains, id: \.self) { domain in
-                Image(systemName: domain.systemImage)
+            ForEach(chips, id: \.self) { chip in
+                Image(systemName: chip.domain.systemImage)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(iconColor(for: chip))
                     .frame(width: 24, height: 24)
-                    .background(Color(.tertiarySystemGroupedBackground), in: Circle())
-                    .accessibilityLabel(domain.displayName)
+                    .background(iconBackground(for: chip), in: Circle())
+                    .accessibilityLabel(chip.domain.displayName)
+                    .accessibilityValue(chip.isActive ? "Active" : "Idle")
             }
         }
+    }
+
+    private func iconColor(for chip: DashboardAreaDomainChip) -> Color {
+        guard chip.isActive else {
+            return .secondary
+        }
+
+        switch chip.domain {
+        case .light:
+            return .yellow
+        case .climate, .fan:
+            return .blue
+        case .binarySensor, .lock, .camera:
+            return .mint
+        case .mediaPlayer:
+            return .indigo
+        case .sensor, .cover, .switch, .vacuum, .scene, .script, .automation, .other:
+            return .accentColor
+        }
+    }
+
+    private func iconBackground(for chip: DashboardAreaDomainChip) -> Color {
+        chip.isActive ? iconColor(for: chip).opacity(0.16) : Color(.tertiarySystemGroupedBackground)
     }
 }
 

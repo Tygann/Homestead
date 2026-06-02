@@ -125,6 +125,8 @@ enum DashboardAreaBuilder {
                 .count,
             unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count,
             domainCounts: Dictionary(grouping: entityBoxes, by: \.domain)
+                .mapValues(\.count),
+            activeDomainCounts: Dictionary(grouping: entityBoxes.filter { DashboardEntityPresentation(entityBox: $0).isActive }, by: \.domain)
                 .mapValues(\.count)
         )
     }

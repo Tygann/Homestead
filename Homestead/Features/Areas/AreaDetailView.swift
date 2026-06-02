@@ -9,8 +9,6 @@ struct AreaDetailView: View {
 
         ScrollView {
             LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                AreaOverviewCard(area: presentation.currentArea)
-
                 ForEach(presentation.sections) { section in
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
                         AreaSectionHeader(section: section)
@@ -38,7 +36,6 @@ struct AreaDetailView: View {
 }
 
 private struct AreaDetailPresentation {
-    let currentArea: DashboardAreaSummary
     let sections: [AreaEntitySection]
 
     @MainActor
@@ -96,10 +93,7 @@ private struct AreaDetailPresentation {
                 lhs.sortPriority < rhs.sortPriority
             }
 
-        return AreaDetailPresentation(
-            currentArea: DashboardAreaBuilder.buildArea(named: area.name, from: entityBoxes),
-            sections: summarySections + domainSections
-        )
+        return AreaDetailPresentation(sections: summarySections + domainSections)
     }
 
     @MainActor
@@ -120,11 +114,6 @@ private struct AreaDetailPresentation {
                     cardSize: DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
                 )
             },
-            activeCount: entityBoxes
-                .map { DashboardEntityPresentation(entityBox: $0) }
-                .filter(\.isActive)
-                .count,
-            unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count,
             sortPriority: entityBoxes
                 .map(\.domain.dashboardPriority)
                 .min() ?? EntityDomain.other.dashboardPriority
@@ -141,23 +130,7 @@ private struct AreaEntitySection: Identifiable {
     let title: String
     let systemImage: String
     let items: [AreaEntityItem]
-    let activeCount: Int
-    let unavailableCount: Int
     let sortPriority: Int
-
-    var subtitle: String {
-        var parts = ["\(items.count) \(items.count == 1 ? "entity" : "entities")"]
-
-        if activeCount > 0 {
-            parts.append("\(activeCount) active")
-        }
-
-        if unavailableCount > 0 {
-            parts.append("\(unavailableCount) unavailable")
-        }
-
-        return parts.joined(separator: " • ")
-    }
 }
 
 private struct AreaEntityItem: Identifiable {
@@ -165,60 +138,6 @@ private struct AreaEntityItem: Identifiable {
     let cardSize: DashboardCardSize
 
     var id: String { entityID }
-}
-
-private struct AreaOverviewCard: View {
-    let area: DashboardAreaSummary
-
-    var body: some View {
-        CardContainer(isActive: area.activeCount > 0, minHeight: 116) {
-            VStack(alignment: .leading, spacing: AppSpacing.large) {
-                HStack(alignment: .center, spacing: AppSpacing.medium) {
-                    CardIconView(systemName: area.systemImage, isActive: area.activeCount > 0)
-
-                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                        Text(area.name)
-                            .font(.title3.weight(.semibold))
-
-                        Text(area.subtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 96), spacing: AppSpacing.small)],
-                    alignment: .leading,
-                    spacing: AppSpacing.small
-                ) {
-                    AreaMetricPill(title: area.entityCountText, systemImage: "circle.grid.2x2")
-
-                    if area.activeCount > 0 {
-                        AreaMetricPill(title: "\(area.activeCount) active", systemImage: "bolt.fill")
-                    }
-
-                    if area.unavailableCount > 0 {
-                        AreaMetricPill(title: "\(area.unavailableCount) unavailable", systemImage: "exclamationmark.triangle.fill")
-                    }
-                }
-            }
-        }
-    }
-}
-
-private struct AreaMetricPill: View {
-    let title: String
-    let systemImage: String
-
-    var body: some View {
-        Label(title, systemImage: systemImage)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .padding(.horizontal, AppSpacing.small)
-            .padding(.vertical, AppSpacing.xSmall)
-            .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
-    }
 }
 
 private struct AreaSectionHeader: View {
@@ -235,10 +154,6 @@ private struct AreaSectionHeader: View {
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(section.title)
                     .font(.headline)
-
-                Text(section.subtitle)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
             }
 
             Spacer(minLength: AppSpacing.medium)

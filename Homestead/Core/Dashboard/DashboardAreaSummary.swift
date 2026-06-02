@@ -12,35 +12,30 @@ struct DashboardAreaSummary: Identifiable, Hashable, Sendable {
     let activeCount: Int
     let unavailableCount: Int
     let domainCounts: [EntityDomain: Int]
-
-    var subtitle: String {
-        var parts: [String] = []
-
-        if activeCount > 0 {
-            parts.append("\(activeCount) active")
-        }
-
-        if unavailableCount > 0 {
-            parts.append("\(unavailableCount) unavailable")
-        }
-
-        if parts.isEmpty {
-            parts.append(entityCountText)
-        }
-
-        return parts.joined(separator: " • ")
-    }
-
-    var entityCountText: String {
-        "\(entityIDs.count) \(entityIDs.count == 1 ? "entity" : "entities")"
-    }
+    let activeDomainCounts: [EntityDomain: Int]
 
     var topDomains: [EntityDomain] {
+        domainChips.map(\.domain)
+    }
+
+    var domainChips: [DashboardAreaDomainChip] {
         domainCounts
             .filter { $0.value > 0 }
             .map(\.key)
             .sorted { lhs, rhs in
-                lhs.dashboardPriority < rhs.dashboardPriority
+                let lhsIsActive = activeDomainCounts[lhs, default: 0] > 0
+                let rhsIsActive = activeDomainCounts[rhs, default: 0] > 0
+                if lhsIsActive != rhsIsActive {
+                    return lhsIsActive
+                }
+
+                return lhs.dashboardPriority < rhs.dashboardPriority
+            }
+            .map { domain in
+                DashboardAreaDomainChip(
+                    domain: domain,
+                    isActive: activeDomainCounts[domain, default: 0] > 0
+                )
             }
     }
 
@@ -79,6 +74,11 @@ struct DashboardAreaSummary: Identifiable, Hashable, Sendable {
     }
 }
 
+struct DashboardAreaDomainChip: Hashable, Sendable {
+    let domain: EntityDomain
+    let isActive: Bool
+}
+
 struct DashboardAreaContext: Hashable, Sendable {
     let areaID: String
     let name: String
@@ -92,8 +92,4 @@ struct DashboardAreaSection: Identifiable, Hashable, Sendable {
     let id: String
     let title: String?
     let areas: [DashboardAreaSummary]
-
-    var subtitle: String {
-        "\(areas.count) \(areas.count == 1 ? "area" : "areas")"
-    }
 }
