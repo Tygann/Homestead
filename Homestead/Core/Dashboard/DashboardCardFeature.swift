@@ -128,7 +128,7 @@ enum DashboardCardFeatureProvider {
             return coverFeatures(cover, entityBox: entityBox)
         case .lock:
             return lockFeatures(entityBox.homeEntity)
-        case .switch, .fan, .sensor, .binarySensor, .mediaPlayer, .camera, .scene, .script, .automation, .vacuum, .other:
+        default:
             return []
         }
     }

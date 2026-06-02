@@ -28,7 +28,7 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
             return ["on", "detected", "unsafe"].contains(normalizedState)
         case .problem:
             return ["on", "detected", "problem", "unsafe"].contains(normalizedState)
-        case .airQuality, .carbonDioxide, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .speed, .volatileOrganicCompounds, .volume, .weight, .temperature, .humidity, .energy, .power, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .generic:
+        case .airQuality, .area, .carbonDioxide, .conductivity, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .pH, .precipitation, .speed, .soundPressure, .volatileOrganicCompounds, .volume, .volumeFlowRate, .weight, .windDirection, .temperature, .temperatureDelta, .humidity, .energy, .energyDistance, .energyStorage, .power, .powerFactor, .reactiveEnergy, .reactivePower, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .uptime, .generic:
             return false
         }
     }
@@ -79,7 +79,7 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
             return "Clear"
         case .battery where numericValue != nil:
             return "Battery"
-        case .airQuality, .carbonDioxide, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .speed, .volatileOrganicCompounds, .volume, .weight, .temperature, .humidity, .energy, .power, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .battery, .generic:
+        case .airQuality, .area, .carbonDioxide, .conductivity, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .pH, .precipitation, .speed, .soundPressure, .volatileOrganicCompounds, .volume, .volumeFlowRate, .weight, .windDirection, .temperature, .temperatureDelta, .humidity, .energy, .energyDistance, .energyStorage, .power, .powerFactor, .reactiveEnergy, .reactivePower, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .uptime, .battery, .generic:
             break
         }
 
@@ -118,7 +118,7 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
             0
         case "temperature":
             1
-        case "energy", "power", "gas", "water", "moisture", "carbon_dioxide", "carbon_monoxide", "pm1", "pm10", "pm25", "volatile_organic_compounds", "volatile_organic_compounds_parts":
+        case "energy", "energy_distance", "energy_storage", "power", "apparent_power", "reactive_power", "reactive_energy", "gas", "water", "moisture", "carbon_dioxide", "carbon_monoxide", "nitrogen_dioxide", "nitrogen_monoxide", "nitrous_oxide", "ozone", "pm1", "pm10", "pm25", "pm4", "sulphur_dioxide", "volatile_organic_compounds", "volatile_organic_compounds_parts":
             2
         default:
             1
@@ -145,7 +145,7 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
             "CO Detected"
         case .problem:
             "Problem Detected"
-        case .airQuality, .carbonDioxide, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .speed, .volatileOrganicCompounds, .volume, .weight, .temperature, .humidity, .energy, .power, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .generic:
+        case .airQuality, .area, .carbonDioxide, .conductivity, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .pH, .precipitation, .speed, .soundPressure, .volatileOrganicCompounds, .volume, .volumeFlowRate, .weight, .windDirection, .temperature, .temperatureDelta, .humidity, .energy, .energyDistance, .energyStorage, .power, .powerFactor, .reactiveEnergy, .reactivePower, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .uptime, .generic:
             formattedDeviceClass ?? "Sensor"
         }
     }
@@ -332,44 +332,62 @@ nonisolated enum BinarySensorDisplayKind: Equatable, Sendable {
 
 nonisolated enum SensorDisplayKind: Equatable, Sendable {
     case airQuality
+    case area
     case temperature
+    case temperatureDelta
     case humidity
     case battery
     case carbonDioxide
     case carbonMonoxide
+    case conductivity
     case data
     case date
     case distance
     case duration
     case `enum`
     case energy
+    case energyDistance
+    case energyStorage
     case frequency
     case monetary
     case power
+    case powerFactor
+    case reactiveEnergy
+    case reactivePower
     case illuminance
     case irradiance
     case moisture
     case particulateMatter
+    case pH
+    case precipitation
     case pressure
     case signal
+    case soundPressure
     case speed
     case voltage
     case current
     case volatileOrganicCompounds
     case volume
+    case volumeFlowRate
     case weight
+    case windDirection
     case water
     case gas
     case problem
+    case uptime
     case generic
 
     init(deviceClass: String?) {
         switch deviceClass {
         case "aqi":
             self = .airQuality
+        case "area":
+            self = .area
         case "temperature":
             self = .temperature
-        case "humidity":
+        case "temperature_delta":
+            self = .temperatureDelta
+        case "humidity", "absolute_humidity":
             self = .humidity
         case "battery":
             self = .battery
@@ -377,10 +395,16 @@ nonisolated enum SensorDisplayKind: Equatable, Sendable {
             self = .carbonDioxide
         case "carbon_monoxide":
             self = .carbonMonoxide
+        case "nitrogen_dioxide", "nitrogen_monoxide", "nitrous_oxide", "ozone", "sulphur_dioxide":
+            self = .airQuality
+        case "conductivity":
+            self = .conductivity
         case "data_size", "data_rate", "volume_storage":
             self = .data
         case "date", "timestamp":
             self = .date
+        case "uptime":
+            self = .uptime
         case "distance":
             self = .distance
         case "duration":
@@ -389,24 +413,40 @@ nonisolated enum SensorDisplayKind: Equatable, Sendable {
             self = .enum
         case "energy":
             self = .energy
+        case "energy_distance":
+            self = .energyDistance
+        case "energy_storage":
+            self = .energyStorage
         case "frequency":
             self = .frequency
         case "monetary":
             self = .monetary
-        case "power":
+        case "power", "apparent_power":
             self = .power
+        case "power_factor":
+            self = .powerFactor
+        case "reactive_energy":
+            self = .reactiveEnergy
+        case "reactive_power":
+            self = .reactivePower
         case "illuminance":
             self = .illuminance
         case "irradiance":
             self = .irradiance
         case "moisture":
             self = .moisture
-        case "pm1", "pm10", "pm25":
+        case "pm1", "pm10", "pm25", "pm4":
             self = .particulateMatter
-        case "pressure":
+        case "ph":
+            self = .pH
+        case "precipitation", "precipitation_intensity":
+            self = .precipitation
+        case "pressure", "atmospheric_pressure":
             self = .pressure
         case "signal_strength":
             self = .signal
+        case "sound_pressure":
+            self = .soundPressure
         case "speed":
             self = .speed
         case "voltage":
@@ -417,8 +457,14 @@ nonisolated enum SensorDisplayKind: Equatable, Sendable {
             self = .volatileOrganicCompounds
         case "volume":
             self = .volume
+        case "volume_flow_rate":
+            self = .volumeFlowRate
         case "weight":
             self = .weight
+        case "wind_direction":
+            self = .windDirection
+        case "wind_speed":
+            self = .speed
         case "water":
             self = .water
         case "gas":

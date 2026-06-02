@@ -288,6 +288,60 @@ enum DashboardEntityDomainRegistry {
                 iconAccentBehavior: .vacuumState,
                 secondaryActions: [.startCleaning, .stopCleaning, .returnToBase]
             )
+        case .remote:
+            displayOnlyStatusCapability(
+                domain: domain,
+                statusFormatter: .onOff(unavailableTitle: "Remote unavailable")
+            )
+        case .button:
+            displayOnlyStatusCapability(domain: domain)
+        case .select:
+            displayOnlyValueCapability(domain: domain)
+        case .number:
+            displayOnlyValueCapability(domain: domain)
+        case .text:
+            displayOnlyValueCapability(domain: domain)
+        case .date:
+            displayOnlyValueCapability(domain: domain)
+        case .time:
+            displayOnlyValueCapability(domain: domain)
+        case .datetime:
+            displayOnlyValueCapability(domain: domain)
+        case .deviceTracker:
+            displayOnlyStatusCapability(domain: domain)
+        case .person:
+            displayOnlyStatusCapability(domain: domain)
+        case .update:
+            displayOnlyStatusCapability(domain: domain)
+        case .alarmControlPanel:
+            displayOnlyStatusCapability(domain: domain)
+        case .humidifier:
+            displayOnlyStatusCapability(domain: domain)
+        case .waterHeater:
+            displayOnlyStatusCapability(domain: domain)
+        case .lawnMower:
+            displayOnlyStatusCapability(domain: domain)
+        case .valve:
+            displayOnlyStatusCapability(domain: domain)
+        case .siren:
+            displayOnlyStatusCapability(
+                domain: domain,
+                statusFormatter: .onOff(unavailableTitle: "Siren unavailable")
+            )
+        case .weather:
+            displayOnlyValueCapability(domain: domain)
+        case .calendar:
+            displayOnlyStatusCapability(domain: domain)
+        case .todo:
+            displayOnlyStatusCapability(domain: domain)
+        case .event:
+            displayOnlyStatusCapability(domain: domain)
+        case .image:
+            displayOnlyStatusCapability(domain: domain)
+        case .imageProcessing:
+            displayOnlyStatusCapability(domain: domain)
+        case .airQuality:
+            displayOnlyValueCapability(domain: domain)
         case .other:
             DashboardEntityDomainCapability(
                 domain: domain,
@@ -299,6 +353,33 @@ enum DashboardEntityDomainRegistry {
                 secondaryActions: []
             )
         }
+    }
+
+    private static func displayOnlyStatusCapability(
+        domain: EntityDomain,
+        statusFormatter: DashboardEntityStatusFormatter = .rawState
+    ) -> DashboardEntityDomainCapability {
+        DashboardEntityDomainCapability(
+            domain: domain,
+            cardStyle: .status,
+            primaryAction: nil,
+            detailKind: .entity,
+            statusFormatter: statusFormatter,
+            iconAccentBehavior: .defaultAccent,
+            secondaryActions: []
+        )
+    }
+
+    private static func displayOnlyValueCapability(domain: EntityDomain) -> DashboardEntityDomainCapability {
+        DashboardEntityDomainCapability(
+            domain: domain,
+            cardStyle: .value,
+            primaryAction: nil,
+            detailKind: .entity,
+            statusFormatter: .rawState,
+            iconAccentBehavior: .defaultAccent,
+            secondaryActions: []
+        )
     }
 }
 
@@ -770,25 +851,25 @@ struct DashboardEntityPresentation {
         guard !sensor.isAlerting else { return .red }
 
         switch sensor.displayKind {
-        case .temperature:
+        case .temperature, .temperatureDelta:
             return .orange
         case .humidity, .water, .moisture:
             return .cyan
         case .battery:
             return .green
-        case .energy, .power, .voltage, .current, .illuminance, .irradiance:
+        case .energy, .energyDistance, .energyStorage, .power, .powerFactor, .reactiveEnergy, .reactivePower, .voltage, .current, .illuminance, .irradiance:
             return .yellow
         case .pressure:
             return .purple
-        case .signal, .data, .speed, .frequency:
+        case .signal, .data, .speed, .frequency, .soundPressure:
             return .blue
         case .gas, .carbonMonoxide:
             return .orange
-        case .airQuality, .carbonDioxide, .particulateMatter, .volatileOrganicCompounds:
+        case .airQuality, .carbonDioxide, .particulateMatter, .volatileOrganicCompounds, .conductivity, .pH, .precipitation:
             return .mint
         case .problem:
             return .red
-        case .date, .distance, .duration, .enum, .monetary, .volume, .weight, .generic:
+        case .area, .date, .distance, .duration, .enum, .monetary, .volume, .volumeFlowRate, .weight, .windDirection, .uptime, .generic:
             return .accentColor
         }
     }
@@ -972,12 +1053,7 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
             return label
         }
 
-        switch presentation.capability.domain {
-        case .camera, .climate, .lock, .mediaPlayer, .sensor, .binarySensor, .vacuum:
-            return "Open details"
-        case .light, .cover, .switch, .fan, .scene, .script, .automation, .other:
-            return nil
-        }
+        return presentation.capability.domain == .other ? nil : "Open details"
     }
 }
 

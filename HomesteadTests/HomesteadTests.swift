@@ -813,6 +813,7 @@ struct HomesteadTests {
         ))
         let cameraEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "camera.driveway", state: "idle"))
         let automationEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "automation.good_night", state: "on"))
+        let remoteEntity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "remote.ashtons_tv", state: "off"))
         let binarySensorDTO = HAEntityDTO(
             entityID: "binary_sensor.front_door",
             state: "on",
@@ -827,6 +828,10 @@ struct HomesteadTests {
         #expect(mediaEntity.domain == .mediaPlayer)
         #expect(cameraEntity.domain == .camera)
         #expect(automationEntity.domain == .automation)
+        #expect(remoteEntity.domain == .remote)
+        #expect(remoteEntity.domain != .other)
+        #expect(remoteEntity.iconName == "appletvremote.gen4.fill")
+        #expect(remoteEntity.domain.displayName == "Remotes")
         #expect(binarySensorEntity.domain == .binarySensor)
         #expect(switchEntity.iconName == "lightswitch.on.fill")
         #expect(outletSwitchEntity.iconName == "poweroutlet.type.b.fill")
@@ -837,6 +842,61 @@ struct HomesteadTests {
         #expect(automationEntity.iconName == "calendar.badge.clock")
         #expect(binarySensor?.displayKind == .door)
         #expect(binarySensor?.displaySubtitle == "Open")
+    }
+
+    @MainActor
+    @Test func entityMapperRecognizesCommonHomeAssistantDomainsAndKeepsUnknownsGeneric() {
+        let examples: [(String, EntityDomain, String)] = [
+            ("button.identify", .button, "button.programmable"),
+            ("select.hvac_mode", .select, "filemenu.and.selection"),
+            ("number.target_humidity", .number, "gauge.medium"),
+            ("text.status_message", .text, "text.cursor"),
+            ("date.vacation_start", .date, "calendar"),
+            ("time.wakeup", .time, "clock"),
+            ("datetime.irrigation_start", .datetime, "calendar.badge.clock"),
+            ("device_tracker.phone", .deviceTracker, "location"),
+            ("person.ashton", .person, "person"),
+            ("update.router_firmware", .update, "checkmark.circle"),
+            ("alarm_control_panel.home", .alarmControlPanel, "shield.lefthalf.filled"),
+            ("humidifier.primary", .humidifier, "humidifier.fill"),
+            ("water_heater.tank", .waterHeater, "water.waves"),
+            ("lawn_mower.back_yard", .lawnMower, "leaf"),
+            ("valve.sprinkler", .valve, "pipe.and.drop"),
+            ("siren.garage", .siren, "megaphone"),
+            ("weather.home", .weather, "cloud.sun.fill"),
+            ("calendar.family", .calendar, "calendar"),
+            ("todo.groceries", .todo, "checklist"),
+            ("event.front_door", .event, "sensor.tag.radiowaves.forward.fill"),
+            ("image.doorbell_last_motion", .image, "photo.fill"),
+            ("image_processing.driveway", .imageProcessing, "viewfinder"),
+            ("air_quality.home", .airQuality, "aqi.medium")
+        ]
+
+        for (entityID, domain, iconName) in examples {
+            let entity = EntityMapper.homeEntity(from: HAEntityDTO(entityID: entityID, state: "off"))
+            #expect(entity.domain == domain)
+            #expect(entity.iconName == iconName)
+            #expect(entity.domain != .other)
+        }
+
+        let unsupported = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "moon_phase.home", state: "full_moon"))
+        #expect(unsupported.domain == .other)
+        #expect(unsupported.iconName == "circle.hexagongrid")
+    }
+
+    @MainActor
+    @Test func entityDomainGroupsNewDomainsPredictablyAndLeavesUnsupportedLast() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "update.router", state: "on"),
+            HAEntityDTO(entityID: "remote.ashtons_tv", state: "off"),
+            HAEntityDTO(entityID: "button.identify", state: "unknown"),
+            HAEntityDTO(entityID: "moon_phase.home", state: "full_moon"),
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+
+        #expect(store.entityIDGroupsByDomain.map(\.domain) == [.light, .remote, .button, .update, .other])
+        #expect(EntityDomain.other.dashboardPriority > EntityDomain.update.dashboardPriority)
     }
 
     @Test func entityMapperMapsCoverPositionState() throws {
@@ -1176,6 +1236,30 @@ struct HomesteadTests {
             state: "unsafe",
             attributes: ["device_class": .string("carbon_monoxide")]
         )))
+        let atmosphericPressure = try #require(EntityMapper.sensorEntity(from: HAEntityDTO(
+            entityID: "sensor.outdoor_pressure",
+            state: "29.92",
+            attributes: [
+                "device_class": .string("atmospheric_pressure"),
+                "unit_of_measurement": .string("inHg")
+            ]
+        )))
+        let reactivePower = try #require(EntityMapper.sensorEntity(from: HAEntityDTO(
+            entityID: "sensor.inverter_reactive_power",
+            state: "1.234",
+            attributes: [
+                "device_class": .string("reactive_power"),
+                "unit_of_measurement": .string("var")
+            ]
+        )))
+        let windSpeed = try #require(EntityMapper.sensorEntity(from: HAEntityDTO(
+            entityID: "sensor.wind_speed",
+            state: "8.2",
+            attributes: [
+                "device_class": .string("wind_speed"),
+                "unit_of_measurement": .string("mph")
+            ]
+        )))
 
         #expect(carbonDioxide.displayKind == .carbonDioxide)
         #expect(carbonDioxide.iconName == "carbon.dioxide.cloud.fill")
@@ -1190,6 +1274,54 @@ struct HomesteadTests {
         #expect(carbonMonoxide.iconName == "carbon.monoxide.cloud.fill")
         #expect(carbonMonoxide.isAlerting)
         #expect(carbonMonoxide.displaySubtitle == "CO Detected")
+        #expect(atmosphericPressure.displayKind == .pressure)
+        #expect(atmosphericPressure.iconName == "barometer")
+        #expect(atmosphericPressure.formattedValue == "29.9 inHg")
+        #expect(reactivePower.displayKind == .reactivePower)
+        #expect(reactivePower.iconName == "bolt.fill")
+        #expect(reactivePower.formattedValue == "1.23 var")
+        #expect(windSpeed.displayKind == .speed)
+        #expect(windSpeed.iconName == "speedometer")
+    }
+
+    @Test func entityMapperUsesDocumentedDeviceClassesForGenericDomainIcons() {
+        let projector = EntityMapper.homeEntity(from: HAEntityDTO(
+            entityID: "media_player.theater",
+            state: "playing",
+            attributes: ["device_class": .string("projector")]
+        ))
+        let restartButton = EntityMapper.homeEntity(from: HAEntityDTO(
+            entityID: "button.router_restart",
+            state: "unknown",
+            attributes: ["device_class": .string("restart")]
+        ))
+        let gasValve = EntityMapper.homeEntity(from: HAEntityDTO(
+            entityID: "valve.gas_line",
+            state: "closed",
+            attributes: ["device_class": .string("gas")]
+        ))
+        let firmwareUpdate = EntityMapper.homeEntity(from: HAEntityDTO(
+            entityID: "update.router_firmware",
+            state: "on",
+            attributes: ["device_class": .string("firmware")]
+        ))
+        let doorbellEvent = EntityMapper.homeEntity(from: HAEntityDTO(
+            entityID: "event.front_door_ding",
+            state: "2026-06-02T08:00:00Z",
+            attributes: ["device_class": .string("doorbell")]
+        ))
+        let faceProcessing = EntityMapper.homeEntity(from: HAEntityDTO(
+            entityID: "image_processing.porch_face",
+            state: "1",
+            attributes: ["device_class": .string("face")]
+        ))
+
+        #expect(projector.iconName == "videoprojector.fill")
+        #expect(restartButton.iconName == "arrow.trianglehead.2.clockwise")
+        #expect(gasValve.iconName == "flame.fill")
+        #expect(firmwareUpdate.iconName == "memorychip.fill")
+        #expect(doorbellEvent.iconName == "bell.and.waves.left.and.right.fill")
+        #expect(faceProcessing.iconName == "face.smiling")
     }
 
     @MainActor
@@ -3234,6 +3366,30 @@ struct HomesteadTests {
             .script: (.action, .runScript, .action),
             .automation: (.control, .toggleAutomation, .toggle),
             .vacuum: (.status, nil, .vacuum),
+            .remote: (.status, nil, .entity),
+            .button: (.status, nil, .entity),
+            .select: (.value, nil, .entity),
+            .number: (.value, nil, .entity),
+            .text: (.value, nil, .entity),
+            .date: (.value, nil, .entity),
+            .time: (.value, nil, .entity),
+            .datetime: (.value, nil, .entity),
+            .deviceTracker: (.status, nil, .entity),
+            .person: (.status, nil, .entity),
+            .update: (.status, nil, .entity),
+            .alarmControlPanel: (.status, nil, .entity),
+            .humidifier: (.status, nil, .entity),
+            .waterHeater: (.status, nil, .entity),
+            .lawnMower: (.status, nil, .entity),
+            .valve: (.status, nil, .entity),
+            .siren: (.status, nil, .entity),
+            .weather: (.value, nil, .entity),
+            .calendar: (.status, nil, .entity),
+            .todo: (.status, nil, .entity),
+            .event: (.status, nil, .entity),
+            .image: (.status, nil, .entity),
+            .imageProcessing: (.status, nil, .entity),
+            .airQuality: (.value, nil, .entity),
             .other: (.generic, nil, .entity)
         ]
 
@@ -3247,6 +3403,73 @@ struct HomesteadTests {
             #expect(capability.detailKind == expectation.2)
             #expect(capability.primaryServiceIntent == expectation.1?.serviceIntent)
         }
+    }
+
+    @MainActor
+    @Test func newHomeAssistantDomainsRenderWithSafeGenericPresentations() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "remote.ashtons_tv",
+                state: "off",
+                attributes: ["friendly_name": .string("Ashton's TV")]
+            ),
+            HAEntityDTO(
+                entityID: "button.router_restart",
+                state: "2026-06-02T08:00:00Z",
+                attributes: [
+                    "friendly_name": .string("Restart Router"),
+                    "device_class": .string("restart")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "number.target_humidity",
+                state: "45",
+                attributes: [
+                    "friendly_name": .string("Target Humidity"),
+                    "device_class": .string("humidity"),
+                    "unit_of_measurement": .string("%")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "alarm_control_panel.home",
+                state: "armed_away",
+                attributes: ["friendly_name": .string("Home Alarm")]
+            ),
+            HAEntityDTO(
+                entityID: "weather.home",
+                state: "partlycloudy",
+                attributes: ["friendly_name": .string("Home Weather")]
+            )
+        ])
+
+        let remote = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "remote.ashtons_tv")))
+        let button = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "button.router_restart")))
+        let number = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "number.target_humidity")))
+        let alarm = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "alarm_control_panel.home")))
+        let weather = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "weather.home")))
+
+        #expect(remote.title == "Ashton's TV")
+        #expect(remote.cardStyle == .status)
+        #expect(remote.iconName == "appletvremote.gen4.fill")
+        #expect(remote.subtitle == "Off")
+        #expect(remote.primaryAction == nil)
+        #expect(remote.detailKind == .entity)
+        #expect(button.cardStyle == .status)
+        #expect(button.iconName == "arrow.trianglehead.2.clockwise")
+        #expect(button.primaryAction == nil)
+        #expect(number.cardStyle == .value)
+        #expect(number.iconName == "humidity")
+        #expect(number.subtitle == "45")
+        #expect(number.primaryAction == nil)
+        #expect(alarm.cardStyle == .status)
+        #expect(alarm.iconName == "shield.lefthalf.filled")
+        #expect(alarm.subtitle == "Armed Away")
+        #expect(alarm.primaryAction == nil)
+        #expect(weather.cardStyle == .value)
+        #expect(weather.iconName == "cloud.sun.fill")
+        #expect(weather.subtitle == "Partlycloudy")
+        #expect(weather.primaryAction == nil)
     }
 
     @MainActor

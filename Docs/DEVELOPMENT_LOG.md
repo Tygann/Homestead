@@ -22,6 +22,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Replaced the Homestead-specific Batteries summary with Home Assistant-style Maintenance, including numeric battery sensors, primary binary low-battery sensors, and legacy Batteries chip decoding.
 - Scoped dashboard card name/icon customization to dashboard surfaces, kept generated area views canonical and feature-rich, added per-card feature visibility controls under Card Features, and made ordinary active/inactive icons stable with filled defaults while preserving semantic state icons and Home Assistant switch device-class icons.
 - Expanded display-only Home Assistant `device_class` interpretation for cover, binary sensor, sensor, and media-player presentation without adding any path that mutates Home Assistant metadata.
+- Expanded first-class Home Assistant domain recognition for common display-only/status entities such as remotes, buttons, selectors, updates, alarm panels, weather, calendars, people, valves, sirens, and image entities while keeping unsafe primary actions disabled by default.
 - Added regression coverage for feature provider output and card-size feature gating.
 
 ## 2026-05-30

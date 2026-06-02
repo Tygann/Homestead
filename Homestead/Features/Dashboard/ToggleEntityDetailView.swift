@@ -94,7 +94,7 @@ struct ToggleEntityDetailView: View {
             "Lock"
         case .automation:
             "Automation"
-        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+        default:
             "Entity"
         }
     }
@@ -111,7 +111,7 @@ struct ToggleEntityDetailView: View {
             return entity.state == "locked" ? "Secured" : "Needs attention"
         case .switch, .fan, .automation:
             return presentation.isActive ? "Currently active" : "Currently idle"
-        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+        default:
             return presentation.subtitle
         }
     }
@@ -126,7 +126,7 @@ struct ToggleEntityDetailView: View {
             return entity.state == "locked" ? "Unlock" : "Lock"
         case .switch, .fan, .automation:
             return presentation.isActive ? "Turn Off" : "Turn On"
-        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+        default:
             return "Update"
         }
     }
@@ -141,7 +141,7 @@ struct ToggleEntityDetailView: View {
             return entity.iconName
         case .automation:
             return "calendar.badge.clock"
-        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+        default:
             return "checkmark"
         }
     }
@@ -156,7 +156,7 @@ struct ToggleEntityDetailView: View {
             return homeAssistantService.serviceActionAvailable(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock")
         case .automation:
             return homeAssistantService.serviceActionAvailable(domain: "automation", service: presentation.isActive ? "turn_off" : "turn_on")
-        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+        default:
             return false
         }
     }
@@ -180,7 +180,7 @@ struct ToggleEntityDetailView: View {
             await homeAssistantService.toggleLock(entityID: entity.entityID)
         case .automation:
             await homeAssistantService.toggleAutomation(entityID: entity.entityID)
-        case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:
+        default:
             break
         }
     }

@@ -89,7 +89,7 @@ struct ActionEntityDetailView: View {
             "Scene"
         case .script:
             "Script"
-        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .automation, .other:
+        default:
             "Action"
         }
     }
@@ -103,7 +103,7 @@ struct ActionEntityDetailView: View {
             return "Ready to activate"
         case .script:
             return entity.state == "on" ? "Currently running" : "Ready to run"
-        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .automation, .other:
+        default:
             return presentation.subtitle
         }
     }
@@ -118,7 +118,7 @@ struct ActionEntityDetailView: View {
             "Activate Scene"
         case .script:
             entity.state == "on" ? "Run Again" : "Run Script"
-        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .automation, .other:
+        default:
             "Run"
         }
     }
@@ -129,7 +129,7 @@ struct ActionEntityDetailView: View {
             "sparkles"
         case .script:
             "play.fill"
-        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .automation, .other:
+        default:
             "bolt.fill"
         }
     }
@@ -140,7 +140,7 @@ struct ActionEntityDetailView: View {
             "scene.turn_on"
         case .script:
             "script.turn_on"
-        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .automation, .other:
+        default:
             "\(entity.domain.rawValue).turn_on"
         }
     }
@@ -151,7 +151,7 @@ struct ActionEntityDetailView: View {
             return homeAssistantService.serviceActionAvailable(domain: "scene", service: "turn_on")
         case .script:
             return homeAssistantService.serviceActionAvailable(domain: "script", service: "turn_on")
-        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .automation, .other:
+        default:
             return false
         }
     }
@@ -172,7 +172,7 @@ struct ActionEntityDetailView: View {
             await homeAssistantService.activateScene(entityID: entity.entityID)
         case .script:
             await homeAssistantService.runScript(entityID: entity.entityID)
-        case .light, .climate, .cover, .sensor, .binarySensor, .switch, .fan, .lock, .mediaPlayer, .camera, .vacuum, .automation, .other:
+        default:
             break
         }
     }

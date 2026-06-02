@@ -199,7 +199,7 @@ private struct AreaDomainStrip: View {
             return .mint
         case .mediaPlayer:
             return .indigo
-        case .sensor, .cover, .switch, .vacuum, .scene, .script, .automation, .other:
+        default:
             return .accentColor
         }
     }

@@ -704,11 +704,8 @@ enum DashboardSummaryProvider {
                 issueKind: securityIssueKind(for: binarySensor),
                 detail: binarySensor.displaySubtitle
             )
-        case .sensor:
-            return nil
-        case .other:
-            guard isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs),
-                  entity.entityID.hasPrefix("alarm_control_panel.") else {
+        case .alarmControlPanel:
+            guard isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs) else {
                 return nil
             }
             let isIssue = ["triggered", "pending", "arming"].contains(entity.state)
@@ -718,7 +715,7 @@ enum DashboardSummaryProvider {
                 issueKind: .alarm,
                 detail: entity.state.displayStateText
             )
-        case .light, .climate, .fan, .mediaPlayer, .switch, .vacuum, .scene, .script, .automation:
+        default:
             return nil
         }
     }
@@ -757,7 +754,7 @@ enum DashboardSummaryProvider {
                 entityBox.binarySensorEntity?.displayKind == .window
         case .sensor:
             return preferredClimateReadingEntityIDs.contains(entityBox.entityID) && isClimateReading(entityBox)
-        case .light, .lock, .mediaPlayer, .camera, .switch, .vacuum, .scene, .script, .automation, .other:
+        default:
             return false
         }
     }
@@ -801,7 +798,7 @@ enum DashboardSummaryProvider {
             return entityBox.sensorEntity?.displayKind == .battery
         case .binarySensor:
             return entityBox.binarySensorEntity?.displayKind == .battery
-        case .light, .climate, .cover, .fan, .lock, .mediaPlayer, .camera, .switch, .vacuum, .scene, .script, .automation, .other:
+        default:
             return false
         }
     }

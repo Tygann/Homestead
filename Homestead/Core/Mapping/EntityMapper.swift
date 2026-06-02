@@ -159,27 +159,32 @@ enum EntityMapper {
     private static func iconName(for dto: HAEntityDTO) -> String {
         let domain = EntityDomain(entityID: dto.entityID)
 
-        if domain == .cover {
+        switch domain {
+        case .cover:
             return coverIconName(for: dto)
-        }
-
-        if domain == .switch {
+        case .switch:
             return switchIconName(for: dto)
-        }
-
-        if domain == .sensor {
+        case .sensor, .number:
             return sensorIconName(for: dto)
-        }
-
-        if domain == .binarySensor {
+        case .binarySensor:
             return binarySensorIconName(for: dto)
-        }
-
-        if domain == .mediaPlayer {
+        case .mediaPlayer:
             return mediaPlayerIconName(for: dto)
+        case .button:
+            return buttonIconName(for: dto)
+        case .humidifier:
+            return humidifierIconName(for: dto)
+        case .valve:
+            return valveIconName(for: dto)
+        case .update:
+            return updateIconName(for: dto)
+        case .event:
+            return eventIconName(for: dto)
+        case .imageProcessing:
+            return imageProcessingIconName(for: dto)
+        case .light, .climate, .fan, .lock, .camera, .vacuum, .remote, .select, .text, .date, .time, .datetime, .deviceTracker, .person, .alarmControlPanel, .waterHeater, .lawnMower, .siren, .weather, .calendar, .todo, .image, .airQuality, .scene, .script, .automation, .other:
+            return iconName(for: domain, state: dto.state)
         }
-
-        return iconName(for: domain, state: dto.state)
     }
 
     private static func iconName(for domain: EntityDomain, state: String) -> String {
@@ -206,6 +211,54 @@ enum EntityMapper {
             "camera.fill"
         case .vacuum:
             "washer.fill"
+        case .remote:
+            "appletvremote.gen4.fill"
+        case .button:
+            "button.programmable"
+        case .select:
+            "filemenu.and.selection"
+        case .number:
+            "number"
+        case .text:
+            "text.cursor"
+        case .date:
+            "calendar"
+        case .time:
+            "clock"
+        case .datetime:
+            "calendar.badge.clock"
+        case .deviceTracker:
+            state == "home" ? "location.fill" : "location"
+        case .person:
+            state == "home" ? "person.fill" : "person"
+        case .update:
+            state == "on" ? "arrow.trianglehead.2.clockwise" : "checkmark.circle"
+        case .alarmControlPanel:
+            alarmControlPanelIconName(state: state)
+        case .humidifier:
+            "humidifier.fill"
+        case .waterHeater:
+            "water.waves"
+        case .lawnMower:
+            lawnMowerIconName(state: state)
+        case .valve:
+            state == "open" || state == "opening" ? "pipe.and.drop.fill" : "pipe.and.drop"
+        case .siren:
+            state == "on" ? "megaphone.fill" : "megaphone"
+        case .weather:
+            weatherIconName(state: state)
+        case .calendar:
+            "calendar"
+        case .todo:
+            "checklist"
+        case .event:
+            "sensor.tag.radiowaves.forward.fill"
+        case .image:
+            "photo.fill"
+        case .imageProcessing:
+            "viewfinder"
+        case .airQuality:
+            "aqi.medium"
         case .scene:
             "sparkles"
         case .script:
@@ -239,6 +292,121 @@ enum EntityMapper {
             return state == "on" ? "lightswitch.on.fill" : "lightswitch.off.fill"
         default:
             return state == "on" ? "lightswitch.on.fill" : "lightswitch.off.fill"
+        }
+    }
+
+    private static func buttonIconName(for dto: HAEntityDTO) -> String {
+        switch dto.attributes["device_class"]?.stringValue {
+        case "identify":
+            "dot.radiowaves.left.and.right"
+        case "restart":
+            "arrow.trianglehead.2.clockwise"
+        case "update":
+            "square.and.arrow.down.fill"
+        default:
+            "button.programmable"
+        }
+    }
+
+    private static func humidifierIconName(for dto: HAEntityDTO) -> String {
+        switch dto.attributes["device_class"]?.stringValue {
+        case "dehumidifier":
+            "dehumidifier.fill"
+        case "humidifier":
+            "humidifier.fill"
+        default:
+            "humidifier.fill"
+        }
+    }
+
+    private static func valveIconName(for dto: HAEntityDTO) -> String {
+        switch dto.attributes["device_class"]?.stringValue {
+        case "gas":
+            return "flame.fill"
+        case "water":
+            return "drop.fill"
+        default:
+            return dto.state == "open" || dto.state == "opening" ? "pipe.and.drop.fill" : "pipe.and.drop"
+        }
+    }
+
+    private static func updateIconName(for dto: HAEntityDTO) -> String {
+        switch dto.attributes["device_class"]?.stringValue {
+        case "firmware":
+            return dto.state == "on" ? "memorychip.fill" : "checkmark.circle"
+        default:
+            return dto.state == "on" ? "arrow.trianglehead.2.clockwise" : "checkmark.circle"
+        }
+    }
+
+    private static func eventIconName(for dto: HAEntityDTO) -> String {
+        switch dto.attributes["device_class"]?.stringValue {
+        case "doorbell":
+            "bell.and.waves.left.and.right.fill"
+        case "button":
+            "button.programmable"
+        case "motion":
+            "figure.motion"
+        default:
+            "sensor.tag.radiowaves.forward.fill"
+        }
+    }
+
+    private static func imageProcessingIconName(for dto: HAEntityDTO) -> String {
+        switch dto.attributes["device_class"]?.stringValue {
+        case "alpr":
+            "licenseplate.fill"
+        case "face":
+            "face.smiling"
+        case "ocr":
+            "text.viewfinder"
+        default:
+            "viewfinder"
+        }
+    }
+
+    private static func alarmControlPanelIconName(state: String) -> String {
+        switch state {
+        case "disarmed":
+            "shield"
+        case "triggered":
+            "exclamationmark.shield.fill"
+        default:
+            "shield.lefthalf.filled"
+        }
+    }
+
+    private static func lawnMowerIconName(state: String) -> String {
+        switch state {
+        case "mowing":
+            "leaf.fill"
+        case "docked":
+            "parkingsign.circle.fill"
+        case "error":
+            "exclamationmark.triangle.fill"
+        default:
+            "leaf"
+        }
+    }
+
+    private static func weatherIconName(state: String) -> String {
+        switch state {
+        case "sunny", "clear-night":
+            "sun.max.fill"
+        case "cloudy", "partlycloudy":
+            "cloud.sun.fill"
+        case "rainy", "pouring":
+            "cloud.rain.fill"
+        case "snowy", "snowy-rainy":
+            "cloud.snow.fill"
+        case "lightning", "lightning-rainy":
+            "cloud.bolt.rain.fill"
+        case "windy", "windy-variant":
+            "wind"
+        case "fog":
+            "cloud.fog.fill"
+        default:
+            "cloud.sun.fill"
         }
     }
 
@@ -350,6 +518,8 @@ enum EntityMapper {
             return "speaker.wave.2.fill"
         case "receiver":
             return "hifispeaker.2.fill"
+        case "projector":
+            return "videoprojector.fill"
         default:
             return "play.tv.fill"
         }
@@ -359,21 +529,35 @@ enum EntityMapper {
         switch dto.attributes["device_class"]?.stringValue {
         case "aqi":
             "aqi.medium"
+        case "absolute_humidity":
+            "humidity.fill"
+        case "apparent_power", "reactive_power":
+            "bolt.fill"
+        case "area":
+            "square.dashed"
+        case "atmospheric_pressure":
+            "barometer"
         case "temperature":
             "thermometer.medium"
+        case "temperature_delta":
+            "thermometer.variable"
         case "humidity":
             "humidity"
         case "battery":
             "battery.75percent"
+        case "blood_glucose_concentration":
+            "drop.degreesign.fill"
         case "carbon_dioxide":
             "carbon.dioxide.cloud.fill"
         case "carbon_monoxide":
             "carbon.monoxide.cloud.fill"
+        case "conductivity":
+            "waveform.path.ecg"
         case "data_size", "volume_storage":
             "externaldrive.fill"
         case "data_rate":
             "speedometer"
-        case "date", "timestamp":
+        case "date", "timestamp", "uptime":
             "calendar"
         case "distance":
             "ruler.fill"
@@ -383,36 +567,48 @@ enum EntityMapper {
             "list.bullet.rectangle.fill"
         case "energy":
             "bolt.circle.fill"
+        case "energy_distance", "energy_storage", "reactive_energy":
+            "bolt.batteryblock.fill"
         case "frequency":
             "waveform.path"
         case "monetary":
             "dollarsign.circle.fill"
         case "power":
             "bolt.fill"
+        case "power_factor":
+            "bolt.badge.clock.fill"
         case "illuminance":
             "sun.max.fill"
         case "irradiance":
             "sun.max.trianglebadge.exclamationmark.fill"
         case "moisture":
             "drop.fill"
-        case "pm1", "pm10", "pm25":
+        case "nitrogen_dioxide", "nitrogen_monoxide", "nitrous_oxide", "ozone", "pm1", "pm10", "pm25", "pm4", "sulphur_dioxide":
             "aqi.medium"
+        case "ph":
+            "testtube.2"
+        case "precipitation", "precipitation_intensity":
+            "cloud.rain.fill"
         case "pressure":
             "gauge.with.dots.needle.50percent"
         case "signal_strength":
             "wifi"
-        case "speed":
+        case "sound_pressure":
+            "speaker.wave.3.fill"
+        case "speed", "wind_speed":
             "speedometer"
         case "voltage", "current":
             "waveform.path.ecg"
         case "volatile_organic_compounds", "volatile_organic_compounds_parts":
             "aqi.medium"
-        case "volume":
+        case "volume", "volume_flow_rate":
             "cube.fill"
         case "water":
             "drop.fill"
         case "weight":
             "scalemass.fill"
+        case "wind_direction":
+            "location.north.line.fill"
         case "gas":
             "flame.fill"
         case "problem":
