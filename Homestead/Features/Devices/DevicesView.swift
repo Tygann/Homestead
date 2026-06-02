@@ -54,6 +54,7 @@ struct EntityBrowserList<Accessory: View>: View {
     let showsFilters: Bool
     let showsSearchField: Bool
     let showsGroupingMenu: Bool
+    let allowsRefresh: Bool
     let rowAction: (HAEntityState) -> Void
     let allowsPinning: Bool
     private let accessory: (HAEntityState) -> Accessory
@@ -69,6 +70,7 @@ struct EntityBrowserList<Accessory: View>: View {
         searchText: Binding<String>? = nil,
         showsSearchField: Bool = true,
         showsGroupingMenu: Bool = true,
+        allowsRefresh: Bool = true,
         rowAction: @escaping (HAEntityState) -> Void,
         allowsPinning: Bool = false,
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
@@ -80,6 +82,7 @@ struct EntityBrowserList<Accessory: View>: View {
         self.showsFilters = showsFilters
         self.showsSearchField = showsSearchField
         self.showsGroupingMenu = showsGroupingMenu
+        self.allowsRefresh = allowsRefresh
         self.rowAction = rowAction
         self.allowsPinning = allowsPinning
         self.accessory = accessory
@@ -165,9 +168,9 @@ struct EntityBrowserList<Accessory: View>: View {
                 }
             }
         }
-        .refreshable {
+        .modifier(EntityBrowserRefreshModifier(isEnabled: allowsRefresh) {
             await homeAssistantService.refreshStates()
-        }
+        })
         .toolbar {
             if showsGroupingMenu {
                 ToolbarItem(placement: .primaryAction) {
@@ -417,6 +420,21 @@ struct EntityBrowserList<Accessory: View>: View {
         }
 
         return true
+    }
+}
+
+private struct EntityBrowserRefreshModifier: ViewModifier {
+    let isEnabled: Bool
+    let refresh: () async -> Void
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.refreshable {
+                await refresh()
+            }
+        } else {
+            content
+        }
     }
 }
 

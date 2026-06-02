@@ -464,6 +464,10 @@ struct DashboardView: View {
         } else {
             DashboardHeaderCardView(title: item.resolvedTitle)
                 .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .contextMenu {
+                    headerEditMenuContent(for: item)
+                }
         }
     }
     
@@ -1138,6 +1142,7 @@ private struct DashboardAddItemView: View {
             searchText: $searchText,
             showsSearchField: false,
             showsGroupingMenu: false,
+            allowsRefresh: false,
             rowAction: { entityBox in
                 switch target {
                 case .cards:
