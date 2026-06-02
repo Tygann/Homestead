@@ -2,7 +2,12 @@ import Foundation
 
 struct DashboardAreaSummary: Identifiable, Hashable, Sendable {
     let id: String
+    let areaID: String?
     let name: String
+    let floorID: String?
+    let floorName: String?
+    let floorLevel: Int?
+    let floorSortOrder: Int?
     let entityIDs: [String]
     let activeCount: Int
     let unavailableCount: Int
@@ -71,5 +76,24 @@ struct DashboardAreaSummary: Identifiable, Hashable, Sendable {
         }
 
         return "square.split.bottomrightquarter"
+    }
+}
+
+struct DashboardAreaContext: Hashable, Sendable {
+    let areaID: String
+    let name: String
+    let floorID: String?
+    let floorName: String?
+    let floorLevel: Int?
+    let floorSortOrder: Int?
+}
+
+struct DashboardAreaSection: Identifiable, Hashable, Sendable {
+    let id: String
+    let title: String?
+    let areas: [DashboardAreaSummary]
+
+    var subtitle: String {
+        "\(areas.count) \(areas.count == 1 ? "area" : "areas")"
     }
 }

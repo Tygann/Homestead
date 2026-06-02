@@ -1188,7 +1188,8 @@ final class HomeAssistantService {
             entityCount: snapshot.entities.count,
             entityRegistryCount: snapshot.registryMetadata?.entities.count,
             deviceRegistryCount: snapshot.registryMetadata?.devices.count,
-            areaRegistryCount: snapshot.registryMetadata?.areas.count
+            areaRegistryCount: snapshot.registryMetadata?.areas.count,
+            floorRegistryCount: snapshot.registryMetadata?.floors.count
         )
         dataFreshness = .cached(snapshot.savedAt)
     }
@@ -1389,7 +1390,8 @@ final class HomeAssistantService {
             entityCount: entities.count,
             entityRegistryCount: registryMetadata?.entities.count,
             deviceRegistryCount: registryMetadata?.devices.count,
-            areaRegistryCount: registryMetadata?.areas.count
+            areaRegistryCount: registryMetadata?.areas.count,
+            floorRegistryCount: registryMetadata?.floors.count
         )
         Task { [stateCache] in
             await stateCache.save(
@@ -1426,6 +1428,7 @@ final class HomeAssistantService {
 
             let registryMetadata = try await (entityRegistry, deviceRegistry)
             let areas: [HAAreaRegistryDTO]
+            let floors: [HAFloorRegistryDTO]
 
             do {
                 areas = try await client.fetchAreaRegistry()
@@ -1436,10 +1439,20 @@ final class HomeAssistantService {
                 #endif
             }
 
+            do {
+                floors = try await client.fetchFloorRegistry()
+            } catch {
+                floors = []
+                #if DEBUG
+                print("Home Assistant floor registry metadata failed: \(error.localizedDescription)")
+                #endif
+            }
+
             let metadata = HARegistryMetadataSnapshot(
                 entities: registryMetadata.0.entities,
                 devices: registryMetadata.1,
-                areas: areas
+                areas: areas,
+                floors: floors
             )
             guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
                 return nil

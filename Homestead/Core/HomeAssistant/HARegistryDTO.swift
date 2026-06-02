@@ -174,12 +174,14 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
 nonisolated struct HAAreaRegistryDTO: Codable, Equatable, Identifiable, Sendable {
     let id: String
     let name: String
+    let floorID: String?
     let temperatureEntityID: String?
     let humidityEntityID: String?
 
     enum CodingKeys: String, CodingKey {
         case id = "area_id"
         case name
+        case floorID = "floor_id"
         case temperatureEntityID = "temperature_entity_id"
         case humidityEntityID = "humidity_entity_id"
     }
@@ -187,13 +189,41 @@ nonisolated struct HAAreaRegistryDTO: Codable, Equatable, Identifiable, Sendable
     nonisolated init(
         id: String,
         name: String,
+        floorID: String? = nil,
         temperatureEntityID: String? = nil,
         humidityEntityID: String? = nil
     ) {
         self.id = id
         self.name = name
+        self.floorID = floorID
         self.temperatureEntityID = temperatureEntityID
         self.humidityEntityID = humidityEntityID
+    }
+}
+
+nonisolated struct HAFloorRegistryDTO: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let level: Int?
+    let icon: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id = "floor_id"
+        case name
+        case level
+        case icon
+    }
+
+    nonisolated init(
+        id: String,
+        name: String,
+        level: Int? = nil,
+        icon: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.level = level
+        self.icon = icon
     }
 }
 

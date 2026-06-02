@@ -27,6 +27,8 @@ final class HAStateStore {
     @ObservationIgnored private var entityRegistryByID: [String: HAEntityRegistryDisplayDTO] = [:]
     @ObservationIgnored private var deviceRegistryByID: [String: HADeviceRegistryDTO] = [:]
     @ObservationIgnored private var areaRegistryByID: [String: HAAreaRegistryDTO] = [:]
+    @ObservationIgnored private var floorRegistryByID: [String: HAFloorRegistryDTO] = [:]
+    @ObservationIgnored private var floorSortOrderByID: [String: Int] = [:]
     @ObservationIgnored private var isApplyingSnapshotBatch = false
     @ObservationIgnored private var snapshotBatchNeedsWidgetSave = false
 
@@ -61,7 +63,7 @@ final class HAStateStore {
     }
 
     func registryMetadataSnapshot() -> HARegistryMetadataSnapshot? {
-        guard !entityRegistryByID.isEmpty || !deviceRegistryByID.isEmpty || !areaRegistryByID.isEmpty else {
+        guard !entityRegistryByID.isEmpty || !deviceRegistryByID.isEmpty || !areaRegistryByID.isEmpty || !floorRegistryByID.isEmpty else {
             return nil
         }
 
@@ -74,6 +76,9 @@ final class HAStateStore {
             },
             areas: areaRegistryByID.values.sorted {
                 $0.id.localizedCaseInsensitiveCompare($1.id) == .orderedAscending
+            },
+            floors: floorRegistryByID.values.sorted {
+                floorSortOrderByID[$0.id, default: Int.max] < floorSortOrderByID[$1.id, default: Int.max]
             }
         )
     }
@@ -99,18 +104,39 @@ final class HAStateStore {
     }
 
     func areaName(for entityID: String) -> String? {
-        if let areaID = entityRegistryByID[entityID]?.areaID?.nonEmptyValue,
-           let areaName = areaRegistryByID[areaID]?.name.nonEmptyValue {
-            return areaName
-        }
+        areaContext(for: entityID)?.name
+    }
 
-        guard let deviceID = entityRegistryByID[entityID]?.deviceID?.nonEmptyValue,
-              let areaID = deviceRegistryByID[deviceID]?.areaID?.nonEmptyValue,
+    func areaContext(for entityID: String) -> DashboardAreaContext? {
+        guard let areaID = areaID(for: entityID),
               let areaName = areaRegistryByID[areaID]?.name.nonEmptyValue else {
             return nil
         }
 
-        return areaName
+        let floorID = areaRegistryByID[areaID]?.floorID?.nonEmptyValue
+        let floor = floorID.flatMap { floorRegistryByID[$0] }
+
+        return DashboardAreaContext(
+            areaID: areaID,
+            name: areaName,
+            floorID: floor?.id,
+            floorName: floor?.name.nonEmptyValue,
+            floorLevel: floor?.level,
+            floorSortOrder: floor.flatMap { floorSortOrderByID[$0.id] }
+        )
+    }
+
+    func areaID(for entityID: String) -> String? {
+        if let areaID = entityRegistryByID[entityID]?.areaID?.nonEmptyValue {
+            return areaID
+        }
+
+        guard let deviceID = entityRegistryByID[entityID]?.deviceID?.nonEmptyValue,
+              let areaID = deviceRegistryByID[deviceID]?.areaID?.nonEmptyValue else {
+            return nil
+        }
+
+        return areaID
     }
 
     func preferredClimateReadingEntityIDs() -> Set<String> {
@@ -214,11 +240,16 @@ final class HAStateStore {
     func applyRegistryMetadata(
         entities: [HAEntityRegistryDisplayDTO],
         devices: [HADeviceRegistryDTO],
-        areas: [HAAreaRegistryDTO] = []
+        areas: [HAAreaRegistryDTO] = [],
+        floors: [HAFloorRegistryDTO] = []
     ) {
         entityRegistryByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, $0) })
         deviceRegistryByID = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
         areaRegistryByID = Dictionary(uniqueKeysWithValues: areas.map { ($0.id, $0) })
+        floorRegistryByID = Dictionary(uniqueKeysWithValues: floors.map { ($0.id, $0) })
+        floorSortOrderByID = Dictionary(uniqueKeysWithValues: floors.enumerated().map { index, floor in
+            (floor.id, index)
+        })
         refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
     }
 
@@ -226,7 +257,8 @@ final class HAStateStore {
         applyRegistryMetadata(
             entities: metadata.entities,
             devices: metadata.devices,
-            areas: metadata.areas
+            areas: metadata.areas,
+            floors: metadata.floors
         )
     }
 
@@ -325,6 +357,8 @@ final class HAStateStore {
         entityRegistryByID.removeAll()
         deviceRegistryByID.removeAll()
         areaRegistryByID.removeAll()
+        floorRegistryByID.removeAll()
+        floorSortOrderByID.removeAll()
         isApplyingSnapshotBatch = false
         snapshotBatchNeedsWidgetSave = false
         saveWidgetLightSnapshots()

@@ -57,7 +57,8 @@ actor HAStateCache {
                 entityCount: snapshot.entities.count,
                 entityRegistryCount: snapshot.registryMetadata?.entities.count,
                 deviceRegistryCount: snapshot.registryMetadata?.devices.count,
-                areaRegistryCount: snapshot.registryMetadata?.areas.count
+                areaRegistryCount: snapshot.registryMetadata?.areas.count,
+                floorRegistryCount: snapshot.registryMetadata?.floors.count
             )
         } catch {
             return nil
@@ -169,6 +170,7 @@ nonisolated struct HAStateCacheMetadata: Equatable, Sendable {
     let entityRegistryCount: Int?
     let deviceRegistryCount: Int?
     let areaRegistryCount: Int?
+    let floorRegistryCount: Int?
 
     var shortScopeIdentifier: String {
         String(scopeIdentifier.prefix(8))
@@ -179,6 +181,34 @@ nonisolated struct HARegistryMetadataSnapshot: Codable, Equatable, Sendable {
     let entities: [HAEntityRegistryDisplayDTO]
     let devices: [HADeviceRegistryDTO]
     let areas: [HAAreaRegistryDTO]
+    let floors: [HAFloorRegistryDTO]
+
+    enum CodingKeys: String, CodingKey {
+        case entities
+        case devices
+        case areas
+        case floors
+    }
+
+    nonisolated init(
+        entities: [HAEntityRegistryDisplayDTO],
+        devices: [HADeviceRegistryDTO],
+        areas: [HAAreaRegistryDTO],
+        floors: [HAFloorRegistryDTO] = []
+    ) {
+        self.entities = entities
+        self.devices = devices
+        self.areas = areas
+        self.floors = floors
+    }
+
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        entities = try container.decode([HAEntityRegistryDisplayDTO].self, forKey: .entities)
+        devices = try container.decode([HADeviceRegistryDTO].self, forKey: .devices)
+        areas = try container.decode([HAAreaRegistryDTO].self, forKey: .areas)
+        floors = try container.decodeIfPresent([HAFloorRegistryDTO].self, forKey: .floors) ?? []
+    }
 }
 
 nonisolated struct HAStateCacheSnapshot: Codable, Equatable, Sendable {

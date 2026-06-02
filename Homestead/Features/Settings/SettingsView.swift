@@ -701,7 +701,8 @@ private struct HomeAssistantDiagnosticsSnapshot: Equatable {
         let registryParts = [
             metadata.entityRegistryCount.map { "\($0) entity registry" },
             metadata.deviceRegistryCount.map { "\($0) devices" },
-            metadata.areaRegistryCount.map { "\($0) areas" }
+            metadata.areaRegistryCount.map { "\($0) areas" },
+            metadata.floorRegistryCount.map { "\($0) floors" }
         ].compactMap { $0 }
 
         var parts = [

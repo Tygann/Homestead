@@ -18,6 +18,7 @@ enum HAWebSocketMessageType {
     nonisolated static var entityRegistryListForDisplay: String { "config/entity_registry/list_for_display" }
     nonisolated static var deviceRegistryList: String { "config/device_registry/list" }
     nonisolated static var areaRegistryList: String { "config/area_registry/list" }
+    nonisolated static var floorRegistryList: String { "config/floor_registry/list" }
     nonisolated static var cameraCapabilities: String { "camera/capabilities" }
 }
 

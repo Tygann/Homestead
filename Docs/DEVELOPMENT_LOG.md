@@ -13,6 +13,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added native long-press customization shortcuts for normal-mode dashboard cards and chips while reusing the same edit actions.
 - Added cover device-class icon mapping, simplified edit-mode reorder access, and let area views upgrade feature-capable entities from Compact to Square cards.
 - Added summary chips to the main Areas view and grouped area detail entities through the shared summary categories for Lights, Climate, Security, Media Players, and Maintenance before falling back to raw domains.
+- Added Home Assistant Floor registry metadata and grouped the Areas overview by floor only when it improves scanning, preserving Areas as the primary room-browsing surface.
 - Added Automations as a first-class mapped entity domain, rendering them as enabled/disabled toggle controls through Home Assistant's `automation.turn_on` / `automation.turn_off` services rather than accidental trigger actions.
 - Switched area detail entity sections to the shared card grid so mixed Compact and Square cards align consistently with dashboard layout behavior.
 - Tightened summary category filtering toward Home Assistant's frontend strategies, including area-selected temperature/humidity readings for Climate summaries and feature-aware Square cards in summary sheets.

@@ -15,15 +15,23 @@ struct AreasView: View {
                     areaSummaryChipRow(items: presentation.summaryChips)
                 }
 
-                CardGrid {
-                    ForEach(presentation.areas) { area in
-                        NavigationLink {
-                            AreaDetailView(area: area)
-                        } label: {
-                            AreaSummaryCard(area: area)
+                ForEach(presentation.sections) { section in
+                    VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                        if section.title != nil {
+                            AreaGroupHeader(section: section)
                         }
-                        .buttonStyle(.plain)
-                        .cardGridSpan(areaCardSize.layoutMetadata)
+
+                        CardGrid {
+                            ForEach(section.areas) { area in
+                                NavigationLink {
+                                    AreaDetailView(area: area)
+                                } label: {
+                                    AreaSummaryCard(area: area)
+                                }
+                                .buttonStyle(.plain)
+                                .cardGridSpan(areaCardSize.layoutMetadata)
+                            }
+                        }
                     }
                 }
             }
@@ -74,7 +82,7 @@ private struct AreasOverviewPresentation {
         var id: DashboardSummaryKind { kind }
     }
 
-    let areas: [DashboardAreaSummary]
+    let sections: [DashboardAreaSection]
     let summaryChips: [SummaryChipItem]
 
     @MainActor
@@ -84,11 +92,13 @@ private struct AreasOverviewPresentation {
         let nonPrimaryEntityIDs = stateStore.nonPrimaryEntityIDs()
         let diagnosticEntityIDs = stateStore.diagnosticEntityIDs()
 
+        let areas = DashboardAreaBuilder.buildAreas(
+            from: entityBoxes,
+            areaContextForEntityID: stateStore.areaContext(for:)
+        )
+
         return AreasOverviewPresentation(
-            areas: DashboardAreaBuilder.buildAreas(
-                from: entityBoxes,
-                areaNameForEntityID: stateStore.areaName(for:)
-            ),
+            sections: DashboardAreaBuilder.buildSections(from: areas),
             summaryChips: DashboardSummaryKind.areasOverviewOrder.compactMap { kind in
                 DashboardSummaryProvider.makeSummary(
                     kind: kind,
@@ -99,6 +109,22 @@ private struct AreasOverviewPresentation {
                 ).map { SummaryChipItem(kind: kind, presentation: $0) }
             }
         )
+    }
+}
+
+private struct AreaGroupHeader: View {
+    let section: DashboardAreaSection
+
+    var body: some View {
+        HStack(alignment: .lastTextBaseline, spacing: AppSpacing.small) {
+            Text(section.title ?? "")
+                .font(.title3.weight(.semibold))
+
+            Text(section.subtitle)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -668,6 +668,7 @@ struct HomesteadTests {
             {
                 "area_id": "living_room",
                 "name": "Living Room",
+                "floor_id": "main_floor",
                 "temperature_entity_id": "sensor.living_room_temperature",
                 "humidity_entity_id": "sensor.living_room_humidity"
             }
@@ -681,8 +682,32 @@ struct HomesteadTests {
 
         #expect(areas.first?.id == "living_room")
         #expect(areas.first?.name == "Living Room")
+        #expect(areas.first?.floorID == "main_floor")
         #expect(areas.first?.temperatureEntityID == "sensor.living_room_temperature")
         #expect(areas.first?.humidityEntityID == "sensor.living_room_humidity")
+    }
+
+    @Test func floorRegistryResponseDecodesHomeAssistantFloorID() throws {
+        let payload = """
+        [
+            {
+                "floor_id": "main_floor",
+                "name": "Main Floor",
+                "level": 0,
+                "icon": "mdi:home-floor-0"
+            }
+        ]
+        """
+
+        let floors = try JSONDecoder().decode(
+            [HAFloorRegistryDTO].self,
+            from: Data(payload.utf8)
+        )
+
+        #expect(floors.first?.id == "main_floor")
+        #expect(floors.first?.name == "Main Floor")
+        #expect(floors.first?.level == 0)
+        #expect(floors.first?.icon == "mdi:home-floor-0")
     }
 
     @Test func entityMapperMapsLightAndSensorDomainModels() {
@@ -2964,6 +2989,78 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func areaBuilderGroupsAreasIntoFloorSectionsWhenMultipleFloorsExist() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "off", attributes: ["friendly_name": .string("Kitchen Light")]),
+            HAEntityDTO(entityID: "light.bedroom", state: "on", attributes: ["friendly_name": .string("Bedroom Light")]),
+            HAEntityDTO(entityID: "light.garage", state: "off", attributes: ["friendly_name": .string("Garage Light")]),
+            HAEntityDTO(entityID: "light.loose", state: "off", attributes: ["friendly_name": .string("Loose Light")])
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(entityID: "light.kitchen", deviceID: nil, areaID: "kitchen", originalName: "Kitchen Light"),
+                HAEntityRegistryDisplayDTO(entityID: "light.bedroom", deviceID: nil, areaID: "bedroom", originalName: "Bedroom Light"),
+                HAEntityRegistryDisplayDTO(entityID: "light.garage", deviceID: nil, areaID: "garage", originalName: "Garage Light")
+            ],
+            devices: [],
+            areas: [
+                HAAreaRegistryDTO(id: "kitchen", name: "Kitchen", floorID: "main"),
+                HAAreaRegistryDTO(id: "bedroom", name: "Bedroom", floorID: "upstairs"),
+                HAAreaRegistryDTO(id: "garage", name: "Garage")
+            ],
+            floors: [
+                HAFloorRegistryDTO(id: "main", name: "Main Floor", level: 0),
+                HAFloorRegistryDTO(id: "upstairs", name: "Upstairs", level: 1)
+            ]
+        )
+
+        let areas = DashboardAreaBuilder.buildAreas(
+            from: store.allEntityBoxes(),
+            areaContextForEntityID: store.areaContext(for:)
+        )
+        let sections = DashboardAreaBuilder.buildSections(from: areas)
+
+        #expect(sections.map(\.title) == ["Main Floor", "Upstairs", "Other Areas"])
+        #expect(sections[0].areas.map(\.name) == ["Kitchen"])
+        #expect(sections[1].areas.map(\.name) == ["Bedroom"])
+        #expect(sections[2].areas.map(\.name) == ["Garage", "Unassigned"])
+    }
+
+    @MainActor
+    @Test func areaBuilderSuppressesFloorSectionForSingleFloorHome() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "off", attributes: ["friendly_name": .string("Kitchen Light")]),
+            HAEntityDTO(entityID: "light.living_room", state: "off", attributes: ["friendly_name": .string("Living Room Light")])
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(entityID: "light.kitchen", deviceID: nil, areaID: "kitchen", originalName: "Kitchen Light"),
+                HAEntityRegistryDisplayDTO(entityID: "light.living_room", deviceID: nil, areaID: "living_room", originalName: "Living Room Light")
+            ],
+            devices: [],
+            areas: [
+                HAAreaRegistryDTO(id: "kitchen", name: "Kitchen", floorID: "main"),
+                HAAreaRegistryDTO(id: "living_room", name: "Living Room", floorID: "main")
+            ],
+            floors: [
+                HAFloorRegistryDTO(id: "main", name: "Main Floor", level: 0)
+            ]
+        )
+
+        let areas = DashboardAreaBuilder.buildAreas(
+            from: store.allEntityBoxes(),
+            areaContextForEntityID: store.areaContext(for:)
+        )
+        let sections = DashboardAreaBuilder.buildSections(from: areas)
+
+        #expect(sections.count == 1)
+        #expect(sections.first?.title == nil)
+        #expect(sections.first?.areas.map(\.name) == ["Kitchen", "Living Room"])
+    }
+
+    @MainActor
     @Test func entityPresentationCentralizesDomainActionsAndDetails() throws {
         let store = HAStateStore()
         store.applyInitialStates([
@@ -3854,6 +3951,10 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func fetchAreaRegistry() async throws -> [HAAreaRegistryDTO] {
+        []
+    }
+
+    func fetchFloorRegistry() async throws -> [HAFloorRegistryDTO] {
         []
     }
 
