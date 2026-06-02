@@ -1367,14 +1367,28 @@ private struct DashboardReorderView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(dashboardConfiguration.items) { item in
-                    DashboardReorderRow(
-                        item: item,
-                        entityBox: item.entityID.flatMap { stateStore.entityBox(for: $0) }
-                    )
+                Section("Chips") {
+                    ForEach(chipItems) { item in
+                        DashboardReorderRow(
+                            item: item,
+                            entityBox: item.entityID.flatMap { stateStore.entityBox(for: $0) }
+                        )
+                    }
+                    .onMove { source, destination in
+                        dashboardConfiguration.moveItems(in: .chips, from: source, to: destination)
+                    }
                 }
-                .onMove { source, destination in
-                    dashboardConfiguration.move(from: source, to: destination)
+
+                Section("Cards") {
+                    ForEach(cardItems) { item in
+                        DashboardReorderRow(
+                            item: item,
+                            entityBox: item.entityID.flatMap { stateStore.entityBox(for: $0) }
+                        )
+                    }
+                    .onMove { source, destination in
+                        dashboardConfiguration.moveItems(in: .cards, from: source, to: destination)
+                    }
                 }
             }
             .environment(\.editMode, .constant(.active))
@@ -1388,6 +1402,14 @@ private struct DashboardReorderView: View {
                 }
             }
         }
+    }
+
+    private var chipItems: [DashboardItemConfiguration] {
+        dashboardConfiguration.items.filter { $0.type == .chip }
+    }
+
+    private var cardItems: [DashboardItemConfiguration] {
+        dashboardConfiguration.items.filter { $0.type != .chip }
     }
 }
 

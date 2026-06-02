@@ -151,6 +151,11 @@ enum DashboardItemType: String, Codable, Equatable, Sendable {
     case chip
 }
 
+enum DashboardReorderGroup: Equatable, Sendable {
+    case chips
+    case cards
+}
+
 @MainActor
 @Observable
 final class DashboardConfiguration {
@@ -376,6 +381,31 @@ final class DashboardConfiguration {
         items = updatedItems
     }
 
+    func moveItems(in group: DashboardReorderGroup, from source: IndexSet, to destination: Int) {
+        let groupIndices = items.indices.filter { group.contains(items[$0]) }
+        guard source.allSatisfy({ groupIndices.indices.contains($0) }),
+              destination >= 0,
+              destination <= groupIndices.count else {
+            return
+        }
+
+        var reorderedGroupItems = groupIndices.map { items[$0] }
+        let movingItems = source.sorted().map { reorderedGroupItems[$0] }
+
+        for index in source.sorted(by: >) {
+            reorderedGroupItems.remove(at: index)
+        }
+
+        let adjustedDestination = destination - source.filter { $0 < destination }.count
+        reorderedGroupItems.insert(contentsOf: movingItems, at: adjustedDestination)
+
+        var updatedItems = items
+        for (itemIndex, reorderedItem) in zip(groupIndices, reorderedGroupItems) {
+            updatedItems[itemIndex] = reorderedItem
+        }
+        items = updatedItems
+    }
+
     func reset(using entities: [HomeEntity]) {
         items = Self.defaultEntityIDs(from: entities).map {
             DashboardItemConfiguration.entity(entityID: $0)
@@ -540,4 +570,15 @@ final class DashboardConfiguration {
     }
 
     private static let currentLayoutVersion = 2
+}
+
+private extension DashboardReorderGroup {
+    func contains(_ item: DashboardItemConfiguration) -> Bool {
+        switch self {
+        case .chips:
+            item.type == .chip
+        case .cards:
+            item.type != .chip
+        }
+    }
 }

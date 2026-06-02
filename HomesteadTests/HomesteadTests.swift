@@ -2539,6 +2539,41 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func dashboardConfigurationMovesReorderGroupsIndependently() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        configuration.addSummaryChip(kind: .lights)
+        configuration.addHeader(title: "Downstairs")
+        configuration.add("light.kitchen")
+        configuration.addSummaryChip(kind: .doors)
+        configuration.add("sensor.hallway_temperature")
+
+        configuration.moveItems(in: .chips, from: IndexSet(integer: 1), to: 0)
+
+        #expect(configuration.items.map(\.type) == [.chip, .header, .entity, .chip, .entity])
+        #expect(configuration.items[0].summaryKind == .doors)
+        #expect(configuration.items[3].summaryKind == .lights)
+
+        configuration.moveItems(in: .cards, from: IndexSet(integer: 0), to: 3)
+
+        #expect(configuration.items.map(\.type) == [.chip, .entity, .entity, .chip, .header])
+        #expect(configuration.items[0].summaryKind == .doors)
+        #expect(configuration.items[1].entityID == "light.kitchen")
+        #expect(configuration.items[2].entityID == "sensor.hallway_temperature")
+        #expect(configuration.items[3].summaryKind == .lights)
+        #expect(configuration.items[4].resolvedTitle == "Downstairs")
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.items.map(\.type) == [.chip, .entity, .entity, .chip, .header])
+        #expect(restoredConfiguration.items[0].summaryKind == .doors)
+        #expect(restoredConfiguration.items[3].summaryKind == .lights)
+        #expect(restoredConfiguration.items[4].resolvedTitle == "Downstairs")
+    }
+
+    @MainActor
     @Test func dashboardLayoutBuilderPreservesHeadersEntityOverridesAndSizes() throws {
         let headerID = UUID()
         let lightID = UUID()
