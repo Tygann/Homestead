@@ -1,15 +1,15 @@
 import SwiftUI
 
 struct CoverDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var position = 100.0
     @State private var isEditingPosition = false
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     var body: some View {
-        NavigationStack {
+        Group {
             if let cover = entityBox.coverEntity {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
@@ -24,15 +24,6 @@ struct CoverDetailView: View {
                     .padding(AppSpacing.large)
                 }
                 .background(Color(.systemGroupedBackground))
-                .navigationTitle("Cover")
-                .toolbarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done", role: .close) {
-                            dismiss()
-                        }
-                    }
-                }
                 .onAppear {
                     syncPosition(with: cover)
                 }
@@ -44,8 +35,7 @@ struct CoverDetailView: View {
                 ContentUnavailableView("Cover Unavailable", systemImage: "blinds.horizontal.closed")
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .dashboardDetailPresentation(title: "Cover", style: presentationStyle)
     }
 
     private func coverStatusCard(_ cover: CoverEntity) -> some View {

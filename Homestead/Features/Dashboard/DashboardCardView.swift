@@ -12,6 +12,7 @@ struct DashboardCardView: View {
     var contextualAreaName: String?
     var cameraRefreshGeneration = 0
     var isEditing = false
+    var openDetails: (() -> Void)?
 
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
@@ -102,6 +103,10 @@ struct DashboardCardView: View {
         entityID: String,
         detailKind: DashboardEntityDetailKind
     ) -> (() -> Void)? {
+        if let openDetails {
+            return openDetails
+        }
+
         return {
             selectedDetail = DashboardCardDetail(
                 entityID: entityID,
@@ -319,33 +324,34 @@ private struct DashboardCardDetail: Identifiable {
 
 struct DashboardEntityDetailSheet: View {
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     var body: some View {
         switch DashboardEntityPresentation(entityBox: entityBox).detailKind {
         case .light:
-            LightDetailView(entityBox: entityBox)
+            LightDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .cover:
-            CoverDetailView(entityBox: entityBox)
+            CoverDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .climate:
-            ClimateDetailView(entityBox: entityBox)
+            ClimateDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .fan:
-            FanDetailView(entityBox: entityBox)
+            FanDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .lock:
-            LockDetailView(entityBox: entityBox)
+            LockDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .toggle:
-            ToggleEntityDetailView(entityBox: entityBox)
+            ToggleEntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .action:
-            ActionEntityDetailView(entityBox: entityBox)
+            ActionEntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .sensor:
-            SensorDetailView(entityBox: entityBox)
+            SensorDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .mediaPlayer:
-            MediaPlayerDetailView(entityBox: entityBox)
+            MediaPlayerDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .camera:
-            CameraDetailView(entityBox: entityBox)
+            CameraDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .vacuum:
-            VacuumDetailView(entityBox: entityBox)
+            VacuumDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .entity:
-            EntityDetailView(entityBox: entityBox)
+            EntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         }
     }
 }

@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct ActionEntityDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -15,28 +15,16 @@ struct ActionEntityDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                    statusCard
-                    runButton
-                    stateDetails
-                }
-                .padding(AppSpacing.large)
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                statusCard
+                runButton
+                stateDetails
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle(navigationTitle)
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", role: .close) {
-                        dismiss()
-                    }
-                }
-            }
+            .padding(AppSpacing.large)
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .background(Color(.systemGroupedBackground))
+        .dashboardDetailPresentation(title: navigationTitle, style: presentationStyle)
     }
 
     private var statusCard: some View {

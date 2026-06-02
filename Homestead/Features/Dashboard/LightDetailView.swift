@@ -1,16 +1,17 @@
 import SwiftUI
 
 struct LightDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var brightnessPercentage = 100.0
     @State private var isEditingBrightness = false
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+
     private let brightnessPresets = [25.0, 50.0, 75.0, 100.0]
 
     var body: some View {
-        NavigationStack {
+        Group {
             if let light = entityBox.lightEntity {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
@@ -21,15 +22,6 @@ struct LightDetailView: View {
                     .padding(AppSpacing.large)
                 }
                 .background(Color(.systemGroupedBackground))
-                .navigationTitle("Light")
-                .toolbarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done", role: .close) {
-                            dismiss()
-                        }
-                    }
-                }
                 .onAppear {
                     syncBrightness(with: light)
                 }
@@ -45,8 +37,7 @@ struct LightDetailView: View {
                 ContentUnavailableView("Light Unavailable", systemImage: "lightbulb.slash")
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .dashboardDetailPresentation(title: "Light", style: presentationStyle)
     }
 
     private func lightStatusCard(_ light: LightEntity) -> some View {

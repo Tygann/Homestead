@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct VacuumDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -15,28 +15,16 @@ struct VacuumDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                    statusCard
-                    vacuumControls
-                    contextDetails
-                }
-                .padding(AppSpacing.large)
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                statusCard
+                vacuumControls
+                contextDetails
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Vacuum")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", role: .close) {
-                        dismiss()
-                    }
-                }
-            }
+            .padding(AppSpacing.large)
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .background(Color(.systemGroupedBackground))
+        .dashboardDetailPresentation(title: "Vacuum", style: presentationStyle)
     }
 
     private var statusCard: some View {

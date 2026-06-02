@@ -2842,6 +2842,19 @@ struct HomesteadTests {
         #expect(layoutItems[3].layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1))
     }
 
+    @Test func dashboardEntityDetailRouteUsesStableSourceIdentity() {
+        let cardID = UUID()
+        let sourceID = "dashboard-card-\(cardID.uuidString)"
+        let route = DashboardEntityDetailRoute(
+            entityID: "light.kitchen",
+            sourceID: sourceID
+        )
+
+        #expect(route.entityID == "light.kitchen")
+        #expect(route.sourceID == sourceID)
+        #expect(route.id == "\(sourceID)-light.kitchen")
+    }
+
     @Test func stateCacheRoundTripsEntitySnapshotsAndScopesByConnection() async throws {
         let cacheDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("HomesteadStateCacheTests-\(UUID().uuidString)", isDirectory: true)

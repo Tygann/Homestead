@@ -1,12 +1,12 @@
 import SwiftUI
 
 struct MediaPlayerDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var volumePercentage = 50.0
     @State private var isEditingVolume = false
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -17,39 +17,27 @@ struct MediaPlayerDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                    statusCard
-                    playbackControls
-                    if let mediaPlayer = entityBox.mediaPlayerEntity {
-                        if mediaPlayer.volumeLevel != nil,
-                           homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set") {
-                            volumeControls(mediaPlayer)
-                        }
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                statusCard
+                playbackControls
+                if let mediaPlayer = entityBox.mediaPlayerEntity {
+                    if mediaPlayer.volumeLevel != nil,
+                       homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set") {
+                        volumeControls(mediaPlayer)
+                    }
 
-                        if !mediaPlayer.sourceList.isEmpty,
-                           homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source") {
-                            sourceControls(mediaPlayer)
-                        }
-                    }
-                    contextDetails
-                }
-                .padding(AppSpacing.large)
-            }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Media Player")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", role: .close) {
-                        dismiss()
+                    if !mediaPlayer.sourceList.isEmpty,
+                       homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source") {
+                        sourceControls(mediaPlayer)
                     }
                 }
+                contextDetails
             }
+            .padding(AppSpacing.large)
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .background(Color(.systemGroupedBackground))
+        .dashboardDetailPresentation(title: "Media Player", style: presentationStyle)
         .onAppear {
             syncVolume()
         }

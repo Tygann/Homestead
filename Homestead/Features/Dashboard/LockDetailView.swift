@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct LockDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var isShowingUnlockConfirmation = false
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -16,26 +16,16 @@ struct LockDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                    statusCard
-                    actionButton
-                    contextDetails
-                }
-                .padding(AppSpacing.large)
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                statusCard
+                actionButton
+                contextDetails
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Lock")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", role: .close) {
-                        dismiss()
-                    }
-                }
-            }
+            .padding(AppSpacing.large)
         }
+        .background(Color(.systemGroupedBackground))
+        .dashboardDetailPresentation(title: "Lock", style: presentationStyle)
         .confirmationDialog(
             "Unlock \(presentation.title)?",
             isPresented: $isShowingUnlockConfirmation,
@@ -49,8 +39,6 @@ struct LockDetailView: View {
         } message: {
             Text("This will send an unlock command to Home Assistant.")
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 
     private var statusCard: some View {

@@ -4,6 +4,7 @@ struct EntityDetailView: View {
     @Environment(HAStateStore.self) private var stateStore
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .navigationStack
 
     var body: some View {
         let entity = entityBox.homeEntity
@@ -13,75 +14,72 @@ struct EntityDetailView: View {
         let registry = stateStore.entityRegistryMetadata(for: entity.entityID)
         let device = stateStore.deviceRegistryMetadata(forEntityID: entity.entityID)
 
-        NavigationStack {
-            List {
-                Section {
-                    EntitySummaryHeader(entityBox: entityBox)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
+        List {
+            Section {
+                EntitySummaryHeader(entityBox: entityBox)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            }
+
+            Section("State") {
+                EntityDetailRow(title: "Entity ID", value: entity.entityID)
+                EntityDetailRow(title: "Domain", value: entity.domain.displayName)
+                EntityDetailRow(title: "State", value: displayState(for: entityBox))
+
+                if let lastUpdated = rawEntity?.lastUpdated ?? entity.lastUpdated {
+                    EntityDetailRow(title: "Last Updated", value: lastUpdated.formatted(date: .abbreviated, time: .shortened))
                 }
 
-                Section("State") {
-                    EntityDetailRow(title: "Entity ID", value: entity.entityID)
-                    EntityDetailRow(title: "Domain", value: entity.domain.displayName)
-                    EntityDetailRow(title: "State", value: displayState(for: entityBox))
-
-                    if let lastUpdated = rawEntity?.lastUpdated ?? entity.lastUpdated {
-                        EntityDetailRow(title: "Last Updated", value: lastUpdated.formatted(date: .abbreviated, time: .shortened))
-                    }
-
-                    if let lastChanged = rawEntity?.lastChanged {
-                        EntityDetailRow(title: "Last Changed", value: lastChanged.formatted(date: .abbreviated, time: .shortened))
-                    }
+                if let lastChanged = rawEntity?.lastChanged {
+                    EntityDetailRow(title: "Last Changed", value: lastChanged.formatted(date: .abbreviated, time: .shortened))
                 }
+            }
 
-                if let device {
-                    Section("Device") {
-                        EntityDetailRow(title: "Name", value: device.displayName)
+            if let device {
+                Section("Device") {
+                    EntityDetailRow(title: "Name", value: device.displayName)
 
-                        if let manufacturer = device.manufacturer?.nonEmptyValue {
-                            EntityDetailRow(title: "Manufacturer", value: manufacturer)
-                        }
-
-                        if let model = device.model?.nonEmptyValue {
-                            EntityDetailRow(title: "Model", value: model)
-                        }
-
-                        EntityDetailRow(title: "Device ID", value: device.id)
+                    if let manufacturer = device.manufacturer?.nonEmptyValue {
+                        EntityDetailRow(title: "Manufacturer", value: manufacturer)
                     }
-                }
 
-                if let registry {
-                    Section("Registry") {
-                        if let name = registry.name?.nonEmptyValue {
-                            EntityDetailRow(title: "Name", value: name)
-                        }
-
-                        if let originalName = registry.originalName?.nonEmptyValue {
-                            EntityDetailRow(title: "Original Name", value: originalName)
-                        }
-
-                        if let deviceID = registry.deviceID?.nonEmptyValue {
-                            EntityDetailRow(title: "Device ID", value: deviceID)
-                        }
-
-                        if let hiddenBy = registry.hiddenBy {
-                            EntityDetailRow(title: "Hidden", value: hiddenBy ? "Yes" : "No")
-                        }
+                    if let model = device.model?.nonEmptyValue {
+                        EntityDetailRow(title: "Model", value: model)
                     }
-                }
 
-                if let attributes = rawEntity?.attributes, !attributes.isEmpty {
-                    Section("Attributes") {
-                        ForEach(attributes.sortedByKey, id: \.key) { key, value in
-                            EntityDetailRow(title: key.humanizedAttributeName, value: value.detailDisplayValue)
-                        }
+                    EntityDetailRow(title: "Device ID", value: device.id)
+                }
+            }
+
+            if let registry {
+                Section("Registry") {
+                    if let name = registry.name?.nonEmptyValue {
+                        EntityDetailRow(title: "Name", value: name)
+                    }
+
+                    if let originalName = registry.originalName?.nonEmptyValue {
+                        EntityDetailRow(title: "Original Name", value: originalName)
+                    }
+
+                    if let deviceID = registry.deviceID?.nonEmptyValue {
+                        EntityDetailRow(title: "Device ID", value: deviceID)
+                    }
+
+                    if let hiddenBy = registry.hiddenBy {
+                        EntityDetailRow(title: "Hidden", value: hiddenBy ? "Yes" : "No")
                     }
                 }
             }
-            .navigationTitle(entity.displayName)
-            .navigationBarTitleDisplayMode(.inline)
+
+            if let attributes = rawEntity?.attributes, !attributes.isEmpty {
+                Section("Attributes") {
+                    ForEach(attributes.sortedByKey, id: \.key) { key, value in
+                        EntityDetailRow(title: key.humanizedAttributeName, value: value.detailDisplayValue)
+                    }
+                }
+            }
         }
+        .dashboardDetailPresentation(title: entity.displayName, style: presentationStyle)
     }
 
     private func displayState(for entityBox: HAEntityState) -> String {

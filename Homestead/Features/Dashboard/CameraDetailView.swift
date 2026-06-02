@@ -5,7 +5,6 @@ import UIKit
 #endif
 
 struct CameraDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var snapshotPhase: SnapshotPhase = .idle
     @State private var capabilitiesPhase: CameraCapabilitiesPhase = .idle
@@ -13,6 +12,7 @@ struct CameraDetailView: View {
     @State private var player: AVPlayer?
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -23,36 +23,26 @@ struct CameraDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                    cameraViewPanel
-                    statusCard
-                    contextDetails
-                }
-                .padding(AppSpacing.large)
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                cameraViewPanel
+                statusCard
+                contextDetails
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Camera")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", role: .close) {
-                        dismiss()
-                    }
+            .padding(AppSpacing.large)
+        }
+        .background(Color(.systemGroupedBackground))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task { await loadCameraData() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        Task { await loadCameraData() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .disabled(!entity.isAvailable || snapshotPhase.isLoading)
-                }
+                .disabled(!entity.isAvailable || snapshotPhase.isLoading)
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .dashboardDetailPresentation(title: "Camera", style: presentationStyle)
         .task(id: entity.entityID) {
             await loadCameraData()
         }

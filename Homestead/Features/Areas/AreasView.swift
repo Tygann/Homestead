@@ -3,6 +3,7 @@ import SwiftUI
 struct AreasView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Namespace private var areaTransitionNamespace
     @Namespace private var summaryTransitionNamespace
     private let areaCardSize = DashboardCardSize.square
 
@@ -25,8 +26,10 @@ struct AreasView: View {
                             ForEach(section.areas) { area in
                                 NavigationLink {
                                     AreaDetailView(area: area)
+                                        .navigationTransition(.zoom(sourceID: areaTransitionID(for: area), in: areaTransitionNamespace))
                                 } label: {
                                     AreaSummaryCard(area: area)
+                                        .matchedTransitionSource(id: areaTransitionID(for: area), in: areaTransitionNamespace)
                                 }
                                 .buttonStyle(.plain)
                                 .cardGridSpan(areaCardSize.layoutMetadata)
@@ -74,6 +77,10 @@ struct AreasView: View {
 
     private func summaryTransitionID(for item: AreasOverviewPresentation.SummaryChipItem) -> String {
         "areas-summary-\(item.id.canonicalKind.rawValue)"
+    }
+
+    private func areaTransitionID(for area: DashboardAreaSummary) -> String {
+        "area-\(area.id)"
     }
 }
 

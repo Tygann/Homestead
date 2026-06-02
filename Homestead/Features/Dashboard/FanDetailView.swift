@@ -1,15 +1,15 @@
 import SwiftUI
 
 struct FanDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var percentage = 100.0
     @State private var isEditingPercentage = false
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     var body: some View {
-        NavigationStack {
+        Group {
             if let fan = entityBox.fanEntity {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
@@ -29,15 +29,6 @@ struct FanDetailView: View {
                     .padding(AppSpacing.large)
                 }
                 .background(Color(.systemGroupedBackground))
-                .navigationTitle("Fan")
-                .toolbarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done", role: .close) {
-                            dismiss()
-                        }
-                    }
-                }
                 .onAppear {
                     syncPercentage(with: fan)
                 }
@@ -49,8 +40,7 @@ struct FanDetailView: View {
                 ContentUnavailableView("Fan Unavailable", systemImage: "fan.fill")
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .dashboardDetailPresentation(title: "Fan", style: presentationStyle)
     }
 
     private func statusCard(_ fan: FanEntity) -> some View {

@@ -1,9 +1,8 @@
 import SwiftUI
 
 struct SensorDetailView: View {
-    @Environment(\.dismiss) private var dismiss
-
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -14,28 +13,16 @@ struct SensorDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                    statusCard
-                    detailMetrics
-                    contextDetails
-                }
-                .padding(AppSpacing.large)
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                statusCard
+                detailMetrics
+                contextDetails
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle(navigationTitle)
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", role: .close) {
-                        dismiss()
-                    }
-                }
-            }
+            .padding(AppSpacing.large)
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .background(Color(.systemGroupedBackground))
+        .dashboardDetailPresentation(title: navigationTitle, style: presentationStyle)
     }
 
     private var statusCard: some View {

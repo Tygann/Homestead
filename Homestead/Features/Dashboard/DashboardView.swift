@@ -40,6 +40,15 @@ struct DashboardLayoutItem: Identifiable, Equatable {
     }
 }
 
+struct DashboardEntityDetailRoute: Identifiable, Equatable, Hashable {
+    let entityID: String
+    let sourceID: String
+
+    var id: String {
+        "\(sourceID)-\(entityID)"
+    }
+}
+
 enum DashboardLayoutItemBuilder {
     static func makeItems(from configurationItems: [DashboardItemConfiguration]) -> [DashboardLayoutItem] {
         return configurationItems.compactMap { configurationItem in
@@ -94,12 +103,14 @@ struct DashboardView: View {
     @State private var isEditingDashboard = false
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var isShowingReorderSheet = false
+    @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
     @State private var headerTitleDraft = ""
     @State private var displayTitleDraft = ""
     @State private var showsInitialSyncPlaceholder = false
     @State private var cameraRefreshGeneration = 0
+    @Namespace private var cardTransitionNamespace
     @Namespace private var summaryTransitionNamespace
     
     var body: some View {
@@ -182,6 +193,15 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $isShowingReorderSheet) {
             DashboardReorderView()
+        }
+        .navigationDestination(item: $selectedEntityDetailRoute) { route in
+            if let entityBox = stateStore.entityBox(for: route.entityID) {
+                DashboardEntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
+                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
+            } else {
+                ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
+                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
+            }
         }
         .alert("Rename Header", isPresented: isRenamingHeader) {
             TextField("Header Title", text: $headerTitleDraft)
@@ -490,9 +510,16 @@ struct DashboardView: View {
                 displayNameOverride: currentCardDisplayNameOverride(for: item),
                 iconNameOverride: item.iconNameOverride,
                 featureVisibility: item.featureVisibility,
-                cameraRefreshGeneration: cameraRefreshGeneration
+                cameraRefreshGeneration: cameraRefreshGeneration,
+                openDetails: {
+                    selectedEntityDetailRoute = DashboardEntityDetailRoute(
+                        entityID: item.entityID,
+                        sourceID: cardTransitionID(for: item)
+                    )
+                }
             )
             .frame(maxWidth: .infinity)
+            .matchedTransitionSource(id: cardTransitionID(for: item), in: cardTransitionNamespace)
             .contextMenu {
                 cardEditMenuContent(for: item)
             }
@@ -544,6 +571,10 @@ struct DashboardView: View {
 
     private func summaryTransitionID(for item: DashboardChipItem) -> String {
         "dashboard-summary-\(item.id.uuidString)"
+    }
+
+    private func cardTransitionID(for item: DashboardCardItem) -> String {
+        "dashboard-card-\(item.id.uuidString)"
     }
 
     @ViewBuilder

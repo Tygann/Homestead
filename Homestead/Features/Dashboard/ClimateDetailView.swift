@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ClimateDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var targetTemperature = 70.0
     @State private var targetLowTemperature = 68.0
@@ -10,9 +9,10 @@ struct ClimateDetailView: View {
     @State private var isEditingTemperatureRange = false
 
     let entityBox: HAEntityState
+    var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     var body: some View {
-        NavigationStack {
+        Group {
             if let climate = entityBox.climateEntity {
                 ScrollView {
                     VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
@@ -44,15 +44,6 @@ struct ClimateDetailView: View {
                     .padding(AppSpacing.large)
                 }
                 .background(Color(.systemGroupedBackground))
-                .navigationTitle("Climate")
-                .toolbarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done", role: .close) {
-                            dismiss()
-                        }
-                    }
-                }
                 .onAppear {
                     syncTargetTemperature(with: climate)
                     syncTargetTemperatureRange(with: climate)
@@ -73,8 +64,7 @@ struct ClimateDetailView: View {
                 ContentUnavailableView("Climate Unavailable", systemImage: "thermometer.medium")
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .dashboardDetailPresentation(title: "Climate", style: presentationStyle)
     }
 
     private func climateStatusCard(_ climate: ClimateEntity) -> some View {
