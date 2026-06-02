@@ -94,13 +94,13 @@ struct DashboardView: View {
     @State private var isEditingDashboard = false
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var isShowingReorderSheet = false
-    @State private var selectedSummaryChip: DashboardSelectedSummaryChip?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
     @State private var headerTitleDraft = ""
     @State private var displayTitleDraft = ""
     @State private var showsInitialSyncPlaceholder = false
     @State private var cameraRefreshGeneration = 0
+    @Namespace private var summaryTransitionNamespace
     
     var body: some View {
         let visibleItemsSnapshot = visibleDashboardItems
@@ -182,13 +182,6 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $isShowingReorderSheet) {
             DashboardReorderView()
-        }
-        .sheet(item: $selectedSummaryChip) { chip in
-            DashboardSummaryView(
-                kind: chip.kind,
-                titleOverride: chip.titleOverride,
-                iconNameOverride: chip.iconNameOverride
-            )
         }
         .alert("Rename Header", isPresented: isRenamingHeader) {
             TextField("Header Title", text: $headerTitleDraft)
@@ -523,14 +516,16 @@ struct DashboardView: View {
                 switch item.chipKind {
                 case .summary:
                     if let summaryKind = item.summaryKind {
-                        Button {
-                            selectedSummaryChip = DashboardSelectedSummaryChip(
+                        NavigationLink {
+                            DashboardSummaryView(
                                 kind: summaryKind,
                                 titleOverride: item.displayNameOverride,
                                 iconNameOverride: item.iconNameOverride
                             )
+                            .navigationTransition(.zoom(sourceID: summaryTransitionID(for: item), in: summaryTransitionNamespace))
                         } label: {
                             DashboardChipView(presentation: presentation)
+                                .matchedTransitionSource(id: summaryTransitionID(for: item), in: summaryTransitionNamespace)
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
@@ -545,6 +540,10 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private func summaryTransitionID(for item: DashboardChipItem) -> String {
+        "dashboard-summary-\(item.id.uuidString)"
     }
 
     @ViewBuilder
@@ -1146,7 +1145,10 @@ private struct DashboardAddItemView: View {
             rowAction: { entityBox in
                 switch target {
                 case .cards:
-                    dashboardConfiguration.add(entityBox.entityID)
+                    dashboardConfiguration.add(
+                        entityBox.entityID,
+                        size: DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
+                    )
                 case .entityChips:
                     dashboardConfiguration.addEntityChip(entityID: entityBox.entityID)
                 }
@@ -1800,23 +1802,7 @@ private struct EmptyConfiguredDashboardCard: View {
     }
 }
 
-private struct DashboardSelectedSummaryChip: Identifiable {
-    let kind: DashboardSummaryKind
-    let titleOverride: String?
-    let iconNameOverride: String?
-
-    var id: String {
-        [
-            kind.canonicalKind.rawValue,
-            titleOverride ?? "",
-            iconNameOverride ?? ""
-        ]
-        .joined(separator: "-")
-    }
-}
-
 struct DashboardSummaryView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(HAStateStore.self) private var stateStore
 
     let kind: DashboardSummaryKind
@@ -1847,55 +1833,45 @@ struct DashboardSummaryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let detail {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                            DashboardSummaryHeader(presentation: detail.summary)
+        Group {
+            if let detail {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                        DashboardSummaryHeader(presentation: detail.summary)
 
-                            ForEach(detail.sections) { section in
-                                VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                                    Text(section.title)
-                                        .font(.title3.weight(.semibold))
-                                        .foregroundStyle(.secondary)
+                        ForEach(detail.sections) { section in
+                            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                                Text(section.title)
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(.secondary)
 
-                                    CardGrid {
-                                        ForEach(section.items) { item in
-                                            let entityBox = stateStore.entityBox(for: item.entityID)
-                                            let size = cardSize(for: entityBox)
+                                CardGrid {
+                                    ForEach(section.items) { item in
+                                        let entityBox = stateStore.entityBox(for: item.entityID)
+                                        let size = cardSize(for: entityBox)
 
-                                            DashboardCardView(
-                                                entityID: item.entityID,
-                                                size: size,
-                                                contextualAreaName: section.title
-                                            )
-                                                .cardGridSpan(size.layoutMetadata)
-                                        }
+                                        DashboardCardView(
+                                            entityID: item.entityID,
+                                            size: size,
+                                            contextualAreaName: section.title
+                                        )
+                                            .cardGridSpan(size.layoutMetadata)
                                     }
                                 }
                             }
                         }
-                        .padding(.horizontal, AppSpacing.large)
-                        .padding(.vertical, AppSpacing.xLarge)
                     }
-                    .background(Color(.systemGroupedBackground))
-                } else {
-                    ContentUnavailableView("No Summary Available", systemImage: kind.canonicalKind.systemImage)
+                    .padding(.horizontal, AppSpacing.large)
+                    .padding(.vertical, AppSpacing.xLarge)
                 }
-            }
-            .navigationTitle(detail?.summary.title ?? kind.canonicalKind.title)
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", role: .close) {
-                        dismiss()
-                    }
-                }
+                .background(Color(.systemGroupedBackground))
+            } else {
+                ContentUnavailableView("No Summary Available", systemImage: kind.canonicalKind.systemImage)
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(detail?.summary.title ?? kind.canonicalKind.title)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     @MainActor

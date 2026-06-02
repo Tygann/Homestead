@@ -2363,6 +2363,21 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func dashboardConfigurationAddEntityItemPersistsInitialCardSize() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        configuration.add("camera.driveway", size: .square)
+        configuration.add("sensor.hallway_temperature")
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.items.map(\.entityID) == ["camera.driveway", "sensor.hallway_temperature"])
+        #expect(restoredConfiguration.items.map(\.resolvedCardSize) == [.square, .compact])
+    }
+
+    @MainActor
     @Test func dashboardConfigurationRemoveEntityItemPersists() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))

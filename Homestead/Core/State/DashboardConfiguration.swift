@@ -277,12 +277,12 @@ final class DashboardConfiguration {
     }
 
     @discardableResult
-    func add(_ entityID: String) -> UUID {
+    func add(_ entityID: String, size: DashboardCardSize = .compact) -> UUID {
         if let existingItem = items.first(where: { $0.type == .entity && $0.entityID == entityID }) {
             return existingItem.id
         }
 
-        let item = DashboardItemConfiguration.entity(entityID: entityID)
+        let item = DashboardItemConfiguration.entity(entityID: entityID, size: size)
         items.append(item)
         return item.id
     }

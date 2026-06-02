@@ -3,7 +3,7 @@ import SwiftUI
 struct AreasView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var selectedSummaryKind: DashboardSummaryKind?
+    @Namespace private var summaryTransitionNamespace
     private let areaCardSize = DashboardCardSize.square
 
     var body: some View {
@@ -42,9 +42,6 @@ struct AreasView: View {
             await homeAssistantService.refreshStates()
         }
         .background(Color(.systemGroupedBackground))
-        .sheet(item: $selectedSummaryKind) { kind in
-            DashboardSummaryView(kind: kind)
-        }
         .overlay {
             if !stateStore.hasEntities {
                 ContentUnavailableView("No Areas", systemImage: "square.grid.3x3")
@@ -58,10 +55,12 @@ struct AreasView: View {
         ScrollView(.horizontal) {
             HStack(alignment: .center, spacing: AppSpacing.small) {
                 ForEach(items) { item in
-                    Button {
-                        selectedSummaryKind = item.kind
+                    NavigationLink {
+                        DashboardSummaryView(kind: item.kind)
+                            .navigationTransition(.zoom(sourceID: summaryTransitionID(for: item), in: summaryTransitionNamespace))
                     } label: {
                         DashboardChipView(presentation: item.presentation)
+                            .matchedTransitionSource(id: summaryTransitionID(for: item), in: summaryTransitionNamespace)
                     }
                     .buttonStyle(.plain)
                 }
@@ -71,6 +70,10 @@ struct AreasView: View {
         .scrollIndicators(.hidden)
         .contentMargins(.horizontal, 1, for: .scrollContent)
         .accessibilityElement(children: .contain)
+    }
+
+    private func summaryTransitionID(for item: AreasOverviewPresentation.SummaryChipItem) -> String {
+        "areas-summary-\(item.id.canonicalKind.rawValue)"
     }
 }
 
