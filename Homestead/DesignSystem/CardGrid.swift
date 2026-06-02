@@ -27,13 +27,17 @@ struct CardGridLayout: Layout {
     let spacing: CGFloat
     let cardPadding: CGFloat
 
+    func makeCache(subviews _: Subviews) -> CardGridLayoutCache {
+        CardGridLayoutCache()
+    }
+
     func sizeThatFits(
         proposal: ProposedViewSize,
         subviews: Subviews,
-        cache _: inout ()
+        cache: inout CardGridLayoutCache
     ) -> CGSize {
         let width = proposal.width ?? 0
-        let layout = makeLayout(in: width, subviews: subviews)
+        let layout = cachedLayout(in: width, subviews: subviews, cache: &cache)
         return CGSize(width: width, height: layout.height)
     }
 
@@ -41,9 +45,9 @@ struct CardGridLayout: Layout {
         in bounds: CGRect,
         proposal _: ProposedViewSize,
         subviews: Subviews,
-        cache _: inout ()
+        cache: inout CardGridLayoutCache
     ) {
-        let layout = makeLayout(in: bounds.width, subviews: subviews)
+        let layout = cachedLayout(in: bounds.width, subviews: subviews, cache: &cache)
 
         for placement in layout.placements {
             let origin = CGPoint(
@@ -55,6 +59,32 @@ struct CardGridLayout: Layout {
                 at: origin,
                 anchor: .topLeading,
                 proposal: ProposedViewSize(placement.frame.size)
+            )
+        }
+    }
+
+    private func cachedLayout(
+        in width: CGFloat,
+        subviews: Subviews,
+        cache: inout CardGridLayoutCache
+    ) -> CardGridLayoutResult {
+        let signature = layoutSignature(for: subviews)
+        if cache.width == width, cache.signature == signature, let layout = cache.layout {
+            return layout
+        }
+
+        let layout = makeLayout(in: width, subviews: subviews)
+        cache.width = width
+        cache.signature = signature
+        cache.layout = layout
+        return layout
+    }
+
+    private func layoutSignature(for subviews: Subviews) -> [CardGridSubviewSignature] {
+        subviews.map { subview in
+            CardGridSubviewSignature(
+                columnSpan: subview[CardGridColumnSpanKey.self],
+                rowSpan: subview[CardGridRowSpanKey.self]
             )
         }
     }
@@ -210,12 +240,23 @@ extension View {
     }
 }
 
-private struct CardGridLayoutResult {
+struct CardGridLayoutResult {
     let placements: [CardGridPlacement]
     let height: CGFloat
 }
 
-private struct CardGridPlacement {
+struct CardGridPlacement {
     let index: Int
     let frame: CGRect
+}
+
+nonisolated struct CardGridLayoutCache {
+    var width: CGFloat?
+    var signature: [CardGridSubviewSignature] = []
+    var layout: CardGridLayoutResult?
+}
+
+nonisolated struct CardGridSubviewSignature: Equatable {
+    let columnSpan: Int
+    let rowSpan: Int
 }

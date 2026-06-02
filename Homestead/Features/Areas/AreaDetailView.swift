@@ -4,82 +4,25 @@ struct AreaDetailView: View {
     let area: DashboardAreaSummary
     @Environment(HAStateStore.self) private var stateStore
 
-    @MainActor private var entityBoxes: [HAEntityState] {
-        area.entityIDs.compactMap { stateStore.entityBox(for: $0) }
-    }
-
-    @MainActor private var currentArea: DashboardAreaSummary {
-        DashboardAreaBuilder.buildArea(named: area.name, from: entityBoxes)
-    }
-
-    @MainActor private var sections: [AreaEntitySection] {
-        var categorizedEntityIDs = Set<String>()
-
-        let summarySections = DashboardSummaryKind.areaSectionOrder.compactMap { kind -> AreaEntitySection? in
-            guard let detail = DashboardSummaryProvider.makeDetail(
-                kind: kind,
-                entityBoxes: entityBoxes,
-                preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
-                nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
-                diagnosticEntityIDs: stateStore.diagnosticEntityIDs()
-            ) else {
-                return nil
-            }
-
-            let entityIDs = detail.sections.flatMap { section in
-                section.items.map(\.entityID)
-            }
-            guard !entityIDs.isEmpty else {
-                return nil
-            }
-
-            categorizedEntityIDs.formUnion(entityIDs)
-            return makeSection(
-                id: "summary-\(kind.rawValue)",
-                title: kind.areaSectionTitle,
-                systemImage: kind.systemImage,
-                entityBoxes: entityBoxes(for: entityIDs)
-            )
-        }
-
-        let remainingEntityBoxes = entityBoxes.filter { !categorizedEntityIDs.contains($0.entityID) }
-        let grouped = Dictionary(grouping: remainingEntityBoxes, by: \.domain)
-        let domainSections = grouped
-            .map { domain, entityBoxes in
-                makeSection(
-                    id: "domain-\(domain.rawValue)",
-                    title: domain.displayName,
-                    systemImage: domain.systemImage,
-                    entityBoxes: entityBoxes.sorted(by: displayNameAscending)
-                )
-            }
-            .sorted { lhs, rhs in
-                lhs.sortPriority < rhs.sortPriority
-            }
-
-        return summarySections + domainSections
-    }
-
     var body: some View {
+        let presentation = AreaDetailPresentation.make(area: area, stateStore: stateStore)
+
         ScrollView {
             LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                AreaOverviewCard(area: currentArea)
+                AreaOverviewCard(area: presentation.currentArea)
 
-                ForEach(sections) { section in
+                ForEach(presentation.sections) { section in
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
                         AreaSectionHeader(section: section)
 
                         CardGrid {
-                            ForEach(section.entityIDs, id: \.self) { entityID in
-                                let entityBox = stateStore.entityBox(for: entityID)
-                                let size = cardSize(for: entityBox)
-
+                            ForEach(section.items) { item in
                                 DashboardCardView(
-                                    entityID: entityID,
-                                    size: size,
+                                    entityID: item.entityID,
+                                    size: item.cardSize,
                                     contextualAreaName: area.name
                                 )
-                                .cardGridSpan(size.layoutMetadata)
+                                .cardGridSpan(item.cardSize.layoutMetadata)
                             }
                         }
                     }
@@ -92,25 +35,91 @@ struct AreaDetailView: View {
         .navigationTitle(area.name)
         .toolbarTitleDisplayMode(.inlineLarge)
     }
+}
 
-    private func entityBoxes(for entityIDs: [String]) -> [HAEntityState] {
+private struct AreaDetailPresentation {
+    let currentArea: DashboardAreaSummary
+    let sections: [AreaEntitySection]
+
+    @MainActor
+    static func make(area: DashboardAreaSummary, stateStore: HAStateStore) -> AreaDetailPresentation {
+        let entityBoxes = area.entityIDs.compactMap { stateStore.entityBox(for: $0) }
         let boxesByID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
-        return entityIDs.compactMap { boxesByID[$0] }
+        let preferredClimateReadingEntityIDs = stateStore.preferredClimateReadingEntityIDs()
+        let nonPrimaryEntityIDs = stateStore.nonPrimaryEntityIDs()
+        let diagnosticEntityIDs = stateStore.diagnosticEntityIDs()
+        var categorizedEntityIDs = Set<String>()
+
+        let summarySections = DashboardSummaryKind.areaSectionOrder.compactMap { kind -> AreaEntitySection? in
+            guard let detail = DashboardSummaryProvider.makeDetail(
+                kind: kind,
+                entityBoxes: entityBoxes,
+                preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
+                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+                diagnosticEntityIDs: diagnosticEntityIDs
+            ) else {
+                return nil
+            }
+
+            let sectionEntityIDs = detail.sections.flatMap { section in
+                section.items.map(\.entityID)
+            }
+            guard !sectionEntityIDs.isEmpty else {
+                return nil
+            }
+
+            let sectionBoxes = sectionEntityIDs.compactMap { boxesByID[$0] }
+            guard !sectionBoxes.isEmpty else {
+                return nil
+            }
+
+            categorizedEntityIDs.formUnion(sectionEntityIDs)
+            return makeSection(
+                id: "summary-\(kind.rawValue)",
+                title: kind.areaSectionTitle,
+                systemImage: kind.systemImage,
+                entityBoxes: sectionBoxes
+            )
+        }
+
+        let remainingEntityBoxes = entityBoxes.filter { !categorizedEntityIDs.contains($0.entityID) }
+        let domainSections = Dictionary(grouping: remainingEntityBoxes, by: \.domain)
+            .map { domain, entityBoxes in
+                makeSection(
+                    id: "domain-\(domain.rawValue)",
+                    title: domain.displayName,
+                    systemImage: domain.systemImage,
+                    entityBoxes: entityBoxes
+                )
+            }
+            .sorted { lhs, rhs in
+                lhs.sortPriority < rhs.sortPriority
+            }
+
+        return AreaDetailPresentation(
+            currentArea: DashboardAreaBuilder.buildArea(named: area.name, from: entityBoxes),
+            sections: summarySections + domainSections
+        )
     }
 
-    private func makeSection(
+    @MainActor
+    private static func makeSection(
         id: String,
         title: String,
         systemImage: String,
         entityBoxes: [HAEntityState]
     ) -> AreaEntitySection {
-        AreaEntitySection(
+        let sortedEntityBoxes = entityBoxes.sorted(by: displayNameAscending)
+        return AreaEntitySection(
             id: id,
             title: title,
             systemImage: systemImage,
-            entityIDs: entityBoxes
-                .sorted(by: displayNameAscending)
-                .map(\.entityID),
+            items: sortedEntityBoxes.map { entityBox in
+                AreaEntityItem(
+                    entityID: entityBox.entityID,
+                    cardSize: DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
+                )
+            },
             activeCount: entityBoxes
                 .map { DashboardEntityPresentation(entityBox: $0) }
                 .filter(\.isActive)
@@ -122,14 +131,8 @@ struct AreaDetailView: View {
         )
     }
 
-    private func displayNameAscending(_ lhs: HAEntityState, _ rhs: HAEntityState) -> Bool {
+    private static func displayNameAscending(_ lhs: HAEntityState, _ rhs: HAEntityState) -> Bool {
         lhs.homeEntity.displayName.localizedCaseInsensitiveCompare(rhs.homeEntity.displayName) == .orderedAscending
-    }
-
-    @MainActor
-    private func cardSize(for entityBox: HAEntityState?) -> DashboardCardSize {
-        guard let entityBox else { return .compact }
-        return DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
     }
 }
 
@@ -137,13 +140,13 @@ private struct AreaEntitySection: Identifiable {
     let id: String
     let title: String
     let systemImage: String
-    let entityIDs: [String]
+    let items: [AreaEntityItem]
     let activeCount: Int
     let unavailableCount: Int
     let sortPriority: Int
 
     var subtitle: String {
-        var parts = ["\(entityIDs.count) \(entityIDs.count == 1 ? "entity" : "entities")"]
+        var parts = ["\(items.count) \(items.count == 1 ? "entity" : "entities")"]
 
         if activeCount > 0 {
             parts.append("\(activeCount) active")
@@ -155,6 +158,13 @@ private struct AreaEntitySection: Identifiable {
 
         return parts.joined(separator: " • ")
     }
+}
+
+private struct AreaEntityItem: Identifiable {
+    let entityID: String
+    let cardSize: DashboardCardSize
+
+    var id: String { entityID }
 }
 
 private struct AreaOverviewCard: View {

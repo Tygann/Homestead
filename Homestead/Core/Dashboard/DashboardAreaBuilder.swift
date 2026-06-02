@@ -29,11 +29,10 @@ enum DashboardAreaBuilder {
             id: areaName,
             name: areaName,
             entityIDs: entityBoxes
-                .map(\.entityID)
                 .sorted { lhs, rhs in
-                    displayName(for: lhs, in: entityBoxes)
-                        .localizedCaseInsensitiveCompare(displayName(for: rhs, in: entityBoxes)) == .orderedAscending
-                },
+                    lhs.homeEntity.displayName.localizedCaseInsensitiveCompare(rhs.homeEntity.displayName) == .orderedAscending
+                }
+                .map(\.entityID),
             activeCount: entityBoxes
                 .map { DashboardEntityPresentation(entityBox: $0) }
                 .filter(\.isActive)
@@ -44,9 +43,6 @@ enum DashboardAreaBuilder {
         )
     }
 
-    private static func displayName(for entityID: String, in entityBoxes: [HAEntityState]) -> String {
-        entityBoxes.first { $0.entityID == entityID }?.homeEntity.displayName ?? entityID
-    }
 }
 
 private extension String {

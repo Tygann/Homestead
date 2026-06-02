@@ -87,15 +87,15 @@ struct EntityBrowserList<Accessory: View>: View {
     }
 
     var body: some View {
-        let groups = filteredEntityGroups
+        let presentation = entityBrowserPresentation
 
         VStack(spacing: 0) {
             if showsFilters {
-                filterBar
+                filterBar(filterDomains: presentation.filterDomains)
             }
 
             List {
-                ForEach(groups) { group in
+                ForEach(presentation.groups) { group in
                     Section {
                         if !collapsedGroups.contains(group.id) {
                             ForEach(group.entityIDs, id: \.self) { entityID in
@@ -154,13 +154,13 @@ struct EntityBrowserList<Accessory: View>: View {
                     }
                 } else if !stateStore.hasEntities {
                     ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
-                } else if groups.isEmpty && visibleCandidateEntityIDs.isEmpty {
+                } else if presentation.groups.isEmpty && presentation.visibleCandidateEntityIDs.isEmpty {
                     ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
-                } else if groups.isEmpty && currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && hasActiveFilters {
+                } else if presentation.groups.isEmpty && currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && hasActiveFilters {
                     ContentUnavailableView("No Matching Entities", systemImage: "line.3.horizontal.decrease.circle")
-                } else if groups.isEmpty && currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                } else if presentation.groups.isEmpty && currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     ContentUnavailableView(emptyTitle, systemImage: emptySystemImage)
-                } else if groups.isEmpty {
+                } else if presentation.groups.isEmpty {
                     ContentUnavailableView.search(text: currentSearchText)
                 }
             }
@@ -220,7 +220,7 @@ struct EntityBrowserList<Accessory: View>: View {
         .accessibilityLabel("Group devices")
     }
 
-    private var filterBar: some View {
+    private func filterBar(filterDomains: [EntityDomain]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: AppSpacing.small) {
                 filterChip(
@@ -302,45 +302,20 @@ struct EntityBrowserList<Accessory: View>: View {
         return stateStore.displayNameForDeviceGroupedEntity(entityID: entityID)
     }
 
-    private var filteredEntityGroups: [DevicesEntityGroup] {
+    private var entityBrowserPresentation: EntityBrowserPresentation {
         let query = currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let groups = unfilteredEntityGroups
-
-        guard !query.isEmpty else {
-            return groups
+        let visibleCandidateEntityIDs = stateStore.availableEntityIDs.subtracting(hiddenEntityIDs)
+        let filterDomains = EntityDomain.allCases.filter { domain in
+            visibleCandidateEntityIDs.contains { entityID in
+                stateStore.entityBox(for: entityID)?.homeEntity.domain == domain
+            }
         }
 
-        return groups.compactMap { group in
-            let matchingEntityIDs = group.entityIDs.filter { entityID in
-                guard let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
-                    return false
-                }
-                let displayName = displayNameOverride(for: entityID) ?? entity.displayName
-
-                return displayName.localizedCaseInsensitiveContains(query) ||
-                    group.title.localizedCaseInsensitiveContains(query) ||
-                    entity.entityID.localizedCaseInsensitiveContains(query) ||
-                    entity.state.localizedCaseInsensitiveContains(query)
-            }
-
-            guard !matchingEntityIDs.isEmpty else {
-                return nil
-            }
-
-            return DevicesEntityGroup(
-                id: group.id,
-                title: group.title,
-                systemImage: group.systemImage,
-                entityIDs: matchingEntityIDs
-            )
-        }
-    }
-
-    private var unfilteredEntityGroups: [DevicesEntityGroup] {
+        let unfilteredGroups: [DevicesEntityGroup]
         switch grouping {
         case .device:
             if !stateStore.entityIDGroupsByDevice.isEmpty {
-                return stateStore.entityIDGroupsByDevice.compactMap { group in
+                unfilteredGroups = stateStore.entityIDGroupsByDevice.compactMap { group in
                     let visibleEntityIDs = group.entityIDs.filter(entityPassesVisibility)
                     guard !visibleEntityIDs.isEmpty else { return nil }
 
@@ -351,11 +326,21 @@ struct EntityBrowserList<Accessory: View>: View {
                         entityIDs: visibleEntityIDs
                     )
                 }
-            }
+            } else {
+                unfilteredGroups = stateStore.entityIDGroupsByDomain.compactMap { group in
+                    let visibleEntityIDs = group.entityIDs.filter(entityPassesVisibility)
+                    guard !visibleEntityIDs.isEmpty else { return nil }
 
-            fallthrough
+                    return DevicesEntityGroup(
+                        id: "type-\(group.domain.rawValue)",
+                        title: group.domain.displayName,
+                        systemImage: group.domain.systemImage,
+                        entityIDs: visibleEntityIDs
+                    )
+                }
+            }
         case .type:
-            return stateStore.entityIDGroupsByDomain.compactMap { group in
+            unfilteredGroups = stateStore.entityIDGroupsByDomain.compactMap { group in
                 let visibleEntityIDs = group.entityIDs.filter(entityPassesVisibility)
                 guard !visibleEntityIDs.isEmpty else { return nil }
 
@@ -367,18 +352,42 @@ struct EntityBrowserList<Accessory: View>: View {
                 )
             }
         }
-    }
 
-    private var filterDomains: [EntityDomain] {
-        let domains = Set(visibleCandidateEntityIDs.compactMap { entityID in
-            stateStore.entityBox(for: entityID)?.homeEntity.domain
-        })
+        let groups: [DevicesEntityGroup]
+        if query.isEmpty {
+            groups = unfilteredGroups
+        } else {
+            groups = unfilteredGroups.compactMap { group in
+                let matchingEntityIDs = group.entityIDs.filter { entityID in
+                    guard let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
+                        return false
+                    }
+                    let displayName = displayNameOverride(for: entityID) ?? entity.displayName
 
-        return EntityDomain.allCases.filter { domains.contains($0) }
-    }
+                    return displayName.localizedCaseInsensitiveContains(query) ||
+                        group.title.localizedCaseInsensitiveContains(query) ||
+                        entity.entityID.localizedCaseInsensitiveContains(query) ||
+                        entity.state.localizedCaseInsensitiveContains(query)
+                }
 
-    private var visibleCandidateEntityIDs: Set<String> {
-        stateStore.availableEntityIDs.subtracting(hiddenEntityIDs)
+                guard !matchingEntityIDs.isEmpty else {
+                    return nil
+                }
+
+                return DevicesEntityGroup(
+                    id: group.id,
+                    title: group.title,
+                    systemImage: group.systemImage,
+                    entityIDs: matchingEntityIDs
+                )
+            }
+        }
+
+        return EntityBrowserPresentation(
+            groups: groups,
+            filterDomains: filterDomains,
+            visibleCandidateEntityIDs: visibleCandidateEntityIDs
+        )
     }
 
     private var hasActiveFilters: Bool {
@@ -452,6 +461,12 @@ struct DevicesEntityGroup: Identifiable, Equatable {
     let title: String
     let systemImage: String
     let entityIDs: [String]
+}
+
+private struct EntityBrowserPresentation {
+    let groups: [DevicesEntityGroup]
+    let filterDomains: [EntityDomain]
+    let visibleCandidateEntityIDs: Set<String>
 }
 
 private struct SelectedEntity: Identifiable {

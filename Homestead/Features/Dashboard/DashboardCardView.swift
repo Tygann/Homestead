@@ -28,9 +28,18 @@ struct DashboardCardView: View {
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
                 featureVisibility: featureVisibility,
                 isPending: entityBox.pendingCommand != nil,
-                isPrimaryActionAvailable: primaryActionAvailability(for: entityBox),
-                toggle: isEditing ? nil : primaryAction(for: entityBox),
-                showDetails: isEditing ? nil : detailsAction(for: entityBox),
+                isPrimaryActionAvailable: primaryActionAvailability(
+                    primaryAction: presentation.primaryAction,
+                    entityID: entityBox.entityID
+                ),
+                toggle: isEditing ? nil : primaryAction(
+                    presentation.primaryAction,
+                    entityID: entityBox.entityID
+                ),
+                showDetails: isEditing ? nil : detailsAction(
+                    entityID: entityBox.entityID,
+                    detailKind: presentation.detailKind
+                ),
                 featureActions: featureActions(for: entityBox),
                 isFeatureInteractionEnabled: !isEditing
             )
@@ -52,35 +61,39 @@ struct DashboardCardView: View {
         )
     }
 
-    private func primaryAction(for entityBox: HAEntityState) -> (() -> Void)? {
-        let presentation = DashboardEntityPresentation(entityBox: entityBox)
+    private func primaryAction(
+        _ primaryAction: DashboardEntityPrimaryAction?,
+        entityID: String
+    ) -> (() -> Void)? {
+        guard let primaryAction else { return nil }
 
-        if let primaryAction = presentation.primaryAction {
-            return {
-                HapticFeedback.selection()
-                Task {
-                    await homeAssistantService.perform(primaryAction, entityID: entityBox.entityID)
-                }
+        return {
+            HapticFeedback.selection()
+            Task {
+                await homeAssistantService.perform(primaryAction, entityID: entityID)
             }
         }
-
-        return nil
     }
 
-    private func primaryActionAvailability(for entityBox: HAEntityState) -> Bool {
-        let presentation = DashboardEntityPresentation(entityBox: entityBox)
-        guard let primaryAction = presentation.primaryAction else {
+    private func primaryActionAvailability(
+        primaryAction: DashboardEntityPrimaryAction?,
+        entityID: String
+    ) -> Bool {
+        guard let primaryAction else {
             return true
         }
 
-        return homeAssistantService.serviceActionAvailable(primaryAction, entityID: entityBox.entityID)
+        return homeAssistantService.serviceActionAvailable(primaryAction, entityID: entityID)
     }
 
-    private func detailsAction(for entityBox: HAEntityState) -> (() -> Void)? {
+    private func detailsAction(
+        entityID: String,
+        detailKind: DashboardEntityDetailKind
+    ) -> (() -> Void)? {
         return {
             selectedDetail = DashboardCardDetail(
-                entityID: entityBox.entityID,
-                kind: detailKind(for: entityBox)
+                entityID: entityID,
+                kind: cardDetailKind(for: detailKind)
             )
         }
     }
@@ -238,8 +251,8 @@ struct DashboardCardView: View {
         )
     }
 
-    private func detailKind(for entityBox: HAEntityState) -> DashboardCardDetail.Kind {
-        switch DashboardEntityPresentation(entityBox: entityBox).detailKind {
+    private func cardDetailKind(for detailKind: DashboardEntityDetailKind) -> DashboardCardDetail.Kind {
+        switch detailKind {
         case .light:
             .light
         case .cover:
@@ -339,14 +352,16 @@ private struct DashboardEntityCard: View {
     let isFeatureInteractionEnabled: Bool
 
     var body: some View {
+        let visibleFeatureSnapshot = visibleFeatures
+
         CardContainer(isActive: presentation.isActive, minHeight: cardContainerMinHeight) {
             ZStack(alignment: .topLeading) {
-                if rendersInteractiveFeatures {
-                    cardContent
+                if !visibleFeatureSnapshot.isEmpty {
+                    cardContent(visibleFeatures: visibleFeatureSnapshot)
                         .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
                 } else if let showDetails {
                     Button(action: showDetails) {
-                        cardContent
+                        cardContent(visibleFeatures: visibleFeatureSnapshot)
                             .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
                             .contentShape(Rectangle())
                     }
@@ -355,7 +370,7 @@ private struct DashboardEntityCard: View {
                     .accessibilityValue(presentation.accessibilityValue)
                     .accessibilityHint(presentation.accessibilityDetailHint)
                 } else {
-                    cardContent
+                    cardContent(visibleFeatures: visibleFeatureSnapshot)
                         .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
                 }
 
@@ -378,7 +393,7 @@ private struct DashboardEntityCard: View {
     }
 
     @ViewBuilder
-    private var cardContent: some View {
+    private func cardContent(visibleFeatures: [DashboardCardFeature]) -> some View {
         switch size {
         case .mini:
             miniContent
@@ -388,19 +403,19 @@ private struct DashboardEntityCard: View {
             if visibleFeatures.isEmpty {
                 compactContent
             } else {
-                rowFeatureContent
+                rowFeatureContent(visibleFeatures: visibleFeatures)
             }
         case .square:
             if visibleFeatures.isEmpty {
                 largeContent
             } else {
-                stackedFeatureContent
+                stackedFeatureContent(visibleFeatures: visibleFeatures)
             }
         case .wide, .large:
             if visibleFeatures.isEmpty {
                 largeContent
             } else {
-                stackedFeatureContent
+                stackedFeatureContent(visibleFeatures: visibleFeatures)
             }
         }
     }
@@ -474,7 +489,7 @@ private struct DashboardEntityCard: View {
         }
     }
 
-    private var rowFeatureContent: some View {
+    private func rowFeatureContent(visibleFeatures: [DashboardCardFeature]) -> some View {
         HStack(alignment: .center, spacing: AppSpacing.medium) {
             featureHeader
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -494,7 +509,7 @@ private struct DashboardEntityCard: View {
         }
     }
 
-    private var stackedFeatureContent: some View {
+    private func stackedFeatureContent(visibleFeatures: [DashboardCardFeature]) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             featureHeader
 
@@ -628,10 +643,6 @@ private struct DashboardEntityCard: View {
 
     private var visibleFeatures: [DashboardCardFeature] {
         size.visibleFeatures(from: features, visibility: featureVisibility).filter { featureActions.canRender($0) }
-    }
-
-    private var rendersInteractiveFeatures: Bool {
-        !visibleFeatures.isEmpty
     }
 }
 

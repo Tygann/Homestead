@@ -102,6 +102,8 @@ struct DashboardView: View {
     @State private var showsInitialSyncPlaceholder = false
     
     var body: some View {
+        let visibleItemsSnapshot = visibleDashboardItems
+
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                 if !hasHomeAssistantSession {
@@ -136,7 +138,7 @@ struct DashboardView: View {
                         }
                     )
                 } else {
-                    configuredDashboardSection
+                    configuredDashboardSection(visibleItems: visibleItemsSnapshot)
                 }
             }
             .padding(.horizontal, AppSpacing.large)
@@ -394,16 +396,26 @@ struct DashboardView: View {
         displayTitleDraft = ""
     }
     
-    private var configuredDashboardSection: some View {
-        DashboardSection(isEmpty: visibleDashboardItems.isEmpty) {
+    private func configuredDashboardSection(visibleItems: [DashboardItemConfiguration]) -> some View {
+        let layoutItems = DashboardLayoutItemBuilder.makeItems(from: visibleItems)
+        let chipItems: [DashboardChipItem] = layoutItems.compactMap { item in
+            guard case .chip(let chipItem) = item.kind else { return nil }
+            return chipItem
+        }
+        let gridItems: [DashboardLayoutItem] = layoutItems.filter { item in
+            guard case .chip = item.kind else { return true }
+            return false
+        }
+
+        return DashboardSection(isEmpty: visibleItems.isEmpty) {
             VStack(alignment: .leading, spacing: AppSpacing.large) {
-                if !dashboardChipItems.isEmpty {
-                    dashboardChipSummaryRow
+                if !chipItems.isEmpty {
+                    dashboardChipSummaryRow(items: chipItems)
                 }
 
-                if !dashboardGridItems.isEmpty {
+                if !gridItems.isEmpty {
                     CardGrid {
-                        ForEach(dashboardGridItems) { item in
+                        ForEach(gridItems) { item in
                             switch item.kind {
                             case .header(let configurationItem):
                                 dashboardHeader(configurationItem)
@@ -421,29 +433,11 @@ struct DashboardView: View {
             }
         }
     }
-    
-    private var dashboardLayoutItems: [DashboardLayoutItem] {
-        DashboardLayoutItemBuilder.makeItems(from: visibleDashboardItems)
-    }
 
-    private var dashboardChipItems: [DashboardChipItem] {
-        dashboardLayoutItems.compactMap { item in
-            guard case .chip(let chipItem) = item.kind else { return nil }
-            return chipItem
-        }
-    }
-
-    private var dashboardGridItems: [DashboardLayoutItem] {
-        dashboardLayoutItems.filter { item in
-            guard case .chip = item.kind else { return true }
-            return false
-        }
-    }
-
-    private var dashboardChipSummaryRow: some View {
+    private func dashboardChipSummaryRow(items: [DashboardChipItem]) -> some View {
         ScrollView(.horizontal) {
             HStack(alignment: .center, spacing: AppSpacing.small) {
-                ForEach(dashboardChipItems) { chipItem in
+                ForEach(items) { chipItem in
                     dashboardChip(chipItem)
                 }
             }

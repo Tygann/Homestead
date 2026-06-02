@@ -6,34 +6,17 @@ struct AreasView: View {
     @State private var selectedSummaryKind: DashboardSummaryKind?
     private let areaCardSize = DashboardCardSize.square
 
-    private var areas: [DashboardAreaSummary] {
-        DashboardAreaBuilder.buildAreas(
-            from: stateStore.allEntityBoxes(),
-            areaNameForEntityID: stateStore.areaName(for:)
-        )
-    }
-
-    private var summaryChips: [(kind: DashboardSummaryKind, presentation: DashboardChipPresentation)] {
-        DashboardSummaryKind.areasOverviewOrder.compactMap { kind in
-            DashboardSummaryProvider.makeSummary(
-                kind: kind,
-                entityBoxes: stateStore.allEntityBoxes(),
-                preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
-                nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
-                diagnosticEntityIDs: stateStore.diagnosticEntityIDs()
-            ).map { (kind, $0) }
-        }
-    }
-
     var body: some View {
+        let presentation = AreasOverviewPresentation.make(from: stateStore)
+
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.large) {
-                if !summaryChips.isEmpty {
-                    areaSummaryChipRow
+                if !presentation.summaryChips.isEmpty {
+                    areaSummaryChipRow(items: presentation.summaryChips)
                 }
 
                 CardGrid {
-                    ForEach(areas) { area in
+                    ForEach(presentation.areas) { area in
                         NavigationLink {
                             AreaDetailView(area: area)
                         } label: {
@@ -63,10 +46,10 @@ struct AreasView: View {
         .toolbarTitleDisplayMode(.inlineLarge)
     }
 
-    private var areaSummaryChipRow: some View {
+    private func areaSummaryChipRow(items: [AreasOverviewPresentation.SummaryChipItem]) -> some View {
         ScrollView(.horizontal) {
             HStack(alignment: .center, spacing: AppSpacing.small) {
-                ForEach(summaryChips, id: \.kind) { item in
+                ForEach(items) { item in
                     Button {
                         selectedSummaryKind = item.kind
                     } label: {
@@ -83,8 +66,50 @@ struct AreasView: View {
     }
 }
 
+private struct AreasOverviewPresentation {
+    struct SummaryChipItem: Identifiable {
+        let kind: DashboardSummaryKind
+        let presentation: DashboardChipPresentation
+
+        var id: DashboardSummaryKind { kind }
+    }
+
+    let areas: [DashboardAreaSummary]
+    let summaryChips: [SummaryChipItem]
+
+    @MainActor
+    static func make(from stateStore: HAStateStore) -> AreasOverviewPresentation {
+        let entityBoxes = stateStore.allEntityBoxes()
+        let preferredClimateReadingEntityIDs = stateStore.preferredClimateReadingEntityIDs()
+        let nonPrimaryEntityIDs = stateStore.nonPrimaryEntityIDs()
+        let diagnosticEntityIDs = stateStore.diagnosticEntityIDs()
+
+        return AreasOverviewPresentation(
+            areas: DashboardAreaBuilder.buildAreas(
+                from: entityBoxes,
+                areaNameForEntityID: stateStore.areaName(for:)
+            ),
+            summaryChips: DashboardSummaryKind.areasOverviewOrder.compactMap { kind in
+                DashboardSummaryProvider.makeSummary(
+                    kind: kind,
+                    entityBoxes: entityBoxes,
+                    preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
+                    nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+                    diagnosticEntityIDs: diagnosticEntityIDs
+                ).map { SummaryChipItem(kind: kind, presentation: $0) }
+            }
+        )
+    }
+}
+
 private struct AreaSummaryCard: View {
     let area: DashboardAreaSummary
+    private let visibleDomains: [EntityDomain]
+
+    init(area: DashboardAreaSummary) {
+        self.area = area
+        self.visibleDomains = Array(area.topDomains.prefix(3))
+    }
 
     var body: some View {
         CardContainer(minHeight: cardContentMinHeight) {
@@ -115,7 +140,7 @@ private struct AreaSummaryCard: View {
 
                 Spacer(minLength: 0)
 
-                AreaDomainStrip(domains: Array(area.topDomains.prefix(3)))
+                AreaDomainStrip(domains: visibleDomains)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
