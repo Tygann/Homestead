@@ -134,11 +134,11 @@ struct ToggleEntityDetailView: View {
     private var actionSystemImage: String {
         switch entity.domain {
         case .lock:
-            return entity.state == "locked" ? "lock.open" : "lock"
+            return entity.state == "locked" ? "lock.open.fill" : "lock.fill"
         case .fan:
-            return "fan"
+            return "fan.fill"
         case .switch:
-            return "power"
+            return entity.iconName
         case .automation:
             return "calendar.badge.clock"
         case .light, .climate, .cover, .sensor, .binarySensor, .mediaPlayer, .camera, .vacuum, .scene, .script, .other:

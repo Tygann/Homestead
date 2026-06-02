@@ -5,12 +5,12 @@ struct DashboardCardView: View {
     let size: DashboardCardSize
     var displayNameOverride: String?
     var iconNameOverride: String?
+    var featureVisibility: DashboardCardFeatureVisibility = .automatic
     var contextualAreaName: String?
     var isEditing = false
 
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var selectedDetail: DashboardCardDetail?
 
     var body: some View {
@@ -26,6 +26,7 @@ struct DashboardCardView: View {
                 presentation: presentation,
                 size: size,
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
+                featureVisibility: featureVisibility,
                 isPending: entityBox.pendingCommand != nil,
                 isPrimaryActionAvailable: primaryActionAvailability(for: entityBox),
                 toggle: isEditing ? nil : primaryAction(for: entityBox),
@@ -46,7 +47,7 @@ struct DashboardCardView: View {
     private func resolvedDisplayNameOverride(for entityBox: HAEntityState) -> String? {
         EntityDisplayNameResolver.displayName(
             canonicalName: entityBox.homeEntity.displayName,
-            overrideName: displayNameOverride ?? dashboardConfiguration.entityDisplayNameOverride(for: entityID),
+            overrideName: displayNameOverride,
             contextualAreaName: contextualAreaName
         )
     }
@@ -329,6 +330,7 @@ private struct DashboardEntityCard: View {
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
     let features: [DashboardCardFeature]
+    let featureVisibility: DashboardCardFeatureVisibility
     let isPending: Bool
     let isPrimaryActionAvailable: Bool
     let toggle: (() -> Void)?
@@ -625,7 +627,7 @@ private struct DashboardEntityCard: View {
     }
 
     private var visibleFeatures: [DashboardCardFeature] {
-        size.visibleFeatures(from: features).filter { featureActions.canRender($0) }
+        size.visibleFeatures(from: features, visibility: featureVisibility).filter { featureActions.canRender($0) }
     }
 
     private var rendersInteractiveFeatures: Bool {

@@ -84,7 +84,7 @@ private struct DashboardChipPreviewContainer: View {
                 DashboardChipView(presentation: .init(
                     title: "Cameras",
                     value: "1 unavailable",
-                    systemImage: "camera",
+                    systemImage: "camera.fill",
                     isActive: true,
                     isAvailable: false
                 ))
@@ -105,7 +105,7 @@ private struct DashboardChipPreviewContainer: View {
             presentation: .init(
                 title: "Locks",
                 value: "2 unlocked",
-                systemImage: "lock.open",
+                systemImage: "lock.open.fill",
                 isActive: true,
                 isAvailable: true
             )

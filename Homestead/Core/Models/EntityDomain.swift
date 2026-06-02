@@ -64,7 +64,7 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
     var systemImage: String {
         switch self {
         case .light:
-            "lightbulb"
+            "lightbulb.fill"
         case .climate:
             "thermometer.medium"
         case .cover:
@@ -72,19 +72,19 @@ enum EntityDomain: String, CaseIterable, Hashable, Sendable {
         case .sensor:
             "sensor"
         case .binarySensor:
-            "sensor.tag.radiowaves.forward"
+            "sensor.tag.radiowaves.forward.fill"
         case .switch:
-            "switch.2"
+            "lightswitch.on.fill"
         case .fan:
-            "fan"
+            "fan.fill"
         case .lock:
-            "lock"
+            "lock.fill"
         case .mediaPlayer:
-            "play.tv"
+            "play.tv.fill"
         case .camera:
-            "camera"
+            "camera.fill"
         case .vacuum:
-            "washer"
+            "washer.fill"
         case .scene:
             "sparkles"
         case .script:

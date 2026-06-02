@@ -322,7 +322,7 @@ struct ClimateDetailView: View {
 
     private func fanModeControls(_ climate: ClimateEntity) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Fan", systemImage: "fan")
+            Label("Fan", systemImage: "fan.fill")
                 .font(.headline)
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {

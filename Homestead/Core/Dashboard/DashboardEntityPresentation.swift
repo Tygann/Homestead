@@ -772,21 +772,23 @@ struct DashboardEntityPresentation {
         switch sensor.displayKind {
         case .temperature:
             return .orange
-        case .humidity, .water:
+        case .humidity, .water, .moisture:
             return .cyan
         case .battery:
             return .green
-        case .energy, .power, .voltage, .current, .illuminance:
+        case .energy, .power, .voltage, .current, .illuminance, .irradiance:
             return .yellow
         case .pressure:
             return .purple
-        case .signal:
+        case .signal, .data, .speed, .frequency:
             return .blue
-        case .gas:
+        case .gas, .carbonMonoxide:
             return .orange
+        case .airQuality, .carbonDioxide, .particulateMatter, .volatileOrganicCompounds:
+            return .mint
         case .problem:
             return .red
-        case .generic:
+        case .date, .distance, .duration, .enum, .monetary, .volume, .weight, .generic:
             return .accentColor
         }
     }
@@ -915,11 +917,11 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
         case .sensor, .binarySensor:
             "gauge.medium"
         case .mediaPlayer:
-            "play.tv"
+            "play.tv.fill"
         case .camera:
-            "camera"
+            "camera.fill"
         case .vacuum:
-            "washer"
+            "washer.fill"
         case .scene, .script:
             "sparkles"
         default:
@@ -947,7 +949,7 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
         case .light:
             "slider.horizontal.below.sun.max"
         case .fan:
-            "fan"
+            "fan.fill"
         case .cover:
             "arrow.up.and.down"
         case .climate:

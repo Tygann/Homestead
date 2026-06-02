@@ -224,7 +224,11 @@ enum DashboardSummaryProvider {
             )
         case .maintenance:
             let maintenanceItems = entityBoxes.filter {
-                isMaintenanceSummaryEntity($0, nonPrimaryEntityIDs: nonPrimaryEntityIDs)
+                isMaintenanceSummaryEntity(
+                    $0,
+                    nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+                    diagnosticEntityIDs: diagnosticEntityIDs
+                )
             }
             guard !maintenanceItems.isEmpty else { return nil }
             let issueCount = maintenanceItems.filter(isMaintenanceIssue).count
@@ -320,6 +324,7 @@ enum DashboardSummaryProvider {
             sections = maintenanceSections(
                 from: entityBoxes,
                 nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+                diagnosticEntityIDs: diagnosticEntityIDs,
                 areaNameForEntityID: areaNameForEntityID
             )
         case .media:
@@ -332,6 +337,7 @@ enum DashboardSummaryProvider {
             sections = maintenanceSections(
                 from: entityBoxes,
                 nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+                diagnosticEntityIDs: diagnosticEntityIDs,
                 areaNameForEntityID: areaNameForEntityID
             )
         case .doors, .locks, .cameras:
@@ -496,10 +502,15 @@ enum DashboardSummaryProvider {
     private static func maintenanceSections(
         from entityBoxes: [HAEntityState],
         nonPrimaryEntityIDs: Set<String>,
+        diagnosticEntityIDs: Set<String>,
         areaNameForEntityID: (String) -> String?
     ) -> [DashboardSummarySectionPresentation] {
         let maintenanceBoxes = entityBoxes.filter {
-            isMaintenanceSummaryEntity($0, nonPrimaryEntityIDs: nonPrimaryEntityIDs)
+            isMaintenanceSummaryEntity(
+                $0,
+                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+                diagnosticEntityIDs: diagnosticEntityIDs
+            )
         }
         return areaSections(
             idPrefix: "maintenance",
@@ -718,13 +729,13 @@ enum DashboardSummaryProvider {
             .open
         case .lock:
             .unlocked
-        case .smoke, .gas, .tamper, .safety, .problem:
+        case .smoke, .gas, .carbonMonoxide, .heat, .tamper, .safety, .problem, .vibration:
             .alarm
         case .motion, .occupancy, .presence:
             .detected
         case .moisture:
             .alarm
-        case .battery, .connectivity, .plug, .power, .light, .generic:
+        case .battery, .batteryCharging, .cold, .moving, .running, .sound, .update, .connectivity, .plug, .power, .light, .generic:
             .detected
         }
     }
@@ -760,9 +771,9 @@ enum DashboardSummaryProvider {
 
     private static func isHomeAssistantSecurityBinarySensor(_ binarySensor: BinarySensorEntity) -> Bool {
         switch binarySensor.displayKind {
-        case .lock, .door, .window, .garageDoor, .opening, .gas, .moisture, .safety, .smoke, .tamper:
+        case .lock, .door, .window, .garageDoor, .opening, .gas, .carbonMonoxide, .heat, .moisture, .safety, .smoke, .tamper, .vibration:
             return true
-        case .motion, .occupancy, .presence, .problem, .battery, .connectivity, .plug, .power, .light, .generic:
+        case .motion, .occupancy, .presence, .problem, .battery, .batteryCharging, .cold, .moving, .running, .sound, .update, .connectivity, .plug, .power, .light, .generic:
             return false
         }
     }
@@ -777,14 +788,19 @@ enum DashboardSummaryProvider {
 
     private static func isMaintenanceSummaryEntity(
         _ entityBox: HAEntityState,
-        nonPrimaryEntityIDs: Set<String>
+        nonPrimaryEntityIDs: Set<String>,
+        diagnosticEntityIDs: Set<String>
     ) -> Bool {
+        guard isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs),
+              !diagnosticEntityIDs.contains(entityBox.entityID) else {
+            return false
+        }
+
         switch entityBox.domain {
         case .sensor:
             return entityBox.sensorEntity?.displayKind == .battery
         case .binarySensor:
-            return isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs) &&
-                entityBox.binarySensorEntity?.displayKind == .battery
+            return entityBox.binarySensorEntity?.displayKind == .battery
         case .light, .climate, .cover, .fan, .lock, .mediaPlayer, .camera, .switch, .vacuum, .scene, .script, .automation, .other:
             return false
         }

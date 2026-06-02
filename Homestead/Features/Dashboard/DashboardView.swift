@@ -6,6 +6,7 @@ struct DashboardCardItem: Identifiable, Equatable {
     let size: DashboardCardSize
     let displayNameOverride: String?
     let iconNameOverride: String?
+    let featureVisibility: DashboardCardFeatureVisibility
 }
 
 struct DashboardChipItem: Identifiable, Equatable {
@@ -59,7 +60,8 @@ enum DashboardLayoutItemBuilder {
                     entityID: entityID,
                     size: configuredSize,
                     displayNameOverride: configurationItem.displayNameOverride,
-                    iconNameOverride: configurationItem.iconNameOverride
+                    iconNameOverride: configurationItem.iconNameOverride,
+                    featureVisibility: configurationItem.resolvedFeatureVisibility
                 )
                 return DashboardLayoutItem(
                     kind: .card(cardItem),
@@ -196,7 +198,7 @@ struct DashboardView: View {
                 saveHeaderRename()
             }
         }
-        .alert("Rename Item", isPresented: isRenamingDisplayItem) {
+        .alert("Dashboard Name", isPresented: isRenamingDisplayItem) {
             TextField("Display Name", text: $displayTitleDraft)
 
             Button("Cancel", role: .cancel) {
@@ -478,8 +480,9 @@ struct DashboardView: View {
                 DashboardCardView(
                     entityID: item.entityID,
                     size: item.size,
-                    displayNameOverride: item.displayNameOverride,
+                    displayNameOverride: currentCardDisplayNameOverride(for: item),
                     iconNameOverride: item.iconNameOverride,
+                    featureVisibility: item.featureVisibility,
                     isEditing: true
                 )
                 .frame(maxWidth: .infinity)
@@ -490,8 +493,9 @@ struct DashboardView: View {
             DashboardCardView(
                 entityID: item.entityID,
                 size: item.size,
-                displayNameOverride: item.displayNameOverride,
-                iconNameOverride: item.iconNameOverride
+                displayNameOverride: currentCardDisplayNameOverride(for: item),
+                iconNameOverride: item.iconNameOverride,
+                featureVisibility: item.featureVisibility
             )
             .frame(maxWidth: .infinity)
             .contextMenu {
@@ -580,7 +584,26 @@ struct DashboardView: View {
         Button {
             beginRenamingEntity(item)
         } label: {
-            Label("Rename", systemImage: "pencil")
+            Label("Rename Card", systemImage: "pencil")
+        }
+
+        if cardSupportsFeatures(item) {
+            Menu {
+                ForEach(DashboardCardFeatureVisibility.allCases, id: \.self) { option in
+                    Button {
+                        HapticFeedback.selection()
+                        dashboardConfiguration.setFeatureVisibility(option, forItemID: item.id)
+                    } label: {
+                        let selectedOption = dashboardConfiguration.featureVisibility(forItemID: item.id)
+                        Label(
+                            option.displayName,
+                            systemImage: selectedOption == option ? "checkmark" : option.systemImage
+                        )
+                    }
+                }
+            } label: {
+                Label("Card Features", systemImage: "slider.horizontal.3")
+            }
         }
 
         Menu {
@@ -608,7 +631,7 @@ struct DashboardView: View {
         Button {
             beginRenamingChip(item)
         } label: {
-            Label("Rename", systemImage: "pencil")
+            Label("Rename Chip", systemImage: "pencil")
         }
 
         Menu {
@@ -659,6 +682,23 @@ struct DashboardView: View {
 
     private func currentCardIconName(for item: DashboardCardItem) -> String {
         item.iconNameOverride ?? stateStore.entity(for: item.entityID)?.iconName ?? "square.grid.2x2"
+    }
+
+    private func currentCardDisplayNameOverride(for item: DashboardCardItem) -> String? {
+        item.displayNameOverride ?? dashboardConfiguration.entityDisplayNameOverride(for: item.entityID)
+    }
+
+    private func cardSupportsFeatures(_ item: DashboardCardItem) -> Bool {
+        guard let entityBox = stateStore.entityBox(for: item.entityID) else {
+            return false
+        }
+
+        let presentation = DashboardEntityPresentation(
+            entityBox: entityBox,
+            displayNameOverride: currentCardDisplayNameOverride(for: item),
+            iconNameOverride: item.iconNameOverride
+        )
+        return !DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation).isEmpty
     }
 
     private func chipPresentation(for item: DashboardChipItem) -> DashboardChipPresentation? {
@@ -1358,6 +1398,7 @@ private struct DashboardReorderView: View {
 }
 
 private struct DashboardReorderRow: View {
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     let item: DashboardItemConfiguration
     let entityBox: HAEntityState?
 
@@ -1388,7 +1429,8 @@ private struct DashboardReorderRow: View {
         case .header:
             item.resolvedTitle
         case .entity:
-            item.resolvedDisplayName(default: entityBox?.homeEntity.displayName ?? item.entityID ?? "Missing Entity")
+            dashboardConfiguration.entityDisplayNameOverride(for: item.entityID ?? "")
+                ?? item.resolvedDisplayName(default: entityBox?.homeEntity.displayName ?? item.entityID ?? "Missing Entity")
         case .chip:
             item.resolvedDisplayName(default: defaultChipTitle)
         }

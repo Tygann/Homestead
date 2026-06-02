@@ -98,7 +98,7 @@ struct LightDetailView: View {
             } label: {
                 Label(
                     isPending ? "Updating..." : (light.isOn ? "Turn Off" : "Turn On"),
-                    systemImage: light.isOn ? "power" : "lightbulb.fill"
+                    systemImage: "power"
                 )
                     .font(.headline)
                     .frame(maxWidth: .infinity)

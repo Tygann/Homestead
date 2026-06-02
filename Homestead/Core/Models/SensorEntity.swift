@@ -22,13 +22,13 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         case .battery:
             guard let numericValue else { return false }
             return numericValue <= 20
-        case .water:
+        case .water, .moisture:
             return ["on", "detected", "wet", "moisture"].contains(normalizedState)
-        case .gas:
+        case .gas, .carbonMonoxide:
             return ["on", "detected", "unsafe"].contains(normalizedState)
         case .problem:
             return ["on", "detected", "problem", "unsafe"].contains(normalizedState)
-        case .temperature, .humidity, .energy, .power, .illuminance, .pressure, .signal, .voltage, .current, .generic:
+        case .airQuality, .carbonDioxide, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .speed, .volatileOrganicCompounds, .volume, .weight, .temperature, .humidity, .energy, .power, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .generic:
             return false
         }
     }
@@ -75,11 +75,11 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         }
 
         switch displayKind {
-        case .water, .gas, .problem:
+        case .water, .moisture, .gas, .carbonMonoxide, .problem:
             return "Clear"
         case .battery where numericValue != nil:
             return "Battery"
-        case .temperature, .humidity, .energy, .power, .illuminance, .pressure, .signal, .voltage, .current, .battery, .generic:
+        case .airQuality, .carbonDioxide, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .speed, .volatileOrganicCompounds, .volume, .weight, .temperature, .humidity, .energy, .power, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .battery, .generic:
             break
         }
 
@@ -114,14 +114,12 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
 
     private var maximumFractionDigits: Int {
         switch deviceClass {
-        case "humidity", "battery":
+        case "humidity", "battery", "illuminance", "signal_strength":
             0
         case "temperature":
             1
-        case "energy", "power":
+        case "energy", "power", "gas", "water", "moisture", "carbon_dioxide", "carbon_monoxide", "pm1", "pm10", "pm25", "volatile_organic_compounds", "volatile_organic_compounds_parts":
             2
-        case "illuminance", "signal_strength":
-            0
         default:
             1
         }
@@ -139,13 +137,15 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         switch displayKind {
         case .battery:
             "Low Battery"
-        case .water:
+        case .water, .moisture:
             "Water Detected"
         case .gas:
             "Gas Detected"
+        case .carbonMonoxide:
+            "CO Detected"
         case .problem:
             "Problem Detected"
-        case .temperature, .humidity, .energy, .power, .illuminance, .pressure, .signal, .voltage, .current, .generic:
+        case .airQuality, .carbonDioxide, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .speed, .volatileOrganicCompounds, .volume, .weight, .temperature, .humidity, .energy, .power, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .generic:
             formattedDeviceClass ?? "Sensor"
         }
     }
@@ -185,6 +185,24 @@ struct BinarySensorEntity: Identifiable, Equatable, Sendable {
             return isActive ? "Wet" : "Dry"
         case .battery:
             return isActive ? "Low Battery" : "Battery OK"
+        case .batteryCharging:
+            return isActive ? "Charging" : "Not Charging"
+        case .cold:
+            return isActive ? "Cold" : "Normal"
+        case .carbonMonoxide:
+            return isActive ? "CO Detected" : "Clear"
+        case .heat:
+            return isActive ? "Heat Detected" : "Clear"
+        case .moving:
+            return isActive ? "Moving" : "Stationary"
+        case .running:
+            return isActive ? "Running" : "Stopped"
+        case .sound:
+            return isActive ? "Sound Detected" : "Clear"
+        case .update:
+            return isActive ? "Update Available" : "Up to Date"
+        case .vibration:
+            return isActive ? "Vibration Detected" : "Clear"
         case .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas:
             return isActive ? "Detected" : "Clear"
         case .connectivity:
@@ -200,9 +218,9 @@ struct BinarySensorEntity: Identifiable, Equatable, Sendable {
 
     var isSecurityRelevant: Bool {
         switch displayKind {
-        case .door, .window, .garageDoor, .opening, .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .moisture:
+        case .door, .window, .garageDoor, .opening, .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .carbonMonoxide, .heat, .moisture, .vibration:
             return true
-        case .battery, .connectivity, .plug, .power, .light, .generic:
+        case .battery, .batteryCharging, .cold, .moving, .running, .sound, .update, .connectivity, .plug, .power, .light, .generic:
             return false
         }
     }
@@ -211,7 +229,7 @@ struct BinarySensorEntity: Identifiable, Equatable, Sendable {
         switch displayKind {
         case .door, .window, .garageDoor, .opening:
             return true
-        case .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .moisture, .battery, .connectivity, .plug, .power, .light, .generic:
+        case .lock, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .carbonMonoxide, .heat, .moisture, .vibration, .battery, .batteryCharging, .cold, .moving, .running, .sound, .update, .connectivity, .plug, .power, .light, .generic:
             return false
         }
     }
@@ -231,8 +249,17 @@ nonisolated enum BinarySensorDisplayKind: Equatable, Sendable {
     case problem
     case smoke
     case gas
+    case carbonMonoxide
     case moisture
     case battery
+    case batteryCharging
+    case cold
+    case heat
+    case moving
+    case running
+    case sound
+    case update
+    case vibration
     case connectivity
     case plug
     case power
@@ -265,12 +292,30 @@ nonisolated enum BinarySensorDisplayKind: Equatable, Sendable {
             self = .problem
         case "smoke":
             self = .smoke
-        case "carbon_monoxide", "gas":
+        case "gas":
             self = .gas
+        case "carbon_monoxide":
+            self = .carbonMonoxide
         case "moisture":
             self = .moisture
         case "battery":
             self = .battery
+        case "battery_charging":
+            self = .batteryCharging
+        case "cold":
+            self = .cold
+        case "heat":
+            self = .heat
+        case "moving":
+            self = .moving
+        case "running":
+            self = .running
+        case "sound":
+            self = .sound
+        case "update":
+            self = .update
+        case "vibration":
+            self = .vibration
         case "connectivity":
             self = .connectivity
         case "plug":
@@ -286,16 +331,33 @@ nonisolated enum BinarySensorDisplayKind: Equatable, Sendable {
 }
 
 nonisolated enum SensorDisplayKind: Equatable, Sendable {
+    case airQuality
     case temperature
     case humidity
     case battery
+    case carbonDioxide
+    case carbonMonoxide
+    case data
+    case date
+    case distance
+    case duration
+    case `enum`
     case energy
+    case frequency
+    case monetary
     case power
     case illuminance
+    case irradiance
+    case moisture
+    case particulateMatter
     case pressure
     case signal
+    case speed
     case voltage
     case current
+    case volatileOrganicCompounds
+    case volume
+    case weight
     case water
     case gas
     case problem
@@ -303,26 +365,60 @@ nonisolated enum SensorDisplayKind: Equatable, Sendable {
 
     init(deviceClass: String?) {
         switch deviceClass {
+        case "aqi":
+            self = .airQuality
         case "temperature":
             self = .temperature
         case "humidity":
             self = .humidity
         case "battery":
             self = .battery
+        case "carbon_dioxide":
+            self = .carbonDioxide
+        case "carbon_monoxide":
+            self = .carbonMonoxide
+        case "data_size", "data_rate", "volume_storage":
+            self = .data
+        case "date", "timestamp":
+            self = .date
+        case "distance":
+            self = .distance
+        case "duration":
+            self = .duration
+        case "enum":
+            self = .enum
         case "energy":
             self = .energy
+        case "frequency":
+            self = .frequency
+        case "monetary":
+            self = .monetary
         case "power":
             self = .power
         case "illuminance":
             self = .illuminance
+        case "irradiance":
+            self = .irradiance
+        case "moisture":
+            self = .moisture
+        case "pm1", "pm10", "pm25":
+            self = .particulateMatter
         case "pressure":
             self = .pressure
         case "signal_strength":
             self = .signal
+        case "speed":
+            self = .speed
         case "voltage":
             self = .voltage
         case "current":
             self = .current
+        case "volatile_organic_compounds", "volatile_organic_compounds_parts":
+            self = .volatileOrganicCompounds
+        case "volume":
+            self = .volume
+        case "weight":
+            self = .weight
         case "water":
             self = .water
         case "gas":

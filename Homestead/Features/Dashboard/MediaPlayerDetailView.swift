@@ -164,7 +164,7 @@ struct MediaPlayerDetailView: View {
     private var contextDetails: some View {
         DashboardEntityContextPanel(
             title: "Home Assistant",
-            systemImage: "play.tv",
+            systemImage: "play.tv.fill",
             rows: [
                 DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
                 DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),

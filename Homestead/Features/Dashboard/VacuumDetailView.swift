@@ -97,7 +97,7 @@ struct VacuumDetailView: View {
     private var contextDetails: some View {
         DashboardEntityContextPanel(
             title: "Home Assistant",
-            systemImage: "washer",
+            systemImage: "washer.fill",
             rows: [
                 DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
                 DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),

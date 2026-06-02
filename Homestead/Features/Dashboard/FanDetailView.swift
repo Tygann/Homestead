@@ -46,7 +46,7 @@ struct FanDetailView: View {
                     syncPercentage(with: fan)
                 }
             } else {
-                ContentUnavailableView("Fan Unavailable", systemImage: "fan")
+                ContentUnavailableView("Fan Unavailable", systemImage: "fan.fill")
             }
         }
         .presentationDetents([.medium, .large])
@@ -97,7 +97,7 @@ struct FanDetailView: View {
         } label: {
             Label(
                 isPending ? "Updating..." : (fan.isOn ? "Turn Off" : "Turn On"),
-                systemImage: fan.isOn ? "power" : "fan.fill"
+                systemImage: "power"
             )
             .font(.headline)
             .frame(maxWidth: .infinity)

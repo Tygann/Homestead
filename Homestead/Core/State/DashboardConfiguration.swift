@@ -9,8 +9,33 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
     var displayNameOverride: String?
     var iconNameOverride: String?
     var size: DashboardCardSize?
+    var featureVisibility: DashboardCardFeatureVisibility?
     var chipKind: DashboardChipKind?
     var summaryKind: DashboardSummaryKind?
+
+    init(
+        id: UUID,
+        type: DashboardItemType,
+        entityID: String?,
+        title: String?,
+        displayNameOverride: String?,
+        iconNameOverride: String?,
+        size: DashboardCardSize?,
+        featureVisibility: DashboardCardFeatureVisibility? = nil,
+        chipKind: DashboardChipKind?,
+        summaryKind: DashboardSummaryKind?
+    ) {
+        self.id = id
+        self.type = type
+        self.entityID = entityID
+        self.title = title
+        self.displayNameOverride = displayNameOverride
+        self.iconNameOverride = iconNameOverride
+        self.size = size
+        self.featureVisibility = featureVisibility
+        self.chipKind = chipKind
+        self.summaryKind = summaryKind
+    }
 
     static func entity(
         entityID: String,
@@ -25,6 +50,7 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
             displayNameOverride: nil,
             iconNameOverride: nil,
             size: size,
+            featureVisibility: nil,
             chipKind: nil,
             summaryKind: nil
         )
@@ -42,6 +68,7 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
             displayNameOverride: nil,
             iconNameOverride: nil,
             size: nil,
+            featureVisibility: nil,
             chipKind: nil,
             summaryKind: nil
         )
@@ -59,6 +86,7 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
             displayNameOverride: nil,
             iconNameOverride: nil,
             size: nil,
+            featureVisibility: nil,
             chipKind: .summary,
             summaryKind: kind
         )
@@ -76,6 +104,7 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
             displayNameOverride: nil,
             iconNameOverride: nil,
             size: nil,
+            featureVisibility: nil,
             chipKind: .entity,
             summaryKind: nil
         )
@@ -88,6 +117,10 @@ struct DashboardItemConfiguration: Identifiable, Codable, Equatable, Sendable {
 
     var resolvedCardSize: DashboardCardSize {
         size ?? .compact
+    }
+
+    var resolvedFeatureVisibility: DashboardCardFeatureVisibility {
+        featureVisibility ?? .automatic
     }
 
     func resolvedDisplayName(default defaultDisplayName: String) -> String {
@@ -373,6 +406,20 @@ final class DashboardConfiguration {
         }
 
         setCardSize(size, forItemID: itemID)
+    }
+
+    func featureVisibility(forItemID itemID: UUID) -> DashboardCardFeatureVisibility {
+        items.first { $0.id == itemID }?.resolvedFeatureVisibility ?? .automatic
+    }
+
+    func setFeatureVisibility(_ featureVisibility: DashboardCardFeatureVisibility, forItemID itemID: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == itemID && $0.type == .entity }) else {
+            return
+        }
+
+        var updatedItems = items
+        updatedItems[index].featureVisibility = featureVisibility == .automatic ? nil : featureVisibility
+        items = updatedItems
     }
 
     private func saveItems() {

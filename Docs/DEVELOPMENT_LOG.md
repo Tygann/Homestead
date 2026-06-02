@@ -18,6 +18,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Tightened summary category filtering toward Home Assistant's frontend strategies, including area-selected temperature/humidity readings for Climate summaries and feature-aware Square cards in summary sheets.
 - Added entity-category awareness from Home Assistant's compact entity registry so summaries can exclude hidden/secondary entities while preserving HA's diagnostic tamper exception for Security.
 - Replaced the Homestead-specific Batteries summary with Home Assistant-style Maintenance, including numeric battery sensors, primary binary low-battery sensors, and legacy Batteries chip decoding.
+- Scoped dashboard card name/icon customization to dashboard surfaces, kept generated area views canonical and feature-rich, added per-card feature visibility controls under Card Features, and made ordinary active/inactive icons stable with filled defaults while preserving semantic state icons and Home Assistant switch device-class icons.
+- Expanded display-only Home Assistant `device_class` interpretation for cover, binary sensor, sensor, and media-player presentation without adding any path that mutates Home Assistant metadata.
 - Added regression coverage for feature provider output and card-size feature gating.
 
 ## 2026-05-30

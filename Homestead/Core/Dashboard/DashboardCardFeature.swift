@@ -8,6 +8,29 @@ enum DashboardCardFeatureKey: String, Codable, Equatable, Sendable {
     case lockControls
 }
 
+enum DashboardCardFeatureVisibility: String, CaseIterable, Codable, Equatable, Sendable {
+    case automatic
+    case hidden
+
+    var displayName: String {
+        switch self {
+        case .automatic:
+            "Automatic"
+        case .hidden:
+            "Hidden"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .automatic:
+            "sparkles"
+        case .hidden:
+            "eye.slash"
+        }
+    }
+}
+
 enum DashboardCardFeatureContent: Equatable, Sendable {
     case level(DashboardCardLevelFeature)
     case setpoint(DashboardCardSetpointFeature)
@@ -404,6 +427,14 @@ extension DashboardCardSize {
     func visibleFeatures(from features: [DashboardCardFeature]) -> [DashboardCardFeature] {
         guard featureLayout != .hidden else { return [] }
         return Array(features.prefix(maximumVisibleFeatureCount))
+    }
+
+    func visibleFeatures(
+        from features: [DashboardCardFeature],
+        visibility: DashboardCardFeatureVisibility
+    ) -> [DashboardCardFeature] {
+        guard visibility != .hidden else { return [] }
+        return visibleFeatures(from: features)
     }
 
     static func compactOrSquareForAvailableFeatures(entityBox: HAEntityState) -> DashboardCardSize {

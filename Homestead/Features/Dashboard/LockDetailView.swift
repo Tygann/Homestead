@@ -83,7 +83,7 @@ struct LockDetailView: View {
     private var contextDetails: some View {
         DashboardEntityContextPanel(
             title: "Home Assistant",
-            systemImage: "lock",
+            systemImage: "lock.fill",
             rows: [
                 DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
                 DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
@@ -104,7 +104,7 @@ struct LockDetailView: View {
     }
 
     private var actionSystemImage: String {
-        entity.state == "locked" ? "lock.open" : "lock"
+        entity.state == "locked" ? "lock.open.fill" : "lock.fill"
     }
 
     private var isActionServiceAvailable: Bool {

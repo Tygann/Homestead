@@ -147,7 +147,7 @@ struct CameraDetailView: View {
     private var contextDetails: some View {
         DashboardEntityContextPanel(
             title: "Home Assistant",
-            systemImage: "camera",
+            systemImage: "camera.fill",
             rows: [
                 DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
                 DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
