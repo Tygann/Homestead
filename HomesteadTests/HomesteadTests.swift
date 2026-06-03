@@ -3962,11 +3962,14 @@ struct HomesteadTests {
                 attributes: ["device_class": .string("moisture")]
             ),
             HAEntityDTO(entityID: "lock.front_door", state: "unlocked"),
+            HAEntityDTO(entityID: "lock.front_door_lock", state: "locked"),
             HAEntityDTO(
                 entityID: "cover.garage_door",
                 state: "closed",
                 attributes: ["device_class": .string("garage")]
             ),
+            HAEntityDTO(entityID: "camera.front_door", state: "idle"),
+            HAEntityDTO(entityID: "camera.front_doorbell_snapshot", state: "idle"),
             HAEntityDTO(entityID: "camera.driveway", state: "idle"),
             HAEntityDTO(
                 entityID: "sensor.remote_battery",
@@ -3992,6 +3995,9 @@ struct HomesteadTests {
             "binary_sensor.doorbell_ding": "Entryway",
             "binary_sensor.leak_sensor": "Entryway",
             "lock.front_door": "Entryway",
+            "lock.front_door_lock": "Entryway",
+            "camera.front_door": "Entryway",
+            "camera.front_doorbell_snapshot": "Entryway",
             "camera.driveway": "Entryway",
             "cover.garage_door": "Garage",
             "sensor.remote_battery": "Entryway",
@@ -4007,8 +4013,11 @@ struct HomesteadTests {
         #expect(securityDetail.sections.first?.items.map(\.entityID) == [
             "lock.front_door",
             "binary_sensor.back_door",
+            "binary_sensor.leak_sensor",
+            "lock.front_door_lock",
             "camera.driveway",
-            "binary_sensor.leak_sensor"
+            "camera.front_door",
+            "camera.front_doorbell_snapshot"
         ])
         #expect(securityDetail.sections.first?.items.contains { $0.entityID == "binary_sensor.doorbell_ding" } == false)
         #expect(securityDetail.sections.first?.items.first { $0.entityID == "camera.driveway" }?.visualStyle == .camera)

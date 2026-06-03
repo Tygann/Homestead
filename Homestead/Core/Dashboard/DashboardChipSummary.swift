@@ -125,6 +125,7 @@ struct DashboardSummaryEntityPresentation: Identifiable, Equatable, Sendable {
     let isActive: Bool
     let isAvailable: Bool
     let sortPriority: Int
+    let sortGroup: Int
     let primaryAction: DashboardEntityPrimaryAction?
 
     var id: String { entityID }
@@ -529,6 +530,7 @@ enum DashboardSummaryProvider {
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable,
             sortPriority: sortPriority,
+            sortGroup: summarySortGroup(for: entityBox.domain),
             primaryAction: presentation.primaryAction
         )
     }
@@ -564,7 +566,36 @@ enum DashboardSummaryProvider {
                 return lhs.sortPriority < rhs.sortPriority
             }
 
+            if lhs.sortGroup != rhs.sortGroup {
+                return lhs.sortGroup < rhs.sortGroup
+            }
+
             return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+        }
+    }
+
+    private static func summarySortGroup(for domain: EntityDomain) -> Int {
+        switch domain {
+        case .binarySensor, .cover:
+            0
+        case .lock:
+            1
+        case .alarmControlPanel, .siren:
+            2
+        case .climate:
+            3
+        case .fan:
+            4
+        case .light:
+            5
+        case .mediaPlayer:
+            6
+        case .camera, .image:
+            7
+        case .sensor:
+            8
+        default:
+            20
         }
     }
 
