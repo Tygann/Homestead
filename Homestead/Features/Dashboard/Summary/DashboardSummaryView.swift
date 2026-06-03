@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DashboardSummaryView: View {
     @Environment(HAStateStore.self) private var stateStore
+    @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
+    @Namespace private var cardTransitionNamespace
 
     let kind: DashboardSummaryKind
     let titleOverride: String?
@@ -49,9 +51,16 @@ struct DashboardSummaryView: View {
                                         DashboardCardView(
                                             entityID: item.entityID,
                                             size: size,
-                                            contextualAreaName: section.title
+                                            contextualAreaName: section.title,
+                                            openDetails: {
+                                                selectedEntityDetailRoute = DashboardEntityDetailRoute(
+                                                    entityID: item.entityID,
+                                                    sourceID: cardTransitionID(for: item)
+                                                )
+                                            }
                                         )
-                                            .cardGridSpan(size.layoutMetadata)
+                                        .cardGridSpan(size.layoutMetadata)
+                                        .matchedTransitionSource(id: cardTransitionID(for: item), in: cardTransitionNamespace)
                                     }
                                 }
                             }
@@ -68,12 +77,25 @@ struct DashboardSummaryView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(detail?.summary.title ?? kind.title)
         .toolbarTitleDisplayMode(.inline)
+        .navigationDestination(item: $selectedEntityDetailRoute) { route in
+            if let entityBox = stateStore.entityBox(for: route.entityID) {
+                EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
+                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
+            } else {
+                ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
+                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
+            }
+        }
     }
 
     @MainActor
     private func cardSize(for entityBox: HAEntityState?) -> DashboardCardSize {
         guard let entityBox else { return .compact }
         return DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
+    }
+
+    private func cardTransitionID(for item: DashboardSummaryEntityPresentation) -> String {
+        "summary-\(kind.rawValue)-card-\(item.entityID)"
     }
 }
 

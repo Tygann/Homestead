@@ -40,10 +40,13 @@ struct ContentView: View {
             NavigationStack {
                 SettingsView()
                     .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
                                 isShowingSettings = false
+                            } label: {
+                                Image(systemName: "xmark")
                             }
+                            .accessibilityLabel("Close Settings")
                         }
                     }
             }

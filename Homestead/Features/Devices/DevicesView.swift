@@ -10,7 +10,6 @@ struct DevicesView: View {
             hiddenEntityIDs: [],
             emptyTitle: "No Devices",
             emptySystemImage: "square.grid.2x2",
-            showsAccountButton: true,
             rowAction: { entityBox in
                 selectedEntity = SelectedEntity(entityID: entityBox.entityID)
             },
@@ -56,7 +55,6 @@ struct EntityBrowserList<Accessory: View>: View {
     let showsSearchField: Bool
     let showsGroupingMenu: Bool
     let showsSingleGroupHeaders: Bool
-    let showsAccountButton: Bool
     let allowsRefresh: Bool
     let allowedDomains: Set<EntityDomain>?
     let rowAction: (HAEntityState) -> Void
@@ -76,7 +74,6 @@ struct EntityBrowserList<Accessory: View>: View {
         showsSearchField: Bool = true,
         showsGroupingMenu: Bool = true,
         showsSingleGroupHeaders: Bool = true,
-        showsAccountButton: Bool = false,
         allowsRefresh: Bool = true,
         allowedDomains: Set<EntityDomain>? = nil,
         initialGrouping: DevicesGrouping = .device,
@@ -93,7 +90,6 @@ struct EntityBrowserList<Accessory: View>: View {
         self.showsSearchField = showsSearchField
         self.showsGroupingMenu = showsGroupingMenu
         self.showsSingleGroupHeaders = showsSingleGroupHeaders
-        self.showsAccountButton = showsAccountButton
         self.allowsRefresh = allowsRefresh
         self.allowedDomains = allowedDomains
         self.rowAction = rowAction
@@ -165,14 +161,6 @@ struct EntityBrowserList<Accessory: View>: View {
             if showsGroupingMenu {
                 ToolbarItem(placement: .topBarTrailing) {
                     groupingMenu
-                }
-            }
-
-            if showsAccountButton {
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    SettingsAccountButton()
                 }
             }
         }

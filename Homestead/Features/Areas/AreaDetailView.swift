@@ -3,6 +3,8 @@ import SwiftUI
 struct AreaDetailView: View {
     let area: DashboardAreaSummary
     @Environment(HAStateStore.self) private var stateStore
+    @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
+    @Namespace private var cardTransitionNamespace
 
     var body: some View {
         let presentation = AreaDetailPresentation.make(area: area, stateStore: stateStore)
@@ -18,9 +20,16 @@ struct AreaDetailView: View {
                                 DashboardCardView(
                                     entityID: item.entityID,
                                     size: item.cardSize,
-                                    contextualAreaName: area.name
+                                    contextualAreaName: area.name,
+                                    openDetails: {
+                                        selectedEntityDetailRoute = DashboardEntityDetailRoute(
+                                            entityID: item.entityID,
+                                            sourceID: cardTransitionID(for: item)
+                                        )
+                                    }
                                 )
                                 .cardGridSpan(item.cardSize.layoutMetadata)
+                                .matchedTransitionSource(id: cardTransitionID(for: item), in: cardTransitionNamespace)
                             }
                         }
                     }
@@ -32,6 +41,19 @@ struct AreaDetailView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(area.name)
         .toolbarTitleDisplayMode(.inlineLarge)
+        .navigationDestination(item: $selectedEntityDetailRoute) { route in
+            if let entityBox = stateStore.entityBox(for: route.entityID) {
+                EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
+                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
+            } else {
+                ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
+                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
+            }
+        }
+    }
+
+    private func cardTransitionID(for item: AreaEntityItem) -> String {
+        "area-\(area.id)-card-\(item.entityID)"
     }
 }
 
