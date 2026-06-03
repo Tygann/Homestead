@@ -2446,39 +2446,6 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func dashboardConfigurationMigratesLegacyEntityDisplayNameOverridesToGlobalPreferences() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let itemID = UUID()
-        let legacyItems = [
-            DashboardItemConfiguration(
-                id: itemID,
-                type: .entity,
-                entityID: "light.primary_bedroom_light",
-                title: nil,
-                displayNameOverride: "Lamp",
-                iconNameOverride: nil,
-                size: .compact,
-                featureVisibility: nil,
-                chipKind: nil,
-                summaryKind: nil
-            )
-        ]
-        defaults.set(try JSONEncoder().encode(legacyItems), forKey: "dashboardItems")
-        defaults.set(2, forKey: "dashboardItems.layoutVersion")
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        #expect(configuration.items.first?.displayNameOverride == nil)
-        #expect(configuration.entityDisplayNameOverride(for: "light.primary_bedroom_light") == "Lamp")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.first?.displayNameOverride == nil)
-        #expect(restoredConfiguration.entityDisplayNameOverride(for: "light.primary_bedroom_light") == "Lamp")
-    }
-
-    @MainActor
     @Test func dashboardConfigurationVisibleItemsPreserveAllConfiguredSizes() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -2505,24 +2472,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func dashboardConfigurationMigratesLegacyLargeCardSizeToSquare() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let legacyItem = DashboardItemConfiguration.entity(
-            entityID: "sensor.hallway_temperature",
-            size: .large
-        )
-        defaults.set(try JSONEncoder().encode([legacyItem]), forKey: "dashboardItems")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.first?.resolvedCardSize == .square)
-        #expect(defaults.integer(forKey: "dashboardItems.layoutVersion") == 2)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationPersistsNewLargeCardSizeAfterMigrationVersion() throws {
+    @Test func dashboardConfigurationPersistsLargeCardSize() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -2745,19 +2695,19 @@ struct HomesteadTests {
         configuration.addSummaryChip(kind: .lights)
         configuration.addHeader(title: "Downstairs")
         configuration.add("light.kitchen")
-        configuration.addSummaryChip(kind: .doors)
+        configuration.addSummaryChip(kind: .security)
         configuration.add("sensor.hallway_temperature")
 
         configuration.moveItems(in: .chips, from: IndexSet(integer: 1), to: 0)
 
         #expect(configuration.items.map(\.type) == [.chip, .header, .entity, .chip, .entity])
-        #expect(configuration.items[0].summaryKind == .doors)
+        #expect(configuration.items[0].summaryKind == .security)
         #expect(configuration.items[3].summaryKind == .lights)
 
         configuration.moveItems(in: .cards, from: IndexSet(integer: 0), to: 3)
 
         #expect(configuration.items.map(\.type) == [.chip, .entity, .entity, .chip, .header])
-        #expect(configuration.items[0].summaryKind == .doors)
+        #expect(configuration.items[0].summaryKind == .security)
         #expect(configuration.items[1].entityID == "light.kitchen")
         #expect(configuration.items[2].entityID == "sensor.hallway_temperature")
         #expect(configuration.items[3].summaryKind == .lights)
@@ -2765,7 +2715,7 @@ struct HomesteadTests {
 
         let restoredConfiguration = DashboardConfiguration(defaults: defaults)
         #expect(restoredConfiguration.items.map(\.type) == [.chip, .entity, .entity, .chip, .header])
-        #expect(restoredConfiguration.items[0].summaryKind == .doors)
+        #expect(restoredConfiguration.items[0].summaryKind == .security)
         #expect(restoredConfiguration.items[3].summaryKind == .lights)
         #expect(restoredConfiguration.items[4].resolvedTitle == "Downstairs")
     }
@@ -3054,8 +3004,8 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func dashboardConfigurationReplacesSeparatePinnedEntityStateForDeviceFavorites() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.favorite.tests.\(UUID().uuidString)"
+    @Test func dashboardConfigurationOwnsDeviceDashboardMembership() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.membership.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
@@ -3553,6 +3503,16 @@ struct HomesteadTests {
                 entityID: "scene.movie_night",
                 state: "scening",
                 attributes: ["friendly_name": .string("Movie Night")]
+            ),
+            HAEntityDTO(
+                entityID: "lock.front_door",
+                state: "unlocked",
+                attributes: ["friendly_name": .string("Front Door")]
+            ),
+            HAEntityDTO(
+                entityID: "lock.side_door",
+                state: "unlocking",
+                attributes: ["friendly_name": .string("Side Door")]
             )
         ])
 
@@ -3575,6 +3535,14 @@ struct HomesteadTests {
         let sceneLarge = DashboardEntityCardContentModel.make(presentation: scenePresentation, size: .large)
         #expect(sceneCompact.metrics.isEmpty)
         #expect(sceneLarge.metrics.contains(DashboardEntityCardMetric(title: "Action", value: "Activate Movie Night", systemImage: "hand.tap")))
+
+        let unlockedLockPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "lock.front_door")))
+        let unlockedLockWide = DashboardEntityCardContentModel.make(presentation: unlockedLockPresentation, size: .wide)
+        #expect(unlockedLockWide.metrics.first == DashboardEntityCardMetric(title: "Status", value: "Unlocked", systemImage: "circle.fill"))
+
+        let unlockingLockPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "lock.side_door")))
+        let unlockingLockLarge = DashboardEntityCardContentModel.make(presentation: unlockingLockPresentation, size: .large)
+        #expect(unlockingLockLarge.metrics.first == DashboardEntityCardMetric(title: "Status", value: "Unlocking", systemImage: "circle.fill"))
     }
 
     @MainActor
@@ -3668,6 +3636,52 @@ struct HomesteadTests {
         #expect(lockCommands.commands.map(\.action) == [.lock, .unlock])
         #expect(lockCommands.commands.first?.isDisabled == true)
         #expect(lockCommands.commands.last?.isDisabled == false)
+        #expect(lockCommands.commands.last?.confirmation == DashboardCardCommandConfirmation(
+            title: "Unlock?",
+            actionTitle: "Unlock",
+            message: "This will send an unlock command to Home Assistant.",
+            isDestructive: true
+        ))
+    }
+
+    @MainActor
+    @Test func lockCardFeatureProviderRequiresInlineUnlockConfirmation() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "lock.front_door", state: "locked"),
+            HAEntityDTO(entityID: "lock.back_door", state: "unlocked"),
+            HAEntityDTO(entityID: "lock.side_door", state: "unlocking")
+        ])
+
+        let lockedBox = try #require(store.entityBox(for: "lock.front_door"))
+        let lockedCommands = try lockCommands(for: lockedBox)
+        #expect(lockedCommands.commands[0].isDisabled)
+        #expect(lockedCommands.commands[1].isDisabled == false)
+        #expect(lockedCommands.commands[1].confirmation?.isDestructive == true)
+
+        let unlockedBox = try #require(store.entityBox(for: "lock.back_door"))
+        let unlockedCommands = try lockCommands(for: unlockedBox)
+        #expect(unlockedCommands.commands[0].isDisabled == false)
+        #expect(unlockedCommands.commands[1].isDisabled)
+
+        let unlockingBox = try #require(store.entityBox(for: "lock.side_door"))
+        let unlockingCommands = try lockCommands(for: unlockingBox)
+        #expect(unlockingCommands.commands[0].isDisabled == false)
+        #expect(unlockingCommands.commands[1].isDisabled)
+    }
+
+    @MainActor
+    private func lockCommands(for entityBox: HAEntityState) throws -> DashboardCardCommandGroupFeature {
+        let features = DashboardCardFeatureProvider.features(
+            for: entityBox,
+            presentation: DashboardEntityPresentation(entityBox: entityBox)
+        )
+        if case .commandGroup(let commands) = try #require(features.first?.content) {
+            return commands
+        } else {
+            Issue.record("Expected lock command feature")
+            return DashboardCardCommandGroupFeature(commands: [])
+        }
     }
 
     @MainActor
@@ -3751,7 +3765,6 @@ struct HomesteadTests {
         let security = try #require(DashboardSummaryProvider.makeSummary(kind: .security, entityBoxes: boxes))
         let climate = try #require(DashboardSummaryProvider.makeSummary(kind: .climate, entityBoxes: boxes))
         let maintenance = try #require(DashboardSummaryProvider.makeSummary(kind: .maintenance, entityBoxes: boxes))
-        let legacyBatteries = try #require(DashboardSummaryProvider.makeSummary(kind: .batteries, entityBoxes: boxes))
         let media = try #require(DashboardSummaryProvider.makeSummary(kind: .media, entityBoxes: boxes))
 
         #expect(lights.value == "1 On")
@@ -3768,7 +3781,6 @@ struct HomesteadTests {
         #expect(maintenance.value == "1 Issue")
         #expect(maintenance.systemImage == "wrench.fill")
         #expect(maintenance.iconTint == .maintenance)
-        #expect(legacyBatteries.title == "Maintenance")
         #expect(media.value == "1 Playing")
         #expect(media.systemImage == "play.tv.fill")
         #expect(media.iconTint == .media)

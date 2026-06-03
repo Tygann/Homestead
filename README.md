@@ -12,7 +12,7 @@ Homestead currently includes:
 - Native Home Assistant OAuth2/IndieAuth sign-in with refresh-token storage through Keychain
 - Live entity state updates through `state_changed` events
 - Optimistic light toggles and brightness updates
-- Dashboard favorites with editable ordering
+- Dashboard membership with editable ordering
 - Devices/Entities list grouped by Home Assistant domain
 - Live Home Assistant Xcode previews for local development
 - A small reusable SwiftUI design system

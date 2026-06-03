@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-02
+
+### Architecture Cleanup
+
+- Removed pre-release dashboard compatibility scaffolding for old card-size migrations, summary aliases, and entity display-name migrations; current dashboard persistence now stores only the active schema.
+- Split the dashboard shell from add-item, reorder/loading/empty, and summary-detail views so future dashboard work can land in focused files.
+- Renamed remaining internal Devices membership vocabulary to dashboard membership and added lock-card regression coverage for inline unlock confirmation and unlocked/unlocking status labels.
+
 ## 2026-06-01
 
 ### Dashboard Card Features
@@ -19,7 +27,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Switched area detail entity sections to the shared card grid so mixed Compact and Square cards align consistently with dashboard layout behavior.
 - Tightened summary category filtering toward Home Assistant's frontend strategies, including area-selected temperature/humidity readings for Climate summaries and feature-aware Square cards in summary sheets.
 - Added entity-category awareness from Home Assistant's compact entity registry so summaries can exclude hidden/secondary entities while preserving HA's diagnostic tamper exception for Security.
-- Replaced the Homestead-specific Batteries summary with Home Assistant-style Maintenance, including numeric battery sensors, primary binary low-battery sensors, and legacy Batteries chip decoding.
+- Replaced the Homestead-specific Batteries summary with Home Assistant-style Maintenance, including numeric battery sensors and primary binary low-battery sensors.
 - Scoped dashboard card name/icon customization to dashboard surfaces, kept generated area views canonical and feature-rich, added per-card feature visibility controls under Card Features, and made ordinary active/inactive icons stable with filled defaults while preserving semantic state icons and Home Assistant switch device-class icons.
 - Expanded display-only Home Assistant `device_class` interpretation for cover, binary sensor, sensor, and media-player presentation without adding any path that mutates Home Assistant metadata.
 - Expanded first-class Home Assistant domain recognition for common display-only/status entities such as remotes, buttons, selectors, updates, alarm panels, weather, calendars, people, valves, sirens, and image entities while keeping unsafe primary actions disabled by default.
@@ -29,7 +37,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Smart-Home Summary Chips
 
-- Replaced addable door, lock, and camera summary chips with a higher-level Security summary while keeping legacy stored kinds decodable as Security.
+- Replaced addable door, lock, and camera summary chips with a higher-level Security summary.
 - Added summary-detail models so the provider can return chip text plus filtered, grouped, and sorted entity rows for summary views.
 - Added lightweight native Summary Views opened from dashboard summary chips, with rows that can open existing domain detail sheets and show simple available primary actions.
 - Expanded summaries beyond domain-only counts: Security aggregates entry points, locks, garage/gate covers, cameras, alarm entities, and security-like sensors; Climate includes climate, fan, temperature, and humidity items.
@@ -98,7 +106,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Updated the widget control path to read the shared OAuth credential and refresh short-lived Home Assistant access tokens instead of looking for the removed long-lived token account.
 - Added dashboard card display-name overrides while keeping Home Assistant entity names as the source data.
-- Collapsed Devices favorites into dashboard membership and removed the separate pinned-entity store.
+- Collapsed Devices dashboard membership into the main dashboard configuration and removed the separate membership store.
 - Preserved last cached/live state timestamps when connection state becomes stale so UI can show the age of displayed Home Assistant data.
 - Added basic network reachability monitoring to reconnect promptly when iOS reports connectivity returning.
 
@@ -108,7 +116,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Replaced the dashboard's implicit two-column card layout with model-driven card spans on a 4-column grid foundation.
 - Added mini, compact, square, wide, and large dashboard card sizes with reusable column/row metadata.
-- Migrated legacy persisted `large` card sizes to the new `square` size so existing dashboards keep their current visual footprint.
+- Removed pre-release dashboard layout migration scaffolding so current card sizes persist directly.
 - Promoted the card grid layout into the design system so non-dashboard card surfaces can share the same 4-column sizing model.
 - Moved Areas summary cards onto the shared grid as square `2x2` cards while keeping their area-specific renderer.
 
@@ -187,9 +195,9 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added scoped Home Assistant state caching so the app can render last-known entities before live WebSocket sync completes.
 - Added data freshness tracking for cached, refreshing, live, stale, and empty states.
 - Kept startup state buffering, reconnect handling, registry metadata, service feedback, and per-entity `HAEntityState` from current `main`.
-- Added persistent dashboard density, active-device filtering, pinned favorites, and an Areas tab.
-- Centralized dashboard entity presentation metadata so cards, favorites, areas, and devices do not branch on raw entity ID prefixes.
-- Added regression coverage for cache scoping, preference and pin persistence, area grouping, and presentation routing.
+- Added persistent dashboard density, active-device filtering, dashboard membership controls, and an Areas tab.
+- Centralized dashboard entity presentation metadata so cards, dashboard membership, areas, and devices do not branch on raw entity ID prefixes.
+- Added regression coverage for cache scoping, preference and dashboard membership persistence, area grouping, and presentation routing.
 
 ## 2026-05-22
 
@@ -272,7 +280,7 @@ Reason: live Home Assistant data with many entities made dashboard scrolling and
 
 ### Dashboard Customization And Light Controls
 
-- Added dashboard favorites configuration with editable ordering.
+- Added dashboard membership configuration with editable ordering.
 - Added light cards with tap-to-toggle behavior.
 - Added a light detail sheet for brightness and power controls.
 - Added optimistic updates for light state and brightness after successful service calls.

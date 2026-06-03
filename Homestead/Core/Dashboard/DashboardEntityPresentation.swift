@@ -985,7 +985,7 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
         case .cover:
             return presentation.isActive ? "Open" : "Closed"
         case .lock:
-            return presentation.isActive ? "Locked" : "Unlocked"
+            return presentation.subtitle
         default:
             return presentation.subtitle
         }

@@ -13,7 +13,7 @@ struct DevicesView: View {
             rowAction: { entityBox in
                 selectedEntity = SelectedEntity(entityID: entityBox.entityID)
             },
-            allowsPinning: true,
+            allowsDashboardMembershipEditing: true,
             accessory: { entityBox in
                 HStack(spacing: AppSpacing.small) {
                     if dashboardConfiguration.contains(entityBox.entityID) {
@@ -56,7 +56,7 @@ struct EntityBrowserList<Accessory: View>: View {
     let showsGroupingMenu: Bool
     let allowsRefresh: Bool
     let rowAction: (HAEntityState) -> Void
-    let allowsPinning: Bool
+    let allowsDashboardMembershipEditing: Bool
     private let accessory: (HAEntityState) -> Accessory
 
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
@@ -72,7 +72,7 @@ struct EntityBrowserList<Accessory: View>: View {
         showsGroupingMenu: Bool = true,
         allowsRefresh: Bool = true,
         rowAction: @escaping (HAEntityState) -> Void,
-        allowsPinning: Bool = false,
+        allowsDashboardMembershipEditing: Bool = false,
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
         self.externalSearchText = searchText
@@ -84,7 +84,7 @@ struct EntityBrowserList<Accessory: View>: View {
         self.showsGroupingMenu = showsGroupingMenu
         self.allowsRefresh = allowsRefresh
         self.rowAction = rowAction
-        self.allowsPinning = allowsPinning
+        self.allowsDashboardMembershipEditing = allowsDashboardMembershipEditing
         self.accessory = accessory
         _includesUnavailable = State(initialValue: includesUnavailableByDefault)
     }
@@ -114,7 +114,7 @@ struct EntityBrowserList<Accessory: View>: View {
                                     }
                                     .buttonStyle(.plain)
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        if allowsPinning {
+                                        if allowsDashboardMembershipEditing {
                                             Button {
                                                 dashboardConfiguration.setEntity(
                                                     entityID,

@@ -8,17 +8,9 @@ nonisolated enum DashboardChipKind: String, Codable, Equatable, Sendable {
 nonisolated enum DashboardSummaryKind: String, CaseIterable, Codable, Equatable, Sendable {
     case lights
     case security
-    case doors
-    case locks
     case climate
     case maintenance
-    case batteries
-    case cameras
     case media
-
-    static var allCases: [DashboardSummaryKind] {
-        [.lights, .security, .climate, .maintenance, .media]
-    }
 
     static var areasOverviewOrder: [DashboardSummaryKind] {
         [.climate, .lights, .security, .media, .maintenance]
@@ -28,19 +20,8 @@ nonisolated enum DashboardSummaryKind: String, CaseIterable, Codable, Equatable,
         [.lights, .climate, .security, .media, .maintenance]
     }
 
-    var canonicalKind: DashboardSummaryKind {
-        switch self {
-        case .doors, .locks, .cameras:
-            .security
-        case .batteries:
-            .maintenance
-        case .lights, .security, .climate, .maintenance, .media:
-            self
-        }
-    }
-
     var title: String {
-        switch canonicalKind {
+        switch self {
         case .lights:
             "Lights"
         case .security:
@@ -51,15 +32,11 @@ nonisolated enum DashboardSummaryKind: String, CaseIterable, Codable, Equatable,
             "Maintenance"
         case .media:
             "Media"
-        case .batteries:
-            "Maintenance"
-        case .doors, .locks, .cameras:
-            "Security"
         }
     }
 
     var systemImage: String {
-        switch canonicalKind {
+        switch self {
         case .lights:
             "lightbulb.fill"
         case .security:
@@ -70,10 +47,6 @@ nonisolated enum DashboardSummaryKind: String, CaseIterable, Codable, Equatable,
             "wrench.fill"
         case .media:
             "play.tv.fill"
-        case .batteries:
-            "wrench.fill"
-        case .doors, .locks, .cameras:
-            "lock.fill"
         }
     }
 }
@@ -168,11 +141,10 @@ enum DashboardSummaryProvider {
         nonPrimaryEntityIDs: Set<String> = [],
         diagnosticEntityIDs: Set<String> = []
     ) -> DashboardChipPresentation? {
-        let canonicalKind = kind.canonicalKind
-        let title = normalizedOverride(titleOverride) ?? canonicalKind.title
-        let defaultSystemImage = normalizedOverride(iconNameOverride) ?? canonicalKind.systemImage
+        let title = normalizedOverride(titleOverride) ?? kind.title
+        let defaultSystemImage = normalizedOverride(iconNameOverride) ?? kind.systemImage
 
-        switch canonicalKind {
+        switch kind {
         case .lights:
             let lights = entityBoxes.filter { isPrimaryEntity($0, nonPrimaryEntityIDs: nonPrimaryEntityIDs) && $0.domain == .light }
             guard !lights.isEmpty else { return nil }
@@ -252,26 +224,6 @@ enum DashboardSummaryProvider {
                 isAvailable: players.contains { $0.homeEntity.isAvailable },
                 iconTint: .media
             )
-        case .batteries:
-            return makeSummary(
-                kind: .maintenance,
-                entityBoxes: entityBoxes,
-                titleOverride: titleOverride,
-                iconNameOverride: iconNameOverride,
-                preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                diagnosticEntityIDs: diagnosticEntityIDs
-            )
-        case .doors, .locks, .cameras:
-            return makeSummary(
-                kind: .security,
-                entityBoxes: entityBoxes,
-                titleOverride: titleOverride,
-                iconNameOverride: iconNameOverride,
-                preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                diagnosticEntityIDs: diagnosticEntityIDs
-            )
         }
     }
 
@@ -285,9 +237,8 @@ enum DashboardSummaryProvider {
         diagnosticEntityIDs: Set<String> = [],
         areaNameForEntityID: (String) -> String? = { _ in nil }
     ) -> DashboardSummaryDetailPresentation? {
-        let canonicalKind = kind.canonicalKind
         guard let summary = makeSummary(
-            kind: canonicalKind,
+            kind: kind,
             entityBoxes: entityBoxes,
             titleOverride: titleOverride,
             iconNameOverride: iconNameOverride,
@@ -299,7 +250,7 @@ enum DashboardSummaryProvider {
         }
 
         let sections: [DashboardSummarySectionPresentation]
-        switch canonicalKind {
+        switch kind {
         case .lights:
             sections = lightSections(
                 from: entityBoxes,
@@ -333,24 +284,10 @@ enum DashboardSummaryProvider {
                 nonPrimaryEntityIDs: nonPrimaryEntityIDs,
                 areaNameForEntityID: areaNameForEntityID
             )
-        case .batteries:
-            sections = maintenanceSections(
-                from: entityBoxes,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                diagnosticEntityIDs: diagnosticEntityIDs,
-                areaNameForEntityID: areaNameForEntityID
-            )
-        case .doors, .locks, .cameras:
-            sections = securitySections(
-                from: entityBoxes,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                diagnosticEntityIDs: diagnosticEntityIDs,
-                areaNameForEntityID: areaNameForEntityID
-            )
         }
 
         return DashboardSummaryDetailPresentation(
-            kind: canonicalKind,
+            kind: kind,
             summary: summary,
             sections: sections
         )

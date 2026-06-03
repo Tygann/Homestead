@@ -60,6 +60,7 @@ struct DashboardCardFeatureView: View {
     let trackColor: Color
     let isInteractionEnabled: Bool
     let actions: DashboardCardFeatureActions
+    @State private var confirmationCommand: DashboardCardCommand?
 
     var body: some View {
         Group {
@@ -73,6 +74,30 @@ struct DashboardCardFeatureView: View {
             }
         }
         .allowsHitTesting(isInteractionEnabled)
+        .confirmationDialog(
+            confirmationCommand?.confirmation?.title ?? "",
+            isPresented: isShowingCommandConfirmation,
+            titleVisibility: .visible
+        ) {
+            if let confirmationCommand,
+               let confirmation = confirmationCommand.confirmation {
+                Button(
+                    confirmation.actionTitle,
+                    role: confirmation.isDestructive ? .destructive : nil
+                ) {
+                    perform(confirmationCommand)
+                    self.confirmationCommand = nil
+                }
+            }
+
+            Button("Cancel", role: .cancel) {
+                confirmationCommand = nil
+            }
+        } message: {
+            if let message = confirmationCommand?.confirmation?.message {
+                Text(message)
+            }
+        }
     }
 
     private func levelControl(_ level: DashboardCardLevelFeature) -> some View {
@@ -119,7 +144,11 @@ struct DashboardCardFeatureView: View {
         HStack(spacing: AppSpacing.small) {
             ForEach(group.commands) { command in
                 Button {
-                    actions.commandAction(for: command.action)?()
+                    if command.confirmation != nil {
+                        confirmationCommand = command
+                    } else {
+                        perform(command)
+                    }
                 } label: {
                     Image(systemName: command.systemImage)
                         .font(.headline.weight(.semibold))
@@ -133,6 +162,21 @@ struct DashboardCardFeatureView: View {
                 .accessibilityLabel(command.title)
             }
         }
+    }
+
+    private var isShowingCommandConfirmation: Binding<Bool> {
+        Binding(
+            get: { confirmationCommand != nil },
+            set: { isPresented in
+                if !isPresented {
+                    confirmationCommand = nil
+                }
+            }
+        )
+    }
+
+    private func perform(_ command: DashboardCardCommand) {
+        actions.commandAction(for: command.action)?()
     }
 
     private func perform(

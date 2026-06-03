@@ -76,7 +76,7 @@ struct AreasView: View {
     }
 
     private func summaryTransitionID(for item: AreasOverviewPresentation.SummaryChipItem) -> String {
-        "areas-summary-\(item.id.canonicalKind.rawValue)"
+        "areas-summary-\(item.id.rawValue)"
     }
 
     private func areaTransitionID(for area: DashboardAreaSummary) -> String {

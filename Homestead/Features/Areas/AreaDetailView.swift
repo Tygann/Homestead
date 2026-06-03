@@ -163,7 +163,7 @@ private struct AreaSectionHeader: View {
 
 private extension DashboardSummaryKind {
     var areaSectionTitle: String {
-        switch canonicalKind {
+        switch self {
         case .media:
             "Media Players"
         default:

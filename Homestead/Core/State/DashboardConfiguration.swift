@@ -168,14 +168,12 @@ final class DashboardConfiguration {
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let itemsKey = "dashboardItems"
-    @ObservationIgnored private let layoutVersionKey = "dashboardItems.layoutVersion"
     @ObservationIgnored private let entityDisplayNameOverridesKey = "entityDisplayNameOverrides"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        items = Self.loadItems(from: defaults, key: itemsKey, layoutVersionKey: layoutVersionKey)
+        items = Self.loadItems(from: defaults, key: itemsKey)
         entityDisplayNameOverrides = Self.loadEntityDisplayNameOverrides(from: defaults, key: entityDisplayNameOverridesKey)
-        migrateEntityItemDisplayNameOverridesIfNeeded()
     }
 
     var hasCustomLayout: Bool {
@@ -458,7 +456,6 @@ final class DashboardConfiguration {
         }
 
         defaults.set(data, forKey: itemsKey)
-        defaults.set(Self.currentLayoutVersion, forKey: layoutVersionKey)
     }
 
     private func saveEntityDisplayNameOverrides() {
@@ -481,18 +478,10 @@ final class DashboardConfiguration {
 
     private static func loadItems(
         from defaults: UserDefaults,
-        key: String,
-        layoutVersionKey: String
+        key: String
     ) -> [DashboardItemConfiguration] {
-        guard var data = defaults.data(forKey: key) else {
+        guard let data = defaults.data(forKey: key) else {
             return []
-        }
-
-        if defaults.integer(forKey: layoutVersionKey) < currentLayoutVersion,
-           let migratedData = migrateLegacyCardSizes(in: data) {
-            data = migratedData
-            defaults.set(migratedData, forKey: key)
-            defaults.set(currentLayoutVersion, forKey: layoutVersionKey)
         }
 
         guard
@@ -512,33 +501,6 @@ final class DashboardConfiguration {
         return overrides
     }
 
-    private func migrateEntityItemDisplayNameOverridesIfNeeded() {
-        var updatedItems = items
-        var updatedOverrides = entityDisplayNameOverrides
-        var didMigrate = false
-
-        for index in updatedItems.indices {
-            guard updatedItems[index].type == .entity,
-                  let entityID = updatedItems[index].entityID,
-                  let displayNameOverride = normalizedDisplayNameOverride(updatedItems[index].displayNameOverride) else {
-                continue
-            }
-
-            if updatedOverrides[entityID] == nil {
-                updatedOverrides[entityID] = displayNameOverride
-            }
-            updatedItems[index].displayNameOverride = nil
-            didMigrate = true
-        }
-
-        guard didMigrate else {
-            return
-        }
-
-        items = updatedItems
-        entityDisplayNameOverrides = updatedOverrides
-    }
-
     private static func defaultEntityIDs(from entities: [HomeEntity]) -> [String] {
         let sortedEntities = entities.sorted { lhs, rhs in
             if lhs.domain.dashboardPriority != rhs.domain.dashboardPriority {
@@ -550,26 +512,6 @@ final class DashboardConfiguration {
 
         return Array(sortedEntities.prefix(10).map(\.entityID))
     }
-
-    private static func migrateLegacyCardSizes(in data: Data) -> Data? {
-        guard var items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return nil
-        }
-
-        var didMigrate = false
-        for index in items.indices where items[index]["size"] as? String == "large" {
-            items[index]["size"] = DashboardCardSize.square.rawValue
-            didMigrate = true
-        }
-
-        guard didMigrate else {
-            return data
-        }
-
-        return try? JSONSerialization.data(withJSONObject: items)
-    }
-
-    private static let currentLayoutVersion = 2
 }
 
 private extension DashboardReorderGroup {
