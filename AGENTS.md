@@ -45,6 +45,8 @@ xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'platform
 
 If the named simulator is unavailable, inspect local simulators and choose an installed iPhone runtime.
 
+For repeatable physical-device performance profiling, use `Docs/PERFORMANCE_PROFILING.md`.
+
 ## Git Hygiene
 
 - Preserve user-made asset changes unless explicitly asked to modify them.
