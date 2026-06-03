@@ -31,7 +31,7 @@ struct DevicesView: View {
         .toolbarTitleDisplayMode(.inlineLarge)
         .sheet(item: $selectedEntity) { selectedEntity in
             if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
-                EntityDetailView(entityBox: entityBox)
+                EntityDetailSheet(entityBox: entityBox)
             }
         }
     }

@@ -13,7 +13,7 @@ struct CameraDetailView: View {
     @State private var isShowingFullScreenPreview = false
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -43,7 +43,7 @@ struct CameraDetailView: View {
                 .disabled(!entity.isAvailable || snapshotPhase.isLoading)
             }
         }
-        .dashboardDetailPresentation(title: "Camera", style: presentationStyle)
+        .entityDetailPresentation(title: "Camera", style: presentationStyle)
         .fullScreenCover(isPresented: $isShowingFullScreenPreview) {
             CameraFullScreenPreview(
                 title: presentation.title,
@@ -64,7 +64,7 @@ struct CameraDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: statusSummary,
@@ -197,14 +197,15 @@ struct CameraDetailView: View {
     }
 
     private var contextDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "camera.fill",
             rows: [
-                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
-                DashboardEntityDetailRow(title: "Live", value: liveCapabilityText),
-                DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText)
+                EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+                EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
+                EntityMetadataRow(title: "Live", value: liveCapabilityText),
+                EntityMetadataRow(title: "State", value: entity.state.displayStateText)
             ]
         )
     }

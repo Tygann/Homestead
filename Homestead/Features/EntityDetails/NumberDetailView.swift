@@ -8,7 +8,7 @@ struct NumberDetailView: View {
     @State private var isEditingValue = false
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -23,7 +23,7 @@ struct NumberDetailView: View {
     }
 
     var body: some View {
-        DashboardEntityDetailScaffold(title: "Number", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: "Number", presentationStyle: presentationStyle) {
             header
             valuePanel
             contextDetails
@@ -38,7 +38,7 @@ struct NumberDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: statusSummary,
@@ -51,9 +51,9 @@ struct NumberDetailView: View {
     }
 
     private var valuePanel: some View {
-        DashboardControlPanel(title: "Value", systemImage: "slider.horizontal.3") {
+        EntityControlPanel(title: "Value", systemImage: "slider.horizontal.3") {
             HStack(spacing: AppSpacing.medium) {
-                DashboardDetailIconButton(
+                EntityDetailIconButton(
                     systemImage: "minus",
                     accessibilityLabel: "Decrease value",
                     isDisabled: isControlDisabled || draftValue <= valueRange.lowerBound
@@ -61,7 +61,7 @@ struct NumberDetailView: View {
                     adjustValue(by: -step)
                 }
 
-                DashboardDetailLevelSlider(
+                EntityDetailLevelSlider(
                     value: $draftValue,
                     range: valueRange,
                     step: step,
@@ -74,7 +74,7 @@ struct NumberDetailView: View {
                     }
                 )
 
-                DashboardDetailIconButton(
+                EntityDetailIconButton(
                     systemImage: "plus",
                     accessibilityLabel: "Increase value",
                     isDisabled: isControlDisabled || draftValue >= valueRange.upperBound
@@ -83,31 +83,32 @@ struct NumberDetailView: View {
                 }
             }
 
-            DashboardEntityDetailRow(title: "Current", value: formattedValue(draftValue))
+            EntityMetadataRow(title: "Current", value: formattedValue(draftValue))
         }
     }
 
     private var contextDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "number",
             rows: contextRows
         )
     }
 
-    private var contextRows: [DashboardEntityDetailRow] {
+    private var contextRows: [EntityMetadataRow] {
         var rows = [
-            DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-            DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
-            DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText)
+            EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+            EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
+            EntityMetadataRow(title: "State", value: entity.state.displayStateText)
         ]
 
         if let unit {
-            rows.append(DashboardEntityDetailRow(title: "Unit", value: unit))
+            rows.append(EntityMetadataRow(title: "Unit", value: unit))
         }
 
-        rows.append(DashboardEntityDetailRow(title: "Range", value: "\(formattedNumber(valueRange.lowerBound))-\(formattedNumber(valueRange.upperBound))"))
-        rows.append(DashboardEntityDetailRow(title: "Step", value: formattedNumber(step)))
+        rows.append(EntityMetadataRow(title: "Range", value: "\(formattedNumber(valueRange.lowerBound))-\(formattedNumber(valueRange.upperBound))"))
+        rows.append(EntityMetadataRow(title: "Step", value: formattedNumber(step)))
         return rows
     }
 

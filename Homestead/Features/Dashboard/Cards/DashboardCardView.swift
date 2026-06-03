@@ -52,7 +52,7 @@ struct DashboardCardView: View {
             )
             .sheet(item: $selectedDetail) { detail in
                 if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
-                    DashboardEntityDetailSheet(entityBox: selectedEntityBox)
+                    EntityDetailSheet(entityBox: selectedEntityBox)
                 } else {
                     ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
                 }
@@ -331,50 +331,6 @@ private struct DashboardCardDetail: Identifiable {
 
     var id: String {
         "\(kind)-\(entityID)"
-    }
-}
-
-struct DashboardEntityDetailSheet: View {
-    let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
-
-    var body: some View {
-        let detailKind = DashboardEntityPresentation(entityBox: entityBox).detailKind
-
-        switch detailKind {
-        case .light:
-            LightDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .cover:
-            CoverDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .climate:
-            ClimateDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .fan:
-            FanDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .lock:
-            LockDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .toggle:
-            ToggleEntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .action:
-            ActionEntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .sensor:
-            SensorDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .mediaPlayer:
-            MediaPlayerDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .camera:
-            CameraDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .vacuum:
-            VacuumDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .alarmControlPanel:
-            AlarmControlPanelDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .button:
-            ButtonDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .select:
-            SelectDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .number:
-            NumberDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        case .entity:
-            EntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        }
     }
 }
 

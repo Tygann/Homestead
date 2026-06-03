@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SensorDetailView: View {
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -13,7 +13,7 @@ struct SensorDetailView: View {
     }
 
     var body: some View {
-        DashboardEntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
             currentReading
             detailMetrics
@@ -22,7 +22,7 @@ struct SensorDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: presentation.subtitle,
@@ -35,7 +35,7 @@ struct SensorDetailView: View {
     }
 
     private var currentReading: some View {
-        DashboardControlPanel(title: "Current Reading", systemImage: "gauge.medium") {
+        EntityControlPanel(title: "Current Reading", systemImage: "gauge.medium") {
             Text(primaryValue)
                 .font(.system(size: 36, weight: .bold, design: .rounded))
                 .foregroundStyle(statusColor)
@@ -54,44 +54,45 @@ struct SensorDetailView: View {
         )
     }
 
-    private var readingRows: [DashboardEntityDetailRow] {
-        var rows = [DashboardEntityDetailRow(title: "State", value: primaryValue)]
+    private var readingRows: [EntityMetadataRow] {
+        var rows = [EntityMetadataRow(title: "State", value: primaryValue)]
 
         if let sensor = entityBox.sensorEntity {
             if let valueText = nonEmpty(sensor.valueText), valueText != sensor.formattedValue {
-                rows.append(DashboardEntityDetailRow(title: "Value", value: valueText))
+                rows.append(EntityMetadataRow(title: "Value", value: valueText))
             }
 
             if let unit = sensor.unitText {
-                rows.append(DashboardEntityDetailRow(title: "Unit", value: unit))
+                rows.append(EntityMetadataRow(title: "Unit", value: unit))
             }
 
             if let deviceClass = sensor.formattedDeviceClass {
-                rows.append(DashboardEntityDetailRow(title: "Type", value: deviceClass))
+                rows.append(EntityMetadataRow(title: "Type", value: deviceClass))
             }
         } else if entity.domain == .binarySensor {
-            rows.append(DashboardEntityDetailRow(title: "Type", value: "Binary Sensor"))
+            rows.append(EntityMetadataRow(title: "Type", value: "Binary Sensor"))
         }
 
         return rows
     }
 
     private var contextDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "house.and.flag",
             rows: contextRows
         )
     }
 
-    private var contextRows: [DashboardEntityDetailRow] {
+    private var contextRows: [EntityMetadataRow] {
         var rows = [
-            DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-            DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName)
+            EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+            EntityMetadataRow(title: "Domain", value: entity.domain.displayName)
         ]
 
         if let lastUpdated = entity.lastUpdated {
-            rows.append(DashboardEntityDetailRow(title: "Last Updated", value: lastUpdated.formatted(date: .abbreviated, time: .shortened)))
+            rows.append(EntityMetadataRow(title: "Last Updated", value: lastUpdated.formatted(date: .abbreviated, time: .shortened)))
         }
 
         return rows

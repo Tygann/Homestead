@@ -196,7 +196,7 @@ struct DashboardView: View {
         }
         .navigationDestination(item: $selectedEntityDetailRoute) { route in
             if let entityBox = stateStore.entityBox(for: route.entityID) {
-                DashboardEntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
+                EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
                     .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
             } else {
                 ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")

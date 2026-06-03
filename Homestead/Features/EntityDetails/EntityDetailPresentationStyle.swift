@@ -1,25 +1,25 @@
 import SwiftUI
 
-enum DashboardDetailPresentationStyle {
+enum EntityDetailPresentationStyle {
     case sheet
     case navigation
     case navigationStack
 }
 
 extension View {
-    func dashboardDetailPresentation(
+    func entityDetailPresentation(
         title: String,
-        style: DashboardDetailPresentationStyle
+        style: EntityDetailPresentationStyle
     ) -> some View {
-        modifier(DashboardDetailPresentationModifier(title: title, style: style))
+        modifier(EntityDetailPresentationModifier(title: title, style: style))
     }
 }
 
-private struct DashboardDetailPresentationModifier: ViewModifier {
+private struct EntityDetailPresentationModifier: ViewModifier {
     @Environment(\.dismiss) private var dismiss
 
     let title: String
-    let style: DashboardDetailPresentationStyle
+    let style: EntityDetailPresentationStyle
 
     func body(content: Content) -> some View {
         switch style {

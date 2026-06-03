@@ -1,13 +1,13 @@
 import SwiftUI
 
-struct DashboardEntityDetailScaffold<Content: View>: View {
+struct EntityDetailScaffold<Content: View>: View {
     let title: String
-    let presentationStyle: DashboardDetailPresentationStyle
+    let presentationStyle: EntityDetailPresentationStyle
     private let content: Content
 
     init(
         title: String,
-        presentationStyle: DashboardDetailPresentationStyle,
+        presentationStyle: EntityDetailPresentationStyle,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
@@ -24,22 +24,22 @@ struct DashboardEntityDetailScaffold<Content: View>: View {
             .padding(.vertical, AppSpacing.large)
         }
         .background(Color(.systemGroupedBackground))
-        .dashboardDetailPresentation(title: title, style: presentationStyle)
+        .entityDetailPresentation(title: title, style: presentationStyle)
     }
 }
 
-struct DashboardUnavailableDetailView: View {
+struct EntityUnavailableDetailView: View {
     let title: String
     let systemImage: String
-    let presentationStyle: DashboardDetailPresentationStyle
+    let presentationStyle: EntityDetailPresentationStyle
 
     var body: some View {
         ContentUnavailableView("\(title) Unavailable", systemImage: systemImage)
-            .dashboardDetailPresentation(title: title, style: presentationStyle)
+            .entityDetailPresentation(title: title, style: presentationStyle)
     }
 }
 
-struct DashboardEntityDetailHeader: View {
+struct EntityDetailHeader: View {
     let iconName: String
     let title: String
     let subtitle: String
@@ -107,23 +107,23 @@ struct DashboardEntityDetailHeader: View {
     }
 }
 
-enum DashboardDetailActionButtonStyle {
+enum EntityDetailActionButtonStyle {
     case primary
     case secondary
     case destructive
 }
 
-struct DashboardDetailActionButton: View {
+struct EntityDetailActionButton: View {
     let title: String
     let systemImage: String
-    let style: DashboardDetailActionButtonStyle
+    let style: EntityDetailActionButtonStyle
     let isDisabled: Bool
     let action: () -> Void
 
     init(
         title: String,
         systemImage: String,
-        style: DashboardDetailActionButtonStyle = .primary,
+        style: EntityDetailActionButtonStyle = .primary,
         isDisabled: Bool,
         action: @escaping () -> Void
     ) {
@@ -176,7 +176,7 @@ struct DashboardDetailActionButton: View {
     }
 }
 
-struct DashboardDetailIconButton: View {
+struct EntityDetailIconButton: View {
     let systemImage: String
     let accessibilityLabel: String
     let isDisabled: Bool
@@ -197,7 +197,7 @@ struct DashboardDetailIconButton: View {
     }
 }
 
-struct DashboardDetailLevelSlider: View {
+struct EntityDetailLevelSlider: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
     let step: Double
@@ -312,7 +312,7 @@ struct DashboardDetailLevelSlider: View {
     }
 }
 
-struct DashboardDetailPillButton: View {
+struct EntityDetailPillButton: View {
     let title: String
     let systemImage: String?
     let isSelected: Bool
@@ -361,7 +361,7 @@ struct DashboardDetailPillButton: View {
     }
 }
 
-struct DashboardDetailMenuRow<MenuContent: View>: View {
+struct EntityDetailMenuRow<MenuContent: View>: View {
     let title: String
     let systemImage: String
     let value: String
@@ -413,16 +413,51 @@ struct DashboardDetailMenuRow<MenuContent: View>: View {
     }
 }
 
-struct DashboardEntityMetadataDisclosure: View {
+struct EntityMetadataDisclosure: View {
+    let entityBox: HAEntityState?
     let title: String
     let systemImage: String
-    let rows: [DashboardEntityDetailRow]
+    let rows: [EntityMetadataRow]
+
+    init(
+        entityBox: HAEntityState? = nil,
+        title: String,
+        systemImage: String,
+        rows: [EntityMetadataRow]
+    ) {
+        self.entityBox = entityBox
+        self.title = title
+        self.systemImage = systemImage
+        self.rows = rows
+    }
 
     var body: some View {
         DisclosureGroup {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 ForEach(rows) { row in
                     row
+                }
+
+                if let entityBox {
+                    Divider()
+
+                    NavigationLink {
+                        EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation)
+                    } label: {
+                        HStack(spacing: AppSpacing.medium) {
+                            Label("Diagnostics", systemImage: "stethoscope")
+                                .font(.subheadline.weight(.semibold))
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .foregroundStyle(.primary)
+                        .padding(.vertical, AppSpacing.xSmall)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.top, AppSpacing.medium)
@@ -435,7 +470,7 @@ struct DashboardEntityMetadataDisclosure: View {
     }
 }
 
-struct DashboardControlPanel<Content: View>: View {
+struct EntityControlPanel<Content: View>: View {
     let title: String
     let systemImage: String
     @ViewBuilder let content: Content
@@ -455,7 +490,7 @@ struct DashboardControlPanel<Content: View>: View {
 struct DashboardEntityContextPanel: View {
     let title: String
     let systemImage: String
-    let rows: [DashboardEntityDetailRow]
+    let rows: [EntityMetadataRow]
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
@@ -471,7 +506,7 @@ struct DashboardEntityContextPanel: View {
     }
 }
 
-struct DashboardEntityDetailRow: View, Identifiable {
+struct EntityMetadataRow: View, Identifiable {
     let title: String
     let value: String
 

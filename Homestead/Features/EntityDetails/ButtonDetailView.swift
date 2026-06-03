@@ -4,7 +4,7 @@ struct ButtonDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -15,7 +15,7 @@ struct ButtonDetailView: View {
     }
 
     var body: some View {
-        DashboardEntityDetailScaffold(title: "Button", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: "Button", presentationStyle: presentationStyle) {
             header
             actionPanel
             contextDetails
@@ -23,7 +23,7 @@ struct ButtonDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: statusSummary,
@@ -36,8 +36,8 @@ struct ButtonDetailView: View {
     }
 
     private var actionPanel: some View {
-        DashboardControlPanel(title: "Action", systemImage: "button.programmable") {
-            DashboardDetailActionButton(
+        EntityControlPanel(title: "Action", systemImage: "button.programmable") {
+            EntityDetailActionButton(
                 title: entityBox.pendingCommand != nil ? "Pressing..." : "Press",
                 systemImage: "button.programmable",
                 isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "button", service: "press")
@@ -48,14 +48,15 @@ struct ButtonDetailView: View {
     }
 
     private var contextDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "button.programmable",
             rows: [
-                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
-                DashboardEntityDetailRow(title: "Service", value: "button.press"),
-                DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText)
+                EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+                EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
+                EntityMetadataRow(title: "Service", value: "button.press"),
+                EntityMetadataRow(title: "State", value: entity.state.displayStateText)
             ]
         )
     }

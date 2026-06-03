@@ -12,6 +12,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added fullscreen camera preview access, moved secondary climate options into compact menu rows, and kept dashboard detail sheets on the shared medium-to-large presentation behavior.
 - Added native detail views for alarm control panels, buttons, selects, and numbers while keeping these helper-style domains out of accidental card-level primary actions.
 - Preserved separate domain detail files instead of centralizing detail rendering into a conditional mega-view; richer domains can migrate incrementally when their controls are redesigned.
+- Routed Devices through the same native entity detail sheet used by Dashboard and Areas, renamed the old raw Home Assistant entity view to diagnostics, and exposed diagnostics from each native detail view's Home Assistant disclosure.
+- Moved shared entity detail views and helper components out of the Dashboard feature folder into `Features/EntityDetails`, keeping dashboard-specific card and route types in Dashboard.
 
 ## 2026-06-02
 

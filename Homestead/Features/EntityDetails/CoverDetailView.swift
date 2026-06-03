@@ -6,12 +6,12 @@ struct CoverDetailView: View {
     @State private var isEditingPosition = false
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     @ViewBuilder
     var body: some View {
         if let cover = entityBox.coverEntity {
-            DashboardEntityDetailScaffold(title: "Cover", presentationStyle: presentationStyle) {
+            EntityDetailScaffold(title: "Cover", presentationStyle: presentationStyle) {
                 header(cover)
                 movementControls(cover)
 
@@ -19,6 +19,8 @@ struct CoverDetailView: View {
                    homeAssistantService.serviceActionAvailable(domain: "cover", service: "set_cover_position") {
                     positionControls(cover)
                 }
+
+                contextDetails
             }
             .onAppear {
                 syncPosition(with: cover)
@@ -28,7 +30,7 @@ struct CoverDetailView: View {
                 syncPosition(with: cover)
             }
         } else {
-            DashboardUnavailableDetailView(
+            EntityUnavailableDetailView(
                 title: "Cover",
                 systemImage: "blinds.horizontal.closed",
                 presentationStyle: presentationStyle
@@ -37,7 +39,7 @@ struct CoverDetailView: View {
     }
 
     private func header(_ cover: CoverEntity) -> some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: cover.iconName,
             title: cover.displayName,
             subtitle: cover.displaySubtitle,
@@ -52,9 +54,9 @@ struct CoverDetailView: View {
     private func movementControls(_ cover: CoverEntity) -> some View {
         let isPending = entityBox.pendingCommand != nil
 
-        return DashboardControlPanel(title: "Control", systemImage: "arrow.up.and.down") {
+        return EntityControlPanel(title: "Control", systemImage: "arrow.up.and.down") {
             HStack(spacing: AppSpacing.small) {
-                DashboardDetailActionButton(
+                EntityDetailActionButton(
                     title: "Open",
                     systemImage: "arrow.up",
                     isDisabled: isPending || cover.state == "open" || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover")
@@ -62,7 +64,7 @@ struct CoverDetailView: View {
                     Task { await homeAssistantService.openCover(entityID: entityBox.entityID) }
                 }
 
-                DashboardDetailActionButton(
+                EntityDetailActionButton(
                     title: "Close",
                     systemImage: "arrow.down",
                     style: .secondary,
@@ -72,7 +74,7 @@ struct CoverDetailView: View {
                 }
             }
 
-            DashboardDetailActionButton(
+            EntityDetailActionButton(
                 title: "Stop",
                 systemImage: "stop.fill",
                 style: .secondary,
@@ -96,7 +98,7 @@ struct CoverDetailView: View {
                     .foregroundStyle(cover.isOpen ? Color.accentColor : Color.secondary)
             }
 
-            DashboardDetailLevelSlider(
+            EntityDetailLevelSlider(
                 value: $position,
                 range: 0...100,
                 step: 1,
@@ -117,6 +119,19 @@ struct CoverDetailView: View {
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    private var contextDetails: some View {
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
+            title: "Home Assistant",
+            systemImage: "blinds.horizontal.closed",
+            rows: [
+                EntityMetadataRow(title: "Entity ID", value: entityBox.entityID),
+                EntityMetadataRow(title: "Domain", value: entityBox.domain.displayName),
+                EntityMetadataRow(title: "State", value: entityBox.homeEntity.state.displayStateText)
+            ]
+        )
     }
 
     private func statusBadgeText(for cover: CoverEntity) -> String {

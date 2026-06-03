@@ -6,14 +6,14 @@ struct LightDetailView: View {
     @State private var isEditingBrightness = false
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private let brightnessPresets = [25.0, 50.0, 75.0, 100.0]
 
     @ViewBuilder
     var body: some View {
         if let light = entityBox.lightEntity {
-            DashboardEntityDetailScaffold(title: "Light", presentationStyle: presentationStyle) {
+            EntityDetailScaffold(title: "Light", presentationStyle: presentationStyle) {
                 header(light)
                 powerControls(light)
 
@@ -21,6 +21,8 @@ struct LightDetailView: View {
                    homeAssistantService.serviceActionAvailable(domain: "light", service: "turn_on") {
                     brightnessControls(light)
                 }
+
+                contextDetails
             }
             .onAppear {
                 syncBrightness(with: light)
@@ -34,7 +36,7 @@ struct LightDetailView: View {
                 syncBrightness(with: light)
             }
         } else {
-            DashboardUnavailableDetailView(
+            EntityUnavailableDetailView(
                 title: "Light",
                 systemImage: "lightbulb.slash",
                 presentationStyle: presentationStyle
@@ -43,7 +45,7 @@ struct LightDetailView: View {
     }
 
     private func header(_ light: LightEntity) -> some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: light.iconName,
             title: light.displayName,
             subtitle: lightStatusText(light),
@@ -59,8 +61,8 @@ struct LightDetailView: View {
         let isPending = entityBox.pendingCommand != nil
         let service = light.isOn ? "turn_off" : "turn_on"
 
-        return DashboardControlPanel(title: "Control", systemImage: "power") {
-            DashboardDetailActionButton(
+        return EntityControlPanel(title: "Control", systemImage: "power") {
+            EntityDetailActionButton(
                 title: isPending ? "Updating..." : (light.isOn ? "Turn Off" : "Turn On"),
                 systemImage: "power",
                 style: light.isOn ? .secondary : .primary,
@@ -90,7 +92,7 @@ struct LightDetailView: View {
                     .foregroundStyle(light.isOn ? Color.accentColor : Color.secondary)
             }
 
-            DashboardDetailLevelSlider(
+            EntityDetailLevelSlider(
                 value: $brightnessPercentage,
                 range: 1...100,
                 step: 1,
@@ -107,7 +109,7 @@ struct LightDetailView: View {
 
             HStack(spacing: AppSpacing.small) {
                 ForEach(brightnessPresets, id: \.self) { preset in
-                    DashboardDetailPillButton(
+                    EntityDetailPillButton(
                         title: "\(Int(preset))%",
                         isSelected: isSelectedPreset(preset),
                         isDisabled: entityBox.pendingCommand != nil || !entityBox.homeEntity.isAvailable
@@ -124,6 +126,19 @@ struct LightDetailView: View {
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    private var contextDetails: some View {
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
+            title: "Home Assistant",
+            systemImage: "lightbulb.fill",
+            rows: [
+                EntityMetadataRow(title: "Entity ID", value: entityBox.entityID),
+                EntityMetadataRow(title: "Domain", value: entityBox.domain.displayName),
+                EntityMetadataRow(title: "State", value: entityBox.homeEntity.state.displayStateText)
+            ]
+        )
     }
 
     private func lightStatusText(_ light: LightEntity) -> String {

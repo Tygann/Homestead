@@ -4,7 +4,7 @@ struct ActionEntityDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -15,7 +15,7 @@ struct ActionEntityDetailView: View {
     }
 
     var body: some View {
-        DashboardEntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
             actionPanel
             stateDetails
@@ -23,7 +23,7 @@ struct ActionEntityDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: statusSummary,
@@ -35,8 +35,8 @@ struct ActionEntityDetailView: View {
     }
 
     private var actionPanel: some View {
-        DashboardControlPanel(title: "Action", systemImage: actionSystemImage) {
-            DashboardDetailActionButton(
+        EntityControlPanel(title: "Action", systemImage: actionSystemImage) {
+            EntityDetailActionButton(
                 title: actionTitle,
                 systemImage: actionSystemImage,
                 isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
@@ -47,13 +47,14 @@ struct ActionEntityDetailView: View {
     }
 
     private var stateDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "bolt.horizontal",
             rows: [
-                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
-                DashboardEntityDetailRow(title: "Service", value: actionServiceName)
+                EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+                EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
+                EntityMetadataRow(title: "Service", value: actionServiceName)
             ]
         )
     }

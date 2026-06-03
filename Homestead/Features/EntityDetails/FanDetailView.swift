@@ -6,12 +6,12 @@ struct FanDetailView: View {
     @State private var isEditingPercentage = false
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     @ViewBuilder
     var body: some View {
         if let fan = entityBox.fanEntity {
-            DashboardEntityDetailScaffold(title: "Fan", presentationStyle: presentationStyle) {
+            EntityDetailScaffold(title: "Fan", presentationStyle: presentationStyle) {
                 header(fan)
                 powerControls(fan)
 
@@ -24,6 +24,8 @@ struct FanDetailView: View {
                    homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_preset_mode") {
                     presetControls(fan)
                 }
+
+                contextDetails
             }
             .onAppear {
                 syncPercentage(with: fan)
@@ -33,7 +35,7 @@ struct FanDetailView: View {
                 syncPercentage(with: fan)
             }
         } else {
-            DashboardUnavailableDetailView(
+            EntityUnavailableDetailView(
                 title: "Fan",
                 systemImage: "fan.fill",
                 presentationStyle: presentationStyle
@@ -42,7 +44,7 @@ struct FanDetailView: View {
     }
 
     private func header(_ fan: FanEntity) -> some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: entityBox.homeEntity.iconName,
             title: fan.displayName,
             subtitle: statusSummary(fan),
@@ -57,8 +59,8 @@ struct FanDetailView: View {
     private func powerControls(_ fan: FanEntity) -> some View {
         let isPending = entityBox.pendingCommand != nil
 
-        return DashboardControlPanel(title: "Control", systemImage: "power") {
-            DashboardDetailActionButton(
+        return EntityControlPanel(title: "Control", systemImage: "power") {
+            EntityDetailActionButton(
                 title: isPending ? "Updating..." : (fan.isOn ? "Turn Off" : "Turn On"),
                 systemImage: "power",
                 style: fan.isOn ? .secondary : .primary,
@@ -82,7 +84,7 @@ struct FanDetailView: View {
                     .foregroundStyle(fan.isOn ? Color.accentColor : Color.secondary)
             }
 
-            DashboardDetailLevelSlider(
+            EntityDetailLevelSlider(
                 value: $percentage,
                 range: 0...100,
                 step: fan.resolvedPercentageStep,
@@ -112,7 +114,7 @@ struct FanDetailView: View {
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
                 ForEach(fan.presetModes, id: \.self) { presetMode in
-                    DashboardDetailPillButton(
+                    EntityDetailPillButton(
                         title: fan.displayName(forPresetMode: presetMode),
                         isSelected: presetMode == fan.presetMode,
                         isDisabled: entityBox.pendingCommand != nil || presetMode == fan.presetMode || !fan.isAvailable
@@ -129,6 +131,19 @@ struct FanDetailView: View {
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    private var contextDetails: some View {
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
+            title: "Home Assistant",
+            systemImage: "fan.fill",
+            rows: [
+                EntityMetadataRow(title: "Entity ID", value: entityBox.entityID),
+                EntityMetadataRow(title: "Domain", value: entityBox.domain.displayName),
+                EntityMetadataRow(title: "State", value: entityBox.homeEntity.state.displayStateText)
+            ]
+        )
     }
 
     private func statusSummary(_ fan: FanEntity) -> String {

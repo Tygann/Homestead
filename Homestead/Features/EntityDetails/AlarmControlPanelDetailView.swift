@@ -8,7 +8,7 @@ struct AlarmControlPanelDetailView: View {
     @State private var isShowingConfirmation = false
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -19,7 +19,7 @@ struct AlarmControlPanelDetailView: View {
     }
 
     var body: some View {
-        DashboardEntityDetailScaffold(title: "Alarm", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: "Alarm", presentationStyle: presentationStyle) {
             header
             accessPanel
             if !availableArmActions.isEmpty {
@@ -43,7 +43,7 @@ struct AlarmControlPanelDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: statusSummary,
@@ -56,7 +56,7 @@ struct AlarmControlPanelDetailView: View {
     }
 
     private var accessPanel: some View {
-        DashboardControlPanel(title: "Access", systemImage: "key.fill") {
+        EntityControlPanel(title: "Access", systemImage: "key.fill") {
             SecureField("Code", text: $code)
                 .textContentType(.oneTimeCode)
                 .keyboardType(.numberPad)
@@ -68,10 +68,10 @@ struct AlarmControlPanelDetailView: View {
     }
 
     private var armPanel: some View {
-        DashboardControlPanel(title: "Security Mode", systemImage: "shield.fill") {
+        EntityControlPanel(title: "Security Mode", systemImage: "shield.fill") {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppSpacing.small) {
                 ForEach(availableArmActions) { action in
-                    DashboardDetailPillButton(
+                    EntityDetailPillButton(
                         title: action.title,
                         systemImage: action.systemImage,
                         isSelected: entity.state == action.expectedState,
@@ -86,13 +86,14 @@ struct AlarmControlPanelDetailView: View {
     }
 
     private var contextDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "house.and.flag",
             rows: [
-                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
-                DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText)
+                EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+                EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
+                EntityMetadataRow(title: "State", value: entity.state.displayStateText)
             ]
         )
     }

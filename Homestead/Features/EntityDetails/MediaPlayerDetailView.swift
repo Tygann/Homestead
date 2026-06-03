@@ -6,7 +6,7 @@ struct MediaPlayerDetailView: View {
     @State private var isEditingVolume = false
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -17,7 +17,7 @@ struct MediaPlayerDetailView: View {
     }
 
     var body: some View {
-        DashboardEntityDetailScaffold(title: "Media Player", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: "Media Player", presentationStyle: presentationStyle) {
             header
             nowPlayingPanel
             playbackControls
@@ -44,7 +44,7 @@ struct MediaPlayerDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: mediaHeaderSubtitle,
@@ -60,7 +60,7 @@ struct MediaPlayerDetailView: View {
     private var nowPlayingPanel: some View {
         if let mediaPlayer = entityBox.mediaPlayerEntity,
            let nowPlayingText = mediaPlayer.nowPlayingText {
-            DashboardControlPanel(title: "Now Playing", systemImage: "music.note") {
+            EntityControlPanel(title: "Now Playing", systemImage: "music.note") {
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                     Text(nowPlayingText)
                         .font(.headline)
@@ -92,7 +92,7 @@ struct MediaPlayerDetailView: View {
                     .foregroundStyle(mediaPlayer.isPlaying ? Color.accentColor : Color.secondary)
             }
 
-            DashboardDetailLevelSlider(
+            EntityDetailLevelSlider(
                 value: $volumePercentage,
                 range: 0...100,
                 step: 1,
@@ -118,7 +118,7 @@ struct MediaPlayerDetailView: View {
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
                 ForEach(mediaPlayer.sourceList, id: \.self) { source in
-                    DashboardDetailPillButton(
+                    EntityDetailPillButton(
                         title: source,
                         isSelected: source == mediaPlayer.source,
                         isDisabled: !mediaPlayer.isAvailable || entityBox.pendingCommand != nil || source == mediaPlayer.source
@@ -138,8 +138,8 @@ struct MediaPlayerDetailView: View {
     }
 
     private var playbackControls: some View {
-        DashboardControlPanel(title: "Playback", systemImage: playPauseSystemImage) {
-            DashboardDetailActionButton(
+        EntityControlPanel(title: "Playback", systemImage: playPauseSystemImage) {
+            EntityDetailActionButton(
                 title: playPauseTitle,
                 systemImage: playPauseSystemImage,
                 style: entity.state == "playing" ? .secondary : .primary,
@@ -153,15 +153,16 @@ struct MediaPlayerDetailView: View {
     }
 
     private var contextDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "play.tv.fill",
             rows: [
-                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
+                EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+                EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
                 sourceDetailRow,
                 volumeDetailRow,
-                DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText)
+                EntityMetadataRow(title: "State", value: entity.state.displayStateText)
             ].compactMap { $0 }
         )
     }
@@ -199,20 +200,20 @@ struct MediaPlayerDetailView: View {
         }
     }
 
-    private var sourceDetailRow: DashboardEntityDetailRow? {
+    private var sourceDetailRow: EntityMetadataRow? {
         guard let source = entityBox.mediaPlayerEntity?.source, !source.isEmpty else {
             return nil
         }
 
-        return DashboardEntityDetailRow(title: "Source", value: source)
+        return EntityMetadataRow(title: "Source", value: source)
     }
 
-    private var volumeDetailRow: DashboardEntityDetailRow? {
+    private var volumeDetailRow: EntityMetadataRow? {
         guard let volumePercentage = entityBox.mediaPlayerEntity?.volumePercentage else {
             return nil
         }
 
-        return DashboardEntityDetailRow(title: "Volume", value: "\(volumePercentage)%")
+        return EntityMetadataRow(title: "Volume", value: "\(volumePercentage)%")
     }
 
     private var playPauseTitle: String {

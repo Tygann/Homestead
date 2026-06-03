@@ -4,7 +4,7 @@ struct VacuumDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -15,7 +15,7 @@ struct VacuumDetailView: View {
     }
 
     var body: some View {
-        DashboardEntityDetailScaffold(title: "Vacuum", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: "Vacuum", presentationStyle: presentationStyle) {
             header
             vacuumControls
             contextDetails
@@ -23,7 +23,7 @@ struct VacuumDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: statusSummary,
@@ -38,9 +38,9 @@ struct VacuumDetailView: View {
     private var vacuumControls: some View {
         let isPending = entityBox.pendingCommand != nil
 
-        return DashboardControlPanel(title: "Control", systemImage: "washer.fill") {
+        return EntityControlPanel(title: "Control", systemImage: "washer.fill") {
             HStack(spacing: AppSpacing.small) {
-                DashboardDetailActionButton(
+                EntityDetailActionButton(
                     title: "Start",
                     systemImage: "play.fill",
                     isDisabled: isPending || !entity.isAvailable || entity.state == "cleaning" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "start")
@@ -48,7 +48,7 @@ struct VacuumDetailView: View {
                     Task { await homeAssistantService.startVacuum(entityID: entity.entityID) }
                 }
 
-                DashboardDetailActionButton(
+                EntityDetailActionButton(
                     title: "Stop",
                     systemImage: "stop.fill",
                     style: .secondary,
@@ -58,7 +58,7 @@ struct VacuumDetailView: View {
                 }
             }
 
-            DashboardDetailActionButton(
+            EntityDetailActionButton(
                 title: "Return to Base",
                 systemImage: "house.fill",
                 style: .secondary,
@@ -70,13 +70,14 @@ struct VacuumDetailView: View {
     }
 
     private var contextDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "washer.fill",
             rows: [
-                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
-                DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText)
+                EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+                EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
+                EntityMetadataRow(title: "State", value: entity.state.displayStateText)
             ]
         )
     }

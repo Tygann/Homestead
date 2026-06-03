@@ -5,7 +5,7 @@ struct SelectDetailView: View {
     @Environment(HAStateStore.self) private var stateStore
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -23,7 +23,7 @@ struct SelectDetailView: View {
     }
 
     var body: some View {
-        DashboardEntityDetailScaffold(title: "Select", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: "Select", presentationStyle: presentationStyle) {
             header
 
             if !options.isEmpty {
@@ -36,7 +36,7 @@ struct SelectDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: statusSummary,
@@ -49,8 +49,8 @@ struct SelectDetailView: View {
     }
 
     private var optionPanel: some View {
-        DashboardControlPanel(title: "Option", systemImage: "filemenu.and.selection") {
-            DashboardDetailMenuRow(
+        EntityControlPanel(title: "Option", systemImage: "filemenu.and.selection") {
+            EntityDetailMenuRow(
                 title: "Current",
                 systemImage: "checkmark.circle",
                 value: entity.state.displayStateText,
@@ -77,20 +77,21 @@ struct SelectDetailView: View {
             title: "Current Value",
             systemImage: "text.word.spacing",
             rows: [
-                DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText),
-                DashboardEntityDetailRow(title: "Options", value: options.isEmpty ? "None" : "\(options.count)")
+                EntityMetadataRow(title: "State", value: entity.state.displayStateText),
+                EntityMetadataRow(title: "Options", value: options.isEmpty ? "None" : "\(options.count)")
             ]
         )
     }
 
     private var contextDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "house.and.flag",
             rows: [
-                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
-                DashboardEntityDetailRow(title: "Service", value: "select.select_option")
+                EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+                EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
+                EntityMetadataRow(title: "Service", value: "select.select_option")
             ]
         )
     }

@@ -1,15 +1,13 @@
 import SwiftUI
 
-struct EntityDetailView: View {
+struct EntityDiagnosticsView: View {
     @Environment(HAStateStore.self) private var stateStore
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .navigationStack
+    var presentationStyle: EntityDetailPresentationStyle = .navigationStack
 
     var body: some View {
         let entity = entityBox.homeEntity
-        // Devices is the power-user inventory; this detail screen intentionally exposes raw
-        // Home Assistant diagnostics while cards stay behind mapped domain models.
         let rawEntity = stateStore.rawEntity(for: entity.entityID)
         let registry = stateStore.entityRegistryMetadata(for: entity.entityID)
         let device = stateStore.deviceRegistryMetadata(forEntityID: entity.entityID)
@@ -79,7 +77,7 @@ struct EntityDetailView: View {
                 }
             }
         }
-        .dashboardDetailPresentation(title: entity.displayName, style: presentationStyle)
+        .entityDetailPresentation(title: "Diagnostics", style: presentationStyle)
     }
 
     private func displayState(for entityBox: HAEntityState) -> String {
@@ -253,7 +251,7 @@ private extension String {
 
 #if DEBUG
 #Preview {
-    EntityDetailView(
+    EntityDiagnosticsView(
         entityBox: HAEntityState(
             homeEntity: HomeEntity(
                 entityID: "sensor.hallway_temperature",

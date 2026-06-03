@@ -5,7 +5,7 @@ struct LockDetailView: View {
     @State private var isShowingUnlockConfirmation = false
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -16,7 +16,7 @@ struct LockDetailView: View {
     }
 
     var body: some View {
-        DashboardEntityDetailScaffold(title: "Lock", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: "Lock", presentationStyle: presentationStyle) {
             header
             actionPanel
             contextDetails
@@ -37,7 +37,7 @@ struct LockDetailView: View {
     }
 
     private var header: some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
             subtitle: statusSummary,
@@ -50,8 +50,8 @@ struct LockDetailView: View {
     }
 
     private var actionPanel: some View {
-        DashboardControlPanel(title: "Control", systemImage: actionSystemImage) {
-            DashboardDetailActionButton(
+        EntityControlPanel(title: "Control", systemImage: actionSystemImage) {
+            EntityDetailActionButton(
                 title: actionTitle,
                 systemImage: actionSystemImage,
                 style: entity.state == "locked" ? .secondary : .primary,
@@ -67,13 +67,14 @@ struct LockDetailView: View {
     }
 
     private var contextDetails: some View {
-        DashboardEntityMetadataDisclosure(
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
             title: "Home Assistant",
             systemImage: "lock.fill",
             rows: [
-                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
-                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
-                DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText)
+                EntityMetadataRow(title: "Entity ID", value: entity.entityID),
+                EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
+                EntityMetadataRow(title: "State", value: entity.state.displayStateText)
             ]
         )
     }

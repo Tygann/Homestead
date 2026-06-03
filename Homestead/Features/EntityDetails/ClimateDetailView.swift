@@ -9,12 +9,12 @@ struct ClimateDetailView: View {
     @State private var isEditingTemperatureRange = false
 
     let entityBox: HAEntityState
-    var presentationStyle: DashboardDetailPresentationStyle = .sheet
+    var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     @ViewBuilder
     var body: some View {
         if let climate = entityBox.climateEntity {
-            DashboardEntityDetailScaffold(title: "Climate", presentationStyle: presentationStyle) {
+            EntityDetailScaffold(title: "Climate", presentationStyle: presentationStyle) {
                 header(climate)
 
                 if climate.currentTemperatureText != nil {
@@ -37,6 +37,8 @@ struct ClimateDetailView: View {
                 if showsSecondaryOptions(climate) {
                     secondaryOptionControls(climate)
                 }
+
+                contextDetails
             }
             .onAppear {
                 syncTargetTemperature(with: climate)
@@ -55,7 +57,7 @@ struct ClimateDetailView: View {
                 syncTargetTemperatureRange(with: climate)
             }
         } else {
-            DashboardUnavailableDetailView(
+            EntityUnavailableDetailView(
                 title: "Climate",
                 systemImage: "thermometer.medium",
                 presentationStyle: presentationStyle
@@ -64,7 +66,7 @@ struct ClimateDetailView: View {
     }
 
     private func header(_ climate: ClimateEntity) -> some View {
-        DashboardEntityDetailHeader(
+        EntityDetailHeader(
             iconName: entityBox.homeEntity.iconName,
             title: climate.displayName,
             subtitle: climate.displaySubtitle,
@@ -81,7 +83,7 @@ struct ClimateDetailView: View {
             title: "Current",
             systemImage: "thermometer.medium",
             rows: [
-                DashboardEntityDetailRow(title: "Temperature", value: climate.currentTemperatureText ?? "-")
+                EntityMetadataRow(title: "Temperature", value: climate.currentTemperatureText ?? "-")
             ]
         )
     }
@@ -100,7 +102,7 @@ struct ClimateDetailView: View {
             }
 
             HStack(spacing: AppSpacing.medium) {
-                DashboardDetailIconButton(
+                EntityDetailIconButton(
                     systemImage: "minus",
                     accessibilityLabel: "Decrease temperature",
                     isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || targetTemperature <= climate.resolvedMinimumTemperature
@@ -108,7 +110,7 @@ struct ClimateDetailView: View {
                     adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
                 }
 
-                DashboardDetailLevelSlider(
+                EntityDetailLevelSlider(
                     value: $targetTemperature,
                     range: climate.resolvedMinimumTemperature...climate.resolvedMaximumTemperature,
                     step: climate.resolvedTemperatureStep,
@@ -123,7 +125,7 @@ struct ClimateDetailView: View {
                     }
                 )
 
-                DashboardDetailIconButton(
+                EntityDetailIconButton(
                     systemImage: "plus",
                     accessibilityLabel: "Increase temperature",
                     isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || targetTemperature >= climate.resolvedMaximumTemperature
@@ -211,14 +213,14 @@ struct ClimateDetailView: View {
             }
 
             HStack(spacing: AppSpacing.medium) {
-                DashboardDetailIconButton(
+                EntityDetailIconButton(
                     systemImage: "minus",
                     accessibilityLabel: "Decrease \(title.lowercased())",
                     isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || value.wrappedValue <= range.lowerBound,
                     action: decreaseAction
                 )
 
-                DashboardDetailLevelSlider(
+                EntityDetailLevelSlider(
                     value: value,
                     range: range,
                     step: climate.resolvedTemperatureStep,
@@ -233,7 +235,7 @@ struct ClimateDetailView: View {
                     }
                 )
 
-                DashboardDetailIconButton(
+                EntityDetailIconButton(
                     systemImage: "plus",
                     accessibilityLabel: "Increase \(title.lowercased())",
                     isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || value.wrappedValue >= range.upperBound,
@@ -250,7 +252,7 @@ struct ClimateDetailView: View {
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
                 ForEach(climate.hvacModes, id: \.self) { mode in
-                    DashboardDetailPillButton(
+                    EntityDetailPillButton(
                         title: climate.displayName(forHVACMode: mode),
                         systemImage: climate.iconName(forHVACMode: mode),
                         isSelected: mode == climate.state,
@@ -271,10 +273,10 @@ struct ClimateDetailView: View {
     }
 
     private func secondaryOptionControls(_ climate: ClimateEntity) -> some View {
-        DashboardControlPanel(title: "Options", systemImage: "slider.horizontal.3") {
+        EntityControlPanel(title: "Options", systemImage: "slider.horizontal.3") {
             VStack(spacing: AppSpacing.small) {
                 if showsFanModeOptions(climate) {
-                    DashboardDetailMenuRow(
+                    EntityDetailMenuRow(
                         title: "Fan",
                         systemImage: "fan.fill",
                         value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
@@ -300,7 +302,7 @@ struct ClimateDetailView: View {
                 }
 
                 if showsPresetModeOptions(climate) {
-                    DashboardDetailMenuRow(
+                    EntityDetailMenuRow(
                         title: "Preset",
                         systemImage: "leaf",
                         value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
@@ -326,6 +328,19 @@ struct ClimateDetailView: View {
                 }
             }
         }
+    }
+
+    private var contextDetails: some View {
+        EntityMetadataDisclosure(
+            entityBox: entityBox,
+            title: "Home Assistant",
+            systemImage: "thermometer.medium",
+            rows: [
+                EntityMetadataRow(title: "Entity ID", value: entityBox.entityID),
+                EntityMetadataRow(title: "Domain", value: entityBox.domain.displayName),
+                EntityMetadataRow(title: "State", value: entityBox.homeEntity.state.displayStateText)
+            ]
+        )
     }
 
     private func showsSecondaryOptions(_ climate: ClimateEntity) -> Bool {
