@@ -6,14 +6,22 @@ struct CardContainer<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
+        let cardShape = RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+
         content
             .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
             .padding(AppSpacing.medium)
-            .background(cardBackground, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-            .shadow(color: .black.opacity(isActive ? 0.08 : 0.035), radius: isActive ? 8 : 4, y: isActive ? 4 : 2)
+            .background(cardBackground, in: cardShape)
+            .overlay {
+                cardShape.strokeBorder(cardBorder, lineWidth: 0.5)
+            }
     }
 
     private var cardBackground: some ShapeStyle {
         isActive ? AnyShapeStyle(Color.accentColor.opacity(0.18)) : AnyShapeStyle(Color(.secondarySystemGroupedBackground))
+    }
+
+    private var cardBorder: Color {
+        isActive ? Color.accentColor.opacity(0.18) : Color(.separator).opacity(0.16)
     }
 }

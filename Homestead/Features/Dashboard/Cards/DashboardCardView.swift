@@ -327,7 +327,9 @@ struct DashboardEntityDetailSheet: View {
     var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
     var body: some View {
-        switch DashboardEntityPresentation(entityBox: entityBox).detailKind {
+        let detailKind = DashboardEntityPresentation(entityBox: entityBox).detailKind
+
+        switch detailKind {
         case .light:
             LightDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .cover:
@@ -382,7 +384,9 @@ private struct DashboardEntityCard: View {
     }
 
     private var fullBleedCameraCard: some View {
-        Group {
+        let cardShape = RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+
+        return Group {
             if let showDetails {
                 Button(action: showDetails) {
                     cameraPreviewContent
@@ -398,10 +402,12 @@ private struct DashboardEntityCard: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: renderedCardHeight)
-        .background(cameraCardBackground, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .background(cameraCardBackground, in: cardShape)
+        .clipShape(cardShape)
+        .overlay {
+            cardShape.strokeBorder(cameraCardBorder, lineWidth: 0.5)
+        }
         .clipped()
-        .shadow(color: .black.opacity(presentation.isActive ? 0.08 : 0.035), radius: presentation.isActive ? 8 : 4, y: presentation.isActive ? 4 : 2)
     }
 
     private func standardCard(visibleFeatures visibleFeatureSnapshot: [DashboardCardFeature]) -> some View {
@@ -719,6 +725,10 @@ private struct DashboardEntityCard: View {
     private var cameraCardBackground: Color {
         presentation.isActive ? Color.accentColor.opacity(0.18) : Color(.secondarySystemGroupedBackground)
     }
+
+    private var cameraCardBorder: Color {
+        presentation.isActive ? Color.accentColor.opacity(0.22) : Color(.separator).opacity(0.18)
+    }
     
     private var cardContentMinHeight: CGFloat {
         max(0, cardContainerMinHeight - (AppSpacing.medium * 2))
@@ -785,10 +795,7 @@ private struct CameraCardPreview: View {
 
                 if shouldShowTextOverlay {
                     ZStack(alignment: .leading) {
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-                            .opacity(0.52)
-                            .background(Color.black.opacity(0.18))
+                        Color.black.opacity(0.42)
 
                         Text(title)
                             .font(.headline)

@@ -17,8 +17,8 @@ struct DashboardSummaryView: View {
         self.iconNameOverride = iconNameOverride
     }
 
-    private var detail: DashboardSummaryDetailPresentation? {
-        DashboardSummaryProvider.makeDetail(
+    var body: some View {
+        let detail = DashboardSummaryProvider.makeDetail(
             kind: kind,
             entityBoxes: stateStore.allEntityBoxes(),
             titleOverride: titleOverride,
@@ -28,9 +28,7 @@ struct DashboardSummaryView: View {
             diagnosticEntityIDs: stateStore.diagnosticEntityIDs(),
             areaNameForEntityID: stateStore.areaName(for:)
         )
-    }
 
-    var body: some View {
         Group {
             if let detail {
                 ScrollView {

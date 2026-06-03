@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-02
 
+### Dashboard Rendering Performance
+
+- Profiled dashboard scrolling and navigation on a physical iPhone with Instruments Animation Hitches; the bad frames were render/GPU-bound with high offscreen-pass counts rather than state recomputation.
+- Replaced repeated card drop shadows and camera-preview material overlays with lightweight strokes and flat overlays, preserving the native grouped-card look while eliminating the observed hitch rows in a follow-up trace.
+- Kept matched zoom navigation transitions enabled after confirming they were not the primary source of the dashboard sluggishness.
+
 ### Architecture Cleanup
 
 - Removed pre-release dashboard compatibility scaffolding for old card-size migrations, summary aliases, and entity display-name migrations; current dashboard persistence now stores only the active schema.
