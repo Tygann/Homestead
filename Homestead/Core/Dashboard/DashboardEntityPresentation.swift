@@ -69,6 +69,10 @@ enum DashboardEntityDetailKind: String, Equatable, Sendable {
     case mediaPlayer
     case camera
     case vacuum
+    case alarmControlPanel
+    case button
+    case select
+    case number
     case entity
 }
 
@@ -294,11 +298,35 @@ enum DashboardEntityDomainRegistry {
                 statusFormatter: .onOff(unavailableTitle: "Remote unavailable")
             )
         case .button:
-            displayOnlyStatusCapability(domain: domain)
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .status,
+                primaryAction: nil,
+                detailKind: .button,
+                statusFormatter: .rawState,
+                iconAccentBehavior: .defaultAccent,
+                secondaryActions: []
+            )
         case .select:
-            displayOnlyValueCapability(domain: domain)
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .value,
+                primaryAction: nil,
+                detailKind: .select,
+                statusFormatter: .rawState,
+                iconAccentBehavior: .defaultAccent,
+                secondaryActions: []
+            )
         case .number:
-            displayOnlyValueCapability(domain: domain)
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .value,
+                primaryAction: nil,
+                detailKind: .number,
+                statusFormatter: .rawState,
+                iconAccentBehavior: .defaultAccent,
+                secondaryActions: []
+            )
         case .text:
             displayOnlyValueCapability(domain: domain)
         case .date:
@@ -314,7 +342,15 @@ enum DashboardEntityDomainRegistry {
         case .update:
             displayOnlyStatusCapability(domain: domain)
         case .alarmControlPanel:
-            displayOnlyStatusCapability(domain: domain)
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .status,
+                primaryAction: nil,
+                detailKind: .alarmControlPanel,
+                statusFormatter: .rawState,
+                iconAccentBehavior: .defaultAccent,
+                secondaryActions: []
+            )
         case .humidifier:
             displayOnlyStatusCapability(domain: domain)
         case .waterHeater:

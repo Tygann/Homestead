@@ -10,75 +10,62 @@ struct LightDetailView: View {
 
     private let brightnessPresets = [25.0, 50.0, 75.0, 100.0]
 
+    @ViewBuilder
     var body: some View {
-        Group {
-            if let light = entityBox.lightEntity {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                        lightStatusCard(light)
-                        powerControls(light)
-                        brightnessControls(light)
-                    }
-                    .padding(AppSpacing.large)
+        if let light = entityBox.lightEntity {
+            DashboardEntityDetailScaffold(title: "Light", presentationStyle: presentationStyle) {
+                header(light)
+                powerControls(light)
+
+                if light.supportsBrightness,
+                   homeAssistantService.serviceActionAvailable(domain: "light", service: "turn_on") {
+                    brightnessControls(light)
                 }
-                .background(Color(.systemGroupedBackground))
-                .onAppear {
-                    syncBrightness(with: light)
-                }
-                .onChange(of: light.brightness) { _, _ in
-                    guard !isEditingBrightness else { return }
-                    syncBrightness(with: light)
-                }
-                .onChange(of: light.isOn) { _, _ in
-                    guard !isEditingBrightness else { return }
-                    syncBrightness(with: light)
-                }
-            } else {
-                ContentUnavailableView("Light Unavailable", systemImage: "lightbulb.slash")
             }
+            .onAppear {
+                syncBrightness(with: light)
+            }
+            .onChange(of: light.brightness) { _, _ in
+                guard !isEditingBrightness else { return }
+                syncBrightness(with: light)
+            }
+            .onChange(of: light.isOn) { _, _ in
+                guard !isEditingBrightness else { return }
+                syncBrightness(with: light)
+            }
+        } else {
+            DashboardUnavailableDetailView(
+                title: "Light",
+                systemImage: "lightbulb.slash",
+                presentationStyle: presentationStyle
+            )
         }
-        .dashboardDetailPresentation(title: "Light", style: presentationStyle)
     }
 
-    private func lightStatusCard(_ light: LightEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: light.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(light.isOn ? Color.accentColor : Color.secondary)
-                    .frame(width: 64, height: 64)
-                    .background(light.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                Spacer()
-
-                Text(light.isOn ? "On" : "Off")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(light.isOn ? Color.accentColor : Color.secondary)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(light.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground), in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(light.displayName)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(lightStatusText(light))
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    private func header(_ light: LightEntity) -> some View {
+        DashboardEntityDetailHeader(
+            iconName: light.iconName,
+            title: light.displayName,
+            subtitle: lightStatusText(light),
+            badge: lightBadgeText(light),
+            iconColor: lightIconColor(light),
+            badgeColor: lightBadgeColor(light),
+            iconBackground: lightIconBackground(light),
+            badgeBackground: lightBadgeBackground(light)
+        )
     }
 
     private func powerControls(_ light: LightEntity) -> some View {
         let isPending = entityBox.pendingCommand != nil
+        let service = light.isOn ? "turn_off" : "turn_on"
 
-        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Button {
+        return DashboardControlPanel(title: "Control", systemImage: "power") {
+            DashboardDetailActionButton(
+                title: isPending ? "Updating..." : (light.isOn ? "Turn Off" : "Turn On"),
+                systemImage: "power",
+                style: light.isOn ? .secondary : .primary,
+                isDisabled: isPending || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "light", service: service)
+            ) {
                 Task {
                     if light.isOn {
                         await homeAssistantService.turnOffLight(entityID: entityBox.entityID)
@@ -86,19 +73,8 @@ struct LightDetailView: View {
                         await homeAssistantService.turnOnLight(entityID: entityBox.entityID)
                     }
                 }
-            } label: {
-                Label(
-                    isPending ? "Updating..." : (light.isOn ? "Turn Off" : "Turn On"),
-                    systemImage: "power"
-                )
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(isPending)
         }
-        .controlSize(.large)
     }
 
     private func brightnessControls(_ light: LightEntity) -> some View {
@@ -114,41 +90,30 @@ struct LightDetailView: View {
                     .foregroundStyle(light.isOn ? Color.accentColor : Color.secondary)
             }
 
-            Slider(
+            DashboardDetailLevelSlider(
                 value: $brightnessPercentage,
-                in: 1...100,
+                range: 1...100,
                 step: 1,
+                isDisabled: entityBox.pendingCommand != nil || !entityBox.homeEntity.isAvailable,
+                accessibilityLabel: "Brightness",
+                accessibilityValue: "\(Int(brightnessPercentage)) percent",
                 onEditingChanged: { editing in
                     isEditingBrightness = editing
-                    guard !editing else { return }
-
-                    Task {
-                        await homeAssistantService.setLightBrightness(
-                            entityID: entityBox.entityID,
-                            brightnessPercentage: brightnessPercentage
-                        )
-                    }
+                },
+                onCommit: { value in
+                    setBrightness(value)
                 }
             )
-            .disabled(entityBox.pendingCommand != nil)
-            .accessibilityLabel("Brightness")
-            .accessibilityValue("\(Int(brightnessPercentage)) percent")
 
             HStack(spacing: AppSpacing.small) {
                 ForEach(brightnessPresets, id: \.self) { preset in
-                    Button {
+                    DashboardDetailPillButton(
+                        title: "\(Int(preset))%",
+                        isSelected: isSelectedPreset(preset),
+                        isDisabled: entityBox.pendingCommand != nil || !entityBox.homeEntity.isAvailable
+                    ) {
                         setBrightness(preset)
-                    } label: {
-                        Text("\(Int(preset))%")
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 38)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(isSelectedPreset(preset) ? Color.white : Color.primary)
-                    .background(presetBackground(for: preset), in: Capsule())
-                    .disabled(entityBox.pendingCommand != nil)
                     .accessibilityLabel("Set brightness to \(Int(preset)) percent")
                 }
             }
@@ -168,6 +133,31 @@ struct LightDetailView: View {
         return "\(brightnessPercentage)% brightness"
     }
 
+    private func lightBadgeText(_ light: LightEntity) -> String {
+        guard entityBox.homeEntity.isAvailable else { return "Unavailable" }
+        return light.isOn ? "On" : "Off"
+    }
+
+    private func lightIconColor(_ light: LightEntity) -> Color {
+        guard entityBox.homeEntity.isAvailable else { return .secondary }
+        return light.isOn ? Color.accentColor : Color.secondary
+    }
+
+    private func lightBadgeColor(_ light: LightEntity) -> Color {
+        guard entityBox.homeEntity.isAvailable else { return .red }
+        return light.isOn ? Color.accentColor : Color.secondary
+    }
+
+    private func lightIconBackground(_ light: LightEntity) -> Color {
+        guard entityBox.homeEntity.isAvailable else { return Color(.tertiarySystemGroupedBackground) }
+        return light.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+    }
+
+    private func lightBadgeBackground(_ light: LightEntity) -> Color {
+        guard entityBox.homeEntity.isAvailable else { return Color.red.opacity(0.12) }
+        return light.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+    }
+
     private func setBrightness(_ preset: Double) {
         brightnessPercentage = preset
 
@@ -181,10 +171,6 @@ struct LightDetailView: View {
 
     private func isSelectedPreset(_ preset: Double) -> Bool {
         abs(brightnessPercentage - preset) < 0.5
-    }
-
-    private func presetBackground(for preset: Double) -> Color {
-        isSelectedPreset(preset) ? Color.accentColor : Color(.tertiarySystemGroupedBackground)
     }
 
     private func syncBrightness(with light: LightEntity) {

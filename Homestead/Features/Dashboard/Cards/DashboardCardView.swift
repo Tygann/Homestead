@@ -292,6 +292,14 @@ struct DashboardCardView: View {
             .camera
         case .vacuum:
             .vacuum
+        case .alarmControlPanel:
+            .alarmControlPanel
+        case .button:
+            .button
+        case .select:
+            .select
+        case .number:
+            .number
         case .entity:
             .entity
         }
@@ -311,6 +319,10 @@ private struct DashboardCardDetail: Identifiable {
         case mediaPlayer
         case camera
         case vacuum
+        case alarmControlPanel
+        case button
+        case select
+        case number
         case entity
     }
 
@@ -352,6 +364,14 @@ struct DashboardEntityDetailSheet: View {
             CameraDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .vacuum:
             VacuumDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+        case .alarmControlPanel:
+            AlarmControlPanelDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+        case .button:
+            ButtonDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+        case .select:
+            SelectDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+        case .number:
+            NumberDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .entity:
             EntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         }

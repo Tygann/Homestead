@@ -15,60 +15,47 @@ struct ActionEntityDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                statusCard
-                runButton
-                stateDetails
-            }
-            .padding(AppSpacing.large)
+        DashboardEntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
+            header
+            actionPanel
+            stateDetails
         }
-        .background(Color(.systemGroupedBackground))
-        .dashboardDetailPresentation(title: navigationTitle, style: presentationStyle)
     }
 
-    private var statusCard: some View {
-        DashboardEntityStatusCard(
+    private var header: some View {
+        DashboardEntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
+            subtitle: statusSummary,
             badge: presentation.subtitle,
-            summary: statusSummary,
             iconColor: iconColor,
             badgeColor: presentation.isAvailable ? iconColor : .red,
             badgeBackground: badgeBackground
         )
     }
 
-    private var runButton: some View {
-        DashboardPrimaryActionButton(
-            title: actionTitle,
-            systemImage: actionSystemImage,
-            isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
-        ) {
-            Task { await performAction() }
+    private var actionPanel: some View {
+        DashboardControlPanel(title: "Action", systemImage: actionSystemImage) {
+            DashboardDetailActionButton(
+                title: actionTitle,
+                systemImage: actionSystemImage,
+                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+            ) {
+                Task { await performAction() }
+            }
         }
     }
 
     private var stateDetails: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Home Assistant Action", systemImage: "bolt.horizontal")
-                .font(.headline)
-
-            HStack {
-                Text(actionServiceName)
-                    .font(.body.weight(.medium))
-
-                Spacer()
-
-                Text(entity.entityID)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        DashboardEntityMetadataDisclosure(
+            title: "Home Assistant",
+            systemImage: "bolt.horizontal",
+            rows: [
+                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
+                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
+                DashboardEntityDetailRow(title: "Service", value: actionServiceName)
+            ]
+        )
     }
 
     private var navigationTitle: String {

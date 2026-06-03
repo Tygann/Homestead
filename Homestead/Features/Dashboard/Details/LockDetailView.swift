@@ -16,16 +16,11 @@ struct LockDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                statusCard
-                actionButton
-                contextDetails
-            }
-            .padding(AppSpacing.large)
+        DashboardEntityDetailScaffold(title: "Lock", presentationStyle: presentationStyle) {
+            header
+            actionPanel
+            contextDetails
         }
-        .background(Color(.systemGroupedBackground))
-        .dashboardDetailPresentation(title: "Lock", style: presentationStyle)
         .confirmationDialog(
             "Unlock \(presentation.title)?",
             isPresented: $isShowingUnlockConfirmation,
@@ -41,12 +36,12 @@ struct LockDetailView: View {
         }
     }
 
-    private var statusCard: some View {
-        DashboardEntityStatusCard(
+    private var header: some View {
+        DashboardEntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
+            subtitle: statusSummary,
             badge: presentation.subtitle,
-            summary: statusSummary,
             iconColor: iconColor,
             badgeColor: statusColor,
             iconBackground: iconBackground,
@@ -54,22 +49,25 @@ struct LockDetailView: View {
         )
     }
 
-    private var actionButton: some View {
-        DashboardPrimaryActionButton(
-            title: actionTitle,
-            systemImage: actionSystemImage,
-            isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
-        ) {
-            if entity.state == "locked" {
-                isShowingUnlockConfirmation = true
-            } else {
-                Task { await homeAssistantService.toggleLock(entityID: entity.entityID) }
+    private var actionPanel: some View {
+        DashboardControlPanel(title: "Control", systemImage: actionSystemImage) {
+            DashboardDetailActionButton(
+                title: actionTitle,
+                systemImage: actionSystemImage,
+                style: entity.state == "locked" ? .secondary : .primary,
+                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+            ) {
+                if entity.state == "locked" {
+                    isShowingUnlockConfirmation = true
+                } else {
+                    Task { await homeAssistantService.toggleLock(entityID: entity.entityID) }
+                }
             }
         }
     }
 
     private var contextDetails: some View {
-        DashboardEntityContextPanel(
+        DashboardEntityMetadataDisclosure(
             title: "Home Assistant",
             systemImage: "lock.fill",
             rows: [

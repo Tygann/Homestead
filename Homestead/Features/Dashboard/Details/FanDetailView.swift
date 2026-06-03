@@ -8,94 +8,65 @@ struct FanDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
+    @ViewBuilder
     var body: some View {
-        Group {
-            if let fan = entityBox.fanEntity {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                        statusCard(fan)
-                        powerControls(fan)
+        if let fan = entityBox.fanEntity {
+            DashboardEntityDetailScaffold(title: "Fan", presentationStyle: presentationStyle) {
+                header(fan)
+                powerControls(fan)
 
-                        if fan.percentage != nil,
-                           homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_percentage") {
-                            percentageControls(fan)
-                        }
+                if fan.percentage != nil,
+                   homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_percentage") {
+                    percentageControls(fan)
+                }
 
-                        if !fan.presetModes.isEmpty,
-                           homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_preset_mode") {
-                            presetControls(fan)
-                        }
-                    }
-                    .padding(AppSpacing.large)
+                if !fan.presetModes.isEmpty,
+                   homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_preset_mode") {
+                    presetControls(fan)
                 }
-                .background(Color(.systemGroupedBackground))
-                .onAppear {
-                    syncPercentage(with: fan)
-                }
-                .onChange(of: fan.percentage) { _, _ in
-                    guard !isEditingPercentage else { return }
-                    syncPercentage(with: fan)
-                }
-            } else {
-                ContentUnavailableView("Fan Unavailable", systemImage: "fan.fill")
             }
+            .onAppear {
+                syncPercentage(with: fan)
+            }
+            .onChange(of: fan.percentage) { _, _ in
+                guard !isEditingPercentage else { return }
+                syncPercentage(with: fan)
+            }
+        } else {
+            DashboardUnavailableDetailView(
+                title: "Fan",
+                systemImage: "fan.fill",
+                presentationStyle: presentationStyle
+            )
         }
-        .dashboardDetailPresentation(title: "Fan", style: presentationStyle)
     }
 
-    private func statusCard(_ fan: FanEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: entityBox.homeEntity.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(fan.isOn ? Color.accentColor : Color.secondary)
-                    .frame(width: 64, height: 64)
-                    .background(fan.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                Spacer()
-
-                Text(fan.displaySubtitle)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(fan.isOn ? Color.accentColor : Color.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(fan.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground), in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(fan.displayName)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(statusSummary(fan))
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    private func header(_ fan: FanEntity) -> some View {
+        DashboardEntityDetailHeader(
+            iconName: entityBox.homeEntity.iconName,
+            title: fan.displayName,
+            subtitle: statusSummary(fan),
+            badge: fan.displaySubtitle,
+            iconColor: fan.isOn ? Color.accentColor : Color.secondary,
+            badgeColor: fan.isAvailable ? (fan.isOn ? Color.accentColor : Color.secondary) : .red,
+            iconBackground: fan.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
+            badgeBackground: fan.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+        )
     }
 
     private func powerControls(_ fan: FanEntity) -> some View {
         let isPending = entityBox.pendingCommand != nil
 
-        return Button {
-            Task { await homeAssistantService.toggleFan(entityID: entityBox.entityID) }
-        } label: {
-            Label(
-                isPending ? "Updating..." : (fan.isOn ? "Turn Off" : "Turn On"),
-                systemImage: "power"
-            )
-            .font(.headline)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
+        return DashboardControlPanel(title: "Control", systemImage: "power") {
+            DashboardDetailActionButton(
+                title: isPending ? "Updating..." : (fan.isOn ? "Turn Off" : "Turn On"),
+                systemImage: "power",
+                style: fan.isOn ? .secondary : .primary,
+                isDisabled: isPending || !fan.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "fan", service: fan.isOn ? "turn_off" : "turn_on")
+            ) {
+                Task { await homeAssistantService.toggleFan(entityID: entityBox.entityID) }
+            }
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(isPending || !fan.isAvailable)
     }
 
     private func percentageControls(_ fan: FanEntity) -> some View {
@@ -111,19 +82,20 @@ struct FanDetailView: View {
                     .foregroundStyle(fan.isOn ? Color.accentColor : Color.secondary)
             }
 
-            Slider(
+            DashboardDetailLevelSlider(
                 value: $percentage,
-                in: 0...100,
+                range: 0...100,
                 step: fan.resolvedPercentageStep,
+                isDisabled: entityBox.pendingCommand != nil || !fan.isAvailable,
+                accessibilityLabel: "Fan speed",
+                accessibilityValue: "\(Int(percentage)) percent",
                 onEditingChanged: { editing in
                     isEditingPercentage = editing
-                    guard !editing else { return }
-                    setPercentage()
+                },
+                onCommit: { value in
+                    setPercentage(value)
                 }
             )
-            .disabled(entityBox.pendingCommand != nil || !fan.isAvailable)
-            .accessibilityLabel("Fan speed")
-            .accessibilityValue("\(Int(percentage)) percent")
 
             Text(percentage == 0 ? "Setting speed to 0% may turn this fan off." : "Speed changes are confirmed from Home Assistant live state.")
                 .font(.footnote)
@@ -140,23 +112,18 @@ struct FanDetailView: View {
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
                 ForEach(fan.presetModes, id: \.self) { presetMode in
-                    Button {
+                    DashboardDetailPillButton(
+                        title: fan.displayName(forPresetMode: presetMode),
+                        isSelected: presetMode == fan.presetMode,
+                        isDisabled: entityBox.pendingCommand != nil || presetMode == fan.presetMode || !fan.isAvailable
+                    ) {
                         Task {
                             await homeAssistantService.setFanPresetMode(
                                 entityID: fan.entityID,
                                 presetMode: presetMode
                             )
                         }
-                    } label: {
-                        Text(fan.displayName(forPresetMode: presetMode))
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 42)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(presetMode == fan.presetMode ? Color.white : Color.primary)
-                    .background(presetMode == fan.presetMode ? Color.accentColor : Color(.tertiarySystemGroupedBackground), in: Capsule())
-                    .disabled(entityBox.pendingCommand != nil || presetMode == fan.presetMode || !fan.isAvailable)
                 }
             }
         }
@@ -170,7 +137,11 @@ struct FanDetailView: View {
         return fan.percentage.map { "Running at \($0)%" } ?? "Currently active"
     }
 
-    private func setPercentage() {
+    private func setPercentage(_ updatedPercentage: Double? = nil) {
+        if let updatedPercentage {
+            percentage = updatedPercentage
+        }
+
         Task {
             await homeAssistantService.setFanPercentage(
                 entityID: entityBox.entityID,

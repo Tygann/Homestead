@@ -8,110 +8,79 @@ struct CoverDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
+    @ViewBuilder
     var body: some View {
-        Group {
-            if let cover = entityBox.coverEntity {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                        coverStatusCard(cover)
-                        movementControls(cover)
+        if let cover = entityBox.coverEntity {
+            DashboardEntityDetailScaffold(title: "Cover", presentationStyle: presentationStyle) {
+                header(cover)
+                movementControls(cover)
 
-                        if cover.positionPercentage != nil,
-                           homeAssistantService.serviceActionAvailable(domain: "cover", service: "set_cover_position") {
-                            positionControls(cover)
-                        }
-                    }
-                    .padding(AppSpacing.large)
+                if cover.positionPercentage != nil,
+                   homeAssistantService.serviceActionAvailable(domain: "cover", service: "set_cover_position") {
+                    positionControls(cover)
                 }
-                .background(Color(.systemGroupedBackground))
-                .onAppear {
-                    syncPosition(with: cover)
-                }
-                .onChange(of: cover.position) { _, _ in
-                    guard !isEditingPosition else { return }
-                    syncPosition(with: cover)
-                }
-            } else {
-                ContentUnavailableView("Cover Unavailable", systemImage: "blinds.horizontal.closed")
             }
+            .onAppear {
+                syncPosition(with: cover)
+            }
+            .onChange(of: cover.position) { _, _ in
+                guard !isEditingPosition else { return }
+                syncPosition(with: cover)
+            }
+        } else {
+            DashboardUnavailableDetailView(
+                title: "Cover",
+                systemImage: "blinds.horizontal.closed",
+                presentationStyle: presentationStyle
+            )
         }
-        .dashboardDetailPresentation(title: "Cover", style: presentationStyle)
     }
 
-    private func coverStatusCard(_ cover: CoverEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: cover.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(cover.isOpen ? Color.accentColor : Color.secondary)
-                    .frame(width: 64, height: 64)
-                    .background(cover.isOpen ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                Spacer()
-
-                Text(statusBadgeText(for: cover))
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(cover.isOpen ? Color.accentColor : Color.secondary)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(cover.isOpen ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground), in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(cover.displayName)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(cover.displaySubtitle)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    private func header(_ cover: CoverEntity) -> some View {
+        DashboardEntityDetailHeader(
+            iconName: cover.iconName,
+            title: cover.displayName,
+            subtitle: cover.displaySubtitle,
+            badge: statusBadgeText(for: cover),
+            iconColor: coverIconColor(cover),
+            badgeColor: coverBadgeColor(cover),
+            iconBackground: coverStatusBackground(cover),
+            badgeBackground: coverStatusBackground(cover)
+        )
     }
 
     private func movementControls(_ cover: CoverEntity) -> some View {
         let isPending = entityBox.pendingCommand != nil
 
-        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
+        return DashboardControlPanel(title: "Control", systemImage: "arrow.up.and.down") {
             HStack(spacing: AppSpacing.small) {
-                Button {
+                DashboardDetailActionButton(
+                    title: "Open",
+                    systemImage: "arrow.up",
+                    isDisabled: isPending || cover.state == "open" || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover")
+                ) {
                     Task { await homeAssistantService.openCover(entityID: entityBox.entityID) }
-                } label: {
-                    Label("Open", systemImage: "arrow.up")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isPending || cover.state == "open" || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover"))
 
-                Button {
+                DashboardDetailActionButton(
+                    title: "Close",
+                    systemImage: "arrow.down",
+                    style: .secondary,
+                    isDisabled: isPending || cover.state == "closed" || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "close_cover")
+                ) {
                     Task { await homeAssistantService.closeCover(entityID: entityBox.entityID) }
-                } label: {
-                    Label("Close", systemImage: "arrow.down")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
                 }
-                .buttonStyle(.bordered)
-                .disabled(isPending || cover.state == "closed" || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "close_cover"))
             }
 
-            Button {
+            DashboardDetailActionButton(
+                title: "Stop",
+                systemImage: "stop.fill",
+                style: .secondary,
+                isDisabled: isPending || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "stop_cover")
+            ) {
                 Task { await homeAssistantService.stopCover(entityID: entityBox.entityID) }
-            } label: {
-                Label("Stop", systemImage: "stop.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 46)
             }
-            .buttonStyle(.bordered)
-            .disabled(isPending || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "stop_cover"))
         }
-        .controlSize(.large)
     }
 
     private func positionControls(_ cover: CoverEntity) -> some View {
@@ -127,25 +96,20 @@ struct CoverDetailView: View {
                     .foregroundStyle(cover.isOpen ? Color.accentColor : Color.secondary)
             }
 
-            Slider(
+            DashboardDetailLevelSlider(
                 value: $position,
-                in: 0...100,
+                range: 0...100,
                 step: 1,
+                isDisabled: entityBox.pendingCommand != nil || !entityBox.homeEntity.isAvailable,
+                accessibilityLabel: "Cover position",
+                accessibilityValue: "\(Int(position)) percent",
                 onEditingChanged: { editing in
                     isEditingPosition = editing
-                    guard !editing else { return }
-
-                    Task {
-                        await homeAssistantService.setCoverPosition(
-                            entityID: entityBox.entityID,
-                            position: position
-                        )
-                    }
+                },
+                onCommit: { value in
+                    setPosition(value)
                 }
             )
-            .disabled(entityBox.pendingCommand != nil)
-            .accessibilityLabel("Cover position")
-            .accessibilityValue("\(Int(position)) percent")
 
             Text("Position is reported by Home Assistant when this cover supports it.")
                 .font(.footnote)
@@ -161,6 +125,32 @@ struct CoverDetailView: View {
         }
 
         return cover.displayState
+    }
+
+    private func setPosition(_ updatedPosition: Double) {
+        position = updatedPosition
+
+        Task {
+            await homeAssistantService.setCoverPosition(
+                entityID: entityBox.entityID,
+                position: updatedPosition
+            )
+        }
+    }
+
+    private func coverIconColor(_ cover: CoverEntity) -> Color {
+        guard entityBox.homeEntity.isAvailable else { return .secondary }
+        return cover.isOpen ? Color.accentColor : Color.secondary
+    }
+
+    private func coverBadgeColor(_ cover: CoverEntity) -> Color {
+        guard entityBox.homeEntity.isAvailable else { return .red }
+        return cover.isOpen ? Color.accentColor : Color.secondary
+    }
+
+    private func coverStatusBackground(_ cover: CoverEntity) -> Color {
+        guard entityBox.homeEntity.isAvailable else { return Color.red.opacity(0.12) }
+        return cover.isOpen ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
 
     private func syncPosition(with cover: CoverEntity) {

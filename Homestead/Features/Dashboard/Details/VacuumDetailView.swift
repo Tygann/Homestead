@@ -15,24 +15,19 @@ struct VacuumDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                statusCard
-                vacuumControls
-                contextDetails
-            }
-            .padding(AppSpacing.large)
+        DashboardEntityDetailScaffold(title: "Vacuum", presentationStyle: presentationStyle) {
+            header
+            vacuumControls
+            contextDetails
         }
-        .background(Color(.systemGroupedBackground))
-        .dashboardDetailPresentation(title: "Vacuum", style: presentationStyle)
     }
 
-    private var statusCard: some View {
-        DashboardEntityStatusCard(
+    private var header: some View {
+        DashboardEntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
+            subtitle: statusSummary,
             badge: presentation.subtitle,
-            summary: statusSummary,
             iconColor: iconColor,
             badgeColor: statusColor,
             iconBackground: iconBackground,
@@ -43,47 +38,39 @@ struct VacuumDetailView: View {
     private var vacuumControls: some View {
         let isPending = entityBox.pendingCommand != nil
 
-        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
+        return DashboardControlPanel(title: "Control", systemImage: "washer.fill") {
             HStack(spacing: AppSpacing.small) {
-                Button {
+                DashboardDetailActionButton(
+                    title: "Start",
+                    systemImage: "play.fill",
+                    isDisabled: isPending || !entity.isAvailable || entity.state == "cleaning" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "start")
+                ) {
                     Task { await homeAssistantService.startVacuum(entityID: entity.entityID) }
-                } label: {
-                    Label("Start", systemImage: "play.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isPending || !entity.isAvailable || entity.state == "cleaning" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "start"))
 
-                Button {
+                DashboardDetailActionButton(
+                    title: "Stop",
+                    systemImage: "stop.fill",
+                    style: .secondary,
+                    isDisabled: isPending || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "stop")
+                ) {
                     Task { await homeAssistantService.stopVacuum(entityID: entity.entityID) }
-                } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
                 }
-                .buttonStyle(.bordered)
-                .disabled(isPending || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "stop"))
             }
 
-            Button {
+            DashboardDetailActionButton(
+                title: "Return to Base",
+                systemImage: "house.fill",
+                style: .secondary,
+                isDisabled: isPending || !entity.isAvailable || entity.state == "docked" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "return_to_base")
+            ) {
                 Task { await homeAssistantService.returnVacuumToBase(entityID: entity.entityID) }
-            } label: {
-                Label("Return to Base", systemImage: "house.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 46)
             }
-            .buttonStyle(.bordered)
-            .disabled(isPending || !entity.isAvailable || entity.state == "docked" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "return_to_base"))
         }
-        .controlSize(.large)
     }
 
     private var contextDetails: some View {
-        DashboardEntityContextPanel(
+        DashboardEntityMetadataDisclosure(
             title: "Home Assistant",
             systemImage: "washer.fill",
             rows: [

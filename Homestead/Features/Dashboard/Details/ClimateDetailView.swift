@@ -11,107 +11,79 @@ struct ClimateDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: DashboardDetailPresentationStyle = .sheet
 
+    @ViewBuilder
     var body: some View {
-        Group {
-            if let climate = entityBox.climateEntity {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                        climateStatusCard(climate)
+        if let climate = entityBox.climateEntity {
+            DashboardEntityDetailScaffold(title: "Climate", presentationStyle: presentationStyle) {
+                header(climate)
 
-                        if climate.usesTemperatureRange,
-                           homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
-                            temperatureRangeControls(climate)
-                        } else if climate.targetTemperature != nil,
-                                  homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
-                            temperatureControls(climate)
-                        }
+                if climate.currentTemperatureText != nil {
+                    currentTemperaturePanel(climate)
+                }
 
-                        if !climate.hvacModes.isEmpty,
-                           homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_hvac_mode") {
-                            modeControls(climate)
-                        }
+                if climate.usesTemperatureRange,
+                   homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
+                    temperatureRangeControls(climate)
+                } else if climate.targetTemperature != nil,
+                          homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
+                    temperatureControls(climate)
+                }
 
-                        if !climate.fanModes.isEmpty,
-                           homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_fan_mode") {
-                            fanModeControls(climate)
-                        }
+                if !climate.hvacModes.isEmpty,
+                   homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_hvac_mode") {
+                    modeControls(climate)
+                }
 
-                        if !climate.presetModes.isEmpty,
-                           homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_preset_mode") {
-                            presetModeControls(climate)
-                        }
-                    }
-                    .padding(AppSpacing.large)
+                if showsSecondaryOptions(climate) {
+                    secondaryOptionControls(climate)
                 }
-                .background(Color(.systemGroupedBackground))
-                .onAppear {
-                    syncTargetTemperature(with: climate)
-                    syncTargetTemperatureRange(with: climate)
-                }
-                .onChange(of: climate.targetTemperature) { _, _ in
-                    guard !isEditingTemperature else { return }
-                    syncTargetTemperature(with: climate)
-                }
-                .onChange(of: climate.targetTemperatureLow) { _, _ in
-                    guard !isEditingTemperatureRange else { return }
-                    syncTargetTemperatureRange(with: climate)
-                }
-                .onChange(of: climate.targetTemperatureHigh) { _, _ in
-                    guard !isEditingTemperatureRange else { return }
-                    syncTargetTemperatureRange(with: climate)
-                }
-            } else {
-                ContentUnavailableView("Climate Unavailable", systemImage: "thermometer.medium")
             }
+            .onAppear {
+                syncTargetTemperature(with: climate)
+                syncTargetTemperatureRange(with: climate)
+            }
+            .onChange(of: climate.targetTemperature) { _, _ in
+                guard !isEditingTemperature else { return }
+                syncTargetTemperature(with: climate)
+            }
+            .onChange(of: climate.targetTemperatureLow) { _, _ in
+                guard !isEditingTemperatureRange else { return }
+                syncTargetTemperatureRange(with: climate)
+            }
+            .onChange(of: climate.targetTemperatureHigh) { _, _ in
+                guard !isEditingTemperatureRange else { return }
+                syncTargetTemperatureRange(with: climate)
+            }
+        } else {
+            DashboardUnavailableDetailView(
+                title: "Climate",
+                systemImage: "thermometer.medium",
+                presentationStyle: presentationStyle
+            )
         }
-        .dashboardDetailPresentation(title: "Climate", style: presentationStyle)
     }
 
-    private func climateStatusCard(_ climate: ClimateEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: entityBox.homeEntity.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(climate.isActive ? Color.accentColor : Color.secondary)
-                    .frame(width: 64, height: 64)
-                    .background(climate.isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+    private func header(_ climate: ClimateEntity) -> some View {
+        DashboardEntityDetailHeader(
+            iconName: entityBox.homeEntity.iconName,
+            title: climate.displayName,
+            subtitle: climate.displaySubtitle,
+            badge: climate.displayState,
+            iconColor: climateIconColor(climate),
+            badgeColor: climateBadgeColor(climate),
+            iconBackground: climateStatusBackground(climate),
+            badgeBackground: climateStatusBackground(climate)
+        )
+    }
 
-                Spacer()
-
-                Text(climate.displayState)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(climate.isActive ? Color.accentColor : Color.secondary)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(climate.isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground), in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(climate.displayName)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(climate.displaySubtitle)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let currentTemperatureText = climate.currentTemperatureText {
-                HStack {
-                    Label("Current", systemImage: "thermometer.medium")
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Text(currentTemperatureText)
-                        .font(.headline.monospacedDigit())
-                }
-                .font(.subheadline.weight(.semibold))
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    private func currentTemperaturePanel(_ climate: ClimateEntity) -> some View {
+        DashboardEntityContextPanel(
+            title: "Current",
+            systemImage: "thermometer.medium",
+            rows: [
+                DashboardEntityDetailRow(title: "Temperature", value: climate.currentTemperatureText ?? "-")
+            ]
+        )
     }
 
     private func temperatureControls(_ climate: ClimateEntity) -> some View {
@@ -128,41 +100,36 @@ struct ClimateDetailView: View {
             }
 
             HStack(spacing: AppSpacing.medium) {
-                Button {
+                DashboardDetailIconButton(
+                    systemImage: "minus",
+                    accessibilityLabel: "Decrease temperature",
+                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || targetTemperature <= climate.resolvedMinimumTemperature
+                ) {
                     adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
-                } label: {
-                    Image(systemName: "minus")
-                        .font(.headline.weight(.bold))
-                        .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.bordered)
-                .disabled(entityBox.pendingCommand != nil || targetTemperature <= climate.resolvedMinimumTemperature)
-                .accessibilityLabel("Decrease temperature")
 
-                Slider(
+                DashboardDetailLevelSlider(
                     value: $targetTemperature,
-                    in: climate.resolvedMinimumTemperature...climate.resolvedMaximumTemperature,
+                    range: climate.resolvedMinimumTemperature...climate.resolvedMaximumTemperature,
                     step: climate.resolvedTemperatureStep,
+                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate),
+                    accessibilityLabel: "Target temperature",
+                    accessibilityValue: climate.formatTemperature(targetTemperature),
                     onEditingChanged: { editing in
                         isEditingTemperature = editing
-                        guard !editing else { return }
-                        setTargetTemperature()
+                    },
+                    onCommit: { value in
+                        setTargetTemperature(value)
                     }
                 )
-                .disabled(entityBox.pendingCommand != nil)
-                .accessibilityLabel("Target temperature")
-                .accessibilityValue(climate.formatTemperature(targetTemperature))
 
-                Button {
+                DashboardDetailIconButton(
+                    systemImage: "plus",
+                    accessibilityLabel: "Increase temperature",
+                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || targetTemperature >= climate.resolvedMaximumTemperature
+                ) {
                     adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate)
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.headline.weight(.bold))
-                        .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.bordered)
-                .disabled(entityBox.pendingCommand != nil || targetTemperature >= climate.resolvedMaximumTemperature)
-                .accessibilityLabel("Increase temperature")
             }
 
             Text("Temperature changes are sent to Home Assistant and confirmed from live state.")
@@ -244,37 +211,34 @@ struct ClimateDetailView: View {
             }
 
             HStack(spacing: AppSpacing.medium) {
-                Button(action: decreaseAction) {
-                    Image(systemName: "minus")
-                        .font(.headline.weight(.bold))
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.bordered)
-                .disabled(entityBox.pendingCommand != nil || value.wrappedValue <= range.lowerBound)
-                .accessibilityLabel("Decrease \(title.lowercased())")
+                DashboardDetailIconButton(
+                    systemImage: "minus",
+                    accessibilityLabel: "Decrease \(title.lowercased())",
+                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || value.wrappedValue <= range.lowerBound,
+                    action: decreaseAction
+                )
 
-                Slider(
+                DashboardDetailLevelSlider(
                     value: value,
-                    in: range,
+                    range: range,
                     step: climate.resolvedTemperatureStep,
+                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate),
+                    accessibilityLabel: title,
+                    accessibilityValue: climate.formatTemperature(value.wrappedValue),
                     onEditingChanged: { editing in
                         isEditingTemperatureRange = editing
-                        guard !editing else { return }
+                    },
+                    onCommit: { _ in
                         setTargetTemperatureRange()
                     }
                 )
-                .disabled(entityBox.pendingCommand != nil)
-                .accessibilityLabel(title)
-                .accessibilityValue(climate.formatTemperature(value.wrappedValue))
 
-                Button(action: increaseAction) {
-                    Image(systemName: "plus")
-                        .font(.headline.weight(.bold))
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.bordered)
-                .disabled(entityBox.pendingCommand != nil || value.wrappedValue >= range.upperBound)
-                .accessibilityLabel("Increase \(title.lowercased())")
+                DashboardDetailIconButton(
+                    systemImage: "plus",
+                    accessibilityLabel: "Increase \(title.lowercased())",
+                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || value.wrappedValue >= range.upperBound,
+                    action: increaseAction
+                )
             }
         }
     }
@@ -286,23 +250,19 @@ struct ClimateDetailView: View {
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
                 ForEach(climate.hvacModes, id: \.self) { mode in
-                    Button {
+                    DashboardDetailPillButton(
+                        title: climate.displayName(forHVACMode: mode),
+                        systemImage: climate.iconName(forHVACMode: mode),
+                        isSelected: mode == climate.state,
+                        isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || mode == climate.state
+                    ) {
                         Task {
                             await homeAssistantService.setClimateHVACMode(
                                 entityID: entityBox.entityID,
                                 hvacMode: mode
                             )
                         }
-                    } label: {
-                        Label(climate.displayName(forHVACMode: mode), systemImage: climate.iconName(forHVACMode: mode))
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 42)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(mode == climate.state ? Color.white : Color.primary)
-                    .background(modeBackground(for: mode, climate: climate), in: Capsule())
-                    .disabled(entityBox.pendingCommand != nil || mode == climate.state)
                 }
             }
         }
@@ -310,66 +270,74 @@ struct ClimateDetailView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
-    private func fanModeControls(_ climate: ClimateEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Fan", systemImage: "fan.fill")
-                .font(.headline)
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
-                ForEach(climate.fanModes, id: \.self) { fanMode in
-                    Button {
-                        Task {
-                            await homeAssistantService.setClimateFanMode(
-                                entityID: entityBox.entityID,
-                                fanMode: fanMode
-                            )
+    private func secondaryOptionControls(_ climate: ClimateEntity) -> some View {
+        DashboardControlPanel(title: "Options", systemImage: "slider.horizontal.3") {
+            VStack(spacing: AppSpacing.small) {
+                if showsFanModeOptions(climate) {
+                    DashboardDetailMenuRow(
+                        title: "Fan",
+                        systemImage: "fan.fill",
+                        value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
+                        isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate)
+                    ) {
+                        ForEach(climate.fanModes, id: \.self) { fanMode in
+                            Button {
+                                Task {
+                                    await homeAssistantService.setClimateFanMode(
+                                        entityID: entityBox.entityID,
+                                        fanMode: fanMode
+                                    )
+                                }
+                            } label: {
+                                Label(
+                                    climate.displayName(forFanMode: fanMode),
+                                    systemImage: fanMode == climate.fanMode ? "checkmark" : "fan.fill"
+                                )
+                            }
+                            .disabled(fanMode == climate.fanMode)
                         }
-                    } label: {
-                        Text(climate.displayName(forFanMode: fanMode))
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 42)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(fanMode == climate.fanMode ? Color.white : Color.primary)
-                    .background(fanMode == climate.fanMode ? Color.accentColor : Color(.tertiarySystemGroupedBackground), in: Capsule())
-                    .disabled(entityBox.pendingCommand != nil || fanMode == climate.fanMode)
+                }
+
+                if showsPresetModeOptions(climate) {
+                    DashboardDetailMenuRow(
+                        title: "Preset",
+                        systemImage: "leaf",
+                        value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
+                        isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate)
+                    ) {
+                        ForEach(climate.presetModes, id: \.self) { presetMode in
+                            Button {
+                                Task {
+                                    await homeAssistantService.setClimatePresetMode(
+                                        entityID: entityBox.entityID,
+                                        presetMode: presetMode
+                                    )
+                                }
+                            } label: {
+                                Label(
+                                    climate.displayName(forPresetMode: presetMode),
+                                    systemImage: presetMode == climate.presetMode ? "checkmark" : "leaf"
+                                )
+                            }
+                            .disabled(presetMode == climate.presetMode)
+                        }
+                    }
                 }
             }
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
-    private func presetModeControls(_ climate: ClimateEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Preset", systemImage: "leaf")
-                .font(.headline)
+    private func showsSecondaryOptions(_ climate: ClimateEntity) -> Bool {
+        showsFanModeOptions(climate) || showsPresetModeOptions(climate)
+    }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
-                ForEach(climate.presetModes, id: \.self) { presetMode in
-                    Button {
-                        Task {
-                            await homeAssistantService.setClimatePresetMode(
-                                entityID: entityBox.entityID,
-                                presetMode: presetMode
-                            )
-                        }
-                    } label: {
-                        Text(climate.displayName(forPresetMode: presetMode))
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 42)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(presetMode == climate.presetMode ? Color.white : Color.primary)
-                    .background(presetMode == climate.presetMode ? Color.accentColor : Color(.tertiarySystemGroupedBackground), in: Capsule())
-                    .disabled(entityBox.pendingCommand != nil || presetMode == climate.presetMode)
-                }
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    private func showsFanModeOptions(_ climate: ClimateEntity) -> Bool {
+        !climate.fanModes.isEmpty && homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_fan_mode")
+    }
+
+    private func showsPresetModeOptions(_ climate: ClimateEntity) -> Bool {
+        !climate.presetModes.isEmpty && homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_preset_mode")
     }
 
     private func adjustTemperature(by delta: Double, climate: ClimateEntity) {
@@ -396,7 +364,11 @@ struct ClimateDetailView: View {
         setTargetTemperatureRange()
     }
 
-    private func setTargetTemperature() {
+    private func setTargetTemperature(_ updatedTemperature: Double? = nil) {
+        if let updatedTemperature {
+            targetTemperature = updatedTemperature
+        }
+
         Task {
             await homeAssistantService.setClimateTemperature(
                 entityID: entityBox.entityID,
@@ -415,8 +387,23 @@ struct ClimateDetailView: View {
         }
     }
 
-    private func modeBackground(for mode: String, climate: ClimateEntity) -> Color {
-        mode == climate.state ? Color.accentColor : Color(.tertiarySystemGroupedBackground)
+    private func isClimateAvailable(_ climate: ClimateEntity) -> Bool {
+        !["unavailable", "unknown"].contains(climate.state)
+    }
+
+    private func climateIconColor(_ climate: ClimateEntity) -> Color {
+        guard isClimateAvailable(climate) else { return .secondary }
+        return climate.isActive ? Color.accentColor : Color.secondary
+    }
+
+    private func climateBadgeColor(_ climate: ClimateEntity) -> Color {
+        guard isClimateAvailable(climate) else { return .red }
+        return climate.isActive ? Color.accentColor : Color.secondary
+    }
+
+    private func climateStatusBackground(_ climate: ClimateEntity) -> Color {
+        guard isClimateAvailable(climate) else { return Color.red.opacity(0.12) }
+        return climate.isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
 
     private func syncTargetTemperature(with climate: ClimateEntity) {

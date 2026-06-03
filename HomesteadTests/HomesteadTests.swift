@@ -406,6 +406,65 @@ struct HomesteadTests {
         #expect(mediaServiceData["volume_level"] as? Double == 0.42)
     }
 
+    @Test func nativeControlDomainRequestsEncodeHomeAssistantShape() throws {
+        let buttonRequest = HAWebSocketRequest.callService(
+            id: 47,
+            domain: "button",
+            service: "press",
+            target: ["entity_id": .string("button.restart_router")],
+            serviceData: [:]
+        )
+        let selectRequest = HAWebSocketRequest.callService(
+            id: 48,
+            domain: "select",
+            service: "select_option",
+            target: ["entity_id": .string("select.house_mode")],
+            serviceData: ["option": .string("Away")]
+        )
+        let numberRequest = HAWebSocketRequest.callService(
+            id: 49,
+            domain: "number",
+            service: "set_value",
+            target: ["entity_id": .string("number.target_humidity")],
+            serviceData: ["value": .number(45)]
+        )
+        let alarmRequest = HAWebSocketRequest.callService(
+            id: 50,
+            domain: "alarm_control_panel",
+            service: "alarm_arm_home",
+            target: ["entity_id": .string("alarm_control_panel.home")],
+            serviceData: ["code": .string("1234")]
+        )
+
+        let buttonObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(buttonRequest)) as? [String: Any])
+        let buttonTarget = try #require(buttonObject["target"] as? [String: Any])
+        let selectObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(selectRequest)) as? [String: Any])
+        let selectTarget = try #require(selectObject["target"] as? [String: Any])
+        let selectServiceData = try #require(selectObject["service_data"] as? [String: Any])
+        let numberObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(numberRequest)) as? [String: Any])
+        let numberTarget = try #require(numberObject["target"] as? [String: Any])
+        let numberServiceData = try #require(numberObject["service_data"] as? [String: Any])
+        let alarmObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(alarmRequest)) as? [String: Any])
+        let alarmTarget = try #require(alarmObject["target"] as? [String: Any])
+        let alarmServiceData = try #require(alarmObject["service_data"] as? [String: Any])
+
+        #expect(buttonObject["domain"] as? String == "button")
+        #expect(buttonObject["service"] as? String == "press")
+        #expect(buttonTarget["entity_id"] as? String == "button.restart_router")
+        #expect(selectObject["domain"] as? String == "select")
+        #expect(selectObject["service"] as? String == "select_option")
+        #expect(selectTarget["entity_id"] as? String == "select.house_mode")
+        #expect(selectServiceData["option"] as? String == "Away")
+        #expect(numberObject["domain"] as? String == "number")
+        #expect(numberObject["service"] as? String == "set_value")
+        #expect(numberTarget["entity_id"] as? String == "number.target_humidity")
+        #expect(numberServiceData["value"] as? Double == 45)
+        #expect(alarmObject["domain"] as? String == "alarm_control_panel")
+        #expect(alarmObject["service"] as? String == "alarm_arm_home")
+        #expect(alarmTarget["entity_id"] as? String == "alarm_control_panel.home")
+        #expect(alarmServiceData["code"] as? String == "1234")
+    }
+
     @Test func registryCommandEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.registryCommand(
             id: 7,
@@ -3345,9 +3404,9 @@ struct HomesteadTests {
             .automation: (.control, .toggleAutomation, .toggle),
             .vacuum: (.status, nil, .vacuum),
             .remote: (.status, nil, .entity),
-            .button: (.status, nil, .entity),
-            .select: (.value, nil, .entity),
-            .number: (.value, nil, .entity),
+            .button: (.status, nil, .button),
+            .select: (.value, nil, .select),
+            .number: (.value, nil, .number),
             .text: (.value, nil, .entity),
             .date: (.value, nil, .entity),
             .time: (.value, nil, .entity),
@@ -3355,7 +3414,7 @@ struct HomesteadTests {
             .deviceTracker: (.status, nil, .entity),
             .person: (.status, nil, .entity),
             .update: (.status, nil, .entity),
-            .alarmControlPanel: (.status, nil, .entity),
+            .alarmControlPanel: (.status, nil, .alarmControlPanel),
             .humidifier: (.status, nil, .entity),
             .waterHeater: (.status, nil, .entity),
             .lawnMower: (.status, nil, .entity),
@@ -3384,7 +3443,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func newHomeAssistantDomainsRenderWithSafeGenericPresentations() throws {
+    @Test func newHomeAssistantDomainsRenderWithNativeOrSafeGenericPresentations() throws {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(
@@ -3436,14 +3495,17 @@ struct HomesteadTests {
         #expect(button.cardStyle == .status)
         #expect(button.iconName == "arrow.trianglehead.2.clockwise")
         #expect(button.primaryAction == nil)
+        #expect(button.detailKind == .button)
         #expect(number.cardStyle == .value)
         #expect(number.iconName == "humidity")
         #expect(number.subtitle == "45")
         #expect(number.primaryAction == nil)
+        #expect(number.detailKind == .number)
         #expect(alarm.cardStyle == .status)
         #expect(alarm.iconName == "shield.lefthalf.filled")
         #expect(alarm.subtitle == "Armed Away")
         #expect(alarm.primaryAction == nil)
+        #expect(alarm.detailKind == .alarmControlPanel)
         #expect(weather.cardStyle == .value)
         #expect(weather.iconName == "cloud.sun.fill")
         #expect(weather.subtitle == "Partlycloudy")

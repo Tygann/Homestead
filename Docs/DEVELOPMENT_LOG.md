@@ -2,6 +2,17 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-03
+
+### Dashboard Detail Views
+
+- Introduced a shared dashboard detail scaffold with compact status headers, restrained action buttons, and collapsed Home Assistant metadata disclosures.
+- Migrated action, toggle, lock, sensor, vacuum, light, fan, cover, climate, media-player, and camera detail surfaces toward the shared structure while keeping domain-specific safety behavior explicit, including lock unlock confirmation and camera live/snapshot handling.
+- Reused a Homestead-style filled level slider across detail controls, tightened climate temperature nudges into compact icon buttons, made camera previews fill their media panel, and moved media now-playing text out of the compact header.
+- Added fullscreen camera preview access, moved secondary climate options into compact menu rows, and kept dashboard detail sheets on the shared medium-to-large presentation behavior.
+- Added native detail views for alarm control panels, buttons, selects, and numbers while keeping these helper-style domains out of accidental card-level primary actions.
+- Preserved separate domain detail files instead of centralizing detail rendering into a conditional mega-view; richer domains can migrate incrementally when their controls are redesigned.
+
 ## 2026-06-02
 
 ### Dashboard Rendering Performance

@@ -13,40 +13,36 @@ struct SensorDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                statusCard
-                detailMetrics
-                contextDetails
-            }
-            .padding(AppSpacing.large)
+        DashboardEntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
+            header
+            currentReading
+            detailMetrics
+            contextDetails
         }
-        .background(Color(.systemGroupedBackground))
-        .dashboardDetailPresentation(title: navigationTitle, style: presentationStyle)
     }
 
-    private var statusCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.large) {
-            DashboardEntityStatusCard(
-                iconName: presentation.iconName,
-                title: presentation.title,
-                badge: statusBadgeText,
-                summary: presentation.subtitle,
-                iconColor: iconColor,
-                badgeColor: statusColor,
-                iconBackground: iconBackground,
-                badgeBackground: statusBackground
-            )
+    private var header: some View {
+        DashboardEntityDetailHeader(
+            iconName: presentation.iconName,
+            title: presentation.title,
+            subtitle: presentation.subtitle,
+            badge: statusBadgeText,
+            iconColor: iconColor,
+            badgeColor: statusColor,
+            iconBackground: iconBackground,
+            badgeBackground: statusBackground
+        )
+    }
 
-            DashboardControlPanel(title: "Current Reading", systemImage: "gauge.medium") {
-                Text(primaryValue)
-                    .font(.system(size: 42, weight: .bold, design: .rounded))
-                    .foregroundStyle(statusColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+    private var currentReading: some View {
+        DashboardControlPanel(title: "Current Reading", systemImage: "gauge.medium") {
+            Text(primaryValue)
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .foregroundStyle(statusColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .monospacedDigit()
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -81,7 +77,7 @@ struct SensorDetailView: View {
     }
 
     private var contextDetails: some View {
-        DashboardEntityContextPanel(
+        DashboardEntityMetadataDisclosure(
             title: "Home Assistant",
             systemImage: "house.and.flag",
             rows: contextRows

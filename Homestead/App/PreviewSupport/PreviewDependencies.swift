@@ -277,6 +277,45 @@ private enum PreviewData {
                 "friendly_name": .string("Good Morning")
             ],
             lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "button.restart_router",
+            state: "unknown",
+            attributes: [
+                "friendly_name": .string("Restart Router"),
+                "device_class": .string("restart")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "select.house_mode",
+            state: "Home",
+            attributes: [
+                "friendly_name": .string("House Mode"),
+                "options": .array([.string("Home"), .string("Away"), .string("Sleep")])
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "number.target_humidity",
+            state: "45",
+            attributes: [
+                "friendly_name": .string("Target Humidity"),
+                "device_class": .string("humidity"),
+                "unit_of_measurement": .string("%"),
+                "min": .number(30),
+                "max": .number(60),
+                "step": .number(1)
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "alarm_control_panel.home",
+            state: "armed_home",
+            attributes: [
+                "friendly_name": .string("Home Alarm")
+            ],
+            lastUpdated: .now
         )
     ]
 }

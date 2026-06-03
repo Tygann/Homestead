@@ -10,6 +10,7 @@ struct CameraDetailView: View {
     @State private var capabilitiesPhase: CameraCapabilitiesPhase = .idle
     @State private var livePhase: CameraLivePhase = .idle
     @State private var player: AVPlayer?
+    @State private var isShowingFullScreenPreview = false
 
     let entityBox: HAEntityState
     var presentationStyle: DashboardDetailPresentationStyle = .sheet
@@ -24,9 +25,9 @@ struct CameraDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+            VStack(alignment: .leading, spacing: AppSpacing.large) {
+                header
                 cameraViewPanel
-                statusCard
                 contextDetails
             }
             .padding(AppSpacing.large)
@@ -43,6 +44,17 @@ struct CameraDetailView: View {
             }
         }
         .dashboardDetailPresentation(title: "Camera", style: presentationStyle)
+        .fullScreenCover(isPresented: $isShowingFullScreenPreview) {
+            CameraFullScreenPreview(
+                title: presentation.title,
+                player: player,
+                snapshotPhase: snapshotPhase,
+                livePhase: livePhase,
+                aspectRatio: cameraPreviewAspectRatio
+            ) {
+                Task { await loadCameraData() }
+            }
+        }
         .task(id: entity.entityID) {
             await loadCameraData()
         }
@@ -51,68 +63,64 @@ struct CameraDetailView: View {
         }
     }
 
-    private var statusCard: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                Image(systemName: presentation.iconName)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 64, height: 64)
-                    .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-                Spacer()
-
-                Text(presentation.subtitle)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(statusColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(statusBackground, in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.largeTitle.bold())
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text(statusSummary)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    private var header: some View {
+        DashboardEntityDetailHeader(
+            iconName: presentation.iconName,
+            title: presentation.title,
+            subtitle: statusSummary,
+            badge: presentation.subtitle,
+            iconColor: iconColor,
+            badgeColor: statusColor,
+            iconBackground: iconBackground,
+            badgeBackground: statusBackground
+        )
     }
 
     private var cameraViewPanel: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: AppSpacing.medium) {
                 Label(cameraPanelTitle, systemImage: cameraPanelSystemImage)
                     .font(.headline)
 
                 Spacer(minLength: AppSpacing.medium)
 
-                if case .live = livePhase {
-                    Text("Live")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.green)
-                        .padding(.horizontal, AppSpacing.small)
-                        .padding(.vertical, AppSpacing.xSmall)
-                        .background(Color.green.opacity(0.14), in: Capsule())
+                Button {
+                    isShowingFullScreenPreview = true
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.subheadline.weight(.semibold))
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .disabled(!canShowFullScreenPreview)
+                .accessibilityLabel("Show camera fullscreen")
+
+                cameraPreviewBadge
             }
+            .padding(.horizontal, AppSpacing.large)
+            .padding(.top, AppSpacing.large)
+            .padding(.bottom, AppSpacing.medium)
 
             cameraViewContent
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 220)
-                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+                .aspectRatio(cameraPreviewAspectRatio, contentMode: .fit)
+                .background(Color(.tertiarySystemGroupedBackground))
+                .clipped()
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var cameraPreviewBadge: some View {
+        if let text = cameraPreviewBadgeText {
+            Text(text)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(cameraPreviewBadgeColor)
+                .padding(.horizontal, AppSpacing.small)
+                .padding(.vertical, AppSpacing.xSmall)
+                .background(cameraPreviewBadgeColor.opacity(0.14), in: Capsule())
+        }
     }
 
     @ViewBuilder
@@ -133,7 +141,7 @@ struct CameraDetailView: View {
             case .live:
                 if let player {
                     VideoPlayer(player: player)
-                        .frame(maxWidth: .infinity, minHeight: 220)
+                        .frame(maxWidth: .infinity)
                         .onAppear {
                             player.play()
                         }
@@ -157,8 +165,8 @@ struct CameraDetailView: View {
             if let image = UIImage(data: data) {
                 Image(uiImage: image)
                     .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, minHeight: 172)
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
             } else {
                 unavailableSnapshotContent
             }
@@ -189,7 +197,7 @@ struct CameraDetailView: View {
     }
 
     private var contextDetails: some View {
-        DashboardEntityContextPanel(
+        DashboardEntityMetadataDisclosure(
             title: "Home Assistant",
             systemImage: "camera.fill",
             rows: [
@@ -243,18 +251,7 @@ struct CameraDetailView: View {
     }
 
     private var cameraPanelTitle: String {
-        switch livePhase {
-        case .live:
-            "Live View"
-        case .loading:
-            "Preparing Live View"
-        case .idle:
-            "Camera"
-        case .snapshotOnly:
-            "Snapshot Preview"
-        case .failed:
-            "Snapshot Fallback"
-        }
+        "Camera Preview"
     }
 
     private var cameraPanelSystemImage: String {
@@ -264,6 +261,60 @@ struct CameraDetailView: View {
         case .idle, .snapshotOnly, .failed:
             "camera.viewfinder"
         }
+    }
+
+    private var cameraPreviewBadgeText: String? {
+        switch livePhase {
+        case .live:
+            "Live"
+        case .snapshotOnly:
+            "Snapshot"
+        case .failed:
+            "Fallback"
+        case .loading:
+            "Loading"
+        case .idle:
+            nil
+        }
+    }
+
+    private var cameraPreviewBadgeColor: Color {
+        switch livePhase {
+        case .live:
+            .green
+        case .failed:
+            .orange
+        default:
+            .secondary
+        }
+    }
+
+    private var canShowFullScreenPreview: Bool {
+        guard entity.isAvailable else { return false }
+
+        switch livePhase {
+        case .live:
+            return player != nil
+        case .snapshotOnly, .failed:
+            if case .loaded = snapshotPhase {
+                return true
+            }
+            return false
+        case .idle, .loading:
+            return false
+        }
+    }
+
+    private var cameraPreviewAspectRatio: CGFloat {
+        #if canImport(UIKit)
+        if case .loaded(let data) = snapshotPhase,
+           let image = UIImage(data: data),
+           image.size.height > 0 {
+            return image.size.width / image.size.height
+        }
+        #endif
+
+        return 16.0 / 9.0
     }
 
     private func loadCameraData() async {
@@ -344,6 +395,137 @@ struct CameraDetailView: View {
         } catch {
             livePhase = .failed
             return false
+        }
+    }
+}
+
+private struct CameraFullScreenPreview: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let title: String
+    let player: AVPlayer?
+    let snapshotPhase: SnapshotPhase
+    let livePhase: CameraLivePhase
+    let aspectRatio: CGFloat
+    let refresh: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
+
+            previewContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .aspectRatio(aspectRatio, contentMode: .fit)
+        }
+        .safeAreaInset(edge: .top) {
+            HStack(spacing: AppSpacing.medium) {
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+
+                    Text(statusText)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(statusColor)
+                }
+
+                Spacer()
+
+                Button(action: refresh) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.headline.weight(.semibold))
+                        .frame(width: 42, height: 42)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .accessibilityLabel("Refresh camera")
+
+                Button("Done") {
+                    dismiss()
+                }
+                .font(.headline.weight(.semibold))
+                .buttonStyle(.borderedProminent)
+                .tint(.white.opacity(0.18))
+            }
+            .padding(.horizontal, AppSpacing.large)
+            .padding(.vertical, AppSpacing.medium)
+            .background(Color.black.opacity(0.72))
+        }
+        .onAppear {
+            player?.play()
+        }
+    }
+
+    @ViewBuilder
+    private var previewContent: some View {
+        switch livePhase {
+        case .live:
+            if let player {
+                VideoPlayer(player: player)
+            } else {
+                snapshotContent
+            }
+        case .snapshotOnly, .failed, .idle, .loading:
+            snapshotContent
+        }
+    }
+
+    @ViewBuilder
+    private var snapshotContent: some View {
+        switch snapshotPhase {
+        case .loaded(let data):
+            #if canImport(UIKit)
+            if let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                unavailableContent
+            }
+            #else
+            unavailableContent
+            #endif
+        case .idle, .loading, .failed:
+            unavailableContent
+        }
+    }
+
+    private var unavailableContent: some View {
+        VStack(spacing: AppSpacing.medium) {
+            Image(systemName: "camera.fill")
+                .font(.system(size: 40, weight: .semibold))
+
+            Text("Camera preview unavailable")
+                .font(.headline)
+        }
+        .foregroundStyle(.secondary)
+    }
+
+    private var statusText: String {
+        switch livePhase {
+        case .live:
+            "Live"
+        case .snapshotOnly:
+            "Snapshot"
+        case .failed:
+            "Snapshot fallback"
+        case .loading:
+            "Loading"
+        case .idle:
+            "Preview"
+        }
+    }
+
+    private var statusColor: Color {
+        switch livePhase {
+        case .live:
+            .green
+        case .failed:
+            .orange
+        default:
+            .secondary
         }
     }
 }

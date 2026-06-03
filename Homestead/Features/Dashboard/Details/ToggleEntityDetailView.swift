@@ -15,24 +15,19 @@ struct ToggleEntityDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                statusCard
-                actionButton
-                stateDetails
-            }
-            .padding(AppSpacing.large)
+        DashboardEntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
+            header
+            actionPanel
+            stateDetails
         }
-        .background(Color(.systemGroupedBackground))
-        .dashboardDetailPresentation(title: navigationTitle, style: presentationStyle)
     }
 
-    private var statusCard: some View {
-        DashboardEntityStatusCard(
+    private var header: some View {
+        DashboardEntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
+            subtitle: statusSummary,
             badge: presentation.subtitle,
-            summary: statusSummary,
             iconColor: presentation.isActive ? presentation.accentColor : Color.secondary,
             badgeColor: presentation.isAvailable ? presentation.headlineColor : Color.red,
             iconBackground: iconBackground,
@@ -40,36 +35,29 @@ struct ToggleEntityDetailView: View {
         )
     }
 
-    private var actionButton: some View {
-        DashboardPrimaryActionButton(
-            title: actionTitle,
-            systemImage: actionSystemImage,
-            isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
-        ) {
-            Task { await performPrimaryAction() }
+    private var actionPanel: some View {
+        DashboardControlPanel(title: "Control", systemImage: actionSystemImage) {
+            DashboardDetailActionButton(
+                title: actionTitle,
+                systemImage: actionSystemImage,
+                style: presentation.isActive ? .secondary : .primary,
+                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+            ) {
+                Task { await performPrimaryAction() }
+            }
         }
     }
 
     private var stateDetails: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Current State", systemImage: "waveform.path.ecg")
-                .font(.headline)
-
-            HStack {
-                Text(entity.state.replacingOccurrences(of: "_", with: " ").capitalized)
-                    .font(.body.weight(.medium))
-
-                Spacer()
-
-                Text(entity.entityID)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        DashboardEntityMetadataDisclosure(
+            title: "Home Assistant",
+            systemImage: "waveform.path.ecg",
+            rows: [
+                DashboardEntityDetailRow(title: "Entity ID", value: entity.entityID),
+                DashboardEntityDetailRow(title: "Domain", value: entity.domain.displayName),
+                DashboardEntityDetailRow(title: "State", value: entity.state.displayStateText)
+            ]
+        )
     }
 
     private var navigationTitle: String {

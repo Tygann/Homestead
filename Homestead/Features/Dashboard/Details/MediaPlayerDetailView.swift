@@ -17,27 +17,23 @@ struct MediaPlayerDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                statusCard
-                playbackControls
-                if let mediaPlayer = entityBox.mediaPlayerEntity {
-                    if mediaPlayer.volumeLevel != nil,
-                       homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set") {
-                        volumeControls(mediaPlayer)
-                    }
-
-                    if !mediaPlayer.sourceList.isEmpty,
-                       homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source") {
-                        sourceControls(mediaPlayer)
-                    }
+        DashboardEntityDetailScaffold(title: "Media Player", presentationStyle: presentationStyle) {
+            header
+            nowPlayingPanel
+            playbackControls
+            if let mediaPlayer = entityBox.mediaPlayerEntity {
+                if mediaPlayer.volumeLevel != nil,
+                   homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set") {
+                    volumeControls(mediaPlayer)
                 }
-                contextDetails
+
+                if !mediaPlayer.sourceList.isEmpty,
+                   homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source") {
+                    sourceControls(mediaPlayer)
+                }
             }
-            .padding(AppSpacing.large)
+            contextDetails
         }
-        .background(Color(.systemGroupedBackground))
-        .dashboardDetailPresentation(title: "Media Player", style: presentationStyle)
         .onAppear {
             syncVolume()
         }
@@ -47,17 +43,40 @@ struct MediaPlayerDetailView: View {
         }
     }
 
-    private var statusCard: some View {
-        DashboardEntityStatusCard(
+    private var header: some View {
+        DashboardEntityDetailHeader(
             iconName: presentation.iconName,
             title: presentation.title,
-            badge: presentation.subtitle,
-            summary: entityBox.mediaPlayerEntity?.nowPlayingText ?? statusSummary,
+            subtitle: mediaHeaderSubtitle,
+            badge: mediaHeaderBadge,
             iconColor: iconColor,
             badgeColor: statusColor,
             iconBackground: iconBackground,
             badgeBackground: statusBackground
         )
+    }
+
+    @ViewBuilder
+    private var nowPlayingPanel: some View {
+        if let mediaPlayer = entityBox.mediaPlayerEntity,
+           let nowPlayingText = mediaPlayer.nowPlayingText {
+            DashboardControlPanel(title: "Now Playing", systemImage: "music.note") {
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    Text(nowPlayingText)
+                        .font(.headline)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.82)
+
+                    if let source = mediaPlayer.source, !source.isEmpty {
+                        Text(source)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 
     private func volumeControls(_ mediaPlayer: MediaPlayerEntity) -> some View {
@@ -73,25 +92,20 @@ struct MediaPlayerDetailView: View {
                     .foregroundStyle(mediaPlayer.isPlaying ? Color.accentColor : Color.secondary)
             }
 
-            Slider(
+            DashboardDetailLevelSlider(
                 value: $volumePercentage,
-                in: 0...100,
+                range: 0...100,
                 step: 1,
+                isDisabled: !mediaPlayer.isAvailable || entityBox.pendingCommand != nil,
+                accessibilityLabel: "Volume",
+                accessibilityValue: "\(Int(volumePercentage)) percent",
                 onEditingChanged: { editing in
                     isEditingVolume = editing
-                    guard !editing else { return }
-
-                    Task {
-                        await homeAssistantService.setMediaVolume(
-                            entityID: mediaPlayer.entityID,
-                            volumePercentage: volumePercentage
-                        )
-                    }
+                },
+                onCommit: { value in
+                    setVolume(value, mediaPlayer: mediaPlayer)
                 }
             )
-            .disabled(!mediaPlayer.isAvailable || entityBox.pendingCommand != nil)
-            .accessibilityLabel("Volume")
-            .accessibilityValue("\(Int(volumePercentage)) percent")
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
@@ -104,23 +118,18 @@ struct MediaPlayerDetailView: View {
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
                 ForEach(mediaPlayer.sourceList, id: \.self) { source in
-                    Button {
+                    DashboardDetailPillButton(
+                        title: source,
+                        isSelected: source == mediaPlayer.source,
+                        isDisabled: !mediaPlayer.isAvailable || entityBox.pendingCommand != nil || source == mediaPlayer.source
+                    ) {
                         Task {
                             await homeAssistantService.selectMediaSource(
                                 entityID: mediaPlayer.entityID,
                                 source: source
                             )
                         }
-                    } label: {
-                        Text(source)
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 42)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(source == mediaPlayer.source ? Color.white : Color.primary)
-                    .background(source == mediaPlayer.source ? Color.accentColor : Color(.tertiarySystemGroupedBackground), in: Capsule())
-                    .disabled(!mediaPlayer.isAvailable || entityBox.pendingCommand != nil || source == mediaPlayer.source)
                 }
             }
         }
@@ -129,28 +138,22 @@ struct MediaPlayerDetailView: View {
     }
 
     private var playbackControls: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Button {
+        DashboardControlPanel(title: "Playback", systemImage: playPauseSystemImage) {
+            DashboardDetailActionButton(
+                title: playPauseTitle,
+                systemImage: playPauseSystemImage,
+                style: entity.state == "playing" ? .secondary : .primary,
+                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause")
+            ) {
                 Task {
                     await homeAssistantService.playPauseMedia(entityID: entity.entityID)
                 }
-            } label: {
-                Label(playPauseTitle, systemImage: playPauseSystemImage)
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause"))
-
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
     private var contextDetails: some View {
-        DashboardEntityContextPanel(
+        DashboardEntityMetadataDisclosure(
             title: "Home Assistant",
             systemImage: "play.tv.fill",
             rows: [
@@ -170,6 +173,30 @@ struct MediaPlayerDetailView: View {
             return source
         }
         return presentation.isActive ? "Currently playing" : "Ready for playback"
+    }
+
+    private var mediaHeaderSubtitle: String {
+        guard let mediaPlayer = entityBox.mediaPlayerEntity else { return statusSummary }
+        if let source = mediaPlayer.source, !source.isEmpty {
+            return "\(mediaPlayer.displayState) • \(source)"
+        }
+
+        return statusSummary
+    }
+
+    private var mediaHeaderBadge: String {
+        entityBox.mediaPlayerEntity?.displayState ?? presentation.subtitle
+    }
+
+    private func setVolume(_ updatedVolume: Double, mediaPlayer: MediaPlayerEntity) {
+        volumePercentage = updatedVolume
+
+        Task {
+            await homeAssistantService.setMediaVolume(
+                entityID: mediaPlayer.entityID,
+                volumePercentage: updatedVolume
+            )
+        }
     }
 
     private var sourceDetailRow: DashboardEntityDetailRow? {

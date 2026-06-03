@@ -707,6 +707,80 @@ final class HomeAssistantService {
         )
     }
 
+    func pressButton(entityID: String) async {
+        await callTransientEntityService(
+            domain: "button",
+            service: "press",
+            entityID: entityID,
+            successTitle: "Button pressed"
+        )
+    }
+
+    func selectOption(entityID: String, option: String) async {
+        let serviceData = ["option": JSONValue.string(option)]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: option
+        )
+
+        let succeeded = await callService(
+            domain: "select",
+            service: "select_option",
+            entityID: entityID,
+            serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func setNumberValue(entityID: String, value: Double) async {
+        let serviceData = ["value": JSONValue.number(value)]
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: nil
+        )
+
+        let succeeded = await callService(
+            domain: "number",
+            service: "set_value",
+            entityID: entityID,
+            serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func setAlarmControlPanelMode(entityID: String, service: String, code: String? = nil) async {
+        var serviceData: [String: JSONValue] = [:]
+        if let code = code?.trimmingCharacters(in: .whitespacesAndNewlines), !code.isEmpty {
+            serviceData["code"] = .string(code)
+        }
+
+        let pendingCommand = setPendingCommand(
+            entityID: entityID,
+            expectedState: expectedAlarmState(forService: service)
+        )
+
+        let succeeded = await callService(
+            domain: "alarm_control_panel",
+            service: service,
+            entityID: entityID,
+            serviceData: serviceData,
+            successTitle: "Alarm updated"
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
     func setFanPercentage(entityID: String, percentage: Double) async {
         let roundedPercentage = Int(min(max(percentage, 0), 100).rounded())
         let serviceData = ["percentage": JSONValue.number(Double(roundedPercentage))]
@@ -866,6 +940,25 @@ final class HomeAssistantService {
             schedulePendingResolution(for: pendingCommand)
         } else {
             clearPendingCommand(pendingCommand)
+        }
+    }
+
+    private func expectedAlarmState(forService service: String) -> String? {
+        switch service {
+        case "alarm_disarm":
+            return "disarmed"
+        case "alarm_arm_home":
+            return "armed_home"
+        case "alarm_arm_away":
+            return "armed_away"
+        case "alarm_arm_night":
+            return "armed_night"
+        case "alarm_arm_vacation":
+            return "armed_vacation"
+        case "alarm_arm_custom_bypass":
+            return "armed_custom_bypass"
+        default:
+            return nil
         }
     }
 
