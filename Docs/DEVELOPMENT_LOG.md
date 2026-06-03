@@ -8,6 +8,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Removed pre-release dashboard compatibility scaffolding for old card-size migrations, summary aliases, and entity display-name migrations; current dashboard persistence now stores only the active schema.
 - Split the dashboard shell from add-item, reorder/loading/empty, and summary-detail views so future dashboard work can land in focused files.
+- Organized Dashboard feature files into AddItem, Cards, Details, Summary, and Support subfolders while keeping domain detail views separate instead of centralizing them into a conditional mega-view.
 - Renamed remaining internal Devices membership vocabulary to dashboard membership and added lock-card regression coverage for inline unlock confirmation and unlocked/unlocking status labels.
 
 ## 2026-06-01
