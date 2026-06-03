@@ -4159,6 +4159,55 @@ struct HomesteadTests {
         #expect(store.displayNameForDeviceGroupedEntity(entityID: "sensor.ashtons_ipad_location_permission") == "Location permission")
     }
 
+    @MainActor
+    @Test func stateStoreBuildsManagementSummariesFromRegistryMetadata() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "sensor.router_status", state: "unavailable"),
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.router_status",
+                    deviceID: "router",
+                    areaID: nil,
+                    originalName: "Router Status",
+                    entityCategory: "diagnostic"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.kitchen",
+                    deviceID: "kitchen-light",
+                    areaID: "kitchen",
+                    originalName: "Kitchen Light"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "router", name: "Router", areaID: "closet", manufacturer: "Ubiquiti", model: "Dream Machine"),
+                HADeviceRegistryDTO(id: "kitchen-light", name: "Kitchen Light", areaID: "kitchen")
+            ],
+            areas: [
+                HAAreaRegistryDTO(id: "closet", name: "Closet"),
+                HAAreaRegistryDTO(id: "kitchen", name: "Kitchen")
+            ]
+        )
+
+        let summaries = store.deviceManagementSummaries()
+
+        #expect(summaries.map(\.title) == ["Kitchen Light", "Router"])
+        #expect(summaries.last?.subtitle == "Ubiquiti • Dream Machine • Closet")
+        #expect(summaries.last?.areaName == "Closet")
+        #expect(summaries.last?.manufacturer == "Ubiquiti")
+        #expect(summaries.last?.model == "Dream Machine")
+        #expect(summaries.last?.entityCount == 1)
+        #expect(summaries.last?.matches(query: "closet") == true)
+        #expect(summaries.last?.matches(query: "dream") == true)
+        #expect(summaries.last?.matches(query: "kitchen") == false)
+        #expect(store.entityRegistryAdminDetail(for: "sensor.router_status") == "Closet • Router • Diagnostic • Unavailable")
+        #expect(store.entityRegistryAdminDetail(for: "light.kitchen") == "Kitchen • Kitchen Light")
+    }
+
     private func testCredential(
         baseURL: String = "http://homeassistant.local:8123",
         accessToken: String = "access-token",

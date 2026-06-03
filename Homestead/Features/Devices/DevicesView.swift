@@ -10,6 +10,7 @@ struct DevicesView: View {
             hiddenEntityIDs: [],
             emptyTitle: "No Devices",
             emptySystemImage: "square.grid.2x2",
+            showsAccountButton: true,
             rowAction: { entityBox in
                 selectedEntity = SelectedEntity(entityID: entityBox.entityID)
             },
@@ -27,7 +28,7 @@ struct DevicesView: View {
                 }
             }
         )
-        .navigationTitle("Devices")
+        .navigationTitle("Browse")
         .toolbarTitleDisplayMode(.inlineLarge)
         .sheet(item: $selectedEntity) { selectedEntity in
             if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
@@ -54,9 +55,13 @@ struct EntityBrowserList<Accessory: View>: View {
     let showsFilters: Bool
     let showsSearchField: Bool
     let showsGroupingMenu: Bool
+    let showsSingleGroupHeaders: Bool
+    let showsAccountButton: Bool
     let allowsRefresh: Bool
+    let allowedDomains: Set<EntityDomain>?
     let rowAction: (HAEntityState) -> Void
     let allowsDashboardMembershipEditing: Bool
+    let rowDetail: (HAEntityState) -> String?
     private let accessory: (HAEntityState) -> Accessory
 
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
@@ -70,9 +75,14 @@ struct EntityBrowserList<Accessory: View>: View {
         searchText: Binding<String>? = nil,
         showsSearchField: Bool = true,
         showsGroupingMenu: Bool = true,
+        showsSingleGroupHeaders: Bool = true,
+        showsAccountButton: Bool = false,
         allowsRefresh: Bool = true,
+        allowedDomains: Set<EntityDomain>? = nil,
+        initialGrouping: DevicesGrouping = .device,
         rowAction: @escaping (HAEntityState) -> Void,
         allowsDashboardMembershipEditing: Bool = false,
+        rowDetail: @escaping (HAEntityState) -> String? = { _ in nil },
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
         self.externalSearchText = searchText
@@ -82,11 +92,16 @@ struct EntityBrowserList<Accessory: View>: View {
         self.showsFilters = showsFilters
         self.showsSearchField = showsSearchField
         self.showsGroupingMenu = showsGroupingMenu
+        self.showsSingleGroupHeaders = showsSingleGroupHeaders
+        self.showsAccountButton = showsAccountButton
         self.allowsRefresh = allowsRefresh
+        self.allowedDomains = allowedDomains
         self.rowAction = rowAction
         self.allowsDashboardMembershipEditing = allowsDashboardMembershipEditing
+        self.rowDetail = rowDetail
         self.accessory = accessory
         _includesUnavailable = State(initialValue: includesUnavailableByDefault)
+        _grouping = State(initialValue: initialGrouping)
     }
 
     var body: some View {
@@ -99,52 +114,27 @@ struct EntityBrowserList<Accessory: View>: View {
 
             List {
                 ForEach(presentation.groups) { group in
-                    Section {
-                        if !collapsedGroups.contains(group.id) {
-                            ForEach(group.entityIDs, id: \.self) { entityID in
-                                if let entityBox = stateStore.entityBox(for: entityID) {
-                                    Button {
-                                        rowAction(entityBox)
-                                    } label: {
-                                        EntityBrowserRow(
-                                            entityBox: entityBox,
-                                            displayNameOverride: displayNameOverride(for: entityID),
-                                            accessory: accessory(entityBox)
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        if allowsDashboardMembershipEditing {
-                                            Button {
-                                                dashboardConfiguration.setEntity(
-                                                    entityID,
-                                                    isVisible: !dashboardConfiguration.contains(entityID)
-                                                )
-                                            } label: {
-                                                Label(
-                                                    dashboardConfiguration.contains(entityID) ? "Remove from Dashboard" : "Add to Dashboard",
-                                                    systemImage: dashboardConfiguration.contains(entityID) ? "star.slash" : "star"
-                                                )
-                                            }
-                                            .tint(.yellow)
-                                        }
-                                    }
+                    if showsHeader(for: group, in: presentation) {
+                        Section {
+                            groupRows(group)
+                        } header: {
+                            Button {
+                                toggleSection(group.id)
+                            } label: {
+                                HStack {
+                                    groupHeaderLabel(for: group)
+                                    Spacer()
+                                    Image(systemName: collapsedGroups.contains(group.id) ? "chevron.right" : "chevron.down")
+                                        .font(.caption.weight(.bold))
                                 }
                             }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
                         }
-                    } header: {
-                        Button {
-                            toggleSection(group.id)
-                        } label: {
-                            HStack {
-                                groupHeaderLabel(for: group)
-                                Spacer()
-                                Image(systemName: collapsedGroups.contains(group.id) ? "chevron.right" : "chevron.down")
-                                    .font(.caption.weight(.bold))
-                            }
+                    } else {
+                        Section {
+                            groupRows(group)
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -173,12 +163,57 @@ struct EntityBrowserList<Accessory: View>: View {
         })
         .toolbar {
             if showsGroupingMenu {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     groupingMenu
+                }
+            }
+
+            if showsAccountButton {
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    SettingsAccountButton()
                 }
             }
         }
         .modifier(EntityBrowserSearchModifier(searchText: searchTextBinding, isEnabled: showsSearchField))
+    }
+
+    @ViewBuilder
+    private func groupRows(_ group: DevicesEntityGroup) -> some View {
+        if !collapsedGroups.contains(group.id) {
+            ForEach(group.entityIDs, id: \.self) { entityID in
+                if let entityBox = stateStore.entityBox(for: entityID) {
+                    Button {
+                        rowAction(entityBox)
+                    } label: {
+                        EntityBrowserRow(
+                            entityBox: entityBox,
+                            displayNameOverride: displayNameOverride(for: entityID),
+                            detailText: rowDetail(entityBox),
+                            accessory: accessory(entityBox)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        if allowsDashboardMembershipEditing {
+                            Button {
+                                dashboardConfiguration.setEntity(
+                                    entityID,
+                                    isVisible: !dashboardConfiguration.contains(entityID)
+                                )
+                            } label: {
+                                Label(
+                                    dashboardConfiguration.contains(entityID) ? "Remove from Dashboard" : "Add to Dashboard",
+                                    systemImage: dashboardConfiguration.contains(entityID) ? "star.slash" : "star"
+                                )
+                            }
+                            .tint(.yellow)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private var entityLoadingTitle: String {
@@ -300,6 +335,10 @@ struct EntityBrowserList<Accessory: View>: View {
         }
     }
 
+    private func showsHeader(for group: DevicesEntityGroup, in presentation: EntityBrowserPresentation) -> Bool {
+        showsSingleGroupHeaders || presentation.groups.count > 1 || collapsedGroups.contains(group.id)
+    }
+
     private func displayNameOverride(for entityID: String) -> String? {
         guard grouping == .device else { return nil }
         return stateStore.displayNameForDeviceGroupedEntity(entityID: entityID)
@@ -307,9 +346,21 @@ struct EntityBrowserList<Accessory: View>: View {
 
     private var entityBrowserPresentation: EntityBrowserPresentation {
         let query = currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let visibleCandidateEntityIDs = stateStore.availableEntityIDs.subtracting(hiddenEntityIDs)
+        let visibleCandidateEntityIDs = stateStore.availableEntityIDs
+            .subtracting(hiddenEntityIDs)
+            .filter { entityID in
+                guard let allowedDomains else {
+                    return true
+                }
+
+                return stateStore.entityBox(for: entityID).map { allowedDomains.contains($0.homeEntity.domain) } ?? false
+            }
         let filterDomains = EntityDomain.allCases.filter { domain in
-            visibleCandidateEntityIDs.contains { entityID in
+            if let allowedDomains, !allowedDomains.contains(domain) {
+                return false
+            }
+
+            return visibleCandidateEntityIDs.contains { entityID in
                 stateStore.entityBox(for: entityID)?.homeEntity.domain == domain
             }
         }
@@ -366,11 +417,13 @@ struct EntityBrowserList<Accessory: View>: View {
                         return false
                     }
                     let displayName = displayNameOverride(for: entityID) ?? entity.displayName
+                    let detailText = stateStore.entityBox(for: entityID).flatMap(rowDetail) ?? ""
 
                     return displayName.localizedCaseInsensitiveContains(query) ||
                         group.title.localizedCaseInsensitiveContains(query) ||
                         entity.entityID.localizedCaseInsensitiveContains(query) ||
-                        entity.state.localizedCaseInsensitiveContains(query)
+                        entity.state.localizedCaseInsensitiveContains(query) ||
+                        detailText.localizedCaseInsensitiveContains(query)
                 }
 
                 guard !matchingEntityIDs.isEmpty else {
@@ -408,6 +461,10 @@ struct EntityBrowserList<Accessory: View>: View {
     private func entityPassesVisibility(_ entityID: String) -> Bool {
         guard !hiddenEntityIDs.contains(entityID),
               let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
+            return false
+        }
+
+        if let allowedDomains, !allowedDomains.contains(entity.domain) {
             return false
         }
 
@@ -496,6 +553,7 @@ private struct SelectedEntity: Identifiable {
 private struct EntityBrowserRow<Accessory: View>: View {
     let entityBox: HAEntityState
     var displayNameOverride: String?
+    var detailText: String?
     let accessory: Accessory
 
     var body: some View {
@@ -513,6 +571,14 @@ private struct EntityBrowserRow<Accessory: View>: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
+
+                    if let detailText {
+                        Text(detailText)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
                 }
                 .layoutPriority(1)
 

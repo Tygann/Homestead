@@ -52,6 +52,11 @@ struct AreasView: View {
         }
         .navigationTitle("Areas")
         .toolbarTitleDisplayMode(.inlineLarge)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                SettingsAccountButton()
+            }
+        }
     }
 
     private func areaSummaryChipRow(items: [AreasOverviewPresentation.SummaryChipItem]) -> some View {
@@ -148,11 +153,6 @@ private struct AreaSummaryCard: View {
                     CardIconView(systemName: area.systemImage)
 
                     Spacer(minLength: AppSpacing.small)
-
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, AppSpacing.small)
                 }
 
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {

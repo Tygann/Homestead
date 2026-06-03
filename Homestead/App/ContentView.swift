@@ -5,6 +5,7 @@ struct ContentView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isShowingSettings = false
 
     var body: some View {
         let chrome = AppChromePresentation.make(
@@ -16,32 +17,35 @@ struct ContentView: View {
         )
 
         TabView {
-            NavigationStack {
-                DashboardView()
-            }
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
-            }
-
-            NavigationStack {
-                AreasView()
-            }
-            .tabItem {
-                Label("Areas", systemImage: "square.split.bottomrightquarter")
+            Tab("Home", systemImage: "house.fill") {
+                NavigationStack {
+                    DashboardView()
+                }
             }
 
-            NavigationStack {
-                DevicesView()
-            }
-            .tabItem {
-                Label("Devices", systemImage: "laptopcomputer.and.iphone")
+            Tab("Areas", systemImage: "square.split.bottomrightquarter") {
+                NavigationStack {
+                    AreasView()
+                }
             }
 
+            Tab("Browse", systemImage: "magnifyingglass", role: .search) {
+                NavigationStack {
+                    DevicesView()
+                }
+            }
+        }
+        .environment(\.openSettings, { isShowingSettings = true })
+        .sheet(isPresented: $isShowingSettings) {
             NavigationStack {
                 SettingsView()
-            }
-            .tabItem {
-                Label("Settings", systemImage: "gearshape.fill")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") {
+                                isShowingSettings = false
+                            }
+                        }
+                    }
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -86,6 +90,30 @@ struct ContentView: View {
         }
 
         HapticFeedback.notification(for: feedback.style)
+    }
+}
+
+private struct OpenSettingsKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+extension EnvironmentValues {
+    var openSettings: () -> Void {
+        get { self[OpenSettingsKey.self] }
+        set { self[OpenSettingsKey.self] = newValue }
+    }
+}
+
+struct SettingsAccountButton: View {
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Button(action: openSettings) {
+            HomeAssistantAvatarView()
+                .frame(width: 30, height: 30)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Settings")
     }
 }
 

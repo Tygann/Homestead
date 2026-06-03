@@ -166,7 +166,7 @@ struct DashboardView: View {
         .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
             if isEditingDashboard {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isShowingReorderSheet = true
                     } label: {
@@ -177,15 +177,21 @@ struct DashboardView: View {
                     .accessibilityLabel("Reorder Dashboard")
                 }
 
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Done", role: .confirm) {
                         isEditingDashboard = false
                     }
                 }
             } else {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     optionsMenu
                 }
+            }
+
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
+            ToolbarItem(placement: .topBarTrailing) {
+                SettingsAccountButton()
             }
         }
         .sheet(item: $addSheetMode) { mode in

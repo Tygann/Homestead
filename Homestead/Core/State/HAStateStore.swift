@@ -103,6 +103,77 @@ final class HAStateStore {
         entityRegistryByID[entityID]?.deviceID.flatMap { deviceRegistryByID[$0] }
     }
 
+    func deviceManagementSummaries() -> [HADeviceManagementSummary] {
+        let entityCountsByDeviceID = Dictionary(
+            grouping: entityRegistryByID.values.compactMap { metadata -> String? in
+                guard let deviceID = metadata.deviceID?.nonEmptyValue else {
+                    return nil
+                }
+
+                return deviceID
+            },
+            by: { $0 }
+        ).mapValues(\.count)
+
+        return deviceRegistryByID.values
+            .map { device in
+                let areaName = device.areaID?.nonEmptyValue.flatMap { areaRegistryByID[$0]?.name.nonEmptyValue }
+                let manufacturer = device.manufacturer?.nonEmptyValue
+                let model = device.model?.nonEmptyValue
+
+                return HADeviceManagementSummary(
+                    id: device.id,
+                    title: device.displayName,
+                    subtitle: deviceManagementSubtitle(
+                        manufacturer: manufacturer,
+                        model: model,
+                        areaName: areaName
+                    ),
+                    areaName: areaName,
+                    manufacturer: manufacturer,
+                    model: model,
+                    entityCount: entityCountsByDeviceID[device.id, default: 0]
+                )
+            }
+            .sorted { lhs, rhs in
+                lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+            }
+    }
+
+    func entityRegistryAdminDetail(for entityID: String) -> String? {
+        guard let entity = entitiesByID[entityID] else {
+            return nil
+        }
+
+        let registry = entityRegistryByID[entityID]
+        let deviceName = registry?.deviceID?.nonEmptyValue.flatMap { deviceRegistryByID[$0]?.displayName.nonEmptyValue }
+        let areaName = areaName(for: entityID)
+
+        var parts: [String] = []
+
+        if let areaName {
+            parts.append(areaName)
+        }
+
+        if let deviceName {
+            parts.append(deviceName)
+        }
+
+        if let entityCategory = registry?.entityCategory?.nonEmptyValue {
+            parts.append(entityCategory.replacingOccurrences(of: "_", with: " ").capitalized)
+        }
+
+        if registry?.hiddenBy == true {
+            parts.append("Hidden")
+        }
+
+        if !entity.isAvailable {
+            parts.append("Unavailable")
+        }
+
+        return parts.isEmpty ? entity.domain.displayName : parts.joined(separator: " • ")
+    }
+
     func areaName(for entityID: String) -> String? {
         areaContext(for: entityID)?.name
     }
@@ -332,6 +403,15 @@ final class HAStateStore {
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map(\.entityID)
+    }
+
+    private func deviceManagementSubtitle(
+        manufacturer: String?,
+        model: String?,
+        areaName: String?
+    ) -> String {
+        let parts = [manufacturer, model, areaName].compactMap { $0 }
+        return parts.isEmpty ? "No additional details" : parts.joined(separator: " • ")
     }
 
     private func clearAllEntities() {
@@ -650,6 +730,36 @@ struct EntityDeviceGroup: Equatable, Identifiable, Sendable {
     let id: String
     let title: String
     let entityIDs: [String]
+}
+
+struct HADeviceManagementSummary: Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let areaName: String?
+    let manufacturer: String?
+    let model: String?
+    let entityCount: Int
+
+    func matches(query: String) -> Bool {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            return true
+        }
+
+        let searchableText = [
+            id,
+            title,
+            subtitle,
+            areaName,
+            manufacturer,
+            model
+        ]
+            .compactMap { $0 }
+            .joined(separator: " ")
+
+        return searchableText.localizedCaseInsensitiveContains(trimmedQuery)
+    }
 }
 
 private extension HADeviceRegistryDTO {
