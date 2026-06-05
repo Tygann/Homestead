@@ -15,6 +15,8 @@ enum HAWebSocketMessageType {
     nonisolated static var callService: String { "call_service" }
     nonisolated static var getConfig: String { "get_config" }
     nonisolated static var getServices: String { "get_services" }
+    nonisolated static var mobileAppPushNotificationChannel: String { "mobile_app/push_notification_channel" }
+    nonisolated static var mobileAppPushNotificationConfirm: String { "mobile_app/push_notification_confirm" }
     nonisolated static var currentUser: String { "auth/current_user" }
     nonisolated static var entityRegistryListForDisplay: String { "config/entity_registry/list_for_display" }
     nonisolated static var deviceRegistryList: String { "config/device_registry/list" }
@@ -29,6 +31,7 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
     let success: Bool?
     let result: JSONValue?
     let event: HAEventDTO?
+    let mobileAppPushNotificationEvent: HAMobileAppPushNotificationEventDTO?
     let error: HAWebSocketErrorDTO?
     let message: String?
 
@@ -48,7 +51,9 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
         type = try container.decode(String.self, forKey: .type)
         success = try container.decodeIfPresent(Bool.self, forKey: .success)
         result = try container.decodeIfPresent(JSONValue.self, forKey: .result)
-        event = try container.decodeIfPresent(HAEventDTO.self, forKey: .event)
+        let eventValue = try container.decodeIfPresent(JSONValue.self, forKey: .event)
+        event = try? eventValue?.decoded(HAEventDTO.self)
+        mobileAppPushNotificationEvent = try? eventValue?.decoded(HAMobileAppPushNotificationEventDTO.self)
         error = try container.decodeIfPresent(HAWebSocketErrorDTO.self, forKey: .error)
         message = try container.decodeIfPresent(String.self, forKey: .message)
     }
@@ -93,6 +98,8 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case currentUser(id: Int)
     case getConfig(id: Int)
     case getServices(id: Int)
+    case mobileAppPushNotificationChannel(id: Int, webhookID: String, supportConfirm: Bool)
+    case mobileAppPushNotificationConfirm(id: Int, webhookID: String, confirmID: String)
     case registryCommand(id: Int, type: String)
     case cameraCapabilities(id: Int, entityID: String)
     case callService(
@@ -114,6 +121,9 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case target
         case serviceData = "service_data"
         case entityID = "entity_id"
+        case webhookID = "webhook_id"
+        case supportConfirm = "support_confirm"
+        case confirmID = "confirm_id"
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -146,6 +156,16 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case .getServices(let id):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.getServices, forKey: .type)
+        case .mobileAppPushNotificationChannel(let id, let webhookID, let supportConfirm):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.mobileAppPushNotificationChannel, forKey: .type)
+            try container.encode(webhookID, forKey: .webhookID)
+            try container.encode(supportConfirm, forKey: .supportConfirm)
+        case .mobileAppPushNotificationConfirm(let id, let webhookID, let confirmID):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.mobileAppPushNotificationConfirm, forKey: .type)
+            try container.encode(webhookID, forKey: .webhookID)
+            try container.encode(confirmID, forKey: .confirmID)
         case .registryCommand(let id, let type):
             try container.encode(id, forKey: .id)
             try container.encode(type, forKey: .type)

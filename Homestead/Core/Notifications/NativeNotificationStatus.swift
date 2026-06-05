@@ -42,3 +42,22 @@ nonisolated struct NativeNotificationStatusSnapshot: Equatable, Sendable {
         badgeSetting: .unknown
     )
 }
+
+nonisolated struct NativeNotificationRequest: Equatable, Sendable {
+    let identifier: String
+    let title: String
+    let body: String
+    let userInfo: [String: String]
+
+    init(
+        identifier: String = UUID().uuidString,
+        title: String,
+        body: String,
+        userInfo: [String: String] = [:]
+    ) {
+        self.identifier = identifier
+        self.title = title
+        self.body = body
+        self.userInfo = userInfo
+    }
+}

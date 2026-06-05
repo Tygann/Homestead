@@ -2,6 +2,7 @@ import Foundation
 
 nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) async
+    func setMobileAppPushNotificationHandler(_ handler: (@Sendable (HAMobileAppPushNotificationEventDTO) async -> Void)?) async
     func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) async
     func connect(configuration: HAConnectionConfiguration) async throws
     func disconnect() async
@@ -16,6 +17,8 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities
     func subscribeToStateChanges() async throws
     func unsubscribeFromStateChanges() async throws
+    func subscribeToMobileAppPushNotifications(webhookID: String, supportConfirm: Bool) async throws
+    func confirmMobileAppPushNotification(webhookID: String, confirmID: String) async throws
     func callService(
         domain: String,
         service: String,
@@ -35,8 +38,10 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     private var pendingResults: [Int: CheckedContinuation<HAWebSocketIncomingMessage, Error>] = [:]
     private var pendingPongs: [Int: CheckedContinuation<Void, Error>] = [:]
     private var eventHandler: (@Sendable (HAEventDTO) async -> Void)?
+    private var mobileAppPushNotificationHandler: (@Sendable (HAMobileAppPushNotificationEventDTO) async -> Void)?
     private var disconnectHandler: (@MainActor @Sendable (Error) -> Void)?
     private var stateChangeSubscriptionID: Int?
+    private var mobileAppPushNotificationSubscriptionID: Int?
     private var isDisconnecting = false
 
     init(
@@ -51,6 +56,10 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
 
     func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) async {
         eventHandler = handler
+    }
+
+    func setMobileAppPushNotificationHandler(_ handler: (@Sendable (HAMobileAppPushNotificationEventDTO) async -> Void)?) async {
+        mobileAppPushNotificationHandler = handler
     }
 
     func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) async {
@@ -106,6 +115,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         stateChangeSubscriptionID = nil
+        mobileAppPushNotificationSubscriptionID = nil
         resumeAllPending(throwing: HAWebSocketError.notConnected)
         resumeAllPongs(throwing: HAWebSocketError.notConnected)
     }
@@ -248,6 +258,27 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
             id: id
         )
         self.stateChangeSubscriptionID = nil
+    }
+
+    func subscribeToMobileAppPushNotifications(webhookID: String, supportConfirm: Bool = true) async throws {
+        guard mobileAppPushNotificationSubscriptionID == nil else {
+            return
+        }
+
+        let id = makeRequestID()
+        _ = try await sendRequest(
+            .mobileAppPushNotificationChannel(id: id, webhookID: webhookID, supportConfirm: supportConfirm),
+            id: id
+        )
+        mobileAppPushNotificationSubscriptionID = id
+    }
+
+    func confirmMobileAppPushNotification(webhookID: String, confirmID: String) async throws {
+        let id = makeRequestID()
+        _ = try await sendRequest(
+            .mobileAppPushNotificationConfirm(id: id, webhookID: webhookID, confirmID: confirmID),
+            id: id
+        )
     }
 
     func callService(
@@ -442,7 +473,9 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         case HAWebSocketMessageType.pong:
             handlePong(message)
         case HAWebSocketMessageType.event:
-            if let event = message.event {
+            if let mobileAppPushNotificationEvent = message.mobileAppPushNotificationEvent {
+                await mobileAppPushNotificationHandler?(mobileAppPushNotificationEvent)
+            } else if let event = message.event {
                 await eventHandler?(event)
             }
         default:

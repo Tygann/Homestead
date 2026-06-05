@@ -1,7 +1,10 @@
 import SwiftUI
+import UIKit
+import UserNotifications
 
 @main
 struct HomesteadApp: App {
+    @UIApplicationDelegateAdaptor(HomesteadAppDelegate.self) private var appDelegate
     @State private var stateStore: HAStateStore
     @State private var connectionSettings: HAConnectionSettings
     @State private var homeAssistantService: HomeAssistantService
@@ -11,8 +14,11 @@ struct HomesteadApp: App {
     init() {
         let stateStore = HAStateStore()
         let connectionSettings = HAConnectionSettings()
-        let homeAssistantService = HomeAssistantService(stateStore: stateStore)
         let nativeNotificationService = NativeNotificationService()
+        let homeAssistantService = HomeAssistantService(
+            stateStore: stateStore,
+            nativeNotificationService: nativeNotificationService
+        )
 
         _stateStore = State(initialValue: stateStore)
         _connectionSettings = State(initialValue: connectionSettings)
@@ -43,5 +49,22 @@ struct HomesteadApp: App {
                 .environment(nativeNotificationService)
                 .environment(dashboardConfiguration)
         }
+    }
+}
+
+final class HomesteadAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list, .sound, .badge]
     }
 }

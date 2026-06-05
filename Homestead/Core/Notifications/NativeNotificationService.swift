@@ -6,6 +6,7 @@ import UserNotifications
 protocol NativeNotificationPermissionClient {
     func currentStatus() async throws -> NativeNotificationStatusSnapshot
     func requestAuthorization() async throws -> Bool
+    func presentNotification(_ request: NativeNotificationRequest) async throws
 }
 
 struct UNUserNotificationPermissionClient: NativeNotificationPermissionClient {
@@ -15,6 +16,21 @@ struct UNUserNotificationPermissionClient: NativeNotificationPermissionClient {
 
     func requestAuthorization() async throws -> Bool {
         try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+    }
+
+    func presentNotification(_ request: NativeNotificationRequest) async throws {
+        let content = UNMutableNotificationContent()
+        content.title = request.title
+        content.body = request.body
+        content.sound = .default
+        content.userInfo = request.userInfo
+
+        let notificationRequest = UNNotificationRequest(
+            identifier: request.identifier,
+            content: content,
+            trigger: nil
+        )
+        try await UNUserNotificationCenter.current().add(notificationRequest)
     }
 }
 
@@ -59,6 +75,10 @@ final class NativeNotificationService {
         } catch {
             lastErrorMessage = error.localizedDescription
         }
+    }
+
+    func presentNotification(_ request: NativeNotificationRequest) async throws {
+        try await client.presentNotification(request)
     }
 }
 

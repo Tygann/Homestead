@@ -56,11 +56,27 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
     let cloudhookURL: String?
     let remoteUIURL: String?
     let secret: String?
+    let supportsWebSocketNotifications: Bool?
     let registeredAt: Date
 
     nonisolated var hasEncryptedWebhookSecret: Bool {
         guard let secret else { return false }
         return !secret.isEmpty
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case serverIdentifier
+        case deviceID
+        case appID
+        case appName
+        case appVersion
+        case deviceName
+        case webhookID
+        case cloudhookURL
+        case remoteUIURL
+        case secret
+        case supportsWebSocketNotifications
+        case registeredAt
     }
 
     init(
@@ -79,6 +95,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         cloudhookURL = response.cloudhookURL
         remoteUIURL = response.remoteUIURL
         secret = response.secret
+        supportsWebSocketNotifications = request.appData?["push_websocket_channel"]?.boolValue == true
         self.registeredAt = registeredAt
     }
 
@@ -93,6 +110,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         cloudhookURL: String? = nil,
         remoteUIURL: String? = nil,
         secret: String? = nil,
+        supportsWebSocketNotifications: Bool? = nil,
         registeredAt: Date = Date()
     ) {
         self.serverIdentifier = serverIdentifier
@@ -105,6 +123,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         self.cloudhookURL = cloudhookURL
         self.remoteUIURL = remoteUIURL
         self.secret = secret
+        self.supportsWebSocketNotifications = supportsWebSocketNotifications
         self.registeredAt = registeredAt
     }
 }
@@ -136,6 +155,7 @@ nonisolated struct HAMobileAppRegistrationSummary: Equatable, Sendable {
     let registeredAt: Date
     let usesCloudhook: Bool
     let hasEncryptedWebhookSecret: Bool
+    let supportsWebSocketNotifications: Bool
 
     init(info: HAMobileAppRegistrationInfo) {
         deviceName = info.deviceName
@@ -143,6 +163,7 @@ nonisolated struct HAMobileAppRegistrationSummary: Equatable, Sendable {
         registeredAt = info.registeredAt
         usesCloudhook = info.cloudhookURL != nil
         hasEncryptedWebhookSecret = info.hasEncryptedWebhookSecret
+        supportsWebSocketNotifications = info.supportsWebSocketNotifications == true
     }
 }
 
@@ -170,7 +191,7 @@ enum HAMobileAppRegistrationRequestFactory {
             osName: osName,
             osVersion: osVersion,
             supportsEncryption: false,
-            appData: nil
+            appData: ["push_websocket_channel": .bool(true)]
         )
     }
 }

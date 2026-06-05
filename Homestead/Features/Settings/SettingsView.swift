@@ -801,17 +801,23 @@ private struct NativeNotificationSettingsView: View {
             Section {
                 LabeledContent("Account", value: accountReadinessTitle)
                 LabeledContent("Mobile App", value: mobileAppReadinessTitle)
-                LabeledContent("Push Delivery", value: "Not enabled yet")
+                LabeledContent("WebSocket Delivery", value: homeAssistantService.mobileAppPushNotificationState.settingsTitle)
 
                 if let mobileAppMessage {
                     Text(mobileAppMessage)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+
+                if let pushDeliveryMessage {
+                    Text(pushDeliveryMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             } header: {
                 Text("Home Assistant")
             } footer: {
-                Text("Home Assistant notifications use the official mobile_app notify path. Homestead is preparing the native setup surface before APNs token handling or push delivery is implemented.")
+                Text("Home Assistant notifications use the official mobile_app notify path. Homestead receives notifications over its active WebSocket connection; cloud/APNs forwarding would require a separate push service.")
             }
 
             Section {
@@ -920,6 +926,19 @@ private struct NativeNotificationSettingsView: View {
         case .registered(let summary):
             let date = summary.registeredAt.formatted(date: .abbreviated, time: .shortened)
             return "Registered as \(summary.deviceName) on \(date)."
+        case .failed(let message):
+            return message
+        }
+    }
+
+    private var pushDeliveryMessage: String? {
+        switch homeAssistantService.mobileAppPushNotificationState {
+        case .unavailable:
+            return "Connect to Home Assistant to start WebSocket notification delivery."
+        case .subscribing:
+            return "Homestead is opening Home Assistant's mobile-app notification channel."
+        case .subscribed(let date):
+            return "Ready since \(date.formatted(date: .abbreviated, time: .shortened))."
         case .failed(let message):
             return message
         }
@@ -1905,6 +1924,21 @@ private extension NativeNotificationDeliverySetting {
             return "Off"
         case .enabled:
             return "On"
+        }
+    }
+}
+
+private extension HAMobileAppPushNotificationState {
+    var settingsTitle: String {
+        switch self {
+        case .unavailable:
+            return "Not connected"
+        case .subscribing:
+            return "Connecting"
+        case .subscribed:
+            return "Ready"
+        case .failed:
+            return "Needs attention"
         }
     }
 }

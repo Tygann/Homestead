@@ -13,6 +13,7 @@ final class HomeAssistantService {
     private(set) var isLoadingCachedStates = false
     private(set) var hasCompletedInitialCacheLoad = false
     private(set) var mobileAppRegistrationState: HAMobileAppRegistrationState = .unregistered
+    private(set) var mobileAppPushNotificationState: HAMobileAppPushNotificationState = .unavailable
     private(set) var authState: HAAuthState = .signedOut
     private(set) var currentUserDisplayName: String?
     private(set) var isNetworkAvailable = true
@@ -25,6 +26,7 @@ final class HomeAssistantService {
     @ObservationIgnored private let httpClient: HAHTTPClient
     @ObservationIgnored private let mobileAppClient: any HAMobileAppClientProtocol
     @ObservationIgnored private let mobileAppRegistrationStore: any HAMobileAppRegistrationStore
+    @ObservationIgnored private let nativeNotificationService: NativeNotificationService
     @ObservationIgnored private let authManager: HAOAuthManager
     @ObservationIgnored private let oauthAuthorizer: any HAOAuthAuthorizing
     @ObservationIgnored private let stateStore: HAStateStore
@@ -55,6 +57,7 @@ final class HomeAssistantService {
         httpClient: HAHTTPClient = HAHTTPClient(),
         mobileAppClient: any HAMobileAppClientProtocol = HAMobileAppClient(),
         mobileAppRegistrationStore: any HAMobileAppRegistrationStore = KeychainHAMobileAppRegistrationStore(),
+        nativeNotificationService: NativeNotificationService? = nil,
         authManager: HAOAuthManager = HAOAuthManager(),
         oauthAuthorizer: (any HAOAuthAuthorizing)? = nil
     ) {
@@ -63,6 +66,7 @@ final class HomeAssistantService {
         self.httpClient = httpClient
         self.mobileAppClient = mobileAppClient
         self.mobileAppRegistrationStore = mobileAppRegistrationStore
+        self.nativeNotificationService = nativeNotificationService ?? NativeNotificationService()
         self.authManager = authManager
         self.oauthAuthorizer = oauthAuthorizer ?? HAWebAuthenticationSession()
         self.stateCache = stateCache
@@ -184,6 +188,7 @@ final class HomeAssistantService {
             dataFreshness = .refreshing(lastUpdated: dataFreshness.lastKnownUpdateDate)
             startStateSync(configuration: connectedConfiguration)
             await registerMobileAppIfNeeded(configuration: connectedConfiguration)
+            await startMobileAppPushNotificationChannel(configuration: connectedConfiguration)
         } catch {
             shouldReconnect = false
             lastErrorMessage = error.localizedDescription
@@ -225,6 +230,7 @@ final class HomeAssistantService {
         cancelPendingCommandTasks()
         await client.disconnect()
         activeConfiguration = nil
+        mobileAppPushNotificationState = .unavailable
         currentUserID = nil
         currentUserDisplayName = nil
         serviceRegistry = .empty
@@ -630,7 +636,8 @@ final class HomeAssistantService {
     ) async {
         if !force,
            let registration = try? mobileAppRegistrationStore.readRegistration(),
-           registration.serverIdentifier == configuration.dataSourceID {
+           registration.serverIdentifier == configuration.dataSourceID,
+           registration.supportsWebSocketNotifications == true {
             mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
             return
         }
@@ -1635,8 +1642,61 @@ final class HomeAssistantService {
             await self?.handleStateEvent(event)
         }
 
+        await client.setMobileAppPushNotificationHandler { [weak self] event in
+            await self?.handleMobileAppPushNotificationEvent(event)
+        }
+
         await client.setDisconnectHandler { [weak self] error in
             self?.handleUnexpectedDisconnect(error)
+        }
+    }
+
+    private func startMobileAppPushNotificationChannel(configuration: HAConnectionConfiguration) async {
+        guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+            return
+        }
+
+        do {
+            let registration = try currentMobileAppRegistration(for: configuration)
+            guard registration.supportsWebSocketNotifications == true else {
+                mobileAppPushNotificationState = .failed("Register Homestead again to enable Home Assistant WebSocket notification delivery.")
+                return
+            }
+
+            mobileAppPushNotificationState = .subscribing
+            try await client.subscribeToMobileAppPushNotifications(
+                webhookID: registration.webhookID,
+                supportConfirm: true
+            )
+            mobileAppPushNotificationState = .subscribed(Date())
+        } catch {
+            mobileAppPushNotificationState = .failed(error.localizedDescription)
+            #if DEBUG
+            print("Home Assistant mobile-app notification channel failed: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    private func handleMobileAppPushNotificationEvent(_ event: HAMobileAppPushNotificationEventDTO) async {
+        guard let activeConfiguration else {
+            return
+        }
+
+        do {
+            let registration = try currentMobileAppRegistration(for: activeConfiguration)
+            try await nativeNotificationService.presentNotification(event.notificationRequest)
+
+            if let confirmID = event.hassConfirmID {
+                try await client.confirmMobileAppPushNotification(
+                    webhookID: registration.webhookID,
+                    confirmID: confirmID
+                )
+            }
+        } catch {
+            mobileAppPushNotificationState = .failed(error.localizedDescription)
+            #if DEBUG
+            print("Home Assistant mobile-app notification delivery failed: \(error.localizedDescription)")
+            #endif
         }
     }
 

@@ -13,8 +13,9 @@ Recommended reasoning level: High.
 ## Completed Chunk
 
 - Added native iOS notification permission/status models and a `NativeNotificationService` separate from Home Assistant mobile-app registration state.
-- Replaced the Settings > Notifications placeholder with a real setup/status page that shows iOS permission state, Home Assistant account/mobile-app readiness, recovery actions, and that push delivery is not enabled yet.
-- Kept notification direction aligned with Home Assistant's official native-app notification path and did not add APNs token handling or full push delivery.
+- Replaced the Settings > Notifications placeholder with a real setup/status page that shows iOS permission state, Home Assistant account/mobile-app readiness, WebSocket delivery readiness, and recovery actions.
+- Added Home Assistant's official mobile-app WebSocket notification delivery: registration advertises `push_websocket_channel`, the connected socket subscribes to `mobile_app/push_notification_channel`, received events present local iOS notifications, and Homestead confirms delivery when HA provides a confirmation ID.
+- Kept cloud/APNs forwarding out of scope because Home Assistant's cloud path requires a separate push forwarding server and `push_url`.
 
 ## Next Chunk
 

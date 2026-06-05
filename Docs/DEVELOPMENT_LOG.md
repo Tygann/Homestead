@@ -4,11 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-05
 
-### Notifications Groundwork
+### Notifications
 
 - Added native iOS notification permission/status models and a `NativeNotificationService` that is separate from Home Assistant mobile-app registration state.
-- Replaced the Settings > Notifications placeholder with a real setup/status page for iOS permission state, Home Assistant account/mobile-app readiness, recovery actions, and explicit push-delivery-not-enabled status.
-- Kept notification work aligned to Home Assistant's official native-app notification direction while deferring APNs token handling and incoming push delivery to a later chunk.
+- Replaced the Settings > Notifications placeholder with a real setup/status page for iOS permission state, Home Assistant account/mobile-app readiness, WebSocket delivery readiness, and recovery actions.
+- Added Home Assistant's official mobile-app WebSocket notification delivery by registering `push_websocket_channel`, subscribing over the active Home Assistant WebSocket connection, presenting local iOS notifications, and sending HA confirmation IDs after local presentation.
+- Kept cloud/APNs forwarding out of scope because Home Assistant's cloud notification path requires a separate push forwarding service and `push_url`.
 
 ### Server Configuration Foundation
 

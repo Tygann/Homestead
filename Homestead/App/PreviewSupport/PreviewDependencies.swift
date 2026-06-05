@@ -27,11 +27,15 @@ struct PreviewDependencies {
             tokenStore: tokenStore
         )
 
+        let nativeNotificationService = NativeNotificationService(
+            client: PreviewNativeNotificationPermissionClient(status: .previewAuthorized)
+        )
         let service = HomeAssistantService(
             stateStore: stateStore,
             connectionStatus: .connected,
             authState: .signedIn(HAAuthSessionSummary(credential: credential)),
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            nativeNotificationService: nativeNotificationService,
             authManager: HAOAuthManager(tokenStore: tokenStore)
         )
 
@@ -39,9 +43,7 @@ struct PreviewDependencies {
             stateStore: stateStore,
             connectionSettings: settings,
             homeAssistantService: service,
-            nativeNotificationService: NativeNotificationService(
-                client: PreviewNativeNotificationPermissionClient(status: .previewAuthorized)
-            ),
+            nativeNotificationService: nativeNotificationService,
             dashboardConfiguration: dashboardConfiguration
         )
     }
@@ -58,10 +60,14 @@ struct PreviewDependencies {
                 defaults: previewDefaults,
                 tokenStore: tokenStore
             )
+            let nativeNotificationService = NativeNotificationService(
+                client: PreviewNativeNotificationPermissionClient(status: .previewAuthorized)
+            )
             let service = HomeAssistantService(
                 stateStore: stateStore,
                 authState: .signedIn(HAAuthSessionSummary(credential: credential)),
                 mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+                nativeNotificationService: nativeNotificationService,
                 authManager: HAOAuthManager(tokenStore: tokenStore)
             )
 
@@ -69,9 +75,7 @@ struct PreviewDependencies {
                 stateStore: stateStore,
                 connectionSettings: settings,
                 homeAssistantService: service,
-                nativeNotificationService: NativeNotificationService(
-                    client: PreviewNativeNotificationPermissionClient(status: .previewAuthorized)
-                ),
+                nativeNotificationService: nativeNotificationService,
                 dashboardConfiguration: dashboardConfiguration
             )
         }
@@ -82,18 +86,20 @@ struct PreviewDependencies {
             return nil
         }
 
+        let nativeNotificationService = NativeNotificationService(
+            client: PreviewNativeNotificationPermissionClient(status: .previewNotDetermined)
+        )
         let service = HomeAssistantService(
             stateStore: stateStore,
-            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore()
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            nativeNotificationService: nativeNotificationService
         )
 
         return PreviewDependencies(
             stateStore: stateStore,
             connectionSettings: settings,
             homeAssistantService: service,
-            nativeNotificationService: NativeNotificationService(
-                client: PreviewNativeNotificationPermissionClient(status: .previewNotDetermined)
-            ),
+            nativeNotificationService: nativeNotificationService,
             dashboardConfiguration: dashboardConfiguration
         )
     }
@@ -125,6 +131,8 @@ private struct PreviewNativeNotificationPermissionClient: NativeNotificationPerm
     func requestAuthorization() async throws -> Bool {
         true
     }
+
+    func presentNotification(_ request: NativeNotificationRequest) async throws {}
 }
 
 private extension NativeNotificationStatusSnapshot {

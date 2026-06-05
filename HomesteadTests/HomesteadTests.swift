@@ -512,6 +512,55 @@ struct HomesteadTests {
         #expect(object["entity_id"] as? String == "camera.driveway")
     }
 
+    @Test func mobileAppPushNotificationRequestsEncodeHomeAssistantShape() throws {
+        let subscribe = HAWebSocketRequest.mobileAppPushNotificationChannel(
+            id: 12,
+            webhookID: "webhook-abc",
+            supportConfirm: true
+        )
+        let confirm = HAWebSocketRequest.mobileAppPushNotificationConfirm(
+            id: 13,
+            webhookID: "webhook-abc",
+            confirmID: "confirm-123"
+        )
+
+        let subscribeObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(subscribe)) as? [String: Any])
+        #expect(subscribeObject["id"] as? Int == 12)
+        #expect(subscribeObject["type"] as? String == "mobile_app/push_notification_channel")
+        #expect(subscribeObject["webhook_id"] as? String == "webhook-abc")
+        #expect(subscribeObject["support_confirm"] as? Bool == true)
+
+        let confirmObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(confirm)) as? [String: Any])
+        #expect(confirmObject["id"] as? Int == 13)
+        #expect(confirmObject["type"] as? String == "mobile_app/push_notification_confirm")
+        #expect(confirmObject["webhook_id"] as? String == "webhook-abc")
+        #expect(confirmObject["confirm_id"] as? String == "confirm-123")
+    }
+
+    @Test func mobileAppPushNotificationEventDecodesFromWebSocketEventEnvelope() throws {
+        let payload = """
+        {
+            "id": 12,
+            "type": "event",
+            "event": {
+                "title": "Laundry",
+                "message": "Washer finished",
+                "hass_confirm_id": "confirm-123",
+                "data": {
+                    "tag": "laundry"
+                }
+            }
+        }
+        """
+
+        let message = try JSONDecoder().decode(HAWebSocketIncomingMessage.self, from: Data(payload.utf8))
+
+        #expect(message.event == nil)
+        #expect(message.mobileAppPushNotificationEvent?.title == "Laundry")
+        #expect(message.mobileAppPushNotificationEvent?.message == "Washer finished")
+        #expect(message.mobileAppPushNotificationEvent?.hassConfirmID == "confirm-123")
+    }
+
     @Test func serviceRegistryDecodesHomeAssistantServiceCatalog() throws {
         let payload = """
         {
@@ -641,6 +690,8 @@ struct HomesteadTests {
         #expect(object["os_name"] as? String == "iOS")
         #expect(object["os_version"] as? String == "26.5")
         #expect(object["supports_encryption"] as? Bool == false)
+        let appData = try #require(object["app_data"] as? [String: Any])
+        #expect(appData["push_websocket_channel"] as? Bool == true)
     }
 
     @Test func mobileAppRegistrationResponseDecodesHomeAssistantShape() throws {
@@ -1996,6 +2047,108 @@ struct HomesteadTests {
         #expect(service.lastErrorMessage == nil)
         #expect(client.didRequestAuthorization)
         #expect(client.currentStatusCallCount == 1)
+    }
+
+    @MainActor
+    @Test func nativeNotificationServicePresentsNotificationRequests() async throws {
+        let client = StubNativeNotificationPermissionClient(currentStatus: .unknown)
+        let service = NativeNotificationService(client: client)
+        let request = NativeNotificationRequest(
+            identifier: "notification-1",
+            title: "Laundry",
+            body: "Washer finished",
+            userInfo: ["source": "home_assistant"]
+        )
+
+        try await service.presentNotification(request)
+
+        #expect(client.presentedNotifications == [request])
+    }
+
+    @MainActor
+    @Test func serviceConnectionRegistersWebSocketNotificationsAndSubscribes() async throws {
+        let store = InMemoryHAMobileAppRegistrationStore()
+        let mobileAppClient = StubHAMobileAppClient(
+            registrationResponse: HAMobileAppRegistrationResponseDTO(
+                cloudhookURL: nil,
+                remoteUIURL: nil,
+                secret: nil,
+                webhookID: "webhook-created"
+            )
+        )
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: mobileAppClient,
+            mobileAppRegistrationStore: store,
+            nativeNotificationService: NativeNotificationService(
+                client: StubNativeNotificationPermissionClient(currentStatus: .unknown)
+            ),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(
+                    credential: testCredential(accessToken: "token-a")
+                )
+            )
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+
+        let savedRegistration = try #require(try store.readRegistration())
+        #expect(savedRegistration.supportsWebSocketNotifications == true)
+        #expect(mobileAppClient.lastRegistrationRequest?.appData?["push_websocket_channel"]?.boolValue == true)
+        #expect(webSocketClient.mobileAppPushNotificationSubscription?.webhookID == "webhook-created")
+        #expect(webSocketClient.mobileAppPushNotificationSubscription?.supportConfirm == true)
+        #expect(service.mobileAppPushNotificationState.isSubscribed)
+    }
+
+    @MainActor
+    @Test func servicePresentsAndConfirmsMobileAppPushNotificationEvents() async throws {
+        let configuration = HAConnectionConfiguration(
+            baseURLString: "http://homeassistant.local:8123",
+            accessToken: "token-a"
+        )
+        let store = InMemoryHAMobileAppRegistrationStore(
+            registration: HAMobileAppRegistrationInfo(
+                serverIdentifier: configuration.dataSourceID,
+                deviceID: "device-a",
+                appVersion: "1.0",
+                deviceName: "Test Phone",
+                webhookID: "webhook-a",
+                supportsWebSocketNotifications: true
+            )
+        )
+        let nativeClient = StubNativeNotificationPermissionClient(currentStatus: .unknown)
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: store,
+            nativeNotificationService: NativeNotificationService(client: nativeClient),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(
+                    credential: testCredential(accessToken: "token-a")
+                )
+            )
+        )
+
+        await service.connect(baseURLString: configuration.baseURLString)
+        await webSocketClient.emitMobileAppPushNotification(
+            HAMobileAppPushNotificationEventDTO(
+                message: "Washer finished",
+                title: "Laundry",
+                hassConfirmID: "confirm-123",
+                data: nil
+            )
+        )
+
+        let presentedNotification = try #require(nativeClient.presentedNotifications.first)
+        #expect(presentedNotification.title == "Laundry")
+        #expect(presentedNotification.body == "Washer finished")
+        #expect(webSocketClient.mobileAppPushNotificationConfirmations.count == 1)
+        #expect(webSocketClient.mobileAppPushNotificationConfirmations.first?.webhookID == "webhook-a")
+        #expect(webSocketClient.mobileAppPushNotificationConfirmations.first?.confirmID == "confirm-123")
     }
 
     @MainActor
@@ -4477,6 +4630,9 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     private(set) var didDisconnect = false
     private(set) var disconnectCount = 0
     private(set) var callServiceInvocations: [(domain: String, service: String, entityID: String?, serviceData: [String: JSONValue])] = []
+    private(set) var mobileAppPushNotificationSubscription: (webhookID: String, supportConfirm: Bool)?
+    private(set) var mobileAppPushNotificationConfirmations: [(webhookID: String, confirmID: String)] = []
+    private var mobileAppPushNotificationHandler: (@Sendable (HAMobileAppPushNotificationEventDTO) async -> Void)?
     var callServiceError: Error?
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
@@ -4500,6 +4656,10 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) async {}
+
+    func setMobileAppPushNotificationHandler(_ handler: (@Sendable (HAMobileAppPushNotificationEventDTO) async -> Void)?) async {
+        mobileAppPushNotificationHandler = handler
+    }
 
     func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) async {}
 
@@ -4563,6 +4723,18 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func unsubscribeFromStateChanges() async throws {}
 
+    func subscribeToMobileAppPushNotifications(webhookID: String, supportConfirm: Bool) async throws {
+        mobileAppPushNotificationSubscription = (webhookID, supportConfirm)
+    }
+
+    func confirmMobileAppPushNotification(webhookID: String, confirmID: String) async throws {
+        mobileAppPushNotificationConfirmations.append((webhookID, confirmID))
+    }
+
+    func emitMobileAppPushNotification(_ event: HAMobileAppPushNotificationEventDTO) async {
+        await mobileAppPushNotificationHandler?(event)
+    }
+
     func callService(
         domain: String,
         service: String,
@@ -4622,8 +4794,10 @@ final class StubNativeNotificationPermissionClient: NativeNotificationPermission
     var currentStatus: NativeNotificationStatusSnapshot
     var requestAuthorizationError: Error?
     var currentStatusError: Error?
+    var presentNotificationError: Error?
     private(set) var currentStatusCallCount = 0
     private(set) var didRequestAuthorization = false
+    private(set) var presentedNotifications: [NativeNotificationRequest] = []
 
     init(currentStatus: NativeNotificationStatusSnapshot) {
         self.currentStatus = currentStatus
@@ -4647,5 +4821,13 @@ final class StubNativeNotificationPermissionClient: NativeNotificationPermission
         }
 
         return currentStatus.authorizationStatus.isAllowed
+    }
+
+    func presentNotification(_ request: NativeNotificationRequest) async throws {
+        if let presentNotificationError {
+            throw presentNotificationError
+        }
+
+        presentedNotifications.append(request)
     }
 }
