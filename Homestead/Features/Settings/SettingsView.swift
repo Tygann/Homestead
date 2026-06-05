@@ -759,69 +759,19 @@ private struct NativeNotificationSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Label {
-                    HStack(spacing: AppSpacing.medium) {
-                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                            Text(nativeNotificationService.status.authorizationStatus.settingsTitle)
-                                .font(.headline)
-
-                            Text(nativePermissionMessage)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        Circle()
-                            .fill(nativePermissionTint)
-                            .frame(width: 12, height: 12)
-                            .accessibilityHidden(true)
-                    }
-                    .padding(.vertical, AppSpacing.xSmall)
-                } icon: {
-                    Image(systemName: "bell.badge")
-                        .foregroundStyle(Color.accentColor)
-                }
-
-                LabeledContent("Alerts", value: nativeNotificationService.status.alertSetting.settingsTitle)
-                LabeledContent("Sounds", value: nativeNotificationService.status.soundSetting.settingsTitle)
-                LabeledContent("Badges", value: nativeNotificationService.status.badgeSetting.settingsTitle)
+                notificationStatusHeader
 
                 if let message = nativeNotificationService.lastErrorMessage {
                     Text(message)
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }
-            } header: {
-                Text("Native Permission")
             } footer: {
-                Text("This is only the iOS permission state on this device. It is separate from Home Assistant mobile-app registration.")
+                Text("Use iOS Settings to adjust banners, sounds, badges, lock screen visibility, and notification grouping.")
             }
 
             Section {
-                LabeledContent("Account", value: accountReadinessTitle)
-                LabeledContent("Mobile App", value: mobileAppReadinessTitle)
-                LabeledContent("WebSocket Delivery", value: homeAssistantService.mobileAppPushNotificationState.settingsTitle)
-
-                if let mobileAppMessage {
-                    Text(mobileAppMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                if let pushDeliveryMessage {
-                    Text(pushDeliveryMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text("Home Assistant")
-            } footer: {
-                Text("Home Assistant notifications use the official mobile_app notify path. Homestead receives notifications over its active WebSocket connection; cloud/APNs forwarding would require a separate push service.")
-            }
-
-            Section {
-                if nativeNotificationService.status.authorizationStatus.canRequestInApp {
+                if shouldShowAllowNotificationsAction {
                     Button {
                         Task { await nativeNotificationService.requestAuthorization() }
                     } label: {
@@ -831,14 +781,16 @@ private struct NativeNotificationSettingsView: View {
                     .frame(maxWidth: .infinity)
                 }
 
-                if nativeNotificationService.status.authorizationStatus == .denied {
-                    Button {
-                        openIOSNotificationSettings()
-                    } label: {
-                        Text("Open iOS Settings")
-                    }
-                    .frame(maxWidth: .infinity)
+                Button {
+                    openIOSNotificationSettings()
+                } label: {
+                    Label("Open Homestead in iOS Settings", systemImage: "gearshape")
                 }
+                .frame(maxWidth: .infinity)
+            }
+
+            Section {
+                homeAssistantStatusHeader
 
                 if shouldShowMobileAppRegistrationAction {
                     Button {
@@ -850,18 +802,44 @@ private struct NativeNotificationSettingsView: View {
                     .frame(maxWidth: .infinity)
                 }
 
-                Button {
-                    Task {
-                        await nativeNotificationService.refreshAuthorizationStatus()
-                        homeAssistantService.refreshMobileAppRegistrationState(settings: connectionSettings)
-                    }
-                } label: {
-                    Text(nativeNotificationService.isRefreshing ? "Refreshing" : "Refresh Status")
-                }
-                .disabled(nativeNotificationService.isRefreshing)
-                .frame(maxWidth: .infinity)
             } header: {
-                Text("Actions")
+                Text("Home Assistant")
+            } footer: {
+                Text("Homestead receives Home Assistant notifications while connected to your server.")
+            }
+
+            Section {
+                DisclosureGroup("Details") {
+                    LabeledContent("Permission", value: permissionBadgeText)
+                    LabeledContent("Alerts", value: nativeNotificationService.status.alertSetting.settingsTitle)
+                    LabeledContent("Sounds", value: nativeNotificationService.status.soundSetting.settingsTitle)
+                    LabeledContent("Badges", value: nativeNotificationService.status.badgeSetting.settingsTitle)
+                    LabeledContent("Account", value: accountReadinessTitle)
+                    LabeledContent("Mobile App", value: mobileAppReadinessTitle)
+                    LabeledContent("Delivery Channel", value: homeAssistantService.mobileAppPushNotificationState.settingsTitle)
+
+                    if let mobileAppMessage {
+                        Text(mobileAppMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let pushDeliveryMessage {
+                        Text(pushDeliveryMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        Task {
+                            await nativeNotificationService.refreshAuthorizationStatus()
+                            homeAssistantService.refreshMobileAppRegistrationState(settings: connectionSettings)
+                        }
+                    } label: {
+                        Text(nativeNotificationService.isRefreshing ? "Refreshing" : "Refresh Status")
+                    }
+                    .disabled(nativeNotificationService.isRefreshing)
+                }
             }
         }
         .navigationTitle("Notifications")
@@ -872,12 +850,230 @@ private struct NativeNotificationSettingsView: View {
         }
     }
 
-    private var nativePermissionMessage: String {
-        nativeNotificationService.status.authorizationStatus.settingsMessage
+    private var notificationStatusHeader: some View {
+        Label {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                HStack(spacing: AppSpacing.small) {
+                    Text(permissionTitle)
+                        .font(.headline)
+
+                    Spacer()
+
+                    Text(permissionBadgeText)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(nativePermissionTint)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(nativePermissionTint.opacity(0.12), in: Capsule())
+                }
+
+                Text(permissionMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, AppSpacing.xSmall)
+        } icon: {
+            Image(systemName: permissionSystemImage)
+                .foregroundStyle(nativePermissionTint)
+        }
     }
 
     private var nativePermissionTint: Color {
         nativeNotificationService.status.authorizationStatus.settingsTint
+    }
+
+    private var permissionTitle: String {
+        switch nativeNotificationService.status.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return "Notifications Enabled"
+        case .denied:
+            return "Notifications Off"
+        case .notDetermined:
+            return "Set Up Notifications"
+        case .unknown:
+            return "Checking Notifications"
+        }
+    }
+
+    private var permissionBadgeText: String {
+        switch nativeNotificationService.status.authorizationStatus {
+        case .authorized:
+            return "Permission Granted"
+        case .provisional:
+            return "Quietly Allowed"
+        case .ephemeral:
+            return "Temporarily Allowed"
+        case .denied:
+            return "Permission Off"
+        case .notDetermined:
+            return "Not Set Up"
+        case .unknown:
+            return "Checking"
+        }
+    }
+
+    private var permissionMessage: String {
+        switch nativeNotificationService.status.authorizationStatus {
+        case .authorized:
+            return "Homestead can show Home Assistant notifications on this iPhone."
+        case .provisional:
+            return "Homestead can deliver Home Assistant notifications quietly."
+        case .ephemeral:
+            return "Homestead has temporary permission to show notifications."
+        case .denied:
+            return "Turn on notifications in iOS Settings to receive Home Assistant alerts."
+        case .notDetermined:
+            return "Allow Homestead to show notifications from Home Assistant."
+        case .unknown:
+            return "Homestead is checking iOS notification permission."
+        }
+    }
+
+    private var permissionSystemImage: String {
+        switch nativeNotificationService.status.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return "bell.badge.fill"
+        case .denied:
+            return "bell.slash.fill"
+        case .notDetermined, .unknown:
+            return "bell.badge"
+        }
+    }
+
+    private var shouldShowAllowNotificationsAction: Bool {
+        nativeNotificationService.status.authorizationStatus.canRequestInApp
+    }
+
+    private var homeAssistantStatusHeader: some View {
+        Label {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                HStack(spacing: AppSpacing.small) {
+                    Text(homeAssistantStatusTitle)
+                        .font(.headline)
+
+                    Spacer()
+
+                    Text(homeAssistantStatusBadgeText)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(homeAssistantStatusTint)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(homeAssistantStatusTint.opacity(0.12), in: Capsule())
+                }
+
+                Text(homeAssistantStatusMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, AppSpacing.xSmall)
+        } icon: {
+            Image(systemName: "house.badge.wifi")
+                .foregroundStyle(homeAssistantStatusTint)
+        }
+    }
+
+    private var homeAssistantStatusTitle: String {
+        if homeAssistantService.mobileAppPushNotificationState.isSubscribed,
+           homeAssistantService.mobileAppRegistrationState.isRegistered,
+           homeAssistantService.authState.isSignedIn,
+           !hasServerMismatch {
+            return "Connected and Ready"
+        }
+
+        if hasServerMismatch {
+            return "Server Needs Attention"
+        }
+
+        if homeAssistantService.mobileAppPushNotificationState == .subscribing {
+            return "Connecting Notifications"
+        }
+
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .failed:
+            return "Registration Issue"
+        case .unregistered:
+            return "Registration Needed"
+        case .registering:
+            return "Registering"
+        case .registered:
+            return homeAssistantService.authState.isSignedIn ? "Delivery Not Connected" : "Sign In Needed"
+        }
+    }
+
+    private var homeAssistantStatusBadgeText: String {
+        if homeAssistantService.mobileAppPushNotificationState.isSubscribed,
+           homeAssistantService.mobileAppRegistrationState.isRegistered,
+           homeAssistantService.authState.isSignedIn,
+           !hasServerMismatch {
+            return "Ready"
+        }
+
+        switch homeAssistantService.mobileAppPushNotificationState {
+        case .subscribing:
+            return "Connecting"
+        case .failed:
+            return "Action Needed"
+        case .unavailable, .subscribed:
+            return "Not Ready"
+        }
+    }
+
+    private var homeAssistantStatusMessage: String {
+        if let homeAssistantSetupMessage {
+            return homeAssistantSetupMessage
+        }
+
+        return "Home Assistant notifications are ready for this device."
+    }
+
+    private var homeAssistantStatusTint: Color {
+        if homeAssistantService.mobileAppPushNotificationState.isSubscribed,
+           homeAssistantService.mobileAppRegistrationState.isRegistered,
+           homeAssistantService.authState.isSignedIn,
+           !hasServerMismatch {
+            return .green
+        }
+
+        switch homeAssistantService.mobileAppPushNotificationState {
+        case .failed:
+            return .red
+        case .subscribing:
+            return .orange
+        case .unavailable, .subscribed:
+            return .secondary
+        }
+    }
+
+    private var homeAssistantSetupMessage: String? {
+        if hasServerMismatch {
+            return "Sign in again for the selected Home Assistant server."
+        }
+
+        guard homeAssistantService.authState.isSignedIn else {
+            return "Sign in with Home Assistant before receiving notifications."
+        }
+
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .unregistered:
+            return "Register Homestead with Home Assistant to receive notifications."
+        case .registering:
+            return "Homestead is registering this device with Home Assistant."
+        case .failed(let message):
+            return message
+        case .registered:
+            break
+        }
+
+        switch homeAssistantService.mobileAppPushNotificationState {
+        case .unavailable:
+            return "Connect to Home Assistant to start notification delivery."
+        case .subscribing:
+            return "Homestead is opening the Home Assistant notification channel."
+        case .subscribed:
+            return nil
+        case .failed(let message):
+            return message
+        }
     }
 
     private var accountReadinessTitle: String {
@@ -934,7 +1130,7 @@ private struct NativeNotificationSettingsView: View {
     private var pushDeliveryMessage: String? {
         switch homeAssistantService.mobileAppPushNotificationState {
         case .unavailable:
-            return "Connect to Home Assistant to start WebSocket notification delivery."
+            return "Connect to Home Assistant to start notification delivery."
         case .subscribing:
             return "Homestead is opening Home Assistant's mobile-app notification channel."
         case .subscribed(let date):
