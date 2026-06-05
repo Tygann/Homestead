@@ -12,6 +12,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added a near-term API mapping queue and default Codex commit guidance so self-contained verified changes are committed without requiring a separate follow-up prompt.
 - Added `Docs/NEXT_STEPS.md`, `Docs/DEVELOPMENT_WORKFLOW.md`, and `Docs/ADR/README.md` so future coding sessions have a tactical handoff, Definition of Done, UI verification defaults, and a place for durable architecture decisions.
 - Added token budget and reasoning-level guidance for Codex-heavy development sessions.
+- Added fresh-chat handoff guidance so Codex can recommend new chats at clean boundaries and provide a restart prompt.
 
 ### Dashboard Detail Views
 

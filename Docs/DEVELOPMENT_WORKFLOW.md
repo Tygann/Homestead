@@ -20,6 +20,23 @@ This document captures the working agreement for agentic coding sessions. Keep i
 - Ask before doing broad external research, large refactors, long-running verification, or multi-feature implementation.
 - When context gets large, update `Docs/NEXT_STEPS.md` with the handoff instead of relying on chat history.
 
+## Fresh Chat Handoffs
+
+Recommend starting a fresh chat when it would likely save meaningful context or token usage, especially after a self-contained chunk is committed, after a long planning discussion, before starting a different roadmap item, after major docs/handoff updates, or when the current thread has accumulated lots of obsolete exploration.
+
+Before recommending a fresh chat:
+
+- Make sure the worktree is clean or clearly explain any uncommitted state.
+- Update `Docs/NEXT_STEPS.md` if the next task or acceptance notes changed.
+- Commit completed self-contained work when safe.
+- Provide a short copy-paste prompt for the new chat.
+
+Default fresh-chat prompt:
+
+```text
+Continue Homestead from Docs/NEXT_STEPS.md. First read AGENTS.md and Docs/DEVELOPMENT_WORKFLOW.md, then inspect only the files needed for the next chunk. Be token-conscious, follow the roadmap/API inventory when relevant, run appropriate verification, update durable docs only if status or direction changes, and commit completed self-contained work.
+```
+
 ## Reasoning Level Guide
 
 Codex may not always be able to see the current UI-selected reasoning level. At the start of substantial work, recommend a level if the task appears under- or over-provisioned, but do not block on the user changing it unless the task risk is high.
