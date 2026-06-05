@@ -10,6 +10,8 @@ Use Home Assistant's expected API shape whenever possible. The app is WebSocket-
 
 For product direction, existing feature inventory, likely next work, and intentionally deferred ideas, read `Docs/PRODUCT_ROADMAP.md`.
 
+For tactical handoff, definition of done, UI verification expectations, and major decision records, read `Docs/NEXT_STEPS.md`, `Docs/DEVELOPMENT_WORKFLOW.md`, and `Docs/ADR/README.md`.
+
 ## Important Architecture
 
 - `HAWebSocketClient` owns socket transport, authentication, request/response routing, state snapshots, event subscription, and service calls.
@@ -63,3 +65,5 @@ For repeatable physical-device performance profiling, use `Docs/PERFORMANCE_PROF
 Likely next product work is tracked in `Docs/PRODUCT_ROADMAP.md`. Keep this file short and update the roadmap when priorities or feature direction meaningfully change.
 
 When completing roadmap/API-related work, update `Docs/PRODUCT_ROADMAP.md` and `Docs/API_CAPABILITY_INVENTORY.md` if feature status, priority, API confidence, or deferred scope changed.
+
+When completing or changing the active workstream, update `Docs/NEXT_STEPS.md` so the next chat can resume without relying on chat history.

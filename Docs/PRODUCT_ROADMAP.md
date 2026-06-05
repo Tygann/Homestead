@@ -6,6 +6,16 @@ Homestead is a polished native iOS frontend for Home Assistant. Home Assistant r
 
 For the technical map of official Home Assistant API families, current Homestead coverage, and API research targets, read `Docs/API_CAPABILITY_INVENTORY.md`.
 
+For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
+
+## Status Labels
+
+- `Existing`: implemented and part of the current app.
+- `Near-term`: intended soon, usually next after the active chunk unless priorities change.
+- `Later`: valuable but not immediate.
+- `API research needed`: do not implement until the official Home Assistant API path is confirmed.
+- `Deferred`: intentionally not a focus right now.
+
 ## Existing Features
 
 - Native SwiftUI iOS app shell with Home, Areas, and Browse tabs.
