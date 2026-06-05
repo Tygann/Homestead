@@ -6,21 +6,20 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Richer Settings > Account page and connection routing groundwork.
+Richer Settings > Account > Server page and connection routing groundwork.
 
 Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Build the richer profile-card `Settings > Account` destination from the existing Home Assistant account/settings surface.
-- Add typed WebSocket `get_config` support only for fields the Account page's Server section needs, such as Home Assistant version and URL/config metadata that is officially returned.
-- Preserve existing sign-in, retry, diagnostics, mobile-app registration recovery, and sign-out behavior while moving account/server details into clearer native sections.
+- Add typed WebSocket `get_config` support only for fields the dedicated `Settings > Account > Server` page needs, such as Home Assistant version and URL/config metadata that is officially returned.
+- Preserve existing sign-in, retry, mobile-app registration recovery, and sign-out behavior while keeping account/session details separate from server/connection details.
 - Start modeling Homestead-owned internal URL, external URL, selected home network, active route/status, and recovery affordances without changing connection routing until the lifecycle code is ready.
 
 ## Acceptance Notes
 
-- Settings should keep the top-level account card and the large account/server header unless a later design decision explicitly replaces them.
-- The profile card is the only root entry for Account/Server setup; do not add a duplicate root Server row.
+- Settings should keep the top-level account card and the large Account header unless a later design decision explicitly replaces them.
+- The profile card is the only root entry for Account setup; Server belongs inside Account as its own navigation destination, not as a duplicate root Settings row.
 - Browse remains the daily-use entity discovery/control surface.
 - Settings remains the admin, registry, diagnostics, and companion-app configuration surface.
 - Use official Home Assistant API surfaces only. Do not add private frontend endpoints for server/admin details.

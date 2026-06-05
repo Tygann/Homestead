@@ -10,6 +10,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Replaced segmented Devices & Services and Automations & Scenes management pages with overview rows that push to focused registry/detail pages.
 - Added honest placeholders for planned Settings destinations whose backend or official API support is not implemented yet.
 - Renamed the account/server destination to Account and removed the duplicate root Server row so the profile card owns account and server setup.
+- Split Account identity/session concerns from Server connection concerns by nesting a dedicated Server page inside Account, preserving existing connection recovery actions while preparing for richer URL/version/route metadata.
 
 ## 2026-06-03
 

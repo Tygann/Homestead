@@ -162,98 +162,13 @@ struct SettingsView: View {
 struct HomeAssistantSettingsView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @FocusState private var focusedField: Field?
     @State private var isConfirmingSignOut = false
 
     var body: some View {
-        @Bindable var connectionSettings = connectionSettings
-
         Form {
             accountSection
 
-            // MARK: - Server Section
-            Section {
-                if connectionSettings.hasServerURL {
-                    DisclosureGroup("Change Server") {
-                        TextField("Base URL", text: $connectionSettings.baseURL)
-                            .textInputAutocapitalization(.never)
-                            .keyboardType(.URL)
-                            .autocorrectionDisabled()
-                            .focused($focusedField, equals: .baseURL)
-                    }
-                } else {
-                    TextField("Base URL", text: $connectionSettings.baseURL)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
-                        .focused($focusedField, equals: .baseURL)
-                }
-            } header: {
-                Text("Server")
-            } footer: {
-                Text("Use the address you normally use to open Home Assistant.")
-            }
-
-            // MARK: - Server Section
-            if shouldShowSignIn || canRetryConnection {
-                Section {
-                    if shouldShowSignIn {
-                        Button {
-                            focusedField = nil
-                            Task {
-                                await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
-                            }
-                        } label: {
-                            Text(signInButtonTitle)
-                        }
-                        .disabled(!connectionSettings.hasServerURL || homeAssistantService.authState == .signingIn)
-                        .frame(maxWidth: .infinity)
-                    }
-
-                    if canRetryConnection {
-                        Button {
-                            focusedField = nil
-                            Task {
-                                await homeAssistantService.connect(
-                                    baseURLString: connectionSettings.baseURL
-                                )
-                            }
-                        } label: {
-                            Text("Retry Connection")
-                        }
-                        .disabled(homeAssistantService.connectionStatus == .connecting ||
-                                  homeAssistantService.connectionStatus == .reconnecting)
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-            }
-
-            if shouldShowRegistrationProblem {
-                Section {
-                    Label("Background setup needs attention", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-
-                    if let mobileAppStatusMessage {
-                        Text(mobileAppStatusMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    Button {
-                        focusedField = nil
-                        Task {
-                            await homeAssistantService.registerMobileApp(settings: connectionSettings)
-                        }
-                    } label: {
-                        Text(mobileAppButtonTitle)
-                    }
-                    .disabled(!connectionSettings.hasServerURL ||
-                              hasServerMismatch ||
-                              homeAssistantService.mobileAppRegistrationState.isRegistering)
-                    .frame(maxWidth: .infinity)
-                } footer: {
-                    Text("Homestead normally handles this automatically after sign-in.")
-                }
-            }
+            serverNavigationSection
 
             if shouldShowSupport {
                 Section {
@@ -270,7 +185,6 @@ struct HomeAssistantSettingsView: View {
             if canSignOut {
                 Section {
                     Button(role: .destructive) {
-                        focusedField = nil
                         isConfirmingSignOut = true
                     } label: {
                         Text("Sign Out")
@@ -297,6 +211,40 @@ struct HomeAssistantSettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes saved Home Assistant credentials and mobile app registration from this device.")
+        }
+    }
+
+    private var serverNavigationSection: some View {
+        Section {
+            NavigationLink {
+                HomeAssistantServerSettingsView()
+            } label: {
+                Label {
+                    HStack(spacing: AppSpacing.medium) {
+                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                            Text("Server")
+                                .foregroundStyle(.primary)
+
+                            Text(serverDisplayText)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+
+                        Spacer()
+
+                        Text(accountStatusText)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(accountStatusTint)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(accountStatusTint.opacity(0.12), in: Capsule())
+                    }
+                } icon: {
+                    Image(systemName: "server.rack")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
         }
     }
     
@@ -378,11 +326,253 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
+    private var accountStatusText: String {
+        SettingsHomeAssistantStatus.summaryStatusText(
+            authState: homeAssistantService.authState,
+            connectionStatus: homeAssistantService.connectionStatus
+        )
+    }
+
+    private var accountStatusTint: Color {
+        SettingsHomeAssistantStatus.tint(
+            authState: homeAssistantService.authState,
+            connectionStatus: homeAssistantService.connectionStatus
+        )
+    }
+
+    private var canSignOut: Bool {
+        if homeAssistantService.authState.isSignedIn {
+            return true
+        }
+
+        if case .refreshFailed = homeAssistantService.authState {
+            return true
+        }
+
+        return false
+    }
+
+    private var signedInServerDisplayText: String? {
+        guard let summary = homeAssistantService.authState.sessionSummary else {
+            return nil
+        }
+
+        return SettingsHomeAssistantStatus.serverDisplayText(summary.baseURLString)
+    }
+
+    private var hasServerMismatch: Bool {
+        guard connectionSettings.hasServerURL,
+              let summary = homeAssistantService.authState.sessionSummary else {
+            return false
+        }
+
+        let signedInServer = HAConnectionConfiguration(
+            baseURLString: summary.baseURLString,
+            accessToken: ""
+        ).dataSourceID
+        let enteredServer = HAConnectionConfiguration(
+            baseURLString: connectionSettings.baseURL,
+            accessToken: ""
+        ).dataSourceID
+        return signedInServer != enteredServer
+    }
+
+    private var shouldShowSupport: Bool {
+        connectionSettings.hasServerURL || homeAssistantService.authState.isSignedIn || homeAssistantService.hasCompletedInitialCacheLoad
+    }
+
+    private var authRefreshTaskID: String {
+        [
+            connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            homeAssistantService.authState.title
+        ].joined(separator: "|")
+    }
+}
+
+// MARK: - Home Assistant Server Settings View
+private struct HomeAssistantServerSettingsView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @FocusState private var focusedField: Field?
+
+    var body: some View {
+        @Bindable var connectionSettings = connectionSettings
+
+        Form {
+            Section("Status") {
+                Label {
+                    HStack(spacing: AppSpacing.medium) {
+                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                            Text(serverDisplayText)
+                                .font(.headline)
+
+                            Text(statusMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+
+                        Spacer()
+
+                        Circle()
+                            .fill(statusTint)
+                            .frame(width: 12, height: 12)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.vertical, AppSpacing.xSmall)
+                } icon: {
+                    Image(systemName: "server.rack")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+
+            Section("Details") {
+                LabeledContent("URL", value: connectionSettings.hasServerURL ? connectionSettings.baseURL : "Not set")
+                LabeledContent("Display Name", value: serverDisplayText)
+                LabeledContent("Authentication", value: homeAssistantService.authState.diagnosticTitle)
+                LabeledContent("WebSocket", value: homeAssistantService.connectionStatus.title)
+                LabeledContent("Mobile App", value: mobileAppStatusTitle)
+
+                if let signedInServerDisplayText {
+                    LabeledContent("Signed-In Server", value: signedInServerDisplayText)
+                }
+
+                if let mobileAppStatusMessage {
+                    Text(mobileAppStatusMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
+                if connectionSettings.hasServerURL {
+                    DisclosureGroup("Change Server") {
+                        TextField("Base URL", text: $connectionSettings.baseURL)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.URL)
+                            .autocorrectionDisabled()
+                            .focused($focusedField, equals: .baseURL)
+                    }
+                } else {
+                    TextField("Base URL", text: $connectionSettings.baseURL)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .focused($focusedField, equals: .baseURL)
+                }
+            } footer: {
+                Text("Use the address you normally use to open Home Assistant.")
+            }
+
+            if shouldShowSignIn || canRetryConnection || shouldShowRegistrationAction {
+                Section {
+                    if shouldShowSignIn {
+                        Button {
+                            focusedField = nil
+                            Task {
+                                await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
+                            }
+                        } label: {
+                            Text(signInButtonTitle)
+                        }
+                        .disabled(!connectionSettings.hasServerURL || homeAssistantService.authState == .signingIn)
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    if canRetryConnection {
+                        Button {
+                            focusedField = nil
+                            Task {
+                                await homeAssistantService.connect(
+                                    baseURLString: connectionSettings.baseURL
+                                )
+                            }
+                        } label: {
+                            Text("Retry Connection")
+                        }
+                        .disabled(homeAssistantService.connectionStatus == .connecting ||
+                                  homeAssistantService.connectionStatus == .reconnecting)
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    if shouldShowRegistrationAction {
+                        Button {
+                            focusedField = nil
+                            Task {
+                                await homeAssistantService.registerMobileApp(settings: connectionSettings)
+                            }
+                        } label: {
+                            Text(mobileAppButtonTitle)
+                        }
+                        .disabled(!connectionSettings.hasServerURL ||
+                                  hasServerMismatch ||
+                                  !homeAssistantService.authState.isSignedIn ||
+                                  homeAssistantService.mobileAppRegistrationState.isRegistering)
+                        .frame(maxWidth: .infinity)
+                    }
+                } header: {
+                    Text("Actions")
+                } footer: {
+                    if shouldShowRegistrationAction {
+                        Text("Homestead normally handles mobile app registration automatically after sign-in.")
+                    }
+                }
+            }
+        }
+        .navigationTitle("Server")
+        .toolbarTitleDisplayMode(.inline)
+        .task(id: authRefreshTaskID) {
+            await homeAssistantService.refreshAuthState()
+        }
+    }
+
+    private var serverDisplayText: String {
+        SettingsHomeAssistantStatus.serverDisplayText(connectionSettings.baseURL)
+    }
+
+    private var statusMessage: String {
+        if hasServerMismatch {
+            return "This server is different from the saved Home Assistant sign-in."
+        }
+
+        return SettingsHomeAssistantStatus.detailMessage(
+            authState: homeAssistantService.authState,
+            connectionStatus: homeAssistantService.connectionStatus,
+            serviceError: homeAssistantService.lastErrorMessage,
+            storageError: connectionSettings.authStorageErrorMessage
+        )
+    }
+
     private var statusTint: Color {
         SettingsHomeAssistantStatus.tint(
             authState: homeAssistantService.authState,
             connectionStatus: homeAssistantService.connectionStatus
         )
+    }
+
+    private var signedInServerDisplayText: String? {
+        guard let summary = homeAssistantService.authState.sessionSummary else {
+            return nil
+        }
+
+        return SettingsHomeAssistantStatus.serverDisplayText(summary.baseURLString)
+    }
+
+    private var hasServerMismatch: Bool {
+        guard connectionSettings.hasServerURL,
+              let summary = homeAssistantService.authState.sessionSummary else {
+            return false
+        }
+
+        let signedInServer = HAConnectionConfiguration(
+            baseURLString: summary.baseURLString,
+            accessToken: ""
+        ).dataSourceID
+        let enteredServer = HAConnectionConfiguration(
+            baseURLString: connectionSettings.baseURL,
+            accessToken: ""
+        ).dataSourceID
+        return signedInServer != enteredServer
     }
 
     private var signInButtonTitle: String {
@@ -428,41 +618,17 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
-    private var canSignOut: Bool {
-        if homeAssistantService.authState.isSignedIn {
-            return true
+    private var mobileAppStatusTitle: String {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .unregistered:
+            "Not registered"
+        case .registering:
+            "Registering"
+        case .registered:
+            "Registered"
+        case .failed:
+            "Needs attention"
         }
-
-        if case .refreshFailed = homeAssistantService.authState {
-            return true
-        }
-
-        return false
-    }
-
-    private var signedInServerDisplayText: String? {
-        guard let summary = homeAssistantService.authState.sessionSummary else {
-            return nil
-        }
-
-        return SettingsHomeAssistantStatus.serverDisplayText(summary.baseURLString)
-    }
-
-    private var hasServerMismatch: Bool {
-        guard connectionSettings.hasServerURL,
-              let summary = homeAssistantService.authState.sessionSummary else {
-            return false
-        }
-
-        let signedInServer = HAConnectionConfiguration(
-            baseURLString: summary.baseURLString,
-            accessToken: ""
-        ).dataSourceID
-        let enteredServer = HAConnectionConfiguration(
-            baseURLString: connectionSettings.baseURL,
-            accessToken: ""
-        ).dataSourceID
-        return signedInServer != enteredServer
     }
 
     private var mobileAppStatusMessage: String? {
@@ -470,7 +636,7 @@ struct HomeAssistantSettingsView: View {
         case .unregistered:
             return nil
         case .registering:
-            return nil
+            return "Homestead is registering with Home Assistant."
         case .registered(let summary):
             let date = summary.registeredAt.formatted(date: .abbreviated, time: .shortened)
             return "Registered as \(summary.deviceName) on \(date)."
@@ -479,7 +645,7 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
-    private var shouldShowRegistrationProblem: Bool {
+    private var shouldShowRegistrationAction: Bool {
         guard homeAssistantService.authState.isSignedIn else {
             return false
         }
@@ -489,10 +655,6 @@ struct HomeAssistantSettingsView: View {
         }
 
         return false
-    }
-
-    private var shouldShowSupport: Bool {
-        connectionSettings.hasServerURL || homeAssistantService.authState.isSignedIn || homeAssistantService.hasCompletedInitialCacheLoad
     }
 
     private var mobileAppButtonTitle: String {
