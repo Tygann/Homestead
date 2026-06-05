@@ -61,3 +61,5 @@ For repeatable physical-device performance profiling, use `Docs/PERFORMANCE_PROF
 ## Current Priorities
 
 Likely next product work is tracked in `Docs/PRODUCT_ROADMAP.md`. Keep this file short and update the roadmap when priorities or feature direction meaningfully change.
+
+When completing roadmap/API-related work, update `Docs/PRODUCT_ROADMAP.md` and `Docs/API_CAPABILITY_INVENTORY.md` if feature status, priority, API confidence, or deferred scope changed.
