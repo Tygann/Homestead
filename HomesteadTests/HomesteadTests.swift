@@ -1949,6 +1949,56 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func nativeNotificationAuthorizationStatusSeparatesAllowedAndRequestableStates() {
+        #expect(NativeNotificationAuthorizationStatus.notDetermined.canRequestInApp)
+        #expect(!NativeNotificationAuthorizationStatus.denied.canRequestInApp)
+        #expect(!NativeNotificationAuthorizationStatus.authorized.canRequestInApp)
+
+        #expect(!NativeNotificationAuthorizationStatus.notDetermined.isAllowed)
+        #expect(!NativeNotificationAuthorizationStatus.denied.isAllowed)
+        #expect(NativeNotificationAuthorizationStatus.authorized.isAllowed)
+        #expect(NativeNotificationAuthorizationStatus.provisional.isAllowed)
+        #expect(NativeNotificationAuthorizationStatus.ephemeral.isAllowed)
+    }
+
+    @MainActor
+    @Test func nativeNotificationServiceRefreshesPermissionStatus() async {
+        let expectedStatus = NativeNotificationStatusSnapshot(
+            authorizationStatus: .denied,
+            alertSetting: .disabled,
+            soundSetting: .disabled,
+            badgeSetting: .enabled
+        )
+        let client = StubNativeNotificationPermissionClient(currentStatus: expectedStatus)
+        let service = NativeNotificationService(client: client)
+
+        await service.refreshAuthorizationStatus()
+
+        #expect(service.status == expectedStatus)
+        #expect(service.lastErrorMessage == nil)
+        #expect(client.currentStatusCallCount == 1)
+    }
+
+    @MainActor
+    @Test func nativeNotificationServiceRequestsPermissionThenRefreshesStatus() async {
+        let expectedStatus = NativeNotificationStatusSnapshot(
+            authorizationStatus: .authorized,
+            alertSetting: .enabled,
+            soundSetting: .enabled,
+            badgeSetting: .enabled
+        )
+        let client = StubNativeNotificationPermissionClient(currentStatus: expectedStatus)
+        let service = NativeNotificationService(client: client)
+
+        await service.requestAuthorization()
+
+        #expect(service.status == expectedStatus)
+        #expect(service.lastErrorMessage == nil)
+        #expect(client.didRequestAuthorization)
+        #expect(client.currentStatusCallCount == 1)
+    }
+
+    @MainActor
     @Test func serviceConnectionUsesRefreshedAccessToken() async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let tokenStore = InMemoryHAOAuthTokenStore(
@@ -4564,5 +4614,38 @@ final class StubHAMobileAppClient: HAMobileAppClientProtocol {
     ) async throws -> HACameraStreamResponseDTO {
         lastCameraStreamEntityID = entityID
         return cameraStreamResponse
+    }
+}
+
+@MainActor
+final class StubNativeNotificationPermissionClient: NativeNotificationPermissionClient {
+    var currentStatus: NativeNotificationStatusSnapshot
+    var requestAuthorizationError: Error?
+    var currentStatusError: Error?
+    private(set) var currentStatusCallCount = 0
+    private(set) var didRequestAuthorization = false
+
+    init(currentStatus: NativeNotificationStatusSnapshot) {
+        self.currentStatus = currentStatus
+    }
+
+    func currentStatus() async throws -> NativeNotificationStatusSnapshot {
+        currentStatusCallCount += 1
+
+        if let currentStatusError {
+            throw currentStatusError
+        }
+
+        return currentStatus
+    }
+
+    func requestAuthorization() async throws -> Bool {
+        didRequestAuthorization = true
+
+        if let requestAuthorizationError {
+            throw requestAuthorizationError
+        }
+
+        return currentStatus.authorizationStatus.isAllowed
     }
 }

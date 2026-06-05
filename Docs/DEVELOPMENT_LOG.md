@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-05
 
+### Notifications Groundwork
+
+- Added native iOS notification permission/status models and a `NativeNotificationService` that is separate from Home Assistant mobile-app registration state.
+- Replaced the Settings > Notifications placeholder with a real setup/status page for iOS permission state, Home Assistant account/mobile-app readiness, recovery actions, and explicit push-delivery-not-enabled status.
+- Kept notification work aligned to Home Assistant's official native-app notification direction while deferring APNs token handling and incoming push delivery to a later chunk.
+
 ### Server Configuration Foundation
 
 - Added typed WebSocket `get_config` support for the nested Settings > Account > Server page, exposing Home Assistant version, status, location/time zone, unit summary, and official internal/external URL values when returned.

@@ -6,15 +6,21 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Notifications groundwork through Home Assistant's official mobile-app notification path.
+Logbook groundwork using Home Assistant's documented logbook API.
 
 Recommended reasoning level: High.
 
+## Completed Chunk
+
+- Added native iOS notification permission/status models and a `NativeNotificationService` separate from Home Assistant mobile-app registration state.
+- Replaced the Settings > Notifications placeholder with a real setup/status page that shows iOS permission state, Home Assistant account/mobile-app readiness, recovery actions, and that push delivery is not enabled yet.
+- Kept notification direction aligned with Home Assistant's official native-app notification path and did not add APNs token handling or full push delivery.
+
 ## Next Chunk
 
-- Add native notification permission/status models for iOS app state separately from Home Assistant mobile-app registration state.
-- Add a Settings > Notifications destination that shows permission state, mobile-app registration readiness, and honest setup/recovery actions.
-- Use Home Assistant's official native-app notification path only; do not invent a separate Homestead notification automation path.
+- Add a read-only Settings > Logbook page using Home Assistant's documented logbook API.
+- Keep v1 focused on date range, entity/domain filtering, search presentation helpers, and app-facing activity row models.
+- Do not use private frontend endpoints for repairs, users, system health, or admin details while working on Logbook.
 
 ## Acceptance Notes
 
@@ -26,6 +32,6 @@ Recommended reasoning level: High.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
 - Settings > Account > Server already has the first foundation for saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic URL switching is still not implemented.
 
-## After Notifications
+## After Logbook
 
-- Move to Logbook, Updates, Weather, and History/Charts in roadmap order unless priorities change.
+- Move to Updates, Weather, and History/Charts in roadmap order unless priorities change.

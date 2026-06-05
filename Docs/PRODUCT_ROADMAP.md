@@ -29,13 +29,14 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Settings hub with Home Assistant and Homestead sections, native management overviews for Devices & Services and Automations & Scenes, registry/admin-oriented devices and entities, and placeholders for unsupported categories.
 - Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status, recovery actions, saved internal/external URL and home network metadata, and Home Assistant `get_config` details.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
+- Notifications groundwork with Settings > Notifications showing native iOS permission status, Home Assistant mobile-app registration readiness, setup/recovery actions, and an honest push-delivery-not-enabled state.
 - Authenticated camera snapshot support.
 - Basic Home Screen light widget using shared OAuth credentials and app-group state.
 - App-facing model mapping through `EntityMapper`, with SwiftUI avoiding direct Home Assistant DTO use.
 
 ## Near-Term Priorities
 
-- Add Notifications support through Home Assistant's official mobile-app notification path, starting with permission/status/settings UI and then delivery support.
+- Complete Notifications delivery through Home Assistant's official mobile-app notification path, including APNs token handling and incoming notification presentation.
 - Add automatic internal/external URL route selection in the connection lifecycle when the Settings > Account > Server metadata model is ready to drive it.
 - Add a read-only Logbook page using Home Assistant's documented logbook API.
 - Add a Home Assistant Updates management page based on `.update` entities before considering repair/system-health APIs.

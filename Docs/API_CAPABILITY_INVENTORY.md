@@ -37,6 +37,7 @@ Official references:
 | Camera snapshots | Documented HTTP camera proxy | Mapped | Authenticated snapshot loading. |
 | Mobile app registration | Native app HTTP registration | Mapped | Registration metadata persisted for companion-app features. |
 | Mobile app camera stream handoff | Native app webhook | Mapped | Uses saved registration webhook metadata. |
+| Native notification permission/status | iOS UserNotifications | Mapped | Settings > Notifications shows device permission status separately from Home Assistant mobile-app registration. Push delivery is not implemented yet. |
 | Home Screen light widget | Widget/App Intents plus HA WebSocket/OAuth | Mapped | Basic light control with shared credentials. |
 
 ## Near-Term API Targets
@@ -44,7 +45,7 @@ Official references:
 | Feature | API family | Status | Intended Homestead surface |
 | --- | --- | --- | --- |
 | Internal/external URL routing | Native app setup guidance plus iOS network state | Planned | Settings > Account > Server and connection lifecycle. |
-| Notifications | Native app push notification channel | Planned | Settings > Notifications, app registration, APNs/WebSocket handling. |
+| Notifications delivery | Native app push notification channel | Planned | APNs token handling, Home Assistant native-app delivery setup, and incoming notification presentation. |
 | Logbook | REST logbook API | Planned | Settings > Logbook, read-only v1. |
 | History/charts | REST history API | Planned | Dashboard chart cards and sensor detail history. |
 | Weather card | Entity state attributes for `.weather` | Planned | Dashboard card and weather detail surface. |
@@ -66,9 +67,9 @@ These are the next API slices to map when the matching feature is implemented. D
 ### Notifications
 
 - Build on existing mobile-app registration metadata.
-- Add notification permission/status models for iOS app state separately from Home Assistant registration state.
+- Native iOS notification permission/status models and Settings > Notifications setup UI exist separately from Home Assistant registration state.
 - Use the official native-app push notification path; do not invent a separate Homestead notification automation path.
-- Treat APNs token handling, WebSocket push channel handling, and local notification presentation as separate implementation units.
+- Treat APNs token handling, WebSocket push channel handling, and local notification presentation as separate remaining implementation units.
 
 ### Logbook
 

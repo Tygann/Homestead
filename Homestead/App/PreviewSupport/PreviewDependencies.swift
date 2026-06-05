@@ -6,6 +6,7 @@ struct PreviewDependencies {
     let stateStore: HAStateStore
     let connectionSettings: HAConnectionSettings
     let homeAssistantService: HomeAssistantService
+    let nativeNotificationService: NativeNotificationService
     let dashboardConfiguration: DashboardConfiguration
 
     static var sample: PreviewDependencies {
@@ -38,6 +39,9 @@ struct PreviewDependencies {
             stateStore: stateStore,
             connectionSettings: settings,
             homeAssistantService: service,
+            nativeNotificationService: NativeNotificationService(
+                client: PreviewNativeNotificationPermissionClient(status: .previewAuthorized)
+            ),
             dashboardConfiguration: dashboardConfiguration
         )
     }
@@ -65,6 +69,9 @@ struct PreviewDependencies {
                 stateStore: stateStore,
                 connectionSettings: settings,
                 homeAssistantService: service,
+                nativeNotificationService: NativeNotificationService(
+                    client: PreviewNativeNotificationPermissionClient(status: .previewAuthorized)
+                ),
                 dashboardConfiguration: dashboardConfiguration
             )
         }
@@ -84,6 +91,9 @@ struct PreviewDependencies {
             stateStore: stateStore,
             connectionSettings: settings,
             homeAssistantService: service,
+            nativeNotificationService: NativeNotificationService(
+                client: PreviewNativeNotificationPermissionClient(status: .previewNotDetermined)
+            ),
             dashboardConfiguration: dashboardConfiguration
         )
     }
@@ -100,8 +110,37 @@ extension View {
         environment(dependencies.stateStore)
             .environment(dependencies.connectionSettings)
             .environment(dependencies.homeAssistantService)
+            .environment(dependencies.nativeNotificationService)
             .environment(dependencies.dashboardConfiguration)
     }
+}
+
+private struct PreviewNativeNotificationPermissionClient: NativeNotificationPermissionClient {
+    var status: NativeNotificationStatusSnapshot
+
+    func currentStatus() async throws -> NativeNotificationStatusSnapshot {
+        status
+    }
+
+    func requestAuthorization() async throws -> Bool {
+        true
+    }
+}
+
+private extension NativeNotificationStatusSnapshot {
+    static let previewAuthorized = NativeNotificationStatusSnapshot(
+        authorizationStatus: .authorized,
+        alertSetting: .enabled,
+        soundSetting: .enabled,
+        badgeSetting: .enabled
+    )
+
+    static let previewNotDetermined = NativeNotificationStatusSnapshot(
+        authorizationStatus: .notDetermined,
+        alertSetting: .unknown,
+        soundSetting: .unknown,
+        badgeSetting: .unknown
+    )
 }
 
 private enum PreviewData {
