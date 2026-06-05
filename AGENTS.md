@@ -8,6 +8,8 @@ Homestead is a native SwiftUI iOS frontend for Home Assistant. Home Assistant ow
 
 Use Home Assistant's expected API shape whenever possible. The app is WebSocket-first for core state, events, registries, and service calls. Do not add REST, mobile-app/webhook, or custom URL paths unless a specific Home Assistant feature is officially exposed that way.
 
+For product direction, existing feature inventory, likely next work, and intentionally deferred ideas, read `Docs/PRODUCT_ROADMAP.md`.
+
 ## Important Architecture
 
 - `HAWebSocketClient` owns socket transport, authentication, request/response routing, state snapshots, event subscription, and service calls.
@@ -56,10 +58,4 @@ For repeatable physical-device performance profiling, use `Docs/PERFORMANCE_PROF
 
 ## Current Priorities
 
-Likely next product work:
-
-- Improve dashboard card detail flows
-- Add better entity filtering and dashboard organization
-- Expand domain-specific cards for sensors, covers, climate, scenes, and scripts
-- Add user-facing error handling for service calls and reconnects
-- Profile with Instruments before doing another large performance pass
+Likely next product work is tracked in `Docs/PRODUCT_ROADMAP.md`. Keep this file short and update the roadmap when priorities or feature direction meaningfully change.

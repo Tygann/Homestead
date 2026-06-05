@@ -1,0 +1,66 @@
+# Homestead Product Inventory And Roadmap
+
+This document is product memory for Homestead. It helps future maintainers and coding agents understand what Homestead already supports, what is likely worth building next, and which tempting paths should be treated carefully.
+
+Homestead is a polished native iOS frontend for Home Assistant. Home Assistant remains the source of truth for integrations, devices, entities, automations, scenes, scripts, users, service execution, and system behavior. Homestead should focus on native daily control, Home Assistant-familiar management views, and official companion-app capabilities.
+
+## Existing Features
+
+- Native SwiftUI iOS app shell with Home, Areas, and Browse tabs.
+- Home Assistant OAuth sign-in with short-lived access-token refresh and Keychain-backed credentials.
+- WebSocket-first state sync, registry loading, service discovery, service calls, reconnect handling, and cached startup state.
+- Home dashboard with configurable entity cards, summary chips, section headers, card sizes, card feature visibility, display names, icon overrides, reorder, and edit mode.
+- Native dashboard and area detail flows for common domains, including lights, switches, fans, locks, covers, climate, media players, cameras, vacuums, alarm panels, buttons, selects, numbers, sensors, scenes, scripts, and automations.
+- Areas browsing backed by Home Assistant area and floor registries, with area summaries and domain-grouped area detail pages.
+- Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
+- Settings sheet opened from account/avatar buttons on daily-use tabs.
+- Settings management surfaces for Devices & Services and Automations & Scenes, including registry/admin-oriented devices and entities plus placeholders for unsupported categories.
+- Home Assistant account/server status, diagnostics, About, sign-in, retry, mobile-app registration recovery, and sign-out flows.
+- Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
+- Authenticated camera snapshot support.
+- Basic Home Screen light widget using shared OAuth credentials and app-group state.
+- App-facing model mapping through `EntityMapper`, with SwiftUI avoiding direct Home Assistant DTO use.
+
+## Near-Term Priorities
+
+- Clean up Settings information architecture into native management hubs rather than segmented mini-apps.
+- Add a richer Server page with internal URL, external URL, selected home network, active route/status, Home Assistant version, auth status, mobile-app registration status, and recovery actions.
+- Add Notifications support through Home Assistant's official mobile-app notification path, starting with permission/status/settings UI and then delivery support.
+- Add a read-only Logbook page using Home Assistant's documented logbook API.
+- Add a Home Assistant Updates management page based on `.update` entities before considering repair/system-health APIs.
+- Add a native Weather dashboard card and detail surface for `.weather` entities.
+- Add chart/history cards for sensor-style entities using Home Assistant's documented history API.
+- Improve dashboard organization, filtering, and add-card flow as card types grow.
+- Expand widget support beyond lights to common safe actions such as switches, locks, covers, scenes, scripts, and key sensor/person status.
+
+## Later Candidates
+
+- Multiple dashboards with a dashboard switcher or management screen; avoid adding every dashboard as a main tab by default.
+- Control Center controls and App Intents for common Home Assistant actions.
+- Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.
+- People and presence management based on `person.*`, `device_tracker.*`, and official user/person APIs where available.
+- True Home Assistant users/admin views if an official supported API path is confirmed for the signed-in user's permissions.
+- Permissions page for Location, Notifications, Local Network, Camera, and related native capabilities.
+- iCloud sync for Homestead-owned preferences such as dashboard layouts, display overrides, widget configuration, and server configuration metadata.
+- Siri/Shortcuts once App Intents have stable action coverage.
+- Better user-facing service-call and reconnect error handling.
+- Domain-specific cards and details for weather, calendars, todo lists, humidifiers, water heaters, valves, sirens, air-quality sensors, and image entities.
+
+## Be Careful
+
+- Do not add REST, mobile-app/webhook, or custom URL paths unless the Home Assistant feature is officially exposed that way.
+- Do not use private Home Assistant frontend endpoints for integrations, helpers, repairs, blueprints, users, or system health unless the project explicitly accepts that risk.
+- Keep the main tab bar focused on daily use. Prefer Settings for registry/admin/companion management surfaces.
+- Keep Browse distinct from Settings: Browse is daily discovery/control; Settings is administration, diagnostics, and companion-app configuration.
+- Avoid making every user-created dashboard a top-level tab by default; this can quickly make navigation feel cluttered.
+- Treat floor plans, 3D room scanning, and AR-style room mapping as high-cost exploratory features, not near-term core work.
+- Avoid decorative UI that competes with fast smart-home control. Prefer native, legible, low-latency surfaces.
+- Continue profiling before major visual/performance rewrites, especially in scrolling dashboard grids with live Home Assistant updates.
+
+## API Confidence Notes
+
+- Prefer WebSocket for state, events, registries, service catalog, service calls, and other core Home Assistant data/control flows.
+- Use documented HTTP APIs for auth/token exchange, camera snapshots, history, logbook, media, and other official HTTP surfaces.
+- Use native-app/mobile-app registration only for companion-app capabilities such as app identity, notifications, webhooks, app-provided sensors, and camera stream handoff.
+- Mark new feature ideas as "API research needed" before implementation when Home Assistant's official public path is unclear.
+- Keep unsupported future sections as honest placeholders rather than fake data or private API experiments.

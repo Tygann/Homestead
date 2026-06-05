@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-03
 
+### Product Roadmap Memory
+
+- Added `Docs/PRODUCT_ROADMAP.md` as durable product memory for existing Homestead features, likely next work, later candidates, API confidence, and intentionally deferred directions.
+- Pointed `AGENTS.md` at the roadmap so future coding agents can distinguish product direction from architecture rules and the chronological development log.
+
 ### Dashboard Detail Views
 
 - Introduced a shared dashboard detail scaffold with compact status headers, restrained action buttons, and collapsed Home Assistant metadata disclosures.
