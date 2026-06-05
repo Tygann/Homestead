@@ -9,6 +9,30 @@ This document captures the working agreement for agentic coding sessions. Keep i
 - Inspect the worktree before editing and preserve unrelated user changes.
 - Prefer small, self-contained implementation chunks that can be verified and committed cleanly.
 
+## Token Budget Defaults
+
+- Start from `AGENTS.md` and `Docs/NEXT_STEPS.md`; read roadmap/API docs only when the task touches product direction or Home Assistant API choices.
+- Prefer targeted `rg`, `sed`, and file reads over broad repository scans.
+- Summarize discovered context instead of repeatedly rereading large files.
+- Keep implementation chunks small enough to verify and commit in one pass.
+- Avoid expanding into adjacent roadmap items unless the user asks or the current change requires it.
+- For docs-only or low-risk workflow edits, skip builds and say why.
+- Ask before doing broad external research, large refactors, long-running verification, or multi-feature implementation.
+- When context gets large, update `Docs/NEXT_STEPS.md` with the handoff instead of relying on chat history.
+
+## Reasoning Level Guide
+
+Codex may not always be able to see the current UI-selected reasoning level. At the start of substantial work, recommend a level if the task appears under- or over-provisioned, but do not block on the user changing it unless the task risk is high.
+
+| Reasoning level | Use for |
+| --- | --- |
+| Low | Docs-only edits, quick status checks, tiny copy changes, and obvious one-file fixes. |
+| Medium | Normal SwiftUI polish, straightforward Settings rows, small refactors, and focused test updates. |
+| High | Multi-file app changes, navigation/data-flow changes, API clients, persistence changes, and debugging failures. |
+| Extra High | Architecture decisions, auth, notifications, iCloud sync, background behavior, performance work, unclear bugs, and major migrations. |
+
+Default to High for active roadmap implementation unless `Docs/NEXT_STEPS.md` says otherwise. Use Medium for contained UI polish and Low for documentation-only changes.
+
 ## Definition Of Done
 
 - The requested behavior is implemented end to end, not just sketched.

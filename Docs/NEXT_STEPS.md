@@ -8,6 +8,8 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 Settings information architecture cleanup.
 
+Recommended reasoning level: High.
+
 ## Next Chunk
 
 - Preserve the top-level Settings account card and the large Home Assistant account/server header.

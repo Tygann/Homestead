@@ -10,7 +10,7 @@ Use Home Assistant's expected API shape whenever possible. The app is WebSocket-
 
 For product direction, existing feature inventory, likely next work, and intentionally deferred ideas, read `Docs/PRODUCT_ROADMAP.md`.
 
-For tactical handoff, definition of done, UI verification expectations, and major decision records, read `Docs/NEXT_STEPS.md`, `Docs/DEVELOPMENT_WORKFLOW.md`, and `Docs/ADR/README.md`.
+For tactical handoff, definition of done, token budget guidance, reasoning-level defaults, UI verification expectations, and major decision records, read `Docs/NEXT_STEPS.md`, `Docs/DEVELOPMENT_WORKFLOW.md`, and `Docs/ADR/README.md`.
 
 ## Important Architecture
 
