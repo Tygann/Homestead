@@ -21,12 +21,6 @@ struct SettingsView: View {
 
             Section("Home Assistant") {
                 NavigationLink {
-                    HomeAssistantSettingsView()
-                } label: {
-                    Label("Server", systemImage: "server.rack")
-                }
-
-                NavigationLink {
                     SettingsFeaturePlaceholderView(
                         title: "People",
                         systemImage: "person.2",
@@ -286,7 +280,7 @@ struct HomeAssistantSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Home Assistant")
+        .navigationTitle("Account")
         .toolbarTitleDisplayMode(.inline)
         .padding(.top, -30)
         .task(id: authRefreshTaskID) {
@@ -1670,7 +1664,7 @@ private enum SettingsHomeAssistantStatus {
     .withPreviewEnvironment()
 }
 
-#Preview("Home Assistant Settings") {
+#Preview("Account Settings") {
     NavigationStack {
         HomeAssistantSettingsView()
     }

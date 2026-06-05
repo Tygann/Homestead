@@ -9,6 +9,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Reorganized Settings into native Home Assistant and Homestead sections while preserving the top-level account card and Home Assistant account/server header.
 - Replaced segmented Devices & Services and Automations & Scenes management pages with overview rows that push to focused registry/detail pages.
 - Added honest placeholders for planned Settings destinations whose backend or official API support is not implemented yet.
+- Renamed the account/server destination to Account and removed the duplicate root Server row so the profile card owns account and server setup.
 
 ## 2026-06-03
 

@@ -42,8 +42,8 @@ Official references:
 
 | Feature | API family | Status | Intended Homestead surface |
 | --- | --- | --- | --- |
-| Server/config page | WebSocket `get_config`, auth summary, mobile-app registration | Planned | Settings > Server. |
-| Internal/external URL routing | Native app setup guidance plus iOS network state | Planned | Settings > Server and connection lifecycle. |
+| Account/server config page | WebSocket `get_config`, auth summary, mobile-app registration | Planned | Settings > Account. |
+| Internal/external URL routing | Native app setup guidance plus iOS network state | Planned | Settings > Account and connection lifecycle. |
 | Notifications | Native app push notification channel | Planned | Settings > Notifications, app registration, APNs/WebSocket handling. |
 | Logbook | REST logbook API | Planned | Settings > Logbook, read-only v1. |
 | History/charts | REST history API | Planned | Dashboard chart cards and sensor detail history. |
@@ -58,7 +58,7 @@ These are the next API slices to map when the matching feature is implemented. D
 
 ### Server And Connection Routing
 
-- Add typed support for WebSocket `get_config` only when building the richer Server page.
+- Add typed support for WebSocket `get_config` only when building the richer Account page's Server section.
 - Capture Home Assistant version, location/time-unit basics, and external URL metadata only if returned by the official config shape.
 - Extend connection settings for Homestead-owned internal URL, external URL, and selected home network metadata.
 - Keep URL switching in the connection lifecycle, not in SwiftUI views.
