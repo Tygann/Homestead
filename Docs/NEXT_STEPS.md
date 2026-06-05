@@ -6,15 +6,15 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Richer Settings > Account > Server page and connection routing groundwork.
+Notifications groundwork through Home Assistant's official mobile-app notification path.
 
 Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Add typed WebSocket `get_config` support only for fields the dedicated `Settings > Account > Server` page needs, such as Home Assistant version and URL/config metadata that is officially returned.
-- Preserve existing sign-in, retry, mobile-app registration recovery, and sign-out behavior while keeping account/session details separate from server/connection details.
-- Start modeling Homestead-owned internal URL, external URL, selected home network, active route/status, and recovery affordances without changing connection routing until the lifecycle code is ready.
+- Add native notification permission/status models for iOS app state separately from Home Assistant mobile-app registration state.
+- Add a Settings > Notifications destination that shows permission state, mobile-app registration readiness, and honest setup/recovery actions.
+- Use Home Assistant's official native-app notification path only; do not invent a separate Homestead notification automation path.
 
 ## Acceptance Notes
 
@@ -24,7 +24,8 @@ Recommended reasoning level: High.
 - Settings remains the admin, registry, diagnostics, and companion-app configuration surface.
 - Use official Home Assistant API surfaces only. Do not add private frontend endpoints for server/admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
+- Settings > Account > Server already has the first foundation for saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic URL switching is still not implemented.
 
-## After This Chunk
+## After Notifications
 
-- Move to Notifications, Logbook, Updates, Weather, and History/Charts in roadmap order unless priorities change.
+- Move to Logbook, Updates, Weather, and History/Charts in roadmap order unless priorities change.

@@ -488,6 +488,16 @@ struct HomesteadTests {
         #expect(object["type"] as? String == "get_services")
     }
 
+    @Test func getConfigRequestEncodesHomeAssistantShape() throws {
+        let request = HAWebSocketRequest.getConfig(id: 10)
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["id"] as? Int == 10)
+        #expect(object["type"] as? String == "get_config")
+    }
+
     @Test func cameraCapabilitiesRequestEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.cameraCapabilities(
             id: 9,
@@ -547,6 +557,41 @@ struct HomesteadTests {
         #expect(registry.hasService(domain: "fan", service: "set_percentage"))
         #expect(!registry.hasService(domain: "fan", service: "set_preset_mode"))
         #expect(registry.domains["light"]?["turn_on"]?.fields["brightness"] != nil)
+    }
+
+    @Test func serverConfigurationDecodesOfficialConfigFields() throws {
+        let payload = """
+        {
+            "version": "2026.6.0",
+            "location_name": "Home",
+            "time_zone": "America/Chicago",
+            "internal_url": "http://homeassistant.local:8123",
+            "external_url": "https://home.example.com",
+            "state": "RUNNING",
+            "config_source": "storage",
+            "unit_system": {
+                "temperature": "F",
+                "length": "mi",
+                "mass": "lb",
+                "volume": "gal"
+            }
+        }
+        """
+
+        let config = try JSONDecoder().decode(HAConfigDTO.self, from: Data(payload.utf8))
+        let snapshot = HAServerConfigurationSnapshot(
+            dto: config,
+            loadedAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+
+        #expect(snapshot.homeAssistantVersion == "2026.6.0")
+        #expect(snapshot.locationName == "Home")
+        #expect(snapshot.timeZone == "America/Chicago")
+        #expect(snapshot.internalURL == "http://homeassistant.local:8123")
+        #expect(snapshot.externalURL == "https://home.example.com")
+        #expect(snapshot.state == "RUNNING")
+        #expect(snapshot.configSource == "storage")
+        #expect(snapshot.unitSystemSummary == "Temp F, Length mi, Mass lb, Volume gal")
     }
 
     @Test func dataFreshnessRefreshingPreservesLastKnownUpdateDate() {
@@ -1700,6 +1745,33 @@ struct HomesteadTests {
         #expect(settings.hasServerURL)
     }
 
+    @MainActor
+    @Test func connectionSettingsPersistsServerRoutingMetadata() throws {
+        let suiteName = "com.tyler.Homestead.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let tokenStore = InMemoryHAOAuthTokenStore()
+        let settings = HAConnectionSettings(
+            baseURL: "https://home.example.com",
+            defaults: defaults,
+            tokenStore: tokenStore
+        )
+        settings.internalURL = "http://homeassistant.local:8123"
+        settings.externalURL = "https://home.example.com"
+        settings.homeNetworkName = "Home Wi-Fi"
+
+        let restoredSettings = HAConnectionSettings(
+            defaults: defaults,
+            tokenStore: tokenStore
+        )
+
+        #expect(restoredSettings.baseURL == "https://home.example.com")
+        #expect(restoredSettings.internalURL == "http://homeassistant.local:8123")
+        #expect(restoredSettings.externalURL == "https://home.example.com")
+        #expect(restoredSettings.homeNetworkName == "Home Wi-Fi")
+    }
+
     @Test func oauthManagerRefreshesExpiredAccessToken() async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let store = InMemoryHAOAuthTokenStore(
@@ -1941,6 +2013,41 @@ struct HomesteadTests {
         #expect(service.serviceActionAvailable(domain: "fan", service: "set_percentage"))
         #expect(service.serviceActionAvailable(domain: "media_player", service: "volume_set"))
         #expect(!service.serviceActionAvailable(domain: "fan", service: "set_preset_mode"))
+    }
+
+    @MainActor
+    @Test func serviceRefreshLoadsHomeAssistantServerConfiguration() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "config-access"))
+        let webSocketClient = StubHAWebSocketClient()
+        webSocketClient.config = HAConfigDTO(
+            version: "2026.6.0",
+            locationName: "Home",
+            timeZone: "America/Chicago",
+            internalURL: "http://homeassistant.local:8123",
+            externalURL: "https://home.example.com",
+            state: "RUNNING",
+            configSource: "storage",
+            unitSystem: nil
+        )
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        await service.refreshServerConfiguration()
+
+        #expect(service.serverConfiguration?.homeAssistantVersion == "2026.6.0")
+        #expect(service.serverConfiguration?.internalURL == "http://homeassistant.local:8123")
+        #expect(service.serverConfiguration?.externalURL == "https://home.example.com")
+        if case .loaded = service.serverConfigurationStatus {
+            // Expected loaded server config status.
+        } else {
+            Issue.record("Expected loaded server config status.")
+        }
     }
 
     @MainActor
@@ -4323,6 +4430,16 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var callServiceError: Error?
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
+    var config = HAConfigDTO(
+        version: nil,
+        locationName: nil,
+        timeZone: nil,
+        internalURL: nil,
+        externalURL: nil,
+        state: nil,
+        configSource: nil,
+        unitSystem: nil
+    )
     var serviceRegistry: HAServiceRegistry = .empty
     var fetchServicesDelay: Duration?
     var fetchServicesError: Error?
@@ -4370,6 +4487,10 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func fetchFloorRegistry() async throws -> [HAFloorRegistryDTO] {
         []
+    }
+
+    func fetchConfig() async throws -> HAConfigDTO {
+        config
     }
 
     func fetchServices() async throws -> HAServiceRegistry {

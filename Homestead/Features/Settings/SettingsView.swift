@@ -426,8 +426,32 @@ private struct HomeAssistantServerSettingsView: View {
                 }
             }
 
-            Section("Details") {
-                LabeledContent("URL", value: connectionSettings.hasServerURL ? connectionSettings.baseURL : "Not set")
+            Section {
+                LabeledContent("Current URL", value: configuredValue(connectionSettings.baseURL))
+
+                TextField("Internal URL", text: $connectionSettings.internalURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .autocorrectionDisabled()
+
+                TextField("External URL", text: $connectionSettings.externalURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .autocorrectionDisabled()
+
+                TextField("Home Network", text: $connectionSettings.homeNetworkName)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                LabeledContent("Active Route", value: "Current URL")
+                LabeledContent("Automatic Switching", value: "Not enabled")
+            } header: {
+                Text("Connection Routing")
+            } footer: {
+                Text("Internal URL, external URL, and home network are saved for future routing. Homestead still connects using the current URL.")
+            }
+
+            Section("Session") {
                 LabeledContent("Display Name", value: serverDisplayText)
                 LabeledContent("Authentication", value: homeAssistantService.authState.diagnosticTitle)
                 LabeledContent("WebSocket", value: homeAssistantService.connectionStatus.title)
@@ -442,6 +466,34 @@ private struct HomeAssistantServerSettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            Section {
+                LabeledContent("Config", value: homeAssistantService.serverConfigurationStatus.title)
+                LabeledContent("Version", value: configValue(homeAssistantService.serverConfiguration?.homeAssistantVersion))
+                LabeledContent("Status", value: configValue(homeAssistantService.serverConfiguration?.state))
+                LabeledContent("Location", value: configValue(homeAssistantService.serverConfiguration?.locationName))
+                LabeledContent("Time Zone", value: configValue(homeAssistantService.serverConfiguration?.timeZone))
+                LabeledContent("Internal URL", value: configValue(homeAssistantService.serverConfiguration?.internalURL))
+                LabeledContent("External URL", value: configValue(homeAssistantService.serverConfiguration?.externalURL))
+
+                if let unitSystemSummary = homeAssistantService.serverConfiguration?.unitSystemSummary {
+                    LabeledContent("Units", value: unitSystemSummary)
+                }
+
+                if let configSource = homeAssistantService.serverConfiguration?.configSource {
+                    LabeledContent("Config Source", value: configSource)
+                }
+
+                if let message = homeAssistantService.serverConfigurationStatus.message {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Home Assistant Config")
+            } footer: {
+                Text("These values come from Home Assistant's official WebSocket get_config command when connected.")
             }
 
             Section {
@@ -521,8 +573,9 @@ private struct HomeAssistantServerSettingsView: View {
         }
         .navigationTitle("Server")
         .toolbarTitleDisplayMode(.inline)
-        .task(id: authRefreshTaskID) {
+        .task(id: serverRefreshTaskID) {
             await homeAssistantService.refreshAuthState()
+            await homeAssistantService.refreshServerConfiguration()
         }
     }
 
@@ -673,6 +726,26 @@ private struct HomeAssistantServerSettingsView: View {
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
             homeAssistantService.authState.title
         ].joined(separator: "|")
+    }
+
+    private var serverRefreshTaskID: String {
+        [
+            authRefreshTaskID,
+            homeAssistantService.connectionStatus.title
+        ].joined(separator: "|")
+    }
+
+    private func configuredValue(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Not set" : trimmed
+    }
+
+    private func configValue(_ value: String?) -> String {
+        guard let value else {
+            return "Not returned"
+        }
+
+        return value
     }
 
     private enum Field {

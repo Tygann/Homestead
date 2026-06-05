@@ -17,6 +17,8 @@ final class HomeAssistantService {
     private(set) var currentUserDisplayName: String?
     private(set) var isNetworkAvailable = true
     private(set) var serviceRegistry: HAServiceRegistry = .empty
+    private(set) var serverConfiguration: HAServerConfigurationSnapshot?
+    private(set) var serverConfigurationStatus: HAServerConfigurationStatus = .unavailable
     private(set) var stateCacheMetadata: HAStateCacheMetadata?
 
     @ObservationIgnored private let client: any HAWebSocketClientProtocol
@@ -168,6 +170,8 @@ final class HomeAssistantService {
 
         if activeConfiguration?.dataSourceID != configuration.dataSourceID {
             serviceRegistry = .empty
+            serverConfiguration = nil
+            serverConfigurationStatus = .unavailable
         }
         await applyCachedStatesIfAvailable(for: configuration)
 
@@ -224,6 +228,8 @@ final class HomeAssistantService {
         currentUserID = nil
         currentUserDisplayName = nil
         serviceRegistry = .empty
+        serverConfiguration = nil
+        serverConfigurationStatus = .unavailable
         stateCacheMetadata = nil
         dataFreshness = staleFreshness(nil)
         connectionStatus = .disconnected
@@ -513,6 +519,25 @@ final class HomeAssistantService {
 
     func serviceActionAvailable(domain: String, service: String) -> Bool {
         !serviceRegistry.hasLoaded || serviceRegistry.hasService(domain: domain, service: service)
+    }
+
+    func refreshServerConfiguration() async {
+        guard connectionStatus == .connected else {
+            serverConfiguration = nil
+            serverConfigurationStatus = .unavailable
+            return
+        }
+
+        serverConfigurationStatus = .loading
+
+        do {
+            let config = try await client.fetchConfig()
+            let snapshot = HAServerConfigurationSnapshot(dto: config)
+            serverConfiguration = snapshot
+            serverConfigurationStatus = .loaded(snapshot.loadedAt)
+        } catch {
+            serverConfigurationStatus = .failed(error.localizedDescription)
+        }
     }
 
     func serviceActionAvailable(_ action: DashboardEntityPrimaryAction, entityID: String) -> Bool {
@@ -1502,6 +1527,7 @@ final class HomeAssistantService {
 
         let registryMetadata = await fetchRegistryMetadataIfAvailable(configuration: configuration)
         await refreshServiceRegistryIfAvailable(configuration: configuration)
+        await refreshServerConfigurationIfAvailable(configuration: configuration)
 
         guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
             return
@@ -1572,6 +1598,30 @@ final class HomeAssistantService {
             // Service metadata helps tailor controls, but state sync should remain WebSocket-first and resilient.
             #if DEBUG
             print("Home Assistant service metadata failed: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    private func refreshServerConfigurationIfAvailable(configuration: HAConnectionConfiguration) async {
+        serverConfigurationStatus = .loading
+
+        do {
+            let config = try await client.fetchConfig()
+            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+                return
+            }
+
+            let snapshot = HAServerConfigurationSnapshot(dto: config)
+            serverConfiguration = snapshot
+            serverConfigurationStatus = .loaded(snapshot.loadedAt)
+        } catch {
+            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+                return
+            }
+
+            serverConfigurationStatus = .failed(error.localizedDescription)
+            #if DEBUG
+            print("Home Assistant server configuration failed: \(error.localizedDescription)")
             #endif
         }
     }

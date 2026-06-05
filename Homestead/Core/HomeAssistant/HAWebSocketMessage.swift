@@ -13,6 +13,7 @@ enum HAWebSocketMessageType {
     nonisolated static var unsubscribeEvents: String { "unsubscribe_events" }
     nonisolated static var ping: String { "ping" }
     nonisolated static var callService: String { "call_service" }
+    nonisolated static var getConfig: String { "get_config" }
     nonisolated static var getServices: String { "get_services" }
     nonisolated static var currentUser: String { "auth/current_user" }
     nonisolated static var entityRegistryListForDisplay: String { "config/entity_registry/list_for_display" }
@@ -90,6 +91,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case unsubscribeEvents(id: Int, subscription: Int)
     case ping(id: Int)
     case currentUser(id: Int)
+    case getConfig(id: Int)
     case getServices(id: Int)
     case registryCommand(id: Int, type: String)
     case cameraCapabilities(id: Int, entityID: String)
@@ -138,6 +140,9 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case .currentUser(let id):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.currentUser, forKey: .type)
+        case .getConfig(let id):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.getConfig, forKey: .type)
         case .getServices(let id):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.getServices, forKey: .type)

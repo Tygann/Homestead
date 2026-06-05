@@ -11,6 +11,24 @@ final class HAConnectionSettings {
         }
     }
 
+    var internalURL: String {
+        didSet {
+            defaults.set(internalURL, forKey: Keys.internalURL)
+        }
+    }
+
+    var externalURL: String {
+        didSet {
+            defaults.set(externalURL, forKey: Keys.externalURL)
+        }
+    }
+
+    var homeNetworkName: String {
+        didSet {
+            defaults.set(homeNetworkName, forKey: Keys.homeNetworkName)
+        }
+    }
+
     private(set) var authStorageErrorMessage: String?
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -42,11 +60,17 @@ final class HAConnectionSettings {
             storedCredentialBaseURL ??
             UserDefaults(suiteName: WidgetSharedStore.appGroupID)?.string(forKey: Keys.baseURL) ??
             ""
+        internalURL = defaults.string(forKey: Keys.internalURL) ?? ""
+        externalURL = defaults.string(forKey: Keys.externalURL) ?? ""
+        homeNetworkName = defaults.string(forKey: Keys.homeNetworkName) ?? ""
 
         WidgetSharedStore.saveBaseURL(self.baseURL)
     }
 
     private enum Keys {
         static let baseURL = "homeAssistantBaseURL"
+        static let internalURL = "homeAssistantInternalURL"
+        static let externalURL = "homeAssistantExternalURL"
+        static let homeNetworkName = "homeAssistantHomeNetworkName"
     }
 }

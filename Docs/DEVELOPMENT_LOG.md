@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-05
 
+### Server Configuration Foundation
+
+- Added typed WebSocket `get_config` support for the nested Settings > Account > Server page, exposing Home Assistant version, status, location/time zone, unit summary, and official internal/external URL values when returned.
+- Extended Homestead-owned connection settings with saved internal URL, external URL, and home network metadata while keeping the current base URL as the only active connection route.
+- Kept automatic URL switching deferred to future connection lifecycle work instead of implementing routing in SwiftUI.
+
 ### Settings Information Architecture
 
 - Reorganized Settings into native Home Assistant and Homestead sections while preserving the top-level account card and Home Assistant account/server header.

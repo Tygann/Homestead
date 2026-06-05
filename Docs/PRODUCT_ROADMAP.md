@@ -27,7 +27,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
 - Settings sheet opened from account/avatar buttons on daily-use tabs.
 - Settings hub with Home Assistant and Homestead sections, native management overviews for Devices & Services and Automations & Scenes, registry/admin-oriented devices and entities, and placeholders for unsupported categories.
-- Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status and recovery actions.
+- Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status, recovery actions, saved internal/external URL and home network metadata, and Home Assistant `get_config` details.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
 - Authenticated camera snapshot support.
 - Basic Home Screen light widget using shared OAuth credentials and app-group state.
@@ -35,8 +35,8 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Near-Term Priorities
 
-- Expand the nested `Settings > Account > Server` page with internal URL, external URL, selected home network, active route/status, Home Assistant version, auth status, mobile-app registration status, and recovery actions.
 - Add Notifications support through Home Assistant's official mobile-app notification path, starting with permission/status/settings UI and then delivery support.
+- Add automatic internal/external URL route selection in the connection lifecycle when the Settings > Account > Server metadata model is ready to drive it.
 - Add a read-only Logbook page using Home Assistant's documented logbook API.
 - Add a Home Assistant Updates management page based on `.update` entities before considering repair/system-health APIs.
 - Add a native Weather dashboard card and detail surface for `.weather` entities.

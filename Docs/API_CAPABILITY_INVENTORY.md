@@ -27,6 +27,7 @@ Official references:
 | Live state updates | WebSocket `subscribe_events` for `state_changed` | Mapped | Batched before touching SwiftUI-observed state. |
 | Service calls | WebSocket `call_service` | Mapped | Domain-specific helpers live on `HomeAssistantService`. |
 | Service catalog | WebSocket `get_services` | Mapped | Used to hide unsupported optional controls where practical. |
+| Server config snapshot | WebSocket `get_config` | Mapped | Used by Settings > Account > Server for HA version/status/location/unit and official URL values returned by Home Assistant. |
 | Current user | WebSocket `auth/current_user` | Mapped | Used for account display and matching person entity imagery. |
 | Entity registry display | WebSocket registry command | Mapped | Used for Browse, Settings management, summaries, and filtering. |
 | Device registry | WebSocket registry command | Mapped | Used for device grouping and Settings management. |
@@ -42,7 +43,6 @@ Official references:
 
 | Feature | API family | Status | Intended Homestead surface |
 | --- | --- | --- | --- |
-| Account/server config page | WebSocket `get_config`, auth summary, mobile-app registration | Planned | Settings > Account > Server. |
 | Internal/external URL routing | Native app setup guidance plus iOS network state | Planned | Settings > Account > Server and connection lifecycle. |
 | Notifications | Native app push notification channel | Planned | Settings > Notifications, app registration, APNs/WebSocket handling. |
 | Logbook | REST logbook API | Planned | Settings > Logbook, read-only v1. |
@@ -58,9 +58,9 @@ These are the next API slices to map when the matching feature is implemented. D
 
 ### Server And Connection Routing
 
-- Add typed support for WebSocket `get_config` only when enriching the dedicated `Settings > Account > Server` page.
-- Capture Home Assistant version, location/time-unit basics, and external URL metadata only if returned by the official config shape.
-- Extend connection settings for Homestead-owned internal URL, external URL, and selected home network metadata.
+- Typed WebSocket `get_config` support exists for the dedicated `Settings > Account > Server` page.
+- Home Assistant version, location/time-unit basics, status/config source, and internal/external URL metadata are displayed only if returned by the official config shape.
+- Connection settings now store Homestead-owned internal URL, external URL, and selected home network metadata.
 - Keep URL switching in the connection lifecycle, not in SwiftUI views.
 
 ### Notifications
