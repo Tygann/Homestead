@@ -8,6 +8,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Added `Docs/PRODUCT_ROADMAP.md` as durable product memory for existing Homestead features, likely next work, later candidates, API confidence, and intentionally deferred directions.
 - Pointed `AGENTS.md` at the roadmap so future coding agents can distinguish product direction from architecture rules and the chronological development log.
+- Added `Docs/API_CAPABILITY_INVENTORY.md` to track current API coverage, near-term API targets, research-needed surfaces, and the policy of mapping feature-sized official API slices instead of prebuilding every possible Home Assistant model.
+- Added a near-term API mapping queue and default Codex commit guidance so self-contained verified changes are committed without requiring a separate follow-up prompt.
 
 ### Dashboard Detail Views
 

@@ -4,6 +4,8 @@ This document is product memory for Homestead. It helps future maintainers and c
 
 Homestead is a polished native iOS frontend for Home Assistant. Home Assistant remains the source of truth for integrations, devices, entities, automations, scenes, scripts, users, service execution, and system behavior. Homestead should focus on native daily control, Home Assistant-familiar management views, and official companion-app capabilities.
 
+For the technical map of official Home Assistant API families, current Homestead coverage, and API research targets, read `Docs/API_CAPABILITY_INVENTORY.md`.
+
 ## Existing Features
 
 - Native SwiftUI iOS app shell with Home, Areas, and Browse tabs.
@@ -59,6 +61,7 @@ Homestead is a polished native iOS frontend for Home Assistant. Home Assistant r
 
 ## API Confidence Notes
 
+- Use `Docs/API_CAPABILITY_INVENTORY.md` as the source of truth for mapped, planned, and research-needed Home Assistant API surfaces.
 - Prefer WebSocket for state, events, registries, service catalog, service calls, and other core Home Assistant data/control flows.
 - Use documented HTTP APIs for auth/token exchange, camera snapshots, history, logbook, media, and other official HTTP surfaces.
 - Use native-app/mobile-app registration only for companion-app capabilities such as app identity, notifications, webhooks, app-provided sensors, and camera stream handoff.

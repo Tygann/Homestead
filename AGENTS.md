@@ -54,6 +54,8 @@ For repeatable physical-device performance profiling, use `Docs/PERFORMANCE_PROF
 - Preserve user-made asset changes unless explicitly asked to modify them.
 - Do not revert unrelated work.
 - Keep commits focused.
+- After completing a self-contained requested change, default to committing it once relevant verification passes, unless the user asks not to commit, the work is exploratory or unfinished, verification fails, or unrelated user changes would make a focused commit unsafe.
+- If a completed change is not committed, explain why and leave the worktree state clear.
 - Update `Docs/DEVELOPMENT_LOG.md` only for meaningful architecture, performance, feature, or workflow milestones.
 
 ## Current Priorities
