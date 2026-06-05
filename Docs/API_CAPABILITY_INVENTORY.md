@@ -35,6 +35,7 @@ Official references:
 | Floor registry | WebSocket registry command | Mapped | Used for Areas grouping where helpful. |
 | Camera capabilities | WebSocket `camera/capabilities` | Mapped | Used to reason about live camera modes. |
 | Camera snapshots | Documented HTTP camera proxy | Mapped | Authenticated snapshot loading. |
+| Logbook | REST logbook API | Mapped | Read-only Settings > Logbook page uses the documented start timestamp, `end_time`, and `entity` request shape, then applies domain/search presentation locally. |
 | Mobile app registration | Native app HTTP registration | Mapped | Registration metadata persisted for companion-app features. |
 | Mobile app camera stream handoff | Native app webhook | Mapped | Uses saved registration webhook metadata. |
 | Native notification permission/status | iOS UserNotifications | Mapped | Settings > Notifications shows device permission status separately from Home Assistant mobile-app registration. |
@@ -46,7 +47,6 @@ Official references:
 | Feature | API family | Status | Intended Homestead surface |
 | --- | --- | --- | --- |
 | Internal/external URL routing | Native app setup guidance plus iOS network state | Planned | Settings > Account > Server and connection lifecycle. |
-| Logbook | REST logbook API | Planned | Settings > Logbook, read-only v1. |
 | History/charts | REST history API | Planned | Dashboard chart cards and sensor detail history. |
 | Weather card | Entity state attributes for `.weather` | Planned | Dashboard card and weather detail surface. |
 | Updates page | `.update` entities and service calls where supported | Planned | Settings > Updates. |
@@ -71,12 +71,6 @@ These are the next API slices to map when the matching feature is implemented. D
 - Homestead uses Home Assistant's official WebSocket push notification channel by setting `push_websocket_channel` during mobile-app registration, subscribing with the saved webhook ID, presenting local notifications, and confirming delivery when Home Assistant provides a confirmation ID.
 - Use the official native-app push notification path; do not invent a separate Homestead notification automation path.
 - Cloud/APNs notification forwarding would require a separate Homestead-operated push service and should stay out of scope unless the project explicitly accepts that infrastructure.
-
-### Logbook
-
-- Add a small REST client for the documented logbook endpoint when building Settings > Logbook.
-- Keep v1 read-only with date range, entity/domain filtering, and search presentation helpers.
-- Map logbook events into app-facing activity rows instead of exposing raw REST DTOs to SwiftUI.
 
 ### History And Charts
 

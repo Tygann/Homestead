@@ -88,6 +88,36 @@ enum HomeAssistantEndpointBuilder {
         return url
     }
 
+    nonisolated static func logbookURL(
+        from baseURLString: String,
+        startDate: Date,
+        endDate: Date?,
+        entityID: String? = nil
+    ) throws -> URL {
+        var components = try baseComponents(from: baseURLString)
+        components.scheme = try httpScheme(from: components.scheme)
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathParts = [basePath, "api", "logbook", logbookTimestamp(from: startDate)].filter { !$0.isEmpty }
+        components.path = "/" + pathParts.joined(separator: "/")
+
+        var queryItems: [URLQueryItem] = []
+        if let endDate {
+            queryItems.append(URLQueryItem(name: "end_time", value: logbookTimestamp(from: endDate)))
+        }
+        if let entityID = entityID?.trimmingCharacters(in: .whitespacesAndNewlines), !entityID.isEmpty {
+            queryItems.append(URLQueryItem(name: "entity", value: entityID))
+        }
+        components.queryItems = queryItems.isEmpty ? nil : queryItems
+        components.fragment = nil
+
+        guard let url = components.url else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        return url
+    }
+
     nonisolated static func mobileAppRegistrationURL(from baseURLString: String) throws -> URL {
         var components = try baseComponents(from: baseURLString)
         components.scheme = try httpScheme(from: components.scheme)
@@ -189,5 +219,12 @@ enum HomeAssistantEndpointBuilder {
         default:
             throw HAWebSocketError.invalidURL
         }
+    }
+
+    private nonisolated static func logbookTimestamp(from date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter.string(from: date)
     }
 }

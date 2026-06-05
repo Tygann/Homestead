@@ -53,11 +53,7 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
-                    SettingsFeaturePlaceholderView(
-                        title: "Logbook",
-                        systemImage: "list.bullet.clipboard",
-                        message: "Read-only Home Assistant logbook browsing is planned for a later Settings pass."
-                    )
+                    LogbookSettingsView()
                 } label: {
                     Label("Logbook", systemImage: "list.bullet.clipboard")
                 }

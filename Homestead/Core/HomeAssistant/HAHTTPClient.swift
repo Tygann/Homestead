@@ -1,6 +1,11 @@
 import Foundation
 
-actor HAHTTPClient {
+protocol HAHTTPClientProtocol: Sendable {
+    func fetchCameraSnapshot(configuration: HAConnectionConfiguration, entityID: String) async throws -> Data
+    func fetchLogbook(configuration: HAConnectionConfiguration, request: HALogbookRequest) async throws -> [HALogbookEntryDTO]
+}
+
+actor HAHTTPClient: HAHTTPClientProtocol {
     private let session: URLSession
 
     init(session: URLSession = .shared) {
@@ -31,5 +36,28 @@ actor HAHTTPClient {
         }
 
         return data
+    }
+
+    func fetchLogbook(configuration: HAConnectionConfiguration, request: HALogbookRequest) async throws -> [HALogbookEntryDTO] {
+        let url = try HomeAssistantEndpointBuilder.logbookURL(
+            from: configuration.baseURLString,
+            startDate: request.startDate,
+            endDate: request.endDate,
+            entityID: request.entityID
+        )
+        var urlRequest = URLRequest(url: url)
+        urlRequest.setValue("Bearer \(configuration.accessToken)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await session.data(for: urlRequest)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw HAWebSocketError.transportFailure("Home Assistant returned an invalid logbook response.")
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw HAWebSocketError.requestFailed("Home Assistant logbook failed with status \(httpResponse.statusCode).")
+        }
+
+        return try JSONDecoder().decode([HALogbookEntryDTO].self, from: data)
     }
 }

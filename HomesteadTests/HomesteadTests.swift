@@ -186,6 +186,26 @@ struct HomesteadTests {
         #expect(webhookURL.absoluteString == "http://homeassistant.local:8123/api/webhook/webhook-abc")
     }
 
+    @Test func logbookEndpointUsesOfficialHTTPPathAndDocumentedQueryItems() throws {
+        let startDate = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
+        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:45:00Z"))
+
+        let url = try HomeAssistantEndpointBuilder.logbookURL(
+            from: "https://example.com/ha",
+            startDate: startDate,
+            endDate: endDate,
+            entityID: "light.kitchen"
+        )
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let queryItems = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value) })
+
+        #expect(components.scheme == "https")
+        #expect(components.host == "example.com")
+        #expect(components.path == "/ha/api/logbook/2026-06-05T15:30:00Z")
+        #expect(queryItems["end_time"] == "2026-06-05T16:45:00Z")
+        #expect(queryItems["entity"] == "light.kitchen")
+    }
+
     @Test func httpEndpointResolvesAbsoluteRootAndRelativePaths() throws {
         let absoluteURL = try HomeAssistantEndpointBuilder.httpURL(
             from: "https://example.com/ha",
@@ -713,6 +733,78 @@ struct HomesteadTests {
         #expect(response.remoteUIURL == "https://remote.ui")
         #expect(response.secret == "optional-secret")
         #expect(response.webhookID == "webhook-123")
+    }
+
+    @Test func logbookEntriesDecodeAndMapToActivityRows() throws {
+        let payload = """
+        [
+            {
+                "when": "2026-06-05T15:30:00.000000+00:00",
+                "name": "Kitchen",
+                "message": "turned on",
+                "domain": "light",
+                "entity_id": "light.kitchen",
+                "context_user_id": "user-123"
+            },
+            {
+                "when": "2026-06-05T15:35:00+00:00",
+                "name": "Automation",
+                "message": "triggered",
+                "domain": "automation"
+            }
+        ]
+        """
+
+        let entries = try JSONDecoder().decode([HALogbookEntryDTO].self, from: Data(payload.utf8))
+        let rows = HAActivityRow.makeRows(from: entries) { entityID in
+            entityID == "light.kitchen" ? "Kitchen Pendant" : nil
+        }
+
+        #expect(entries.count == 2)
+        #expect(rows[0].title == "Kitchen Pendant")
+        #expect(rows[0].message == "turned on")
+        #expect(rows[0].entityID == "light.kitchen")
+        #expect(rows[0].entityDomain == .light)
+        #expect(rows[0].sourceDomain == "light")
+        #expect(rows[0].contextUserID == "user-123")
+        #expect(rows[0].iconSystemName == EntityDomain.light.systemImage)
+        #expect(rows[0].matches(query: "pendant"))
+        #expect(rows[1].title == "Automation")
+        #expect(rows[1].iconSystemName == "list.bullet.clipboard")
+    }
+
+    @Test func logbookPresentationFiltersByDomainAndSearchText() throws {
+        let lightTime = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
+        let sensorTime = try #require(HADateParser.date(from: "2026-06-04T15:30:00Z"))
+        let rows = HAActivityRow.makeRows(
+            from: [
+                HALogbookEntryDTO(
+                    when: lightTime,
+                    name: "Kitchen",
+                    message: "turned on",
+                    domain: "light",
+                    entityID: "light.kitchen"
+                ),
+                HALogbookEntryDTO(
+                    when: sensorTime,
+                    name: "Temperature",
+                    message: "changed to 72",
+                    domain: "sensor",
+                    entityID: "sensor.kitchen_temperature"
+                )
+            ],
+            entityDisplayName: { $0 }
+        )
+        let presentation = HALogbookPresentation.make(
+            rows: rows,
+            searchText: "kitchen",
+            selectedDomain: .sensor,
+            calendar: Calendar(identifier: .gregorian)
+        )
+
+        #expect(presentation.visibleRowCount == 1)
+        #expect(presentation.sections.count == 1)
+        #expect(presentation.sections.first?.rows.first?.entityID == "sensor.kitchen_temperature")
     }
 
     @Test func mobileAppRegistrationStorePersistsRegistrationInfo() throws {
@@ -2610,6 +2702,52 @@ struct HomesteadTests {
         let request = try #require(await service.homeAssistantProfileImageRequest(settings: settings))
         #expect(request.url?.absoluteString == "http://homeassistant.local:8123/api/image/current")
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer profile-access")
+    }
+
+    @MainActor
+    @Test func serviceFetchesLogbookWithOAuthConfigurationAndMapsEntityTitles() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "logbook-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["friendly_name": .string("Kitchen Pendant")]
+            )
+        ])
+        let httpClient = StubHAHTTPClient(logbookEntries: [
+            HALogbookEntryDTO(
+                when: try #require(HADateParser.date(from: "2026-06-05T15:30:00Z")),
+                name: "Kitchen",
+                message: "turned on",
+                domain: "light",
+                entityID: "light.kitchen"
+            )
+        ])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        let request = HALogbookRequest(
+            startDate: try #require(HADateParser.date(from: "2026-06-05T00:00:00Z")),
+            endDate: try #require(HADateParser.date(from: "2026-06-06T00:00:00Z")),
+            entityID: "light.kitchen"
+        )
+
+        let rows = try await service.fetchLogbook(settings: settings, request: request)
+
+        #expect(httpClient.lastLogbookConfiguration?.accessToken == "logbook-access")
+        #expect(httpClient.lastLogbookRequest == request)
+        #expect(rows.map(\.title) == ["Kitchen Pendant"])
+        #expect(rows.map(\.entityDomain) == [.light])
     }
 
     @MainActor
@@ -4746,6 +4884,32 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         if let callServiceError {
             throw callServiceError
         }
+    }
+}
+
+final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
+    var logbookEntries: [HALogbookEntryDTO]
+    var logbookError: Error?
+    private(set) var lastLogbookConfiguration: HAConnectionConfiguration?
+    private(set) var lastLogbookRequest: HALogbookRequest?
+
+    init(logbookEntries: [HALogbookEntryDTO] = []) {
+        self.logbookEntries = logbookEntries
+    }
+
+    func fetchCameraSnapshot(configuration: HAConnectionConfiguration, entityID: String) async throws -> Data {
+        Data()
+    }
+
+    func fetchLogbook(configuration: HAConnectionConfiguration, request: HALogbookRequest) async throws -> [HALogbookEntryDTO] {
+        lastLogbookConfiguration = configuration
+        lastLogbookRequest = request
+
+        if let logbookError {
+            throw logbookError
+        }
+
+        return logbookEntries
     }
 }
 

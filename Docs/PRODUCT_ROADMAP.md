@@ -28,6 +28,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Settings sheet opened from account/avatar buttons on daily-use tabs.
 - Settings hub with Home Assistant and Homestead sections, native management overviews for Devices & Services and Automations & Scenes, registry/admin-oriented devices and entities, and placeholders for unsupported categories.
 - Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status, recovery actions, saved internal/external URL and home network metadata, and Home Assistant `get_config` details.
+- Read-only Settings > Logbook page backed by Home Assistant's documented REST logbook API, with date range, entity/domain filtering, search, and app-facing activity row models.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
 - Notifications support through Home Assistant's official mobile-app WebSocket notification channel, including native iOS permission status, mobile-app registration readiness, local notification presentation, and Home Assistant delivery confirmation.
 - Authenticated camera snapshot support.
@@ -37,7 +38,6 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 ## Near-Term Priorities
 
 - Add automatic internal/external URL route selection in the connection lifecycle when the Settings > Account > Server metadata model is ready to drive it.
-- Add a read-only Logbook page using Home Assistant's documented logbook API.
 - Add a Home Assistant Updates management page based on `.update` entities before considering repair/system-health APIs.
 - Add a native Weather dashboard card and detail surface for `.weather` entities.
 - Add chart/history cards for sensor-style entities using Home Assistant's documented history API.

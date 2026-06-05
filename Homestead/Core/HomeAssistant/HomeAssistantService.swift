@@ -23,7 +23,7 @@ final class HomeAssistantService {
     private(set) var stateCacheMetadata: HAStateCacheMetadata?
 
     @ObservationIgnored private let client: any HAWebSocketClientProtocol
-    @ObservationIgnored private let httpClient: HAHTTPClient
+    @ObservationIgnored private let httpClient: any HAHTTPClientProtocol
     @ObservationIgnored private let mobileAppClient: any HAMobileAppClientProtocol
     @ObservationIgnored private let mobileAppRegistrationStore: any HAMobileAppRegistrationStore
     @ObservationIgnored private let nativeNotificationService: NativeNotificationService
@@ -54,7 +54,7 @@ final class HomeAssistantService {
         stateCache: HAStateCache = HAStateCache(),
         connectionStatus: HAConnectionStatus = .disconnected,
         authState: HAAuthState = .signedOut,
-        httpClient: HAHTTPClient = HAHTTPClient(),
+        httpClient: any HAHTTPClientProtocol = HAHTTPClient(),
         mobileAppClient: any HAMobileAppClientProtocol = HAMobileAppClient(),
         mobileAppRegistrationStore: any HAMobileAppRegistrationStore = KeychainHAMobileAppRegistrationStore(),
         nativeNotificationService: NativeNotificationService? = nil,
@@ -516,6 +516,20 @@ final class HomeAssistantService {
             configuration: validConfiguration,
             entityID: entityID
         )
+    }
+
+    func fetchLogbook(settings: HAConnectionSettings, request: HALogbookRequest) async throws -> [HAActivityRow] {
+        guard settings.hasServerURL else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        let configuration = try await validConfiguration(baseURLString: settings.baseURL)
+        activeConfiguration = configuration
+        let entries = try await httpClient.fetchLogbook(configuration: configuration, request: request)
+
+        return HAActivityRow.makeRows(from: entries) { [stateStore] entityID in
+            stateStore.entity(for: entityID)?.displayName
+        }
     }
 
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {

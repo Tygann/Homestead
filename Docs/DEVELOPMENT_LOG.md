@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-05
 
+### Logbook
+
+- Added a read-only Settings > Logbook page backed by Home Assistant's documented REST logbook API.
+- Added typed logbook request/DTO support, app-facing activity row models, grouped/searchable presentation helpers, date range controls, and entity/domain filtering.
+- Kept server calls to the documented start timestamp, `end_time`, and `entity` API shape, with domain filtering and search handled locally.
+
 ### Notifications
 
 - Added native iOS notification permission/status models and a `NativeNotificationService` that is separate from Home Assistant mobile-app registration state.

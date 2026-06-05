@@ -6,12 +6,15 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Logbook groundwork using Home Assistant's documented logbook API.
+Updates management groundwork using Home Assistant update entities.
 
 Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added a read-only Settings > Logbook page backed by Home Assistant's documented REST logbook endpoint.
+- Added typed logbook request/DTO support, an authenticated HTTP client path, app-facing `HAActivityRow` models, grouped/searchable presentation helpers, and focused regression tests for URL shape, decoding, mapping, filtering, and service auth handoff.
+- Kept domain filtering and search local to Homestead; server requests use only the documented logbook start timestamp, `end_time`, and `entity` parameters.
 - Added native iOS notification permission/status models and a `NativeNotificationService` separate from Home Assistant mobile-app registration state.
 - Replaced the Settings > Notifications placeholder with a real setup/status page that shows iOS permission state, Home Assistant account/mobile-app readiness, delivery readiness, recovery actions, an iOS Settings handoff, and advanced details behind disclosure.
 - Added Home Assistant's official mobile-app WebSocket notification delivery: registration advertises `push_websocket_channel`, the connected socket subscribes to `mobile_app/push_notification_channel`, received events present local iOS notifications, and Homestead confirms delivery when HA provides a confirmation ID.
@@ -19,9 +22,10 @@ Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Add a read-only Settings > Logbook page using Home Assistant's documented logbook API.
-- Keep v1 focused on date range, entity/domain filtering, search presentation helpers, and app-facing activity row models.
-- Do not use private frontend endpoints for repairs, users, system health, or admin details while working on Logbook.
+- Add a Home Assistant Updates management page based on `.update` entities.
+- Keep v1 focused on read-only update visibility and typed presentation helpers for installed/latest version, title, release summary, skipped state, and availability where present.
+- Add service actions only after confirming available services and safety UX for install/skip/clear flows.
+- Do not use private frontend endpoints for repairs, users, system health, or admin details while working on Updates.
 
 ## Acceptance Notes
 
@@ -33,6 +37,6 @@ Recommended reasoning level: High.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
 - Settings > Account > Server already has the first foundation for saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic URL switching is still not implemented.
 
-## After Logbook
+## After Updates
 
-- Move to Updates, Weather, and History/Charts in roadmap order unless priorities change.
+- Move to Weather and History/Charts in roadmap order unless priorities change.
