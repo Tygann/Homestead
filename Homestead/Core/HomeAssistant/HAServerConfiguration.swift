@@ -94,7 +94,7 @@ nonisolated enum HAServerConfigurationStatus: Equatable, Sendable {
 }
 
 private extension HAConfigUnitSystemDTO {
-    var summary: String? {
+    nonisolated var summary: String? {
         [
             temperature.map { "Temp \($0)" },
             length.map { "Length \($0)" },
@@ -108,7 +108,7 @@ private extension HAConfigUnitSystemDTO {
 }
 
 private extension String {
-    var nonEmptyTrimmed: String? {
+    nonisolated var nonEmptyTrimmed: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
