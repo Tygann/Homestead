@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-05
+
+### Settings Information Architecture
+
+- Reorganized Settings into native Home Assistant and Homestead sections while preserving the top-level account card and Home Assistant account/server header.
+- Replaced segmented Devices & Services and Automations & Scenes management pages with overview rows that push to focused registry/detail pages.
+- Added honest placeholders for planned Settings destinations whose backend or official API support is not implemented yet.
+
 ## 2026-06-03
 
 ### Product Roadmap Memory

@@ -26,7 +26,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Areas browsing backed by Home Assistant area and floor registries, with area summaries and domain-grouped area detail pages.
 - Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
 - Settings sheet opened from account/avatar buttons on daily-use tabs.
-- Settings management surfaces for Devices & Services and Automations & Scenes, including registry/admin-oriented devices and entities plus placeholders for unsupported categories.
+- Settings hub with Home Assistant and Homestead sections, native management overviews for Devices & Services and Automations & Scenes, registry/admin-oriented devices and entities, and placeholders for unsupported categories.
 - Home Assistant account/server status, diagnostics, About, sign-in, retry, mobile-app registration recovery, and sign-out flows.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
 - Authenticated camera snapshot support.
@@ -35,7 +35,6 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Near-Term Priorities
 
-- Clean up Settings information architecture into native management hubs rather than segmented mini-apps.
 - Add a richer Server page with internal URL, external URL, selected home network, active route/status, Home Assistant version, auth status, mobile-app registration status, and recovery actions.
 - Add Notifications support through Home Assistant's official mobile-app notification path, starting with permission/status/settings UI and then delivery support.
 - Add a read-only Logbook page using Home Assistant's documented logbook API.

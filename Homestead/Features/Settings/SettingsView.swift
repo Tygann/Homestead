@@ -21,6 +21,22 @@ struct SettingsView: View {
 
             Section("Home Assistant") {
                 NavigationLink {
+                    HomeAssistantSettingsView()
+                } label: {
+                    Label("Server", systemImage: "server.rack")
+                }
+
+                NavigationLink {
+                    SettingsFeaturePlaceholderView(
+                        title: "People",
+                        systemImage: "person.2",
+                        message: "Native people and presence management will be added after Homestead maps the needed Home Assistant people and tracker data."
+                    )
+                } label: {
+                    Label("People", systemImage: "person.2")
+                }
+
+                NavigationLink {
                     DevicesAndServicesManagementView()
                 } label: {
                     Label("Devices & Services", systemImage: "laptopcomputer.and.iphone")
@@ -30,6 +46,78 @@ struct SettingsView: View {
                     AutomationsAndScenesManagementView()
                 } label: {
                     Label("Automations & Scenes", systemImage: "sparkles")
+                }
+
+                NavigationLink {
+                    SettingsFeaturePlaceholderView(
+                        title: "Updates",
+                        systemImage: "arrow.triangle.2.circlepath.circle",
+                        message: "Native update management will be added after Homestead maps Home Assistant update entities and their supported actions."
+                    )
+                } label: {
+                    Label("Updates", systemImage: "arrow.triangle.2.circlepath.circle")
+                }
+
+                NavigationLink {
+                    SettingsFeaturePlaceholderView(
+                        title: "Logbook",
+                        systemImage: "list.bullet.clipboard",
+                        message: "Read-only Home Assistant logbook browsing is planned for a later Settings pass."
+                    )
+                } label: {
+                    Label("Logbook", systemImage: "list.bullet.clipboard")
+                }
+            }
+
+            Section("Homestead") {
+                NavigationLink {
+                    SettingsFeaturePlaceholderView(
+                        title: "Notifications",
+                        systemImage: "bell.badge",
+                        message: "Notification setup will use Home Assistant's official mobile-app notification path after the native permission and delivery flow is implemented."
+                    )
+                } label: {
+                    Label("Notifications", systemImage: "bell.badge")
+                }
+
+                NavigationLink {
+                    SettingsFeaturePlaceholderView(
+                        title: "Widgets",
+                        systemImage: "rectangle.grid.2x2",
+                        message: "Widget configuration will be added as Homestead expands its WidgetKit and App Intents support."
+                    )
+                } label: {
+                    Label("Widgets", systemImage: "rectangle.grid.2x2")
+                }
+
+                NavigationLink {
+                    SettingsFeaturePlaceholderView(
+                        title: "Live Activities",
+                        systemImage: "timer",
+                        message: "Live Activity controls will be added after Homestead defines supported glanceable activity types."
+                    )
+                } label: {
+                    Label("Live Activities", systemImage: "timer")
+                }
+
+                NavigationLink {
+                    SettingsFeaturePlaceholderView(
+                        title: "Permissions",
+                        systemImage: "hand.raised",
+                        message: "Native permission status for notifications, location, local network, camera, and related features is planned."
+                    )
+                } label: {
+                    Label("Permissions", systemImage: "hand.raised")
+                }
+
+                NavigationLink {
+                    SettingsFeaturePlaceholderView(
+                        title: "iCloud Sync",
+                        systemImage: "icloud",
+                        message: "iCloud sync for Homestead-owned preferences and configuration metadata is not implemented yet."
+                    )
+                } label: {
+                    Label("iCloud Sync", systemImage: "icloud")
                 }
             }
 
@@ -449,50 +537,52 @@ private extension HAAuthState {
 
 // MARK: - Devices and Services Management
 private struct DevicesAndServicesManagementView: View {
-    @State private var selection: DevicesAndServicesSection = .devices
-
     var body: some View {
-        VStack(spacing: 0) {
-            managementPicker(selection: $selection)
-                .padding(.horizontal, AppSpacing.large)
-                .padding(.vertical, AppSpacing.small)
-
-            Divider()
-
-            switch selection {
-            case .integrations:
-                SettingsManagementPlaceholderView(
-                    title: "Integrations",
-                    systemImage: "puzzlepiece.extension",
-                    message: "Native integration details are not available in Homestead yet."
-                )
-            case .devices:
-                DeviceRegistryManagementList()
-            case .entities:
-                EntityRegistryManagementBrowser(
-                    title: "Entities",
-                    emptyTitle: "No Entities",
-                    emptySystemImage: "square.grid.2x2"
-                )
-            case .helpers:
-                SettingsManagementPlaceholderView(
-                    title: "Helpers",
-                    systemImage: "wrench.and.screwdriver",
-                    message: "Native helper management will be added after Homestead supports the right Home Assistant APIs."
-                )
+        Form {
+            Section {
+                ForEach(DevicesAndServicesSection.allCases) { section in
+                    NavigationLink {
+                        destination(for: section)
+                    } label: {
+                        SettingsManagementOverviewRow(
+                            title: section.title,
+                            subtitle: section.subtitle,
+                            systemImage: section.systemImage
+                        )
+                    }
+                }
+            } footer: {
+                Text("Registry views use Home Assistant data already available to Homestead. Unsupported management categories are placeholders until official API support is added.")
             }
         }
         .navigationTitle("Devices & Services")
         .toolbarTitleDisplayMode(.inline)
     }
 
-    private func managementPicker(selection: Binding<DevicesAndServicesSection>) -> some View {
-        Picker("Section", selection: selection) {
-            ForEach(DevicesAndServicesSection.allCases) { section in
-                Text(section.title).tag(section)
-            }
+    @ViewBuilder
+    private func destination(for section: DevicesAndServicesSection) -> some View {
+        switch section {
+        case .integrations:
+            SettingsManagementPlaceholderView(
+                title: section.title,
+                systemImage: section.systemImage,
+                message: "Native integration details are not available in Homestead yet."
+            )
+        case .devices:
+            DeviceRegistryManagementList()
+        case .entities:
+            EntityRegistryManagementBrowser(
+                title: section.title,
+                emptyTitle: "No Entities",
+                emptySystemImage: section.systemImage
+            )
+        case .helpers:
+            SettingsManagementPlaceholderView(
+                title: section.title,
+                systemImage: section.systemImage,
+                message: "Native helper management will be added after Homestead supports the right Home Assistant APIs."
+            )
         }
-        .pickerStyle(.segmented)
     }
 }
 
@@ -514,6 +604,32 @@ private enum DevicesAndServicesSection: CaseIterable, Identifiable {
             "Entities"
         case .helpers:
             "Helpers"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .integrations:
+            "Installed integrations and setup details"
+        case .devices:
+            "Registered hardware, bridges, and entity counts"
+        case .entities:
+            "Entity registry, status, area, and device details"
+        case .helpers:
+            "Home Assistant helper management"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .integrations:
+            "puzzlepiece.extension"
+        case .devices:
+            "laptopcomputer.and.iphone"
+        case .entities:
+            "square.grid.2x2"
+        case .helpers:
+            "wrench.and.screwdriver"
         }
     }
 }
@@ -552,6 +668,8 @@ private struct DeviceRegistryManagementList: View {
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+        .navigationTitle("Devices")
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             if !devices.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -706,57 +824,59 @@ private extension Array where Element == HADeviceManagementSummary {
 
 // MARK: - Automations and Scenes Management
 private struct AutomationsAndScenesManagementView: View {
-    @State private var selection: AutomationsAndScenesSection = .automations
-
     var body: some View {
-        VStack(spacing: 0) {
-            managementPicker(selection: $selection)
-                .padding(.horizontal, AppSpacing.large)
-                .padding(.vertical, AppSpacing.small)
-
-            Divider()
-
-            switch selection {
-            case .automations:
-                EntityRegistryManagementBrowser(
-                    title: "Automations",
-                    emptyTitle: "No Automations",
-                    emptySystemImage: EntityDomain.automation.systemImage,
-                    allowedDomains: [.automation]
-                )
-            case .scenes:
-                EntityRegistryManagementBrowser(
-                    title: "Scenes",
-                    emptyTitle: "No Scenes",
-                    emptySystemImage: EntityDomain.scene.systemImage,
-                    allowedDomains: [.scene]
-                )
-            case .scripts:
-                EntityRegistryManagementBrowser(
-                    title: "Scripts",
-                    emptyTitle: "No Scripts",
-                    emptySystemImage: EntityDomain.script.systemImage,
-                    allowedDomains: [.script]
-                )
-            case .blueprints:
-                SettingsManagementPlaceholderView(
-                    title: "Blueprints",
-                    systemImage: "doc.badge.gearshape",
-                    message: "Native blueprint browsing will be added after Homestead supports an official Home Assistant API for it."
-                )
+        Form {
+            Section {
+                ForEach(AutomationsAndScenesSection.allCases) { section in
+                    NavigationLink {
+                        destination(for: section)
+                    } label: {
+                        SettingsManagementOverviewRow(
+                            title: section.title,
+                            subtitle: section.subtitle,
+                            systemImage: section.systemImage
+                        )
+                    }
+                }
+            } footer: {
+                Text("Automations, scenes, and scripts use entity data already available to Homestead. Blueprint browsing is a placeholder until official API support is added.")
             }
         }
         .navigationTitle("Automations & Scenes")
         .toolbarTitleDisplayMode(.inline)
     }
 
-    private func managementPicker(selection: Binding<AutomationsAndScenesSection>) -> some View {
-        Picker("Section", selection: selection) {
-            ForEach(AutomationsAndScenesSection.allCases) { section in
-                Text(section.title).tag(section)
-            }
+    @ViewBuilder
+    private func destination(for section: AutomationsAndScenesSection) -> some View {
+        switch section {
+        case .automations:
+            EntityRegistryManagementBrowser(
+                title: section.title,
+                emptyTitle: "No Automations",
+                emptySystemImage: section.systemImage,
+                allowedDomains: [.automation]
+            )
+        case .scenes:
+            EntityRegistryManagementBrowser(
+                title: section.title,
+                emptyTitle: "No Scenes",
+                emptySystemImage: section.systemImage,
+                allowedDomains: [.scene]
+            )
+        case .scripts:
+            EntityRegistryManagementBrowser(
+                title: section.title,
+                emptyTitle: "No Scripts",
+                emptySystemImage: section.systemImage,
+                allowedDomains: [.script]
+            )
+        case .blueprints:
+            SettingsManagementPlaceholderView(
+                title: section.title,
+                systemImage: section.systemImage,
+                message: "Native blueprint browsing will be added after Homestead supports an official Home Assistant API for it."
+            )
         }
-        .pickerStyle(.segmented)
     }
 }
 
@@ -778,6 +898,32 @@ private enum AutomationsAndScenesSection: CaseIterable, Identifiable {
             "Scripts"
         case .blueprints:
             "Blueprints"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .automations:
+            "Rules and triggers exposed as Home Assistant entities"
+        case .scenes:
+            "Scene entities available for native activation"
+        case .scripts:
+            "Script entities available for native runs"
+        case .blueprints:
+            "Reusable automation and script templates"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .automations:
+            EntityDomain.automation.systemImage
+        case .scenes:
+            EntityDomain.scene.systemImage
+        case .scripts:
+            EntityDomain.script.systemImage
+        case .blueprints:
+            "doc.badge.gearshape"
         }
     }
 }
@@ -819,6 +965,8 @@ private struct EntityRegistryManagementBrowser: View {
                 }
             }
         }
+        .navigationTitle(title)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 
@@ -842,6 +990,46 @@ private struct EntityRegistryStatusAccessory: View {
     }
 }
 
+private struct SettingsManagementOverviewRow: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(title)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            .padding(.vertical, AppSpacing.xSmall)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
+        }
+    }
+}
+
+private struct SettingsFeaturePlaceholderView: View {
+    let title: String
+    let systemImage: String
+    let message: String
+
+    var body: some View {
+        SettingsManagementPlaceholderView(
+            title: title,
+            systemImage: systemImage,
+            message: message
+        )
+    }
+}
+
 private struct SettingsManagementPlaceholderView: View {
     let title: String
     let systemImage: String
@@ -855,6 +1043,8 @@ private struct SettingsManagementPlaceholderView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemGroupedBackground))
+        .navigationTitle(title)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 

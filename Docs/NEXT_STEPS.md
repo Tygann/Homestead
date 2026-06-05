@@ -6,29 +6,25 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Settings information architecture cleanup.
+Richer Settings > Server page and connection routing groundwork.
 
 Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Preserve the top-level Settings account card and the large Home Assistant account/server header.
-- Reorganize Settings into clearer native sections:
-  - Home Assistant: Server, People, Devices & Services, Automations & Scenes, Updates, Logbook.
-  - Homestead: Notifications, Widgets, Live Activities, Permissions, iCloud Sync.
-  - About remains available from Settings.
-- Convert `Devices & Services` and `Automations & Scenes` from segmented picker destinations into overview pages with native rows that push to focused list/detail pages.
-- Add honest placeholders for destinations whose backend/API support is not implemented yet.
+- Build the richer `Settings > Server` destination from the existing Home Assistant account/settings surface.
+- Add typed WebSocket `get_config` support only for fields the Server page needs, such as Home Assistant version and URL/config metadata that is officially returned.
+- Preserve existing sign-in, retry, diagnostics, mobile-app registration recovery, and sign-out behavior while moving server/account details into clearer native sections.
+- Start modeling Homestead-owned internal URL, external URL, selected home network, active route/status, and recovery affordances without changing connection routing until the lifecycle code is ready.
 
 ## Acceptance Notes
 
-- Settings should feel like an iOS account/settings hub, not a mini app with nested segmented controls.
+- Settings should keep the top-level account card and the large Home Assistant account/server header unless a later design decision explicitly replaces them.
 - Browse remains the daily-use entity discovery/control surface.
 - Settings remains the admin, registry, diagnostics, and companion-app configuration surface.
-- Do not remove the account card/header unless a later design decision explicitly replaces them.
-- Do not add private Home Assistant frontend APIs for unsupported management pages.
+- Use official Home Assistant API surfaces only. Do not add private frontend endpoints for server/admin details.
+- Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
 
 ## After This Chunk
 
-- Build the richer Server page and API mapping.
-- Then move to Notifications, Logbook, Updates, Weather, and History/Charts in roadmap order unless priorities change.
+- Move to Notifications, Logbook, Updates, Weather, and History/Charts in roadmap order unless priorities change.
