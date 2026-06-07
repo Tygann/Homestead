@@ -37,7 +37,7 @@ Recommended reasoning level: High.
 - Added fallback handling for transport-style route failures and focused tests for route selection, route fallback, WebSocket connection, logbook HTTP handoff, and mobile-app registration handoff.
 - Expanded History/Charts into dashboard card support for numeric `sensor.*` entities using the existing documented REST history client/service flow.
 - Added dashboard history eligibility/request helpers, a `HomeAssistantService.fetchDashboardHistory(...)` handoff that keeps URL routing in the service layer, and app-facing chart-card presentation mapping.
-- Wide and Large numeric sensor dashboard cards now render a lightweight 6H Swift Charts trend while compact sizes keep the existing fast value-card presentation; newly generated numeric sensor cards prefer a Wide card.
+- Square, Wide, and Large numeric sensor dashboard cards now render a lightweight 6H Swift Charts trend while compact sizes keep the existing fast value-card presentation; newly generated numeric sensor cards prefer a Square card.
 - Added focused tests for card eligibility, default dashboard history request shape, service handoff, chart presentation mapping, and generated dashboard card sizing.
 
 ## Next Chunk

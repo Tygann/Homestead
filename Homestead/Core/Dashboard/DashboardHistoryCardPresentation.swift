@@ -69,9 +69,9 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
 nonisolated extension DashboardCardSize {
     var supportsDashboardHistoryChart: Bool {
         switch self {
-        case .wide, .large:
+        case .square, .wide, .large:
             true
-        case .mini, .compact, .row, .square:
+        case .mini, .compact, .row:
             false
         }
     }

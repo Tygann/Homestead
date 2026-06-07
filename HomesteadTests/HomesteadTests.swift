@@ -978,7 +978,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func dashboardHistoryCardsAreEligibleOnlyForNumericSensorWideLayouts() throws {
+    @Test func dashboardHistoryCardsAreEligibleOnlyForNumericSensorChartLayouts() throws {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(
@@ -998,9 +998,10 @@ struct HomesteadTests {
         let textSensor = try #require(store.entityBox(for: "sensor.mode"))
         let binarySensor = try #require(store.entityBox(for: "binary_sensor.front_door"))
 
+        #expect(DashboardHistoryCardPresentation.isEligible(entityBox: numericSensor, size: .square))
         #expect(DashboardHistoryCardPresentation.isEligible(entityBox: numericSensor, size: .wide))
         #expect(DashboardHistoryCardPresentation.isEligible(entityBox: numericSensor, size: .large))
-        #expect(!DashboardHistoryCardPresentation.isEligible(entityBox: numericSensor, size: .square))
+        #expect(!DashboardHistoryCardPresentation.isEligible(entityBox: numericSensor, size: .compact))
         #expect(!DashboardHistoryCardPresentation.isEligible(entityBox: textSensor, size: .wide))
         #expect(!DashboardHistoryCardPresentation.isEligible(entityBox: binarySensor, size: .wide))
     }
@@ -1017,7 +1018,7 @@ struct HomesteadTests {
 
         let request = try #require(DashboardHistoryCardPresentation.request(
             for: sensor,
-            size: .wide,
+            size: .square,
             endingAt: endDate
         ))
 
@@ -3933,7 +3934,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func generatedNumericSensorCardsPreferWideHistorySize() throws {
+    @Test func generatedNumericSensorCardsPreferSquareHistorySize() throws {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(
@@ -3951,7 +3952,7 @@ struct HomesteadTests {
         let numericSensor = try #require(store.entityBox(for: "sensor.hallway_temperature"))
         let textSensor = try #require(store.entityBox(for: "sensor.mode"))
 
-        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: numericSensor) == .wide)
+        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: numericSensor) == .square)
         #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: textSensor) == .compact)
     }
 
