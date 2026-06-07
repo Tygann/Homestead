@@ -48,6 +48,7 @@ Recommended reasoning level: High.
 ## Next Chunk
 
 - Continue dashboard organization and edit-flow polish as card types grow, likely focusing on where newly added cards land, section/header ergonomics, or larger dashboard management affordances.
+- As dashboard/add/edit views are touched, review nearby copy and controls for development-facing labels, explanations, or layout mechanics, and prefer user-facing choices, previews, and direct manipulation where the behavior is already visually clear.
 - Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
 
 ## Acceptance Notes

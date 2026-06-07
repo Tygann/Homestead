@@ -67,6 +67,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Avoid making every user-created dashboard a top-level tab by default; this can quickly make navigation feel cluttered.
 - Treat floor plans, 3D room scanning, and AR-style room mapping as high-cost exploratory features, not near-term core work.
 - Avoid decorative UI that competes with fast smart-home control. Prefer native, legible, low-latency surfaces.
+- When revisiting existing surfaces, look for development-facing labels, explanatory copy, or configuration mechanics that can be replaced with clearer user-facing choices, previews, and direct manipulation.
 - Continue profiling before major visual/performance rewrites, especially in scrolling dashboard grids with live Home Assistant updates.
 
 ## API Confidence Notes
