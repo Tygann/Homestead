@@ -33,6 +33,8 @@ Aim for a polished native iOS feel inspired by Apple Home:
 - SF Symbols
 - Clear typography hierarchy
 - Smooth interactions
+- Prefer user-facing product surfaces over development or explanation surfaces. Avoid visible labels, helper text, badges, or descriptions that explain implementation details, layout mechanics, API capabilities, or why a control exists unless the user needs that information to decide.
+- When a visual preview, familiar control, or direct manipulation communicates the choice, prefer that over explanatory copy. Dashboard customization should feel like choosing and arranging Home controls, not configuring schema.
 
 Be careful with `.regularMaterial`, `.thinMaterial`, large shadows, and implicit animations inside scrolling grids. These caused real dashboard lag with live Home Assistant data.
 

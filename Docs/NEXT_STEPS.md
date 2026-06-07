@@ -42,7 +42,7 @@ Recommended reasoning level: High.
 - Started the dashboard organization/add-card flow pass as card types grow.
 - Added app-facing add-card candidate presentation helpers that group by Home Assistant registry device when available, fall back to domain groups, filter by Homestead card style, search locally, hide already-added cards, and preserve unavailable filtering.
 - Replaced the Cards tab in Add to Dashboard with card-type filter chips, collapsible candidate groups, clean entity rows, plus-button quick add, and row-tap card-size previews with feature visibility selection.
-- Preserved the existing generated-size behavior for camera and numeric sensor chart cards while moving size/feature explanations into the preview picker instead of cramped rows.
+- Preserved the existing generated-size behavior for camera and numeric sensor chart cards while moving size/feature choice into a visual preview picker instead of cramped rows.
 - Added focused tests for add-card grouping, type filters, search, availability handling, configured-card exclusion, generated card size hints, and size-choice summaries.
 
 ## Next Chunk

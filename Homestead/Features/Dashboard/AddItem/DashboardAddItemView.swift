@@ -772,7 +772,12 @@ private struct DashboardAddCardSizeChoiceView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             HStack(alignment: .center, spacing: AppSpacing.medium) {
-                Label(choice.size.displayName, systemImage: choice.size.systemImage)
+                Image(systemName: choice.size.systemImage)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 28)
+
+                Text(choice.size.chooserTitle)
                     .font(.headline)
                     .foregroundStyle(.primary)
 
@@ -790,12 +795,8 @@ private struct DashboardAddCardSizeChoiceView: View {
                 Button("Add", action: add)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    .accessibilityHint(accessibilityHint)
             }
-
-            Text(summaryText)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
 
             CardGrid {
                 DashboardCardView(
@@ -806,16 +807,37 @@ private struct DashboardAddCardSizeChoiceView: View {
                 )
                 .cardGridSpan(choice.size.layoutMetadata)
             }
+            .accessibilityLabel("\(choice.size.chooserTitle) preview")
+            .accessibilityHint(accessibilityHint)
         }
         .padding(.vertical, AppSpacing.small)
     }
 
-    private var summaryText: String {
+    private var accessibilityHint: String {
         if featureVisibility == .hidden, !choice.featureTitles.isEmpty {
             return "Features hidden for this card."
         }
 
         return choice.summary
+    }
+}
+
+private extension DashboardCardSize {
+    var chooserTitle: String {
+        switch self {
+        case .mini:
+            "Mini"
+        case .compact:
+            "Compact"
+        case .row:
+            "Row"
+        case .square:
+            "Square"
+        case .wide:
+            "Wide"
+        case .large:
+            "Large"
+        }
     }
 }
 
