@@ -43,11 +43,7 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
-                    SettingsFeaturePlaceholderView(
-                        title: "Updates",
-                        systemImage: "arrow.triangle.2.circlepath.circle",
-                        message: "Native update management will be added after Homestead maps Home Assistant update entities and their supported actions."
-                    )
+                    UpdatesSettingsView()
                 } label: {
                     Label("Updates", systemImage: "arrow.triangle.2.circlepath.circle")
                 }

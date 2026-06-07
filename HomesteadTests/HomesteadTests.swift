@@ -485,6 +485,51 @@ struct HomesteadTests {
         #expect(alarmServiceData["code"] as? String == "1234")
     }
 
+    @Test func updateServiceRequestsEncodeHomeAssistantShape() throws {
+        let installRequest = HAWebSocketRequest.callService(
+            id: 51,
+            domain: "update",
+            service: "install",
+            target: ["entity_id": .string("update.home_assistant_core_update")],
+            serviceData: [
+                "backup": .bool(true),
+                "version": .string("2026.6.1")
+            ]
+        )
+        let skipRequest = HAWebSocketRequest.callService(
+            id: 52,
+            domain: "update",
+            service: "skip",
+            target: ["entity_id": .string("update.home_assistant_core_update")],
+            serviceData: [:]
+        )
+        let clearSkippedRequest = HAWebSocketRequest.callService(
+            id: 53,
+            domain: "update",
+            service: "clear_skipped",
+            target: ["entity_id": .string("update.home_assistant_core_update")],
+            serviceData: [:]
+        )
+
+        let installObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(installRequest)) as? [String: Any])
+        let installTarget = try #require(installObject["target"] as? [String: Any])
+        let installServiceData = try #require(installObject["service_data"] as? [String: Any])
+        let skipObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(skipRequest)) as? [String: Any])
+        let clearSkippedObject = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(clearSkippedRequest)) as? [String: Any])
+
+        #expect(installObject["domain"] as? String == "update")
+        #expect(installObject["service"] as? String == "install")
+        #expect(installTarget["entity_id"] as? String == "update.home_assistant_core_update")
+        #expect(installServiceData["backup"] as? Bool == true)
+        #expect(installServiceData["version"] as? String == "2026.6.1")
+        #expect(skipObject["domain"] as? String == "update")
+        #expect(skipObject["service"] as? String == "skip")
+        #expect((skipObject["service_data"] as? [String: Any])?.isEmpty == true)
+        #expect(clearSkippedObject["domain"] as? String == "update")
+        #expect(clearSkippedObject["service"] as? String == "clear_skipped")
+        #expect((clearSkippedObject["service_data"] as? [String: Any])?.isEmpty == true)
+    }
+
     @Test func registryCommandEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.registryCommand(
             id: 7,
@@ -1129,6 +1174,134 @@ struct HomesteadTests {
         let unsupported = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "moon_phase.home", state: "full_moon"))
         #expect(unsupported.domain == .other)
         #expect(unsupported.iconName == "circle.hexagongrid")
+    }
+
+    @Test func entityMapperMapsHomeAssistantUpdateEntities() throws {
+        let updateDTO = HAEntityDTO(
+            entityID: "update.home_assistant_core_update",
+            state: "on",
+            attributes: [
+                "friendly_name": .string("Home Assistant Core Update"),
+                "title": .string("Home Assistant Core 2026.6.1"),
+                "installed_version": .string("2026.6.0"),
+                "latest_version": .string("2026.6.1"),
+                "release_summary": .string("Fixes and polish."),
+                "release_url": .string("https://www.home-assistant.io/blog/2026/06/01/release-20266/"),
+                "device_class": .string("firmware")
+            ],
+            lastUpdated: Date(timeIntervalSince1970: 100)
+        )
+
+        let update = try #require(EntityMapper.updateEntity(
+            from: updateDTO,
+            deviceID: "device-core",
+            deviceName: "Home Assistant",
+            areaID: "server",
+            areaName: "Server Closet",
+            floorID: "basement",
+            floorName: "Basement"
+        ))
+
+        #expect(update.entityID == "update.home_assistant_core_update")
+        #expect(update.name == "Home Assistant Core Update")
+        #expect(update.title == "Home Assistant Core 2026.6.1")
+        #expect(update.installedVersion == "2026.6.0")
+        #expect(update.latestVersion == "2026.6.1")
+        #expect(update.releaseSummary == "Fixes and polish.")
+        #expect(update.releaseURLString?.contains("release-20266") == true)
+        #expect(update.status == .available)
+        #expect(update.iconSystemName == "memorychip.fill")
+        #expect(update.versionSummary == "2026.6.0 -> 2026.6.1")
+        #expect(update.context.areaName == "Server Closet")
+        #expect(update.context.deviceName == "Home Assistant")
+    }
+
+    @Test func updateEntityStatusReflectsSkippedInProgressAndUnavailableState() throws {
+        let skipped = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.router",
+            state: "off",
+            attributes: [
+                "friendly_name": .string("Router"),
+                "installed_version": .string("1.0"),
+                "latest_version": .string("1.1"),
+                "skipped_version": .string("1.1")
+            ]
+        )))
+        let inProgress = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.bridge",
+            state: "on",
+            attributes: [
+                "friendly_name": .string("Bridge"),
+                "in_progress": .number(42)
+            ]
+        )))
+        let unavailable = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.add_on",
+            state: "unavailable"
+        )))
+
+        #expect(skipped.status == .skipped)
+        #expect(skipped.skippedVersion == "1.1")
+        #expect(inProgress.status == .inProgress)
+        #expect(inProgress.progress == 42)
+        #expect(unavailable.status == .unavailable)
+        #expect(!unavailable.isAvailable)
+    }
+
+    @Test func updatePresentationFiltersSearchesAndGroupsRows() throws {
+        let core = try #require(EntityMapper.updateEntity(
+            from: HAEntityDTO(
+                entityID: "update.home_assistant_core_update",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Home Assistant Core"),
+                    "latest_version": .string("2026.6.1")
+                ]
+            ),
+            deviceName: "Home Assistant",
+            areaName: "Server Closet"
+        ))
+        let router = try #require(EntityMapper.updateEntity(
+            from: HAEntityDTO(
+                entityID: "update.router_firmware",
+                state: "off",
+                attributes: [
+                    "friendly_name": .string("Router Firmware"),
+                    "skipped_version": .string("7.2")
+                ]
+            ),
+            deviceName: "Router",
+            areaName: "Network Closet"
+        ))
+        let bridge = try #require(EntityMapper.updateEntity(
+            from: HAEntityDTO(
+                entityID: "update.bridge",
+                state: "off",
+                attributes: ["friendly_name": .string("Bridge")]
+            ),
+            deviceName: "Bridge",
+            areaName: "Living Room"
+        ))
+
+        let availablePresentation = HAUpdatePresentation.make(
+            updates: [router, bridge, core],
+            searchText: "core",
+            filter: .available,
+            grouping: .status
+        )
+        let areaPresentation = HAUpdatePresentation.make(
+            updates: [router, bridge, core],
+            searchText: "",
+            filter: .all,
+            grouping: .area
+        )
+
+        #expect(availablePresentation.visibleCount == 1)
+        #expect(availablePresentation.sections.first?.id == HAUpdateStatus.available.rawValue)
+        #expect(availablePresentation.sections.first?.updates.map(\.entityID) == ["update.home_assistant_core_update"])
+        #expect(availablePresentation.summary.availableCount == 1)
+        #expect(availablePresentation.summary.skippedCount == 1)
+        #expect(areaPresentation.sections.map(\.title) == ["Living Room", "Network Closet", "Server Closet"])
     }
 
     @MainActor
@@ -2513,6 +2686,137 @@ struct HomesteadTests {
         #expect(stateStore.pendingCommand(for: "automation.good_night")?.expectedState == "off")
         #expect(webSocketClient.callServiceInvocations.last?.domain == "automation")
         #expect(webSocketClient.callServiceInvocations.last?.service == "turn_off")
+    }
+
+    @MainActor
+    @Test func updateActionsUseOfficialHomeAssistantUpdateServices() async throws {
+        let update = HAEntityDTO(
+            entityID: "update.home_assistant_core_update",
+            state: "on",
+            attributes: [
+                "friendly_name": .string("Home Assistant Core"),
+                "installed_version": .string("2026.6.0"),
+                "latest_version": .string("2026.6.1")
+            ]
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([update])
+        let webSocketClient = StubHAWebSocketClient(states: [update])
+        webSocketClient.serviceRegistry = HAServiceRegistry(domains: [
+            "update": [
+                "install": HAServiceDescription(name: "Install"),
+                "skip": HAServiceDescription(name: "Skip"),
+                "clear_skipped": HAServiceDescription(name: "Clear skipped")
+            ]
+        ])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "update-access"))
+            )
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        try await waitUntil {
+            service.serviceRegistry.hasLoaded
+        }
+        stateStore.applySnapshot([update])
+
+        await service.installUpdate(
+            entityID: "update.home_assistant_core_update",
+            backup: true,
+            version: "2026.6.1"
+        )
+        await service.skipUpdate(entityID: "update.home_assistant_core_update")
+        await service.clearSkippedUpdate(entityID: "update.home_assistant_core_update")
+
+        #expect(webSocketClient.callServiceInvocations.map(\.domain) == ["update", "update", "update"])
+        #expect(webSocketClient.callServiceInvocations.map(\.service) == ["install", "skip", "clear_skipped"])
+        #expect(webSocketClient.callServiceInvocations[0].entityID == "update.home_assistant_core_update")
+        #expect(webSocketClient.callServiceInvocations[0].serviceData["backup"] == .bool(true))
+        #expect(webSocketClient.callServiceInvocations[0].serviceData["version"] == .string("2026.6.1"))
+        #expect(webSocketClient.callServiceInvocations[1].serviceData.isEmpty)
+        #expect(webSocketClient.callServiceInvocations[2].serviceData.isEmpty)
+    }
+
+    @MainActor
+    @Test func updateActionServiceCallsAreGatedByLoadedServiceRegistry() async throws {
+        let update = HAEntityDTO(
+            entityID: "update.home_assistant_core_update",
+            state: "on",
+            attributes: ["friendly_name": .string("Home Assistant Core")]
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([update])
+        let webSocketClient = StubHAWebSocketClient(states: [update])
+        webSocketClient.serviceRegistry = HAServiceRegistry(domains: [
+            "update": [
+                "skip": HAServiceDescription(name: "Skip")
+            ]
+        ])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "update-access"))
+            )
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        try await waitUntil {
+            service.serviceRegistry.hasLoaded
+        }
+        stateStore.applySnapshot([update])
+
+        await service.installUpdate(entityID: "update.home_assistant_core_update", backup: true)
+
+        #expect(webSocketClient.callServiceInvocations.isEmpty)
+        #expect(service.serviceFeedback?.title == "Action unavailable")
+        #expect(service.serviceFeedback?.message?.contains("update.install") == true)
+    }
+
+    @Test func updateSettingsActionAvailabilityMatchesStatusAndServiceCatalog() throws {
+        let available = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.core",
+            state: "on"
+        )))
+        let skipped = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.router",
+            state: "off",
+            attributes: ["skipped_version": .string("7.2")]
+        )))
+        let availableServices: Set<String> = [
+            "update.install",
+            "update.skip",
+            "update.clear_skipped"
+        ]
+
+        let availableActions = HAUpdateSettingsActionAvailability.make(
+            update: available,
+            serviceActionAvailable: { availableServices.contains("\($0).\($1)") }
+        )
+        let skippedActions = HAUpdateSettingsActionAvailability.make(
+            update: skipped,
+            serviceActionAvailable: { availableServices.contains("\($0).\($1)") }
+        )
+        let missingInstallActions = HAUpdateSettingsActionAvailability.make(
+            update: available,
+            serviceActionAvailable: { $1 != "install" }
+        )
+
+        #expect(availableActions.canInstall)
+        #expect(availableActions.canSkip)
+        #expect(!availableActions.canClearSkipped)
+        #expect(!skippedActions.canInstall)
+        #expect(!skippedActions.canSkip)
+        #expect(skippedActions.canClearSkipped)
+        #expect(!missingInstallActions.canInstall)
+        #expect(missingInstallActions.installUnavailableReason?.contains("not available") == true)
     }
 
     @MainActor
@@ -4448,6 +4752,56 @@ struct HomesteadTests {
             diagnosticEntityIDs: diagnosticEntityIDs
         ))
         #expect(security.sections.flatMap(\.items).map(\.entityID) == ["binary_sensor.case_tamper"])
+    }
+
+    @MainActor
+    @Test func stateStoreMapsUpdateEntitiesWithRegistryContext() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "update.router_firmware",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Router Firmware"),
+                    "installed_version": .string("7.1"),
+                    "latest_version": .string("7.2")
+                ]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "update.router_firmware",
+                    deviceID: "router-device",
+                    originalName: "Router Firmware"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(
+                    id: "router-device",
+                    name: "Router",
+                    areaID: "network-closet",
+                    manufacturer: "Ubiquiti",
+                    model: "Dream Machine"
+                )
+            ],
+            areas: [
+                HAAreaRegistryDTO(id: "network-closet", name: "Network Closet", floorID: "basement")
+            ],
+            floors: [
+                HAFloorRegistryDTO(id: "basement", name: "Basement")
+            ]
+        )
+
+        let update = try #require(store.updateEntity(for: "update.router_firmware"))
+
+        #expect(store.updateEntities.map(\.entityID) == ["update.router_firmware"])
+        #expect(update.status == .available)
+        #expect(update.context.deviceName == "Router")
+        #expect(update.context.areaName == "Network Closet")
+        #expect(update.context.floorName == "Basement")
+        #expect(update.contextSummary.contains("Network Closet"))
+        #expect(update.contextSummary.contains("Router"))
     }
 
     @MainActor

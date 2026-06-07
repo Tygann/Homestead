@@ -21,6 +21,7 @@ final class HAStateStore {
     @ObservationIgnored private(set) var mediaPlayerEntitiesByID: [String: MediaPlayerEntity] = [:]
     @ObservationIgnored private(set) var sensorEntitiesByID: [String: SensorEntity] = [:]
     @ObservationIgnored private(set) var binarySensorEntitiesByID: [String: BinarySensorEntity] = [:]
+    private(set) var updateEntities: [HAUpdateEntity] = []
     @ObservationIgnored private var rawEntitiesByID: [String: HAEntityDTO] = [:]
     @ObservationIgnored private var entityBoxesByID: [String: HAEntityState] = [:]
     @ObservationIgnored private var pendingCommandsByID: [String: HAEntityPendingCommand] = [:]
@@ -260,6 +261,10 @@ final class HAStateStore {
         binarySensorEntitiesByID[entityID]
     }
 
+    func updateEntity(for entityID: String) -> HAUpdateEntity? {
+        updateEntities.first { $0.entityID == entityID }
+    }
+
     func replaceDataSourceIfNeeded(_ dataSourceID: String) {
         guard self.dataSourceID != dataSourceID else {
             return
@@ -431,6 +436,7 @@ final class HAStateStore {
         mediaPlayerEntitiesByID.removeAll()
         sensorEntitiesByID.removeAll()
         binarySensorEntitiesByID.removeAll()
+        updateEntities.removeAll()
         rawEntitiesByID.removeAll()
         entityBoxesByID.removeAll()
         pendingCommandsByID.removeAll()
@@ -467,6 +473,7 @@ final class HAStateStore {
         binarySensorEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
             EntityMapper.binarySensorEntity(from: dto).map { ($0.entityID, $0) }
         })
+        refreshUpdateEntities()
         var updatedEntityBoxesByID: [String: HAEntityState] = [:]
         for dto in entities {
             let homeEntity = EntityMapper.homeEntity(from: dto)
@@ -526,6 +533,9 @@ final class HAStateStore {
         mediaPlayerEntitiesByID[dto.entityID] = EntityMapper.mediaPlayerEntity(from: dto)
         sensorEntitiesByID[dto.entityID] = EntityMapper.sensorEntity(from: dto)
         binarySensorEntitiesByID[dto.entityID] = EntityMapper.binarySensorEntity(from: dto)
+        if !isApplyingSnapshotBatch, previousEntity?.domain == .update || homeEntity.domain == .update {
+            refreshUpdateEntities()
+        }
         updateEntityBox(
             entityID: dto.entityID,
             homeEntity: homeEntity,
@@ -578,6 +588,9 @@ final class HAStateStore {
         mediaPlayerEntitiesByID.removeValue(forKey: entityID)
         sensorEntitiesByID.removeValue(forKey: entityID)
         binarySensorEntitiesByID.removeValue(forKey: entityID)
+        if removedEntity?.domain == .update {
+            refreshUpdateEntities()
+        }
         entityBoxesByID.removeValue(forKey: entityID)
         pendingCommandsByID.removeValue(forKey: entityID)
 
@@ -616,6 +629,7 @@ final class HAStateStore {
         entityIDGroupsByDevice = makeDeviceGroups()
         availableEntityIDs = Set(entitiesByID.keys)
         hasEntities = !availableEntityIDs.isEmpty
+        refreshUpdateEntities()
 
         let signature = availableEntityIDs.sorted().joined(separator: "|")
         if previousCatalogSignature == nil || signature != previousCatalogSignature {
@@ -681,6 +695,33 @@ final class HAStateStore {
 
     private func saveWidgetLightSnapshots() {
         WidgetSharedStore.saveLightSnapshots(Array(lightEntitiesByID.values))
+    }
+
+    private func refreshUpdateEntities() {
+        updateEntities = rawEntitiesByID.values
+            .compactMap { dto in
+                updateEntity(from: dto)
+            }
+            .sorted { lhs, rhs in
+                lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+            }
+    }
+
+    private func updateEntity(from dto: HAEntityDTO) -> HAUpdateEntity? {
+        let registry = entityRegistryByID[dto.entityID]
+        let deviceID = registry?.deviceID?.nonEmptyValue
+        let device = deviceID.flatMap { deviceRegistryByID[$0] }
+        let areaContext = areaContext(for: dto.entityID)
+
+        return EntityMapper.updateEntity(
+            from: dto,
+            deviceID: deviceID,
+            deviceName: device?.displayName,
+            areaID: areaContext?.areaID,
+            areaName: areaContext?.name,
+            floorID: areaContext?.floorID,
+            floorName: areaContext?.floorName
+        )
     }
 
     private func makeDeviceGroups() -> [EntityDeviceGroup] {

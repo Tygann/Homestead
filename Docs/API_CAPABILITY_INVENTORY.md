@@ -36,6 +36,7 @@ Official references:
 | Camera capabilities | WebSocket `camera/capabilities` | Mapped | Used to reason about live camera modes. |
 | Camera snapshots | Documented HTTP camera proxy | Mapped | Authenticated snapshot loading. |
 | Logbook | REST logbook API | Mapped | Read-only Settings > Logbook page uses the documented start timestamp, `end_time`, and `entity` request shape, then applies domain/search presentation locally. |
+| Updates | `.update` entities plus WebSocket `call_service` | Mapped | Settings > Updates maps update entity attributes for versions, release notes, skipped/in-progress/unavailable state, registry context, grouping/filtering/search, and gates `update.install`, `update.skip`, and `update.clear_skipped` through the service catalog. |
 | Mobile app registration | Native app HTTP registration | Mapped | Registration metadata persisted for companion-app features. |
 | Mobile app camera stream handoff | Native app webhook | Mapped | Uses saved registration webhook metadata. |
 | Native notification permission/status | iOS UserNotifications | Mapped | Settings > Notifications shows device permission status separately from Home Assistant mobile-app registration. |
@@ -49,7 +50,6 @@ Official references:
 | Internal/external URL routing | Native app setup guidance plus iOS network state | Planned | Settings > Account > Server and connection lifecycle. |
 | History/charts | REST history API | Planned | Dashboard chart cards and sensor detail history. |
 | Weather card | Entity state attributes for `.weather` | Planned | Dashboard card and weather detail surface. |
-| Updates page | `.update` entities and service calls where supported | Planned | Settings > Updates. |
 | People/presence | `person.*`, `device_tracker.*`, registries, current user | Planned | Settings > People and presence cards/details. |
 | Expanded widgets | WidgetKit/App Intents plus OAuth/WebSocket/service calls | Planned | Widgets and Control Center controls. |
 
@@ -83,12 +83,6 @@ These are the next API slices to map when the matching feature is implemented. D
 - Add a typed weather model only for fields the card/detail UI needs, such as condition, temperature, humidity, wind, forecast availability, and attribution.
 - Keep the existing generic `.weather` entity presentation as the fallback.
 - Prefer read-only v1 unless official service semantics are needed later.
-
-### Updates
-
-- Use `.update` entities for v1 update visibility.
-- Add typed update presentation helpers for installed/latest version, title, release summary, skipped state, and availability where present.
-- Add service actions only after confirming available services and safety UX for install/skip/clear flows.
 
 ### People And Presence
 

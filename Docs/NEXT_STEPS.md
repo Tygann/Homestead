@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Updates management groundwork using Home Assistant update entities.
+Weather and History/Charts roadmap work after completing Settings > Updates.
 
 Recommended reasoning level: High.
 
@@ -19,13 +19,17 @@ Recommended reasoning level: High.
 - Replaced the Settings > Notifications placeholder with a real setup/status page that shows iOS permission state, Home Assistant account/mobile-app readiness, delivery readiness, recovery actions, an iOS Settings handoff, and advanced details behind disclosure.
 - Added Home Assistant's official mobile-app WebSocket notification delivery: registration advertises `push_websocket_channel`, the connected socket subscribes to `mobile_app/push_notification_channel`, received events present local iOS notifications, and Homestead confirms delivery when HA provides a confirmation ID.
 - Kept cloud/APNs forwarding out of scope because Home Assistant's cloud path requires a separate push forwarding server and `push_url`.
+- Added a native Settings > Updates page backed by Home Assistant `.update` entities.
+- Added typed update mapping and presentation helpers for installed/latest version, title/name, release summary/notes URL, skipped state, in-progress/unavailable state, entity/device/area/floor context, grouping, filtering, and search.
+- Added official Home Assistant update service actions for install, skip, and clear skipped update through WebSocket `call_service`, gated by `HomeAssistantService.serviceActionAvailable(...)` and confirmation UX for install backup choices.
+- Kept private frontend repairs, system health, admin, and update-metadata endpoints out of scope.
 
 ## Next Chunk
 
-- Add a Home Assistant Updates management page based on `.update` entities.
-- Keep v1 focused on read-only update visibility and typed presentation helpers for installed/latest version, title, release summary, skipped state, and availability where present.
-- Add service actions only after confirming available services and safety UX for install/skip/clear flows.
-- Do not use private frontend endpoints for repairs, users, system health, or admin details while working on Updates.
+- Add a native Weather dashboard card and detail surface for `.weather` entities.
+- Start from entity state attributes for condition, temperature, humidity, wind, forecast availability, and attribution.
+- Prefer a read-only v1 unless official weather service semantics are needed and confirmed.
+- After Weather, add chart/history cards for sensor-style entities using Home Assistant's documented history API.
 
 ## Acceptance Notes
 
@@ -34,9 +38,10 @@ Recommended reasoning level: High.
 - Browse remains the daily-use entity discovery/control surface.
 - Settings remains the admin, registry, diagnostics, and companion-app configuration surface.
 - Use official Home Assistant API surfaces only. Do not add private frontend endpoints for server/admin details.
+- Do not use private frontend endpoints for repairs, users, system health, or admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
 - Settings > Account > Server already has the first foundation for saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic URL switching is still not implemented.
 
-## After Updates
+## After Weather
 
-- Move to Weather and History/Charts in roadmap order unless priorities change.
+- Move to History/Charts in roadmap order unless priorities change.

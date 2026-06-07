@@ -123,7 +123,7 @@ enum EntityMapper {
         )
     }
 
-    private static func displayName(for dto: HAEntityDTO) -> String {
+    static func displayName(for dto: HAEntityDTO) -> String {
         if let friendlyName = dto.attributes["friendly_name"]?.stringValue, !friendlyName.isEmpty {
             return friendlyName
         }

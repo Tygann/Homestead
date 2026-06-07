@@ -2,6 +2,15 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-07
+
+### Updates
+
+- Added a native Settings > Updates page backed by Home Assistant `.update` entities.
+- Added typed update entity mapping and presentation helpers for installed/latest versions, title/name, release summary or release notes URL, skipped state, in-progress/unavailable state, entity/device/area/floor context, grouping, filtering, and search.
+- Added official `update.install`, `update.skip`, and `update.clear_skipped` service actions over WebSocket `call_service`, gated through the loaded service catalog, with install confirmation choices for backup behavior.
+- Kept repairs, system health, admin details, and extra update metadata endpoints out of scope because Homestead is not using private frontend APIs for this surface.
+
 ## 2026-06-05
 
 ### Logbook

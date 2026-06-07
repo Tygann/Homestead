@@ -507,6 +507,44 @@ final class HomeAssistantService {
         )
     }
 
+    func installUpdate(entityID: String, backup: Bool? = nil, version: String? = nil) async {
+        var serviceData: [String: JSONValue] = [:]
+
+        if let backup {
+            serviceData["backup"] = .bool(backup)
+        }
+
+        if let version = version?.trimmingCharacters(in: .whitespacesAndNewlines), !version.isEmpty {
+            serviceData["version"] = .string(version)
+        }
+
+        await callTransientEntityService(
+            domain: "update",
+            service: "install",
+            entityID: entityID,
+            serviceData: serviceData,
+            successTitle: "Update installing"
+        )
+    }
+
+    func skipUpdate(entityID: String) async {
+        await callTransientEntityService(
+            domain: "update",
+            service: "skip",
+            entityID: entityID,
+            successTitle: "Update skipped"
+        )
+    }
+
+    func clearSkippedUpdate(entityID: String) async {
+        await callTransientEntityService(
+            domain: "update",
+            service: "clear_skipped",
+            entityID: entityID,
+            successTitle: "Skipped update cleared"
+        )
+    }
+
     func fetchCameraSnapshot(entityID: String) async throws -> Data {
         let configuration = try cameraConfiguration(for: entityID)
         let validConfiguration = try await validConfiguration(baseURLString: configuration.baseURLString)
