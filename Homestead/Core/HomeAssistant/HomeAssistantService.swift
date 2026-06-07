@@ -658,6 +658,22 @@ final class HomeAssistantService {
         )
     }
 
+    func fetchDashboardHistory(
+        settings: HAConnectionSettings,
+        entityID: String,
+        range: HAHistoryRangePreset = .sixHours,
+        endingAt endDate: Date = Date()
+    ) async throws -> HAHistoryChartSeries {
+        let interval = range.interval(endingAt: endDate)
+        let request = HAHistoryRequest(
+            startDate: interval.start,
+            endDate: interval.end,
+            entityID: entityID
+        )
+
+        return try await fetchHistory(settings: settings, request: request, range: range)
+    }
+
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
         _ = try cameraConfiguration(for: entityID)
         return try await client.fetchCameraCapabilities(entityID: entityID)

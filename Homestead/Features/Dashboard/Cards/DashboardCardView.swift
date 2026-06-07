@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
@@ -338,6 +339,11 @@ private struct DashboardCardDetail: Identifiable {
 }
 
 private struct DashboardEntityCard: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var historyPhase: DashboardHistoryCardPhase = .idle
+
     let entityBox: HAEntityState
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
@@ -355,10 +361,15 @@ private struct DashboardEntityCard: View {
     var body: some View {
         let visibleFeatureSnapshot = visibleFeatures
 
-        if shouldUseCameraPreviewCard {
-            fullBleedCameraCard
-        } else {
-            standardCard(visibleFeatures: visibleFeatureSnapshot)
+        Group {
+            if shouldUseCameraPreviewCard {
+                fullBleedCameraCard
+            } else {
+                standardCard(visibleFeatures: visibleFeatureSnapshot)
+            }
+        }
+        .task(id: dashboardHistoryTaskID) {
+            await refreshDashboardHistoryIfNeeded()
         }
     }
 
@@ -491,32 +502,59 @@ private struct DashboardEntityCard: View {
         }
     }
 
+    @ViewBuilder
     private var largeContent: some View {
-        let contentModel = DashboardEntityCardContentModel.make(
-            presentation: presentation,
-            size: size
-        )
+        if shouldUseDashboardHistoryCard {
+            dashboardHistoryContent
+        } else {
+            let contentModel = DashboardEntityCardContentModel.make(
+                presentation: presentation,
+                size: size
+            )
 
-        return VStack(alignment: .leading, spacing: AppSpacing.large) {
-            HStack(alignment: .center, spacing: AppSpacing.medium) {
-                iconPlaceholder
-                
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(presentation.title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: AppSpacing.large) {
+                HStack(alignment: .center, spacing: AppSpacing.medium) {
+                    iconPlaceholder
+
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        Text(presentation.title)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+
+                        Text(presentation.subtitle)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(presentation.subtitleColor)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+
+                if let headline = contentModel.headline {
+                    Text(headline)
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundStyle(presentation.headlineColor)
                         .lineLimit(1)
-                        .truncationMode(.tail)
-                    
-                    Text(presentation.subtitle)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(presentation.subtitleColor)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.7)
+                }
+
+                if !contentModel.metrics.isEmpty {
+                    VStack(alignment: .leading, spacing: AppSpacing.small) {
+                        ForEach(contentModel.metrics) { metric in
+                            DashboardCardMetricRow(metric: metric)
+                        }
+                    }
                 }
             }
-            
-            if let headline = contentModel.headline {
+        }
+    }
+
+    private var dashboardHistoryContent: some View {
+        VStack(alignment: .leading, spacing: dashboardHistoryContentSpacing) {
+            cardHeader(subtitle: presentation.subtitle, subtitleFont: .caption.weight(.semibold))
+
+            if size == .large, let headline = presentation.headline {
                 Text(headline)
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(presentation.headlineColor)
@@ -524,14 +562,96 @@ private struct DashboardEntityCard: View {
                     .minimumScaleFactor(0.7)
             }
 
-            if !contentModel.metrics.isEmpty {
-                VStack(alignment: .leading, spacing: AppSpacing.small) {
-                    ForEach(contentModel.metrics) { metric in
-                        DashboardCardMetricRow(metric: metric)
-                    }
+            dashboardHistoryBody
+
+            dashboardHistoryFooter
+        }
+    }
+
+    @ViewBuilder
+    private var dashboardHistoryBody: some View {
+        switch historyPhase {
+        case .idle, .loading:
+            dashboardHistoryPlaceholder(systemImage: nil, title: "Loading trend", isLoading: true)
+        case .loaded(let chartPresentation):
+            if chartPresentation.isEmpty {
+                dashboardHistoryPlaceholder(systemImage: "chart.xyaxis.line", title: "No recent trend", isLoading: false)
+            } else {
+                dashboardHistoryChart(chartPresentation)
+            }
+        case .failed:
+            dashboardHistoryPlaceholder(systemImage: "chart.xyaxis.line", title: "Trend unavailable", isLoading: false)
+        }
+    }
+
+    private var dashboardHistoryFooter: some View {
+        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
+            Text(dashboardHistoryFooterText)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(size == .large ? 2 : 1)
+                .minimumScaleFactor(0.8)
+
+            Spacer(minLength: AppSpacing.small)
+
+            Text(DashboardHistoryCardPresentation.defaultRange.title)
+                .font(.caption2.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func dashboardHistoryChart(_ chartPresentation: DashboardHistoryCardPresentation) -> some View {
+        Chart(chartPresentation.samples) { sample in
+            LineMark(
+                x: .value("Time", sample.occurredAt),
+                y: .value("Value", sample.value)
+            )
+            .interpolationMethod(.catmullRom)
+            .foregroundStyle(presentation.accentColor)
+
+            AreaMark(
+                x: .value("Time", sample.occurredAt),
+                y: .value("Value", sample.value)
+            )
+            .interpolationMethod(.catmullRom)
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [
+                        presentation.accentColor.opacity(0.18),
+                        presentation.accentColor.opacity(0.03)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+        }
+        .chartYScale(domain: chartPresentation.valueDomain)
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        .frame(height: dashboardHistoryChartHeight)
+        .accessibilityLabel(chartPresentation.accessibilityLabel)
+        .accessibilityValue(chartPresentation.accessibilityValue)
+    }
+
+    private func dashboardHistoryPlaceholder(
+        systemImage: String?,
+        title: String,
+        isLoading: Bool
+    ) -> some View {
+        RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+            .fill(Color(.tertiarySystemGroupedBackground))
+            .frame(height: dashboardHistoryChartHeight)
+            .overlay {
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
             }
-        }
+            .accessibilityLabel(title)
     }
 
     private var cameraPreviewContent: some View {
@@ -743,6 +863,77 @@ private struct DashboardEntityCard: View {
             return false
         }
     }
+
+    private var shouldUseDashboardHistoryCard: Bool {
+        DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size)
+    }
+
+    private var dashboardHistoryTaskID: String {
+        guard shouldUseDashboardHistoryCard,
+              isFeatureInteractionEnabled,
+              scenePhase == .active else {
+            return "dashboard-history-disabled-\(entityBox.entityID)-\(size.rawValue)"
+        }
+
+        return "dashboard-history-\(entityBox.entityID)-\(size.rawValue)-\(DashboardHistoryCardPresentation.defaultRange.rawValue)"
+    }
+
+    private var dashboardHistoryContentSpacing: CGFloat {
+        size == .large ? AppSpacing.medium : AppSpacing.small
+    }
+
+    private var dashboardHistoryChartHeight: CGFloat {
+        size == .large ? 150 : 56
+    }
+
+    private var dashboardHistoryFooterText: String {
+        switch historyPhase {
+        case .idle, .loading:
+            return "Loading recent trend"
+        case .loaded(let chartPresentation):
+            return chartPresentation.isEmpty ? chartPresentation.accessibilityValue : chartPresentation.summaryText
+        case .failed:
+            return "Trend unavailable"
+        }
+    }
+
+    @MainActor
+    private func refreshDashboardHistoryIfNeeded() async {
+        guard shouldUseDashboardHistoryCard,
+              isFeatureInteractionEnabled,
+              scenePhase == .active else {
+            historyPhase = .idle
+            return
+        }
+
+        if case .loaded(let chartPresentation) = historyPhase,
+           chartPresentation.entityID == entityBox.entityID,
+           chartPresentation.range == DashboardHistoryCardPresentation.defaultRange {
+            return
+        }
+
+        historyPhase = .loading
+
+        do {
+            let series = try await homeAssistantService.fetchDashboardHistory(
+                settings: connectionSettings,
+                entityID: entityBox.entityID,
+                range: DashboardHistoryCardPresentation.defaultRange
+            )
+            guard !Task.isCancelled else { return }
+            historyPhase = .loaded(DashboardHistoryCardPresentation(series: series))
+        } catch {
+            guard !Task.isCancelled else { return }
+            historyPhase = .failed
+        }
+    }
+}
+
+private enum DashboardHistoryCardPhase: Equatable {
+    case idle
+    case loading
+    case loaded(DashboardHistoryCardPresentation)
+    case failed
 }
 
 private struct CameraCardPreview: View {

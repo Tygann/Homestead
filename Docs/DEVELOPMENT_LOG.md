@@ -22,6 +22,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added a focused numeric sensor history pass backed by Home Assistant's documented REST history API.
 - Added typed history request/response models, fixed 1H/6H/24H range helpers, app-facing chart series mapping, authenticated HTTP/service handoff, and focused regression tests for URL shape, decoding, filtering, range construction, and OAuth handoff.
 - Added a native Swift Charts history panel to the existing sensor detail surface while keeping raw Home Assistant DTOs out of SwiftUI and chart formatting outside `HAStateStore`.
+- Expanded numeric sensor history into dashboard chart cards for Wide and Large card sizes with a fixed 6H range, preserving compact value cards and routing requests through `HomeAssistantService`.
+- Added dashboard history eligibility/request helpers, chart-card presentation mapping, generated-card size behavior for numeric sensors, and focused regression tests for the card/service handoff.
 
 ### Updates
 

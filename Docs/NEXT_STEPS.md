@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Post-routing roadmap work after completing automatic internal/external Home Assistant URL selection.
+Post-history/dashboard roadmap work after adding numeric sensor dashboard chart cards.
 
 Recommended reasoning level: High.
 
@@ -35,11 +35,15 @@ Recommended reasoning level: High.
 - Kept route selection in `HomeAssistantService` instead of SwiftUI; Settings now displays the active route and still sends retry/register actions through the service.
 - Preserved OAuth/token refresh behavior, state-cache scope, mobile-app registration identity, WebSocket-first startup, documented HTTP calls, and service calls by separating active route URL from signed-in server identity in `HAConnectionConfiguration`.
 - Added fallback handling for transport-style route failures and focused tests for route selection, route fallback, WebSocket connection, logbook HTTP handoff, and mobile-app registration handoff.
+- Expanded History/Charts into dashboard card support for numeric `sensor.*` entities using the existing documented REST history client/service flow.
+- Added dashboard history eligibility/request helpers, a `HomeAssistantService.fetchDashboardHistory(...)` handoff that keeps URL routing in the service layer, and app-facing chart-card presentation mapping.
+- Wide and Large numeric sensor dashboard cards now render a lightweight 6H Swift Charts trend while compact sizes keep the existing fast value-card presentation; newly generated numeric sensor cards prefer a Wide card.
+- Added focused tests for card eligibility, default dashboard history request shape, service handoff, chart presentation mapping, and generated dashboard card sizing.
 
 ## Next Chunk
 
-- Expand History/Charts into dashboard cards or richer entity history if performance and UX are clear.
-- Or improve dashboard organization, filtering, and add-card flow as card types grow.
+- Improve dashboard organization, filtering, and add-card flow as card types grow.
+- Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
 
 ## Acceptance Notes
 
@@ -54,5 +58,5 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
-- Generic iOS Simulator build passed after the routing pass.
-- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after the routing pass. Xcode still emitted locked physical-device `notification_proxy` noise on the first run, but the simulator test session succeeded.
+- Generic iOS Simulator build passed after the numeric sensor dashboard history-card pass.
+- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after the numeric sensor dashboard history-card pass.

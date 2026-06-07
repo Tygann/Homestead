@@ -461,6 +461,10 @@ extension DashboardCardSize {
             return .square
         }
 
+        if DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: .wide) {
+            return .wide
+        }
+
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
         let features = DashboardCardFeatureProvider.features(
             for: entityBox,

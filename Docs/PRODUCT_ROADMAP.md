@@ -30,7 +30,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status, recovery actions, automatic route status, saved internal/external URL and home network metadata, and Home Assistant `get_config` details.
 - Native Settings > Updates page backed by Home Assistant `.update` entities, with grouped/filterable/searchable presentation, release/version/status/context details, and official `update.install`, `update.skip`, and `update.clear_skipped` service actions.
 - Read-only Settings > Logbook page backed by Home Assistant's documented REST logbook API, with date range, entity/domain filtering, search, and app-facing activity row models.
-- Native sensor history detail charts backed by Home Assistant's documented REST history API, starting with numeric `sensor.*` entities and fixed 1H/6H/24H ranges.
+- Native sensor history detail charts and dashboard chart cards backed by Home Assistant's documented REST history API, starting with numeric `sensor.*` entities and fixed ranges.
 - Native dashboard card and detail surface for `.weather` entities, backed by typed state-attribute mapping for condition, temperature, humidity, wind, forecast availability, and attribution.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
 - Notifications support through Home Assistant's official mobile-app WebSocket notification channel, including native iOS permission status, mobile-app registration readiness, local notification presentation, and Home Assistant delivery confirmation.
@@ -40,8 +40,8 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Near-Term Priorities
 
-- Expand chart/history cards beyond the first numeric sensor detail pass where dashboard performance and API shape are clear.
 - Improve dashboard organization, filtering, and add-card flow as card types grow.
+- Expand richer entity history beyond numeric sensor detail/dashboard charts where performance, UX, and official API shape are clear.
 - Expand widget support beyond lights to common safe actions such as switches, locks, covers, scenes, scripts, and key sensor/person status.
 
 ## Later Candidates

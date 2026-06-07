@@ -977,6 +977,95 @@ struct HomesteadTests {
         #expect(day.start == expectedDayStart)
     }
 
+    @MainActor
+    @Test func dashboardHistoryCardsAreEligibleOnlyForNumericSensorWideLayouts() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.kitchen_temperature",
+                state: "71.2",
+                attributes: [
+                    "friendly_name": .string("Kitchen Temperature"),
+                    "unit_of_measurement": .string("F"),
+                    "device_class": .string("temperature")
+                ]
+            ),
+            HAEntityDTO(entityID: "sensor.mode", state: "auto"),
+            HAEntityDTO(entityID: "binary_sensor.front_door", state: "off")
+        ])
+
+        let numericSensor = try #require(store.entityBox(for: "sensor.kitchen_temperature"))
+        let textSensor = try #require(store.entityBox(for: "sensor.mode"))
+        let binarySensor = try #require(store.entityBox(for: "binary_sensor.front_door"))
+
+        #expect(DashboardHistoryCardPresentation.isEligible(entityBox: numericSensor, size: .wide))
+        #expect(DashboardHistoryCardPresentation.isEligible(entityBox: numericSensor, size: .large))
+        #expect(!DashboardHistoryCardPresentation.isEligible(entityBox: numericSensor, size: .square))
+        #expect(!DashboardHistoryCardPresentation.isEligible(entityBox: textSensor, size: .wide))
+        #expect(!DashboardHistoryCardPresentation.isEligible(entityBox: binarySensor, size: .wide))
+    }
+
+    @MainActor
+    @Test func dashboardHistoryRequestUsesDefaultSixHourRangeForEligibleCards() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "sensor.kitchen_temperature", state: "71.2")
+        ])
+        let sensor = try #require(store.entityBox(for: "sensor.kitchen_temperature"))
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let expectedStartDate = try testDate("2026-06-05T10:00:00Z")
+
+        let request = try #require(DashboardHistoryCardPresentation.request(
+            for: sensor,
+            size: .wide,
+            endingAt: endDate
+        ))
+
+        #expect(request.entityID == "sensor.kitchen_temperature")
+        #expect(request.startDate == expectedStartDate)
+        #expect(request.endDate == endDate)
+        #expect(request.minimalResponse)
+        #expect(request.noAttributes)
+        #expect(!request.significantChangesOnly)
+        #expect(DashboardHistoryCardPresentation.request(for: sensor, size: .compact, endingAt: endDate) == nil)
+    }
+
+    @Test func dashboardHistoryPresentationMapsChartSeriesForCards() throws {
+        let startDate = try testDate("2026-06-05T10:00:00Z")
+        let middleDate = try testDate("2026-06-05T13:00:00Z")
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let request = HAHistoryRequest(
+            startDate: startDate,
+            endDate: endDate,
+            entityID: "sensor.kitchen_temperature"
+        )
+        let series = HAHistoryChartSeries.make(
+            response: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(entityID: "sensor.kitchen_temperature", state: "70", lastChanged: startDate),
+                    HAHistoryStateDTO(entityID: "sensor.kitchen_temperature", state: "71.5", lastChanged: middleDate),
+                    HAHistoryStateDTO(entityID: "sensor.kitchen_temperature", state: "72", lastChanged: endDate)
+                ]
+            ]),
+            request: request,
+            displayName: "Kitchen Temperature",
+            unit: "°F",
+            range: .sixHours
+        )
+
+        let presentation = DashboardHistoryCardPresentation(series: series)
+
+        #expect(presentation.entityID == "sensor.kitchen_temperature")
+        #expect(presentation.displayName == "Kitchen Temperature")
+        #expect(presentation.range == .sixHours)
+        #expect(presentation.samples.map(\.value) == [70, 71.5, 72])
+        #expect(presentation.latestValueText == "72°F")
+        #expect(presentation.latestTimeText?.isEmpty == false)
+        #expect(presentation.summaryText.contains("Now 72°F"))
+        #expect(presentation.accessibilityLabel == "Kitchen Temperature dashboard history")
+        #expect(presentation.accessibilityValue == presentation.summaryText)
+    }
+
     @Test func mobileAppRegistrationStorePersistsRegistrationInfo() throws {
         let store = InMemoryHAMobileAppRegistrationStore()
         let registration = HAMobileAppRegistrationInfo(
@@ -3508,6 +3597,63 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func serviceFetchesDashboardHistoryUsingSixHourHistoryRequest() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "dashboard-history-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "sensor.kitchen_temperature",
+                state: "71.2",
+                attributes: [
+                    "friendly_name": .string("Kitchen Temperature"),
+                    "unit_of_measurement": .string("F"),
+                    "device_class": .string("temperature")
+                ]
+            )
+        ])
+        let httpClient = StubHAHTTPClient(
+            historyResponse: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(
+                        entityID: "sensor.kitchen_temperature",
+                        state: "70",
+                        lastChanged: try testDate("2026-06-05T15:30:00Z")
+                    )
+                ]
+            ])
+        )
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let expectedRequest = HAHistoryRequest(
+            startDate: try testDate("2026-06-05T10:00:00Z"),
+            endDate: endDate,
+            entityID: "sensor.kitchen_temperature"
+        )
+
+        let series = try await service.fetchDashboardHistory(
+            settings: settings,
+            entityID: "sensor.kitchen_temperature",
+            endingAt: endDate
+        )
+
+        #expect(httpClient.lastHistoryConfiguration?.accessToken == "dashboard-history-access")
+        #expect(httpClient.lastHistoryRequest == expectedRequest)
+        #expect(series.range == .sixHours)
+        #expect(series.displayName == "Kitchen Temperature")
+    }
+
+    @MainActor
     @Test func profileImageRequestDoesNotUseUnrelatedFirstPersonEntity() async throws {
         let tokenStore = InMemoryHAOAuthTokenStore(
             credential: testCredential(accessToken: "profile-access")
@@ -3784,6 +3930,29 @@ struct HomesteadTests {
         )
 
         #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: camera) == .square)
+    }
+
+    @MainActor
+    @Test func generatedNumericSensorCardsPreferWideHistorySize() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.hallway_temperature",
+                state: "70.5",
+                attributes: [
+                    "friendly_name": .string("Hallway Temperature"),
+                    "unit_of_measurement": .string("F"),
+                    "device_class": .string("temperature")
+                ]
+            ),
+            HAEntityDTO(entityID: "sensor.mode", state: "auto")
+        ])
+
+        let numericSensor = try #require(store.entityBox(for: "sensor.hallway_temperature"))
+        let textSensor = try #require(store.entityBox(for: "sensor.mode"))
+
+        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: numericSensor) == .wide)
+        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: textSensor) == .compact)
     }
 
     @Test func entityDisplayNameResolverShortensNamesOnlyInMatchingAreaContext() {
