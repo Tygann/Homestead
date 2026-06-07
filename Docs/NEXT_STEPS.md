@@ -39,10 +39,14 @@ Recommended reasoning level: High.
 - Added dashboard history eligibility/request helpers, a `HomeAssistantService.fetchDashboardHistory(...)` handoff that keeps URL routing in the service layer, and app-facing chart-card presentation mapping.
 - Square, Wide, and Large numeric sensor dashboard cards now render a lightweight 6H Swift Charts trend while compact sizes keep the existing fast value-card presentation; newly generated numeric sensor cards prefer a Square card.
 - Added focused tests for card eligibility, default dashboard history request shape, service handoff, chart presentation mapping, and generated dashboard card sizing.
+- Started the dashboard organization/add-card flow pass as card types grow.
+- Added app-facing add-card candidate presentation helpers that group by Home Assistant registry device when available, fall back to domain groups, filter by Homestead card style, search locally, hide already-added cards, and preserve unavailable filtering.
+- Replaced the Cards tab in Add to Dashboard with card-type filter chips, collapsible candidate groups, compact type/size hints, and the existing generated-size behavior for camera and numeric sensor chart cards.
+- Added focused tests for add-card grouping, type filters, search, availability handling, configured-card exclusion, and generated card size hints.
 
 ## Next Chunk
 
-- Improve dashboard organization, filtering, and add-card flow as card types grow.
+- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on where newly added cards land, section/header ergonomics, or larger dashboard management affordances.
 - Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
 
 ## Acceptance Notes
@@ -58,5 +62,5 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
-- Generic iOS Simulator build passed after the numeric sensor dashboard history-card pass.
-- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after the numeric sensor dashboard history-card pass.
+- Generic iOS Simulator build passed after the dashboard add-card organization pass.
+- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after the dashboard add-card organization pass.

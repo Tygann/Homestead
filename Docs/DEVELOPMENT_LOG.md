@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-07
 
+### Dashboard Add Flow Organization
+
+- Replaced the Add to Dashboard card picker with a card-type-aware flow grouped by Home Assistant registry device when available, falling back to domain groups.
+- Added local filtering for Homestead card styles such as Controls, Values, Status, Media, Cameras, Actions, and Other without adding any new Home Assistant API surface.
+- Kept generated card sizing intact so camera previews and numeric sensor chart cards still default to Square, and added focused regression tests for grouping, filtering, search, availability, and suggested sizes.
+
 ### Connection Routing
 
 - Added automatic internal/external Home Assistant URL selection in `HomeAssistantService` using saved Settings > Account > Server route metadata and iOS network state.

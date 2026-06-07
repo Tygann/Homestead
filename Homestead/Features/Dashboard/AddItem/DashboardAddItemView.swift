@@ -51,6 +51,9 @@ struct DashboardAddItemView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var mode: DashboardAddItemMode
+    @State private var cardCategory: DashboardAddCardCategory = .all
+    @State private var cardIncludesUnavailable = false
+    @State private var collapsedCardGroups: Set<String> = []
     @State private var chipCategory: DashboardAddChipCategory = .all
     @State private var collapsedChipGroups: Set<String> = []
     @State private var summaryCandidates: [DashboardAddSummaryCandidate] = []
@@ -67,7 +70,7 @@ struct DashboardAddItemView: View {
                 addFlowHeader
                 switch mode {
                 case .cards:
-                    entityAddList(for: .cards)
+                    cardContent
                 case .chips:
                     chipContent
                 }
@@ -77,6 +80,10 @@ struct DashboardAddItemView: View {
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
             .onChange(of: mode) { _, _ in
                 searchText = ""
+                if mode == .cards {
+                    cardCategory = .all
+                    collapsedCardGroups.removeAll()
+                }
                 if mode == .chips {
                     chipCategory = .all
                     collapsedChipGroups.removeAll()
@@ -111,6 +118,150 @@ struct DashboardAddItemView: View {
         .padding(.top, AppSpacing.medium)
         .padding(.bottom, AppSpacing.small)
         .background(Color(.systemGroupedBackground))
+    }
+
+    @ViewBuilder
+    private var cardContent: some View {
+        VStack(spacing: 0) {
+            cardCategoryBar
+            cardCandidateList
+        }
+    }
+
+    private var cardCategoryBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.small) {
+                ForEach(cardCategories) { category in
+                    DashboardAddFilterChip(
+                        title: category.title,
+                        systemImage: category.systemImage,
+                        isSelected: cardCategory == category
+                    ) {
+                        cardCategory = category
+                        collapsedCardGroups.removeAll()
+                    }
+                }
+
+                Button {
+                    cardIncludesUnavailable.toggle()
+                    collapsedCardGroups.removeAll()
+                } label: {
+                    Label("Unavailable", systemImage: cardIncludesUnavailable ? "eye" : "eye.slash")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, AppSpacing.medium)
+                        .frame(height: 34)
+                        .background(
+                            cardIncludesUnavailable
+                                ? Color.accentColor.opacity(0.14)
+                                : Color(.tertiarySystemGroupedBackground),
+                            in: Capsule()
+                        )
+                        .foregroundStyle(cardIncludesUnavailable ? Color.accentColor : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(cardIncludesUnavailable ? "Hide unavailable entities" : "Show unavailable entities")
+            }
+            .padding(.horizontal, AppSpacing.large)
+            .padding(.vertical, AppSpacing.small)
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+
+    private var cardCandidateList: some View {
+        List {
+            ForEach(filteredCardCandidateGroups) { group in
+                Section {
+                    if !collapsedCardGroups.contains(group.id) {
+                        ForEach(group.candidates) { candidate in
+                            Button {
+                                dashboardConfiguration.add(
+                                    candidate.entityID,
+                                    size: candidate.recommendedSize
+                                )
+                            } label: {
+                                DashboardAddCardRow(candidate: candidate)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                } header: {
+                    Button {
+                        toggleCardGroup(group.id)
+                    } label: {
+                        HStack {
+                            Label(group.title, systemImage: group.systemImage)
+                            Spacer()
+                            Image(systemName: collapsedCardGroups.contains(group.id) ? "chevron.right" : "chevron.down")
+                                .font(.caption.weight(.bold))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .overlay {
+            if !stateStore.hasEntities {
+                ContentUnavailableView("No Devices", systemImage: "square.grid.2x2")
+            } else if filteredCardCandidateGroups.isEmpty {
+                cardEmptyState
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var cardEmptyState: some View {
+        if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ContentUnavailableView.search(text: searchText)
+        } else if cardCategory != .all {
+            ContentUnavailableView("No Matching Cards", systemImage: "line.3.horizontal.decrease.circle")
+        } else {
+            ContentUnavailableView("All Cards Added", systemImage: "checkmark.circle")
+        }
+    }
+
+    private var cardCategories: [DashboardAddCardCategory] {
+        DashboardAddCardPresentation.makeCategories(
+            from: cardCandidateGroups(
+                category: .all,
+                searchText: "",
+                includesUnavailable: cardIncludesUnavailable
+            )
+            .flatMap(\.candidates)
+        )
+    }
+
+    private var filteredCardCandidateGroups: [DashboardAddCardCandidateGroup] {
+        cardCandidateGroups(
+            category: cardCategory,
+            searchText: searchText,
+            includesUnavailable: cardIncludesUnavailable
+        )
+    }
+
+    private func cardCandidateGroups(
+        category: DashboardAddCardCategory,
+        searchText: String,
+        includesUnavailable: Bool
+    ) -> [DashboardAddCardCandidateGroup] {
+        DashboardAddCardPresentation.makeCandidateGroups(
+            entityBoxes: stateStore.allEntityBoxes(),
+            configuredEntityIDs: selectedCardEntityIDs,
+            deviceGroups: stateStore.entityIDGroupsByDevice,
+            domainGroups: stateStore.entityIDGroupsByDomain,
+            displayNameForDeviceGroupedEntity: stateStore.displayNameForDeviceGroupedEntity(entityID:),
+            category: category,
+            searchText: searchText,
+            includesUnavailable: includesUnavailable
+        )
+    }
+
+    private func toggleCardGroup(_ groupID: String) {
+        if collapsedCardGroups.contains(groupID) {
+            collapsedCardGroups.remove(groupID)
+        } else {
+            collapsedCardGroups.insert(groupID)
+        }
     }
 
     @ViewBuilder
@@ -362,37 +513,6 @@ struct DashboardAddItemView: View {
         }
     }
 
-    private func entityAddList(for target: DashboardAddEntityTarget) -> some View {
-        EntityBrowserList(
-            hiddenEntityIDs: target == .cards ? selectedCardEntityIDs : [],
-            emptyTitle: emptyTitle(for: target),
-            emptySystemImage: emptySystemImage(for: target),
-            showsFilters: true,
-            includesUnavailableByDefault: false,
-            searchText: $searchText,
-            showsSearchField: false,
-            showsGroupingMenu: false,
-            allowsRefresh: false,
-            rowAction: { entityBox in
-                switch target {
-                case .cards:
-                    dashboardConfiguration.add(
-                        entityBox.entityID,
-                        size: DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
-                    )
-                case .entityChips:
-                    dashboardConfiguration.addEntityChip(entityID: entityBox.entityID)
-                }
-            },
-            accessory: { _ in
-                Image(systemName: "plus.circle.fill")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-                    .accessibilityHidden(true)
-            }
-        )
-    }
-
     private var selectedCardEntityIDs: Set<String> {
         stateStore.availableEntityIDs.subtracting(
             dashboardConfiguration.addableEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
@@ -456,28 +576,6 @@ struct DashboardAddItemView: View {
         )
     }
 
-    private func emptyTitle(for target: DashboardAddEntityTarget) -> String {
-        switch target {
-        case .cards:
-            stateStore.hasEntities ? "All Cards Added" : "No Devices"
-        case .entityChips:
-            stateStore.hasEntities ? "No Entities" : "No Devices"
-        }
-    }
-
-    private func emptySystemImage(for target: DashboardAddEntityTarget) -> String {
-        switch target {
-        case .cards:
-            stateStore.hasEntities ? "checkmark.circle" : "square.grid.2x2"
-        case .entityChips:
-            "capsule"
-        }
-    }
-}
-
-private enum DashboardAddEntityTarget {
-    case cards
-    case entityChips
 }
 
 private struct DashboardAddSummaryCandidate: Identifiable, Equatable {
@@ -504,6 +602,50 @@ private struct DashboardAddEntityCandidateGroup: Identifiable, Equatable {
     let title: String
     let systemImage: String
     let candidates: [DashboardAddEntityCandidate]
+}
+
+private struct DashboardAddCardRow: View {
+    let candidate: DashboardAddCardCandidate
+
+    var body: some View {
+        Label {
+            HStack(alignment: .center, spacing: AppSpacing.medium) {
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    Text(candidate.displayName)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                    Text(candidate.entityID)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .layoutPriority(1)
+
+                Spacer(minLength: AppSpacing.medium)
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(candidate.detailText)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(minHeight: 48)
+        } icon: {
+            Image(systemName: candidate.iconName)
+                .foregroundStyle(Color.accentColor)
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+    }
 }
 
 private struct DashboardAddFilterChip: View {

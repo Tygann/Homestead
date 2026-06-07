@@ -3956,6 +3956,125 @@ struct HomesteadTests {
         #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: textSensor) == .compact)
     }
 
+    @MainActor
+    @Test func dashboardAddCardPresentationGroupsFiltersAndSuggestsCardSizes() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "off",
+                attributes: ["friendly_name": .string("Kitchen Light")]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.kitchen_temperature",
+                state: "71.5",
+                attributes: [
+                    "friendly_name": .string("Kitchen Temperature"),
+                    "unit_of_measurement": .string("°F"),
+                    "device_class": .string("temperature")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "camera.driveway",
+                state: "idle",
+                attributes: ["friendly_name": .string("Driveway Camera")]
+            ),
+            HAEntityDTO(
+                entityID: "scene.movie_night",
+                state: "scening",
+                attributes: ["friendly_name": .string("Movie Night")]
+            ),
+            HAEntityDTO(
+                entityID: "media_player.tv",
+                state: "unavailable",
+                attributes: ["friendly_name": .string("TV")]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(entityID: "light.kitchen", deviceID: "kitchen-device", originalName: "Kitchen Light"),
+                HAEntityRegistryDisplayDTO(entityID: "sensor.kitchen_temperature", deviceID: "kitchen-device", originalName: "Kitchen Temperature"),
+                HAEntityRegistryDisplayDTO(entityID: "camera.driveway", deviceID: "driveway-device", originalName: "Driveway Camera"),
+                HAEntityRegistryDisplayDTO(entityID: "scene.movie_night", deviceID: nil, originalName: "Movie Night"),
+                HAEntityRegistryDisplayDTO(entityID: "media_player.tv", deviceID: "tv-device", originalName: "TV")
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "kitchen-device", name: "Kitchen Hub"),
+                HADeviceRegistryDTO(id: "driveway-device", name: "Driveway"),
+                HADeviceRegistryDTO(id: "tv-device", name: "Living Room TV")
+            ]
+        )
+
+        let groups = DashboardAddCardPresentation.makeCandidateGroups(
+            entityBoxes: store.allEntityBoxes(),
+            configuredEntityIDs: ["light.kitchen"],
+            deviceGroups: store.entityIDGroupsByDevice,
+            domainGroups: store.entityIDGroupsByDomain,
+            displayNameForDeviceGroupedEntity: store.displayNameForDeviceGroupedEntity(entityID:),
+            category: .all,
+            searchText: "",
+            includesUnavailable: false
+        )
+        let candidates = groups.flatMap(\.candidates)
+
+        #expect(groups.map(\.title) == ["Driveway", "Kitchen Hub", "Other Entities"])
+        #expect(candidates.map(\.entityID) == ["camera.driveway", "sensor.kitchen_temperature", "scene.movie_night"])
+        #expect(candidates.first { $0.entityID == "sensor.kitchen_temperature" }?.recommendedSize == .square)
+        #expect(candidates.first { $0.entityID == "sensor.kitchen_temperature" }?.detailText == "Chart card, square")
+        #expect(candidates.first { $0.entityID == "camera.driveway" }?.recommendedSize == .square)
+        #expect(candidates.first { $0.entityID == "scene.movie_night" }?.cardStyle == .action)
+
+        let categories = DashboardAddCardPresentation.makeCategories(from: candidates)
+        #expect(categories.map(\.title) == ["All", "Values", "Cameras", "Actions"])
+    }
+
+    @MainActor
+    @Test func dashboardAddCardPresentationFiltersByCardTypeSearchAndAvailability() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "on", attributes: ["friendly_name": .string("Kitchen Light")]),
+            HAEntityDTO(entityID: "sensor.temperature", state: "72", attributes: ["friendly_name": .string("Temperature")]),
+            HAEntityDTO(entityID: "media_player.tv", state: "unavailable", attributes: ["friendly_name": .string("TV")])
+        ])
+
+        let valueGroups = DashboardAddCardPresentation.makeCandidateGroups(
+            entityBoxes: store.allEntityBoxes(),
+            configuredEntityIDs: [],
+            deviceGroups: [],
+            domainGroups: store.entityIDGroupsByDomain,
+            displayNameForDeviceGroupedEntity: { _ in nil },
+            category: .style(.value),
+            searchText: "",
+            includesUnavailable: true
+        )
+        #expect(valueGroups.flatMap(\.candidates).map(\.entityID) == ["sensor.temperature"])
+
+        let searchGroups = DashboardAddCardPresentation.makeCandidateGroups(
+            entityBoxes: store.allEntityBoxes(),
+            configuredEntityIDs: [],
+            deviceGroups: [],
+            domainGroups: store.entityIDGroupsByDomain,
+            displayNameForDeviceGroupedEntity: { _ in nil },
+            category: .all,
+            searchText: "Media",
+            includesUnavailable: true
+        )
+        #expect(searchGroups.map(\.title) == ["Media Players"])
+        #expect(searchGroups.flatMap(\.candidates).map(\.entityID) == ["media_player.tv"])
+
+        let availableOnlyGroups = DashboardAddCardPresentation.makeCandidateGroups(
+            entityBoxes: store.allEntityBoxes(),
+            configuredEntityIDs: [],
+            deviceGroups: [],
+            domainGroups: store.entityIDGroupsByDomain,
+            displayNameForDeviceGroupedEntity: { _ in nil },
+            category: .all,
+            searchText: "",
+            includesUnavailable: false
+        )
+        #expect(availableOnlyGroups.flatMap(\.candidates).map(\.entityID) == ["light.kitchen", "sensor.temperature"])
+    }
+
     @Test func entityDisplayNameResolverShortensNamesOnlyInMatchingAreaContext() {
         #expect(EntityDisplayNameResolver.contextualDisplayName("Primary Bedroom Light", areaName: "Primary Bedroom") == "Light")
         #expect(EntityDisplayNameResolver.contextualDisplayName("Primary Bedroom - Lamp", areaName: "Primary Bedroom") == "Lamp")
