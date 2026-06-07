@@ -123,6 +123,25 @@ enum EntityMapper {
         )
     }
 
+    static func weatherEntity(from dto: HAEntityDTO) -> WeatherEntity? {
+        guard EntityDomain(entityID: dto.entityID) == .weather else { return nil }
+
+        return WeatherEntity(
+            entityID: dto.entityID,
+            displayName: displayName(for: dto),
+            condition: WeatherCondition(state: dto.state),
+            temperature: dto.attributes["temperature"]?.doubleValue,
+            temperatureUnit: dto.attributes["temperature_unit"]?.stringValue,
+            humidity: dto.attributes["humidity"]?.doubleValue,
+            windSpeed: dto.attributes["wind_speed"]?.doubleValue,
+            windSpeedUnit: dto.attributes["wind_speed_unit"]?.stringValue,
+            windBearing: dto.attributes["wind_bearing"]?.doubleValue,
+            forecastCount: dto.attributes["forecast"]?.arrayValue?.count,
+            attribution: dto.attributes["attribution"]?.stringValue ?? dto.attributes["_attr_attribution"]?.stringValue,
+            lastUpdated: dto.lastUpdated
+        )
+    }
+
     static func displayName(for dto: HAEntityDTO) -> String {
         if let friendlyName = dto.attributes["friendly_name"]?.stringValue, !friendlyName.isEmpty {
             return friendlyName
@@ -390,24 +409,7 @@ enum EntityMapper {
     }
 
     private static func weatherIconName(state: String) -> String {
-        switch state {
-        case "sunny", "clear-night":
-            "sun.max.fill"
-        case "cloudy", "partlycloudy":
-            "cloud.sun.fill"
-        case "rainy", "pouring":
-            "cloud.rain.fill"
-        case "snowy", "snowy-rainy":
-            "cloud.snow.fill"
-        case "lightning", "lightning-rainy":
-            "cloud.bolt.rain.fill"
-        case "windy", "windy-variant":
-            "wind"
-        case "fog":
-            "cloud.fog.fill"
-        default:
-            "cloud.sun.fill"
-        }
+        WeatherCondition(state: state).systemImage
     }
 
     private static func coverIconName(deviceClass: String?, state: String) -> String {

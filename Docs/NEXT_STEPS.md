@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Weather roadmap work after completing the first focused History/Charts pass.
+Post-Weather roadmap work after completing native `.weather` dashboard/detail support.
 
 Recommended reasoning level: High.
 
@@ -26,13 +26,16 @@ Recommended reasoning level: High.
 - Added a focused History/Charts pass for numeric `sensor.*` entities using Home Assistant's documented REST history endpoint only.
 - Added typed history request/response models, authenticated HTTP/service handoff, app-facing chart series/range helpers, and a native Swift Charts history panel in the existing sensor detail surface with fixed 1H/6H/24H ranges.
 - Kept raw Home Assistant history DTOs out of SwiftUI and kept chart aggregation/formatting outside `HAStateStore`.
+- Added a focused native Weather pass for `.weather` entities.
+- Added typed app-facing weather state and presentation helpers for condition, temperature, humidity, wind, forecast availability, and attribution, mapped from Home Assistant entity state attributes.
+- Added `HAStateStore` / `HAEntityState` weather accessors so SwiftUI dashboard cards and detail views do not read raw Home Assistant DTOs.
+- Added a native read-only Weather detail surface and richer dashboard card presentation while keeping weather service calls out of scope.
+- Added focused mapping, state-store, and dashboard presentation tests for weather behavior.
 
 ## Next Chunk
 
-- Add a native Weather dashboard card and detail surface for `.weather` entities.
-- Start from entity state attributes for condition, temperature, humidity, wind, forecast availability, and attribution.
-- Prefer a read-only v1 unless official weather service semantics are needed and confirmed.
-- After Weather, consider expanding History/Charts into dashboard cards or richer entity history if performance and UX are clear.
+- Consider automatic internal/external URL route selection now that Settings > Account > Server has saved URL and home-network metadata foundations.
+- Or expand History/Charts into dashboard cards or richer entity history if performance and UX are clear.
 
 ## Acceptance Notes
 
@@ -45,6 +48,8 @@ Recommended reasoning level: High.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
 - Settings > Account > Server already has the first foundation for saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic URL switching is still not implemented.
 
-## After Weather
+## Recent Verification Notes
 
-- Revisit dashboard chart cards or automatic internal/external URL route selection unless priorities change.
+- Generic iOS Simulator build passed after the Weather implementation.
+- Focused Weather tests passed for mapping, state-store access, dashboard presentation, and wide/large card content.
+- A full `HomesteadTests` run on the named iPhone 17 simulator compiled and started, but Xcode reported repeated locked physical-device `notification_proxy` errors and ended the tail of the suite as signal-trap failures. The focused Weather subset passed afterward with a unique result bundle path.

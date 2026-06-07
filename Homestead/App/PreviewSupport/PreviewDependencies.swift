@@ -310,6 +310,25 @@ private enum PreviewData {
             lastUpdated: .now
         ),
         HAEntityDTO(
+            entityID: "weather.home",
+            state: "partlycloudy",
+            attributes: [
+                "friendly_name": .string("Home Weather"),
+                "temperature": .number(73),
+                "temperature_unit": .string("°F"),
+                "humidity": .number(56),
+                "wind_speed": .number(8),
+                "wind_speed_unit": .string("mph"),
+                "wind_bearing": .number(225),
+                "forecast": .array([
+                    .object(["condition": .string("rainy")]),
+                    .object(["condition": .string("sunny")])
+                ]),
+                "attribution": .string("Home Assistant weather provider")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
             entityID: "scene.movie_night",
             state: "scening",
             attributes: [

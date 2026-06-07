@@ -292,6 +292,8 @@ struct DashboardCardView: View {
             .camera
         case .vacuum:
             .vacuum
+        case .weather:
+            .weather
         case .alarmControlPanel:
             .alarmControlPanel
         case .button:
@@ -319,6 +321,7 @@ private struct DashboardCardDetail: Identifiable {
         case mediaPlayer
         case camera
         case vacuum
+        case weather
         case alarmControlPanel
         case button
         case select

@@ -37,6 +37,7 @@ Official references:
 | Camera snapshots | Documented HTTP camera proxy | Mapped | Authenticated snapshot loading. |
 | Logbook | REST logbook API | Mapped | Read-only Settings > Logbook page uses the documented start timestamp, `end_time`, and `entity` request shape, then applies domain/search presentation locally. |
 | History/charts | REST history API | Mapped | Numeric sensor detail charts use `/api/history/period/<timestamp>` with `filter_entity_id`, `end_time`, `minimal_response`, and `no_attributes`, then map into app-facing chart series outside `HAStateStore`. |
+| Weather | `.weather` entity state attributes | Mapped | Dashboard cards and native detail surfaces map condition, temperature, humidity, wind, forecast availability from state attributes, and attribution into app-facing presentation models. Read-only v1; no weather service calls are used. |
 | Updates | `.update` entities plus WebSocket `call_service` | Mapped | Settings > Updates maps update entity attributes for versions, release notes, skipped/in-progress/unavailable state, registry context, grouping/filtering/search, and gates `update.install`, `update.skip`, and `update.clear_skipped` through the service catalog. |
 | Mobile app registration | Native app HTTP registration | Mapped | Registration metadata persisted for companion-app features. |
 | Mobile app camera stream handoff | Native app webhook | Mapped | Uses saved registration webhook metadata. |
@@ -49,7 +50,6 @@ Official references:
 | Feature | API family | Status | Intended Homestead surface |
 | --- | --- | --- | --- |
 | Internal/external URL routing | Native app setup guidance plus iOS network state | Planned | Settings > Account > Server and connection lifecycle. |
-| Weather card | Entity state attributes for `.weather` | Planned | Dashboard card and weather detail surface. |
 | History/charts expansion | REST history API | Planned | Dashboard chart cards and richer sensor/entity history after the first numeric sensor detail pass. |
 | People/presence | `person.*`, `device_tracker.*`, registries, current user | Planned | Settings > People and presence cards/details. |
 | Expanded widgets | WidgetKit/App Intents plus OAuth/WebSocket/service calls | Planned | Widgets and Control Center controls. |
@@ -79,12 +79,6 @@ These are the next API slices to map when the matching feature is implemented. D
 - The first pass supports sensor-style numeric entities and fixed 1H/6H/24H ranges.
 - Dashboard chart cards and arbitrary entity history remain follow-up scope.
 - Keep chart-specific aggregation and formatting outside `HAStateStore`.
-
-### Weather
-
-- Add a typed weather model only for fields the card/detail UI needs, such as condition, temperature, humidity, wind, forecast availability, and attribution.
-- Keep the existing generic `.weather` entity presentation as the fallback.
-- Prefer read-only v1 unless official service semantics are needed later.
 
 ### People And Presence
 

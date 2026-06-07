@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-07
 
+### Weather
+
+- Added a native read-only Weather pass for `.weather` entities using Home Assistant entity state attributes.
+- Added typed app-facing weather mapping and presentation helpers for condition, temperature, humidity, wind, forecast availability, and attribution.
+- Routed Weather through `HAStateStore` / `HAEntityState`, dashboard presentation metrics, and a native detail surface so SwiftUI stays off raw Home Assistant DTOs.
+- Kept weather service calls out of scope until an official service-backed user intent is confirmed.
+
 ### History And Charts
 
 - Added a focused numeric sensor history pass backed by Home Assistant's documented REST history API.

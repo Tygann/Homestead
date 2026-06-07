@@ -69,6 +69,7 @@ enum DashboardEntityDetailKind: String, Equatable, Sendable {
     case mediaPlayer
     case camera
     case vacuum
+    case weather
     case alarmControlPanel
     case button
     case select
@@ -365,7 +366,15 @@ enum DashboardEntityDomainRegistry {
                 statusFormatter: .onOff(unavailableTitle: "Siren unavailable")
             )
         case .weather:
-            displayOnlyValueCapability(domain: domain)
+            DashboardEntityDomainCapability(
+                domain: domain,
+                cardStyle: .value,
+                primaryAction: nil,
+                detailKind: .weather,
+                statusFormatter: .rawState,
+                iconAccentBehavior: .defaultAccent,
+                secondaryActions: []
+            )
         case .calendar:
             displayOnlyStatusCapability(domain: domain)
         case .todo:
@@ -435,6 +444,7 @@ struct DashboardEntityPresentation {
     let detailKind: DashboardEntityDetailKind
     let secondaryActions: [DashboardEntitySecondaryAction]
     let supportsFavorite: Bool
+    let supplementalMetrics: [DashboardEntityCardMetric]
 
     init(
         entityBox: HAEntityState,
@@ -455,6 +465,7 @@ struct DashboardEntityPresentation {
         detailKind = capability.detailKind
         secondaryActions = capability.secondaryActions
         supportsFavorite = entityBox.domain != .other
+        var resolvedSupplementalMetrics: [DashboardEntityCardMetric] = []
 
         if let light = entityBox.lightEntity {
             let effectiveIsOn = pendingCommand?.expectedState.map { $0 == "on" } ?? light.isOn
@@ -527,6 +538,15 @@ struct DashboardEntityPresentation {
             isActive = mediaPlayer.isPlaying
             isAvailable = mediaPlayer.isAvailable
             accentColor = Self.accentColor(for: mediaPlayer.isPlaying, behavior: capability.iconAccentBehavior)
+        } else if let weather = entityBox.weatherEntity {
+            title = overrideTitle ?? weather.displayName
+            subtitle = weather.displaySubtitle
+            headline = weather.temperatureText
+            iconName = overrideIconName ?? weather.iconName
+            isActive = false
+            isAvailable = weather.isAvailable
+            accentColor = Self.weatherAccentColor(for: weather)
+            resolvedSupplementalMetrics = Self.weatherMetrics(for: weather)
         } else {
             let entity = entityBox.homeEntity
             let effectiveEntity = pendingCommand.map {
@@ -548,6 +568,8 @@ struct DashboardEntityPresentation {
             isAvailable = entity.isAvailable
             accentColor = Self.accentColor(for: effectiveEntity, capability: capability)
         }
+
+        supplementalMetrics = resolvedSupplementalMetrics
     }
 
     var accessibilityValue: String {
@@ -927,6 +949,45 @@ struct DashboardEntityPresentation {
             return .accentColor
         }
     }
+
+    private static func weatherAccentColor(for weather: WeatherEntity) -> Color {
+        guard weather.isAvailable else { return .secondary }
+
+        switch weather.condition {
+        case .sunny, .clearNight:
+            return .orange
+        case .rainy, .pouring, .lightning, .lightningRainy, .hail:
+            return .blue
+        case .snowy, .snowyRainy, .fog:
+            return .cyan
+        case .windy, .windyVariant:
+            return .mint
+        case .exceptional:
+            return .red
+        case .cloudy, .partlyCloudy, .other:
+            return .accentColor
+        case .unavailable, .unknown:
+            return .secondary
+        }
+    }
+
+    private static func weatherMetrics(for weather: WeatherEntity) -> [DashboardEntityCardMetric] {
+        var metrics: [DashboardEntityCardMetric] = []
+
+        if let humidityText = weather.humidityText {
+            metrics.append(DashboardEntityCardMetric(title: "Humidity", value: humidityText, systemImage: "humidity.fill"))
+        }
+
+        if let windText = weather.windText {
+            metrics.append(DashboardEntityCardMetric(title: "Wind", value: windText, systemImage: "wind"))
+        }
+
+        if weather.hasForecast {
+            metrics.append(DashboardEntityCardMetric(title: "Forecast", value: weather.forecastAvailabilityText, systemImage: "calendar"))
+        }
+
+        return metrics
+    }
 }
 
 struct DashboardEntityCardMetric: Equatable, Identifiable, Sendable {
@@ -984,6 +1045,8 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
             )
         }
 
+        metrics.append(contentsOf: presentation.supplementalMetrics)
+
         if let actionTitle = actionTitle(for: presentation) {
             metrics.append(
                 DashboardEntityCardMetric(
@@ -1003,6 +1066,8 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
             "Mode"
         case .sensor, .binarySensor:
             "Reading"
+        case .weather:
+            "Condition"
         case .mediaPlayer:
             "Now"
         case .scene:
@@ -1035,6 +1100,8 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
             "gauge.medium"
         case .mediaPlayer:
             "play.tv.fill"
+        case .weather:
+            presentation.iconName
         case .camera:
             "camera.fill"
         case .vacuum:
@@ -1052,6 +1119,8 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
             "Level"
         case .climate:
             "Setpoint"
+        case .weather:
+            "Temperature"
         case .sensor, .binarySensor:
             "Value"
         case .scene, .script:
@@ -1071,6 +1140,8 @@ struct DashboardEntityCardContentModel: Equatable, Sendable {
             "arrow.up.and.down"
         case .climate:
             "target"
+        case .weather:
+            "thermometer.medium"
         case .sensor, .binarySensor:
             "number"
         case .scene, .script:

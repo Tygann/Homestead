@@ -30,6 +30,8 @@ struct EntityDetailSheet: View {
             CameraDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .vacuum:
             VacuumDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+        case .weather:
+            WeatherDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .alarmControlPanel:
             AlarmControlPanelDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         case .button:

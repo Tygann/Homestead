@@ -1150,6 +1150,43 @@ struct HomesteadTests {
         #expect(sensor?.iconName == "thermometer.medium")
     }
 
+    @Test func entityMapperMapsHomeAssistantWeatherEntities() throws {
+        let weatherDTO = HAEntityDTO(
+            entityID: "weather.home",
+            state: "partlycloudy",
+            attributes: [
+                "friendly_name": .string("Home Weather"),
+                "temperature": .number(72.6),
+                "temperature_unit": .string("F"),
+                "humidity": .number(55),
+                "wind_speed": .number(8.4),
+                "wind_speed_unit": .string("mph"),
+                "wind_bearing": .number(225),
+                "forecast": .array([
+                    .object(["condition": .string("rainy")]),
+                    .object(["condition": .string("sunny")])
+                ]),
+                "attribution": .string("Weather Provider")
+            ],
+            lastUpdated: Date(timeIntervalSince1970: 100)
+        )
+
+        let weather = try #require(EntityMapper.weatherEntity(from: weatherDTO))
+
+        #expect(weather.entityID == "weather.home")
+        #expect(weather.displayName == "Home Weather")
+        #expect(weather.condition == .partlyCloudy)
+        #expect(weather.displaySubtitle == "Partly Cloudy")
+        #expect(weather.temperatureText == "72.6°F")
+        #expect(weather.humidityText == "55%")
+        #expect(weather.windDirectionText == "SW")
+        #expect(weather.windText == "SW 8.4 mph")
+        #expect(weather.hasForecast == true)
+        #expect(weather.forecastAvailabilityText == "2 forecast items")
+        #expect(weather.attributionText == "Weather Provider")
+        #expect(weather.iconName == "cloud.sun.fill")
+    }
+
     @Test func entityMapperMapsLightBrightnessSupportForOffDimmableLights() {
         let dimmableLightDTO = HAEntityDTO(
             entityID: "light.bed_lamp",
@@ -1970,6 +2007,33 @@ struct HomesteadTests {
 
         #expect(store.entityBox(for: "light.kitchen") === firstBox)
         #expect(firstBox?.lightEntity?.isOn == true)
+    }
+
+    @MainActor
+    @Test func stateStorePublishesTypedWeatherEntitiesThroughEntityBoxes() throws {
+        let store = HAStateStore()
+        store.applySnapshot([
+            HAEntityDTO(
+                entityID: "weather.home",
+                state: "rainy",
+                attributes: [
+                    "friendly_name": .string("Home Weather"),
+                    "temperature": .number(61),
+                    "temperature_unit": .string("F"),
+                    "humidity": .number(84),
+                    "wind_speed": .number(12),
+                    "wind_speed_unit": .string("mph")
+                ]
+            )
+        ])
+
+        let weather = try #require(store.weatherEntity(for: "weather.home"))
+        let entityBox = try #require(store.entityBox(for: "weather.home"))
+
+        #expect(weather.temperatureText == "61°F")
+        #expect(weather.humidityText == "84%")
+        #expect(entityBox.weatherEntity == weather)
+        #expect(entityBox.homeEntity.domain == .weather)
     }
 
     @MainActor
@@ -4339,7 +4403,7 @@ struct HomesteadTests {
             .lawnMower: (.status, nil, .entity),
             .valve: (.status, nil, .entity),
             .siren: (.status, nil, .entity),
-            .weather: (.value, nil, .entity),
+            .weather: (.value, nil, .weather),
             .calendar: (.status, nil, .entity),
             .todo: (.status, nil, .entity),
             .event: (.status, nil, .entity),
@@ -4395,7 +4459,16 @@ struct HomesteadTests {
             HAEntityDTO(
                 entityID: "weather.home",
                 state: "partlycloudy",
-                attributes: ["friendly_name": .string("Home Weather")]
+                attributes: [
+                    "friendly_name": .string("Home Weather"),
+                    "temperature": .number(73),
+                    "temperature_unit": .string("F"),
+                    "humidity": .number(56),
+                    "wind_speed": .number(8),
+                    "wind_speed_unit": .string("mph"),
+                    "wind_bearing": .number(90),
+                    "forecast": .array([.object(["condition": .string("sunny")])])
+                ]
             )
         ])
 
@@ -4427,7 +4500,11 @@ struct HomesteadTests {
         #expect(alarm.detailKind == .alarmControlPanel)
         #expect(weather.cardStyle == .value)
         #expect(weather.iconName == "cloud.sun.fill")
-        #expect(weather.subtitle == "Partlycloudy")
+        #expect(weather.subtitle == "Partly Cloudy")
+        #expect(weather.headline == "73°F")
+        #expect(weather.supplementalMetrics.contains(DashboardEntityCardMetric(title: "Humidity", value: "56%", systemImage: "humidity.fill")))
+        #expect(weather.supplementalMetrics.contains(DashboardEntityCardMetric(title: "Wind", value: "E 8 mph", systemImage: "wind")))
+        #expect(weather.detailKind == .weather)
         #expect(weather.primaryAction == nil)
     }
 
@@ -4494,6 +4571,18 @@ struct HomesteadTests {
                 entityID: "lock.side_door",
                 state: "unlocking",
                 attributes: ["friendly_name": .string("Side Door")]
+            ),
+            HAEntityDTO(
+                entityID: "weather.home",
+                state: "sunny",
+                attributes: [
+                    "friendly_name": .string("Home Weather"),
+                    "temperature": .number(81),
+                    "temperature_unit": .string("F"),
+                    "humidity": .number(48),
+                    "wind_speed": .number(5),
+                    "wind_speed_unit": .string("mph")
+                ]
             )
         ])
 
@@ -4524,6 +4613,12 @@ struct HomesteadTests {
         let unlockingLockPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "lock.side_door")))
         let unlockingLockLarge = DashboardEntityCardContentModel.make(presentation: unlockingLockPresentation, size: .large)
         #expect(unlockingLockLarge.metrics.first == DashboardEntityCardMetric(title: "Status", value: "Unlocking", systemImage: "circle.fill"))
+
+        let weatherPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "weather.home")))
+        let weatherLarge = DashboardEntityCardContentModel.make(presentation: weatherPresentation, size: .large)
+        #expect(weatherLarge.metrics.first == DashboardEntityCardMetric(title: "Condition", value: "Sunny", systemImage: "sun.max.fill"))
+        #expect(weatherLarge.metrics.contains(DashboardEntityCardMetric(title: "Temperature", value: "81°F", systemImage: "thermometer.medium")))
+        #expect(weatherLarge.metrics.contains(DashboardEntityCardMetric(title: "Humidity", value: "48%", systemImage: "humidity.fill")))
     }
 
     @MainActor
