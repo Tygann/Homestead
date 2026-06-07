@@ -8,7 +8,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Replaced the Add to Dashboard card picker with a card-type-aware flow grouped by Home Assistant registry device when available, falling back to domain groups.
 - Added local filtering for Homestead card styles such as Controls, Values, Status, Media, Cameras, Actions, and Other without adding any new Home Assistant API surface.
-- Kept generated card sizing intact so camera previews and numeric sensor chart cards still default to Square, and added focused regression tests for grouping, filtering, search, availability, and suggested sizes.
+- Kept list rows clean with plus-button quick add, and moved size/feature explanation into a row-tap chooser that previews real card layouts and can hide inline features before adding.
+- Kept generated card sizing intact so camera previews and numeric sensor chart cards still default to Square, and added focused regression tests for grouping, filtering, search, availability, suggested sizes, and size-choice summaries.
 
 ### Connection Routing
 

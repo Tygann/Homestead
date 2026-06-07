@@ -13,7 +13,55 @@ struct DashboardCardView: View {
     var contextualAreaName: String?
     var cameraRefreshGeneration = 0
     var isEditing = false
+    var isPreview = false
     var openDetails: (() -> Void)?
+
+    init(
+        entityID: String,
+        size: DashboardCardSize,
+        displayNameOverride: String? = nil,
+        iconNameOverride: String? = nil,
+        featureVisibility: DashboardCardFeatureVisibility = .automatic,
+        contextualAreaName: String? = nil,
+        cameraRefreshGeneration: Int = 0,
+        isEditing: Bool = false,
+        openDetails: (() -> Void)? = nil
+    ) {
+        self.entityID = entityID
+        self.size = size
+        self.displayNameOverride = displayNameOverride
+        self.iconNameOverride = iconNameOverride
+        self.featureVisibility = featureVisibility
+        self.contextualAreaName = contextualAreaName
+        self.cameraRefreshGeneration = cameraRefreshGeneration
+        self.isEditing = isEditing
+        self.isPreview = false
+        self.openDetails = openDetails
+    }
+
+    init(
+        entityID: String,
+        size: DashboardCardSize,
+        displayNameOverride: String? = nil,
+        iconNameOverride: String? = nil,
+        featureVisibility: DashboardCardFeatureVisibility = .automatic,
+        contextualAreaName: String? = nil,
+        cameraRefreshGeneration: Int = 0,
+        isEditing: Bool = false,
+        isPreview: Bool,
+        openDetails: (() -> Void)? = nil
+    ) {
+        self.entityID = entityID
+        self.size = size
+        self.displayNameOverride = displayNameOverride
+        self.iconNameOverride = iconNameOverride
+        self.featureVisibility = featureVisibility
+        self.contextualAreaName = contextualAreaName
+        self.cameraRefreshGeneration = cameraRefreshGeneration
+        self.isEditing = isEditing
+        self.isPreview = isPreview
+        self.openDetails = openDetails
+    }
 
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
@@ -40,16 +88,16 @@ struct DashboardCardView: View {
                     primaryAction: presentation.primaryAction,
                     entityID: entityBox.entityID
                 ),
-                toggle: isEditing ? nil : primaryAction(
+                toggle: isEditing || isPreview ? nil : primaryAction(
                     presentation.primaryAction,
                     entityID: entityBox.entityID
                 ),
-                showDetails: isEditing ? nil : detailsAction(
+                showDetails: isEditing || isPreview ? nil : detailsAction(
                     entityID: entityBox.entityID,
                     detailKind: presentation.detailKind
                 ),
-                featureActions: featureActions(for: entityBox),
-                isFeatureInteractionEnabled: !isEditing
+                featureActions: isPreview ? previewFeatureActions(for: entityBox) : featureActions(for: entityBox),
+                isFeatureInteractionEnabled: !isEditing && !isPreview
             )
             .sheet(item: $selectedDetail) { detail in
                 if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
@@ -266,6 +314,24 @@ struct DashboardCardView: View {
             setCoverPosition: setCoverPositionAction(for: entityBox),
             lock: lockAction(for: entityBox),
             unlock: unlockAction(for: entityBox)
+        )
+    }
+
+    private func previewFeatureActions(for entityBox: HAEntityState) -> DashboardCardFeatureActions {
+        let noopSingle: (Double) -> Void = { _ in }
+        let noopPair: (Double, Double) -> Void = { _, _ in }
+        let noopCommand: () -> Void = {}
+
+        return DashboardCardFeatureActions(
+            setLightBrightness: entityBox.lightEntity?.supportsBrightness == true ? noopSingle : nil,
+            setClimateTemperature: entityBox.climateEntity?.targetTemperature != nil ? noopSingle : nil,
+            setClimateTemperatureRange: entityBox.climateEntity?.usesTemperatureRange == true ? noopPair : nil,
+            openCover: entityBox.coverEntity != nil ? noopCommand : nil,
+            stopCover: entityBox.coverEntity != nil ? noopCommand : nil,
+            closeCover: entityBox.coverEntity != nil ? noopCommand : nil,
+            setCoverPosition: entityBox.coverEntity?.positionPercentage != nil ? noopSingle : nil,
+            lock: entityBox.domain == .lock ? noopCommand : nil,
+            unlock: entityBox.domain == .lock ? noopCommand : nil
         )
     }
 

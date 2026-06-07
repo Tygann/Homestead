@@ -3962,8 +3962,11 @@ struct HomesteadTests {
         store.applyInitialStates([
             HAEntityDTO(
                 entityID: "light.kitchen",
-                state: "off",
-                attributes: ["friendly_name": .string("Kitchen Light")]
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Kitchen Light"),
+                    "brightness": .number(128)
+                ]
             ),
             HAEntityDTO(
                 entityID: "sensor.kitchen_temperature",
@@ -4020,12 +4023,31 @@ struct HomesteadTests {
         #expect(groups.map(\.title) == ["Driveway", "Kitchen Hub", "Other Entities"])
         #expect(candidates.map(\.entityID) == ["camera.driveway", "sensor.kitchen_temperature", "scene.movie_night"])
         #expect(candidates.first { $0.entityID == "sensor.kitchen_temperature" }?.recommendedSize == .square)
-        #expect(candidates.first { $0.entityID == "sensor.kitchen_temperature" }?.detailText == "Chart card, square")
         #expect(candidates.first { $0.entityID == "camera.driveway" }?.recommendedSize == .square)
         #expect(candidates.first { $0.entityID == "scene.movie_night" }?.cardStyle == .action)
 
         let categories = DashboardAddCardPresentation.makeCategories(from: candidates)
         #expect(categories.map(\.title) == ["All", "Values", "Cameras", "Actions"])
+
+        let sensorChoices = DashboardAddCardPresentation.makeSizeChoices(
+            for: try #require(store.entityBox(for: "sensor.kitchen_temperature"))
+        )
+        #expect(sensorChoices.map(\.size) == DashboardCardSize.allCases)
+        #expect(sensorChoices.first { $0.size == .square }?.isRecommended == true)
+        #expect(sensorChoices.first { $0.size == .square }?.summary == "Shows a 6-hour trend chart.")
+        #expect(sensorChoices.first { $0.size == .compact }?.summary == "Shows name and current state.")
+
+        let cameraChoices = DashboardAddCardPresentation.makeSizeChoices(
+            for: try #require(store.entityBox(for: "camera.driveway"))
+        )
+        #expect(cameraChoices.first { $0.size == .square }?.isRecommended == true)
+        #expect(cameraChoices.first { $0.size == .wide }?.summary == "Shows a live camera-style preview.")
+
+        let lightChoices = DashboardAddCardPresentation.makeSizeChoices(
+            for: try #require(store.entityBox(for: "light.kitchen"))
+        )
+        #expect(lightChoices.first { $0.size == .square }?.summary == "Includes brightness controls.")
+        #expect(lightChoices.first { $0.size == .square }?.featureTitles == ["Brightness"])
     }
 
     @MainActor

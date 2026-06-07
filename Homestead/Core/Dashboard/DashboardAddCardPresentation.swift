@@ -40,7 +40,6 @@ struct DashboardAddCardCandidate: Identifiable, Equatable, Sendable {
     let iconName: String
     let cardStyle: DashboardEntityCardStyle
     let recommendedSize: DashboardCardSize
-    let detailText: String
 
     var id: String { entityID }
 }
@@ -50,6 +49,15 @@ struct DashboardAddCardCandidateGroup: Identifiable, Equatable, Sendable {
     let title: String
     let systemImage: String
     let candidates: [DashboardAddCardCandidate]
+}
+
+struct DashboardAddCardSizeChoice: Identifiable, Equatable, Sendable {
+    let size: DashboardCardSize
+    let isRecommended: Bool
+    let summary: String
+    let featureTitles: [String]
+
+    var id: DashboardCardSize { size }
 }
 
 enum DashboardAddCardPresentation {
@@ -92,15 +100,7 @@ enum DashboardAddCardPresentation {
                     domain: entityBox.domain,
                     iconName: entityBox.homeEntity.iconName,
                     cardStyle: presentation.cardStyle,
-                    recommendedSize: recommendedSize,
-                    detailText: detailText(
-                        for: presentation.cardStyle,
-                        recommendedSize: recommendedSize,
-                        isHistoryEligible: DashboardHistoryCardPresentation.isEligible(
-                            entityBox: entityBox,
-                            size: recommendedSize
-                        )
-                    )
+                    recommendedSize: recommendedSize
                 )
 
                 return (entityBox.entityID, candidate)
@@ -123,7 +123,7 @@ enum DashboardAddCardPresentation {
                         candidate.entityID.localizedCaseInsensitiveContains(query) ||
                         candidate.state.localizedCaseInsensitiveContains(query) ||
                         candidate.domain.displayName.localizedCaseInsensitiveContains(query) ||
-                        candidate.detailText.localizedCaseInsensitiveContains(query)
+                        candidate.cardStyle.addCardTitle.localizedCaseInsensitiveContains(query)
                 }
 
             guard !candidates.isEmpty else {
@@ -164,16 +164,74 @@ enum DashboardAddCardPresentation {
         }
     }
 
-    private static func detailText(
-        for cardStyle: DashboardEntityCardStyle,
-        recommendedSize: DashboardCardSize,
-        isHistoryEligible: Bool
+    @MainActor
+    static func makeSizeChoices(for entityBox: HAEntityState) -> [DashboardAddCardSizeChoice] {
+        let presentation = DashboardEntityPresentation(entityBox: entityBox)
+        let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
+        let recommendedSize = DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
+
+        return DashboardCardSize.allCases.map { size in
+            let visibleFeatures = size.visibleFeatures(from: features)
+            return DashboardAddCardSizeChoice(
+                size: size,
+                isRecommended: size == recommendedSize,
+                summary: summary(
+                    for: size,
+                    entityBox: entityBox,
+                    presentation: presentation,
+                    visibleFeatures: visibleFeatures
+                ),
+                featureTitles: visibleFeatures.map(\.title)
+            )
+        }
+    }
+
+    private static func summary(
+        for size: DashboardCardSize,
+        entityBox: HAEntityState,
+        presentation: DashboardEntityPresentation,
+        visibleFeatures: [DashboardCardFeature]
     ) -> String {
-        if isHistoryEligible {
-            return "Chart card, \(recommendedSize.shortDisplayName)"
+        if DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size) {
+            return "Shows a 6-hour trend chart."
         }
 
-        return "\(cardStyle.addCardSingularTitle), \(recommendedSize.shortDisplayName)"
+        if presentation.capability.domain == .camera, size.usesCameraPreviewCard {
+            return "Shows a live camera-style preview."
+        }
+
+        if !visibleFeatures.isEmpty {
+            return "Includes \(featureSummary(from: visibleFeatures))."
+        }
+
+        switch size {
+        case .mini:
+            return "Shows an icon-only glance."
+        case .compact:
+            return "Shows name and current state."
+        case .row:
+            return "Shows a full-width status row."
+        case .square:
+            return "Shows expanded status details."
+        case .wide:
+            return "Shows expanded status and metrics."
+        case .large:
+            return "Shows the richest status and metrics."
+        }
+    }
+
+    private static func featureSummary(from features: [DashboardCardFeature]) -> String {
+        let titles = features.map(\.title)
+        guard let firstTitle = titles.first else {
+            return "inline controls"
+        }
+
+        if titles.count == 1 {
+            return "\(firstTitle.lowercased()) controls"
+        }
+
+        let remainingTitles = titles.dropFirst().map { $0.lowercased() }
+        return ([firstTitle.lowercased()] + remainingTitles).joined(separator: " and ") + " controls"
     }
 }
 
@@ -191,6 +249,17 @@ private extension DashboardAddCardCategory {
             true
         case .style(let style):
             candidate.cardStyle == style
+        }
+    }
+}
+
+extension DashboardCardSize {
+    var usesCameraPreviewCard: Bool {
+        switch self {
+        case .square, .wide, .large:
+            true
+        case .mini, .compact, .row:
+            false
         }
     }
 }
@@ -254,25 +323,6 @@ extension DashboardEntityCardStyle {
             "sparkles"
         case .generic:
             "square.grid.2x2"
-        }
-    }
-}
-
-private extension DashboardCardSize {
-    var shortDisplayName: String {
-        switch self {
-        case .mini:
-            "mini"
-        case .compact:
-            "compact"
-        case .row:
-            "row"
-        case .square:
-            "square"
-        case .wide:
-            "wide"
-        case .large:
-            "large"
         }
     }
 }

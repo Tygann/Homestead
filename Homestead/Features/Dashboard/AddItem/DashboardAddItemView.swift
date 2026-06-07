@@ -54,6 +54,7 @@ struct DashboardAddItemView: View {
     @State private var cardCategory: DashboardAddCardCategory = .all
     @State private var cardIncludesUnavailable = false
     @State private var collapsedCardGroups: Set<String> = []
+    @State private var selectedCardCandidate: DashboardAddCardCandidate?
     @State private var chipCategory: DashboardAddChipCategory = .all
     @State private var collapsedChipGroups: Set<String> = []
     @State private var summaryCandidates: [DashboardAddSummaryCandidate] = []
@@ -100,6 +101,12 @@ struct DashboardAddItemView: View {
                     Button("Done", role: .confirm) {
                         dismiss()
                     }
+                }
+            }
+            .sheet(item: $selectedCardCandidate) { candidate in
+                DashboardAddCardChooserView(candidate: candidate) { size, featureVisibility in
+                    addCard(candidate, size: size, featureVisibility: featureVisibility)
+                    selectedCardCandidate = nil
                 }
             }
         }
@@ -173,15 +180,19 @@ struct DashboardAddItemView: View {
                 Section {
                     if !collapsedCardGroups.contains(group.id) {
                         ForEach(group.candidates) { candidate in
-                            Button {
-                                dashboardConfiguration.add(
-                                    candidate.entityID,
-                                    size: candidate.recommendedSize
-                                )
-                            } label: {
-                                DashboardAddCardRow(candidate: candidate)
-                            }
-                            .buttonStyle(.plain)
+                            DashboardAddCardRow(
+                                candidate: candidate,
+                                openChooser: {
+                                    selectedCardCandidate = candidate
+                                },
+                                quickAdd: {
+                                    addCard(
+                                        candidate,
+                                        size: candidate.recommendedSize,
+                                        featureVisibility: .automatic
+                                    )
+                                }
+                            )
                         }
                     }
                 } header: {
@@ -262,6 +273,15 @@ struct DashboardAddItemView: View {
         } else {
             collapsedCardGroups.insert(groupID)
         }
+    }
+
+    private func addCard(
+        _ candidate: DashboardAddCardCandidate,
+        size: DashboardCardSize,
+        featureVisibility: DashboardCardFeatureVisibility
+    ) {
+        let itemID = dashboardConfiguration.add(candidate.entityID, size: size)
+        dashboardConfiguration.setFeatureVisibility(featureVisibility, forItemID: itemID)
     }
 
     @ViewBuilder
@@ -606,45 +626,196 @@ private struct DashboardAddEntityCandidateGroup: Identifiable, Equatable {
 
 private struct DashboardAddCardRow: View {
     let candidate: DashboardAddCardCandidate
+    let openChooser: () -> Void
+    let quickAdd: () -> Void
 
     var body: some View {
-        Label {
-            HStack(alignment: .center, spacing: AppSpacing.medium) {
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(candidate.displayName)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            Button(action: openChooser) {
+                Label {
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        Text(candidate.displayName)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
 
-                    Text(candidate.entityID)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                .layoutPriority(1)
-
-                Spacer(minLength: AppSpacing.medium)
-
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(candidate.detailText)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title3.weight(.semibold))
+                        Text(candidate.entityID)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } icon: {
+                    Image(systemName: candidate.iconName)
                         .foregroundStyle(Color.accentColor)
-                        .accessibilityHidden(true)
                 }
             }
-            .frame(minHeight: 48)
-        } icon: {
-            Image(systemName: candidate.iconName)
-                .foregroundStyle(Color.accentColor)
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .accessibilityHint("Choose card size and features")
+            .layoutPriority(1)
+
+            Button(action: quickAdd) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add \(candidate.displayName)")
+            .accessibilityHint("Adds the suggested \(candidate.recommendedSize.displayName) card")
         }
+            .frame(minHeight: 48)
         .padding(.vertical, AppSpacing.xSmall)
+    }
+}
+
+private struct DashboardAddCardChooserView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(HAStateStore.self) private var stateStore
+    @State private var featureVisibility: DashboardCardFeatureVisibility = .automatic
+
+    let candidate: DashboardAddCardCandidate
+    let add: (DashboardCardSize, DashboardCardFeatureVisibility) -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                    chooserHeader
+
+                    if hasFeatureChoices {
+                        featureVisibilityPicker
+                    }
+
+                    if let entityBox = stateStore.entityBox(for: candidate.entityID) {
+                        VStack(alignment: .leading, spacing: AppSpacing.large) {
+                            ForEach(DashboardAddCardPresentation.makeSizeChoices(for: entityBox)) { choice in
+                                DashboardAddCardSizeChoiceView(
+                                    candidate: candidate,
+                                    choice: choice,
+                                    featureVisibility: featureVisibility,
+                                    add: {
+                                        add(choice.size, featureVisibility)
+                                        dismiss()
+                                    }
+                                )
+                            }
+                        }
+                    } else {
+                        ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
+                    }
+                }
+                .padding(AppSpacing.large)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Choose Card")
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", role: .cancel) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var chooserHeader: some View {
+        Label {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(candidate.displayName)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                Text(candidate.entityID)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        } icon: {
+            CardIconView(systemName: candidate.iconName, isActive: false)
+        }
+    }
+
+    private var hasFeatureChoices: Bool {
+        guard let entityBox = stateStore.entityBox(for: candidate.entityID) else {
+            return false
+        }
+
+        let presentation = DashboardEntityPresentation(entityBox: entityBox)
+        return !DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation).isEmpty
+    }
+
+    private var featureVisibilityPicker: some View {
+        Picker("Card Features", selection: $featureVisibility) {
+            ForEach(DashboardCardFeatureVisibility.allCases, id: \.self) { option in
+                Label(option.displayName, systemImage: option.systemImage)
+                    .tag(option)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+}
+
+private struct DashboardAddCardSizeChoiceView: View {
+    let candidate: DashboardAddCardCandidate
+    let choice: DashboardAddCardSizeChoice
+    let featureVisibility: DashboardCardFeatureVisibility
+    let add: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            HStack(alignment: .center, spacing: AppSpacing.medium) {
+                Label(choice.size.displayName, systemImage: choice.size.systemImage)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                if choice.isRecommended {
+                    Text("Suggested")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, AppSpacing.small)
+                        .frame(height: 24)
+                        .background(Color.accentColor.opacity(0.14), in: Capsule())
+                        .foregroundStyle(Color.accentColor)
+                }
+
+                Spacer(minLength: AppSpacing.small)
+
+                Button("Add", action: add)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+
+            Text(summaryText)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            CardGrid {
+                DashboardCardView(
+                    entityID: candidate.entityID,
+                    size: choice.size,
+                    featureVisibility: featureVisibility,
+                    isPreview: true
+                )
+                .cardGridSpan(choice.size.layoutMetadata)
+            }
+        }
+        .padding(.vertical, AppSpacing.small)
+    }
+
+    private var summaryText: String {
+        if featureVisibility == .hidden, !choice.featureTitles.isEmpty {
+            return "Features hidden for this card."
+        }
+
+        return choice.summary
     }
 }
 
