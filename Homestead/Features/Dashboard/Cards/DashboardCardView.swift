@@ -572,15 +572,15 @@ private struct DashboardEntityCard: View {
     private var dashboardHistoryBody: some View {
         switch historyPhase {
         case .idle, .loading:
-            dashboardHistoryPlaceholder(systemImage: nil, title: "Loading trend", isLoading: true)
+            dashboardHistoryLoadingPlaceholder
         case .loaded(let chartPresentation):
             if chartPresentation.isEmpty {
-                dashboardHistoryPlaceholder(systemImage: "chart.xyaxis.line", title: "No recent trend", isLoading: false)
+                dashboardHistoryEmptyPlaceholder(title: "No recent trend")
             } else {
                 dashboardHistoryChart(chartPresentation)
             }
         case .failed:
-            dashboardHistoryPlaceholder(systemImage: "chart.xyaxis.line", title: "Trend unavailable", isLoading: false)
+            dashboardHistoryEmptyPlaceholder(title: "Trend unavailable")
         }
     }
 
@@ -639,25 +639,40 @@ private struct DashboardEntityCard: View {
         .accessibilityValue(chartPresentation.accessibilityValue)
     }
 
-    private func dashboardHistoryPlaceholder(
-        systemImage: String?,
-        title: String,
-        isLoading: Bool
-    ) -> some View {
-        RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-            .fill(Color(.tertiarySystemGroupedBackground))
-            .frame(height: dashboardHistoryChartHeight)
-            .overlay {
-                if isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                } else if let systemImage {
-                    Image(systemName: systemImage)
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+    private var dashboardHistoryLoadingPlaceholder: some View {
+        ZStack {
+            dashboardHistoryEmptyPlaceholder(title: "Loading trend")
+
+            ProgressView()
+                .controlSize(.small)
+        }
+        .frame(height: dashboardHistoryChartHeight)
+    }
+
+    private func dashboardHistoryEmptyPlaceholder(title: String) -> some View {
+        VStack(spacing: AppSpacing.xSmall) {
+            Spacer(minLength: 0)
+
+            Rectangle()
+                .fill(Color.secondary.opacity(0.24))
+                .frame(height: 1)
+                .overlay(alignment: .leading) {
+                    HStack(spacing: 0) {
+                        ForEach(0..<4, id: \.self) { _ in
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.16))
+                                .frame(width: 1, height: 6)
+
+                            Spacer(minLength: 0)
+                        }
+                    }
                 }
-            }
-            .accessibilityLabel(title)
+
+            Spacer(minLength: 0)
+        }
+        .frame(height: dashboardHistoryChartHeight)
+        .accessibilityLabel(title)
+        .accessibilityValue(dashboardHistoryFooterText)
     }
 
     private var cameraPreviewContent: some View {
