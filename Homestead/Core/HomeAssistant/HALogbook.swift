@@ -1,6 +1,6 @@
 import Foundation
 
-struct HALogbookRequest: Equatable, Sendable {
+nonisolated struct HALogbookRequest: Equatable, Sendable {
     let startDate: Date
     let endDate: Date?
     let entityID: String?
@@ -13,7 +13,7 @@ struct HALogbookRequest: Equatable, Sendable {
     }
 }
 
-struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
+nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
     let when: Date
     let name: String?
     let message: String?
@@ -66,7 +66,7 @@ struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
     }
 }
 
-struct HAActivityRow: Identifiable, Equatable, Sendable {
+nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     let id: String
     let occurredAt: Date
     let title: String
@@ -158,13 +158,13 @@ struct HAActivityRow: Identifiable, Equatable, Sendable {
     }
 }
 
-struct HAActivitySection: Identifiable, Equatable, Sendable {
+nonisolated struct HAActivitySection: Identifiable, Equatable, Sendable {
     let id: String
     let title: String
     let rows: [HAActivityRow]
 }
 
-struct HALogbookPresentation: Equatable, Sendable {
+nonisolated struct HALogbookPresentation: Equatable, Sendable {
     let sections: [HAActivitySection]
     let visibleRowCount: Int
 
@@ -220,7 +220,7 @@ struct HALogbookPresentation: Equatable, Sendable {
     }
 }
 
-private extension String {
+nonisolated private extension String {
     var nonEmptyValue: String? {
         let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue

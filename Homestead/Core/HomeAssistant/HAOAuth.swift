@@ -249,14 +249,14 @@ actor HAOAuthManager {
     private let now: @Sendable () -> Date
 
     init(
-        client: any HAOAuthClientProtocol = HAOAuthClient(),
-        tokenStore: any HAOAuthTokenStore = KeychainHAOAuthTokenStore(),
+        client: (any HAOAuthClientProtocol)? = nil,
+        tokenStore: (any HAOAuthTokenStore)? = nil,
         clientID: String = HAOAuthClientMetadata.clientID,
         redirectURI: String = HAOAuthClientMetadata.redirectURI,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
-        self.client = client
-        self.tokenStore = tokenStore
+        self.client = client ?? HAOAuthClient()
+        self.tokenStore = tokenStore ?? KeychainHAOAuthTokenStore()
         self.clientID = clientID
         self.redirectURI = redirectURI
         self.now = now

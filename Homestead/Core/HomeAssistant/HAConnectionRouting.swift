@@ -1,7 +1,7 @@
 import Foundation
 @preconcurrency import Network
 
-enum HAConnectionRoute: String, Equatable, Sendable {
+nonisolated enum HAConnectionRoute: String, Equatable, Sendable {
     case current
     case internalURL
     case externalURL
@@ -18,7 +18,7 @@ enum HAConnectionRoute: String, Equatable, Sendable {
     }
 }
 
-struct HAConnectionNetworkContext: Equatable, Sendable {
+nonisolated struct HAConnectionNetworkContext: Equatable, Sendable {
     var isNetworkAvailable: Bool
     var isLikelyHomeNetwork: Bool
 
@@ -39,7 +39,7 @@ struct HAConnectionNetworkContext: Equatable, Sendable {
     }
 }
 
-struct HAConnectionRoutingSettingsSnapshot: Equatable, Sendable {
+nonisolated struct HAConnectionRoutingSettingsSnapshot: Equatable, Sendable {
     var baseURLString: String
     var internalURLString: String
     var externalURLString: String
@@ -59,12 +59,12 @@ struct HAConnectionRoutingSettingsSnapshot: Equatable, Sendable {
     }
 }
 
-struct HAConnectionRouteCandidate: Equatable, Sendable {
+nonisolated struct HAConnectionRouteCandidate: Equatable, Sendable {
     var route: HAConnectionRoute
     var baseURLString: String
 }
 
-struct HAConnectionRouteSelection: Equatable, Sendable {
+nonisolated struct HAConnectionRouteSelection: Equatable, Sendable {
     var authenticationBaseURLString: String
     var candidates: [HAConnectionRouteCandidate]
 
@@ -73,7 +73,7 @@ struct HAConnectionRouteSelection: Equatable, Sendable {
     }
 }
 
-struct HAConnectionRouteSummary: Equatable, Sendable {
+nonisolated struct HAConnectionRouteSummary: Equatable, Sendable {
     var route: HAConnectionRoute
     var baseURLString: String
 
@@ -82,7 +82,7 @@ struct HAConnectionRouteSummary: Equatable, Sendable {
     }
 }
 
-enum HAConnectionRouteResolver {
+nonisolated enum HAConnectionRouteResolver {
     static func resolve(
         settings: HAConnectionRoutingSettingsSnapshot,
         networkContext: HAConnectionNetworkContext

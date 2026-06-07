@@ -1,6 +1,6 @@
 import Foundation
 
-struct HAConnectionConfiguration: Equatable, Sendable {
+nonisolated struct HAConnectionConfiguration: Equatable, Sendable {
     var baseURLString: String
     var accessToken: String
     var serverIdentityBaseURLString: String?

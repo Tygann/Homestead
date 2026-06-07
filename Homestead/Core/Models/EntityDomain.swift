@@ -1,6 +1,6 @@
 import Foundation
 
-enum EntityDomain: String, CaseIterable, Hashable, Sendable {
+nonisolated enum EntityDomain: String, CaseIterable, Hashable, Sendable {
     case light
     case climate
     case cover

@@ -1,6 +1,6 @@
 import Foundation
 
-struct HAHistoryRequest: Equatable, Sendable {
+nonisolated struct HAHistoryRequest: Equatable, Sendable {
     let startDate: Date
     let endDate: Date
     let entityID: String
@@ -25,7 +25,7 @@ struct HAHistoryRequest: Equatable, Sendable {
     }
 }
 
-struct HAHistoryResponseDTO: Decodable, Equatable, Sendable {
+nonisolated struct HAHistoryResponseDTO: Decodable, Equatable, Sendable {
     let series: [[HAHistoryStateDTO]]
 
     init(series: [[HAHistoryStateDTO]]) {
@@ -38,7 +38,7 @@ struct HAHistoryResponseDTO: Decodable, Equatable, Sendable {
     }
 }
 
-struct HAHistoryStateDTO: Decodable, Equatable, Sendable {
+nonisolated struct HAHistoryStateDTO: Decodable, Equatable, Sendable {
     let entityID: String?
     let state: String
     let lastChanged: Date
@@ -92,7 +92,7 @@ struct HAHistoryStateDTO: Decodable, Equatable, Sendable {
     }
 }
 
-enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Equatable, Sendable {
+nonisolated enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Equatable, Sendable {
     case oneHour
     case sixHours
     case day
@@ -137,7 +137,7 @@ enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Equatable, Sendab
     }
 }
 
-struct HAHistorySample: Identifiable, Equatable, Sendable {
+nonisolated struct HAHistorySample: Identifiable, Equatable, Sendable {
     let id: String
     let occurredAt: Date
     let value: Double
@@ -149,7 +149,7 @@ struct HAHistorySample: Identifiable, Equatable, Sendable {
     }
 }
 
-struct HAHistoryChartSeries: Equatable, Sendable {
+nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
     let entityID: String
     let displayName: String
     let unit: String?
@@ -268,7 +268,7 @@ struct HAHistoryChartSeries: Equatable, Sendable {
     }
 }
 
-private extension String {
+nonisolated private extension String {
     var nonEmptyHistoryValue: String? {
         let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue

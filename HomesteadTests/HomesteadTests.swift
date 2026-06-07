@@ -35,6 +35,18 @@ private func waitUntilAsync(
     }
 }
 
+private enum TestDateError: Error {
+    case invalid(String)
+}
+
+private func testDate(_ value: String) throws -> Date {
+    guard let date = HADateParser.date(from: value) else {
+        throw TestDateError.invalid(value)
+    }
+
+    return date
+}
+
 struct HomesteadTests {
     @Test func connectionHealthAccessoryStateAppearsOnlyForGlobalConnectionIssues() {
         #expect(AppStatusAccessoryState.make(
@@ -187,8 +199,8 @@ struct HomesteadTests {
     }
 
     @Test func logbookEndpointUsesOfficialHTTPPathAndDocumentedQueryItems() throws {
-        let startDate = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
-        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:45:00Z"))
+        let startDate = try testDate("2026-06-05T15:30:00Z")
+        let endDate = try testDate("2026-06-05T16:45:00Z")
 
         let url = try HomeAssistantEndpointBuilder.logbookURL(
             from: "https://example.com/ha",
@@ -207,8 +219,8 @@ struct HomesteadTests {
     }
 
     @Test func historyEndpointUsesOfficialHTTPPathAndDocumentedQueryItems() throws {
-        let startDate = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
-        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:45:00Z"))
+        let startDate = try testDate("2026-06-05T15:30:00Z")
+        let endDate = try testDate("2026-06-05T16:45:00Z")
         let request = HAHistoryRequest(
             startDate: startDate,
             endDate: endDate,
@@ -850,8 +862,8 @@ struct HomesteadTests {
     }
 
     @Test func logbookPresentationFiltersByDomainAndSearchText() throws {
-        let lightTime = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
-        let sensorTime = try #require(HADateParser.date(from: "2026-06-04T15:30:00Z"))
+        let lightTime = try testDate("2026-06-05T15:30:00Z")
+        let sensorTime = try testDate("2026-06-04T15:30:00Z")
         let rows = HAActivityRow.makeRows(
             from: [
                 HALogbookEntryDTO(
@@ -903,8 +915,8 @@ struct HomesteadTests {
             ]
         ]
         """
-        let startDate = try #require(HADateParser.date(from: "2026-06-05T15:00:00Z"))
-        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:00:00Z"))
+        let startDate = try testDate("2026-06-05T15:00:00Z")
+        let endDate = try testDate("2026-06-05T16:00:00Z")
         let request = HAHistoryRequest(
             startDate: startDate,
             endDate: endDate,
@@ -929,10 +941,10 @@ struct HomesteadTests {
     }
 
     @Test func historyNumericSamplesFilterEntityRangeAndNonNumericStates() throws {
-        let startDate = try #require(HADateParser.date(from: "2026-06-05T15:00:00Z"))
-        let middleDate = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
-        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:00:00Z"))
-        let outsideDate = try #require(HADateParser.date(from: "2026-06-05T16:30:00Z"))
+        let startDate = try testDate("2026-06-05T15:00:00Z")
+        let middleDate = try testDate("2026-06-05T15:30:00Z")
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let outsideDate = try testDate("2026-06-05T16:30:00Z")
         let samples = HAHistoryChartSeries.numericSamples(
             from: [
                 HAHistoryStateDTO(entityID: "sensor.kitchen_temperature", state: "unknown", lastChanged: startDate),
@@ -951,10 +963,10 @@ struct HomesteadTests {
     }
 
     @Test func historyRangePresetBuildsFixedIntervals() throws {
-        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:00:00Z"))
-        let expectedHourStart = try #require(HADateParser.date(from: "2026-06-05T15:00:00Z"))
-        let expectedSixHourStart = try #require(HADateParser.date(from: "2026-06-05T10:00:00Z"))
-        let expectedDayStart = try #require(HADateParser.date(from: "2026-06-04T16:00:00Z"))
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let expectedHourStart = try testDate("2026-06-05T15:00:00Z")
+        let expectedSixHourStart = try testDate("2026-06-05T10:00:00Z")
+        let expectedDayStart = try testDate("2026-06-04T16:00:00Z")
         let hour = HAHistoryRangePreset.oneHour.interval(endingAt: endDate)
         let sixHours = HAHistoryRangePreset.sixHours.interval(endingAt: endDate)
         let day = HAHistoryRangePreset.day.interval(endingAt: endDate)
@@ -1976,7 +1988,7 @@ struct HomesteadTests {
                 entityID: "light.kitchen",
                 state: "on",
                 attributes: ["friendly_name": .string("Kitchen")],
-                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:02:00.000000+00:00"))
+                lastUpdated: try testDate("2026-05-20T10:02:00.000000+00:00")
             )
         ])
 
@@ -1985,7 +1997,7 @@ struct HomesteadTests {
                 entityID: "light.kitchen",
                 state: "off",
                 attributes: ["friendly_name": .string("Kitchen")],
-                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:01:00.000000+00:00"))
+                lastUpdated: try testDate("2026-05-20T10:01:00.000000+00:00")
             )
         ])
 
@@ -2096,7 +2108,7 @@ struct HomesteadTests {
             HAEntityDTO(
                 entityID: "light.kitchen",
                 state: "off",
-                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:00:00.000000+00:00"))
+                lastUpdated: try testDate("2026-05-20T10:00:00.000000+00:00")
             )
         ])
         let pendingCommand = HAEntityPendingCommand(entityID: "light.kitchen", expectedState: "on")
@@ -2106,7 +2118,7 @@ struct HomesteadTests {
             HAEntityDTO(
                 entityID: "light.kitchen",
                 state: "off",
-                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:01:00.000000+00:00"))
+                lastUpdated: try testDate("2026-05-20T10:01:00.000000+00:00")
             )
         ])
 
@@ -2118,7 +2130,7 @@ struct HomesteadTests {
             HAEntityDTO(
                 entityID: "light.kitchen",
                 state: "on",
-                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:02:00.000000+00:00"))
+                lastUpdated: try testDate("2026-05-20T10:02:00.000000+00:00")
             )
         ])
 
@@ -3335,7 +3347,7 @@ struct HomesteadTests {
         ])
         let httpClient = StubHAHTTPClient(logbookEntries: [
             HALogbookEntryDTO(
-                when: try #require(HADateParser.date(from: "2026-06-05T15:30:00Z")),
+                when: try testDate("2026-06-05T15:30:00Z"),
                 name: "Kitchen",
                 message: "turned on",
                 domain: "light",
@@ -3353,8 +3365,8 @@ struct HomesteadTests {
             tokenStore: tokenStore
         )
         let request = HALogbookRequest(
-            startDate: try #require(HADateParser.date(from: "2026-06-05T00:00:00Z")),
-            endDate: try #require(HADateParser.date(from: "2026-06-06T00:00:00Z")),
+            startDate: try testDate("2026-06-05T00:00:00Z"),
+            endDate: try testDate("2026-06-06T00:00:00Z"),
             entityID: "light.kitchen"
         )
 
@@ -3389,7 +3401,7 @@ struct HomesteadTests {
         settings.externalURL = externalURLString
         settings.homeNetworkName = "Home Wi-Fi"
         let request = HALogbookRequest(
-            startDate: try #require(HADateParser.date(from: "2026-06-05T00:00:00Z")),
+            startDate: try testDate("2026-06-05T00:00:00Z"),
             endDate: nil,
             entityID: nil
         )
@@ -3458,7 +3470,7 @@ struct HomesteadTests {
                 ]
             )
         ])
-        let firstSampleDate = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
+        let firstSampleDate = try testDate("2026-06-05T15:30:00Z")
         let httpClient = StubHAHTTPClient(
             historyResponse: HAHistoryResponseDTO(series: [
                 [
@@ -3481,8 +3493,8 @@ struct HomesteadTests {
             tokenStore: tokenStore
         )
         let request = HAHistoryRequest(
-            startDate: try #require(HADateParser.date(from: "2026-06-05T15:00:00Z")),
-            endDate: try #require(HADateParser.date(from: "2026-06-05T16:00:00Z")),
+            startDate: try testDate("2026-06-05T15:00:00Z"),
+            endDate: try testDate("2026-06-05T16:00:00Z"),
             entityID: "sensor.kitchen_temperature"
         )
 
@@ -4076,7 +4088,7 @@ struct HomesteadTests {
                 entityID: "light.kitchen",
                 state: "on",
                 attributes: ["friendly_name": .string("Kitchen")],
-                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:00:00.000000+00:00"))
+                lastUpdated: try testDate("2026-05-20T10:00:00.000000+00:00")
             )
         ]
         let registryMetadata = HARegistryMetadataSnapshot(
@@ -4179,7 +4191,7 @@ struct HomesteadTests {
                 entityID: "light.kitchen",
                 state: "on",
                 attributes: ["friendly_name": .string("Kitchen")],
-                lastUpdated: try #require(HADateParser.date(from: "2026-05-20T10:00:00.000000+00:00"))
+                lastUpdated: try testDate("2026-05-20T10:00:00.000000+00:00")
             )
         ]
         let registryMetadata = HARegistryMetadataSnapshot(
