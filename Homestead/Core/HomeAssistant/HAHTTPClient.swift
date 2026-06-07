@@ -3,6 +3,7 @@ import Foundation
 protocol HAHTTPClientProtocol: Sendable {
     func fetchCameraSnapshot(configuration: HAConnectionConfiguration, entityID: String) async throws -> Data
     func fetchLogbook(configuration: HAConnectionConfiguration, request: HALogbookRequest) async throws -> [HALogbookEntryDTO]
+    func fetchHistory(configuration: HAConnectionConfiguration, request: HAHistoryRequest) async throws -> HAHistoryResponseDTO
 }
 
 actor HAHTTPClient: HAHTTPClientProtocol {
@@ -59,5 +60,26 @@ actor HAHTTPClient: HAHTTPClientProtocol {
         }
 
         return try JSONDecoder().decode([HALogbookEntryDTO].self, from: data)
+    }
+
+    func fetchHistory(configuration: HAConnectionConfiguration, request: HAHistoryRequest) async throws -> HAHistoryResponseDTO {
+        let url = try HomeAssistantEndpointBuilder.historyURL(
+            from: configuration.baseURLString,
+            request: request
+        )
+        var urlRequest = URLRequest(url: url)
+        urlRequest.setValue("Bearer \(configuration.accessToken)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await session.data(for: urlRequest)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw HAWebSocketError.transportFailure("Home Assistant returned an invalid history response.")
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw HAWebSocketError.requestFailed("Home Assistant history failed with status \(httpResponse.statusCode).")
+        }
+
+        return try JSONDecoder().decode(HAHistoryResponseDTO.self, from: data)
     }
 }

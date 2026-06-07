@@ -1,8 +1,14 @@
+import Charts
 import SwiftUI
 
 struct SensorDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
+
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var selectedHistoryRange: HAHistoryRangePreset = .day
+    @State private var historyPhase: SensorHistoryPhase = .idle
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -16,8 +22,14 @@ struct SensorDetailView: View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
             currentReading
+            if supportsHistory {
+                historyPanel
+            }
             detailMetrics
             contextDetails
+        }
+        .task(id: historyTaskID) {
+            await refreshHistory()
         }
     }
 
@@ -76,6 +88,148 @@ struct SensorDetailView: View {
         return rows
     }
 
+    private var historyPanel: some View {
+        EntityControlPanel(title: "History", systemImage: "chart.xyaxis.line") {
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                historyRangePicker
+
+                switch historyPhase {
+                case .idle, .loading:
+                    historyLoadingView
+                case .loaded(let series):
+                    if series.isEmpty {
+                        historyUnavailableView("No numeric history for \(selectedHistoryRange.accessibilityTitle.lowercased()).")
+                    } else {
+                        historyChart(series)
+                    }
+                case .failed:
+                    historyUnavailableView("History unavailable")
+                }
+            }
+        }
+    }
+
+    private var historyRangePicker: some View {
+        HStack(spacing: AppSpacing.small) {
+            ForEach(HAHistoryRangePreset.allCases) { range in
+                EntityDetailPillButton(
+                    title: range.title,
+                    isSelected: selectedHistoryRange == range,
+                    isDisabled: historyPhase.isLoading,
+                    tint: presentation.accentColor
+                ) {
+                    selectedHistoryRange = range
+                }
+                .accessibilityLabel(range.accessibilityTitle)
+            }
+
+            Button {
+                Task { await refreshHistory() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 42, height: 42)
+                    .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(historyPhase.isLoading)
+            .accessibilityLabel("Refresh history")
+        }
+    }
+
+    private var historyLoadingView: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                .fill(Color(.tertiarySystemGroupedBackground))
+                .frame(height: 160)
+                .overlay {
+                    ProgressView()
+                }
+
+            Text("Loading history")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func historyChart(_ series: HAHistoryChartSeries) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            Chart(series.samples) { sample in
+                LineMark(
+                    x: .value("Time", sample.occurredAt),
+                    y: .value("Value", sample.value)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(presentation.accentColor)
+
+                AreaMark(
+                    x: .value("Time", sample.occurredAt),
+                    y: .value("Value", sample.value)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            presentation.accentColor.opacity(0.22),
+                            presentation.accentColor.opacity(0.04)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
+            .chartYScale(domain: series.valueDomain)
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel(format: .dateTime.hour().minute())
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel()
+                }
+            }
+            .frame(height: 160)
+            .accessibilityLabel("\(series.displayName) history")
+            .accessibilityValue(series.summaryText)
+
+            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
+                Text(series.summaryText)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                Spacer(minLength: AppSpacing.small)
+
+                if let latestSample = series.latestSample {
+                    Text(latestSample.occurredAt.formatted(date: .omitted, time: .shortened))
+                        .font(.caption.monospacedDigit().weight(.medium))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+
+    private func historyUnavailableView(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                .fill(Color(.tertiarySystemGroupedBackground))
+                .frame(height: 132)
+                .overlay {
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+            Text(message)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var contextDetails: some View {
         EntityMetadataDisclosure(
             entityBox: entityBox,
@@ -115,6 +269,18 @@ struct SensorDetailView: View {
         }
 
         return binarySensorStateText
+    }
+
+    private var supportsHistory: Bool {
+        entity.domain == .sensor && entityBox.sensorEntity?.numericValue != nil
+    }
+
+    private var historyTaskID: String {
+        guard supportsHistory else {
+            return "history-disabled-\(entity.entityID)"
+        }
+
+        return "\(entity.entityID)-\(selectedHistoryRange.rawValue)"
     }
 
     private var statusBadgeText: String {
@@ -168,6 +334,49 @@ struct SensorDetailView: View {
         guard let value else { return nil }
         let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue
+    }
+
+    @MainActor
+    private func refreshHistory() async {
+        guard supportsHistory else {
+            historyPhase = .idle
+            return
+        }
+
+        historyPhase = .loading
+        let interval = selectedHistoryRange.interval()
+        let request = HAHistoryRequest(
+            startDate: interval.start,
+            endDate: interval.end,
+            entityID: entity.entityID
+        )
+
+        do {
+            historyPhase = .loaded(
+                try await homeAssistantService.fetchHistory(
+                    settings: connectionSettings,
+                    request: request,
+                    range: selectedHistoryRange
+                )
+            )
+        } catch {
+            historyPhase = .failed
+        }
+    }
+}
+
+private enum SensorHistoryPhase: Equatable {
+    case idle
+    case loading
+    case loaded(HAHistoryChartSeries)
+    case failed
+
+    var isLoading: Bool {
+        if case .loading = self {
+            return true
+        }
+
+        return false
     }
 }
 

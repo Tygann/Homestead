@@ -570,6 +570,30 @@ final class HomeAssistantService {
         }
     }
 
+    func fetchHistory(
+        settings: HAConnectionSettings,
+        request: HAHistoryRequest,
+        range: HAHistoryRangePreset
+    ) async throws -> HAHistoryChartSeries {
+        guard settings.hasServerURL, !request.entityID.isEmpty else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        let configuration = try await validConfiguration(baseURLString: settings.baseURL)
+        activeConfiguration = configuration
+        let response = try await httpClient.fetchHistory(configuration: configuration, request: request)
+        let sensor = stateStore.entityBox(for: request.entityID)?.sensorEntity
+        let entity = stateStore.entity(for: request.entityID)
+
+        return HAHistoryChartSeries.make(
+            response: response,
+            request: request,
+            displayName: sensor?.displayName ?? entity?.displayName ?? request.entityID,
+            unit: sensor?.unitText,
+            range: range
+        )
+    }
+
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
         _ = try cameraConfiguration(for: entityID)
         return try await client.fetchCameraCapabilities(entityID: entityID)

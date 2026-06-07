@@ -206,6 +206,37 @@ struct HomesteadTests {
         #expect(queryItems["entity"] == "light.kitchen")
     }
 
+    @Test func historyEndpointUsesOfficialHTTPPathAndDocumentedQueryItems() throws {
+        let startDate = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
+        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:45:00Z"))
+        let request = HAHistoryRequest(
+            startDate: startDate,
+            endDate: endDate,
+            entityID: " sensor.kitchen_temperature ",
+            minimalResponse: true,
+            noAttributes: true,
+            significantChangesOnly: true
+        )
+
+        let url = try HomeAssistantEndpointBuilder.historyURL(
+            from: "https://example.com/ha",
+            request: request
+        )
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let queryItems = components.queryItems ?? []
+        let queryValues = Dictionary(uniqueKeysWithValues: queryItems.map { ($0.name, $0.value) })
+        let queryNames = Set(queryItems.map(\.name))
+
+        #expect(components.scheme == "https")
+        #expect(components.host == "example.com")
+        #expect(components.path == "/ha/api/history/period/2026-06-05T15:30:00Z")
+        #expect(queryValues["filter_entity_id"] == "sensor.kitchen_temperature")
+        #expect(queryValues["end_time"] == "2026-06-05T16:45:00Z")
+        #expect(queryNames.contains("minimal_response"))
+        #expect(queryNames.contains("no_attributes"))
+        #expect(queryNames.contains("significant_changes_only"))
+    }
+
     @Test func httpEndpointResolvesAbsoluteRootAndRelativePaths() throws {
         let absoluteURL = try HomeAssistantEndpointBuilder.httpURL(
             from: "https://example.com/ha",
@@ -850,6 +881,88 @@ struct HomesteadTests {
         #expect(presentation.visibleRowCount == 1)
         #expect(presentation.sections.count == 1)
         #expect(presentation.sections.first?.rows.first?.entityID == "sensor.kitchen_temperature")
+    }
+
+    @Test func historyResponseDecodesMinimalStateRowsAndMapsNumericSamples() throws {
+        let payload = """
+        [
+            [
+                {
+                    "entity_id": "sensor.kitchen_temperature",
+                    "state": "70.5",
+                    "last_changed": "2026-06-05T15:30:00.000000+00:00",
+                    "last_updated": "2026-06-05T15:30:00+00:00",
+                    "attributes": {
+                        "unit_of_measurement": "°F"
+                    }
+                },
+                {
+                    "state": "71.2",
+                    "last_changed": "2026-06-05T15:45:00+00:00"
+                }
+            ]
+        ]
+        """
+        let startDate = try #require(HADateParser.date(from: "2026-06-05T15:00:00Z"))
+        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:00:00Z"))
+        let request = HAHistoryRequest(
+            startDate: startDate,
+            endDate: endDate,
+            entityID: "sensor.kitchen_temperature"
+        )
+
+        let response = try JSONDecoder().decode(HAHistoryResponseDTO.self, from: Data(payload.utf8))
+        let series = HAHistoryChartSeries.make(
+            response: response,
+            request: request,
+            displayName: "Kitchen Temperature",
+            unit: "°F",
+            range: .oneHour
+        )
+
+        #expect(response.series.count == 1)
+        #expect(response.series[0][0].attributes?["unit_of_measurement"] == .string("°F"))
+        #expect(response.series[0][1].entityID == nil)
+        #expect(series.displayName == "Kitchen Temperature")
+        #expect(series.samples.map(\.value) == [70.5, 71.2])
+        #expect(series.summaryText.contains("Now 71.2°F"))
+    }
+
+    @Test func historyNumericSamplesFilterEntityRangeAndNonNumericStates() throws {
+        let startDate = try #require(HADateParser.date(from: "2026-06-05T15:00:00Z"))
+        let middleDate = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
+        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:00:00Z"))
+        let outsideDate = try #require(HADateParser.date(from: "2026-06-05T16:30:00Z"))
+        let samples = HAHistoryChartSeries.numericSamples(
+            from: [
+                HAHistoryStateDTO(entityID: "sensor.kitchen_temperature", state: "unknown", lastChanged: startDate),
+                HAHistoryStateDTO(entityID: "sensor.other", state: "1", lastChanged: middleDate),
+                HAHistoryStateDTO(state: "70", lastChanged: middleDate),
+                HAHistoryStateDTO(entityID: "sensor.kitchen_temperature", state: "71", lastChanged: endDate),
+                HAHistoryStateDTO(entityID: "sensor.kitchen_temperature", state: "72", lastChanged: outsideDate)
+            ],
+            fallbackEntityID: "sensor.kitchen_temperature",
+            matching: "sensor.kitchen_temperature",
+            interval: DateInterval(start: startDate, end: endDate)
+        )
+
+        #expect(samples.map(\.value) == [70, 71])
+        #expect(samples.map(\.occurredAt) == [middleDate, endDate])
+    }
+
+    @Test func historyRangePresetBuildsFixedIntervals() throws {
+        let endDate = try #require(HADateParser.date(from: "2026-06-05T16:00:00Z"))
+        let expectedHourStart = try #require(HADateParser.date(from: "2026-06-05T15:00:00Z"))
+        let expectedSixHourStart = try #require(HADateParser.date(from: "2026-06-05T10:00:00Z"))
+        let expectedDayStart = try #require(HADateParser.date(from: "2026-06-04T16:00:00Z"))
+        let hour = HAHistoryRangePreset.oneHour.interval(endingAt: endDate)
+        let sixHours = HAHistoryRangePreset.sixHours.interval(endingAt: endDate)
+        let day = HAHistoryRangePreset.day.interval(endingAt: endDate)
+
+        #expect(hour.end == endDate)
+        #expect(hour.start == expectedHourStart)
+        #expect(sixHours.start == expectedSixHourStart)
+        #expect(day.start == expectedDayStart)
     }
 
     @Test func mobileAppRegistrationStorePersistsRegistrationInfo() throws {
@@ -3055,6 +3168,60 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func serviceFetchesHistoryWithOAuthConfigurationAndMapsSensorPresentation() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "history-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "sensor.kitchen_temperature",
+                state: "71.2",
+                attributes: [
+                    "friendly_name": .string("Kitchen Temperature"),
+                    "unit_of_measurement": .string("F"),
+                    "device_class": .string("temperature")
+                ]
+            )
+        ])
+        let firstSampleDate = try #require(HADateParser.date(from: "2026-06-05T15:30:00Z"))
+        let httpClient = StubHAHTTPClient(
+            historyResponse: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(
+                        entityID: "sensor.kitchen_temperature",
+                        state: "70",
+                        lastChanged: firstSampleDate
+                    )
+                ]
+            ])
+        )
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        let request = HAHistoryRequest(
+            startDate: try #require(HADateParser.date(from: "2026-06-05T15:00:00Z")),
+            endDate: try #require(HADateParser.date(from: "2026-06-05T16:00:00Z")),
+            entityID: "sensor.kitchen_temperature"
+        )
+
+        let series = try await service.fetchHistory(settings: settings, request: request, range: .oneHour)
+
+        #expect(httpClient.lastHistoryConfiguration?.accessToken == "history-access")
+        #expect(httpClient.lastHistoryRequest == request)
+        #expect(series.displayName == "Kitchen Temperature")
+        #expect(series.unit == "°F")
+        #expect(series.samples.map(\.value) == [70])
+    }
+
+    @MainActor
     @Test func profileImageRequestDoesNotUseUnrelatedFirstPersonEntity() async throws {
         let tokenStore = InMemoryHAOAuthTokenStore(
             credential: testCredential(accessToken: "profile-access")
@@ -5243,12 +5410,20 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
 final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
     var logbookEntries: [HALogbookEntryDTO]
+    var historyResponse: HAHistoryResponseDTO
     var logbookError: Error?
+    var historyError: Error?
     private(set) var lastLogbookConfiguration: HAConnectionConfiguration?
     private(set) var lastLogbookRequest: HALogbookRequest?
+    private(set) var lastHistoryConfiguration: HAConnectionConfiguration?
+    private(set) var lastHistoryRequest: HAHistoryRequest?
 
-    init(logbookEntries: [HALogbookEntryDTO] = []) {
+    init(
+        logbookEntries: [HALogbookEntryDTO] = [],
+        historyResponse: HAHistoryResponseDTO = HAHistoryResponseDTO(series: [])
+    ) {
         self.logbookEntries = logbookEntries
+        self.historyResponse = historyResponse
     }
 
     func fetchCameraSnapshot(configuration: HAConnectionConfiguration, entityID: String) async throws -> Data {
@@ -5264,6 +5439,17 @@ final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
         }
 
         return logbookEntries
+    }
+
+    func fetchHistory(configuration: HAConnectionConfiguration, request: HAHistoryRequest) async throws -> HAHistoryResponseDTO {
+        lastHistoryConfiguration = configuration
+        lastHistoryRequest = request
+
+        if let historyError {
+            throw historyError
+        }
+
+        return historyResponse
     }
 }
 

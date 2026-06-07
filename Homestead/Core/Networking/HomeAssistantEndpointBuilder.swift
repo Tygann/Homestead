@@ -118,6 +118,44 @@ enum HomeAssistantEndpointBuilder {
         return url
     }
 
+    nonisolated static func historyURL(
+        from baseURLString: String,
+        request: HAHistoryRequest
+    ) throws -> URL {
+        guard !request.entityID.isEmpty else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        var components = try baseComponents(from: baseURLString)
+        components.scheme = try httpScheme(from: components.scheme)
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathParts = [basePath, "api", "history", "period", historyTimestamp(from: request.startDate)].filter { !$0.isEmpty }
+        components.path = "/" + pathParts.joined(separator: "/")
+
+        var queryItems = [
+            URLQueryItem(name: "filter_entity_id", value: request.entityID),
+            URLQueryItem(name: "end_time", value: historyTimestamp(from: request.endDate))
+        ]
+        if request.minimalResponse {
+            queryItems.append(URLQueryItem(name: "minimal_response", value: nil))
+        }
+        if request.noAttributes {
+            queryItems.append(URLQueryItem(name: "no_attributes", value: nil))
+        }
+        if request.significantChangesOnly {
+            queryItems.append(URLQueryItem(name: "significant_changes_only", value: nil))
+        }
+        components.queryItems = queryItems
+        components.fragment = nil
+
+        guard let url = components.url else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        return url
+    }
+
     nonisolated static func mobileAppRegistrationURL(from baseURLString: String) throws -> URL {
         var components = try baseComponents(from: baseURLString)
         components.scheme = try httpScheme(from: components.scheme)
@@ -222,6 +260,14 @@ enum HomeAssistantEndpointBuilder {
     }
 
     private nonisolated static func logbookTimestamp(from date: Date) -> String {
+        timestamp(from: date)
+    }
+
+    private nonisolated static func historyTimestamp(from date: Date) -> String {
+        timestamp(from: date)
+    }
+
+    private nonisolated static func timestamp(from date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         formatter.timeZone = TimeZone(secondsFromGMT: 0)

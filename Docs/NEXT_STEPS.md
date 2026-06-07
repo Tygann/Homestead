@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Weather and History/Charts roadmap work after completing Settings > Updates.
+Weather roadmap work after completing the first focused History/Charts pass.
 
 Recommended reasoning level: High.
 
@@ -23,13 +23,16 @@ Recommended reasoning level: High.
 - Added typed update mapping and presentation helpers for installed/latest version, title/name, release summary/notes URL, skipped state, in-progress/unavailable state, entity/device/area/floor context, grouping, filtering, and search.
 - Added official Home Assistant update service actions for install, skip, and clear skipped update through WebSocket `call_service`, gated by `HomeAssistantService.serviceActionAvailable(...)` and confirmation UX for install backup choices.
 - Kept private frontend repairs, system health, admin, and update-metadata endpoints out of scope.
+- Added a focused History/Charts pass for numeric `sensor.*` entities using Home Assistant's documented REST history endpoint only.
+- Added typed history request/response models, authenticated HTTP/service handoff, app-facing chart series/range helpers, and a native Swift Charts history panel in the existing sensor detail surface with fixed 1H/6H/24H ranges.
+- Kept raw Home Assistant history DTOs out of SwiftUI and kept chart aggregation/formatting outside `HAStateStore`.
 
 ## Next Chunk
 
 - Add a native Weather dashboard card and detail surface for `.weather` entities.
 - Start from entity state attributes for condition, temperature, humidity, wind, forecast availability, and attribution.
 - Prefer a read-only v1 unless official weather service semantics are needed and confirmed.
-- After Weather, add chart/history cards for sensor-style entities using Home Assistant's documented history API.
+- After Weather, consider expanding History/Charts into dashboard cards or richer entity history if performance and UX are clear.
 
 ## Acceptance Notes
 
@@ -44,4 +47,4 @@ Recommended reasoning level: High.
 
 ## After Weather
 
-- Move to History/Charts in roadmap order unless priorities change.
+- Revisit dashboard chart cards or automatic internal/external URL route selection unless priorities change.

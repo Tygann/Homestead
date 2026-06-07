@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-07
 
+### History And Charts
+
+- Added a focused numeric sensor history pass backed by Home Assistant's documented REST history API.
+- Added typed history request/response models, fixed 1H/6H/24H range helpers, app-facing chart series mapping, authenticated HTTP/service handoff, and focused regression tests for URL shape, decoding, filtering, range construction, and OAuth handoff.
+- Added a native Swift Charts history panel to the existing sensor detail surface while keeping raw Home Assistant DTOs out of SwiftUI and chart formatting outside `HAStateStore`.
+
 ### Updates
 
 - Added a native Settings > Updates page backed by Home Assistant `.update` entities.
