@@ -24,6 +24,8 @@ This document captures the working agreement for agentic coding sessions. Keep i
 
 Recommend starting a fresh chat when it would likely save meaningful context or token usage, especially after a self-contained chunk is committed, after a long planning discussion, before starting a different roadmap item, after major docs/handoff updates, or when the current thread has accumulated lots of obsolete exploration.
 
+When answering "what's next?" after a completed chunk, explicitly say whether to continue in the current chat or start a fresh one. If recommending a fresh chat, include the copy-paste prompt and the recommended reasoning level. If continuing in the current chat is better, say why.
+
 Before recommending a fresh chat:
 
 - Make sure the worktree is clean or clearly explain any uncommitted state.
