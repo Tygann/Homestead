@@ -607,11 +607,13 @@ private struct DashboardEntityCard: View {
                 y: .value("Value", sample.value)
             )
             .interpolationMethod(.catmullRom)
+            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             .foregroundStyle(presentation.accentColor)
 
             AreaMark(
                 x: .value("Time", sample.occurredAt),
-                y: .value("Value", sample.value)
+                yStart: .value("Baseline", chartPresentation.valueDomain.lowerBound),
+                yEnd: .value("Value", sample.value)
             )
             .interpolationMethod(.catmullRom)
             .foregroundStyle(
@@ -628,7 +630,11 @@ private struct DashboardEntityCard: View {
         .chartYScale(domain: chartPresentation.valueDomain)
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
+        .chartPlotStyle { plotArea in
+            plotArea.clipped()
+        }
         .frame(height: dashboardHistoryChartHeight)
+        .clipped()
         .accessibilityLabel(chartPresentation.accessibilityLabel)
         .accessibilityValue(chartPresentation.accessibilityValue)
     }

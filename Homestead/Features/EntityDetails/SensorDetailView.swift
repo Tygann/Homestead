@@ -160,11 +160,13 @@ struct SensorDetailView: View {
                     y: .value("Value", sample.value)
                 )
                 .interpolationMethod(.catmullRom)
+                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 .foregroundStyle(presentation.accentColor)
 
                 AreaMark(
                     x: .value("Time", sample.occurredAt),
-                    y: .value("Value", sample.value)
+                    yStart: .value("Baseline", series.valueDomain.lowerBound),
+                    yEnd: .value("Value", sample.value)
                 )
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(
@@ -179,6 +181,9 @@ struct SensorDetailView: View {
                 )
             }
             .chartYScale(domain: series.valueDomain)
+            .chartPlotStyle { plotArea in
+                plotArea.clipped()
+            }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 3)) { _ in
                     AxisGridLine()
@@ -192,6 +197,7 @@ struct SensorDetailView: View {
                 }
             }
             .frame(height: 160)
+            .clipped()
             .accessibilityLabel("\(series.displayName) history")
             .accessibilityValue(series.summaryText)
 
