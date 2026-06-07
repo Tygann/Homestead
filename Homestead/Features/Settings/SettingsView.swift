@@ -431,12 +431,12 @@ private struct HomeAssistantServerSettingsView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
 
-                LabeledContent("Active Route", value: "Current URL")
-                LabeledContent("Automatic Switching", value: "Not enabled")
+                LabeledContent("Active Route", value: activeRouteText)
+                LabeledContent("Automatic Switching", value: automaticSwitchingText)
             } header: {
                 Text("Connection Routing")
             } footer: {
-                Text("Internal URL, external URL, and home network are saved for future routing. Homestead still connects using the current URL.")
+                Text("Homestead chooses between saved internal and external URLs in the connection lifecycle when route metadata is available.")
             }
 
             Section("Session") {
@@ -523,9 +523,7 @@ private struct HomeAssistantServerSettingsView: View {
                         Button {
                             focusedField = nil
                             Task {
-                                await homeAssistantService.connect(
-                                    baseURLString: connectionSettings.baseURL
-                                )
+                                await homeAssistantService.connect(settings: connectionSettings)
                             }
                         } label: {
                             Text("Retry Connection")
@@ -569,6 +567,18 @@ private struct HomeAssistantServerSettingsView: View {
 
     private var serverDisplayText: String {
         SettingsHomeAssistantStatus.serverDisplayText(connectionSettings.baseURL)
+    }
+
+    private var activeRouteText: String {
+        guard let route = homeAssistantService.activeRouteSummary else {
+            return "Not selected"
+        }
+
+        return "\(route.title) - \(configuredValue(route.baseURLString))"
+    }
+
+    private var automaticSwitchingText: String {
+        connectionSettings.hasAutomaticRouteCandidates ? "Enabled" : "Add routes"
     }
 
     private var statusMessage: String {

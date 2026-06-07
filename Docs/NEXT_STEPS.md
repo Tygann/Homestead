@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Post-Weather roadmap work after completing native `.weather` dashboard/detail support.
+Post-routing roadmap work after completing automatic internal/external Home Assistant URL selection.
 
 Recommended reasoning level: High.
 
@@ -31,11 +31,15 @@ Recommended reasoning level: High.
 - Added `HAStateStore` / `HAEntityState` weather accessors so SwiftUI dashboard cards and detail views do not read raw Home Assistant DTOs.
 - Added a native read-only Weather detail surface and richer dashboard card presentation while keeping weather service calls out of scope.
 - Added focused mapping, state-store, and dashboard presentation tests for weather behavior.
+- Added automatic internal/external URL route selection in the connection lifecycle using the saved Settings > Account > Server internal URL, external URL, and home-network metadata.
+- Kept route selection in `HomeAssistantService` instead of SwiftUI; Settings now displays the active route and still sends retry/register actions through the service.
+- Preserved OAuth/token refresh behavior, state-cache scope, mobile-app registration identity, WebSocket-first startup, documented HTTP calls, and service calls by separating active route URL from signed-in server identity in `HAConnectionConfiguration`.
+- Added fallback handling for transport-style route failures and focused tests for route selection, route fallback, WebSocket connection, logbook HTTP handoff, and mobile-app registration handoff.
 
 ## Next Chunk
 
-- Consider automatic internal/external URL route selection now that Settings > Account > Server has saved URL and home-network metadata foundations.
-- Or expand History/Charts into dashboard cards or richer entity history if performance and UX are clear.
+- Expand History/Charts into dashboard cards or richer entity history if performance and UX are clear.
+- Or improve dashboard organization, filtering, and add-card flow as card types grow.
 
 ## Acceptance Notes
 
@@ -46,10 +50,9 @@ Recommended reasoning level: High.
 - Use official Home Assistant API surfaces only. Do not add private frontend endpoints for server/admin details.
 - Do not use private frontend endpoints for repairs, users, system health, or admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
-- Settings > Account > Server already has the first foundation for saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic URL switching is still not implemented.
+- Settings > Account > Server has saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic route selection is implemented in `HomeAssistantService`.
 
 ## Recent Verification Notes
 
-- Generic iOS Simulator build passed after the Weather implementation.
-- Focused Weather tests passed for mapping, state-store access, dashboard presentation, and wide/large card content.
-- A full `HomesteadTests` run on the named iPhone 17 simulator compiled and started, but Xcode reported repeated locked physical-device `notification_proxy` errors and ended the tail of the suite as signal-trap failures. The focused Weather subset passed afterward with a unique result bundle path.
+- Generic iOS Simulator build passed after the routing pass.
+- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after the routing pass. Xcode still emitted locked physical-device `notification_proxy` noise on the first run, but the simulator test session succeeded.

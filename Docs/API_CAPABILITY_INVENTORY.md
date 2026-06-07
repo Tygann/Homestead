@@ -23,6 +23,7 @@ Official references:
 | --- | --- | --- | --- |
 | OAuth sign-in and token refresh | HTTP auth | Mapped | Native app OAuth flow with Keychain-backed refresh tokens. |
 | WebSocket connect/auth/reconnect | WebSocket | Mapped | `HAWebSocketClient` owns transport and request routing. |
+| Internal/external URL routing | Native app setup guidance plus iOS network state | Mapped | Settings stores Homestead-owned internal URL, external URL, and home network metadata. `HomeAssistantService` resolves the active route for WebSocket, documented HTTP clients, and mobile-app registration while keeping OAuth refresh, cache scope, and registration identity anchored to the signed-in server. |
 | Entity state snapshot | WebSocket `get_states` | Mapped | Stored in `HAStateStore` and mapped through `EntityMapper`. |
 | Live state updates | WebSocket `subscribe_events` for `state_changed` | Mapped | Batched before touching SwiftUI-observed state. |
 | Service calls | WebSocket `call_service` | Mapped | Domain-specific helpers live on `HomeAssistantService`. |
@@ -49,7 +50,6 @@ Official references:
 
 | Feature | API family | Status | Intended Homestead surface |
 | --- | --- | --- | --- |
-| Internal/external URL routing | Native app setup guidance plus iOS network state | Planned | Settings > Account > Server and connection lifecycle. |
 | History/charts expansion | REST history API | Planned | Dashboard chart cards and richer sensor/entity history after the first numeric sensor detail pass. |
 | People/presence | `person.*`, `device_tracker.*`, registries, current user | Planned | Settings > People and presence cards/details. |
 | Expanded widgets | WidgetKit/App Intents plus OAuth/WebSocket/service calls | Planned | Widgets and Control Center controls. |
@@ -63,7 +63,8 @@ These are the next API slices to map when the matching feature is implemented. D
 - Typed WebSocket `get_config` support exists for the dedicated `Settings > Account > Server` page.
 - Home Assistant version, location/time-unit basics, status/config source, and internal/external URL metadata are displayed only if returned by the official config shape.
 - Connection settings now store Homestead-owned internal URL, external URL, and selected home network metadata.
-- Keep URL switching in the connection lifecycle, not in SwiftUI views.
+- Automatic internal/external URL switching now lives in `HomeAssistantService` connection lifecycle code. SwiftUI displays the active route but does not choose URLs.
+- Route fallback tries the next saved URL for transport-style failures while preserving OAuth/token refresh behavior and cache/mobile-app server identity.
 
 ### Notifications
 

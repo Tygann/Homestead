@@ -21,6 +21,7 @@ final class HomeAssistantService {
     private(set) var serverConfiguration: HAServerConfigurationSnapshot?
     private(set) var serverConfigurationStatus: HAServerConfigurationStatus = .unavailable
     private(set) var stateCacheMetadata: HAStateCacheMetadata?
+    private(set) var activeRouteSummary: HAConnectionRouteSummary?
 
     @ObservationIgnored private let client: any HAWebSocketClientProtocol
     @ObservationIgnored private let httpClient: any HAHTTPClientProtocol
@@ -42,6 +43,8 @@ final class HomeAssistantService {
     @ObservationIgnored private var isBufferingStateChanges = false
     @ObservationIgnored private var lastSuspendedAt: Date?
     @ObservationIgnored private var shouldReconnect = false
+    @ObservationIgnored private weak var currentConnectionSettings: HAConnectionSettings?
+    @ObservationIgnored private var networkContext: HAConnectionNetworkContext
     @ObservationIgnored private var reachabilityMonitor: NWPathMonitor?
     @ObservationIgnored private let reachabilityQueue = DispatchQueue(label: "com.tyler.Homestead.homeAssistantReachability")
     @ObservationIgnored private let reconnectDelaySeconds = [1, 2, 5, 10, 30]
@@ -59,7 +62,8 @@ final class HomeAssistantService {
         mobileAppRegistrationStore: any HAMobileAppRegistrationStore = KeychainHAMobileAppRegistrationStore(),
         nativeNotificationService: NativeNotificationService? = nil,
         authManager: HAOAuthManager = HAOAuthManager(),
-        oauthAuthorizer: (any HAOAuthAuthorizing)? = nil
+        oauthAuthorizer: (any HAOAuthAuthorizing)? = nil,
+        networkContext: HAConnectionNetworkContext = .availableExternal
     ) {
         self.stateStore = stateStore
         self.client = client
@@ -70,12 +74,14 @@ final class HomeAssistantService {
         self.authManager = authManager
         self.oauthAuthorizer = oauthAuthorizer ?? HAWebAuthenticationSession()
         self.stateCache = stateCache
+        self.networkContext = networkContext
         self.connectionStatus = connectionStatus
         self.authState = authState
         refreshMobileAppRegistrationState()
     }
 
     func connectIfPossible(settings: HAConnectionSettings) async {
+        currentConnectionSettings = settings
         guard settings.hasServerURL,
               authState.isSignedIn,
               connectionStatus != .connected,
@@ -85,7 +91,7 @@ final class HomeAssistantService {
             return
         }
 
-        await connect(baseURLString: settings.baseURL)
+        await connect(settings: settings)
     }
 
     func startNetworkMonitoring(settings: HAConnectionSettings) {
@@ -98,7 +104,7 @@ final class HomeAssistantService {
         monitor.pathUpdateHandler = { [weak self, weak settings] path in
             Task { @MainActor in
                 guard let self, let settings else { return }
-                await self.handleNetworkPathUpdate(path.status, settings: settings)
+                await self.handleNetworkPathUpdate(path, settings: settings)
             }
         }
         reachabilityMonitor = monitor
@@ -106,6 +112,7 @@ final class HomeAssistantService {
     }
 
     func refreshOrReconnect(settings: HAConnectionSettings) async {
+        currentConnectionSettings = settings
         switch connectionStatus {
         case .connected:
             await refreshStates()
@@ -114,16 +121,20 @@ final class HomeAssistantService {
         case .reconnecting:
             reconnectTask?.cancel()
             reconnectTask = nil
-            await connect(baseURLString: settings.baseURL)
+            await connect(settings: settings)
         case .disconnected, .failed:
             await connectIfPossible(settings: settings)
         }
     }
 
     func loadCachedStatesIfPossible(settings: HAConnectionSettings) async {
+        currentConnectionSettings = settings
         let configuration: HAConnectionConfiguration?
         do {
-            configuration = try await authManager.storedConfiguration(baseURLString: settings.baseURL)
+            let selection = routeSelection(for: settings)
+            configuration = try await authManager
+                .storedConfiguration(baseURLString: selection.authenticationBaseURLString)?
+                .routed(to: selection.preferredCandidate?.baseURLString ?? selection.authenticationBaseURLString)
             authState = await authManager.status()
         } catch {
             authState = .refreshFailed(error.localizedDescription)
@@ -149,6 +160,15 @@ final class HomeAssistantService {
     }
 
     func connect(baseURLString: String) async {
+        await connect(routeSelection: HAConnectionRouteResolver.explicit(baseURLString: baseURLString))
+    }
+
+    func connect(settings: HAConnectionSettings) async {
+        currentConnectionSettings = settings
+        await connect(routeSelection: routeSelection(for: settings))
+    }
+
+    private func connect(routeSelection: HAConnectionRouteSelection) async {
         reconnectTask?.cancel()
         reconnectTask = nil
         stateSyncTask?.cancel()
@@ -157,12 +177,20 @@ final class HomeAssistantService {
         stateEnrichmentTask = nil
         discardBufferedStateChanges()
         await stateEventBatcher.discardPendingUpdates()
+        let previousDataSourceID = activeConfiguration?.dataSourceID
+        if activeConfiguration != nil {
+            await client.disconnect()
+            activeConfiguration = nil
+            mobileAppPushNotificationState = .unavailable
+        }
         shouldReconnect = true
         connectionStatus = .connecting
 
-        let configuration: HAConnectionConfiguration
+        let baseConfiguration: HAConnectionConfiguration
         do {
-            configuration = try await validConfiguration(baseURLString: baseURLString)
+            baseConfiguration = try await validConfiguration(
+                baseURLString: routeSelection.authenticationBaseURLString
+            )
         } catch {
             shouldReconnect = false
             lastErrorMessage = error.localizedDescription
@@ -172,24 +200,54 @@ final class HomeAssistantService {
             return
         }
 
-        if activeConfiguration?.dataSourceID != configuration.dataSourceID {
+        if previousDataSourceID != baseConfiguration.dataSourceID {
             serviceRegistry = .empty
             serverConfiguration = nil
             serverConfigurationStatus = .unavailable
         }
-        await applyCachedStatesIfAvailable(for: configuration)
+        let preferredConfiguration = baseConfiguration.routed(
+            to: routeSelection.preferredCandidate?.baseURLString ?? baseConfiguration.baseURLString
+        )
+        await applyCachedStatesIfAvailable(for: preferredConfiguration)
 
-        do {
-            let connectedConfiguration = try await establishTransportConnectionWithAuthRecovery(configuration: configuration)
-            activeConfiguration = connectedConfiguration
-            refreshMobileAppRegistrationState(for: connectedConfiguration)
-            lastErrorMessage = nil
-            connectionStatus = .connected
-            dataFreshness = .refreshing(lastUpdated: dataFreshness.lastKnownUpdateDate)
-            startStateSync(configuration: connectedConfiguration)
-            await registerMobileAppIfNeeded(configuration: connectedConfiguration)
-            await startMobileAppPushNotificationChannel(configuration: connectedConfiguration)
-        } catch {
+        var lastConnectionError: Error?
+        for candidate in routeSelection.candidates {
+            let routeConfiguration = baseConfiguration.routed(to: candidate.baseURLString)
+            activeRouteSummary = HAConnectionRouteSummary(
+                route: candidate.route,
+                baseURLString: candidate.baseURLString
+            )
+
+            do {
+                let connectedConfiguration = try await establishTransportConnectionWithAuthRecovery(
+                    configuration: routeConfiguration
+                )
+                activeConfiguration = connectedConfiguration
+                activeRouteSummary = HAConnectionRouteSummary(
+                    route: candidate.route,
+                    baseURLString: connectedConfiguration.baseURLString
+                )
+                refreshMobileAppRegistrationState(for: connectedConfiguration)
+                lastErrorMessage = nil
+                connectionStatus = .connected
+                dataFreshness = .refreshing(lastUpdated: dataFreshness.lastKnownUpdateDate)
+                startStateSync(configuration: connectedConfiguration)
+                await registerMobileAppIfNeeded(configuration: connectedConfiguration)
+                await startMobileAppPushNotificationChannel(configuration: connectedConfiguration)
+                return
+            } catch {
+                lastConnectionError = error
+                guard shouldTryFallbackRoute(after: error) else {
+                    break
+                }
+            }
+        }
+
+        if routeSelection.candidates.isEmpty {
+            lastConnectionError = HAWebSocketError.invalidURL
+        }
+
+        if let error = lastConnectionError {
             shouldReconnect = false
             lastErrorMessage = error.localizedDescription
             authState = authFailureState(for: error)
@@ -230,6 +288,7 @@ final class HomeAssistantService {
         cancelPendingCommandTasks()
         await client.disconnect()
         activeConfiguration = nil
+        activeRouteSummary = nil
         mobileAppPushNotificationState = .unavailable
         currentUserID = nil
         currentUserDisplayName = nil
@@ -246,6 +305,7 @@ final class HomeAssistantService {
     }
 
     func signInWithHomeAssistant(settings: HAConnectionSettings) async {
+        currentConnectionSettings = settings
         let baseURLString = settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !baseURLString.isEmpty else {
             authState = .refreshFailed(HAWebSocketError.invalidURL.localizedDescription)
@@ -265,14 +325,14 @@ final class HomeAssistantService {
                 callbackScheme: HAOAuthClientMetadata.callbackScheme
             )
             let authorizationCode = try authorizationCode(from: callbackURL, expectedState: state)
-            let configuration = try await authManager.signIn(
+            _ = try await authManager.signIn(
                 baseURLString: baseURLString,
                 authorizationCode: authorizationCode
             )
 
             authState = await authManager.status()
             lastErrorMessage = nil
-            await connect(baseURLString: configuration.baseURLString)
+            await connect(settings: settings)
         } catch {
             authState = .refreshFailed(error.localizedDescription)
             lastErrorMessage = error.localizedDescription
@@ -298,6 +358,7 @@ final class HomeAssistantService {
     }
 
     func resume(settings: HAConnectionSettings) async {
+        currentConnectionSettings = settings
         guard !RuntimeEnvironment.isRunningForPreviews else {
             return
         }
@@ -309,7 +370,7 @@ final class HomeAssistantService {
             guard settings.hasServerURL, authState.isSignedIn else { return }
             reconnectTask?.cancel()
             reconnectTask = nil
-            await connect(baseURLString: settings.baseURL)
+            await connect(settings: settings)
         case .connected:
             guard shouldRefreshAfterResume else { return }
             await refreshStates()
@@ -547,7 +608,8 @@ final class HomeAssistantService {
 
     func fetchCameraSnapshot(entityID: String) async throws -> Data {
         let configuration = try cameraConfiguration(for: entityID)
-        let validConfiguration = try await validConfiguration(baseURLString: configuration.baseURLString)
+        let validConfiguration = try await validConfiguration(baseURLString: configuration.tokenRefreshBaseURLString)
+            .routed(to: configuration.baseURLString)
         activeConfiguration = validConfiguration
 
         return try await httpClient.fetchCameraSnapshot(
@@ -557,11 +619,12 @@ final class HomeAssistantService {
     }
 
     func fetchLogbook(settings: HAConnectionSettings, request: HALogbookRequest) async throws -> [HAActivityRow] {
+        currentConnectionSettings = settings
         guard settings.hasServerURL else {
             throw HAWebSocketError.invalidURL
         }
 
-        let configuration = try await validConfiguration(baseURLString: settings.baseURL)
+        let configuration = try await preferredConfiguration(for: settings)
         activeConfiguration = configuration
         let entries = try await httpClient.fetchLogbook(configuration: configuration, request: request)
 
@@ -575,11 +638,12 @@ final class HomeAssistantService {
         request: HAHistoryRequest,
         range: HAHistoryRangePreset
     ) async throws -> HAHistoryChartSeries {
+        currentConnectionSettings = settings
         guard settings.hasServerURL, !request.entityID.isEmpty else {
             throw HAWebSocketError.invalidURL
         }
 
-        let configuration = try await validConfiguration(baseURLString: settings.baseURL)
+        let configuration = try await preferredConfiguration(for: settings)
         activeConfiguration = configuration
         let response = try await httpClient.fetchHistory(configuration: configuration, request: request)
         let sensor = stateStore.entityBox(for: request.entityID)?.sensorEntity
@@ -650,6 +714,9 @@ final class HomeAssistantService {
     }
 
     func refreshMobileAppRegistrationState(settings: HAConnectionSettings? = nil) {
+        if let settings {
+            currentConnectionSettings = settings
+        }
         do {
             let registration = try mobileAppRegistrationStore.readRegistration()
             guard let registration else {
@@ -688,6 +755,7 @@ final class HomeAssistantService {
     }
 
     func registerMobileApp(settings: HAConnectionSettings) async {
+        currentConnectionSettings = settings
         guard settings.hasServerURL else {
             mobileAppRegistrationState = .failed("Add your Home Assistant URL before registering Homestead.")
             return
@@ -695,7 +763,7 @@ final class HomeAssistantService {
 
         let configuration: HAConnectionConfiguration
         do {
-            configuration = try await validConfiguration(baseURLString: settings.baseURL)
+            configuration = try await preferredConfiguration(for: settings)
         } catch {
             mobileAppRegistrationState = .failed(error.localizedDescription)
             authState = authFailureState(for: error)
@@ -765,6 +833,7 @@ final class HomeAssistantService {
     }
 
     func homeAssistantProfileImageRequest(settings: HAConnectionSettings) async -> URLRequest? {
+        currentConnectionSettings = settings
         guard settings.hasServerURL,
               let currentUserID,
               let entityPicture = personEntityPicture(forUserID: currentUserID) else {
@@ -772,7 +841,10 @@ final class HomeAssistantService {
         }
 
         do {
-            guard let configuration = try await authManager.storedConfiguration(baseURLString: settings.baseURL) else {
+            let selection = routeSelection(for: settings)
+            guard let configuration = try await authManager
+                .storedConfiguration(baseURLString: selection.authenticationBaseURLString)?
+                .routed(to: selection.preferredCandidate?.baseURLString ?? selection.authenticationBaseURLString) else {
                 return nil
             }
 
@@ -1404,15 +1476,23 @@ final class HomeAssistantService {
     }
 
     private func handleNetworkPathUpdate(
-        _ status: NWPath.Status,
+        _ path: NWPath,
         settings: HAConnectionSettings
     ) async {
-        let networkIsAvailable = status == .satisfied
-        guard isNetworkAvailable != networkIsAvailable else {
-            return
-        }
+        currentConnectionSettings = settings
+        let previousSelection = routeSelection(for: settings).preferredCandidate
+        let previousNetworkAvailability = isNetworkAvailable
+        let nextNetworkContext = HAConnectionNetworkContext(path: path)
+        let networkIsAvailable = nextNetworkContext.isNetworkAvailable
+        networkContext = nextNetworkContext
+        let nextSelection = routeSelection(for: settings).preferredCandidate
+        let routePreferenceChanged = previousSelection != nextSelection
 
         isNetworkAvailable = networkIsAvailable
+
+        guard previousNetworkAvailability != networkIsAvailable || routePreferenceChanged else {
+            return
+        }
 
         if networkIsAvailable {
             guard settings.hasServerURL, authState.isSignedIn else {
@@ -1420,12 +1500,17 @@ final class HomeAssistantService {
             }
 
             switch connectionStatus {
-            case .connected, .connecting:
+            case .connecting:
                 return
+            case .connected:
+                guard routePreferenceChanged else {
+                    return
+                }
+                await connect(settings: settings)
             case .reconnecting:
                 reconnectTask?.cancel()
                 reconnectTask = nil
-                await connect(baseURLString: settings.baseURL)
+                await connect(settings: settings)
             case .disconnected, .failed:
                 await connectIfPossible(settings: settings)
             }
@@ -1458,9 +1543,40 @@ final class HomeAssistantService {
             try await establishTransportConnection(configuration: configuration)
             return configuration
         } catch HAWebSocketError.authenticationFailed(_) {
-            let refreshedConfiguration = try await refreshConfiguration(baseURLString: configuration.baseURLString)
+            let refreshedConfiguration = try await refreshConfiguration(
+                baseURLString: configuration.tokenRefreshBaseURLString
+            )
+            .routed(to: configuration.baseURLString)
             try await establishTransportConnection(configuration: refreshedConfiguration)
             return refreshedConfiguration
+        }
+    }
+
+    private func preferredConfiguration(for settings: HAConnectionSettings) async throws -> HAConnectionConfiguration {
+        let selection = routeSelection(for: settings)
+        let configuration = try await validConfiguration(baseURLString: selection.authenticationBaseURLString)
+        return configuration.routed(
+            to: selection.preferredCandidate?.baseURLString ?? selection.authenticationBaseURLString
+        )
+    }
+
+    private func routeSelection(for settings: HAConnectionSettings) -> HAConnectionRouteSelection {
+        HAConnectionRouteResolver.resolve(
+            settings: settings.routingSnapshot,
+            networkContext: networkContext
+        )
+    }
+
+    private func shouldTryFallbackRoute(after error: Error) -> Bool {
+        guard let webSocketError = error as? HAWebSocketError else {
+            return false
+        }
+
+        switch webSocketError {
+        case .invalidURL, .notConnected, .requestTimedOut, .transportFailure:
+            return true
+        case .unexpectedMessage, .authenticationFailed, .requestFailed, .missingResult:
+            return false
         }
     }
 
@@ -1865,9 +1981,36 @@ final class HomeAssistantService {
                     attempt += 1
                     continue
                 }
-                let connectedConfiguration = try await establishTransportConnectionWithAuthRecovery(configuration: configuration)
+                var connectedRoute: (
+                    candidate: HAConnectionRouteCandidate?,
+                    configuration: HAConnectionConfiguration
+                )?
+                var routeError: Error?
+
+                for routeConfiguration in try await reconnectRouteConfigurations(fallback: configuration) {
+                    do {
+                        let connectedConfiguration = try await establishTransportConnectionWithAuthRecovery(
+                            configuration: routeConfiguration.configuration
+                        )
+                        connectedRoute = (routeConfiguration.candidate, connectedConfiguration)
+                        break
+                    } catch {
+                        routeError = error
+                        guard shouldTryFallbackRoute(after: error) else {
+                            break
+                        }
+                    }
+                }
+
+                guard let connectedRoute else {
+                    throw routeError ?? HAWebSocketError.transportFailure("Home Assistant connection failed.")
+                }
+                let connectedConfiguration = connectedRoute.configuration
 
                 activeConfiguration = connectedConfiguration
+                activeRouteSummary = connectedRoute.candidate.map {
+                    HAConnectionRouteSummary(route: $0.route, baseURLString: connectedConfiguration.baseURLString)
+                } ?? activeRouteSummary
                 refreshMobileAppRegistrationState(for: connectedConfiguration)
                 lastErrorMessage = nil
                 connectionStatus = .connected
@@ -1888,6 +2031,24 @@ final class HomeAssistantService {
         reconnectTask = nil
         if connectionStatus == .reconnecting {
             connectionStatus = .disconnected
+        }
+    }
+
+    private func reconnectRouteConfigurations(
+        fallback configuration: HAConnectionConfiguration
+    ) async throws -> [(candidate: HAConnectionRouteCandidate?, configuration: HAConnectionConfiguration)] {
+        guard let settings = currentConnectionSettings, settings.hasServerURL else {
+            return [(nil, configuration)]
+        }
+
+        let selection = routeSelection(for: settings)
+        let baseConfiguration = try await validConfiguration(baseURLString: selection.authenticationBaseURLString)
+        let candidates = selection.candidates.isEmpty
+            ? [HAConnectionRouteCandidate(route: .current, baseURLString: configuration.baseURLString)]
+            : selection.candidates
+
+        return candidates.map { candidate in
+            (candidate, baseConfiguration.routed(to: candidate.baseURLString))
         }
     }
 

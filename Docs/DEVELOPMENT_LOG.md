@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-07
 
+### Connection Routing
+
+- Added automatic internal/external Home Assistant URL selection in `HomeAssistantService` using saved Settings > Account > Server route metadata and iOS network state.
+- Preserved OAuth refresh, state-cache scope, and mobile-app registration identity by separating the active route URL from the signed-in server identity in `HAConnectionConfiguration`.
+- Added route fallback for transport-style failures and regression coverage for resolver behavior, WebSocket connect routing, documented HTTP handoff, and mobile-app registration handoff.
+
 ### Weather
 
 - Added a native read-only Weather pass for `.weather` entities using Home Assistant entity state attributes.

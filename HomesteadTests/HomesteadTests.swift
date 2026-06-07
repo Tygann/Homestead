@@ -2265,6 +2265,60 @@ struct HomesteadTests {
         #expect(restoredSettings.homeNetworkName == "Home Wi-Fi")
     }
 
+    @Test func connectionRouteResolverPrefersInternalRouteOnHomeNetwork() {
+        let settings = HAConnectionRoutingSettingsSnapshot(
+            baseURLString: "https://home.example.com",
+            internalURLString: "http://homeassistant.local:8123",
+            externalURLString: "https://remote.example.com",
+            homeNetworkName: "Home Wi-Fi"
+        )
+
+        let selection = HAConnectionRouteResolver.resolve(
+            settings: settings,
+            networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: true)
+        )
+
+        #expect(selection.authenticationBaseURLString == "https://home.example.com")
+        #expect(selection.candidates.map(\.route) == [.internalURL, .externalURL, .current])
+        #expect(selection.candidates.map(\.baseURLString) == [
+            "http://homeassistant.local:8123",
+            "https://remote.example.com",
+            "https://home.example.com"
+        ])
+    }
+
+    @Test func connectionRouteResolverUsesExternalRouteAwayFromHomeAndFallsBackToCurrentURL() {
+        let settings = HAConnectionRoutingSettingsSnapshot(
+            baseURLString: "https://home.example.com",
+            internalURLString: "http://homeassistant.local:8123",
+            externalURLString: "https://remote.example.com",
+            homeNetworkName: "Home Wi-Fi"
+        )
+
+        let selection = HAConnectionRouteResolver.resolve(
+            settings: settings,
+            networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: false)
+        )
+
+        #expect(selection.candidates.map(\.route) == [.externalURL, .current])
+        #expect(selection.candidates.map(\.baseURLString) == [
+            "https://remote.example.com",
+            "https://home.example.com"
+        ])
+    }
+
+    @Test func routedConnectionConfigurationKeepsOAuthServerAsDataSourceIdentity() {
+        let oauthConfiguration = HAConnectionConfiguration(
+            baseURLString: "https://home.example.com",
+            accessToken: "access-token"
+        )
+        let routedConfiguration = oauthConfiguration.routed(to: "http://homeassistant.local:8123")
+
+        #expect(routedConfiguration.baseURLString == "http://homeassistant.local:8123")
+        #expect(routedConfiguration.tokenRefreshBaseURLString == "https://home.example.com")
+        #expect(routedConfiguration.dataSourceID == oauthConfiguration.dataSourceID)
+    }
+
     @Test func oauthManagerRefreshesExpiredAccessToken() async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let store = InMemoryHAOAuthTokenStore(
@@ -2625,6 +2679,87 @@ struct HomesteadTests {
 
         #expect(webSocketClient.lastConnectConfiguration?.accessToken == "fresh-access")
         #expect(try tokenStore.readCredential()?.accessToken == "fresh-access")
+        #expect(service.connectionStatus == .connected)
+    }
+
+    @MainActor
+    @Test func serviceConnectionUsesResolvedInternalRouteAndPreservesServerIdentity() async throws {
+        let baseURLString = "https://home.example.com"
+        let internalURLString = "http://homeassistant.local:8123"
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: baseURLString, accessToken: "route-access")
+        )
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: true)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: baseURLString,
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        settings.internalURL = internalURLString
+        settings.externalURL = "https://remote.example.com"
+        settings.homeNetworkName = "Home Wi-Fi"
+
+        await service.refreshAuthState()
+        await service.connect(settings: settings)
+
+        let connectedConfiguration = try #require(webSocketClient.lastConnectConfiguration)
+        #expect(connectedConfiguration.baseURLString == internalURLString)
+        #expect(connectedConfiguration.tokenRefreshBaseURLString == baseURLString)
+        #expect(connectedConfiguration.dataSourceID == HAConnectionConfiguration(
+            baseURLString: baseURLString,
+            accessToken: "route-access"
+        ).dataSourceID)
+        #expect(service.activeRouteSummary?.route == .internalURL)
+        #expect(service.connectionStatus == .connected)
+    }
+
+    @MainActor
+    @Test func serviceConnectionFallsBackFromInternalRouteToExternalRoute() async throws {
+        let baseURLString = "https://home.example.com"
+        let internalURLString = "http://homeassistant.local:8123"
+        let externalURLString = "https://remote.example.com"
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: baseURLString, accessToken: "route-access")
+        )
+        let webSocketClient = StubHAWebSocketClient()
+        webSocketClient.connectErrorsByBaseURL[internalURLString] = HAWebSocketError.transportFailure("Internal route unavailable.")
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: true)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: baseURLString,
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        settings.internalURL = internalURLString
+        settings.externalURL = externalURLString
+        settings.homeNetworkName = "Home Wi-Fi"
+
+        await service.refreshAuthState()
+        await service.connect(settings: settings)
+
+        #expect(webSocketClient.connectConfigurations.map(\.baseURLString) == [
+            internalURLString,
+            externalURLString
+        ])
+        #expect(webSocketClient.lastConnectConfiguration?.baseURLString == externalURLString)
+        #expect(service.activeRouteSummary == HAConnectionRouteSummary(
+            route: .externalURL,
+            baseURLString: externalURLString
+        ))
         #expect(service.connectionStatus == .connected)
     }
 
@@ -3229,6 +3364,81 @@ struct HomesteadTests {
         #expect(httpClient.lastLogbookRequest == request)
         #expect(rows.map(\.title) == ["Kitchen Pendant"])
         #expect(rows.map(\.entityDomain) == [.light])
+    }
+
+    @MainActor
+    @Test func serviceFetchesLogbookThroughResolvedExternalRoute() async throws {
+        let baseURLString = "https://home.example.com"
+        let externalURLString = "https://remote.example.com"
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: baseURLString, accessToken: "logbook-access")
+        )
+        let httpClient = StubHAHTTPClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: false)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: baseURLString,
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        settings.internalURL = "http://homeassistant.local:8123"
+        settings.externalURL = externalURLString
+        settings.homeNetworkName = "Home Wi-Fi"
+        let request = HALogbookRequest(
+            startDate: try #require(HADateParser.date(from: "2026-06-05T00:00:00Z")),
+            endDate: nil,
+            entityID: nil
+        )
+
+        _ = try await service.fetchLogbook(settings: settings, request: request)
+
+        let configuration = try #require(httpClient.lastLogbookConfiguration)
+        #expect(configuration.baseURLString == externalURLString)
+        #expect(configuration.tokenRefreshBaseURLString == baseURLString)
+        #expect(configuration.dataSourceID == HAConnectionConfiguration(
+            baseURLString: baseURLString,
+            accessToken: "logbook-access"
+        ).dataSourceID)
+    }
+
+    @MainActor
+    @Test func serviceRegistersMobileAppThroughResolvedExternalRoute() async throws {
+        let baseURLString = "https://home.example.com"
+        let externalURLString = "https://remote.example.com"
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: baseURLString, accessToken: "mobile-app-access")
+        )
+        let registrationStore = InMemoryHAMobileAppRegistrationStore()
+        let mobileAppClient = StubHAMobileAppClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            mobileAppClient: mobileAppClient,
+            mobileAppRegistrationStore: registrationStore,
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: false)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: baseURLString,
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        settings.internalURL = "http://homeassistant.local:8123"
+        settings.externalURL = externalURLString
+        settings.homeNetworkName = "Home Wi-Fi"
+
+        await service.registerMobileApp(settings: settings)
+
+        let registrationConfiguration = try #require(mobileAppClient.lastRegistrationConfiguration)
+        #expect(registrationConfiguration.baseURLString == externalURLString)
+        #expect(registrationConfiguration.dataSourceID == HAConnectionConfiguration(
+            baseURLString: baseURLString,
+            accessToken: "mobile-app-access"
+        ).dataSourceID)
+        #expect(try registrationStore.readRegistration()?.serverIdentifier == registrationConfiguration.dataSourceID)
     }
 
     @MainActor
@@ -5381,6 +5591,7 @@ final class StubHAOAuthAuthorizer: HAOAuthAuthorizing {
 
 final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     private(set) var lastConnectConfiguration: HAConnectionConfiguration?
+    private(set) var connectConfigurations: [HAConnectionConfiguration] = []
     private(set) var didDisconnect = false
     private(set) var disconnectCount = 0
     private(set) var callServiceInvocations: [(domain: String, service: String, entityID: String?, serviceData: [String: JSONValue])] = []
@@ -5403,6 +5614,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var serviceRegistry: HAServiceRegistry = .empty
     var fetchServicesDelay: Duration?
     var fetchServicesError: Error?
+    var connectErrorsByBaseURL: [String: Error] = [:]
 
     init(currentUser: HACurrentUserDTO? = nil, states: [HAEntityDTO] = []) {
         self.currentUser = currentUser
@@ -5419,6 +5631,11 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func connect(configuration: HAConnectionConfiguration) async throws {
         lastConnectConfiguration = configuration
+        connectConfigurations.append(configuration)
+
+        if let error = connectErrorsByBaseURL[configuration.baseURLString] {
+            throw error
+        }
     }
 
     func disconnect() async {
@@ -5551,6 +5768,7 @@ final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
 final class StubHAMobileAppClient: HAMobileAppClientProtocol {
     var registrationResponse: HAMobileAppRegistrationResponseDTO
     var cameraStreamResponse: HACameraStreamResponseDTO
+    private(set) var lastRegistrationConfiguration: HAConnectionConfiguration?
     private(set) var lastRegistrationRequest: HAMobileAppRegistrationRequestDTO?
     private(set) var lastCameraStreamEntityID: String?
 
@@ -5574,6 +5792,7 @@ final class StubHAMobileAppClient: HAMobileAppClientProtocol {
         configuration: HAConnectionConfiguration,
         request: HAMobileAppRegistrationRequestDTO
     ) async throws -> HAMobileAppRegistrationResponseDTO {
+        lastRegistrationConfiguration = configuration
         lastRegistrationRequest = request
         return registrationResponse
     }

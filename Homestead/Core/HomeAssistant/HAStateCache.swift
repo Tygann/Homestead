@@ -120,7 +120,7 @@ actor HAStateCache {
     }
 
     static func cacheScopeIdentifier(for configuration: HAConnectionConfiguration) -> String {
-        let normalizedBaseURL = normalizedBaseURLString(configuration.baseURLString)
+        let normalizedBaseURL = normalizedBaseURLString(configuration.dataSourceBaseURLString)
         return SHA256.hash(data: Data(normalizedBaseURL.utf8))
             .map { String(format: "%02x", $0) }
             .joined()

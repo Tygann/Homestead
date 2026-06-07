@@ -20,14 +20,14 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 - Native SwiftUI iOS app shell with Home, Areas, and Browse tabs.
 - Home Assistant OAuth sign-in with short-lived access-token refresh and Keychain-backed credentials.
-- WebSocket-first state sync, registry loading, service discovery, service calls, reconnect handling, and cached startup state.
+- WebSocket-first state sync, registry loading, service discovery, service calls, reconnect handling, automatic internal/external URL route selection, and cached startup state.
 - Home dashboard with configurable entity cards, summary chips, section headers, card sizes, card feature visibility, display names, icon overrides, reorder, and edit mode.
 - Native dashboard and area detail flows for common domains, including lights, switches, fans, locks, covers, climate, media players, cameras, vacuums, alarm panels, buttons, selects, numbers, sensors, scenes, scripts, and automations.
 - Areas browsing backed by Home Assistant area and floor registries, with area summaries and domain-grouped area detail pages.
 - Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
 - Settings sheet opened from account/avatar buttons on daily-use tabs.
 - Settings hub with Home Assistant and Homestead sections, native management overviews for Devices & Services and Automations & Scenes, registry/admin-oriented devices and entities, and placeholders for unsupported categories.
-- Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status, recovery actions, saved internal/external URL and home network metadata, and Home Assistant `get_config` details.
+- Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status, recovery actions, automatic route status, saved internal/external URL and home network metadata, and Home Assistant `get_config` details.
 - Native Settings > Updates page backed by Home Assistant `.update` entities, with grouped/filterable/searchable presentation, release/version/status/context details, and official `update.install`, `update.skip`, and `update.clear_skipped` service actions.
 - Read-only Settings > Logbook page backed by Home Assistant's documented REST logbook API, with date range, entity/domain filtering, search, and app-facing activity row models.
 - Native sensor history detail charts backed by Home Assistant's documented REST history API, starting with numeric `sensor.*` entities and fixed 1H/6H/24H ranges.
@@ -40,7 +40,6 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Near-Term Priorities
 
-- Add automatic internal/external URL route selection in the connection lifecycle when the Settings > Account > Server metadata model is ready to drive it.
 - Expand chart/history cards beyond the first numeric sensor detail pass where dashboard performance and API shape are clear.
 - Improve dashboard organization, filtering, and add-card flow as card types grow.
 - Expand widget support beyond lights to common safe actions such as switches, locks, covers, scenes, scripts, and key sensor/person status.

@@ -38,6 +38,19 @@ final class HAConnectionSettings {
         !baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    var routingSnapshot: HAConnectionRoutingSettingsSnapshot {
+        HAConnectionRoutingSettingsSnapshot(
+            baseURLString: baseURL,
+            internalURLString: internalURL,
+            externalURLString: externalURL,
+            homeNetworkName: homeNetworkName
+        )
+    }
+
+    var hasAutomaticRouteCandidates: Bool {
+        routingSnapshot.hasAutomaticRouteCandidates
+    }
+
     init(
         baseURL: String? = nil,
         defaults: UserDefaults = .standard,
