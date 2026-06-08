@@ -40,9 +40,9 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Near-Term Priorities
 
-- Improve dashboard organization, filtering, and add-card flow as card types grow.
-- Expand richer entity history beyond numeric sensor detail/dashboard charts where performance, UX, and official API shape are clear.
+- Expand richer entity history into glanceable timelines beyond numeric sensor detail/dashboard charts where performance, UX, and official API shape are clear.
 - Expand widget support beyond lights to common safe actions such as switches, locks, covers, scenes, scripts, and key sensor/person status.
+- Continue dashboard organization, filtering, and add-card polish only when user testing or new card types expose concrete friction.
 
 ## Later Candidates
 

@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Post-history/dashboard roadmap work after adding numeric sensor dashboard chart cards.
+Expand entity history into native, glanceable timelines beyond numeric sensor charts.
 
 Recommended reasoning level: High.
 
@@ -67,9 +67,12 @@ Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of edge auto-scroll and drop feel on dense dashboards, manual validation of the add-card grouping/count controls on a large entity set, or larger dashboard management affordances.
-- As dashboard/add/edit views are touched, review nearby copy and controls for development-facing labels, explanations, or layout mechanics, and prefer user-facing choices, previews, and direct manipulation where the behavior is already visually clear.
-- Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
+- Start a focused history/timeline pass for non-numeric state entities using Home Assistant's documented REST history API and the existing authenticated HTTP/service handoff.
+- Prefer entity detail surfaces first, not dashboard cards, so the UX can prove itself without adding more dashboard complexity.
+- Likely first targets are discrete state domains with useful recent-change stories, such as `binary_sensor`, `switch`, `lock`, `cover`, `automation`, `person`, or `device_tracker`; pick a narrow first slice based on existing model/presentation support and API fit.
+- Keep raw Home Assistant history DTOs out of SwiftUI. Map history responses into app-facing timeline presentation models outside `HAStateStore`.
+- Do not add private frontend endpoints. If a target domain needs data beyond documented history/state/service APIs, mark it as API research instead of implementing.
+- Dashboard organization is no longer the active workstream; revisit it only for concrete bugs or new-card friction discovered during feature work.
 
 ## Acceptance Notes
 
@@ -81,6 +84,7 @@ Recommended reasoning level: High.
 - Do not use private frontend endpoints for repairs, users, system health, or admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
 - Settings > Account > Server has saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic route selection is implemented in `HomeAssistantService`.
+- Numeric sensor history already has documented REST history plumbing, authenticated service handoff, app-facing chart models, fixed detail ranges, and lightweight dashboard chart cards; reuse that shape where it fits.
 
 ## Recent Verification Notes
 
