@@ -19,6 +19,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Changed drag behavior to use a transient preview order so cards and section headers visually reflow while dragging, while persisted dashboard order still updates only on drop.
 - Rendered the lifted card/header as a floating drag preview over a stable opacity-hidden grid placeholder so the item follows the finger without fighting the grid reflow animation or dropping the active drag gesture.
 - Added a quiet, non-interactive corner grip badge to cards and headers while keeping the whole card as the drag target.
+- Reserved card/header long-press in edit mode for dragging by removing edit-mode context menus from draggable grid items; normal-mode context menus still expose card/header customization actions.
 - Added visible-grid reorder coverage so chip slots stay fixed and hidden/unavailable configured items are not moved by visible-card drag operations.
 
 ### Connection Routing

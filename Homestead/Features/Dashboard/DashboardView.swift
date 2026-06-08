@@ -588,8 +588,6 @@ struct DashboardView: View {
             editableDashboardGridItem(id: item.id) {
                 DashboardHeaderCardView(title: item.resolvedTitle)
                     .frame(maxWidth: .infinity)
-            } menuContent: {
-                headerEditMenuContent(for: item)
             }
         } else {
             DashboardHeaderCardView(title: item.resolvedTitle)
@@ -616,8 +614,6 @@ struct DashboardView: View {
                     isEditing: true
                 )
                 .frame(maxWidth: .infinity)
-            } menuContent: {
-                cardEditMenuContent(for: item)
             }
         } else {
             DashboardCardView(
@@ -643,10 +639,9 @@ struct DashboardView: View {
         }
     }
 
-    private func editableDashboardGridItem<Content: View, MenuContent: View>(
+    private func editableDashboardGridItem<Content: View>(
         id itemID: UUID,
-        @ViewBuilder content: () -> Content,
-        @ViewBuilder menuContent: () -> MenuContent
+        @ViewBuilder content: () -> Content
     ) -> some View {
         let isDragging = draggingGridItemID == itemID
         return content()
@@ -654,9 +649,6 @@ struct DashboardView: View {
             .dashboardGridItemFrame(id: itemID)
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
             .dashboardDragAffordance(isVisible: !isDragging)
-            .contextMenu {
-                menuContent()
-            }
             .opacity(isDragging ? 0 : 1)
             .gesture(dashboardGridDragGesture(for: itemID))
             .transaction { transaction in
