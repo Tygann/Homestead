@@ -114,9 +114,7 @@ struct DashboardView: View {
     @State private var pendingScrollDashboardItemID: UUID?
     @State private var gridItemFrames: [UUID: CGRect] = [:]
     @State private var draggingGridItemID: UUID?
-    @State private var activeDragLocation: CGPoint?
-    @State private var activeDragGrabOffset = CGSize.zero
-    @State private var lastDragInsertionTargetID: UUID?
+    @State private var activeDragTranslation = CGSize.zero
     @Namespace private var cardTransitionNamespace
     @Namespace private var summaryTransitionNamespace
     
@@ -612,115 +610,48 @@ struct DashboardView: View {
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             .dashboardGridItemFrame(id: itemID)
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
-            .overlay(alignment: .topTrailing) {
-                Menu {
-                    menuContent()
-                } label: {
-                    Image(systemName: "ellipsis.circle.fill")
-                        .font(.title3.weight(.semibold))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(Color.accentColor, Color(.secondarySystemGroupedBackground))
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .padding(AppSpacing.xSmall)
-                .accessibilityLabel("Edit item")
+            .contextMenu {
+                menuContent()
             }
             .offset(dashboardGridDragOffset(for: itemID))
-            .scaleEffect(isDragging ? 1.035 : 1)
-            .opacity(draggingGridItemID == nil || isDragging ? 1 : 0.72)
+            .scaleEffect(isDragging ? 1.025 : 1)
             .zIndex(isDragging ? 10 : 0)
             .gesture(dashboardGridDragGesture(for: itemID))
             .animation(.snappy(duration: 0.18), value: isDragging)
     }
 
     private func dashboardGridDragGesture(for itemID: UUID) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.18)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(DashboardGridCoordinateSpace.name)))
+        DragGesture(minimumDistance: 8, coordinateSpace: .named(DashboardGridCoordinateSpace.name))
             .onChanged { value in
-                switch value {
-                case .second(true, let dragValue?):
-                    updateDashboardGridDrag(itemID: itemID, value: dragValue)
-                default:
-                    break
-                }
+                updateDashboardGridDrag(itemID: itemID, value: value)
             }
-            .onEnded { _ in
-                endDashboardGridDrag()
+            .onEnded { value in
+                finishDashboardGridDrag(itemID: itemID, value: value)
             }
     }
 
     private func updateDashboardGridDrag(itemID: UUID, value: DragGesture.Value) {
         if draggingGridItemID != itemID {
             draggingGridItemID = itemID
-            if let frame = gridItemFrames[itemID] {
-                activeDragGrabOffset = CGSize(
-                    width: value.startLocation.x - frame.midX,
-                    height: value.startLocation.y - frame.midY
-                )
-            } else {
-                activeDragGrabOffset = .zero
-            }
             HapticFeedback.selection()
         }
 
-        activeDragLocation = value.location
-
-        guard let dragCenter = dashboardGridDragCenter(for: itemID) else {
-            return
-        }
-
-        let targetItemID = dashboardGridInsertionTargetID(
-            for: dragCenter,
-            movingItemID: itemID
-        )
-
-        guard targetItemID != lastDragInsertionTargetID else {
-            return
-        }
-
-        lastDragInsertionTargetID = targetItemID
-        HapticFeedback.selection()
-
-        withAnimation(.snappy(duration: 0.18)) {
-            dashboardConfiguration.moveVisibleGridItem(
-                id: itemID,
-                before: targetItemID,
-                visibleGridItemIDs: visibleDashboardGridItemIDs
-            )
-        }
+        activeDragTranslation = value.translation
     }
 
     private func dashboardGridDragOffset(for itemID: UUID) -> CGSize {
-        guard draggingGridItemID == itemID,
-              let dragCenter = dashboardGridDragCenter(for: itemID),
-              let frame = gridItemFrames[itemID] else {
-            return .zero
-        }
-
-        return CGSize(
-            width: dragCenter.x - frame.midX,
-            height: dragCenter.y - frame.midY
-        )
+        draggingGridItemID == itemID ? activeDragTranslation : .zero
     }
 
-    private func dashboardGridDragCenter(for itemID: UUID) -> CGPoint? {
-        guard draggingGridItemID == itemID,
-              let activeDragLocation else {
+    private func dashboardGridInsertionTargetID(for movingItemID: UUID, translation: CGSize) -> UUID? {
+        guard let movingFrame = gridItemFrames[movingItemID] else {
             return nil
         }
 
-        return CGPoint(
-            x: activeDragLocation.x - activeDragGrabOffset.width,
-            y: activeDragLocation.y - activeDragGrabOffset.height
+        let dragCenter = CGPoint(
+            x: movingFrame.midX + translation.width,
+            y: movingFrame.midY + translation.height
         )
-    }
-
-    private func dashboardGridInsertionTargetID(
-        for dragCenter: CGPoint,
-        movingItemID: UUID
-    ) -> UUID? {
         let candidates = visibleDashboardGridItemIDs.compactMap { itemID -> (id: UUID, frame: CGRect)? in
             guard itemID != movingItemID,
                   let frame = gridItemFrames[itemID] else {
@@ -747,12 +678,28 @@ struct DashboardView: View {
         return nil
     }
 
+    private func finishDashboardGridDrag(itemID: UUID, value: DragGesture.Value) {
+        let targetItemID = dashboardGridInsertionTargetID(
+            for: itemID,
+            translation: value.translation
+        )
+
+        withAnimation(.snappy(duration: 0.2)) {
+            dashboardConfiguration.moveVisibleGridItem(
+                id: itemID,
+                before: targetItemID,
+                visibleGridItemIDs: visibleDashboardGridItemIDs
+            )
+        }
+
+        HapticFeedback.selection()
+        endDashboardGridDrag()
+    }
+
     private func endDashboardGridDrag() {
         withAnimation(.snappy(duration: 0.18)) {
             draggingGridItemID = nil
-            activeDragLocation = nil
-            activeDragGrabOffset = .zero
-            lastDragInsertionTargetID = nil
+            activeDragTranslation = .zero
         }
     }
 
