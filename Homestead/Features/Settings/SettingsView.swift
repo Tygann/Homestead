@@ -1255,20 +1255,24 @@ private struct NativePermissionsSettingsView: View {
                         Button {
                             Task { await nativePermissionService.requestLocationAccess() }
                         } label: {
-                            Text(nativePermissionService.isRequestingLocationAccess ? "Requesting Location" : "Allow Location")
+                            Label(
+                                nativePermissionService.isRequestingLocationAccess ? "Requesting Location" : "Allow Location",
+                                systemImage: "location.fill"
+                            )
                         }
                         .disabled(nativePermissionService.isRequestingLocationAccess)
-                        .frame(maxWidth: .infinity)
                     }
 
                     if nativePermissionService.status.camera.canRequestInApp {
                         Button {
                             Task { await nativePermissionService.requestCameraAccess() }
                         } label: {
-                            Text(nativePermissionService.isRequestingCameraAccess ? "Requesting Camera" : "Allow Camera")
+                            Label(
+                                nativePermissionService.isRequestingCameraAccess ? "Requesting Camera" : "Allow Camera",
+                                systemImage: "camera.fill"
+                            )
                         }
                         .disabled(nativePermissionService.isRequestingCameraAccess)
-                        .frame(maxWidth: .infinity)
                     }
                 }
             }
@@ -1285,7 +1289,6 @@ private struct NativePermissionsSettingsView: View {
                 } label: {
                     Label("Open Homestead in iOS Settings", systemImage: "gearshape")
                 }
-                .frame(maxWidth: .infinity)
 
                 Button {
                     Task {
@@ -1293,10 +1296,9 @@ private struct NativePermissionsSettingsView: View {
                         await nativePermissionService.refreshStatus()
                     }
                 } label: {
-                    Text(refreshButtonTitle)
+                    Label(refreshButtonTitle, systemImage: "arrow.clockwise")
                 }
                 .disabled(nativeNotificationService.isRefreshing || nativePermissionService.isRefreshing)
-                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("Permissions")
