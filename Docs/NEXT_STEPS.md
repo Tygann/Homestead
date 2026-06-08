@@ -76,6 +76,8 @@ Recommended reasoning level: High.
 - Added domain-aware app-facing timeline mapping for switch on/off, automation enabled/disabled, cover open/closed/opening/closing, person/device-tracker home/away/zone, unknown, and unavailable states.
 - Reused the documented REST history endpoint, authenticated HTTP/service handoff, and shared Recent Activity panel; raw Home Assistant history DTOs stay out of SwiftUI and dashboard timeline cards remain out of scope.
 - Added focused tests for discrete-domain timeline mapping/filtering and service auth handoff.
+- Polished the shared Recent Activity panel for detail surfaces by making range/refresh controls and summary overflow adapt better in narrow contexts, tightening timeline row text behavior, and adding debug-only small light/dark preview coverage for binary sensor, lock, switch, automation, cover, person, and device tracker timelines.
+- Kept the polish in the shared app-facing timeline panel; no dashboard timeline cards, new Home Assistant API surface, or raw history DTO usage was added.
 
 ## Next Chunk
 
@@ -100,6 +102,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePolish` after the Recent Activity UX polish pass.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePolish` after the Recent Activity UX polish pass.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePass` after adding switch, automation, cover, person, and device-tracker Recent Activity timelines.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePass` after adding switch, automation, cover, person, and device-tracker Recent Activity timelines.
 - Generic iOS Simulator build passed after adding lock detail Recent Activity timelines.
