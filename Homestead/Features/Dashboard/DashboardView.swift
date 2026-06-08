@@ -585,9 +585,14 @@ struct DashboardView: View {
     @ViewBuilder
     private func dashboardHeader(_ item: DashboardItemConfiguration) -> some View {
         if isEditingDashboard {
-            editableDashboardGridItem(id: item.id) {
+            editableDashboardGridItem(
+                id: item.id,
+                editAccessibilityLabel: "Edit \(item.resolvedTitle)"
+            ) {
                 DashboardHeaderCardView(title: item.resolvedTitle)
                     .frame(maxWidth: .infinity)
+            } editMenuContent: {
+                headerEditMenuContent(for: item)
             }
         } else {
             DashboardHeaderCardView(title: item.resolvedTitle)
@@ -603,7 +608,10 @@ struct DashboardView: View {
     @ViewBuilder
     private func dashboardCard(_ item: DashboardCardItem) -> some View {
         if isEditingDashboard {
-            editableDashboardGridItem(id: item.id) {
+            editableDashboardGridItem(
+                id: item.id,
+                editAccessibilityLabel: "Edit \(dashboardCardEditTitle(for: item))"
+            ) {
                 DashboardCardView(
                     entityID: item.entityID,
                     size: item.size,
@@ -614,6 +622,8 @@ struct DashboardView: View {
                     isEditing: true
                 )
                 .frame(maxWidth: .infinity)
+            } editMenuContent: {
+                cardEditMenuContent(for: item)
             }
         } else {
             DashboardCardView(
@@ -639,18 +649,24 @@ struct DashboardView: View {
         }
     }
 
-    private func editableDashboardGridItem<Content: View>(
+    private func editableDashboardGridItem<Content: View, MenuContent: View>(
         id itemID: UUID,
-        @ViewBuilder content: () -> Content
+        editAccessibilityLabel: String,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder editMenuContent: @escaping () -> MenuContent
     ) -> some View {
         let isDragging = draggingGridItemID == itemID
         return content()
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             .dashboardGridItemFrame(id: itemID)
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
-            .dashboardDragAffordance(isVisible: !isDragging)
             .opacity(isDragging ? 0 : 1)
             .gesture(dashboardGridDragGesture(for: itemID))
+            .dashboardEditAffordance(
+                isVisible: !isDragging,
+                accessibilityLabel: editAccessibilityLabel,
+                menuContent: editMenuContent
+            )
             .transaction { transaction in
                 transaction.animation = nil
             }
@@ -1026,6 +1042,12 @@ struct DashboardView: View {
         item.displayNameOverride ?? dashboardConfiguration.entityDisplayNameOverride(for: item.entityID)
     }
 
+    private func dashboardCardEditTitle(for item: DashboardCardItem) -> String {
+        currentCardDisplayNameOverride(for: item)
+            ?? stateStore.entity(for: item.entityID)?.displayName
+            ?? "Card"
+    }
+
     private func cardSupportsFeatures(_ item: DashboardCardItem) -> Bool {
         guard let entityBox = stateStore.entityBox(for: item.entityID) else {
             return false
@@ -1141,22 +1163,61 @@ private extension View {
         }
     }
 
-    func dashboardDragAffordance(isVisible: Bool) -> some View {
+    func dashboardEditAffordance<MenuContent: View>(
+        isVisible: Bool,
+        accessibilityLabel: String,
+        @ViewBuilder menuContent: @escaping () -> MenuContent
+    ) -> some View {
         overlay(alignment: .topTrailing) {
+            DashboardGridEditAffordance(
+                isVisible: isVisible,
+                accessibilityLabel: accessibilityLabel,
+                menuContent: menuContent
+            )
+        }
+    }
+}
+
+private struct DashboardGridEditAffordance<MenuContent: View>: View {
+    let isVisible: Bool
+    let accessibilityLabel: String
+    @ViewBuilder var menuContent: () -> MenuContent
+
+    var body: some View {
+        HStack(spacing: AppSpacing.xSmall) {
             Image(systemName: "line.3.horizontal")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 24, height: 24)
-                .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.tertiary)
+                .frame(width: 22, height: 22)
+                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
                 .overlay {
                     Circle()
-                        .strokeBorder(Color(.separator).opacity(0.28), lineWidth: 0.5)
+                        .strokeBorder(Color(.separator).opacity(0.22), lineWidth: 0.5)
                 }
-                .offset(x: 4, y: -4)
-                .opacity(isVisible ? 1 : 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+
+            Menu {
+                menuContent()
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 30, height: 30)
+                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Color(.separator).opacity(0.28), lineWidth: 0.5)
+                    }
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityHint("Shows options")
         }
+        .offset(x: 4, y: -6)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
     }
 }
 

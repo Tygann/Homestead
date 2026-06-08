@@ -48,10 +48,11 @@ Recommended reasoning level: High.
 - Tuned direct drag to use a transient visual preview order so cards and section headers reflow while dragging, with the lifted item drawn as a floating preview over a stable opacity-hidden grid placeholder; persisted order commits only on drop, cards/headers show a quiet non-interactive corner grip badge in edit mode, edit-mode card/header context menus are disabled so long-press only starts movement, and the visible three-dot edit overlay was removed.
 - Added a visible-grid move helper that persists flat dashboard order without storing grid coordinates, preserves chip slots, and avoids moving hidden/unavailable configured items.
 - Add-card now reports the new card ID back to the dashboard so appended cards can scroll into view and briefly highlight after being added.
+- Added a deliberate edit-mode affordance for dashboard cards and section headers: a tapped ellipsis menu reuses the existing customization actions while the card/header body remains the direct drag target, avoiding long-press/context-menu conflicts.
 
 ## Next Chunk
 
-- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of floating drag preview and corner grip badge feel, chip-row editing ergonomics, section/header affordances, or larger dashboard management affordances.
+- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of floating drag preview and edit affordance feel, chip-row editing ergonomics, or larger dashboard management affordances.
 - As dashboard/add/edit views are touched, review nearby copy and controls for development-facing labels, explanations, or layout mechanics, and prefer user-facing choices, previews, and direct manipulation where the behavior is already visually clear.
 - Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
 
@@ -68,5 +69,5 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
-- Generic iOS Simulator build passed after disabling edit-mode card/header context menus so long-press only starts direct grid dragging.
-- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after disabling edit-mode card/header context menus so long-press only starts direct grid dragging.
+- Generic iOS Simulator build passed after adding the tapped edit-mode card/header affordance.
+- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after adding the tapped edit-mode card/header affordance.
