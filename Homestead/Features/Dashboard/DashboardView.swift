@@ -102,7 +102,7 @@ struct DashboardView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var isEditingDashboard = false
     @State private var addSheetMode: DashboardAddItemMode?
-    @State private var isShowingReorderSheet = false
+    @State private var isShowingChipReorderSheet = false
     @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
@@ -110,141 +110,159 @@ struct DashboardView: View {
     @State private var displayTitleDraft = ""
     @State private var showsInitialSyncPlaceholder = false
     @State private var cameraRefreshGeneration = 0
+    @State private var highlightedDashboardItemID: UUID?
+    @State private var pendingScrollDashboardItemID: UUID?
+    @State private var gridItemFrames: [UUID: CGRect] = [:]
+    @State private var draggingGridItemID: UUID?
+    @State private var activeDragLocation: CGPoint?
+    @State private var activeDragGrabOffset = CGSize.zero
+    @State private var lastDragInsertionTargetID: UUID?
     @Namespace private var cardTransitionNamespace
     @Namespace private var summaryTransitionNamespace
     
     var body: some View {
         let visibleItemsSnapshot = visibleDashboardItems
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                if !hasHomeAssistantSession {
-                    DashboardSetupCard()
-                }
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                    if !hasHomeAssistantSession {
+                        DashboardSetupCard()
+                    }
 
-                if !hasHomeAssistantSession {
-                    EmptyView()
-                } else if !stateStore.hasLoadedInitialSnapshot {
-                    if showsInitialSyncPlaceholder {
-                        DashboardInitialSyncView(
-                            connectionStatus: homeAssistantService.connectionStatus,
-                            errorMessage: homeAssistantService.lastErrorMessage,
-                            reconnect: {
-                                Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
+                    if !hasHomeAssistantSession {
+                        EmptyView()
+                    } else if !stateStore.hasLoadedInitialSnapshot {
+                        if showsInitialSyncPlaceholder {
+                            DashboardInitialSyncView(
+                                connectionStatus: homeAssistantService.connectionStatus,
+                                errorMessage: homeAssistantService.lastErrorMessage,
+                                reconnect: {
+                                    Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
+                                }
+                            )
+                        }
+                    } else if !stateStore.hasEntities {
+                        EmptyDashboardCard()
+                    } else if visibleDashboardItems.isEmpty {
+                        EmptyConfiguredDashboardCard(
+                            isEditing: isEditingDashboard,
+                            addCards: {
+                                addSheetMode = .cards
+                            },
+                            addHeader: {
+                                addHeaderAndRename()
+                            },
+                            reset: {
+                                dashboardConfiguration.reset(using: stateStore.allEntities)
                             }
                         )
+                    } else {
+                        configuredDashboardSection(visibleItems: visibleItemsSnapshot)
                     }
-                } else if !stateStore.hasEntities {
-                    EmptyDashboardCard()
-                } else if visibleDashboardItems.isEmpty {
-                    EmptyConfiguredDashboardCard(
-                        isEditing: isEditingDashboard,
-                        addCards: {
-                            addSheetMode = .cards
-                        },
-                        addHeader: {
-                            addHeaderAndRename()
-                        },
-                        reset: {
-                            dashboardConfiguration.reset(using: stateStore.allEntities)
+                }
+                .padding(.horizontal, AppSpacing.large)
+                .padding(.vertical, AppSpacing.xLarge)
+            }
+            .refreshable {
+                await homeAssistantService.refreshStates()
+                cameraRefreshGeneration += 1
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Homestead")
+            //        .navigationSubtitle(connectionSettings.baseURL)
+            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbar {
+                if isEditingDashboard {
+                    if configuredChipCount > 1 {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                isShowingChipReorderSheet = true
+                            } label: {
+                                Image(systemName: "capsule")
+                                    .bold()
+                            }
+                            .accessibilityLabel("Reorder Chips")
                         }
-                    )
+                    }
+
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done", role: .confirm) {
+                            isEditingDashboard = false
+                        }
+                    }
                 } else {
-                    configuredDashboardSection(visibleItems: visibleItemsSnapshot)
-                }
-            }
-            .padding(.horizontal, AppSpacing.large)
-            .padding(.vertical, AppSpacing.xLarge)
-        }
-        .refreshable {
-            await homeAssistantService.refreshStates()
-            cameraRefreshGeneration += 1
-        }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Homestead")
-        //        .navigationSubtitle(connectionSettings.baseURL)
-        .toolbarTitleDisplayMode(.inlineLarge)
-        .toolbar {
-            if isEditingDashboard {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isShowingReorderSheet = true
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .bold()
-                    }
-                    .disabled(dashboardConfiguration.items.count < 2)
-                    .accessibilityLabel("Reorder Dashboard")
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done", role: .confirm) {
-                        isEditingDashboard = false
+                    ToolbarItem(placement: .topBarTrailing) {
+                        optionsMenu
                     }
                 }
-            } else {
+
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
                 ToolbarItem(placement: .topBarTrailing) {
-                    optionsMenu
+                    SettingsAccountButton()
                 }
             }
-
-            ToolbarSpacer(.fixed, placement: .topBarTrailing)
-
-            ToolbarItem(placement: .topBarTrailing) {
-                SettingsAccountButton()
+            .sheet(item: $addSheetMode) { mode in
+                DashboardAddItemView(initialMode: mode, onAddItem: dashboardItemWasAdded)
             }
-        }
-        .sheet(item: $addSheetMode) { mode in
-            DashboardAddItemView(initialMode: mode)
-        }
-        .sheet(isPresented: $isShowingReorderSheet) {
-            DashboardReorderView()
-        }
-        .navigationDestination(item: $selectedEntityDetailRoute) { route in
-            if let entityBox = stateStore.entityBox(for: route.entityID) {
-                EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
-                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
-            } else {
-                ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
-                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
+            .sheet(isPresented: $isShowingChipReorderSheet) {
+                DashboardReorderView()
             }
-        }
-        .alert("Rename Header", isPresented: isRenamingHeader) {
-            TextField("Header Title", text: $headerTitleDraft)
+            .navigationDestination(item: $selectedEntityDetailRoute) { route in
+                if let entityBox = stateStore.entityBox(for: route.entityID) {
+                    EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
+                        .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
+                } else {
+                    ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
+                        .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
+                }
+            }
+            .alert("Rename Header", isPresented: isRenamingHeader) {
+                TextField("Header Title", text: $headerTitleDraft)
 
-            Button("Cancel", role: .cancel) {
-                renamingHeaderID = nil
-                headerTitleDraft = ""
-            }
+                Button("Cancel", role: .cancel) {
+                    renamingHeaderID = nil
+                    headerTitleDraft = ""
+                }
 
-            Button("Save", role: .confirm) {
-                saveHeaderRename()
+                Button("Save", role: .confirm) {
+                    saveHeaderRename()
+                }
             }
-        }
-        .alert("Dashboard Name", isPresented: isRenamingDisplayItem) {
-            TextField("Display Name", text: $displayTitleDraft)
+            .alert("Dashboard Name", isPresented: isRenamingDisplayItem) {
+                TextField("Display Name", text: $displayTitleDraft)
 
-            Button("Cancel", role: .cancel) {
-                renamingDisplayItemID = nil
-                displayTitleDraft = ""
-            }
+                Button("Cancel", role: .cancel) {
+                    renamingDisplayItemID = nil
+                    displayTitleDraft = ""
+                }
 
-            Button("Reset Name", role: .destructive) {
-                resetEntityRename()
-            }
+                Button("Reset Name", role: .destructive) {
+                    resetEntityRename()
+                }
 
-            Button("Save", role: .confirm) {
-                saveEntityRename()
+                Button("Save", role: .confirm) {
+                    saveEntityRename()
+                }
             }
-        }
-        .onAppear {
-            reconcileDashboardConfigurationIfReady()
-        }
-        .task(id: initialSyncPlaceholderKey) {
-            await updateInitialSyncPlaceholderVisibility()
-        }
-        .onChange(of: stateStore.entityCatalogSignature) { _, _ in
-            reconcileDashboardConfigurationIfReady()
+            .onAppear {
+                reconcileDashboardConfigurationIfReady()
+            }
+            .task(id: initialSyncPlaceholderKey) {
+                await updateInitialSyncPlaceholderVisibility()
+            }
+            .onChange(of: stateStore.entityCatalogSignature) { _, _ in
+                reconcileDashboardConfigurationIfReady()
+            }
+            .onChange(of: isEditingDashboard) { _, isEditing in
+                if !isEditing {
+                    endDashboardGridDrag()
+                }
+            }
+            .onChange(of: pendingScrollDashboardItemID) { _, itemID in
+                scrollToDashboardItem(itemID, scrollProxy: scrollProxy)
+            }
         }
     }
 
@@ -306,6 +324,16 @@ struct DashboardView: View {
                 return item
             }
     }
+
+    private var visibleDashboardGridItemIDs: [UUID] {
+        visibleDashboardItems.compactMap { item in
+            item.type == .chip ? nil : item.id
+        }
+    }
+
+    private var configuredChipCount: Int {
+        dashboardConfiguration.items.filter { $0.type == .chip }.count
+    }
     
     private func reconcileDashboardConfigurationIfReady() {
         guard stateStore.hasEntities else {
@@ -342,8 +370,46 @@ struct DashboardView: View {
     private func addHeaderAndRename() {
         let title = "New Section"
         let itemID = dashboardConfiguration.addHeader(title: title)
+        dashboardItemWasAdded(itemID)
         headerTitleDraft = title
         renamingHeaderID = itemID
+    }
+
+    private func dashboardItemWasAdded(_ itemID: UUID) {
+        highlightedDashboardItemID = itemID
+        pendingScrollDashboardItemID = itemID
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1_600))
+            if highlightedDashboardItemID == itemID {
+                highlightedDashboardItemID = nil
+            }
+        }
+    }
+
+    private func scrollToDashboardItem(_ itemID: UUID?, scrollProxy: ScrollViewProxy) {
+        guard let itemID else {
+            return
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(160))
+            withAnimation(.snappy(duration: 0.32)) {
+                scrollProxy.scrollTo(dashboardScrollID(for: itemID), anchor: .center)
+            }
+            pendingScrollDashboardItemID = nil
+        }
+    }
+
+    private func dashboardScrollID(for itemID: UUID) -> String {
+        switch dashboardConfiguration.itemType(for: itemID) {
+        case .header:
+            "header-\(itemID)"
+        case .entity:
+            "card-\(itemID)"
+        case .chip, nil:
+            "chip-\(itemID)"
+        }
     }
 
     private func beginRenamingHeader(_ item: DashboardItemConfiguration) {
@@ -449,6 +515,11 @@ struct DashboardView: View {
                             }
                         }
                     }
+                    .coordinateSpace(name: DashboardGridCoordinateSpace.name)
+                    .onPreferenceChange(DashboardGridItemFramePreferenceKey.self) { frames in
+                        gridItemFrames = frames
+                    }
+                    .animation(.snappy(duration: 0.18), value: visibleDashboardGridItemIDs)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -472,18 +543,17 @@ struct DashboardView: View {
     @ViewBuilder
     private func dashboardHeader(_ item: DashboardItemConfiguration) -> some View {
         if isEditingDashboard {
-            Menu {
-                headerEditMenuContent(for: item)
-            } label: {
+            editableDashboardGridItem(id: item.id) {
                 DashboardHeaderCardView(title: item.resolvedTitle)
                     .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
+            } menuContent: {
+                headerEditMenuContent(for: item)
             }
-            .buttonStyle(.plain)
         } else {
             DashboardHeaderCardView(title: item.resolvedTitle)
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
+                .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == item.id)
                 .contextMenu {
                     headerEditMenuContent(for: item)
                 }
@@ -493,9 +563,7 @@ struct DashboardView: View {
     @ViewBuilder
     private func dashboardCard(_ item: DashboardCardItem) -> some View {
         if isEditingDashboard {
-            Menu {
-                cardEditMenuContent(for: item)
-            } label: {
+            editableDashboardGridItem(id: item.id) {
                 DashboardCardView(
                     entityID: item.entityID,
                     size: item.size,
@@ -506,9 +574,9 @@ struct DashboardView: View {
                     isEditing: true
                 )
                 .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
+            } menuContent: {
+                cardEditMenuContent(for: item)
             }
-            .buttonStyle(.plain)
         } else {
             DashboardCardView(
                 entityID: item.entityID,
@@ -525,10 +593,166 @@ struct DashboardView: View {
                 }
             )
             .frame(maxWidth: .infinity)
+            .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == item.id)
             .matchedTransitionSource(id: cardTransitionID(for: item), in: cardTransitionNamespace)
             .contextMenu {
                 cardEditMenuContent(for: item)
             }
+        }
+    }
+
+    private func editableDashboardGridItem<Content: View, MenuContent: View>(
+        id itemID: UUID,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder menuContent: () -> MenuContent
+    ) -> some View {
+        let isDragging = draggingGridItemID == itemID
+
+        return content()
+            .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+            .dashboardGridItemFrame(id: itemID)
+            .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
+            .overlay(alignment: .topTrailing) {
+                Menu {
+                    menuContent()
+                } label: {
+                    Image(systemName: "ellipsis.circle.fill")
+                        .font(.title3.weight(.semibold))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(Color.accentColor, Color(.secondarySystemGroupedBackground))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(AppSpacing.xSmall)
+                .accessibilityLabel("Edit item")
+            }
+            .offset(dashboardGridDragOffset(for: itemID))
+            .scaleEffect(isDragging ? 1.035 : 1)
+            .opacity(draggingGridItemID == nil || isDragging ? 1 : 0.72)
+            .zIndex(isDragging ? 10 : 0)
+            .gesture(dashboardGridDragGesture(for: itemID))
+            .animation(.snappy(duration: 0.18), value: isDragging)
+    }
+
+    private func dashboardGridDragGesture(for itemID: UUID) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.18)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(DashboardGridCoordinateSpace.name)))
+            .onChanged { value in
+                switch value {
+                case .second(true, let dragValue?):
+                    updateDashboardGridDrag(itemID: itemID, value: dragValue)
+                default:
+                    break
+                }
+            }
+            .onEnded { _ in
+                endDashboardGridDrag()
+            }
+    }
+
+    private func updateDashboardGridDrag(itemID: UUID, value: DragGesture.Value) {
+        if draggingGridItemID != itemID {
+            draggingGridItemID = itemID
+            if let frame = gridItemFrames[itemID] {
+                activeDragGrabOffset = CGSize(
+                    width: value.startLocation.x - frame.midX,
+                    height: value.startLocation.y - frame.midY
+                )
+            } else {
+                activeDragGrabOffset = .zero
+            }
+            HapticFeedback.selection()
+        }
+
+        activeDragLocation = value.location
+
+        guard let dragCenter = dashboardGridDragCenter(for: itemID) else {
+            return
+        }
+
+        let targetItemID = dashboardGridInsertionTargetID(
+            for: dragCenter,
+            movingItemID: itemID
+        )
+
+        guard targetItemID != lastDragInsertionTargetID else {
+            return
+        }
+
+        lastDragInsertionTargetID = targetItemID
+        HapticFeedback.selection()
+
+        withAnimation(.snappy(duration: 0.18)) {
+            dashboardConfiguration.moveVisibleGridItem(
+                id: itemID,
+                before: targetItemID,
+                visibleGridItemIDs: visibleDashboardGridItemIDs
+            )
+        }
+    }
+
+    private func dashboardGridDragOffset(for itemID: UUID) -> CGSize {
+        guard draggingGridItemID == itemID,
+              let dragCenter = dashboardGridDragCenter(for: itemID),
+              let frame = gridItemFrames[itemID] else {
+            return .zero
+        }
+
+        return CGSize(
+            width: dragCenter.x - frame.midX,
+            height: dragCenter.y - frame.midY
+        )
+    }
+
+    private func dashboardGridDragCenter(for itemID: UUID) -> CGPoint? {
+        guard draggingGridItemID == itemID,
+              let activeDragLocation else {
+            return nil
+        }
+
+        return CGPoint(
+            x: activeDragLocation.x - activeDragGrabOffset.width,
+            y: activeDragLocation.y - activeDragGrabOffset.height
+        )
+    }
+
+    private func dashboardGridInsertionTargetID(
+        for dragCenter: CGPoint,
+        movingItemID: UUID
+    ) -> UUID? {
+        let candidates = visibleDashboardGridItemIDs.compactMap { itemID -> (id: UUID, frame: CGRect)? in
+            guard itemID != movingItemID,
+                  let frame = gridItemFrames[itemID] else {
+                return nil
+            }
+
+            return (itemID, frame)
+        }
+        .sorted { lhs, rhs in
+            if abs(lhs.frame.minY - rhs.frame.minY) > 1 {
+                return lhs.frame.minY < rhs.frame.minY
+            }
+
+            return lhs.frame.minX < rhs.frame.minX
+        }
+
+        for candidate in candidates {
+            if dragCenter.y < candidate.frame.midY ||
+                (dragCenter.y < candidate.frame.maxY && dragCenter.x < candidate.frame.midX) {
+                return candidate.id
+            }
+        }
+
+        return nil
+    }
+
+    private func endDashboardGridDrag() {
+        withAnimation(.snappy(duration: 0.18)) {
+            draggingGridItemID = nil
+            activeDragLocation = nil
+            activeDragGrabOffset = .zero
+            lastDragInsertionTargetID = nil
         }
     }
 
@@ -802,6 +1026,42 @@ struct DashboardView: View {
         } label: {
             Image(systemName: "ellipsis")
                 .bold()
+        }
+    }
+}
+
+private enum DashboardGridCoordinateSpace {
+    static let name = "dashboard-grid"
+}
+
+private struct DashboardGridItemFramePreferenceKey: PreferenceKey {
+    static let defaultValue: [UUID: CGRect] = [:]
+
+    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, newValue in newValue })
+    }
+}
+
+private extension View {
+    func dashboardGridItemFrame(id: UUID) -> some View {
+        background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: DashboardGridItemFramePreferenceKey.self,
+                    value: [id: proxy.frame(in: .named(DashboardGridCoordinateSpace.name))]
+                )
+            }
+        }
+    }
+
+    func dashboardHighlightBorder(isHighlighted: Bool) -> some View {
+        overlay {
+            if isHighlighted {
+                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.72), lineWidth: 3)
+                    .padding(1)
+                    .allowsHitTesting(false)
+            }
         }
     }
 }

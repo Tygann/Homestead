@@ -404,6 +404,50 @@ final class DashboardConfiguration {
         items = updatedItems
     }
 
+    func moveVisibleGridItem(
+        id movingItemID: UUID,
+        before targetItemID: UUID?,
+        visibleGridItemIDs: [UUID]
+    ) {
+        let orderedVisibleItemIDs = visibleGridItemIDs.reduce(into: [UUID]()) { partialResult, itemID in
+            if !partialResult.contains(itemID) {
+                partialResult.append(itemID)
+            }
+        }
+        guard orderedVisibleItemIDs.contains(movingItemID),
+              targetItemID != movingItemID,
+              targetItemID.map(orderedVisibleItemIDs.contains) ?? true else {
+            return
+        }
+
+        var reorderedVisibleItemIDs = orderedVisibleItemIDs.filter { $0 != movingItemID }
+        let insertionIndex = targetItemID
+            .flatMap { reorderedVisibleItemIDs.firstIndex(of: $0) }
+            ?? reorderedVisibleItemIDs.count
+        reorderedVisibleItemIDs.insert(movingItemID, at: insertionIndex)
+
+        guard reorderedVisibleItemIDs != orderedVisibleItemIDs else {
+            return
+        }
+
+        let visibleItemIDSet = Set(orderedVisibleItemIDs)
+        let originalItemsByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+        var reorderedItemIndex = reorderedVisibleItemIDs.startIndex
+        var updatedItems = items
+
+        for itemIndex in updatedItems.indices where visibleItemIDSet.contains(updatedItems[itemIndex].id) {
+            let reorderedItemID = reorderedVisibleItemIDs[reorderedItemIndex]
+            guard let reorderedItem = originalItemsByID[reorderedItemID] else {
+                return
+            }
+
+            updatedItems[itemIndex] = reorderedItem
+            reorderedItemIndex = reorderedVisibleItemIDs.index(after: reorderedItemIndex)
+        }
+
+        items = updatedItems
+    }
+
     func reset(using entities: [HomeEntity]) {
         items = Self.defaultEntityIDs(from: entities).map {
             DashboardItemConfiguration.entity(entityID: $0)

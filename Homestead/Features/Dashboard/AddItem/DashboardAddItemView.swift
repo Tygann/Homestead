@@ -60,9 +60,14 @@ struct DashboardAddItemView: View {
     @State private var summaryCandidates: [DashboardAddSummaryCandidate] = []
     @State private var chipEntityGroups: [DashboardAddEntityCandidateGroup] = []
     @State private var searchText = ""
+    private let onAddItem: (UUID) -> Void
 
-    init(initialMode: DashboardAddItemMode) {
+    init(
+        initialMode: DashboardAddItemMode,
+        onAddItem: @escaping (UUID) -> Void = { _ in }
+    ) {
         _mode = State(initialValue: initialMode)
+        self.onAddItem = onAddItem
     }
 
     var body: some View {
@@ -282,6 +287,7 @@ struct DashboardAddItemView: View {
     ) {
         let itemID = dashboardConfiguration.add(candidate.entityID, size: size)
         dashboardConfiguration.setFeatureVisibility(featureVisibility, forItemID: itemID)
+        onAddItem(itemID)
     }
 
     @ViewBuilder

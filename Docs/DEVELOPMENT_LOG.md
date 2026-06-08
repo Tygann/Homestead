@@ -12,6 +12,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added durable UI guidance to prefer user-facing product surfaces and visual previews over development-style explanatory copy.
 - Kept generated card sizing intact so camera previews and numeric sensor chart cards still default to Square, and added focused regression tests for grouping, filtering, search, availability, suggested sizes, and size-choice summaries.
 
+### Dashboard Direct Editing
+
+- Added edit-mode drag reordering for dashboard cards and section headers directly in the `CardGrid`, keeping chips in the existing chip reorder sheet for now.
+- Preserved the flat Homestead-owned dashboard item order instead of storing grid coordinates; the existing grid layout still computes placement from order and card spans.
+- Added visible-grid reorder coverage so chip slots stay fixed and hidden/unavailable configured items are not moved by visible-card drag operations.
+
 ### Connection Routing
 
 - Added automatic internal/external Home Assistant URL selection in `HomeAssistantService` using saved Settings > Account > Server route metadata and iOS network state.

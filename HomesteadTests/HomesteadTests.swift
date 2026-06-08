@@ -4296,6 +4296,63 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func dashboardConfigurationMovesVisibleGridItemsAndPreservesChipSlots() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        configuration.addSummaryChip(kind: .lights)
+        let headerID = configuration.addHeader(title: "Downstairs")
+        let lightID = configuration.add("light.kitchen")
+        configuration.addSummaryChip(kind: .security)
+        let sensorID = configuration.add("sensor.hallway_temperature")
+
+        configuration.moveVisibleGridItem(
+            id: sensorID,
+            before: headerID,
+            visibleGridItemIDs: [headerID, lightID, sensorID]
+        )
+
+        #expect(configuration.items.map(\.type) == [.chip, .entity, .header, .chip, .entity])
+        #expect(configuration.items[0].summaryKind == .lights)
+        #expect(configuration.items[1].entityID == "sensor.hallway_temperature")
+        #expect(configuration.items[2].resolvedTitle == "Downstairs")
+        #expect(configuration.items[3].summaryKind == .security)
+        #expect(configuration.items[4].entityID == "light.kitchen")
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.items.map(\.type) == [.chip, .entity, .header, .chip, .entity])
+        #expect(restoredConfiguration.items[1].entityID == "sensor.hallway_temperature")
+        #expect(restoredConfiguration.items[3].summaryKind == .security)
+    }
+
+    @MainActor
+    @Test func dashboardConfigurationMovesVisibleGridItemsWithoutMovingHiddenConfiguredItems() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let headerID = configuration.addHeader(title: "Downstairs")
+        let lightID = configuration.add("light.kitchen")
+        configuration.add("sensor.hidden_temperature")
+        let sensorID = configuration.add("sensor.hallway_temperature")
+
+        configuration.moveVisibleGridItem(
+            id: sensorID,
+            before: lightID,
+            visibleGridItemIDs: [headerID, lightID, sensorID]
+        )
+
+        #expect(configuration.items.map(\.type) == [.header, .entity, .entity, .entity])
+        #expect(configuration.items[0].resolvedTitle == "Downstairs")
+        #expect(configuration.items[1].entityID == "sensor.hallway_temperature")
+        #expect(configuration.items[2].entityID == "sensor.hidden_temperature")
+        #expect(configuration.items[3].entityID == "light.kitchen")
+    }
+
+    @MainActor
     @Test func dashboardLayoutBuilderPreservesHeadersEntityOverridesAndSizes() throws {
         let headerID = UUID()
         let lightID = UUID()

@@ -44,10 +44,13 @@ Recommended reasoning level: High.
 - Replaced the Cards tab in Add to Dashboard with card-type filter chips, collapsible candidate groups, clean entity rows, plus-button quick add, and row-tap card-size previews with feature visibility selection.
 - Preserved the existing generated-size behavior for camera and numeric sensor chart cards while moving size/feature choice into a visual preview picker instead of cramped rows.
 - Added focused tests for add-card grouping, type filters, search, availability handling, configured-card exclusion, generated card size hints, and size-choice summaries.
+- Replaced the card/header reorder sheet path with direct edit-mode drag reordering in the dashboard grid while keeping chips in their existing chip reorder sheet.
+- Added a visible-grid move helper that persists flat dashboard order without storing grid coordinates, preserves chip slots, and avoids moving hidden/unavailable configured items.
+- Add-card now reports the new card ID back to the dashboard so appended cards can scroll into view and briefly highlight after being added.
 
 ## Next Chunk
 
-- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on where newly added cards land, section/header ergonomics, or larger dashboard management affordances.
+- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on drag interaction tuning, chip-row editing ergonomics, section/header affordances, or larger dashboard management affordances.
 - As dashboard/add/edit views are touched, review nearby copy and controls for development-facing labels, explanations, or layout mechanics, and prefer user-facing choices, previews, and direct manipulation where the behavior is already visually clear.
 - Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
 
@@ -64,5 +67,5 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
-- Generic iOS Simulator build passed after the dashboard add-card organization pass.
-- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after the dashboard add-card organization pass.
+- Generic iOS Simulator build passed after direct dashboard grid editing.
+- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after direct dashboard grid editing.
