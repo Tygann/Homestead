@@ -1438,7 +1438,7 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
         )
         recognizer.minimumPressDuration = minimumDuration
         recognizer.allowableMovement = maximumMovement
-        recognizer.cancelsTouchesInView = false
+        recognizer.cancelsTouchesInView = true
         recognizer.delaysTouchesBegan = false
         recognizer.delaysTouchesEnded = false
         recognizer.delegate = context.coordinator
@@ -1501,7 +1501,7 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
             _ gestureRecognizer: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
         ) -> Bool {
-            true
+            false
         }
 
         private func translation(from location: CGPoint) -> CGSize {

@@ -55,7 +55,7 @@ Recommended reasoning level: High.
 - Removed the legacy chip reorder sheet path now that chips reorder directly in edit mode.
 - Added focused persistence coverage for visible chip dragging so chip order changes preserve card/header slots.
 - Tuned edit-mode dragging to require a brief press-and-hold lift before cards, section headers, or chips start moving, preserving normal dashboard scrolling while in edit mode.
-- Replaced the SwiftUI sequenced edit-mode drag gestures with a non-cancelling UIKit long-press recognizer surface after device testing showed the SwiftUI recognizer could still prevent ScrollView scrolling from card/chip touches.
+- Replaced the SwiftUI sequenced edit-mode drag gestures with a UIKit long-press recognizer surface after device testing showed the SwiftUI recognizer could still prevent ScrollView scrolling from card/chip touches; it does not delay touches before recognition, but owns the touch stream once the hold succeeds so lifted cards/chips can move.
 - Lowered the chip ellipsis affordance slightly so it remains visible within the clipped horizontal chip row.
 
 ## Next Chunk
@@ -80,4 +80,4 @@ Recommended reasoning level: High.
 - Generic iOS Simulator build passed after adding opaque active-card drag previews and direct horizontal chip dragging.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` for visible chip/grid reorder persistence.
 - Generic iOS Simulator build passed after adding press-and-hold dashboard dragging and adjusting chip ellipsis placement.
-- Generic iOS Simulator build passed after replacing edit-mode SwiftUI sequenced drag gestures with the non-cancelling UIKit long-press drag surface.
+- Generic iOS Simulator build passed after replacing edit-mode SwiftUI sequenced drag gestures with the UIKit long-press drag surface and tuning it to own touches after lift.
