@@ -690,7 +690,7 @@ struct DashboardView: View {
             .dashboardGridItemFrame(id: itemID)
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
             .opacity(isDragging ? 0 : 1)
-            .gesture(dashboardGridDragGesture(for: itemID))
+            .simultaneousGesture(dashboardGridDragGesture(for: itemID))
             .dashboardEditAffordance(
                 isVisible: !isDragging,
                 accessibilityLabel: editAccessibilityLabel,
@@ -1069,7 +1069,7 @@ struct DashboardView: View {
             .contentShape(Capsule())
             .dashboardChipItemFrame(id: item.id)
             .opacity(isDragging ? 0 : 1)
-            .gesture(dashboardChipDragGesture(for: item.id))
+            .simultaneousGesture(dashboardChipDragGesture(for: item.id))
             .dashboardChipEditAffordance(
                 isVisible: !isDragging,
                 accessibilityLabel: "Edit \(presentation.title)"

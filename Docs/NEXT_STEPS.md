@@ -55,6 +55,7 @@ Recommended reasoning level: High.
 - Removed the legacy chip reorder sheet path now that chips reorder directly in edit mode.
 - Added focused persistence coverage for visible chip dragging so chip order changes preserve card/header slots.
 - Tuned edit-mode dragging to require a brief press-and-hold lift before cards, section headers, or chips start moving, preserving normal dashboard scrolling while in edit mode.
+- Attached edit-mode drag recognizers simultaneously so touching a card/chip while beginning a scroll does not block the ScrollView pan gesture.
 - Lowered the chip ellipsis affordance slightly so it remains visible within the clipped horizontal chip row.
 
 ## Next Chunk
@@ -79,3 +80,4 @@ Recommended reasoning level: High.
 - Generic iOS Simulator build passed after adding opaque active-card drag previews and direct horizontal chip dragging.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` for visible chip/grid reorder persistence.
 - Generic iOS Simulator build passed after adding press-and-hold dashboard dragging and adjusting chip ellipsis placement.
+- Generic iOS Simulator build passed after moving edit-mode card/chip drag recognizers to simultaneous gestures for scroll compatibility.
