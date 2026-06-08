@@ -42,8 +42,8 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Near-Term Priorities
 
-- Expand richer entity history into glanceable timelines beyond numeric sensor detail/dashboard charts where performance, UX, and official API shape are clear.
 - Expand widget support beyond lights to common safe actions such as switches, locks, covers, scenes, scripts, and key sensor/person status.
+- Maintain existing entity history/timeline surfaces and polish them only when concrete visual issues or clearly useful state-only domains appear.
 - Continue dashboard organization, filtering, and add-card polish only when user testing or new card types expose concrete friction.
 
 ## Later Candidates

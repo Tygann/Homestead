@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Expand entity history into native, glanceable timelines beyond numeric sensor charts.
+Expand WidgetKit/App Intents support beyond the current Home Screen light widget.
 
 Recommended reasoning level: High.
 
@@ -83,15 +83,16 @@ Recommended reasoning level: High.
 - Reconnecting bottom chrome is now tappable for an immediate retry via the existing `refreshOrReconnect(settings:)` path.
 - Added a native Settings > Permissions page covering Notifications, Local Network, Location, and Camera through app-owned permission models and public iOS APIs; Local Network is shown as iOS-managed because iOS does not expose a direct read-only permission status API.
 - Added required Camera, Location When In Use, and Local Network usage descriptions to the app plist.
+- Moved entity history/timelines out of the active workstream after multiple completed timeline passes; revisit only for concrete visual bugs, detail-surface polish, or a clearly useful state-only domain.
 
 ## Next Chunk
 
-- Continue entity history only where state-only history tells a useful native story, or do a focused timeline UX polish pass after inspecting the current detail surfaces in light/dark and small-screen contexts.
-- Prefer detail surfaces first, not dashboard timeline cards, so the UX can keep proving itself without adding more dashboard complexity.
-- If adding another timeline domain, keep using Home Assistant's documented REST history API and the existing authenticated HTTP/service handoff.
-- Keep raw Home Assistant history DTOs out of SwiftUI. Map history responses into app-facing timeline presentation models outside `HAStateStore`.
-- Do not add private frontend endpoints. If a target domain needs data beyond documented history/state/service APIs, mark it as API research instead of implementing.
-- Dashboard organization is no longer the active workstream; revisit it only for concrete bugs or new-card friction discovered during feature work.
+- Inspect the existing `HomesteadWidgets` implementation, shared OAuth/app-group state, and Widget/App Intents boundaries before adding new widget families.
+- Start with one small, safe widget expansion slice using official Home Assistant WebSocket/OAuth/service-call paths already used by the app and light widget.
+- Recommended first scope: switch controls plus read-only sensor/person status, or scene/script action widgets if the existing App Intent path makes that smaller.
+- Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
+- Keep service calls official through WebSocket `call_service`; do not add REST, webhook, or private frontend endpoints for widget actions.
+- Leave timeline work parked unless a concrete bug or visual polish issue appears during normal feature work.
 
 ## Acceptance Notes
 

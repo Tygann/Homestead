@@ -11,6 +11,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added the required iOS usage descriptions for Camera, Location When In Use, and Local Network.
 - Improved service-call and reconnect recovery feedback in `HomeAssistantService` and app chrome so reconnecting can be retried immediately and action failures can explain automatic reconnect recovery without scattering error UI through individual views.
 
+### Roadmap Handoff Reset
+
+- Moved entity history/timelines out of the active workstream after multiple completed passes.
+- Set expanded WidgetKit/App Intents support beyond the current light widget as the next recommended active focus.
+
 ## 2026-06-07
 
 ### Dashboard Add Flow Organization
