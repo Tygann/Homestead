@@ -1023,6 +1023,69 @@ struct HomesteadTests {
         #expect(entries.map(\.tone) == [.active, .unavailable, .unavailable])
     }
 
+    @Test func historyTimelineMapsLockStatesIntoActivityEntries() throws {
+        let startDate = try testDate("2026-06-05T15:00:00Z")
+        let lockedDate = try testDate("2026-06-05T15:10:00Z")
+        let unlockingDate = try testDate("2026-06-05T15:20:00Z")
+        let unlockedDate = try testDate("2026-06-05T15:30:00Z")
+        let jammedDate = try testDate("2026-06-05T15:40:00Z")
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let request = HAHistoryRequest(
+            startDate: startDate,
+            endDate: endDate,
+            entityID: "lock.front_door"
+        )
+
+        let timeline = HAHistoryTimeline.makeLockTimeline(
+            response: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(entityID: "lock.front_door", state: "locked", lastChanged: lockedDate),
+                    HAHistoryStateDTO(entityID: "lock.front_door", state: "unlocking", lastChanged: unlockingDate),
+                    HAHistoryStateDTO(state: "unlocked", lastChanged: unlockedDate),
+                    HAHistoryStateDTO(entityID: "lock.front_door", state: "jammed", lastChanged: jammedDate)
+                ]
+            ]),
+            request: request,
+            displayName: "Front Door",
+            range: .oneHour
+        )
+
+        #expect(timeline.displayName == "Front Door")
+        #expect(timeline.entries.map(\.title) == ["Locked", "Unlocking", "Unlocked", "Jammed"])
+        #expect(timeline.entries.map(\.systemImage) == ["lock.fill", "lock.open.fill", "lock.open.fill", "exclamationmark.triangle.fill"])
+        #expect(timeline.entries.map(\.tone) == [.inactive, .active, .active, .unavailable])
+        #expect(timeline.summaryText == "4 changes • Now Jammed")
+    }
+
+    @Test func historyTimelineFiltersLockRangeEntityUnsupportedStatesAndDuplicateStates() throws {
+        let startDate = try testDate("2026-06-05T15:00:00Z")
+        let firstDate = try testDate("2026-06-05T15:10:00Z")
+        let duplicateDate = try testDate("2026-06-05T15:20:00Z")
+        let unknownDate = try testDate("2026-06-05T15:30:00Z")
+        let unavailableDate = try testDate("2026-06-05T15:40:00Z")
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let outsideDate = try testDate("2026-06-05T16:30:00Z")
+
+        let entries = HAHistoryTimeline.lockEntries(
+            from: [
+                HAHistoryStateDTO(entityID: "lock.front_door", state: "locked", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "lock.front_door", state: "locked", lastChanged: duplicateDate),
+                HAHistoryStateDTO(entityID: "lock.back_door", state: "unlocked", lastChanged: duplicateDate),
+                HAHistoryStateDTO(entityID: "lock.front_door", state: "open", lastChanged: duplicateDate),
+                HAHistoryStateDTO(entityID: "lock.front_door", state: "unknown", lastChanged: unknownDate),
+                HAHistoryStateDTO(state: "unavailable", lastChanged: unavailableDate),
+                HAHistoryStateDTO(entityID: "lock.front_door", state: "unlocked", lastChanged: outsideDate)
+            ],
+            fallbackEntityID: "lock.front_door",
+            matching: "lock.front_door",
+            interval: DateInterval(start: startDate, end: endDate)
+        )
+
+        #expect(entries.map(\.state) == ["locked", "unknown", "unavailable"])
+        #expect(entries.map(\.title) == ["Locked", "Unknown", "Unavailable"])
+        #expect(entries.map(\.tone) == [.inactive, .unavailable, .unavailable])
+    }
+
     @Test func historyRangePresetBuildsFixedIntervals() throws {
         let endDate = try testDate("2026-06-05T16:00:00Z")
         let expectedHourStart = try testDate("2026-06-05T15:00:00Z")
@@ -3707,6 +3770,56 @@ struct HomesteadTests {
         #expect(httpClient.lastHistoryRequest == request)
         #expect(timeline.displayName == "Front Door")
         #expect(timeline.entries.map(\.title) == ["Opened"])
+    }
+
+    @MainActor
+    @Test func serviceFetchesTimelineWithOAuthConfigurationAndMapsLockPresentation() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "lock-timeline-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "lock.front_door",
+                state: "locked",
+                attributes: [
+                    "friendly_name": .string("Front Door")
+                ]
+            )
+        ])
+        let httpClient = StubHAHTTPClient(
+            historyResponse: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(
+                        entityID: "lock.front_door",
+                        state: "unlocked",
+                        lastChanged: try testDate("2026-06-05T15:30:00Z")
+                    )
+                ]
+            ])
+        )
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        let request = HAHistoryRequest(
+            startDate: try testDate("2026-06-05T15:00:00Z"),
+            endDate: try testDate("2026-06-05T16:00:00Z"),
+            entityID: "lock.front_door"
+        )
+
+        let timeline = try await service.fetchTimeline(settings: settings, request: request, range: .oneHour)
+
+        #expect(httpClient.lastHistoryConfiguration?.accessToken == "lock-timeline-access")
+        #expect(httpClient.lastHistoryRequest == request)
+        #expect(timeline.displayName == "Front Door")
+        #expect(timeline.entries.map(\.title) == ["Unlocked"])
     }
 
     @MainActor

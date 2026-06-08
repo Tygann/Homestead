@@ -1,8 +1,11 @@
 import SwiftUI
 
 struct LockDetailView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var isShowingUnlockConfirmation = false
+    @State private var selectedHistoryRange: HAHistoryRangePreset = .day
+    @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -19,7 +22,11 @@ struct LockDetailView: View {
         EntityDetailScaffold(title: "Lock", presentationStyle: presentationStyle) {
             header
             actionPanel
+            timelinePanel
             contextDetails
+        }
+        .task(id: timelineTaskID) {
+            await refreshTimeline()
         }
         .confirmationDialog(
             "Unlock \(presentation.title)?",
@@ -66,6 +73,16 @@ struct LockDetailView: View {
         }
     }
 
+    private var timelinePanel: some View {
+        EntityHistoryTimelinePanel(
+            selectedRange: $selectedHistoryRange,
+            phase: timelinePhase,
+            tint: presentation.accentColor
+        ) {
+            Task { await refreshTimeline() }
+        }
+    }
+
     private var contextDetails: some View {
         EntityMetadataDisclosure(
             entityBox: entityBox,
@@ -98,6 +115,10 @@ struct LockDetailView: View {
         homeAssistantService.serviceActionAvailable(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock")
     }
 
+    private var timelineTaskID: String {
+        "\(entity.entityID)-\(selectedHistoryRange.rawValue)"
+    }
+
     private var iconColor: Color {
         guard entity.isAvailable else { return .secondary }
         return presentation.isActive ? presentation.accentColor : .secondary
@@ -116,6 +137,29 @@ struct LockDetailView: View {
     private var statusBackground: Color {
         guard entity.isAvailable else { return Color.red.opacity(0.12) }
         return presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+    }
+
+    @MainActor
+    private func refreshTimeline() async {
+        timelinePhase = .loading
+        let interval = selectedHistoryRange.interval()
+        let request = HAHistoryRequest(
+            startDate: interval.start,
+            endDate: interval.end,
+            entityID: entity.entityID
+        )
+
+        do {
+            timelinePhase = .loaded(
+                try await homeAssistantService.fetchTimeline(
+                    settings: connectionSettings,
+                    request: request,
+                    range: selectedHistoryRange
+                )
+            )
+        } catch {
+            timelinePhase = .failed
+        }
     }
 }
 

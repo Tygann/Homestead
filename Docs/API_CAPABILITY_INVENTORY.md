@@ -37,7 +37,7 @@ Official references:
 | Camera capabilities | WebSocket `camera/capabilities` | Mapped | Used to reason about live camera modes. |
 | Camera snapshots | Documented HTTP camera proxy | Mapped | Authenticated snapshot loading. |
 | Logbook | REST logbook API | Mapped | Read-only Settings > Logbook page uses the documented start timestamp, `end_time`, and `entity` request shape, then applies domain/search presentation locally. |
-| History/charts/timelines | REST history API | Mapped | Numeric sensor detail charts/dashboard chart cards and binary sensor detail timelines use `/api/history/period/<timestamp>` with `filter_entity_id`, `end_time`, `minimal_response`, and `no_attributes`, then map into app-facing chart/timeline models outside `HAStateStore`. |
+| History/charts/timelines | REST history API | Mapped | Numeric sensor detail charts/dashboard chart cards plus binary sensor and lock detail timelines use `/api/history/period/<timestamp>` with `filter_entity_id`, `end_time`, `minimal_response`, and `no_attributes`, then map into app-facing chart/timeline models outside `HAStateStore`. |
 | Weather | `.weather` entity state attributes | Mapped | Dashboard cards and native detail surfaces map condition, temperature, humidity, wind, forecast availability from state attributes, and attribution into app-facing presentation models. Read-only v1; no weather service calls are used. |
 | Updates | `.update` entities plus WebSocket `call_service` | Mapped | Settings > Updates maps update entity attributes for versions, release notes, skipped/in-progress/unavailable state, registry context, grouping/filtering/search, and gates `update.install`, `update.skip`, and `update.clear_skipped` through the service catalog. |
 | Mobile app registration | Native app HTTP registration | Mapped | Registration metadata persisted for companion-app features. |
@@ -75,8 +75,8 @@ These are the next API slices to map when the matching feature is implemented. D
 
 ### History And Charts
 
-- A small REST client for the documented history endpoint exists for numeric sensor charts and binary sensor timelines.
-- The first pass supports sensor-style numeric entities and binary sensor state timelines with fixed 1H/6H/24H ranges.
+- A small REST client for the documented history endpoint exists for numeric sensor charts and discrete state timelines.
+- The first pass supports sensor-style numeric entities plus binary sensor and lock state timelines with fixed 1H/6H/24H ranges.
 - Dashboard chart cards support numeric sensors in chart-capable card sizes with a fixed dashboard range through the same service/HTTP flow.
 - Arbitrary entity history and dashboard timeline cards remain follow-up scope.
 - Keep history-specific aggregation and formatting outside `HAStateStore`.

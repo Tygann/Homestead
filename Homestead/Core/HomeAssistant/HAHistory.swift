@@ -350,6 +350,28 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
         )
     }
 
+    static func makeLockTimeline(
+        response: HAHistoryResponseDTO,
+        request: HAHistoryRequest,
+        displayName: String,
+        range: HAHistoryRangePreset
+    ) -> HAHistoryTimeline {
+        let interval = DateInterval(start: request.startDate, end: request.endDate)
+        let entries = lockEntries(
+            from: response.series.flatMap { $0 },
+            fallbackEntityID: request.entityID,
+            matching: request.entityID,
+            interval: interval
+        )
+
+        return HAHistoryTimeline(
+            entityID: request.entityID,
+            displayName: displayName,
+            range: range,
+            entries: entries
+        )
+    }
+
     static func binarySensorEntries(
         from states: [HAHistoryStateDTO],
         fallbackEntityID: String,
@@ -370,6 +392,28 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                     occurredAt: state.lastChanged,
                     displayKind: displayKind
                 )
+            }
+            .sorted { lhs, rhs in
+                lhs.occurredAt < rhs.occurredAt
+            }
+            .removingConsecutiveDuplicateStates()
+    }
+
+    static func lockEntries(
+        from states: [HAHistoryStateDTO],
+        fallbackEntityID: String,
+        matching entityID: String,
+        interval: DateInterval
+    ) -> [HAHistoryTimelineEntry] {
+        states
+            .compactMap { state -> HAHistoryTimelineEntry? in
+                let resolvedEntityID = state.entityID?.nonEmptyHistoryValue ?? fallbackEntityID
+                guard resolvedEntityID == entityID,
+                      interval.contains(state.lastChanged) || state.lastChanged == interval.end else {
+                    return nil
+                }
+
+                return lockEntry(state: state.state, occurredAt: state.lastChanged)
             }
             .sorted { lhs, rhs in
                 lhs.occurredAt < rhs.occurredAt
@@ -398,6 +442,69 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 title: displayKind.inactiveTimelineTitle,
                 systemImage: displayKind.inactiveTimelineSystemImage,
                 tone: .inactive
+            )
+        case "unknown":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unknown",
+                systemImage: "questionmark.circle",
+                tone: .unavailable
+            )
+        case "unavailable":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unavailable",
+                systemImage: "exclamationmark.triangle",
+                tone: .unavailable
+            )
+        default:
+            nil
+        }
+    }
+
+    private static func lockEntry(state: String, occurredAt: Date) -> HAHistoryTimelineEntry? {
+        switch state {
+        case "locked":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Locked",
+                systemImage: "lock.fill",
+                tone: .inactive
+            )
+        case "unlocked":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unlocked",
+                systemImage: "lock.open.fill",
+                tone: .active
+            )
+        case "locking":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Locking",
+                systemImage: "lock.fill",
+                tone: .inactive
+            )
+        case "unlocking":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unlocking",
+                systemImage: "lock.open.fill",
+                tone: .active
+            )
+        case "jammed":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Jammed",
+                systemImage: "exclamationmark.triangle.fill",
+                tone: .unavailable
             )
         case "unknown":
             HAHistoryTimelineEntry(

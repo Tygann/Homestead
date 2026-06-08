@@ -674,14 +674,25 @@ final class HomeAssistantService {
         let entityBox = stateStore.entityBox(for: request.entityID)
         let entity = entityBox?.homeEntity ?? stateStore.entity(for: request.entityID)
         let binarySensor = entityBox?.binarySensorEntity
+        let domain = entity?.domain ?? EntityDomain(entityID: request.entityID)
 
-        return HAHistoryTimeline.makeBinarySensorTimeline(
-            response: response,
-            request: request,
-            displayName: binarySensor?.displayName ?? entity?.displayName ?? request.entityID,
-            deviceClass: binarySensor?.deviceClass,
-            range: range
-        )
+        switch domain {
+        case .lock:
+            return HAHistoryTimeline.makeLockTimeline(
+                response: response,
+                request: request,
+                displayName: entity?.displayName ?? request.entityID,
+                range: range
+            )
+        default:
+            return HAHistoryTimeline.makeBinarySensorTimeline(
+                response: response,
+                request: request,
+                displayName: binarySensor?.displayName ?? entity?.displayName ?? request.entityID,
+                deviceClass: binarySensor?.deviceClass,
+                range: range
+            )
+        }
     }
 
     func fetchDashboardHistory(
