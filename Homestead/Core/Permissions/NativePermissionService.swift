@@ -44,7 +44,7 @@ struct SystemNativePermissionClient: NativePermissionClient {
             return .unavailable
         }
 
-        guard CLLocationManager.authorizationStatus() == .notDetermined else {
+        guard Self.currentLocationAuthorizationStatus() == .notDetermined else {
             return Self.locationStatus()
         }
 
@@ -79,7 +79,7 @@ struct SystemNativePermissionClient: NativePermissionClient {
             return .unavailable
         }
 
-        switch CLLocationManager.authorizationStatus() {
+        switch Self.currentLocationAuthorizationStatus() {
         case .authorizedAlways, .authorizedWhenInUse:
             return .allowed
         case .notDetermined:
@@ -207,7 +207,11 @@ private extension SystemNativePermissionClient {
             return .unavailable
         }
 
-        return CLLocationManager.authorizationStatus().nativePermissionStatus
+        return currentLocationAuthorizationStatus().nativePermissionStatus
+    }
+
+    static func currentLocationAuthorizationStatus() -> CLAuthorizationStatus {
+        CLLocationManager().authorizationStatus
     }
 }
 
