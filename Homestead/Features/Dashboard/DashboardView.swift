@@ -692,7 +692,7 @@ struct DashboardView: View {
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
             .opacity(isDragging ? 0 : 1)
             .dashboardLongPressDragSurface(
-                isEnabled: !isDragging,
+                isEnabled: draggingGridItemID.map { $0 == itemID } ?? true,
                 onChanged: { translation in
                     updateDashboardGridDrag(itemID: itemID, translation: translation)
                 },
@@ -1042,7 +1042,7 @@ struct DashboardView: View {
             .dashboardChipItemFrame(id: item.id)
             .opacity(isDragging ? 0 : 1)
             .dashboardLongPressDragSurface(
-                isEnabled: !isDragging,
+                isEnabled: draggingChipItemID.map { $0 == item.id } ?? true,
                 onChanged: { translation in
                     updateDashboardChipDrag(itemID: item.id, translation: translation)
                 },
