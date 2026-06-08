@@ -112,6 +112,7 @@ struct DashboardView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isEditingDashboard = false
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
@@ -129,12 +130,16 @@ struct DashboardView: View {
     @State private var previewGridItemIDs: [UUID]?
     @State private var dragStartGridItemIDs: [UUID] = []
     @State private var dragStartFrame: CGRect?
+    @State private var gridDragPhase: DashboardDragPhase = .idle
+    @State private var gridDragCleanupTask: Task<Void, Never>?
     @State private var chipItemFrames: [UUID: CGRect] = [:]
     @State private var draggingChipItemID: UUID?
     @State private var activeChipDragTranslation = CGSize.zero
     @State private var previewChipItemIDs: [UUID]?
     @State private var dragStartChipItemIDs: [UUID] = []
     @State private var dragStartChipFrame: CGRect?
+    @State private var chipDragPhase: DashboardDragPhase = .idle
+    @State private var chipDragCleanupTask: Task<Void, Never>?
     @Namespace private var cardTransitionNamespace
     @Namespace private var summaryTransitionNamespace
     
@@ -693,6 +698,7 @@ struct DashboardView: View {
             .opacity(isDragging ? 0 : 1)
             .dashboardLongPressDragSurface(
                 isEnabled: draggingGridItemID.map { $0 == itemID } ?? true,
+                autoScrollAxes: .vertical,
                 onChanged: { translation in
                     updateDashboardGridDrag(itemID: itemID, translation: translation)
                 },
@@ -718,17 +724,32 @@ struct DashboardView: View {
         if let dragStartFrame {
             dashboardGridPreviewContent(for: item)
                 .frame(width: dragStartFrame.width, height: dragStartFrame.height)
-                .scaleEffect(1.025)
+                .scaleEffect(gridDragScale)
                 .offset(
                     x: dragStartFrame.minX + activeDragTranslation.width,
                     y: dragStartFrame.minY + activeDragTranslation.height
                 )
+                .shadow(
+                    color: Color.black.opacity(gridDragShadowOpacity),
+                    radius: reduceMotion ? 0 : 16,
+                    x: 0,
+                    y: reduceMotion ? 0 : 8
+                )
                 .allowsHitTesting(false)
-                .transaction { transaction in
-                    transaction.animation = nil
-                }
+                .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: gridDragPhase)
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 .zIndex(20)
         }
+    }
+
+    private var gridDragScale: CGFloat {
+        guard !reduceMotion else { return 1 }
+        return gridDragPhase == .dragging ? 1.035 : 1
+    }
+
+    private var gridDragShadowOpacity: Double {
+        guard !reduceMotion else { return 0 }
+        return gridDragPhase == .dragging ? 0.18 : 0.04
     }
 
     @ViewBuilder
@@ -737,6 +758,14 @@ struct DashboardView: View {
         case .header(let configurationItem):
             DashboardHeaderCardView(title: configurationItem.resolvedTitle)
                 .frame(maxWidth: .infinity)
+                .background(
+                    Color(.secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                        .strokeBorder(Color(.separator).opacity(0.16), lineWidth: 0.5)
+                }
         case .card(let cardItem):
             DashboardCardView(
                 entityID: cardItem.entityID,
@@ -759,14 +788,20 @@ struct DashboardView: View {
 
     private func updateDashboardGridDrag(itemID: UUID, translation: CGSize) {
         if draggingGridItemID != itemID {
+            gridDragCleanupTask?.cancel()
             draggingGridItemID = itemID
             dragStartGridItemIDs = visibleDashboardGridItemIDs
             previewGridItemIDs = visibleDashboardGridItemIDs
             dragStartFrame = gridItemFrames[itemID]
-            HapticFeedback.selection()
+            withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
+                gridDragPhase = .dragging
+            }
+            HapticFeedback.impact(.light)
         }
 
-        activeDragTranslation = translation
+        withTransaction(Transaction(animation: nil)) {
+            activeDragTranslation = translation
+        }
 
         let targetItemID = dashboardGridInsertionTargetID(
             for: itemID,
@@ -861,7 +896,14 @@ struct DashboardView: View {
         )
         let visibleItemIDs = dragStartGridItemIDs.isEmpty ? visibleDashboardGridItemIDs : dragStartGridItemIDs
 
-        withAnimation(.snappy(duration: 0.2)) {
+        let dropTranslation = dashboardGridDropTranslation(
+            for: itemID,
+            fallback: translation
+        )
+
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.22)) {
+            activeDragTranslation = dropTranslation
+            gridDragPhase = .dropping
             dashboardConfiguration.moveVisibleGridItem(
                 id: itemID,
                 before: targetItemID,
@@ -870,16 +912,47 @@ struct DashboardView: View {
         }
 
         HapticFeedback.selection()
-        endDashboardGridDrag()
+        scheduleDashboardGridDragCleanup()
     }
 
     private func endDashboardGridDrag() {
-        withAnimation(.snappy(duration: 0.18)) {
+        gridDragCleanupTask?.cancel()
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
             draggingGridItemID = nil
             activeDragTranslation = .zero
             previewGridItemIDs = nil
             dragStartGridItemIDs = []
             dragStartFrame = nil
+            gridDragPhase = .idle
+        }
+    }
+
+    private func dashboardGridDropTranslation(
+        for itemID: UUID,
+        fallback translation: CGSize
+    ) -> CGSize {
+        guard let dragStartFrame,
+              let targetFrame = gridItemFrames[itemID] else {
+            return translation
+        }
+
+        return CGSize(
+            width: targetFrame.minX - dragStartFrame.minX,
+            height: targetFrame.minY - dragStartFrame.minY
+        )
+    }
+
+    private func scheduleDashboardGridDragCleanup() {
+        gridDragCleanupTask?.cancel()
+        gridDragCleanupTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(reduceMotion ? 60 : 220))
+            guard !Task.isCancelled else { return }
+            draggingGridItemID = nil
+            activeDragTranslation = .zero
+            previewGridItemIDs = nil
+            dragStartGridItemIDs = []
+            dragStartFrame = nil
+            gridDragPhase = .idle
         }
     }
 
@@ -889,29 +962,50 @@ struct DashboardView: View {
             DashboardChipView(presentation: presentation)
                 .background(Color(.secondarySystemGroupedBackground), in: Capsule())
                 .frame(width: dragStartChipFrame.width, height: dragStartChipFrame.height)
-                .scaleEffect(1.025)
+                .scaleEffect(chipDragScale)
                 .offset(
                     x: dragStartChipFrame.minX + activeChipDragTranslation.width,
                     y: dragStartChipFrame.minY
                 )
+                .shadow(
+                    color: Color.black.opacity(chipDragShadowOpacity),
+                    radius: reduceMotion ? 0 : 10,
+                    x: 0,
+                    y: reduceMotion ? 0 : 5
+                )
                 .allowsHitTesting(false)
-                .transaction { transaction in
-                    transaction.animation = nil
-                }
+                .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: chipDragPhase)
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 .zIndex(20)
         }
     }
 
+    private var chipDragScale: CGFloat {
+        guard !reduceMotion else { return 1 }
+        return chipDragPhase == .dragging ? 1.04 : 1
+    }
+
+    private var chipDragShadowOpacity: Double {
+        guard !reduceMotion else { return 0 }
+        return chipDragPhase == .dragging ? 0.14 : 0.03
+    }
+
     private func updateDashboardChipDrag(itemID: UUID, translation: CGSize) {
         if draggingChipItemID != itemID {
+            chipDragCleanupTask?.cancel()
             draggingChipItemID = itemID
             dragStartChipItemIDs = visibleDashboardChipItemIDs
             previewChipItemIDs = visibleDashboardChipItemIDs
             dragStartChipFrame = chipItemFrames[itemID]
-            HapticFeedback.selection()
+            withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
+                chipDragPhase = .dragging
+            }
+            HapticFeedback.impact(.light)
         }
 
-        activeChipDragTranslation = CGSize(width: translation.width, height: 0)
+        withTransaction(Transaction(animation: nil)) {
+            activeChipDragTranslation = CGSize(width: translation.width, height: 0)
+        }
 
         let targetItemID = dashboardChipInsertionTargetID(
             for: itemID,
@@ -973,7 +1067,14 @@ struct DashboardView: View {
         )
         let visibleItemIDs = dragStartChipItemIDs.isEmpty ? visibleDashboardChipItemIDs : dragStartChipItemIDs
 
-        withAnimation(.snappy(duration: 0.2)) {
+        let dropTranslation = dashboardChipDropTranslation(
+            for: itemID,
+            fallback: horizontalTranslation
+        )
+
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.22)) {
+            activeChipDragTranslation = dropTranslation
+            chipDragPhase = .dropping
             dashboardConfiguration.moveVisibleChipItem(
                 id: itemID,
                 before: targetItemID,
@@ -982,16 +1083,44 @@ struct DashboardView: View {
         }
 
         HapticFeedback.selection()
-        endDashboardChipDrag()
+        scheduleDashboardChipDragCleanup()
     }
 
     private func endDashboardChipDrag() {
-        withAnimation(.snappy(duration: 0.18)) {
+        chipDragCleanupTask?.cancel()
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
             draggingChipItemID = nil
             activeChipDragTranslation = .zero
             previewChipItemIDs = nil
             dragStartChipItemIDs = []
             dragStartChipFrame = nil
+            chipDragPhase = .idle
+        }
+    }
+
+    private func dashboardChipDropTranslation(
+        for itemID: UUID,
+        fallback translation: CGSize
+    ) -> CGSize {
+        guard let dragStartChipFrame,
+              let targetFrame = chipItemFrames[itemID] else {
+            return translation
+        }
+
+        return CGSize(width: targetFrame.minX - dragStartChipFrame.minX, height: 0)
+    }
+
+    private func scheduleDashboardChipDragCleanup() {
+        chipDragCleanupTask?.cancel()
+        chipDragCleanupTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(reduceMotion ? 60 : 220))
+            guard !Task.isCancelled else { return }
+            draggingChipItemID = nil
+            activeChipDragTranslation = .zero
+            previewChipItemIDs = nil
+            dragStartChipItemIDs = []
+            dragStartChipFrame = nil
+            chipDragPhase = .idle
         }
     }
 
@@ -1043,6 +1172,7 @@ struct DashboardView: View {
             .opacity(isDragging ? 0 : 1)
             .dashboardLongPressDragSurface(
                 isEnabled: draggingChipItemID.map { $0 == item.id } ?? true,
+                autoScrollAxes: .horizontal,
                 onChanged: { translation in
                     updateDashboardChipDrag(itemID: item.id, translation: translation)
                 },
@@ -1309,9 +1439,20 @@ private enum DashboardChipCoordinateSpace {
     static let name = "dashboard-chip-row"
 }
 
+private enum DashboardDragPhase {
+    case idle
+    case dragging
+    case dropping
+}
+
 private enum DashboardDragTiming {
     static let liftDelay: TimeInterval = 0.45
     static let allowableMovement: CGFloat = 8
+}
+
+private enum DashboardDragAutoScroll {
+    static let edgeLength: CGFloat = 72
+    static let maximumPointsPerSecond: CGFloat = 420
 }
 
 private struct DashboardGridItemFramePreferenceKey: PreferenceKey {
@@ -1394,6 +1535,7 @@ private extension View {
 
     func dashboardLongPressDragSurface(
         isEnabled: Bool,
+        autoScrollAxes: Axis.Set = [],
         onChanged: @escaping (CGSize) -> Void,
         onEnded: @escaping (CGSize) -> Void,
         onCancelled: @escaping () -> Void
@@ -1403,6 +1545,7 @@ private extension View {
                 DashboardLongPressDragSurface(
                     minimumDuration: DashboardDragTiming.liftDelay,
                     maximumMovement: DashboardDragTiming.allowableMovement,
+                    autoScrollAxes: autoScrollAxes,
                     onChanged: onChanged,
                     onEnded: onEnded,
                     onCancelled: onCancelled
@@ -1415,6 +1558,7 @@ private extension View {
 private struct DashboardLongPressDragSurface: UIViewRepresentable {
     let minimumDuration: TimeInterval
     let maximumMovement: CGFloat
+    let autoScrollAxes: Axis.Set
     let onChanged: (CGSize) -> Void
     let onEnded: (CGSize) -> Void
     let onCancelled: () -> Void
@@ -1423,7 +1567,8 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
         Coordinator(
             onChanged: onChanged,
             onEnded: onEnded,
-            onCancelled: onCancelled
+            onCancelled: onCancelled,
+            autoScrollAxes: autoScrollAxes
         )
     }
 
@@ -1452,25 +1597,38 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
         context.coordinator.onChanged = onChanged
         context.coordinator.onEnded = onEnded
         context.coordinator.onCancelled = onCancelled
+        context.coordinator.autoScrollAxes = autoScrollAxes
         context.coordinator.recognizer?.minimumPressDuration = minimumDuration
         context.coordinator.recognizer?.allowableMovement = maximumMovement
+    }
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.stopAutoScroll()
     }
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var onChanged: (CGSize) -> Void
         var onEnded: (CGSize) -> Void
         var onCancelled: () -> Void
+        var autoScrollAxes: Axis.Set
         weak var recognizer: UILongPressGestureRecognizer?
+        private weak var autoScrollView: UIScrollView?
+        private var autoScrollDisplayLink: CADisplayLink?
+        private var startContentOffset: CGPoint?
         private var startWindowLocation: CGPoint?
+        private var lastWindowLocation: CGPoint?
+        private var lastAutoScrollTimestamp: CFTimeInterval?
 
         init(
             onChanged: @escaping (CGSize) -> Void,
             onEnded: @escaping (CGSize) -> Void,
-            onCancelled: @escaping () -> Void
+            onCancelled: @escaping () -> Void,
+            autoScrollAxes: Axis.Set
         ) {
             self.onChanged = onChanged
             self.onEnded = onEnded
             self.onCancelled = onCancelled
+            self.autoScrollAxes = autoScrollAxes
         }
 
         @objc func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
@@ -1479,15 +1637,27 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
             switch recognizer.state {
             case .began:
                 startWindowLocation = location
+                lastWindowLocation = location
+                autoScrollView = recognizer.view?.nearestScrollView(for: autoScrollAxes)
+                startContentOffset = autoScrollView?.contentOffset
+                startAutoScroll()
                 onChanged(.zero)
             case .changed:
+                lastWindowLocation = location
+                updateAutoScroll(at: location)
                 onChanged(translation(from: location))
             case .ended:
+                stopAutoScroll()
                 onEnded(translation(from: location))
                 startWindowLocation = nil
+                lastWindowLocation = nil
+                startContentOffset = nil
             case .cancelled, .failed:
+                stopAutoScroll()
                 onCancelled()
                 startWindowLocation = nil
+                lastWindowLocation = nil
+                startContentOffset = nil
             default:
                 break
             }
@@ -1500,16 +1670,173 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
             false
         }
 
+        func stopAutoScroll() {
+            autoScrollDisplayLink?.invalidate()
+            autoScrollDisplayLink = nil
+            autoScrollView = nil
+            lastAutoScrollTimestamp = nil
+        }
+
         private func translation(from location: CGPoint) -> CGSize {
             guard let startWindowLocation else {
                 return .zero
             }
 
+            let contentOffsetDelta = contentOffsetDelta()
             return CGSize(
-                width: location.x - startWindowLocation.x,
-                height: location.y - startWindowLocation.y
+                width: location.x - startWindowLocation.x + contentOffsetDelta.x,
+                height: location.y - startWindowLocation.y + contentOffsetDelta.y
             )
         }
+
+        private func contentOffsetDelta() -> CGPoint {
+            guard let autoScrollView,
+                  let startContentOffset else {
+                return .zero
+            }
+
+            return CGPoint(
+                x: autoScrollAxes.contains(.horizontal) ? autoScrollView.contentOffset.x - startContentOffset.x : 0,
+                y: autoScrollAxes.contains(.vertical) ? autoScrollView.contentOffset.y - startContentOffset.y : 0
+            )
+        }
+
+        private func startAutoScroll() {
+            guard !autoScrollAxes.isEmpty, autoScrollView != nil else {
+                return
+            }
+
+            autoScrollDisplayLink?.invalidate()
+            let displayLink = CADisplayLink(target: self, selector: #selector(handleAutoScrollTick(_:)))
+            displayLink.add(to: .main, forMode: .common)
+            autoScrollDisplayLink = displayLink
+        }
+
+        @objc private func handleAutoScrollTick(_ displayLink: CADisplayLink) {
+            guard let location = lastWindowLocation else {
+                return
+            }
+
+            let previousTimestamp = lastAutoScrollTimestamp ?? displayLink.timestamp
+            let elapsed = max(0, displayLink.timestamp - previousTimestamp)
+            lastAutoScrollTimestamp = displayLink.timestamp
+
+            guard elapsed > 0,
+                  updateAutoScroll(at: location, elapsed: elapsed) else {
+                return
+            }
+
+            onChanged(translation(from: location))
+        }
+
+        @discardableResult
+        private func updateAutoScroll(at windowLocation: CGPoint, elapsed: TimeInterval = 0) -> Bool {
+            guard let scrollView = autoScrollView else {
+                return false
+            }
+
+            let velocity = autoScrollVelocity(at: windowLocation, in: scrollView)
+            guard velocity != .zero else {
+                return false
+            }
+
+            let duration = CGFloat(elapsed)
+            guard duration > 0 else {
+                return false
+            }
+
+            let proposedOffset = CGPoint(
+                x: scrollView.contentOffset.x + velocity.x * duration,
+                y: scrollView.contentOffset.y + velocity.y * duration
+            )
+            let clampedOffset = scrollView.clampedContentOffset(proposedOffset)
+            guard clampedOffset != scrollView.contentOffset else {
+                return false
+            }
+
+            scrollView.setContentOffset(clampedOffset, animated: false)
+            return true
+        }
+
+        private func autoScrollVelocity(at windowLocation: CGPoint, in scrollView: UIScrollView) -> CGPoint {
+            let frame = scrollView.convert(scrollView.bounds, to: nil)
+            var velocity = CGPoint.zero
+
+            if autoScrollAxes.contains(.horizontal) {
+                velocity.x = edgeVelocity(
+                    location: windowLocation.x,
+                    minEdge: frame.minX,
+                    maxEdge: frame.maxX
+                )
+            }
+
+            if autoScrollAxes.contains(.vertical) {
+                velocity.y = edgeVelocity(
+                    location: windowLocation.y,
+                    minEdge: frame.minY,
+                    maxEdge: frame.maxY
+                )
+            }
+
+            return velocity
+        }
+
+        private func edgeVelocity(location: CGFloat, minEdge: CGFloat, maxEdge: CGFloat) -> CGFloat {
+            let edgeLength = DashboardDragAutoScroll.edgeLength
+            if location < minEdge + edgeLength {
+                let proximity = min(1, max(0, (minEdge + edgeLength - location) / edgeLength))
+                return -DashboardDragAutoScroll.maximumPointsPerSecond * proximity
+            }
+
+            if location > maxEdge - edgeLength {
+                let proximity = min(1, max(0, (location - (maxEdge - edgeLength)) / edgeLength))
+                return DashboardDragAutoScroll.maximumPointsPerSecond * proximity
+            }
+
+            return 0
+        }
+    }
+}
+
+private extension UIView {
+    func nearestScrollView(for axes: Axis.Set) -> UIScrollView? {
+        sequence(first: superview, next: { $0?.superview })
+            .compactMap { $0 as? UIScrollView }
+            .first { scrollView in
+                scrollView.isScrollable(on: axes)
+            }
+    }
+}
+
+private extension UIScrollView {
+    func isScrollable(on axes: Axis.Set) -> Bool {
+        if axes.contains(.horizontal), contentSize.width > bounds.width + 1 {
+            return true
+        }
+
+        if axes.contains(.vertical), contentSize.height > bounds.height + 1 {
+            return true
+        }
+
+        return false
+    }
+
+    func clampedContentOffset(_ offset: CGPoint) -> CGPoint {
+        let minimumX = -adjustedContentInset.left
+        let maximumX = max(
+            minimumX,
+            contentSize.width - bounds.width + adjustedContentInset.right
+        )
+        let minimumY = -adjustedContentInset.top
+        let maximumY = max(
+            minimumY,
+            contentSize.height - bounds.height + adjustedContentInset.bottom
+        )
+
+        return CGPoint(
+            x: min(max(offset.x, minimumX), maximumX),
+            y: min(max(offset.y, minimumY), maximumY)
+        )
     }
 }
 

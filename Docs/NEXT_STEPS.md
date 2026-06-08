@@ -59,10 +59,12 @@ Recommended reasoning level: High.
 - Kept the active card/chip drag recognizer mounted after lift while disabling inactive item recognizers, avoiding stranded drag state if SwiftUI re-renders mid-gesture.
 - Measure edit-mode drag translation in window coordinates so preview movement stays stable while the dashboard grid or chip row reflows beneath the lifted item.
 - Lowered the chip ellipsis affordance slightly so it remains visible within the clipped horizontal chip row.
+- Polished edit-mode card/header/chip drag feel with an explicit lift/drop phase, a lightweight lifted shadow/scale, opaque lifted header/card/chip previews, reduced-motion handling, impact haptics on lift, and delayed cleanup so the floating preview settles into its placeholder before disappearing.
+- Added practical edge auto-scroll to the UIKit long-press drag surface for vertical dashboard grid dragging and horizontal chip-row dragging, including scroll-offset-aware translations so previews stay stable while content scrolls under the finger.
 
 ## Next Chunk
 
-- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of floating drag preview and edit affordance feel, or larger dashboard management affordances.
+- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of edge auto-scroll and drop feel on dense dashboards, or larger dashboard management affordances.
 - As dashboard/add/edit views are touched, review nearby copy and controls for development-facing labels, explanations, or layout mechanics, and prefer user-facing choices, previews, and direct manipulation where the behavior is already visually clear.
 - Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
 
@@ -85,3 +87,4 @@ Recommended reasoning level: High.
 - Generic iOS Simulator build passed after replacing edit-mode SwiftUI sequenced drag gestures with the UIKit long-press drag surface and tuning it to own touches after lift.
 - Generic iOS Simulator build passed after keeping active drag recognizers mounted through card/chip lift, movement, and finger-up.
 - Generic iOS Simulator build passed after switching edit-mode drag translation to window coordinates.
+- Generic iOS Simulator build passed after polishing edit-mode lift/drop animation and adding grid/chip edge auto-scroll.

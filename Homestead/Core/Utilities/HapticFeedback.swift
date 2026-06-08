@@ -6,6 +6,10 @@ enum HapticFeedback {
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
+    static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
+    }
+
     static func notification(for style: HAServiceFeedback.Style) {
         let generator = UINotificationFeedbackGenerator()
 
