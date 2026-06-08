@@ -409,7 +409,31 @@ final class DashboardConfiguration {
         before targetItemID: UUID?,
         visibleGridItemIDs: [UUID]
     ) {
-        let orderedVisibleItemIDs = visibleGridItemIDs.reduce(into: [UUID]()) { partialResult, itemID in
+        moveVisibleItems(
+            id: movingItemID,
+            before: targetItemID,
+            visibleItemIDs: visibleGridItemIDs
+        )
+    }
+
+    func moveVisibleChipItem(
+        id movingItemID: UUID,
+        before targetItemID: UUID?,
+        visibleChipItemIDs: [UUID]
+    ) {
+        moveVisibleItems(
+            id: movingItemID,
+            before: targetItemID,
+            visibleItemIDs: visibleChipItemIDs
+        )
+    }
+
+    private func moveVisibleItems(
+        id movingItemID: UUID,
+        before targetItemID: UUID?,
+        visibleItemIDs: [UUID]
+    ) {
+        let orderedVisibleItemIDs = visibleItemIDs.reduce(into: [UUID]()) { partialResult, itemID in
             if !partialResult.contains(itemID) {
                 partialResult.append(itemID)
             }

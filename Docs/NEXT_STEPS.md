@@ -50,10 +50,14 @@ Recommended reasoning level: High.
 - Add-card now reports the new card ID back to the dashboard so appended cards can scroll into view and briefly highlight after being added.
 - Added a deliberate edit-mode affordance for dashboard cards and section headers: a single tapped ellipsis menu reuses the existing customization actions while the card/header body remains the direct drag target, avoiding long-press/context-menu conflicts.
 - Hid the account/settings avatar from the dashboard toolbar while edit mode is active so edit mode keeps focus on dashboard organization.
+- Made active card drag previews render over an opaque card-shaped base so translucent active fills do not reveal dashboard cards underneath while dragging.
+- Added direct edit-mode chip drag reordering inside the horizontal chip row, with movement clamped left/right, a floating chip preview, and a single chip ellipsis affordance for customization actions.
+- Removed the legacy chip reorder sheet path now that chips reorder directly in edit mode.
+- Added focused persistence coverage for visible chip dragging so chip order changes preserve card/header slots.
 
 ## Next Chunk
 
-- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of floating drag preview and edit affordance feel, chip-row editing ergonomics, or larger dashboard management affordances.
+- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of floating drag preview and edit affordance feel, or larger dashboard management affordances.
 - As dashboard/add/edit views are touched, review nearby copy and controls for development-facing labels, explanations, or layout mechanics, and prefer user-facing choices, previews, and direct manipulation where the behavior is already visually clear.
 - Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
 
@@ -70,5 +74,5 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
-- Generic iOS Simulator build passed after simplifying the tapped edit-mode card/header affordance and hiding the toolbar account button in edit mode.
-- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after adding the tapped edit-mode card/header affordance.
+- Generic iOS Simulator build passed after adding opaque active-card drag previews and direct horizontal chip dragging.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` for visible chip/grid reorder persistence.

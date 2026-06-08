@@ -113,7 +113,6 @@ struct DashboardView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var isEditingDashboard = false
     @State private var addSheetMode: DashboardAddItemMode?
-    @State private var isShowingChipReorderSheet = false
     @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
@@ -129,6 +128,12 @@ struct DashboardView: View {
     @State private var previewGridItemIDs: [UUID]?
     @State private var dragStartGridItemIDs: [UUID] = []
     @State private var dragStartFrame: CGRect?
+    @State private var chipItemFrames: [UUID: CGRect] = [:]
+    @State private var draggingChipItemID: UUID?
+    @State private var activeChipDragTranslation = CGSize.zero
+    @State private var previewChipItemIDs: [UUID]?
+    @State private var dragStartChipItemIDs: [UUID] = []
+    @State private var dragStartChipFrame: CGRect?
     @Namespace private var cardTransitionNamespace
     @Namespace private var summaryTransitionNamespace
     
@@ -186,18 +191,6 @@ struct DashboardView: View {
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 if isEditingDashboard {
-                    if configuredChipCount > 1 {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button {
-                                isShowingChipReorderSheet = true
-                            } label: {
-                                Image(systemName: "capsule")
-                                    .bold()
-                            }
-                            .accessibilityLabel("Reorder Chips")
-                        }
-                    }
-
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(role: .confirm) {
                             isEditingDashboard = false
@@ -217,9 +210,6 @@ struct DashboardView: View {
             }
             .sheet(item: $addSheetMode) { mode in
                 DashboardAddItemView(initialMode: mode, onAddItem: dashboardItemWasAdded)
-            }
-            .sheet(isPresented: $isShowingChipReorderSheet) {
-                DashboardReorderView()
             }
             .navigationDestination(item: $selectedEntityDetailRoute) { route in
                 if let entityBox = stateStore.entityBox(for: route.entityID) {
@@ -270,6 +260,7 @@ struct DashboardView: View {
             .onChange(of: isEditingDashboard) { _, isEditing in
                 if !isEditing {
                     endDashboardGridDrag()
+                    endDashboardChipDrag()
                 }
             }
             .onChange(of: pendingScrollDashboardItemID) { _, itemID in
@@ -347,10 +338,16 @@ struct DashboardView: View {
         previewGridItemIDs ?? visibleDashboardGridItemIDs
     }
 
-    private var configuredChipCount: Int {
-        dashboardConfiguration.items.filter { $0.type == .chip }.count
+    private var visibleDashboardChipItemIDs: [UUID] {
+        visibleDashboardItems.compactMap { item in
+            item.type == .chip ? item.id : nil
+        }
     }
-    
+
+    private var activeDashboardChipItemIDs: [UUID] {
+        previewChipItemIDs ?? visibleDashboardChipItemIDs
+    }
+
     private func reconcileDashboardConfigurationIfReady() {
         guard stateStore.hasEntities else {
             return
@@ -560,6 +557,18 @@ struct DashboardView: View {
         return previewItems + remainingItems
     }
 
+    private func orderedChipItems(_ chipItems: [DashboardChipItem]) -> [DashboardChipItem] {
+        guard let previewChipItemIDs else {
+            return chipItems
+        }
+
+        let itemsByID = Dictionary(uniqueKeysWithValues: chipItems.map { ($0.id, $0) })
+        let previewItems = previewChipItemIDs.compactMap { itemsByID[$0] }
+        let previewIDSet = Set(previewChipItemIDs)
+        let remainingItems = chipItems.filter { !previewIDSet.contains($0.id) }
+        return previewItems + remainingItems
+    }
+
     private func draggedGridItem(from gridItems: [DashboardLayoutItem]) -> DashboardLayoutItem? {
         guard let draggingGridItemID else {
             return nil
@@ -568,13 +577,33 @@ struct DashboardView: View {
         return gridItems.first { $0.configurationItemID == draggingGridItemID }
     }
 
+    private func draggedChipItem(from chipItems: [DashboardChipItem]) -> DashboardChipItem? {
+        guard let draggingChipItemID else {
+            return nil
+        }
+
+        return chipItems.first { $0.id == draggingChipItemID }
+    }
+
     private func dashboardChipSummaryRow(items: [DashboardChipItem]) -> some View {
-        ScrollView(.horizontal) {
+        let renderedChipItems = orderedChipItems(items)
+
+        return ScrollView(.horizontal) {
             HStack(alignment: .center, spacing: AppSpacing.small) {
-                ForEach(items) { chipItem in
+                ForEach(renderedChipItems) { chipItem in
                     dashboardChip(chipItem)
                 }
             }
+            .coordinateSpace(name: DashboardChipCoordinateSpace.name)
+            .overlay(alignment: .topLeading) {
+                if let draggedChipItem = draggedChipItem(from: items) {
+                    dashboardChipDragPreview(draggedChipItem)
+                }
+            }
+            .onPreferenceChange(DashboardChipItemFramePreferenceKey.self) { frames in
+                chipItemFrames = frames
+            }
+            .animation(.snappy(duration: 0.18), value: activeDashboardChipItemIDs)
             .padding(.vertical, 1)
         }
         .scrollIndicators(.hidden)
@@ -707,6 +736,10 @@ struct DashboardView: View {
                 isEditing: true
             )
             .frame(maxWidth: .infinity)
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+            )
         case .chip:
             EmptyView()
         }
@@ -849,18 +882,134 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
+    private func dashboardChipDragPreview(_ item: DashboardChipItem) -> some View {
+        if let dragStartChipFrame, let presentation = chipPresentation(for: item) {
+            DashboardChipView(presentation: presentation)
+                .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+                .frame(width: dragStartChipFrame.width, height: dragStartChipFrame.height)
+                .scaleEffect(1.025)
+                .offset(
+                    x: dragStartChipFrame.minX + activeChipDragTranslation.width,
+                    y: dragStartChipFrame.minY
+                )
+                .allowsHitTesting(false)
+                .transaction { transaction in
+                    transaction.animation = nil
+                }
+                .zIndex(20)
+        }
+    }
+
+    private func dashboardChipDragGesture(for itemID: UUID) -> some Gesture {
+        DragGesture(minimumDistance: 8, coordinateSpace: .named(DashboardChipCoordinateSpace.name))
+            .onChanged { value in
+                updateDashboardChipDrag(itemID: itemID, value: value)
+            }
+            .onEnded { value in
+                finishDashboardChipDrag(itemID: itemID, value: value)
+            }
+    }
+
+    private func updateDashboardChipDrag(itemID: UUID, value: DragGesture.Value) {
+        if draggingChipItemID != itemID {
+            draggingChipItemID = itemID
+            dragStartChipItemIDs = visibleDashboardChipItemIDs
+            previewChipItemIDs = visibleDashboardChipItemIDs
+            dragStartChipFrame = chipItemFrames[itemID]
+            HapticFeedback.selection()
+        }
+
+        activeChipDragTranslation = CGSize(width: value.translation.width, height: 0)
+
+        let targetItemID = dashboardChipInsertionTargetID(
+            for: itemID,
+            translation: activeChipDragTranslation,
+            sourceFrame: dragStartChipFrame
+        )
+
+        let baseItemIDs = dragStartChipItemIDs.isEmpty ? visibleDashboardChipItemIDs : dragStartChipItemIDs
+        let updatedPreviewItemIDs = reorderedGridItemIDs(
+            moving: itemID,
+            before: targetItemID,
+            in: baseItemIDs
+        )
+
+        guard updatedPreviewItemIDs != previewChipItemIDs else {
+            return
+        }
+
+        withAnimation(.snappy(duration: 0.18)) {
+            previewChipItemIDs = updatedPreviewItemIDs
+        }
+    }
+
+    private func dashboardChipInsertionTargetID(
+        for movingItemID: UUID,
+        translation: CGSize,
+        sourceFrame: CGRect?
+    ) -> UUID? {
+        guard let movingFrame = sourceFrame ?? chipItemFrames[movingItemID] else {
+            return nil
+        }
+
+        let dragCenterX = movingFrame.midX + translation.width
+        let candidates = activeDashboardChipItemIDs.compactMap { itemID -> (id: UUID, frame: CGRect)? in
+            guard itemID != movingItemID,
+                  let frame = chipItemFrames[itemID] else {
+                return nil
+            }
+
+            return (itemID, frame)
+        }
+        .sorted { lhs, rhs in
+            lhs.frame.minX < rhs.frame.minX
+        }
+
+        for candidate in candidates where dragCenterX < candidate.frame.midX {
+            return candidate.id
+        }
+
+        return nil
+    }
+
+    private func finishDashboardChipDrag(itemID: UUID, value: DragGesture.Value) {
+        let translation = CGSize(width: value.translation.width, height: 0)
+        let targetItemID = dashboardChipInsertionTargetID(
+            for: itemID,
+            translation: translation,
+            sourceFrame: dragStartChipFrame
+        )
+        let visibleItemIDs = dragStartChipItemIDs.isEmpty ? visibleDashboardChipItemIDs : dragStartChipItemIDs
+
+        withAnimation(.snappy(duration: 0.2)) {
+            dashboardConfiguration.moveVisibleChipItem(
+                id: itemID,
+                before: targetItemID,
+                visibleChipItemIDs: visibleItemIDs
+            )
+        }
+
+        HapticFeedback.selection()
+        endDashboardChipDrag()
+    }
+
+    private func endDashboardChipDrag() {
+        withAnimation(.snappy(duration: 0.18)) {
+            draggingChipItemID = nil
+            activeChipDragTranslation = .zero
+            previewChipItemIDs = nil
+            dragStartChipItemIDs = []
+            dragStartChipFrame = nil
+        }
+    }
+
+    @ViewBuilder
     private func dashboardChip(_ item: DashboardChipItem) -> some View {
         let presentation = chipPresentation(for: item)
 
         if let presentation {
             if isEditingDashboard {
-                Menu {
-                    chipEditMenuContent(for: item, presentation: presentation)
-                } label: {
-                    DashboardChipView(presentation: presentation)
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
+                editableDashboardChip(item: item, presentation: presentation)
             } else {
                 switch item.chipKind {
                 case .summary:
@@ -889,6 +1038,27 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private func editableDashboardChip(
+        item: DashboardChipItem,
+        presentation: DashboardChipPresentation
+    ) -> some View {
+        let isDragging = draggingChipItemID == item.id
+        return DashboardChipView(presentation: presentation)
+            .contentShape(Capsule())
+            .dashboardChipItemFrame(id: item.id)
+            .opacity(isDragging ? 0 : 1)
+            .gesture(dashboardChipDragGesture(for: item.id))
+            .dashboardChipEditAffordance(
+                isVisible: !isDragging,
+                accessibilityLabel: "Edit \(presentation.title)"
+            ) {
+                chipEditMenuContent(for: item, presentation: presentation)
+            }
+            .transaction { transaction in
+                transaction.animation = nil
+            }
     }
 
     private func summaryTransitionID(for item: DashboardChipItem) -> String {
@@ -1132,7 +1302,19 @@ private enum DashboardGridCoordinateSpace {
     static let name = "dashboard-grid"
 }
 
+private enum DashboardChipCoordinateSpace {
+    static let name = "dashboard-chip-row"
+}
+
 private struct DashboardGridItemFramePreferenceKey: PreferenceKey {
+    static let defaultValue: [UUID: CGRect] = [:]
+
+    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, newValue in newValue })
+    }
+}
+
+private struct DashboardChipItemFramePreferenceKey: PreferenceKey {
     static let defaultValue: [UUID: CGRect] = [:]
 
     static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
@@ -1147,6 +1329,17 @@ private extension View {
                 Color.clear.preference(
                     key: DashboardGridItemFramePreferenceKey.self,
                     value: [id: proxy.frame(in: .named(DashboardGridCoordinateSpace.name))]
+                )
+            }
+        }
+    }
+
+    func dashboardChipItemFrame(id: UUID) -> some View {
+        background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: DashboardChipItemFramePreferenceKey.self,
+                    value: [id: proxy.frame(in: .named(DashboardChipCoordinateSpace.name))]
                 )
             }
         }
@@ -1170,6 +1363,20 @@ private extension View {
     ) -> some View {
         overlay(alignment: .topTrailing) {
             DashboardGridEditAffordance(
+                isVisible: isVisible,
+                accessibilityLabel: accessibilityLabel,
+                menuContent: menuContent
+            )
+        }
+    }
+
+    func dashboardChipEditAffordance<MenuContent: View>(
+        isVisible: Bool,
+        accessibilityLabel: String,
+        @ViewBuilder menuContent: @escaping () -> MenuContent
+    ) -> some View {
+        overlay(alignment: .topTrailing) {
+            DashboardChipEditAffordance(
                 isVisible: isVisible,
                 accessibilityLabel: accessibilityLabel,
                 menuContent: menuContent
@@ -1200,6 +1407,35 @@ private struct DashboardGridEditAffordance<MenuContent: View>: View {
         }
         .buttonStyle(.plain)
         .offset(x: 4, y: -6)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Shows options")
+    }
+}
+
+private struct DashboardChipEditAffordance<MenuContent: View>: View {
+    let isVisible: Bool
+    let accessibilityLabel: String
+    @ViewBuilder var menuContent: () -> MenuContent
+
+    var body: some View {
+        Menu {
+            menuContent()
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.primary)
+                .frame(width: 24, height: 24)
+                .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(Color(.separator).opacity(0.28), lineWidth: 0.5)
+                }
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .offset(x: 6, y: -8)
         .opacity(isVisible ? 1 : 0)
         .allowsHitTesting(isVisible)
         .accessibilityLabel(accessibilityLabel)

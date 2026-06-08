@@ -4328,6 +4328,38 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func dashboardConfigurationMovesVisibleChipItemsAndPreservesGridSlots() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let lightsID = configuration.addSummaryChip(kind: .lights)
+        configuration.addHeader(title: "Downstairs")
+        configuration.add("light.kitchen")
+        let securityID = configuration.addSummaryChip(kind: .security)
+        configuration.add("sensor.hallway_temperature")
+
+        configuration.moveVisibleChipItem(
+            id: securityID,
+            before: lightsID,
+            visibleChipItemIDs: [lightsID, securityID]
+        )
+
+        #expect(configuration.items.map(\.type) == [.chip, .header, .entity, .chip, .entity])
+        #expect(configuration.items[0].summaryKind == .security)
+        #expect(configuration.items[1].resolvedTitle == "Downstairs")
+        #expect(configuration.items[2].entityID == "light.kitchen")
+        #expect(configuration.items[3].summaryKind == .lights)
+        #expect(configuration.items[4].entityID == "sensor.hallway_temperature")
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        #expect(restoredConfiguration.items.map(\.type) == [.chip, .header, .entity, .chip, .entity])
+        #expect(restoredConfiguration.items[0].summaryKind == .security)
+        #expect(restoredConfiguration.items[3].summaryKind == .lights)
+    }
+
+    @MainActor
     @Test func dashboardConfigurationMovesVisibleGridItemsWithoutMovingHiddenConfiguredItems() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
