@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DashboardCardItem: Identifiable, Equatable {
     let id: UUID
@@ -690,7 +691,18 @@ struct DashboardView: View {
             .dashboardGridItemFrame(id: itemID)
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
             .opacity(isDragging ? 0 : 1)
-            .simultaneousGesture(dashboardGridDragGesture(for: itemID))
+            .dashboardLongPressDragSurface(
+                isEnabled: !isDragging,
+                onChanged: { translation in
+                    updateDashboardGridDrag(itemID: itemID, translation: translation)
+                },
+                onEnded: { translation in
+                    finishDashboardGridDrag(itemID: itemID, translation: translation)
+                },
+                onCancelled: {
+                    endDashboardGridDrag()
+                }
+            )
             .dashboardEditAffordance(
                 isVisible: !isDragging,
                 accessibilityLabel: editAccessibilityLabel,
@@ -745,27 +757,7 @@ struct DashboardView: View {
         }
     }
 
-    private func dashboardGridDragGesture(for itemID: UUID) -> some Gesture {
-        LongPressGesture(minimumDuration: DashboardDragTiming.liftDelay, maximumDistance: 12)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(DashboardGridCoordinateSpace.name)))
-            .onChanged { value in
-                guard case .second(true, let dragValue?) = value else {
-                    return
-                }
-
-                updateDashboardGridDrag(itemID: itemID, value: dragValue)
-            }
-            .onEnded { value in
-                guard case .second(true, let dragValue?) = value else {
-                    endDashboardGridDrag()
-                    return
-                }
-
-                finishDashboardGridDrag(itemID: itemID, value: dragValue)
-            }
-    }
-
-    private func updateDashboardGridDrag(itemID: UUID, value: DragGesture.Value) {
+    private func updateDashboardGridDrag(itemID: UUID, translation: CGSize) {
         if draggingGridItemID != itemID {
             draggingGridItemID = itemID
             dragStartGridItemIDs = visibleDashboardGridItemIDs
@@ -774,11 +766,11 @@ struct DashboardView: View {
             HapticFeedback.selection()
         }
 
-        activeDragTranslation = value.translation
+        activeDragTranslation = translation
 
         let targetItemID = dashboardGridInsertionTargetID(
             for: itemID,
-            translation: value.translation,
+            translation: translation,
             sourceFrame: dragStartFrame
         )
 
@@ -861,10 +853,10 @@ struct DashboardView: View {
         return updatedItemIDs
     }
 
-    private func finishDashboardGridDrag(itemID: UUID, value: DragGesture.Value) {
+    private func finishDashboardGridDrag(itemID: UUID, translation: CGSize) {
         let targetItemID = dashboardGridInsertionTargetID(
             for: itemID,
-            translation: value.translation,
+            translation: translation,
             sourceFrame: dragStartFrame
         )
         let visibleItemIDs = dragStartGridItemIDs.isEmpty ? visibleDashboardGridItemIDs : dragStartGridItemIDs
@@ -910,27 +902,7 @@ struct DashboardView: View {
         }
     }
 
-    private func dashboardChipDragGesture(for itemID: UUID) -> some Gesture {
-        LongPressGesture(minimumDuration: DashboardDragTiming.liftDelay, maximumDistance: 12)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(DashboardChipCoordinateSpace.name)))
-            .onChanged { value in
-                guard case .second(true, let dragValue?) = value else {
-                    return
-                }
-
-                updateDashboardChipDrag(itemID: itemID, value: dragValue)
-            }
-            .onEnded { value in
-                guard case .second(true, let dragValue?) = value else {
-                    endDashboardChipDrag()
-                    return
-                }
-
-                finishDashboardChipDrag(itemID: itemID, value: dragValue)
-            }
-    }
-
-    private func updateDashboardChipDrag(itemID: UUID, value: DragGesture.Value) {
+    private func updateDashboardChipDrag(itemID: UUID, translation: CGSize) {
         if draggingChipItemID != itemID {
             draggingChipItemID = itemID
             dragStartChipItemIDs = visibleDashboardChipItemIDs
@@ -939,7 +911,7 @@ struct DashboardView: View {
             HapticFeedback.selection()
         }
 
-        activeChipDragTranslation = CGSize(width: value.translation.width, height: 0)
+        activeChipDragTranslation = CGSize(width: translation.width, height: 0)
 
         let targetItemID = dashboardChipInsertionTargetID(
             for: itemID,
@@ -992,11 +964,11 @@ struct DashboardView: View {
         return nil
     }
 
-    private func finishDashboardChipDrag(itemID: UUID, value: DragGesture.Value) {
-        let translation = CGSize(width: value.translation.width, height: 0)
+    private func finishDashboardChipDrag(itemID: UUID, translation: CGSize) {
+        let horizontalTranslation = CGSize(width: translation.width, height: 0)
         let targetItemID = dashboardChipInsertionTargetID(
             for: itemID,
-            translation: translation,
+            translation: horizontalTranslation,
             sourceFrame: dragStartChipFrame
         )
         let visibleItemIDs = dragStartChipItemIDs.isEmpty ? visibleDashboardChipItemIDs : dragStartChipItemIDs
@@ -1069,7 +1041,18 @@ struct DashboardView: View {
             .contentShape(Capsule())
             .dashboardChipItemFrame(id: item.id)
             .opacity(isDragging ? 0 : 1)
-            .simultaneousGesture(dashboardChipDragGesture(for: item.id))
+            .dashboardLongPressDragSurface(
+                isEnabled: !isDragging,
+                onChanged: { translation in
+                    updateDashboardChipDrag(itemID: item.id, translation: translation)
+                },
+                onEnded: { translation in
+                    finishDashboardChipDrag(itemID: item.id, translation: translation)
+                },
+                onCancelled: {
+                    endDashboardChipDrag()
+                }
+            )
             .dashboardChipEditAffordance(
                 isVisible: !isDragging,
                 accessibilityLabel: "Edit \(presentation.title)"
@@ -1328,6 +1311,7 @@ private enum DashboardChipCoordinateSpace {
 
 private enum DashboardDragTiming {
     static let liftDelay: TimeInterval = 0.45
+    static let allowableMovement: CGFloat = 8
 }
 
 private struct DashboardGridItemFramePreferenceKey: PreferenceKey {
@@ -1404,6 +1388,130 @@ private extension View {
                 isVisible: isVisible,
                 accessibilityLabel: accessibilityLabel,
                 menuContent: menuContent
+            )
+        }
+    }
+
+    func dashboardLongPressDragSurface(
+        isEnabled: Bool,
+        onChanged: @escaping (CGSize) -> Void,
+        onEnded: @escaping (CGSize) -> Void,
+        onCancelled: @escaping () -> Void
+    ) -> some View {
+        overlay {
+            if isEnabled {
+                DashboardLongPressDragSurface(
+                    minimumDuration: DashboardDragTiming.liftDelay,
+                    maximumMovement: DashboardDragTiming.allowableMovement,
+                    onChanged: onChanged,
+                    onEnded: onEnded,
+                    onCancelled: onCancelled
+                )
+            }
+        }
+    }
+}
+
+private struct DashboardLongPressDragSurface: UIViewRepresentable {
+    let minimumDuration: TimeInterval
+    let maximumMovement: CGFloat
+    let onChanged: (CGSize) -> Void
+    let onEnded: (CGSize) -> Void
+    let onCancelled: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(
+            onChanged: onChanged,
+            onEnded: onEnded,
+            onCancelled: onCancelled
+        )
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = true
+
+        let recognizer = UILongPressGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleLongPress(_:))
+        )
+        recognizer.minimumPressDuration = minimumDuration
+        recognizer.allowableMovement = maximumMovement
+        recognizer.cancelsTouchesInView = false
+        recognizer.delaysTouchesBegan = false
+        recognizer.delaysTouchesEnded = false
+        recognizer.delegate = context.coordinator
+        view.addGestureRecognizer(recognizer)
+        context.coordinator.recognizer = recognizer
+
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
+        context.coordinator.onCancelled = onCancelled
+        context.coordinator.recognizer?.minimumPressDuration = minimumDuration
+        context.coordinator.recognizer?.allowableMovement = maximumMovement
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onChanged: (CGSize) -> Void
+        var onEnded: (CGSize) -> Void
+        var onCancelled: () -> Void
+        weak var recognizer: UILongPressGestureRecognizer?
+        private var startLocation: CGPoint?
+
+        init(
+            onChanged: @escaping (CGSize) -> Void,
+            onEnded: @escaping (CGSize) -> Void,
+            onCancelled: @escaping () -> Void
+        ) {
+            self.onChanged = onChanged
+            self.onEnded = onEnded
+            self.onCancelled = onCancelled
+        }
+
+        @objc func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
+            guard let view = recognizer.view else {
+                return
+            }
+
+            let location = recognizer.location(in: view)
+
+            switch recognizer.state {
+            case .began:
+                startLocation = location
+                onChanged(.zero)
+            case .changed:
+                onChanged(translation(from: location))
+            case .ended:
+                onEnded(translation(from: location))
+                startLocation = nil
+            case .cancelled, .failed:
+                onCancelled()
+                startLocation = nil
+            default:
+                break
+            }
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+
+        private func translation(from location: CGPoint) -> CGSize {
+            guard let startLocation else {
+                return .zero
+            }
+
+            return CGSize(
+                width: location.x - startLocation.x,
+                height: location.y - startLocation.y
             )
         }
     }
