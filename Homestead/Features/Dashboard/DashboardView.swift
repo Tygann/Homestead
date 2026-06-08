@@ -649,17 +649,29 @@ struct DashboardView: View {
         @ViewBuilder menuContent: () -> MenuContent
     ) -> some View {
         let isDragging = draggingGridItemID == itemID
-
-        return content()
+        let baseContent = content()
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             .dashboardGridItemFrame(id: itemID)
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
-            .dashboardDragAffordance(isVisible: !isDragging)
             .contextMenu {
                 menuContent()
             }
-            .opacity(isDragging ? 0 : 1)
             .gesture(dashboardGridDragGesture(for: itemID))
+
+        return Group {
+            if isDragging {
+                baseContent
+                    .hidden()
+            } else {
+                baseContent
+                    .dashboardDragAffordance()
+            }
+        }
+        .transaction { transaction in
+            if isDragging {
+                transaction.animation = nil
+            }
+        }
     }
 
     @ViewBuilder
@@ -1147,18 +1159,20 @@ private extension View {
         }
     }
 
-    func dashboardDragAffordance(isVisible: Bool) -> some View {
+    func dashboardDragAffordance() -> some View {
         overlay(alignment: .topTrailing) {
-            if isVisible {
-                Image(systemName: "line.3.horizontal")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 26, height: 20)
-                    .background(Color(.tertiarySystemFill), in: Capsule())
-                    .padding(6)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
+            Image(systemName: "line.3.horizontal")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+                .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(Color(.separator).opacity(0.28), lineWidth: 0.5)
+                }
+                .offset(x: 4, y: -4)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 }
