@@ -207,12 +207,12 @@ struct DashboardView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         optionsMenu
                     }
-                }
 
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
 
-                ToolbarItem(placement: .topBarTrailing) {
-                    SettingsAccountButton()
+                    ToolbarItem(placement: .topBarTrailing) {
+                        SettingsAccountButton()
+                    }
                 }
             }
             .sheet(item: $addSheetMode) { mode in
@@ -1184,40 +1184,26 @@ private struct DashboardGridEditAffordance<MenuContent: View>: View {
     @ViewBuilder var menuContent: () -> MenuContent
 
     var body: some View {
-        HStack(spacing: AppSpacing.xSmall) {
-            Image(systemName: "line.3.horizontal")
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.tertiary)
-                .frame(width: 22, height: 22)
-                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+        Menu {
+            menuContent()
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.primary)
+                .frame(width: 30, height: 30)
+                .background(Color(.secondarySystemGroupedBackground), in: Circle())
                 .overlay {
                     Circle()
-                        .strokeBorder(Color(.separator).opacity(0.22), lineWidth: 0.5)
+                        .strokeBorder(Color(.separator).opacity(0.28), lineWidth: 0.5)
                 }
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-
-            Menu {
-                menuContent()
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 30, height: 30)
-                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
-                    .overlay {
-                        Circle()
-                            .strokeBorder(Color(.separator).opacity(0.28), lineWidth: 0.5)
-                    }
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(accessibilityLabel)
-            .accessibilityHint("Shows options")
+                .contentShape(Circle())
         }
+        .buttonStyle(.plain)
         .offset(x: 4, y: -6)
         .opacity(isVisible ? 1 : 0)
         .allowsHitTesting(isVisible)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Shows options")
     }
 }
 

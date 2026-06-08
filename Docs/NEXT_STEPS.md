@@ -48,7 +48,8 @@ Recommended reasoning level: High.
 - Tuned direct drag to use a transient visual preview order so cards and section headers reflow while dragging, with the lifted item drawn as a floating preview over a stable opacity-hidden grid placeholder; persisted order commits only on drop, cards/headers show a quiet non-interactive corner grip badge in edit mode, edit-mode card/header context menus are disabled so long-press only starts movement, and the visible three-dot edit overlay was removed.
 - Added a visible-grid move helper that persists flat dashboard order without storing grid coordinates, preserves chip slots, and avoids moving hidden/unavailable configured items.
 - Add-card now reports the new card ID back to the dashboard so appended cards can scroll into view and briefly highlight after being added.
-- Added a deliberate edit-mode affordance for dashboard cards and section headers: a tapped ellipsis menu reuses the existing customization actions while the card/header body remains the direct drag target, avoiding long-press/context-menu conflicts.
+- Added a deliberate edit-mode affordance for dashboard cards and section headers: a single tapped ellipsis menu reuses the existing customization actions while the card/header body remains the direct drag target, avoiding long-press/context-menu conflicts.
+- Hid the account/settings avatar from the dashboard toolbar while edit mode is active so edit mode keeps focus on dashboard organization.
 
 ## Next Chunk
 
@@ -69,5 +70,5 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
-- Generic iOS Simulator build passed after adding the tapped edit-mode card/header affordance.
+- Generic iOS Simulator build passed after simplifying the tapped edit-mode card/header affordance and hiding the toolbar account button in edit mode.
 - `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after adding the tapped edit-mode card/header affordance.
