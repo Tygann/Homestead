@@ -44,6 +44,13 @@ struct DashboardAddCardCandidate: Identifiable, Equatable, Sendable {
     var id: String { entityID }
 }
 
+struct DashboardAddCardCategorySummary: Identifiable, Equatable, Sendable {
+    let category: DashboardAddCardCategory
+    let count: Int
+
+    var id: String { category.id }
+}
+
 struct DashboardAddCardCandidateGroup: Identifiable, Equatable, Sendable {
     let id: String
     let title: String
@@ -63,12 +70,22 @@ struct DashboardAddCardSizeChoice: Identifiable, Equatable, Sendable {
 enum DashboardAddCardPresentation {
     @MainActor
     static func makeCategories(from candidates: [DashboardAddCardCandidate]) -> [DashboardAddCardCategory] {
+        makeCategorySummaries(from: candidates).map(\.category)
+    }
+
+    @MainActor
+    static func makeCategorySummaries(from candidates: [DashboardAddCardCandidate]) -> [DashboardAddCardCategorySummary] {
         let styles = Set(candidates.map(\.cardStyle))
         let styleCategories = DashboardEntityCardStyle.addCardOrder
             .filter { styles.contains($0) }
-            .map(DashboardAddCardCategory.style)
+            .map { style in
+                DashboardAddCardCategorySummary(
+                    category: .style(style),
+                    count: candidates.filter { $0.cardStyle == style }.count
+                )
+            }
 
-        return [.all] + styleCategories
+        return [DashboardAddCardCategorySummary(category: .all, count: candidates.count)] + styleCategories
     }
 
     @MainActor

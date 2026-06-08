@@ -4029,6 +4029,10 @@ struct HomesteadTests {
         let categories = DashboardAddCardPresentation.makeCategories(from: candidates)
         #expect(categories.map(\.title) == ["All", "Values", "Cameras", "Actions"])
 
+        let categorySummaries = DashboardAddCardPresentation.makeCategorySummaries(from: candidates)
+        #expect(categorySummaries.map(\.category.title) == ["All", "Values", "Cameras", "Actions"])
+        #expect(categorySummaries.map(\.count) == [3, 1, 1, 1])
+
         let sensorChoices = DashboardAddCardPresentation.makeSizeChoices(
             for: try #require(store.entityBox(for: "sensor.kitchen_temperature"))
         )
@@ -4083,6 +4087,18 @@ struct HomesteadTests {
         )
         #expect(searchGroups.map(\.title) == ["Media Players"])
         #expect(searchGroups.flatMap(\.candidates).map(\.entityID) == ["media_player.tv"])
+
+        let configuredUnavailableGroups = DashboardAddCardPresentation.makeCandidateGroups(
+            entityBoxes: store.allEntityBoxes(),
+            configuredEntityIDs: ["media_player.tv"],
+            deviceGroups: [],
+            domainGroups: store.entityIDGroupsByDomain,
+            displayNameForDeviceGroupedEntity: { _ in nil },
+            category: .all,
+            searchText: "",
+            includesUnavailable: true
+        )
+        #expect(configuredUnavailableGroups.flatMap(\.candidates).map(\.entityID) == ["light.kitchen", "sensor.temperature"])
 
         let availableOnlyGroups = DashboardAddCardPresentation.makeCandidateGroups(
             entityBoxes: store.allEntityBoxes(),

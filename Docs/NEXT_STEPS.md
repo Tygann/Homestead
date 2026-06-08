@@ -62,10 +62,12 @@ Recommended reasoning level: High.
 - Polished edit-mode card/header/chip drag feel with an explicit lift/drop phase, a lightweight lifted shadow/scale, opaque lifted header/card/chip previews, reduced-motion handling, impact haptics on lift, and delayed cleanup so the floating preview settles into its placeholder before disappearing.
 - Added practical edge auto-scroll to the UIKit long-press drag surface for vertical dashboard grid dragging and horizontal chip-row dragging, including scroll-offset-aware translations so previews stay stable while content scrolls under the finger.
 - Tuned dense-dashboard edit-mode dragging so final drops preserve edge auto-scroll offset, edge scrolling ramps in more gently near the viewport boundary, and floating previews linger long enough for dense grid/chip reflow to settle.
+- Polished Add to Dashboard card organization for larger homes by adding card-type result counts, group result counts, and a lightweight expand/collapse-groups control in the card picker.
+- Fixed the add-card exclusion path so already-added unavailable cards stay hidden when the user toggles unavailable entities into the picker.
 
 ## Next Chunk
 
-- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of edge auto-scroll and drop feel on dense dashboards, or larger dashboard management affordances.
+- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of edge auto-scroll and drop feel on dense dashboards, manual validation of the add-card grouping/count controls on a large entity set, or larger dashboard management affordances.
 - As dashboard/add/edit views are touched, review nearby copy and controls for development-facing labels, explanations, or layout mechanics, and prefer user-facing choices, previews, and direct manipulation where the behavior is already visually clear.
 - Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
 
@@ -91,3 +93,5 @@ Recommended reasoning level: High.
 - Generic iOS Simulator build passed after polishing edit-mode lift/drop animation and adding grid/chip edge auto-scroll.
 - Generic iOS Simulator build passed after dense-dashboard edit-mode drag tuning.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after dense-dashboard edit-mode drag tuning.
+- Generic iOS Simulator build passed after Add to Dashboard card grouping/count polish.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after Add to Dashboard card grouping/count polish.

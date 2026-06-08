@@ -145,11 +145,12 @@ struct DashboardAddItemView: View {
             HStack(spacing: AppSpacing.small) {
                 ForEach(cardCategories) { category in
                     DashboardAddFilterChip(
-                        title: category.title,
-                        systemImage: category.systemImage,
-                        isSelected: cardCategory == category
+                        title: category.category.title,
+                        systemImage: category.category.systemImage,
+                        trailingValue: category.count.formatted(),
+                        isSelected: cardCategory == category.category
                     ) {
-                        cardCategory = category
+                        cardCategory = category.category
                         collapsedCardGroups.removeAll()
                     }
                 }
@@ -181,6 +182,18 @@ struct DashboardAddItemView: View {
 
     private var cardCandidateList: some View {
         List {
+            if showsCardGroupControls {
+                Section {
+                    Button {
+                        toggleAllCardGroups()
+                    } label: {
+                        Label(cardGroupControlTitle, systemImage: cardGroupControlSystemImage)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.accentColor)
+                }
+            }
+
             ForEach(filteredCardCandidateGroups) { group in
                 Section {
                     if !collapsedCardGroups.contains(group.id) {
@@ -207,6 +220,12 @@ struct DashboardAddItemView: View {
                         HStack {
                             Label(group.title, systemImage: group.systemImage)
                             Spacer()
+                            Text(group.candidates.count.formatted())
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, AppSpacing.small)
+                                .frame(minWidth: 28, minHeight: 22)
+                                .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
                             Image(systemName: collapsedCardGroups.contains(group.id) ? "chevron.right" : "chevron.down")
                                 .font(.caption.weight(.bold))
                         }
@@ -236,8 +255,8 @@ struct DashboardAddItemView: View {
         }
     }
 
-    private var cardCategories: [DashboardAddCardCategory] {
-        DashboardAddCardPresentation.makeCategories(
+    private var cardCategories: [DashboardAddCardCategorySummary] {
+        DashboardAddCardPresentation.makeCategorySummaries(
             from: cardCandidateGroups(
                 category: .all,
                 searchText: "",
@@ -245,6 +264,23 @@ struct DashboardAddItemView: View {
             )
             .flatMap(\.candidates)
         )
+    }
+
+    private var showsCardGroupControls: Bool {
+        filteredCardCandidateGroups.count > 1
+    }
+
+    private var allVisibleCardGroupsCollapsed: Bool {
+        let groupIDs = Set(filteredCardCandidateGroups.map(\.id))
+        return !groupIDs.isEmpty && groupIDs.isSubset(of: collapsedCardGroups)
+    }
+
+    private var cardGroupControlTitle: String {
+        allVisibleCardGroupsCollapsed ? "Expand Groups" : "Collapse Groups"
+    }
+
+    private var cardGroupControlSystemImage: String {
+        allVisibleCardGroupsCollapsed ? "chevron.down.circle" : "chevron.up.circle"
     }
 
     private var filteredCardCandidateGroups: [DashboardAddCardCandidateGroup] {
@@ -277,6 +313,15 @@ struct DashboardAddItemView: View {
             collapsedCardGroups.remove(groupID)
         } else {
             collapsedCardGroups.insert(groupID)
+        }
+    }
+
+    private func toggleAllCardGroups() {
+        let groupIDs = Set(filteredCardCandidateGroups.map(\.id))
+        if allVisibleCardGroupsCollapsed {
+            collapsedCardGroups.subtract(groupIDs)
+        } else {
+            collapsedCardGroups.formUnion(groupIDs)
         }
     }
 
@@ -540,9 +585,7 @@ struct DashboardAddItemView: View {
     }
 
     private var selectedCardEntityIDs: Set<String> {
-        stateStore.availableEntityIDs.subtracting(
-            dashboardConfiguration.addableEntityIDs(fromAvailableEntityIDs: stateStore.availableEntityIDs)
-        )
+        Set(dashboardConfiguration.entityIDs)
     }
 
     private func rebuildAddCandidates() {
@@ -850,12 +893,24 @@ private extension DashboardCardSize {
 private struct DashboardAddFilterChip: View {
     let title: String
     let systemImage: String
+    var trailingValue: String? = nil
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
+            Label {
+                HStack(spacing: AppSpacing.xSmall) {
+                    Text(title)
+                    if let trailingValue {
+                        Text(trailingValue)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(isSelected ? Color.white.opacity(0.82) : Color.secondary)
+                    }
+                }
+            } icon: {
+                Image(systemName: systemImage)
+            }
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, AppSpacing.medium)
                 .frame(height: 34)
