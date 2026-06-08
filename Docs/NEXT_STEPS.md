@@ -61,6 +61,7 @@ Recommended reasoning level: High.
 - Lowered the chip ellipsis affordance slightly so it remains visible within the clipped horizontal chip row.
 - Polished edit-mode card/header/chip drag feel with an explicit lift/drop phase, a lightweight lifted shadow/scale, opaque lifted header/card/chip previews, reduced-motion handling, impact haptics on lift, and delayed cleanup so the floating preview settles into its placeholder before disappearing.
 - Added practical edge auto-scroll to the UIKit long-press drag surface for vertical dashboard grid dragging and horizontal chip-row dragging, including scroll-offset-aware translations so previews stay stable while content scrolls under the finger.
+- Tuned dense-dashboard edit-mode dragging so final drops preserve edge auto-scroll offset, edge scrolling ramps in more gently near the viewport boundary, and floating previews linger long enough for dense grid/chip reflow to settle.
 
 ## Next Chunk
 
@@ -88,3 +89,5 @@ Recommended reasoning level: High.
 - Generic iOS Simulator build passed after keeping active drag recognizers mounted through card/chip lift, movement, and finger-up.
 - Generic iOS Simulator build passed after switching edit-mode drag translation to window coordinates.
 - Generic iOS Simulator build passed after polishing edit-mode lift/drop animation and adding grid/chip edge auto-scroll.
+- Generic iOS Simulator build passed after dense-dashboard edit-mode drag tuning.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after dense-dashboard edit-mode drag tuning.

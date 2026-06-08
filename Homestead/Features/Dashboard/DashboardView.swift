@@ -945,7 +945,11 @@ struct DashboardView: View {
     private func scheduleDashboardGridDragCleanup() {
         gridDragCleanupTask?.cancel()
         gridDragCleanupTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(reduceMotion ? 60 : 220))
+            try? await Task.sleep(
+                for: reduceMotion
+                    ? DashboardDragTiming.reducedMotionCleanupDelay
+                    : DashboardDragTiming.cleanupDelay
+            )
             guard !Task.isCancelled else { return }
             draggingGridItemID = nil
             activeDragTranslation = .zero
@@ -1113,7 +1117,11 @@ struct DashboardView: View {
     private func scheduleDashboardChipDragCleanup() {
         chipDragCleanupTask?.cancel()
         chipDragCleanupTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(reduceMotion ? 60 : 220))
+            try? await Task.sleep(
+                for: reduceMotion
+                    ? DashboardDragTiming.reducedMotionCleanupDelay
+                    : DashboardDragTiming.cleanupDelay
+            )
             guard !Task.isCancelled else { return }
             draggingChipItemID = nil
             activeChipDragTranslation = .zero
@@ -1448,11 +1456,13 @@ private enum DashboardDragPhase {
 private enum DashboardDragTiming {
     static let liftDelay: TimeInterval = 0.45
     static let allowableMovement: CGFloat = 8
+    static let cleanupDelay: Duration = .milliseconds(280)
+    static let reducedMotionCleanupDelay: Duration = .milliseconds(80)
 }
 
 private enum DashboardDragAutoScroll {
-    static let edgeLength: CGFloat = 72
-    static let maximumPointsPerSecond: CGFloat = 420
+    static let edgeLength: CGFloat = 88
+    static let maximumPointsPerSecond: CGFloat = 380
 }
 
 private struct DashboardGridItemFramePreferenceKey: PreferenceKey {
@@ -1647,8 +1657,9 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
                 updateAutoScroll(at: location)
                 onChanged(translation(from: location))
             case .ended:
+                let finalTranslation = translation(from: location)
                 stopAutoScroll()
-                onEnded(translation(from: location))
+                onEnded(finalTranslation)
                 startWindowLocation = nil
                 lastWindowLocation = nil
                 startContentOffset = nil
@@ -1785,12 +1796,12 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
             let edgeLength = DashboardDragAutoScroll.edgeLength
             if location < minEdge + edgeLength {
                 let proximity = min(1, max(0, (minEdge + edgeLength - location) / edgeLength))
-                return -DashboardDragAutoScroll.maximumPointsPerSecond * proximity
+                return -DashboardDragAutoScroll.maximumPointsPerSecond * proximity * proximity
             }
 
             if location > maxEdge - edgeLength {
                 let proximity = min(1, max(0, (location - (maxEdge - edgeLength)) / edgeLength))
-                return DashboardDragAutoScroll.maximumPointsPerSecond * proximity
+                return DashboardDragAutoScroll.maximumPointsPerSecond * proximity * proximity
             }
 
             return 0
