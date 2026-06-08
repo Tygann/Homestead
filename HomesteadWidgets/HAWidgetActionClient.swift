@@ -31,6 +31,15 @@ struct HAWidgetLightState: Sendable {
     var isOn: Bool { state == "on" }
 }
 
+struct HAWidgetSwitchState: Sendable {
+    let entityID: String
+    let state: String
+    let displayName: String
+    let systemImage: String
+
+    var isOn: Bool { state == "on" }
+}
+
 final class HAWidgetActionClient: Sendable {
     private let session: URLSession
 
@@ -62,12 +71,53 @@ final class HAWidgetActionClient: Sendable {
     }
 
     func setLight(entityID: String, isOn: Bool) async throws {
+        try await callService(
+            domain: "light",
+            service: isOn ? "turn_on" : "turn_off",
+            entityID: entityID
+        )
+    }
+
+    func fetchSwitchState(entityID: String) async throws -> HAWidgetSwitchState {
+        try await withConnectedSocket { task in
+            try await sendJSON(["id": 1, "type": "get_states"], over: task)
+
+            let message = try await receiveJSONObject(from: task)
+            guard let success = message["success"] as? Bool, success,
+                  let states = message["result"] as? [[String: Any]],
+                  let state = states.first(where: { $0["entity_id"] as? String == entityID }),
+                  let stateValue = state["state"] as? String else {
+                throw HAWidgetActionError.unexpectedResponse
+            }
+
+            let attributes = state["attributes"] as? [String: Any]
+            let displayName = attributes?["friendly_name"] as? String ?? entityID
+            let deviceClass = attributes?["device_class"] as? String
+
+            return HAWidgetSwitchState(
+                entityID: entityID,
+                state: stateValue,
+                displayName: displayName,
+                systemImage: switchSystemImage(deviceClass: deviceClass, isOn: stateValue == "on")
+            )
+        }
+    }
+
+    func setSwitch(entityID: String, isOn: Bool) async throws {
+        try await callService(
+            domain: "switch",
+            service: isOn ? "turn_on" : "turn_off",
+            entityID: entityID
+        )
+    }
+
+    private func callService(domain: String, service: String, entityID: String) async throws {
         try await withConnectedSocket { task in
             try await sendJSON([
                 "id": 1,
                 "type": "call_service",
-                "domain": "light",
-                "service": isOn ? "turn_on" : "turn_off",
+                "domain": domain,
+                "service": service,
                 "target": ["entity_id": entityID]
             ], over: task)
 
@@ -164,5 +214,14 @@ final class HAWidgetActionClient: Sendable {
         }
 
         return url
+    }
+
+    private func switchSystemImage(deviceClass: String?, isOn: Bool) -> String {
+        switch deviceClass {
+        case "outlet":
+            "poweroutlet.type.b.fill"
+        default:
+            isOn ? "lightswitch.on.fill" : "lightswitch.off.fill"
+        }
     }
 }

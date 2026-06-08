@@ -304,6 +304,7 @@ struct HomesteadLightWidgetView: View {
 struct HomesteadWidgetsBundle: WidgetBundle {
     var body: some Widget {
         HomesteadLightWidget()
+        HomesteadSwitchWidget()
     }
 }
 

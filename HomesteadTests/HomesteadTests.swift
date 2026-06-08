@@ -2695,6 +2695,78 @@ struct HomesteadTests {
         #expect(!json.contains("longLivedAccessToken"))
     }
 
+    @Test func widgetSharedStoreBuildsCompactControlSnapshots() {
+        let lights = [
+            LightEntity(
+                entityID: "light.z_lamp",
+                displayName: "Z Lamp",
+                isOn: false,
+                brightness: nil,
+                supportsBrightness: false,
+                iconName: "lightbulb.fill",
+                lastUpdated: nil
+            ),
+            LightEntity(
+                entityID: "light.a_lamp",
+                displayName: "A Lamp",
+                isOn: true,
+                brightness: 128,
+                supportsBrightness: true,
+                iconName: "lightbulb.fill",
+                lastUpdated: nil
+            )
+        ]
+        let entities = [
+            HomeEntity(
+                entityID: "sensor.temperature",
+                domain: .sensor,
+                displayName: "Temperature",
+                state: "72",
+                iconName: "thermometer.medium",
+                isAvailable: true,
+                lastUpdated: nil
+            ),
+            HomeEntity(
+                entityID: "switch.coffee",
+                domain: .switch,
+                displayName: "Coffee",
+                state: "on",
+                iconName: "lightswitch.on.fill",
+                isAvailable: true,
+                lastUpdated: nil
+            ),
+            HomeEntity(
+                entityID: "switch.fan",
+                domain: .switch,
+                displayName: "Fan",
+                state: "off",
+                iconName: "lightswitch.off.fill",
+                isAvailable: true,
+                lastUpdated: nil
+            )
+        ]
+
+        #expect(WidgetSharedStore.lightSnapshots(from: lights) == [
+            WidgetLightSnapshot(entityID: "light.a_lamp", displayName: "A Lamp", isOn: true),
+            WidgetLightSnapshot(entityID: "light.z_lamp", displayName: "Z Lamp", isOn: false)
+        ])
+
+        #expect(WidgetSharedStore.switchSnapshots(from: entities) == [
+            WidgetSwitchSnapshot(
+                entityID: "switch.coffee",
+                displayName: "Coffee",
+                isOn: true,
+                systemImage: "lightswitch.on.fill"
+            ),
+            WidgetSwitchSnapshot(
+                entityID: "switch.fan",
+                displayName: "Fan",
+                isOn: false,
+                systemImage: "lightswitch.off.fill"
+            )
+        ])
+    }
+
     @MainActor
     @Test func connectionSettingsUsesStoredOAuthCredentialBaseURL() throws {
         let suiteName = "com.tyler.Homestead.tests.\(UUID().uuidString)"

@@ -313,7 +313,7 @@ final class HAStateStore {
         refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
 
         if snapshotBatchNeedsWidgetSave {
-            saveWidgetLightSnapshots()
+            saveWidgetSnapshots()
         }
         snapshotBatchNeedsWidgetSave = false
     }
@@ -453,7 +453,7 @@ final class HAStateStore {
         floorSortOrderByID.removeAll()
         isApplyingSnapshotBatch = false
         snapshotBatchNeedsWidgetSave = false
-        saveWidgetLightSnapshots()
+        saveWidgetSnapshots()
     }
 
     private func rebuildMappedEntities(from entities: [HAEntityDTO]) {
@@ -571,11 +571,11 @@ final class HAStateStore {
             refreshEntityIndexes(previousCatalogSignature: previousCatalogSignature)
         }
 
-        if homeEntity.domain == .light {
+        if homeEntity.domain.isWidgetSnapshotDomain {
             if isApplyingSnapshotBatch {
                 snapshotBatchNeedsWidgetSave = true
             } else {
-                saveWidgetLightSnapshots()
+                saveWidgetSnapshots()
             }
         }
     }
@@ -610,11 +610,14 @@ final class HAStateStore {
 
         if removedEntity != nil {
             if isApplyingSnapshotBatch {
-                if removedEntity?.domain == .light {
+                if removedEntity?.domain.isWidgetSnapshotDomain == true {
                     snapshotBatchNeedsWidgetSave = true
                 }
             } else {
                 refreshEntityIndexes(previousCatalogSignature: previousCatalogSignature)
+                if removedEntity?.domain.isWidgetSnapshotDomain == true {
+                    saveWidgetSnapshots()
+                }
             }
         }
     }
@@ -710,8 +713,9 @@ final class HAStateStore {
         }
     }
 
-    private func saveWidgetLightSnapshots() {
+    private func saveWidgetSnapshots() {
         WidgetSharedStore.saveLightSnapshots(Array(lightEntitiesByID.values))
+        WidgetSharedStore.saveSwitchSnapshots(Array(entitiesByID.values))
     }
 
     private func refreshUpdateEntities() {
@@ -906,6 +910,12 @@ private extension JSONValue {
         default:
             self == expectedValue
         }
+    }
+}
+
+private extension EntityDomain {
+    var isWidgetSnapshotDomain: Bool {
+        self == .light || self == .switch
     }
 }
 

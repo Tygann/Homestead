@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Expand WidgetKit/App Intents support beyond the current Home Screen light widget.
+Expand WidgetKit/App Intents support beyond the current Home Screen light and switch widgets.
 
 Recommended reasoning level: High.
 
@@ -85,12 +85,14 @@ Recommended reasoning level: High.
 - Added required Camera, Location When In Use, and Local Network usage descriptions to the app plist.
 - Moved entity history/timelines out of the active workstream after multiple completed timeline passes; revisit only for concrete visual bugs, detail-surface polish, or a clearly useful state-only domain.
 - Added a non-blocking notification setup prompt after Home Assistant sign-in and mobile-app registration, requesting iOS notification permission in app and persisting Not Now/asked state so Settings remains the recovery surface without making users discover it first.
+- Added a Home Screen switch widget alongside the existing light widget.
+- Reused the existing shared OAuth/app-group pattern, compact app-facing widget snapshots, widget-side WebSocket `get_states` refresh, optimistic widget state, and official WebSocket `call_service` for `switch.turn_on` / `switch.turn_off`.
+- Kept raw Home Assistant state parsing inside the widget action client and added focused snapshot regression coverage.
 
 ## Next Chunk
 
-- Inspect the existing `HomesteadWidgets` implementation, shared OAuth/app-group state, and Widget/App Intents boundaries before adding new widget families.
-- Start with one small, safe widget expansion slice using official Home Assistant WebSocket/OAuth/service-call paths already used by the app and light widget.
-- Recommended first scope: switch controls plus read-only sensor/person status, or scene/script action widgets if the existing App Intent path makes that smaller.
+- Continue with one small, safe widget expansion slice using official Home Assistant WebSocket/OAuth/service-call paths already used by the app and current widgets.
+- Recommended next scope: read-only sensor/person status widgets, or scene/script action widgets if the existing App Intent action path makes that smaller.
 - Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
 - Keep service calls official through WebSocket `call_service`; do not add REST, webhook, or private frontend endpoints for widget actions.
 - Leave timeline work parked unless a concrete bug or visual polish issue appears during normal feature work.
@@ -111,6 +113,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetSwitch` after adding the switch widget.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetSwitch` after adding the switch widget.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-TrustRecovery` after the trust-and-recovery permissions pass.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-TrustRecovery` after the trust-and-recovery permissions pass.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-NotificationOnboarding` after the notification setup prompt pass.

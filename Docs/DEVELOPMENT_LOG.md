@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-08
 
+### Switch Widget
+
+- Added a Home Screen switch widget beside the existing light widget using the same shared OAuth/app-group credential pattern.
+- Kept widget actions on official Home Assistant WebSocket paths: `get_states` for compact timeline refresh and `call_service` for `switch.turn_on` / `switch.turn_off`.
+- Extended app-owned widget snapshots to switches while keeping widget views app-facing and raw Home Assistant state parsing inside the widget action client.
+
 ### Trust And Recovery
 
 - Added native Settings > Permissions for Notifications, Local Network, Location, and Camera.
