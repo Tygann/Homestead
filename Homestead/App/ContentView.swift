@@ -18,19 +18,19 @@ struct ContentView: View {
 
         TabView {
             Tab("Home", systemImage: "house.fill") {
-                NavigationStack {
+                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
                     DashboardView()
                 }
             }
 
             Tab("Areas", systemImage: "square.split.bottomrightquarter") {
-                NavigationStack {
+                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
                     AreasView()
                 }
             }
 
             Tab("Browse", systemImage: "magnifyingglass", role: .search) {
-                NavigationStack {
+                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
                     DevicesView()
                 }
             }
@@ -76,13 +76,25 @@ struct ContentView: View {
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: chrome.statusAccessoryState)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory(isEnabled: chrome.statusAccessoryState != nil) {
-            if let statusAccessoryState = chrome.statusAccessoryState {
+    }
+
+    private func tabContent<Content: View>(
+        statusAccessoryState: AppStatusAccessoryState?,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        NavigationStack {
+            content()
+        }
+        .safeAreaInset(edge: .bottom, spacing: AppSpacing.small) {
+            if let statusAccessoryState {
                 AppStatusAccessory(state: statusAccessoryState) {
                     Task {
                         await homeAssistantService.refreshOrReconnect(settings: connectionSettings)
                     }
                 }
+                .padding(.horizontal, AppSpacing.large)
+                .padding(.bottom, AppSpacing.small)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
     }

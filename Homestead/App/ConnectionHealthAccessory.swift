@@ -179,8 +179,6 @@ nonisolated struct AppStatusAccessoryState: Equatable {
 }
 
 struct AppStatusAccessory: View {
-    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
-
     let state: AppStatusAccessoryState
     let retry: () -> Void
 
@@ -199,6 +197,8 @@ struct AppStatusAccessory: View {
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(state.canRetry ? "Retries the Home Assistant connection." : "")
         .accessibilityAddTraits(state.canRetry ? .isButton : [])
+        .background(.bar, in: Capsule())
+        .shadow(color: Color.black.opacity(0.14), radius: 14, x: 0, y: 6)
     }
 
     private var content: some View {
@@ -249,7 +249,7 @@ struct AppStatusAccessory: View {
     }
 
     private var showsMessage: Bool {
-        placement != .inline && !state.message.isEmpty
+        !state.message.isEmpty
     }
 
     private var tint: Color {
@@ -317,8 +317,10 @@ private struct AppStatusAccessoryPreview: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory(isEnabled: true) {
+        .safeAreaInset(edge: .bottom, spacing: AppSpacing.small) {
             AppStatusAccessory(state: state) {}
+                .padding(.horizontal, AppSpacing.large)
+                .padding(.bottom, AppSpacing.small)
         }
     }
 }
