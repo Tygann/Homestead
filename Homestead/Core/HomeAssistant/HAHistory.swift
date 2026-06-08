@@ -268,6 +268,345 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
     }
 }
 
+nonisolated enum HAHistoryTimelineTone: Equatable, Sendable {
+    case active
+    case inactive
+    case unavailable
+}
+
+nonisolated struct HAHistoryTimelineEntry: Identifiable, Equatable, Sendable {
+    let id: String
+    let occurredAt: Date
+    let state: String
+    let title: String
+    let systemImage: String
+    let tone: HAHistoryTimelineTone
+
+    init(
+        occurredAt: Date,
+        state: String,
+        title: String,
+        systemImage: String,
+        tone: HAHistoryTimelineTone
+    ) {
+        self.id = "\(occurredAt.timeIntervalSince1970)-\(state)"
+        self.occurredAt = occurredAt
+        self.state = state
+        self.title = title
+        self.systemImage = systemImage
+        self.tone = tone
+    }
+}
+
+nonisolated struct HAHistoryTimeline: Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let range: HAHistoryRangePreset
+    let entries: [HAHistoryTimelineEntry]
+
+    var isEmpty: Bool {
+        entries.isEmpty
+    }
+
+    var latestEntry: HAHistoryTimelineEntry? {
+        entries.last
+    }
+
+    var summaryText: String {
+        guard !entries.isEmpty else {
+            return "No state changes in \(range.accessibilityTitle.lowercased())"
+        }
+
+        let changeText = entries.count == 1 ? "1 change" : "\(entries.count) changes"
+        guard let latestEntry else {
+            return changeText
+        }
+
+        return "\(changeText) • Now \(latestEntry.title)"
+    }
+
+    static func makeBinarySensorTimeline(
+        response: HAHistoryResponseDTO,
+        request: HAHistoryRequest,
+        displayName: String,
+        deviceClass: String?,
+        range: HAHistoryRangePreset
+    ) -> HAHistoryTimeline {
+        let interval = DateInterval(start: request.startDate, end: request.endDate)
+        let displayKind = BinarySensorDisplayKind(deviceClass: deviceClass)
+        let entries = binarySensorEntries(
+            from: response.series.flatMap { $0 },
+            fallbackEntityID: request.entityID,
+            matching: request.entityID,
+            interval: interval,
+            displayKind: displayKind
+        )
+
+        return HAHistoryTimeline(
+            entityID: request.entityID,
+            displayName: displayName,
+            range: range,
+            entries: entries
+        )
+    }
+
+    static func binarySensorEntries(
+        from states: [HAHistoryStateDTO],
+        fallbackEntityID: String,
+        matching entityID: String,
+        interval: DateInterval,
+        displayKind: BinarySensorDisplayKind
+    ) -> [HAHistoryTimelineEntry] {
+        states
+            .compactMap { state -> HAHistoryTimelineEntry? in
+                let resolvedEntityID = state.entityID?.nonEmptyHistoryValue ?? fallbackEntityID
+                guard resolvedEntityID == entityID,
+                      interval.contains(state.lastChanged) || state.lastChanged == interval.end else {
+                    return nil
+                }
+
+                return binarySensorEntry(
+                    state: state.state,
+                    occurredAt: state.lastChanged,
+                    displayKind: displayKind
+                )
+            }
+            .sorted { lhs, rhs in
+                lhs.occurredAt < rhs.occurredAt
+            }
+            .removingConsecutiveDuplicateStates()
+    }
+
+    private static func binarySensorEntry(
+        state: String,
+        occurredAt: Date,
+        displayKind: BinarySensorDisplayKind
+    ) -> HAHistoryTimelineEntry? {
+        switch state {
+        case "on":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: displayKind.activeTimelineTitle,
+                systemImage: displayKind.activeTimelineSystemImage,
+                tone: .active
+            )
+        case "off":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: displayKind.inactiveTimelineTitle,
+                systemImage: displayKind.inactiveTimelineSystemImage,
+                tone: .inactive
+            )
+        case "unknown":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unknown",
+                systemImage: "questionmark.circle",
+                tone: .unavailable
+            )
+        case "unavailable":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unavailable",
+                systemImage: "exclamationmark.triangle",
+                tone: .unavailable
+            )
+        default:
+            nil
+        }
+    }
+}
+
+nonisolated private extension Array where Element == HAHistoryTimelineEntry {
+    func removingConsecutiveDuplicateStates() -> [HAHistoryTimelineEntry] {
+        reduce(into: [HAHistoryTimelineEntry]()) { entries, entry in
+            guard entries.last?.state != entry.state else {
+                return
+            }
+
+            entries.append(entry)
+        }
+    }
+}
+
+nonisolated private extension BinarySensorDisplayKind {
+    var activeTimelineTitle: String {
+        switch self {
+        case .door, .window, .garageDoor, .opening:
+            "Opened"
+        case .lock:
+            "Unlocked"
+        case .moisture:
+            "Wet"
+        case .battery:
+            "Low Battery"
+        case .batteryCharging:
+            "Charging"
+        case .cold:
+            "Cold"
+        case .carbonMonoxide:
+            "CO Detected"
+        case .heat:
+            "Heat Detected"
+        case .moving:
+            "Moving"
+        case .running:
+            "Running"
+        case .sound:
+            "Sound Detected"
+        case .update:
+            "Update Available"
+        case .connectivity:
+            "Connected"
+        case .plug, .power:
+            "On"
+        case .light:
+            "Light"
+        case .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .vibration, .generic:
+            "Detected"
+        }
+    }
+
+    var inactiveTimelineTitle: String {
+        switch self {
+        case .door, .window, .garageDoor, .opening:
+            "Closed"
+        case .lock:
+            "Locked"
+        case .moisture:
+            "Dry"
+        case .battery:
+            "Battery OK"
+        case .batteryCharging:
+            "Not Charging"
+        case .cold:
+            "Normal"
+        case .carbonMonoxide, .heat, .motion, .occupancy, .presence, .tamper, .safety, .problem, .smoke, .gas, .sound, .vibration, .generic:
+            "Clear"
+        case .moving:
+            "Stationary"
+        case .running:
+            "Stopped"
+        case .update:
+            "Up to Date"
+        case .connectivity:
+            "Disconnected"
+        case .plug, .power:
+            "Off"
+        case .light:
+            "Clear"
+        }
+    }
+
+    var activeTimelineSystemImage: String {
+        switch self {
+        case .door:
+            "door.left.hand.open"
+        case .window:
+            "window.vertical.open"
+        case .garageDoor:
+            "door.garage.open"
+        case .opening:
+            "rectangle.portrait.and.arrow.right"
+        case .lock:
+            "lock.open.fill"
+        case .motion, .occupancy, .presence:
+            "figure.motion"
+        case .tamper, .safety, .problem:
+            "exclamationmark.triangle.fill"
+        case .smoke:
+            "smoke.fill"
+        case .gas:
+            "flame.fill"
+        case .moisture:
+            "drop.fill"
+        case .battery:
+            "battery.25percent"
+        case .batteryCharging:
+            "battery.100percent.bolt"
+        case .cold:
+            "snowflake"
+        case .carbonMonoxide:
+            "carbon.monoxide.cloud.fill"
+        case .heat:
+            "heat.waves"
+        case .moving:
+            "figure.walk.motion"
+        case .running:
+            "figure.run"
+        case .sound:
+            "speaker.wave.2.fill"
+        case .update:
+            "arrow.trianglehead.2.clockwise"
+        case .vibration:
+            "waveform.path"
+        case .connectivity:
+            "wifi"
+        case .plug:
+            "powerplug.fill"
+        case .power:
+            "power.circle.fill"
+        case .light:
+            "lightbulb.fill"
+        case .generic:
+            "sensor.tag.radiowaves.forward.fill"
+        }
+    }
+
+    var inactiveTimelineSystemImage: String {
+        switch self {
+        case .door:
+            "door.left.hand.closed"
+        case .window:
+            "window.vertical.closed"
+        case .garageDoor:
+            "door.garage.closed"
+        case .opening:
+            "rectangle.portrait"
+        case .lock:
+            "lock.fill"
+        case .motion, .occupancy, .presence, .moving, .running:
+            "figure.stand"
+        case .tamper, .safety, .problem:
+            "checkmark.shield"
+        case .smoke:
+            "smoke"
+        case .gas:
+            "flame"
+        case .moisture:
+            "drop"
+        case .battery, .batteryCharging:
+            "battery.100percent"
+        case .cold:
+            "snowflake"
+        case .carbonMonoxide:
+            "carbon.monoxide.cloud"
+        case .heat:
+            "heat.waves"
+        case .sound:
+            "speaker"
+        case .update:
+            "checkmark.circle"
+        case .vibration:
+            "waveform"
+        case .connectivity:
+            "wifi.slash"
+        case .plug:
+            "powerplug"
+        case .power:
+            "power.circle"
+        case .light:
+            "lightbulb"
+        case .generic:
+            "sensor.tag.radiowaves.forward"
+        }
+    }
+}
+
 nonisolated private extension String {
     var nonEmptyHistoryValue: String? {
         let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)

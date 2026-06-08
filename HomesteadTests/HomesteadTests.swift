@@ -962,6 +962,67 @@ struct HomesteadTests {
         #expect(samples.map(\.occurredAt) == [middleDate, endDate])
     }
 
+    @Test func historyTimelineMapsBinarySensorStatesIntoActivityEntries() throws {
+        let startDate = try testDate("2026-06-05T15:00:00Z")
+        let openDate = try testDate("2026-06-05T15:10:00Z")
+        let closedDate = try testDate("2026-06-05T15:40:00Z")
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let request = HAHistoryRequest(
+            startDate: startDate,
+            endDate: endDate,
+            entityID: "binary_sensor.front_door"
+        )
+
+        let timeline = HAHistoryTimeline.makeBinarySensorTimeline(
+            response: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(entityID: "binary_sensor.front_door", state: "on", lastChanged: openDate),
+                    HAHistoryStateDTO(state: "off", lastChanged: closedDate)
+                ]
+            ]),
+            request: request,
+            displayName: "Front Door",
+            deviceClass: "door",
+            range: .oneHour
+        )
+
+        #expect(timeline.displayName == "Front Door")
+        #expect(timeline.entries.map(\.title) == ["Opened", "Closed"])
+        #expect(timeline.entries.map(\.systemImage) == ["door.left.hand.open", "door.left.hand.closed"])
+        #expect(timeline.entries.map(\.tone) == [.active, .inactive])
+        #expect(timeline.summaryText == "2 changes • Now Closed")
+    }
+
+    @Test func historyTimelineFiltersRangeEntityUnsupportedStatesAndDuplicateStates() throws {
+        let startDate = try testDate("2026-06-05T15:00:00Z")
+        let firstDate = try testDate("2026-06-05T15:10:00Z")
+        let duplicateDate = try testDate("2026-06-05T15:20:00Z")
+        let unknownDate = try testDate("2026-06-05T15:30:00Z")
+        let unavailableDate = try testDate("2026-06-05T15:40:00Z")
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let outsideDate = try testDate("2026-06-05T16:30:00Z")
+
+        let entries = HAHistoryTimeline.binarySensorEntries(
+            from: [
+                HAHistoryStateDTO(entityID: "binary_sensor.motion", state: "on", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "binary_sensor.motion", state: "on", lastChanged: duplicateDate),
+                HAHistoryStateDTO(entityID: "binary_sensor.other", state: "off", lastChanged: duplicateDate),
+                HAHistoryStateDTO(entityID: "binary_sensor.motion", state: "dim", lastChanged: duplicateDate),
+                HAHistoryStateDTO(entityID: "binary_sensor.motion", state: "unknown", lastChanged: unknownDate),
+                HAHistoryStateDTO(state: "unavailable", lastChanged: unavailableDate),
+                HAHistoryStateDTO(entityID: "binary_sensor.motion", state: "off", lastChanged: outsideDate)
+            ],
+            fallbackEntityID: "binary_sensor.motion",
+            matching: "binary_sensor.motion",
+            interval: DateInterval(start: startDate, end: endDate),
+            displayKind: .motion
+        )
+
+        #expect(entries.map(\.state) == ["on", "unknown", "unavailable"])
+        #expect(entries.map(\.title) == ["Detected", "Unknown", "Unavailable"])
+        #expect(entries.map(\.tone) == [.active, .unavailable, .unavailable])
+    }
+
     @Test func historyRangePresetBuildsFixedIntervals() throws {
         let endDate = try testDate("2026-06-05T16:00:00Z")
         let expectedHourStart = try testDate("2026-06-05T15:00:00Z")
@@ -3595,6 +3656,57 @@ struct HomesteadTests {
         #expect(series.displayName == "Kitchen Temperature")
         #expect(series.unit == "°F")
         #expect(series.samples.map(\.value) == [70])
+    }
+
+    @MainActor
+    @Test func serviceFetchesTimelineWithOAuthConfigurationAndMapsBinarySensorPresentation() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "timeline-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "binary_sensor.front_door",
+                state: "off",
+                attributes: [
+                    "friendly_name": .string("Front Door"),
+                    "device_class": .string("door")
+                ]
+            )
+        ])
+        let httpClient = StubHAHTTPClient(
+            historyResponse: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(
+                        entityID: "binary_sensor.front_door",
+                        state: "on",
+                        lastChanged: try testDate("2026-06-05T15:30:00Z")
+                    )
+                ]
+            ])
+        )
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        let request = HAHistoryRequest(
+            startDate: try testDate("2026-06-05T15:00:00Z"),
+            endDate: try testDate("2026-06-05T16:00:00Z"),
+            entityID: "binary_sensor.front_door"
+        )
+
+        let timeline = try await service.fetchTimeline(settings: settings, request: request, range: .oneHour)
+
+        #expect(httpClient.lastHistoryConfiguration?.accessToken == "timeline-access")
+        #expect(httpClient.lastHistoryRequest == request)
+        #expect(timeline.displayName == "Front Door")
+        #expect(timeline.entries.map(\.title) == ["Opened"])
     }
 
     @MainActor

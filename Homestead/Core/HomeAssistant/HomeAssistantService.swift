@@ -658,6 +658,32 @@ final class HomeAssistantService {
         )
     }
 
+    func fetchTimeline(
+        settings: HAConnectionSettings,
+        request: HAHistoryRequest,
+        range: HAHistoryRangePreset
+    ) async throws -> HAHistoryTimeline {
+        currentConnectionSettings = settings
+        guard settings.hasServerURL, !request.entityID.isEmpty else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        let configuration = try await preferredConfiguration(for: settings)
+        activeConfiguration = configuration
+        let response = try await httpClient.fetchHistory(configuration: configuration, request: request)
+        let entityBox = stateStore.entityBox(for: request.entityID)
+        let entity = entityBox?.homeEntity ?? stateStore.entity(for: request.entityID)
+        let binarySensor = entityBox?.binarySensorEntity
+
+        return HAHistoryTimeline.makeBinarySensorTimeline(
+            response: response,
+            request: request,
+            displayName: binarySensor?.displayName ?? entity?.displayName ?? request.entityID,
+            deviceClass: binarySensor?.deviceClass,
+            range: range
+        )
+    }
+
     func fetchDashboardHistory(
         settings: HAConnectionSettings,
         entityID: String,

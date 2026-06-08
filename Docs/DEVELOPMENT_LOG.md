@@ -42,6 +42,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added a native Swift Charts history panel to the existing sensor detail surface while keeping raw Home Assistant DTOs out of SwiftUI and chart formatting outside `HAStateStore`.
 - Expanded numeric sensor history into dashboard chart cards for Square, Wide, and Large card sizes with a fixed 6H range, preserving compact value cards and routing requests through `HomeAssistantService`.
 - Added dashboard history eligibility/request helpers, chart-card presentation mapping, generated-card size behavior for numeric sensors, and focused regression tests for the card/service handoff.
+- Added the first non-numeric history timeline slice for `binary_sensor.*` detail surfaces, using the same documented REST history and authenticated service handoff to map on/off and availability changes into app-facing Recent Activity timeline entries.
 
 ### Updates
 

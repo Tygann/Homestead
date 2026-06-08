@@ -64,12 +64,16 @@ Recommended reasoning level: High.
 - Tuned dense-dashboard edit-mode dragging so final drops preserve edge auto-scroll offset, edge scrolling ramps in more gently near the viewport boundary, and floating previews linger long enough for dense grid/chip reflow to settle.
 - Polished Add to Dashboard card organization for larger homes by adding card-type result counts, group result counts, and a lightweight expand/collapse-groups control in the card picker.
 - Fixed the add-card exclusion path so already-added unavailable cards stay hidden when the user toggles unavailable entities into the picker.
+- Added a focused non-numeric history/timeline slice for `binary_sensor.*` detail surfaces using Home Assistant's documented REST history endpoint and the existing authenticated HTTP/service handoff.
+- Added app-facing timeline entry/series models for binary sensor on/off and availability changes, device-class-aware labels/SF Symbols, duplicate-state collapsing, and fixed 1H/6H/24H ranges while keeping raw HA history DTOs out of SwiftUI.
+- Added a native Recent Activity panel to the existing binary sensor detail surface; dashboard timeline cards remain out of scope.
+- Added focused tests for timeline mapping/filtering and service auth handoff.
 
 ## Next Chunk
 
-- Start a focused history/timeline pass for non-numeric state entities using Home Assistant's documented REST history API and the existing authenticated HTTP/service handoff.
-- Prefer entity detail surfaces first, not dashboard cards, so the UX can prove itself without adding more dashboard complexity.
-- Likely first targets are discrete state domains with useful recent-change stories, such as `binary_sensor`, `switch`, `lock`, `cover`, `automation`, `person`, or `device_tracker`; pick a narrow first slice based on existing model/presentation support and API fit.
+- Extend the proven detail-surface timeline pattern to one additional narrow discrete state domain using Home Assistant's documented REST history API and the existing authenticated HTTP/service handoff.
+- Prefer entity detail surfaces first, not dashboard cards, so the UX can keep proving itself without adding more dashboard complexity.
+- Likely next targets are `lock`, `cover`, `switch`, `automation`, `person`, or `device_tracker`; pick based on existing model/presentation support and whether state-only history tells a useful story.
 - Keep raw Home Assistant history DTOs out of SwiftUI. Map history responses into app-facing timeline presentation models outside `HAStateStore`.
 - Do not add private frontend endpoints. If a target domain needs data beyond documented history/state/service APIs, mark it as API research instead of implementing.
 - Dashboard organization is no longer the active workstream; revisit it only for concrete bugs or new-card friction discovered during feature work.
@@ -84,10 +88,12 @@ Recommended reasoning level: High.
 - Do not use private frontend endpoints for repairs, users, system health, or admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
 - Settings > Account > Server has saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic route selection is implemented in `HomeAssistantService`.
-- Numeric sensor history already has documented REST history plumbing, authenticated service handoff, app-facing chart models, fixed detail ranges, and lightweight dashboard chart cards; reuse that shape where it fits.
+- Numeric sensor history already has documented REST history plumbing, authenticated service handoff, app-facing chart models, fixed detail ranges, and lightweight dashboard chart cards; binary sensors now have app-facing detail timeline models and a Recent Activity panel. Reuse those shapes where they fit.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed after adding binary sensor Recent Activity timelines.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after adding binary sensor timeline mapping and service handoff.
 - Generic iOS Simulator build passed after adding opaque active-card drag previews and direct horizontal chip dragging.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` for visible chip/grid reorder persistence.
 - Generic iOS Simulator build passed after adding press-and-hold dashboard dragging and adjusting chip ellipsis placement.
