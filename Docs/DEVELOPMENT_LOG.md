@@ -44,6 +44,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added dashboard history eligibility/request helpers, chart-card presentation mapping, generated-card size behavior for numeric sensors, and focused regression tests for the card/service handoff.
 - Added the first non-numeric history timeline slice for `binary_sensor.*` detail surfaces, using the same documented REST history and authenticated service handoff to map on/off and availability changes into app-facing Recent Activity timeline entries.
 - Extended the detail-surface timeline pattern to `lock.*` entities, reusing the documented REST history handoff and shared Recent Activity panel while mapping lock states into app-facing timeline entries outside SwiftUI.
+- Extended detail-surface timelines to switches, automations, covers, people, and device trackers through the same REST history/service path, keeping dashboard timeline cards and raw history DTOs out of SwiftUI.
 
 ### Updates
 

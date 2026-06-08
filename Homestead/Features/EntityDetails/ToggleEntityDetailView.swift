@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct ToggleEntityDetailView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var selectedHistoryRange: HAHistoryRangePreset = .day
+    @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -18,7 +21,13 @@ struct ToggleEntityDetailView: View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
             actionPanel
+            if supportsTimeline {
+                timelinePanel
+            }
             stateDetails
+        }
+        .task(id: timelineTaskID) {
+            await refreshTimeline()
         }
     }
 
@@ -59,6 +68,16 @@ struct ToggleEntityDetailView: View {
                 EntityMetadataRow(title: "State", value: entity.state.displayStateText)
             ]
         )
+    }
+
+    private var timelinePanel: some View {
+        EntityHistoryTimelinePanel(
+            selectedRange: $selectedHistoryRange,
+            phase: timelinePhase,
+            tint: presentation.accentColor
+        ) {
+            Task { await refreshTimeline() }
+        }
     }
 
     private var navigationTitle: String {
@@ -138,6 +157,18 @@ struct ToggleEntityDetailView: View {
         }
     }
 
+    private var supportsTimeline: Bool {
+        entity.domain == .switch || entity.domain == .automation
+    }
+
+    private var timelineTaskID: String {
+        guard supportsTimeline else {
+            return "timeline-disabled-\(entity.entityID)"
+        }
+
+        return "\(entity.entityID)-\(selectedHistoryRange.rawValue)"
+    }
+
     private var iconBackground: Color {
         presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
@@ -159,6 +190,34 @@ struct ToggleEntityDetailView: View {
             await homeAssistantService.toggleAutomation(entityID: entity.entityID)
         default:
             break
+        }
+    }
+
+    @MainActor
+    private func refreshTimeline() async {
+        guard supportsTimeline else {
+            timelinePhase = .idle
+            return
+        }
+
+        timelinePhase = .loading
+        let interval = selectedHistoryRange.interval()
+        let request = HAHistoryRequest(
+            startDate: interval.start,
+            endDate: interval.end,
+            entityID: entity.entityID
+        )
+
+        do {
+            timelinePhase = .loaded(
+                try await homeAssistantService.fetchTimeline(
+                    settings: connectionSettings,
+                    request: request,
+                    range: selectedHistoryRange
+                )
+            )
+        } catch {
+            timelinePhase = .failed
         }
     }
 }

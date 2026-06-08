@@ -674,22 +674,72 @@ final class HomeAssistantService {
         let entityBox = stateStore.entityBox(for: request.entityID)
         let entity = entityBox?.homeEntity ?? stateStore.entity(for: request.entityID)
         let binarySensor = entityBox?.binarySensorEntity
+        let cover = entityBox?.coverEntity
         let domain = entity?.domain ?? EntityDomain(entityID: request.entityID)
 
         switch domain {
-        case .lock:
-            return HAHistoryTimeline.makeLockTimeline(
-                response: response,
-                request: request,
-                displayName: entity?.displayName ?? request.entityID,
-                range: range
-            )
-        default:
-            return HAHistoryTimeline.makeBinarySensorTimeline(
+        case .binarySensor:
+            return HAHistoryTimeline.makeTimeline(
                 response: response,
                 request: request,
                 displayName: binarySensor?.displayName ?? entity?.displayName ?? request.entityID,
-                deviceClass: binarySensor?.deviceClass,
+                domain: .binarySensor(BinarySensorDisplayKind(deviceClass: binarySensor?.deviceClass)),
+                range: range
+            )
+        case .lock:
+            return HAHistoryTimeline.makeTimeline(
+                response: response,
+                request: request,
+                displayName: entity?.displayName ?? request.entityID,
+                domain: .lock,
+                range: range
+            )
+        case .switch:
+            return HAHistoryTimeline.makeTimeline(
+                response: response,
+                request: request,
+                displayName: entity?.displayName ?? request.entityID,
+                domain: .switch,
+                range: range
+            )
+        case .automation:
+            return HAHistoryTimeline.makeTimeline(
+                response: response,
+                request: request,
+                displayName: entity?.displayName ?? request.entityID,
+                domain: .automation,
+                range: range
+            )
+        case .cover:
+            return HAHistoryTimeline.makeTimeline(
+                response: response,
+                request: request,
+                displayName: cover?.displayName ?? entity?.displayName ?? request.entityID,
+                domain: .cover(deviceClass: cover?.deviceClass),
+                range: range
+            )
+        case .person:
+            return HAHistoryTimeline.makeTimeline(
+                response: response,
+                request: request,
+                displayName: entity?.displayName ?? request.entityID,
+                domain: .person,
+                range: range
+            )
+        case .deviceTracker:
+            return HAHistoryTimeline.makeTimeline(
+                response: response,
+                request: request,
+                displayName: entity?.displayName ?? request.entityID,
+                domain: .deviceTracker,
+                range: range
+            )
+        default:
+            return HAHistoryTimeline.makeTimeline(
+                response: response,
+                request: request,
+                displayName: entity?.displayName ?? request.entityID,
+                domain: .binarySensor(.generic),
                 range: range
             )
         }

@@ -274,6 +274,16 @@ nonisolated enum HAHistoryTimelineTone: Equatable, Sendable {
     case unavailable
 }
 
+nonisolated enum HAHistoryTimelineDomain: Equatable, Sendable {
+    case binarySensor(BinarySensorDisplayKind)
+    case lock
+    case `switch`
+    case automation
+    case cover(deviceClass: String?)
+    case person
+    case deviceTracker
+}
+
 nonisolated struct HAHistoryTimelineEntry: Identifiable, Equatable, Sendable {
     let id: String
     let occurredAt: Date
@@ -356,12 +366,29 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
         displayName: String,
         range: HAHistoryRangePreset
     ) -> HAHistoryTimeline {
+        makeTimeline(
+            response: response,
+            request: request,
+            displayName: displayName,
+            domain: .lock,
+            range: range
+        )
+    }
+
+    static func makeTimeline(
+        response: HAHistoryResponseDTO,
+        request: HAHistoryRequest,
+        displayName: String,
+        domain: HAHistoryTimelineDomain,
+        range: HAHistoryRangePreset
+    ) -> HAHistoryTimeline {
         let interval = DateInterval(start: request.startDate, end: request.endDate)
-        let entries = lockEntries(
+        let entries = entries(
             from: response.series.flatMap { $0 },
             fallbackEntityID: request.entityID,
             matching: request.entityID,
-            interval: interval
+            interval: interval,
+            domain: domain
         )
 
         return HAHistoryTimeline(
@@ -372,12 +399,12 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
         )
     }
 
-    static func binarySensorEntries(
+    static func entries(
         from states: [HAHistoryStateDTO],
         fallbackEntityID: String,
         matching entityID: String,
         interval: DateInterval,
-        displayKind: BinarySensorDisplayKind
+        domain: HAHistoryTimelineDomain
     ) -> [HAHistoryTimelineEntry] {
         states
             .compactMap { state -> HAHistoryTimelineEntry? in
@@ -387,16 +414,28 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                     return nil
                 }
 
-                return binarySensorEntry(
-                    state: state.state,
-                    occurredAt: state.lastChanged,
-                    displayKind: displayKind
-                )
+                return entry(state: state.state, occurredAt: state.lastChanged, domain: domain)
             }
             .sorted { lhs, rhs in
                 lhs.occurredAt < rhs.occurredAt
             }
             .removingConsecutiveDuplicateStates()
+    }
+
+    static func binarySensorEntries(
+        from states: [HAHistoryStateDTO],
+        fallbackEntityID: String,
+        matching entityID: String,
+        interval: DateInterval,
+        displayKind: BinarySensorDisplayKind
+    ) -> [HAHistoryTimelineEntry] {
+        entries(
+            from: states,
+            fallbackEntityID: fallbackEntityID,
+            matching: entityID,
+            interval: interval,
+            domain: .binarySensor(displayKind)
+        )
     }
 
     static func lockEntries(
@@ -405,20 +444,64 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
         matching entityID: String,
         interval: DateInterval
     ) -> [HAHistoryTimelineEntry] {
-        states
-            .compactMap { state -> HAHistoryTimelineEntry? in
-                let resolvedEntityID = state.entityID?.nonEmptyHistoryValue ?? fallbackEntityID
-                guard resolvedEntityID == entityID,
-                      interval.contains(state.lastChanged) || state.lastChanged == interval.end else {
-                    return nil
-                }
+        entries(
+            from: states,
+            fallbackEntityID: fallbackEntityID,
+            matching: entityID,
+            interval: interval,
+            domain: .lock
+        )
+    }
 
-                return lockEntry(state: state.state, occurredAt: state.lastChanged)
-            }
-            .sorted { lhs, rhs in
-                lhs.occurredAt < rhs.occurredAt
-            }
-            .removingConsecutiveDuplicateStates()
+    private static func entry(
+        state: String,
+        occurredAt: Date,
+        domain: HAHistoryTimelineDomain
+    ) -> HAHistoryTimelineEntry? {
+        switch domain {
+        case .binarySensor(let displayKind):
+            return binarySensorEntry(
+                state: state,
+                occurredAt: occurredAt,
+                displayKind: displayKind
+            )
+        case .lock:
+            return lockEntry(state: state, occurredAt: occurredAt)
+        case .switch:
+            return onOffEntry(
+                state: state,
+                occurredAt: occurredAt,
+                activeTitle: "Turned On",
+                inactiveTitle: "Turned Off",
+                activeSystemImage: "lightswitch.on.fill",
+                inactiveSystemImage: "lightswitch.off.fill"
+            )
+        case .automation:
+            return onOffEntry(
+                state: state,
+                occurredAt: occurredAt,
+                activeTitle: "Enabled",
+                inactiveTitle: "Disabled",
+                activeSystemImage: "calendar.badge.clock",
+                inactiveSystemImage: "calendar"
+            )
+        case .cover(let deviceClass):
+            return coverEntry(state: state, occurredAt: occurredAt, deviceClass: deviceClass)
+        case .person:
+            return presenceEntry(
+                state: state,
+                occurredAt: occurredAt,
+                homeSystemImage: "person.fill",
+                awaySystemImage: "person"
+            )
+        case .deviceTracker:
+            return presenceEntry(
+                state: state,
+                occurredAt: occurredAt,
+                homeSystemImage: "location.fill",
+                awaySystemImage: "location"
+            )
+        }
     }
 
     private static func binarySensorEntry(
@@ -461,6 +544,190 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
             )
         default:
             nil
+        }
+    }
+
+    private static func onOffEntry(
+        state: String,
+        occurredAt: Date,
+        activeTitle: String,
+        inactiveTitle: String,
+        activeSystemImage: String,
+        inactiveSystemImage: String
+    ) -> HAHistoryTimelineEntry? {
+        switch state {
+        case "on":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: activeTitle,
+                systemImage: activeSystemImage,
+                tone: .active
+            )
+        case "off":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: inactiveTitle,
+                systemImage: inactiveSystemImage,
+                tone: .inactive
+            )
+        case "unknown":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unknown",
+                systemImage: "questionmark.circle",
+                tone: .unavailable
+            )
+        case "unavailable":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unavailable",
+                systemImage: "exclamationmark.triangle",
+                tone: .unavailable
+            )
+        default:
+            nil
+        }
+    }
+
+    private static func coverEntry(
+        state: String,
+        occurredAt: Date,
+        deviceClass: String?
+    ) -> HAHistoryTimelineEntry? {
+        switch state {
+        case "open":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Opened",
+                systemImage: coverSystemImage(deviceClass: deviceClass, isOpen: true),
+                tone: .active
+            )
+        case "closed":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Closed",
+                systemImage: coverSystemImage(deviceClass: deviceClass, isOpen: false),
+                tone: .inactive
+            )
+        case "opening":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Opening",
+                systemImage: coverSystemImage(deviceClass: deviceClass, isOpen: true),
+                tone: .active
+            )
+        case "closing":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Closing",
+                systemImage: coverSystemImage(deviceClass: deviceClass, isOpen: false),
+                tone: .inactive
+            )
+        case "unknown":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unknown",
+                systemImage: "questionmark.circle",
+                tone: .unavailable
+            )
+        case "unavailable":
+            HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unavailable",
+                systemImage: "exclamationmark.triangle",
+                tone: .unavailable
+            )
+        default:
+            nil
+        }
+    }
+
+    private static func presenceEntry(
+        state: String,
+        occurredAt: Date,
+        homeSystemImage: String,
+        awaySystemImage: String
+    ) -> HAHistoryTimelineEntry? {
+        switch state {
+        case "home":
+            return HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Home",
+                systemImage: homeSystemImage,
+                tone: .active
+            )
+        case "not_home":
+            return HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Away",
+                systemImage: awaySystemImage,
+                tone: .inactive
+            )
+        case "unknown":
+            return HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unknown",
+                systemImage: "questionmark.circle",
+                tone: .unavailable
+            )
+        case "unavailable":
+            return HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unavailable",
+                systemImage: "exclamationmark.triangle",
+                tone: .unavailable
+            )
+        default:
+            guard let locationTitle = state.locationTimelineTitle else {
+                return nil
+            }
+
+            return HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "At \(locationTitle)",
+                systemImage: "mappin.and.ellipse",
+                tone: .active
+            )
+        }
+    }
+
+    private static func coverSystemImage(deviceClass: String?, isOpen: Bool) -> String {
+        switch deviceClass {
+        case "garage":
+            isOpen ? "door.garage.open" : "door.garage.closed"
+        case "gate":
+            isOpen ? "pedestrian.gate.open" : "pedestrian.gate.closed"
+        case "door":
+            isOpen ? "door.left.hand.open" : "door.left.hand.closed"
+        case "window":
+            isOpen ? "window.vertical.open" : "window.vertical.closed"
+        case "curtain":
+            isOpen ? "curtains.open" : "curtains.closed"
+        case "awning":
+            isOpen ? "window.awning" : "window.awning.closed"
+        case "blind":
+            isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
+        case "shade":
+            isOpen ? "window.shade.open" : "window.shade.closed"
+        case "shutter":
+            isOpen ? "blinds.vertical.open" : "blinds.vertical.closed"
+        default:
+            isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
         }
     }
 
@@ -718,5 +985,21 @@ nonisolated private extension String {
     var nonEmptyHistoryValue: String? {
         let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue
+    }
+
+    var locationTimelineTitle: String? {
+        let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedValue.isEmpty else {
+            return nil
+        }
+
+        return trimmedValue
+            .replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { word in
+                let lowercasedWord = word.lowercased()
+                return lowercasedWord.prefix(1).uppercased() + String(lowercasedWord.dropFirst())
+            }
+            .joined(separator: " ")
     }
 }

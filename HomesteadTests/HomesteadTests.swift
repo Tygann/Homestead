@@ -1086,6 +1086,117 @@ struct HomesteadTests {
         #expect(entries.map(\.tone) == [.inactive, .unavailable, .unavailable])
     }
 
+    @Test func historyTimelineMapsDiscreteDetailDomainsIntoActivityEntries() throws {
+        let startDate = try testDate("2026-06-05T15:00:00Z")
+        let firstDate = try testDate("2026-06-05T15:10:00Z")
+        let secondDate = try testDate("2026-06-05T15:20:00Z")
+        let thirdDate = try testDate("2026-06-05T15:30:00Z")
+        let fourthDate = try testDate("2026-06-05T15:40:00Z")
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let interval = DateInterval(start: startDate, end: endDate)
+
+        let switchEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "switch.coffee", state: "off", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "switch.coffee", state: "on", lastChanged: secondDate)
+            ],
+            fallbackEntityID: "switch.coffee",
+            matching: "switch.coffee",
+            interval: interval,
+            domain: .switch
+        )
+        #expect(switchEntries.map(\.title) == ["Turned Off", "Turned On"])
+        #expect(switchEntries.map(\.systemImage) == ["lightswitch.off.fill", "lightswitch.on.fill"])
+        #expect(switchEntries.map(\.tone) == [.inactive, .active])
+
+        let automationEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "automation.morning", state: "on", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "automation.morning", state: "off", lastChanged: secondDate)
+            ],
+            fallbackEntityID: "automation.morning",
+            matching: "automation.morning",
+            interval: interval,
+            domain: .automation
+        )
+        #expect(automationEntries.map(\.title) == ["Enabled", "Disabled"])
+        #expect(automationEntries.map(\.tone) == [.active, .inactive])
+
+        let coverEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "cover.garage", state: "opening", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "cover.garage", state: "open", lastChanged: secondDate),
+                HAHistoryStateDTO(entityID: "cover.garage", state: "closing", lastChanged: thirdDate),
+                HAHistoryStateDTO(entityID: "cover.garage", state: "closed", lastChanged: fourthDate)
+            ],
+            fallbackEntityID: "cover.garage",
+            matching: "cover.garage",
+            interval: interval,
+            domain: .cover(deviceClass: "garage")
+        )
+        #expect(coverEntries.map(\.title) == ["Opening", "Opened", "Closing", "Closed"])
+        #expect(coverEntries.map(\.systemImage) == ["door.garage.open", "door.garage.open", "door.garage.closed", "door.garage.closed"])
+        #expect(coverEntries.map(\.tone) == [.active, .active, .inactive, .inactive])
+
+        let personEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "person.tyler", state: "not_home", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "person.tyler", state: "work", lastChanged: secondDate),
+                HAHistoryStateDTO(entityID: "person.tyler", state: "home", lastChanged: thirdDate)
+            ],
+            fallbackEntityID: "person.tyler",
+            matching: "person.tyler",
+            interval: interval,
+            domain: .person
+        )
+        #expect(personEntries.map(\.title) == ["Away", "At Work", "Home"])
+        #expect(personEntries.map(\.systemImage) == ["person", "mappin.and.ellipse", "person.fill"])
+        #expect(personEntries.map(\.tone) == [.inactive, .active, .active])
+
+        let trackerEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "device_tracker.phone", state: "home", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "device_tracker.phone", state: "not_home", lastChanged: secondDate),
+                HAHistoryStateDTO(entityID: "device_tracker.phone", state: "unknown", lastChanged: thirdDate)
+            ],
+            fallbackEntityID: "device_tracker.phone",
+            matching: "device_tracker.phone",
+            interval: interval,
+            domain: .deviceTracker
+        )
+        #expect(trackerEntries.map(\.title) == ["Home", "Away", "Unknown"])
+        #expect(trackerEntries.map(\.systemImage) == ["location.fill", "location", "questionmark.circle"])
+        #expect(trackerEntries.map(\.tone) == [.active, .inactive, .unavailable])
+    }
+
+    @Test func historyTimelineFiltersDiscreteDomainsByRangeEntityUnsupportedStatesAndDuplicateStates() throws {
+        let startDate = try testDate("2026-06-05T15:00:00Z")
+        let firstDate = try testDate("2026-06-05T15:10:00Z")
+        let duplicateDate = try testDate("2026-06-05T15:20:00Z")
+        let unavailableDate = try testDate("2026-06-05T15:30:00Z")
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+        let outsideDate = try testDate("2026-06-05T16:30:00Z")
+
+        let entries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "switch.coffee", state: "on", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "switch.coffee", state: "on", lastChanged: duplicateDate),
+                HAHistoryStateDTO(entityID: "switch.other", state: "off", lastChanged: duplicateDate),
+                HAHistoryStateDTO(entityID: "switch.coffee", state: "standby", lastChanged: duplicateDate),
+                HAHistoryStateDTO(state: "unavailable", lastChanged: unavailableDate),
+                HAHistoryStateDTO(entityID: "switch.coffee", state: "off", lastChanged: outsideDate)
+            ],
+            fallbackEntityID: "switch.coffee",
+            matching: "switch.coffee",
+            interval: DateInterval(start: startDate, end: endDate),
+            domain: .switch
+        )
+
+        #expect(entries.map(\.state) == ["on", "unavailable"])
+        #expect(entries.map(\.title) == ["Turned On", "Unavailable"])
+        #expect(entries.map(\.tone) == [.active, .unavailable])
+    }
+
     @Test func historyRangePresetBuildsFixedIntervals() throws {
         let endDate = try testDate("2026-06-05T16:00:00Z")
         let expectedHourStart = try testDate("2026-06-05T15:00:00Z")
@@ -3820,6 +3931,86 @@ struct HomesteadTests {
         #expect(httpClient.lastHistoryRequest == request)
         #expect(timeline.displayName == "Front Door")
         #expect(timeline.entries.map(\.title) == ["Unlocked"])
+    }
+
+    @MainActor
+    @Test func serviceFetchesTimelineWithOAuthConfigurationAndMapsDiscreteDetailDomainPresentation() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "cover-timeline-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "cover.garage_door",
+                state: "closed",
+                attributes: [
+                    "friendly_name": .string("Garage Door"),
+                    "device_class": .string("garage")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "person.tyler",
+                state: "home",
+                attributes: [
+                    "friendly_name": .string("Tyler")
+                ]
+            )
+        ])
+        let httpClient = StubHAHTTPClient(
+            historyResponse: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(
+                        entityID: "cover.garage_door",
+                        state: "open",
+                        lastChanged: try testDate("2026-06-05T15:30:00Z")
+                    )
+                ]
+            ])
+        )
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        let coverRequest = HAHistoryRequest(
+            startDate: try testDate("2026-06-05T15:00:00Z"),
+            endDate: try testDate("2026-06-05T16:00:00Z"),
+            entityID: "cover.garage_door"
+        )
+
+        let coverTimeline = try await service.fetchTimeline(settings: settings, request: coverRequest, range: .oneHour)
+
+        #expect(httpClient.lastHistoryConfiguration?.accessToken == "cover-timeline-access")
+        #expect(httpClient.lastHistoryRequest == coverRequest)
+        #expect(coverTimeline.displayName == "Garage Door")
+        #expect(coverTimeline.entries.map(\.title) == ["Opened"])
+        #expect(coverTimeline.entries.map(\.systemImage) == ["door.garage.open"])
+
+        httpClient.historyResponse = HAHistoryResponseDTO(series: [
+            [
+                HAHistoryStateDTO(
+                    entityID: "person.tyler",
+                    state: "work",
+                    lastChanged: try testDate("2026-06-05T15:45:00Z")
+                )
+            ]
+        ])
+        let personRequest = HAHistoryRequest(
+            startDate: try testDate("2026-06-05T15:00:00Z"),
+            endDate: try testDate("2026-06-05T16:00:00Z"),
+            entityID: "person.tyler"
+        )
+
+        let personTimeline = try await service.fetchTimeline(settings: settings, request: personRequest, range: .oneHour)
+
+        #expect(httpClient.lastHistoryRequest == personRequest)
+        #expect(personTimeline.displayName == "Tyler")
+        #expect(personTimeline.entries.map(\.title) == ["At Work"])
     }
 
     @MainActor
