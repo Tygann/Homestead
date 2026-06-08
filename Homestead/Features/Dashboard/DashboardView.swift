@@ -28,6 +28,17 @@ struct DashboardLayoutItem: Identifiable, Equatable {
     let kind: DashboardLayoutItemKind
     let layoutMetadata: DashboardCardLayoutMetadata
 
+    var configurationItemID: UUID {
+        switch kind {
+        case .header(let item):
+            item.id
+        case .card(let item):
+            item.id
+        case .chip(let item):
+            item.id
+        }
+    }
+
     var id: String {
         switch kind {
         case .header(let item):
@@ -115,6 +126,9 @@ struct DashboardView: View {
     @State private var gridItemFrames: [UUID: CGRect] = [:]
     @State private var draggingGridItemID: UUID?
     @State private var activeDragTranslation = CGSize.zero
+    @State private var previewGridItemIDs: [UUID]?
+    @State private var dragStartGridItemIDs: [UUID] = []
+    @State private var dragStartFrame: CGRect?
     @Namespace private var cardTransitionNamespace
     @Namespace private var summaryTransitionNamespace
     
@@ -329,6 +343,10 @@ struct DashboardView: View {
         }
     }
 
+    private var activeDashboardGridItemIDs: [UUID] {
+        previewGridItemIDs ?? visibleDashboardGridItemIDs
+    }
+
     private var configuredChipCount: Int {
         dashboardConfiguration.items.filter { $0.type == .chip }.count
     }
@@ -491,6 +509,7 @@ struct DashboardView: View {
             guard case .chip = item.kind else { return true }
             return false
         }
+        let renderedGridItems = orderedGridItems(gridItems)
 
         return DashboardSection(isEmpty: visibleItems.isEmpty) {
             VStack(alignment: .leading, spacing: AppSpacing.large) {
@@ -500,7 +519,7 @@ struct DashboardView: View {
 
                 if !gridItems.isEmpty {
                     CardGrid {
-                        ForEach(gridItems) { item in
+                        ForEach(renderedGridItems) { item in
                             switch item.kind {
                             case .header(let configurationItem):
                                 dashboardHeader(configurationItem)
@@ -517,11 +536,23 @@ struct DashboardView: View {
                     .onPreferenceChange(DashboardGridItemFramePreferenceKey.self) { frames in
                         gridItemFrames = frames
                     }
-                    .animation(.snappy(duration: 0.18), value: visibleDashboardGridItemIDs)
+                    .animation(.snappy(duration: 0.18), value: activeDashboardGridItemIDs)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
+    }
+
+    private func orderedGridItems(_ gridItems: [DashboardLayoutItem]) -> [DashboardLayoutItem] {
+        guard let previewGridItemIDs else {
+            return gridItems
+        }
+
+        let itemsByID = Dictionary(uniqueKeysWithValues: gridItems.map { ($0.configurationItemID, $0) })
+        let previewItems = previewGridItemIDs.compactMap { itemsByID[$0] }
+        let previewIDSet = Set(previewGridItemIDs)
+        let remainingItems = gridItems.filter { !previewIDSet.contains($0.configurationItemID) }
+        return previewItems + remainingItems
     }
 
     private func dashboardChipSummaryRow(items: [DashboardChipItem]) -> some View {
@@ -633,18 +664,60 @@ struct DashboardView: View {
     private func updateDashboardGridDrag(itemID: UUID, value: DragGesture.Value) {
         if draggingGridItemID != itemID {
             draggingGridItemID = itemID
+            dragStartGridItemIDs = visibleDashboardGridItemIDs
+            previewGridItemIDs = visibleDashboardGridItemIDs
+            dragStartFrame = gridItemFrames[itemID]
             HapticFeedback.selection()
         }
 
         activeDragTranslation = value.translation
+
+        let targetItemID = dashboardGridInsertionTargetID(
+            for: itemID,
+            translation: value.translation,
+            sourceFrame: dragStartFrame
+        )
+
+        let baseItemIDs = dragStartGridItemIDs.isEmpty ? visibleDashboardGridItemIDs : dragStartGridItemIDs
+        let updatedPreviewItemIDs = reorderedGridItemIDs(
+            moving: itemID,
+            before: targetItemID,
+            in: baseItemIDs
+        )
+
+        guard updatedPreviewItemIDs != previewGridItemIDs else {
+            return
+        }
+
+        withAnimation(.snappy(duration: 0.18)) {
+            previewGridItemIDs = updatedPreviewItemIDs
+        }
     }
 
     private func dashboardGridDragOffset(for itemID: UUID) -> CGSize {
-        draggingGridItemID == itemID ? activeDragTranslation : .zero
+        guard draggingGridItemID == itemID,
+              let sourceFrame = dragStartFrame,
+              let currentFrame = gridItemFrames[itemID] else {
+            return .zero
+        }
+
+        let desiredCenter = CGPoint(
+            x: sourceFrame.midX + activeDragTranslation.width,
+            y: sourceFrame.midY + activeDragTranslation.height
+        )
+
+        return CGSize(
+            width: desiredCenter.x - currentFrame.midX,
+            height: desiredCenter.y - currentFrame.midY
+        )
     }
 
-    private func dashboardGridInsertionTargetID(for movingItemID: UUID, translation: CGSize) -> UUID? {
-        guard let movingFrame = gridItemFrames[movingItemID] else {
+    private func dashboardGridInsertionTargetID(
+        for movingItemID: UUID,
+        translation: CGSize,
+        sourceFrame: CGRect?
+    ) -> UUID? {
+        guard let movingFrame = sourceFrame ?? gridItemFrames[movingItemID] else {
             return nil
         }
 
@@ -652,7 +725,7 @@ struct DashboardView: View {
             x: movingFrame.midX + translation.width,
             y: movingFrame.midY + translation.height
         )
-        let candidates = visibleDashboardGridItemIDs.compactMap { itemID -> (id: UUID, frame: CGRect)? in
+        let candidates = activeDashboardGridItemIDs.compactMap { itemID -> (id: UUID, frame: CGRect)? in
             guard itemID != movingItemID,
                   let frame = gridItemFrames[itemID] else {
                 return nil
@@ -678,17 +751,43 @@ struct DashboardView: View {
         return nil
     }
 
+    private func reorderedGridItemIDs(
+        moving movingItemID: UUID,
+        before targetItemID: UUID?,
+        in itemIDs: [UUID]
+    ) -> [UUID] {
+        let orderedItemIDs = itemIDs.reduce(into: [UUID]()) { partialResult, itemID in
+            if !partialResult.contains(itemID) {
+                partialResult.append(itemID)
+            }
+        }
+        guard orderedItemIDs.contains(movingItemID),
+              targetItemID != movingItemID,
+              targetItemID.map(orderedItemIDs.contains) ?? true else {
+            return orderedItemIDs
+        }
+
+        var updatedItemIDs = orderedItemIDs.filter { $0 != movingItemID }
+        let insertionIndex = targetItemID
+            .flatMap { updatedItemIDs.firstIndex(of: $0) }
+            ?? updatedItemIDs.count
+        updatedItemIDs.insert(movingItemID, at: insertionIndex)
+        return updatedItemIDs
+    }
+
     private func finishDashboardGridDrag(itemID: UUID, value: DragGesture.Value) {
         let targetItemID = dashboardGridInsertionTargetID(
             for: itemID,
-            translation: value.translation
+            translation: value.translation,
+            sourceFrame: dragStartFrame
         )
+        let visibleItemIDs = dragStartGridItemIDs.isEmpty ? visibleDashboardGridItemIDs : dragStartGridItemIDs
 
         withAnimation(.snappy(duration: 0.2)) {
             dashboardConfiguration.moveVisibleGridItem(
                 id: itemID,
                 before: targetItemID,
-                visibleGridItemIDs: visibleDashboardGridItemIDs
+                visibleGridItemIDs: visibleItemIDs
             )
         }
 
@@ -700,6 +799,9 @@ struct DashboardView: View {
         withAnimation(.snappy(duration: 0.18)) {
             draggingGridItemID = nil
             activeDragTranslation = .zero
+            previewGridItemIDs = nil
+            dragStartGridItemIDs = []
+            dragStartFrame = nil
         }
     }
 
