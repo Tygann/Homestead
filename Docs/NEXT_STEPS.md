@@ -45,7 +45,7 @@ Recommended reasoning level: High.
 - Preserved the existing generated-size behavior for camera and numeric sensor chart cards while moving size/feature choice into a visual preview picker instead of cramped rows.
 - Added focused tests for add-card grouping, type filters, search, availability handling, configured-card exclusion, generated card size hints, and size-choice summaries.
 - Replaced the card/header reorder sheet path with direct edit-mode drag reordering in the dashboard grid while keeping chips in their existing chip reorder sheet.
-- Tuned direct drag to use a transient visual preview order so cards and section headers reflow while dragging, with the lifted item drawn as a floating preview over a true hidden grid placeholder; persisted order commits only on drop, cards/headers show a quiet non-interactive corner grip badge in edit mode, and the visible three-dot edit overlay was removed.
+- Tuned direct drag to use a transient visual preview order so cards and section headers reflow while dragging, with the lifted item drawn as a floating preview over a stable opacity-hidden grid placeholder; persisted order commits only on drop, cards/headers show a quiet non-interactive corner grip badge in edit mode, and the visible three-dot edit overlay was removed.
 - Added a visible-grid move helper that persists flat dashboard order without storing grid coordinates, preserves chip slots, and avoids moving hidden/unavailable configured items.
 - Add-card now reports the new card ID back to the dashboard so appended cards can scroll into view and briefly highlight after being added.
 
@@ -68,5 +68,5 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
-- Generic iOS Simulator build passed after changing the dragged grid cell to a true hidden placeholder and restyling the grip as a corner badge.
-- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after changing the dragged grid cell to a true hidden placeholder and restyling the grip as a corner badge.
+- Generic iOS Simulator build passed after changing the dragged grid cell to a stable opacity-hidden placeholder and restyling the grip as a corner badge.
+- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after changing the dragged grid cell to a stable opacity-hidden placeholder and restyling the grip as a corner badge.

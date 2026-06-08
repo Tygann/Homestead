@@ -17,7 +17,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added edit-mode drag reordering for dashboard cards and section headers directly in the `CardGrid`, keeping chips in the existing chip reorder sheet for now.
 - Preserved the flat Homestead-owned dashboard item order instead of storing grid coordinates; the existing grid layout still computes placement from order and card spans.
 - Changed drag behavior to use a transient preview order so cards and section headers visually reflow while dragging, while persisted dashboard order still updates only on drop.
-- Rendered the lifted card/header as a floating drag preview over a true hidden grid placeholder so the item follows the finger without fighting the grid reflow animation or briefly duplicating.
+- Rendered the lifted card/header as a floating drag preview over a stable opacity-hidden grid placeholder so the item follows the finger without fighting the grid reflow animation or dropping the active drag gesture.
 - Added a quiet, non-interactive corner grip badge to cards and headers while keeping the whole card as the drag target.
 - Added visible-grid reorder coverage so chip slots stay fixed and hidden/unavailable configured items are not moved by visible-card drag operations.
 

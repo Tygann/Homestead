@@ -649,29 +649,19 @@ struct DashboardView: View {
         @ViewBuilder menuContent: () -> MenuContent
     ) -> some View {
         let isDragging = draggingGridItemID == itemID
-        let baseContent = content()
+        return content()
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             .dashboardGridItemFrame(id: itemID)
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
+            .dashboardDragAffordance(isVisible: !isDragging)
             .contextMenu {
                 menuContent()
             }
+            .opacity(isDragging ? 0 : 1)
             .gesture(dashboardGridDragGesture(for: itemID))
-
-        return Group {
-            if isDragging {
-                baseContent
-                    .hidden()
-            } else {
-                baseContent
-                    .dashboardDragAffordance()
-            }
-        }
-        .transaction { transaction in
-            if isDragging {
+            .transaction { transaction in
                 transaction.animation = nil
             }
-        }
     }
 
     @ViewBuilder
@@ -1159,7 +1149,7 @@ private extension View {
         }
     }
 
-    func dashboardDragAffordance() -> some View {
+    func dashboardDragAffordance(isVisible: Bool) -> some View {
         overlay(alignment: .topTrailing) {
             Image(systemName: "line.3.horizontal")
                 .font(.caption2.weight(.semibold))
@@ -1171,6 +1161,7 @@ private extension View {
                         .strokeBorder(Color(.separator).opacity(0.28), lineWidth: 0.5)
                 }
                 .offset(x: 4, y: -4)
+                .opacity(isVisible ? 1 : 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
