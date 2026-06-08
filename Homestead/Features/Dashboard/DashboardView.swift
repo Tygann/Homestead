@@ -1461,7 +1461,7 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
         var onEnded: (CGSize) -> Void
         var onCancelled: () -> Void
         weak var recognizer: UILongPressGestureRecognizer?
-        private var startLocation: CGPoint?
+        private var startWindowLocation: CGPoint?
 
         init(
             onChanged: @escaping (CGSize) -> Void,
@@ -1474,24 +1474,20 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
         }
 
         @objc func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
-            guard let view = recognizer.view else {
-                return
-            }
-
-            let location = recognizer.location(in: view)
+            let location = recognizer.location(in: nil)
 
             switch recognizer.state {
             case .began:
-                startLocation = location
+                startWindowLocation = location
                 onChanged(.zero)
             case .changed:
                 onChanged(translation(from: location))
             case .ended:
                 onEnded(translation(from: location))
-                startLocation = nil
+                startWindowLocation = nil
             case .cancelled, .failed:
                 onCancelled()
-                startLocation = nil
+                startWindowLocation = nil
             default:
                 break
             }
@@ -1505,13 +1501,13 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
         }
 
         private func translation(from location: CGPoint) -> CGSize {
-            guard let startLocation else {
+            guard let startWindowLocation else {
                 return .zero
             }
 
             return CGSize(
-                width: location.x - startLocation.x,
-                height: location.y - startLocation.y
+                width: location.x - startWindowLocation.x,
+                height: location.y - startWindowLocation.y
             )
         }
     }
