@@ -31,6 +31,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Homestead uses the camera for native setup and scanning features you choose to use.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Homestead connects to Home Assistant servers on your local network.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Homestead uses this iPhone's location for native presence features you choose to enable.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

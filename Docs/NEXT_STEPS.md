@@ -78,6 +78,11 @@ Recommended reasoning level: High.
 - Added focused tests for discrete-domain timeline mapping/filtering and service auth handoff.
 - Polished the shared Recent Activity panel for detail surfaces by making range/refresh controls and summary overflow adapt better in narrow contexts, tightening timeline row text behavior, and adding debug-only small light/dark preview coverage for binary sensor, lock, switch, automation, cover, person, and device tracker timelines.
 - Kept the polish in the shared app-facing timeline panel; no dashboard timeline cards, new Home Assistant API surface, or raw history DTO usage was added.
+- Added a focused trust-and-recovery pass for service-call and reconnect feedback.
+- `HomeAssistantService` now formats service-call failures with clearer recovery copy, starts reconnect recovery for transport-style failures as before, and app chrome lets failure feedback briefly surface over reconnect progress while keeping success feedback behind connection-health warnings.
+- Reconnecting bottom chrome is now tappable for an immediate retry via the existing `refreshOrReconnect(settings:)` path.
+- Added a native Settings > Permissions page covering Notifications, Local Network, Location, and Camera through app-owned permission models and public iOS APIs; Local Network is shown as iOS-managed because iOS does not expose a direct read-only permission status API.
+- Added required Camera, Location When In Use, and Local Network usage descriptions to the app plist.
 
 ## Next Chunk
 
@@ -98,10 +103,14 @@ Recommended reasoning level: High.
 - Do not use private frontend endpoints for repairs, users, system health, or admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
 - Settings > Account > Server has saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic route selection is implemented in `HomeAssistantService`.
+- Settings > Permissions has native iOS status rows for Notifications, Local Network, Location, and Camera. Keep future native permission work in app-owned platform services rather than Home Assistant API code.
+- User-facing service-call and reconnect recovery feedback belongs in `HomeAssistantService` and app chrome, not scattered card/detail views.
 - Numeric sensor history already has documented REST history plumbing, authenticated service handoff, app-facing chart models, fixed detail ranges, and lightweight dashboard chart cards; binary sensors, locks, switches, automations, covers, people, and device trackers now have app-facing detail timeline models and a shared Recent Activity panel. Reuse those shapes where they fit.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-TrustRecovery` after the trust-and-recovery permissions pass.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-TrustRecovery` after the trust-and-recovery permissions pass.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePolish` after the Recent Activity UX polish pass.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePolish` after the Recent Activity UX polish pass.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePass` after adding switch, automation, cover, person, and device-tracker Recent Activity timelines.

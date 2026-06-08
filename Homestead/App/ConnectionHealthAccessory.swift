@@ -77,8 +77,8 @@ nonisolated struct AppStatusAccessoryState: Equatable {
         switch connectionStatus {
         case .reconnecting:
             return reconnecting
-        case .failed:
-            return failed
+        case .failed(let message):
+            return failed(message: message)
         case .disconnected:
             if let staleState = staleState(for: dataFreshness) {
                 return staleState
@@ -132,10 +132,10 @@ nonisolated struct AppStatusAccessoryState: Equatable {
 
     static let reconnecting = AppStatusAccessoryState(
         title: "Reconnecting",
-        message: "Restoring live Home Assistant state.",
+        message: "Trying again automatically. Tap to retry now.",
         systemImage: "arrow.triangle.2.circlepath",
         style: .progress,
-        canRetry: false
+        canRetry: true
     )
 
     static let interrupted = interrupted(lastUpdated: nil)
@@ -152,11 +152,26 @@ nonisolated struct AppStatusAccessoryState: Equatable {
 
     static let failed = AppStatusAccessoryState(
         title: "Connection failed",
-        message: "Tap to retry.",
+        message: "Tap to retry or check Server settings.",
         systemImage: "exclamationmark.triangle.fill",
         style: .failure,
         canRetry: true
     )
+
+    static func failed(message: String) -> AppStatusAccessoryState {
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return failed
+        }
+
+        return AppStatusAccessoryState(
+            title: "Connection failed",
+            message: "Tap to retry. \(trimmed)",
+            systemImage: "exclamationmark.triangle.fill",
+            style: .failure,
+            canRetry: true
+        )
+    }
 
     static let disconnected = AppStatusAccessoryState(
         title: "Disconnected",

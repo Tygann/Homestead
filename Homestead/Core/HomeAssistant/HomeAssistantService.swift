@@ -2244,8 +2244,32 @@ final class HomeAssistantService {
         isRecoveringConnection: Bool = false
     ) -> String {
         let target = entityDisplayName(for: entityID) ?? "\(domain).\(service)"
-        let recoveryHint = isRecoveringConnection ? " Homestead is reconnecting." : ""
-        return "\(target): \(readableServiceName(service)) failed. \(error.localizedDescription)\(recoveryHint)"
+        let actionName = readableServiceName(service)
+
+        if isRecoveringConnection {
+            return "\(target): \(actionName) did not finish because the connection dropped. Homestead is reconnecting now."
+        }
+
+        return "\(target): \(actionName) failed. \(serviceFailureRecoveryText(for: error))"
+    }
+
+    private func serviceFailureRecoveryText(for error: Error) -> String {
+        if let webSocketError = error as? HAWebSocketError {
+            switch webSocketError {
+            case .notConnected:
+                return "Reconnect to Home Assistant, then try again."
+            case .requestTimedOut:
+                return "Home Assistant did not respond in time. Try again in a moment."
+            case .transportFailure:
+                return "The Home Assistant connection is unavailable. Try again after reconnecting."
+            case .authenticationFailed:
+                return "Sign in again from Settings > Account."
+            case .invalidURL, .unexpectedMessage, .requestFailed, .missingResult:
+                return webSocketError.localizedDescription
+            }
+        }
+
+        return error.localizedDescription
     }
 
     private func readableServiceName(_ service: String) -> String {

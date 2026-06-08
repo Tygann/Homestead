@@ -43,6 +43,7 @@ Official references:
 | Mobile app registration | Native app HTTP registration | Mapped | Registration metadata persisted for companion-app features. |
 | Mobile app camera stream handoff | Native app webhook | Mapped | Uses saved registration webhook metadata. |
 | Native notification permission/status | iOS UserNotifications | Mapped | Settings > Notifications shows device permission status separately from Home Assistant mobile-app registration. |
+| Native iOS permissions | iOS UserNotifications, AVFoundation, CoreLocation, iOS Settings | Mapped | Settings > Permissions shows Notifications, Local Network, Location, and Camera. Camera/location use public authorization APIs. Local Network is represented as iOS-managed because there is no direct read-only status API. |
 | Mobile app WebSocket notifications | Native app WebSocket push notification channel | Mapped | Registers `push_websocket_channel`, subscribes with `mobile_app/push_notification_channel`, presents local iOS notifications, and confirms HA delivery when requested. |
 | Home Screen light widget | Widget/App Intents plus HA WebSocket/OAuth | Mapped | Basic light control with shared credentials. |
 

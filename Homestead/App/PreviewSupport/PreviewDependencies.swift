@@ -7,6 +7,7 @@ struct PreviewDependencies {
     let connectionSettings: HAConnectionSettings
     let homeAssistantService: HomeAssistantService
     let nativeNotificationService: NativeNotificationService
+    let nativePermissionService: NativePermissionService
     let dashboardConfiguration: DashboardConfiguration
 
     static var sample: PreviewDependencies {
@@ -30,6 +31,9 @@ struct PreviewDependencies {
         let nativeNotificationService = NativeNotificationService(
             client: PreviewNativeNotificationPermissionClient(status: .previewAuthorized)
         )
+        let nativePermissionService = NativePermissionService(
+            client: PreviewNativePermissionClient(status: .previewAllowed)
+        )
         let service = HomeAssistantService(
             stateStore: stateStore,
             connectionStatus: .connected,
@@ -44,6 +48,7 @@ struct PreviewDependencies {
             connectionSettings: settings,
             homeAssistantService: service,
             nativeNotificationService: nativeNotificationService,
+            nativePermissionService: nativePermissionService,
             dashboardConfiguration: dashboardConfiguration
         )
     }
@@ -63,6 +68,9 @@ struct PreviewDependencies {
             let nativeNotificationService = NativeNotificationService(
                 client: PreviewNativeNotificationPermissionClient(status: .previewAuthorized)
             )
+            let nativePermissionService = NativePermissionService(
+                client: PreviewNativePermissionClient(status: .previewAllowed)
+            )
             let service = HomeAssistantService(
                 stateStore: stateStore,
                 authState: .signedIn(HAAuthSessionSummary(credential: credential)),
@@ -76,6 +84,7 @@ struct PreviewDependencies {
                 connectionSettings: settings,
                 homeAssistantService: service,
                 nativeNotificationService: nativeNotificationService,
+                nativePermissionService: nativePermissionService,
                 dashboardConfiguration: dashboardConfiguration
             )
         }
@@ -89,6 +98,9 @@ struct PreviewDependencies {
         let nativeNotificationService = NativeNotificationService(
             client: PreviewNativeNotificationPermissionClient(status: .previewNotDetermined)
         )
+        let nativePermissionService = NativePermissionService(
+            client: PreviewNativePermissionClient(status: .previewMixed)
+        )
         let service = HomeAssistantService(
             stateStore: stateStore,
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
@@ -100,6 +112,7 @@ struct PreviewDependencies {
             connectionSettings: settings,
             homeAssistantService: service,
             nativeNotificationService: nativeNotificationService,
+            nativePermissionService: nativePermissionService,
             dashboardConfiguration: dashboardConfiguration
         )
     }
@@ -117,6 +130,7 @@ extension View {
             .environment(dependencies.connectionSettings)
             .environment(dependencies.homeAssistantService)
             .environment(dependencies.nativeNotificationService)
+            .environment(dependencies.nativePermissionService)
             .environment(dependencies.dashboardConfiguration)
     }
 }
@@ -135,6 +149,22 @@ private struct PreviewNativeNotificationPermissionClient: NativeNotificationPerm
     func presentNotification(_ request: NativeNotificationRequest) async throws {}
 }
 
+private struct PreviewNativePermissionClient: NativePermissionClient {
+    var status: NativePermissionStatusSnapshot
+
+    func currentStatus() async throws -> NativePermissionStatusSnapshot {
+        status
+    }
+
+    func requestCameraAccess() async throws -> NativeCapabilityAuthorizationStatus {
+        .allowed
+    }
+
+    func requestLocationAccess() async throws -> NativeCapabilityAuthorizationStatus {
+        .allowed
+    }
+}
+
 private extension NativeNotificationStatusSnapshot {
     static let previewAuthorized = NativeNotificationStatusSnapshot(
         authorizationStatus: .authorized,
@@ -148,6 +178,20 @@ private extension NativeNotificationStatusSnapshot {
         alertSetting: .unknown,
         soundSetting: .unknown,
         badgeSetting: .unknown
+    )
+}
+
+private extension NativePermissionStatusSnapshot {
+    static let previewAllowed = NativePermissionStatusSnapshot(
+        camera: .allowed,
+        location: .allowed,
+        localNetwork: .managedBySystem
+    )
+
+    static let previewMixed = NativePermissionStatusSnapshot(
+        camera: .notDetermined,
+        location: .denied,
+        localNetwork: .managedBySystem
     )
 }
 

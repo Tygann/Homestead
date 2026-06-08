@@ -2,6 +2,15 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-08
+
+### Trust And Recovery
+
+- Added native Settings > Permissions for Notifications, Local Network, Location, and Camera.
+- Kept platform permissions in app-owned native services: notifications use UserNotifications, camera uses AVFoundation authorization, location uses CoreLocation authorization, and Local Network is shown as iOS-managed because there is no direct read-only status API.
+- Added the required iOS usage descriptions for Camera, Location When In Use, and Local Network.
+- Improved service-call and reconnect recovery feedback in `HomeAssistantService` and app chrome so reconnecting can be retried immediately and action failures can explain automatic reconnect recovery without scattering error UI through individual views.
+
 ## 2026-06-07
 
 ### Dashboard Add Flow Organization

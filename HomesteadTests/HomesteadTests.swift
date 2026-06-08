@@ -96,11 +96,14 @@ struct HomesteadTests {
             dataFreshness: .stale("offline")
         ) == .reconnecting)
 
-        #expect(AppStatusAccessoryState.make(
+        let failedState = AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .failed("No route to host"),
             dataFreshness: .empty
-        ) == .failed)
+        )
+        #expect(failedState?.title == "Connection failed")
+        #expect(failedState?.message.contains("Tap to retry") == true)
+        #expect(failedState?.message.contains("No route to host") == true)
 
         #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
@@ -149,6 +152,16 @@ struct HomesteadTests {
         #expect(feedbackChrome.statusAccessoryState?.title == "Done")
         #expect(feedbackChrome.statusAccessoryState?.style == .success)
         #expect(feedbackChrome.statusAccessoryState?.canRetry == false)
+
+        let failureDuringReconnectChrome = AppChromePresentation.make(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            connectionStatus: .reconnecting,
+            dataFreshness: .stale("offline"),
+            serviceFeedback: HAServiceFeedback(title: "Action failed, reconnecting", message: "Try again soon.", style: .failure)
+        )
+        #expect(failureDuringReconnectChrome.statusAccessoryState?.title == "Action failed, reconnecting")
+        #expect(failureDuringReconnectChrome.statusAccessoryState?.style == .failure)
     }
 
     @Test func serviceFeedbackDurationMatchesOutcomeSeverity() {
@@ -2896,6 +2909,59 @@ struct HomesteadTests {
         try await service.presentNotification(request)
 
         #expect(client.presentedNotifications == [request])
+    }
+
+    @MainActor
+    @Test func nativePermissionStatusSeparatesAllowedAndRequestableStates() {
+        #expect(NativeCapabilityAuthorizationStatus.notDetermined.canRequestInApp)
+        #expect(!NativeCapabilityAuthorizationStatus.denied.canRequestInApp)
+        #expect(!NativeCapabilityAuthorizationStatus.allowed.canRequestInApp)
+
+        #expect(NativeCapabilityAuthorizationStatus.allowed.isAllowed)
+        #expect(NativeCapabilityAuthorizationStatus.limited.isAllowed)
+        #expect(!NativeCapabilityAuthorizationStatus.managedBySystem.isAllowed)
+    }
+
+    @MainActor
+    @Test func nativePermissionServiceRefreshesPlatformStatus() async {
+        let expectedStatus = NativePermissionStatusSnapshot(
+            camera: .denied,
+            location: .allowed,
+            localNetwork: .managedBySystem
+        )
+        let client = StubNativePermissionClient(currentStatus: expectedStatus)
+        let service = NativePermissionService(client: client)
+
+        await service.refreshStatus()
+
+        #expect(service.status == expectedStatus)
+        #expect(service.lastErrorMessage == nil)
+        #expect(client.currentStatusCallCount == 1)
+    }
+
+    @MainActor
+    @Test func nativePermissionServiceRequestsCameraAndLocationThenRefreshesStatus() async {
+        let client = StubNativePermissionClient(
+            currentStatus: NativePermissionStatusSnapshot(
+                camera: .notDetermined,
+                location: .notDetermined,
+                localNetwork: .managedBySystem
+            ),
+            requestedCameraStatus: .allowed,
+            requestedLocationStatus: .denied
+        )
+        let service = NativePermissionService(client: client)
+
+        await service.requestCameraAccess()
+        await service.requestLocationAccess()
+
+        #expect(service.status.camera == .allowed)
+        #expect(service.status.location == .denied)
+        #expect(service.status.localNetwork == .managedBySystem)
+        #expect(service.lastErrorMessage == nil)
+        #expect(client.didRequestCameraAccess)
+        #expect(client.didRequestLocationAccess)
+        #expect(client.currentStatusCallCount == 2)
     }
 
     @MainActor
@@ -6691,5 +6757,68 @@ final class StubNativeNotificationPermissionClient: NativeNotificationPermission
         }
 
         presentedNotifications.append(request)
+    }
+}
+
+@MainActor
+final class StubNativePermissionClient: NativePermissionClient {
+    var currentStatus: NativePermissionStatusSnapshot
+    var requestedCameraStatus: NativeCapabilityAuthorizationStatus
+    var requestedLocationStatus: NativeCapabilityAuthorizationStatus
+    var currentStatusError: Error?
+    var requestCameraError: Error?
+    var requestLocationError: Error?
+    private(set) var currentStatusCallCount = 0
+    private(set) var didRequestCameraAccess = false
+    private(set) var didRequestLocationAccess = false
+
+    init(
+        currentStatus: NativePermissionStatusSnapshot,
+        requestedCameraStatus: NativeCapabilityAuthorizationStatus = .allowed,
+        requestedLocationStatus: NativeCapabilityAuthorizationStatus = .allowed
+    ) {
+        self.currentStatus = currentStatus
+        self.requestedCameraStatus = requestedCameraStatus
+        self.requestedLocationStatus = requestedLocationStatus
+    }
+
+    func currentStatus() async throws -> NativePermissionStatusSnapshot {
+        currentStatusCallCount += 1
+
+        if let currentStatusError {
+            throw currentStatusError
+        }
+
+        return currentStatus
+    }
+
+    func requestCameraAccess() async throws -> NativeCapabilityAuthorizationStatus {
+        didRequestCameraAccess = true
+
+        if let requestCameraError {
+            throw requestCameraError
+        }
+
+        currentStatus = NativePermissionStatusSnapshot(
+            camera: requestedCameraStatus,
+            location: currentStatus.location,
+            localNetwork: currentStatus.localNetwork
+        )
+        return requestedCameraStatus
+    }
+
+    func requestLocationAccess() async throws -> NativeCapabilityAuthorizationStatus {
+        didRequestLocationAccess = true
+
+        if let requestLocationError {
+            throw requestLocationError
+        }
+
+        currentStatus = NativePermissionStatusSnapshot(
+            camera: currentStatus.camera,
+            location: requestedLocationStatus,
+            localNetwork: currentStatus.localNetwork
+        )
+        return requestedLocationStatus
     }
 }

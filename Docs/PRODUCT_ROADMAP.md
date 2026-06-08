@@ -34,6 +34,8 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Native dashboard card and detail surface for `.weather` entities, backed by typed state-attribute mapping for condition, temperature, humidity, wind, forecast availability, and attribution.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
 - Notifications support through Home Assistant's official mobile-app WebSocket notification channel, including native iOS permission status, mobile-app registration readiness, local notification presentation, and Home Assistant delivery confirmation.
+- Settings > Permissions page for native iOS capabilities, including Notifications, Local Network, Location, and Camera, backed by public platform APIs or app-owned status where iOS does not expose direct status.
+- User-facing service-call and reconnect recovery feedback through `HomeAssistantService` and app chrome, including tappable reconnecting state and clearer action-failure copy.
 - Authenticated camera snapshot support.
 - Basic Home Screen light widget using shared OAuth credentials and app-group state.
 - App-facing model mapping through `EntityMapper`, with SwiftUI avoiding direct Home Assistant DTO use.
@@ -51,10 +53,8 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.
 - People and presence management based on `person.*`, `device_tracker.*`, and official user/person APIs where available.
 - True Home Assistant users/admin views if an official supported API path is confirmed for the signed-in user's permissions.
-- Permissions page for Location, Notifications, Local Network, Camera, and related native capabilities.
 - iCloud sync for Homestead-owned preferences such as dashboard layouts, display overrides, widget configuration, and server configuration metadata.
 - Siri/Shortcuts once App Intents have stable action coverage.
-- Better user-facing service-call and reconnect error handling.
 - Cloud/APNs notification forwarding if Homestead later commits to operating a separate push forwarding service for Home Assistant's `push_url` path.
 - Domain-specific cards and details for calendars, todo lists, humidifiers, water heaters, valves, sirens, air-quality sensors, and image entities.
 

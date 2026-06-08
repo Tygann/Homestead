@@ -21,6 +21,12 @@ nonisolated struct AppChromePresentation: Equatable {
             dataFreshness: dataFreshness
         )
 
+        if serviceFeedback?.style == .failure {
+            return AppChromePresentation(
+                statusAccessoryState: serviceFeedback.map(AppStatusAccessoryState.init(feedback:))
+            )
+        }
+
         return AppChromePresentation(
             statusAccessoryState: connectionState ?? serviceFeedback.map(AppStatusAccessoryState.init(feedback:))
         )

@@ -9,12 +9,14 @@ struct HomesteadApp: App {
     @State private var connectionSettings: HAConnectionSettings
     @State private var homeAssistantService: HomeAssistantService
     @State private var nativeNotificationService: NativeNotificationService
+    @State private var nativePermissionService: NativePermissionService
     @State private var dashboardConfiguration: DashboardConfiguration
 
     init() {
         let stateStore = HAStateStore()
         let connectionSettings = HAConnectionSettings()
         let nativeNotificationService = NativeNotificationService()
+        let nativePermissionService = NativePermissionService()
         let homeAssistantService = HomeAssistantService(
             stateStore: stateStore,
             nativeNotificationService: nativeNotificationService
@@ -24,6 +26,7 @@ struct HomesteadApp: App {
         _connectionSettings = State(initialValue: connectionSettings)
         _homeAssistantService = State(initialValue: homeAssistantService)
         _nativeNotificationService = State(initialValue: nativeNotificationService)
+        _nativePermissionService = State(initialValue: nativePermissionService)
         _dashboardConfiguration = State(initialValue: DashboardConfiguration())
 
         guard !RuntimeEnvironment.isRunningForPreviews else {
@@ -47,6 +50,7 @@ struct HomesteadApp: App {
                 .environment(connectionSettings)
                 .environment(homeAssistantService)
                 .environment(nativeNotificationService)
+                .environment(nativePermissionService)
                 .environment(dashboardConfiguration)
         }
     }
