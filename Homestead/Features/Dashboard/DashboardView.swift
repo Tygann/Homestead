@@ -746,12 +746,22 @@ struct DashboardView: View {
     }
 
     private func dashboardGridDragGesture(for itemID: UUID) -> some Gesture {
-        DragGesture(minimumDistance: 8, coordinateSpace: .named(DashboardGridCoordinateSpace.name))
+        LongPressGesture(minimumDuration: DashboardDragTiming.liftDelay, maximumDistance: 12)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(DashboardGridCoordinateSpace.name)))
             .onChanged { value in
-                updateDashboardGridDrag(itemID: itemID, value: value)
+                guard case .second(true, let dragValue?) = value else {
+                    return
+                }
+
+                updateDashboardGridDrag(itemID: itemID, value: dragValue)
             }
             .onEnded { value in
-                finishDashboardGridDrag(itemID: itemID, value: value)
+                guard case .second(true, let dragValue?) = value else {
+                    endDashboardGridDrag()
+                    return
+                }
+
+                finishDashboardGridDrag(itemID: itemID, value: dragValue)
             }
     }
 
@@ -901,12 +911,22 @@ struct DashboardView: View {
     }
 
     private func dashboardChipDragGesture(for itemID: UUID) -> some Gesture {
-        DragGesture(minimumDistance: 8, coordinateSpace: .named(DashboardChipCoordinateSpace.name))
+        LongPressGesture(minimumDuration: DashboardDragTiming.liftDelay, maximumDistance: 12)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(DashboardChipCoordinateSpace.name)))
             .onChanged { value in
-                updateDashboardChipDrag(itemID: itemID, value: value)
+                guard case .second(true, let dragValue?) = value else {
+                    return
+                }
+
+                updateDashboardChipDrag(itemID: itemID, value: dragValue)
             }
             .onEnded { value in
-                finishDashboardChipDrag(itemID: itemID, value: value)
+                guard case .second(true, let dragValue?) = value else {
+                    endDashboardChipDrag()
+                    return
+                }
+
+                finishDashboardChipDrag(itemID: itemID, value: dragValue)
             }
     }
 
@@ -1306,6 +1326,10 @@ private enum DashboardChipCoordinateSpace {
     static let name = "dashboard-chip-row"
 }
 
+private enum DashboardDragTiming {
+    static let liftDelay: TimeInterval = 0.45
+}
+
 private struct DashboardGridItemFramePreferenceKey: PreferenceKey {
     static let defaultValue: [UUID: CGRect] = [:]
 
@@ -1435,7 +1459,7 @@ private struct DashboardChipEditAffordance<MenuContent: View>: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .offset(x: 6, y: -8)
+        .offset(x: 4, y: -2)
         .opacity(isVisible ? 1 : 0)
         .allowsHitTesting(isVisible)
         .accessibilityLabel(accessibilityLabel)
