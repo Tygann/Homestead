@@ -199,7 +199,7 @@ struct DashboardView: View {
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Done", role: .confirm) {
+                        Button(role: .confirm) {
                             isEditingDashboard = false
                         }
                     }
