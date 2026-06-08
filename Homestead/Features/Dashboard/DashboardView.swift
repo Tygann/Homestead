@@ -533,6 +533,11 @@ struct DashboardView: View {
                         }
                     }
                     .coordinateSpace(name: DashboardGridCoordinateSpace.name)
+                    .overlay(alignment: .topLeading) {
+                        if let draggedGridItem = draggedGridItem(from: gridItems) {
+                            dashboardGridDragPreview(draggedGridItem)
+                        }
+                    }
                     .onPreferenceChange(DashboardGridItemFramePreferenceKey.self) { frames in
                         gridItemFrames = frames
                     }
@@ -553,6 +558,14 @@ struct DashboardView: View {
         let previewIDSet = Set(previewGridItemIDs)
         let remainingItems = gridItems.filter { !previewIDSet.contains($0.configurationItemID) }
         return previewItems + remainingItems
+    }
+
+    private func draggedGridItem(from gridItems: [DashboardLayoutItem]) -> DashboardLayoutItem? {
+        guard let draggingGridItemID else {
+            return nil
+        }
+
+        return gridItems.first { $0.configurationItemID == draggingGridItemID }
     }
 
     private func dashboardChipSummaryRow(items: [DashboardChipItem]) -> some View {
@@ -644,11 +657,49 @@ struct DashboardView: View {
             .contextMenu {
                 menuContent()
             }
-            .offset(dashboardGridDragOffset(for: itemID))
-            .scaleEffect(isDragging ? 1.025 : 1)
-            .zIndex(isDragging ? 10 : 0)
+            .opacity(isDragging ? 0 : 1)
             .gesture(dashboardGridDragGesture(for: itemID))
-            .animation(.snappy(duration: 0.18), value: isDragging)
+            .animation(.snappy(duration: 0.12), value: isDragging)
+    }
+
+    @ViewBuilder
+    private func dashboardGridDragPreview(_ item: DashboardLayoutItem) -> some View {
+        if let dragStartFrame {
+            dashboardGridPreviewContent(for: item)
+                .frame(width: dragStartFrame.width, height: dragStartFrame.height)
+                .scaleEffect(1.025)
+                .offset(
+                    x: dragStartFrame.minX + activeDragTranslation.width,
+                    y: dragStartFrame.minY + activeDragTranslation.height
+                )
+                .allowsHitTesting(false)
+                .transaction { transaction in
+                    transaction.animation = nil
+                }
+                .zIndex(20)
+        }
+    }
+
+    @ViewBuilder
+    private func dashboardGridPreviewContent(for item: DashboardLayoutItem) -> some View {
+        switch item.kind {
+        case .header(let configurationItem):
+            DashboardHeaderCardView(title: configurationItem.resolvedTitle)
+                .frame(maxWidth: .infinity)
+        case .card(let cardItem):
+            DashboardCardView(
+                entityID: cardItem.entityID,
+                size: cardItem.size,
+                displayNameOverride: currentCardDisplayNameOverride(for: cardItem),
+                iconNameOverride: cardItem.iconNameOverride,
+                featureVisibility: cardItem.featureVisibility,
+                cameraRefreshGeneration: cameraRefreshGeneration,
+                isEditing: true
+            )
+            .frame(maxWidth: .infinity)
+        case .chip:
+            EmptyView()
+        }
     }
 
     private func dashboardGridDragGesture(for itemID: UUID) -> some Gesture {
@@ -692,24 +743,6 @@ struct DashboardView: View {
         withAnimation(.snappy(duration: 0.18)) {
             previewGridItemIDs = updatedPreviewItemIDs
         }
-    }
-
-    private func dashboardGridDragOffset(for itemID: UUID) -> CGSize {
-        guard draggingGridItemID == itemID,
-              let sourceFrame = dragStartFrame,
-              let currentFrame = gridItemFrames[itemID] else {
-            return .zero
-        }
-
-        let desiredCenter = CGPoint(
-            x: sourceFrame.midX + activeDragTranslation.width,
-            y: sourceFrame.midY + activeDragTranslation.height
-        )
-
-        return CGSize(
-            width: desiredCenter.x - currentFrame.midX,
-            height: desiredCenter.y - currentFrame.midY
-        )
     }
 
     private func dashboardGridInsertionTargetID(
