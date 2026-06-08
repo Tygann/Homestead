@@ -45,13 +45,13 @@ Recommended reasoning level: High.
 - Preserved the existing generated-size behavior for camera and numeric sensor chart cards while moving size/feature choice into a visual preview picker instead of cramped rows.
 - Added focused tests for add-card grouping, type filters, search, availability handling, configured-card exclusion, generated card size hints, and size-choice summaries.
 - Replaced the card/header reorder sheet path with direct edit-mode drag reordering in the dashboard grid while keeping chips in their existing chip reorder sheet.
-- Tuned direct drag to use a transient visual preview order so cards and section headers reflow while dragging, with the lifted item drawn as a floating preview over an invisible placeholder; persisted order commits only on drop, and the visible three-dot edit overlay was removed from cards/headers.
+- Tuned direct drag to use a transient visual preview order so cards and section headers reflow while dragging, with the lifted item drawn as a floating preview over an invisible placeholder; persisted order commits only on drop, cards/headers show a quiet non-interactive grip in edit mode, and the visible three-dot edit overlay was removed.
 - Added a visible-grid move helper that persists flat dashboard order without storing grid coordinates, preserves chip slots, and avoids moving hidden/unavailable configured items.
 - Add-card now reports the new card ID back to the dashboard so appended cards can scroll into view and briefly highlight after being added.
 
 ## Next Chunk
 
-- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of floating drag preview feel, chip-row editing ergonomics, section/header affordances, or larger dashboard management affordances.
+- Continue dashboard organization and edit-flow polish as card types grow, likely focusing on simulator/device validation of floating drag preview and edit-mode grip feel, chip-row editing ergonomics, section/header affordances, or larger dashboard management affordances.
 - As dashboard/add/edit views are touched, review nearby copy and controls for development-facing labels, explanations, or layout mechanics, and prefer user-facing choices, previews, and direct manipulation where the behavior is already visually clear.
 - Or expand richer entity history beyond numeric sensor detail/dashboard charts if performance and UX are clear.
 
@@ -68,5 +68,5 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
-- Generic iOS Simulator build passed after switching dashboard drag to a floating lifted-item preview.
-- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after switching dashboard drag to a floating lifted-item preview.
+- Generic iOS Simulator build passed after adding the edit-mode drag grip and removing the placeholder fade at drag start.
+- `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after adding the edit-mode drag grip and removing the placeholder fade at drag start.

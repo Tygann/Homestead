@@ -654,12 +654,12 @@ struct DashboardView: View {
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             .dashboardGridItemFrame(id: itemID)
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
+            .dashboardDragAffordance(isVisible: !isDragging)
             .contextMenu {
                 menuContent()
             }
             .opacity(isDragging ? 0 : 1)
             .gesture(dashboardGridDragGesture(for: itemID))
-            .animation(.snappy(duration: 0.12), value: isDragging)
     }
 
     @ViewBuilder
@@ -1143,6 +1143,21 @@ private extension View {
                     .strokeBorder(Color.accentColor.opacity(0.72), lineWidth: 3)
                     .padding(1)
                     .allowsHitTesting(false)
+            }
+        }
+    }
+
+    func dashboardDragAffordance(isVisible: Bool) -> some View {
+        overlay(alignment: .topTrailing) {
+            if isVisible {
+                Image(systemName: "line.3.horizontal")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 20)
+                    .background(Color(.tertiarySystemFill), in: Capsule())
+                    .padding(6)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
     }
