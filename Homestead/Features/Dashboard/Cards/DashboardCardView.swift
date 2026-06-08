@@ -637,7 +637,9 @@ private struct DashboardEntityCard: View {
     @ViewBuilder
     private var dashboardHistoryBody: some View {
         switch historyPhase {
-        case .idle, .loading:
+        case .idle:
+            dashboardHistoryEmptyPlaceholder(title: "Recent trend")
+        case .loading:
             dashboardHistoryLoadingPlaceholder
         case .loaded(let chartPresentation):
             if chartPresentation.isEmpty {
@@ -975,7 +977,9 @@ private struct DashboardEntityCard: View {
 
     private var dashboardHistoryFooterText: String {
         switch historyPhase {
-        case .idle, .loading:
+        case .idle:
+            return "Recent trend"
+        case .loading:
             return "Loading recent trend"
         case .loaded(let chartPresentation):
             return chartPresentation.isEmpty ? chartPresentation.accessibilityValue : chartPresentation.summaryText
@@ -986,10 +990,16 @@ private struct DashboardEntityCard: View {
 
     @MainActor
     private func refreshDashboardHistoryIfNeeded() async {
-        guard shouldUseDashboardHistoryCard,
-              isFeatureInteractionEnabled,
-              scenePhase == .active else {
+        guard shouldUseDashboardHistoryCard else {
             historyPhase = .idle
+            return
+        }
+
+        guard isFeatureInteractionEnabled,
+              scenePhase == .active else {
+            if case .loading = historyPhase {
+                historyPhase = .idle
+            }
             return
         }
 
