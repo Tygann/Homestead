@@ -33,7 +33,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Native entity history backed by Home Assistant's documented REST history API, including numeric `sensor.*` detail charts/dashboard chart cards and detail-surface timelines for binary sensors, locks, switches, automations, covers, people, and device trackers with fixed ranges.
 - Native dashboard card and detail surface for `.weather` entities, backed by typed state-attribute mapping for condition, temperature, humidity, wind, forecast availability, and attribution.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
-- Notifications support through Home Assistant's official mobile-app WebSocket notification channel, including native iOS permission status, mobile-app registration readiness, local notification presentation, and Home Assistant delivery confirmation.
+- Notifications support through Home Assistant's official mobile-app WebSocket notification channel, including native iOS permission status, post-registration permission setup prompt, mobile-app registration readiness, local notification presentation, and Home Assistant delivery confirmation.
 - Settings > Permissions page for native iOS capabilities, including Notifications, Local Network, Location, and Camera, backed by public platform APIs or app-owned status where iOS does not expose direct status.
 - User-facing service-call and reconnect recovery feedback through `HomeAssistantService` and app chrome, including tappable reconnecting state and clearer action-failure copy.
 - Authenticated camera snapshot support.

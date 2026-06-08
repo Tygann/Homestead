@@ -3,9 +3,12 @@ import SwiftUI
 struct ContentView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(NativeNotificationService.self) private var nativeNotificationService
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("homestead.notificationSetupPromptHandled") private var hasHandledNotificationSetupPrompt = false
     @State private var isShowingSettings = false
+    @State private var isShowingNotificationSetupPrompt = false
 
     var body: some View {
         let chrome = AppChromePresentation.make(
@@ -51,6 +54,18 @@ struct ContentView: View {
                     }
             }
         }
+        .alert("Finish Notification Setup", isPresented: $isShowingNotificationSetupPrompt) {
+            Button("Not Now", role: .cancel) {
+                hasHandledNotificationSetupPrompt = true
+            }
+
+            Button("Allow Notifications") {
+                hasHandledNotificationSetupPrompt = true
+                Task { await nativeNotificationService.requestAuthorization() }
+            }
+        } message: {
+            Text("Homestead can show alerts sent by Home Assistant on this iPhone.")
+        }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
@@ -65,6 +80,12 @@ struct ContentView: View {
         }
         .onChange(of: homeAssistantService.serviceFeedback?.id) { _, _ in
             playServiceFeedbackHaptic()
+        }
+        .onChange(of: notificationSetupPromptEvaluationID) { _, _ in
+            presentNotificationSetupPromptIfNeeded()
+        }
+        .task(id: notificationSetupRefreshTaskID) {
+            await refreshNotificationSetupStatusIfNeeded()
         }
         .task(id: homeAssistantService.serviceFeedback?.id) {
             guard let feedback = homeAssistantService.serviceFeedback else {
@@ -105,6 +126,90 @@ struct ContentView: View {
         }
 
         HapticFeedback.notification(for: feedback.style)
+    }
+
+    private var notificationSetupPromptEvaluationID: String {
+        [
+            connectionSettings.hasServerURL.description,
+            homeAssistantService.authState.title,
+            mobileAppRegistrationPromptID,
+            nativeNotificationService.status.authorizationStatus.promptID,
+            hasHandledNotificationSetupPrompt.description,
+            isShowingSettings.description
+        ].joined(separator: "|")
+    }
+
+    private var notificationSetupRefreshTaskID: String {
+        [
+            connectionSettings.hasServerURL.description,
+            homeAssistantService.authState.title,
+            mobileAppRegistrationPromptID,
+            nativeNotificationService.status.authorizationStatus.promptID,
+            hasHandledNotificationSetupPrompt.description
+        ].joined(separator: "|")
+    }
+
+    private var mobileAppRegistrationPromptID: String {
+        switch homeAssistantService.mobileAppRegistrationState {
+        case .unregistered:
+            "unregistered"
+        case .registering:
+            "registering"
+        case .registered(let summary):
+            "registered-\(summary.registeredAt.timeIntervalSince1970)"
+        case .failed(let message):
+            "failed-\(message)"
+        }
+    }
+
+    private func refreshNotificationSetupStatusIfNeeded() async {
+        guard CompanionNotificationSetupPromptPresentation.shouldRefreshNotificationStatus(
+            hasServerURL: connectionSettings.hasServerURL,
+            authState: homeAssistantService.authState,
+            mobileAppRegistrationState: homeAssistantService.mobileAppRegistrationState,
+            notificationStatus: nativeNotificationService.status.authorizationStatus,
+            hasHandledPrompt: hasHandledNotificationSetupPrompt
+        ) else {
+            presentNotificationSetupPromptIfNeeded()
+            return
+        }
+
+        await nativeNotificationService.refreshAuthorizationStatus()
+        presentNotificationSetupPromptIfNeeded()
+    }
+
+    private func presentNotificationSetupPromptIfNeeded() {
+        guard CompanionNotificationSetupPromptPresentation.shouldShow(
+            hasServerURL: connectionSettings.hasServerURL,
+            authState: homeAssistantService.authState,
+            mobileAppRegistrationState: homeAssistantService.mobileAppRegistrationState,
+            notificationStatus: nativeNotificationService.status.authorizationStatus,
+            hasHandledPrompt: hasHandledNotificationSetupPrompt,
+            isShowingSettings: isShowingSettings
+        ) else {
+            return
+        }
+
+        isShowingNotificationSetupPrompt = true
+    }
+}
+
+private extension NativeNotificationAuthorizationStatus {
+    var promptID: String {
+        switch self {
+        case .unknown:
+            "unknown"
+        case .notDetermined:
+            "notDetermined"
+        case .denied:
+            "denied"
+        case .authorized:
+            "authorized"
+        case .provisional:
+            "provisional"
+        case .ephemeral:
+            "ephemeral"
+        }
     }
 }
 

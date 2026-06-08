@@ -172,6 +172,131 @@ struct HomesteadTests {
         #expect(failureFeedback.displayDuration == .seconds(5))
     }
 
+    @Test func companionNotificationSetupPromptRequiresRegisteredRequestableNotifications() {
+        let credential = HAOAuthCredential(
+            baseURLString: "http://homeassistant.local:8123",
+            clientID: HAOAuthClientMetadata.clientID,
+            refreshToken: "refresh-token",
+            accessToken: "access-token",
+            accessTokenExpiresAt: .distantFuture,
+            tokenType: "Bearer",
+            updatedAt: .now
+        )
+        let signedInState = HAAuthState.signedIn(HAAuthSessionSummary(credential: credential))
+        let registeredState = HAMobileAppRegistrationState.registered(
+            HAMobileAppRegistrationSummary(
+                info: HAMobileAppRegistrationInfo(
+                    serverIdentifier: "homeassistant.local",
+                    deviceID: "device-a",
+                    appVersion: "1.0",
+                    deviceName: "Test Phone",
+                    webhookID: "webhook-a"
+                )
+            )
+        )
+
+        #expect(CompanionNotificationSetupPromptPresentation.shouldShow(
+            hasServerURL: true,
+            authState: signedInState,
+            mobileAppRegistrationState: registeredState,
+            notificationStatus: .notDetermined,
+            hasHandledPrompt: false,
+            isShowingSettings: false
+        ))
+
+        #expect(!CompanionNotificationSetupPromptPresentation.shouldShow(
+            hasServerURL: true,
+            authState: .signedOut,
+            mobileAppRegistrationState: registeredState,
+            notificationStatus: .notDetermined,
+            hasHandledPrompt: false,
+            isShowingSettings: false
+        ))
+
+        #expect(!CompanionNotificationSetupPromptPresentation.shouldShow(
+            hasServerURL: true,
+            authState: signedInState,
+            mobileAppRegistrationState: .unregistered,
+            notificationStatus: .notDetermined,
+            hasHandledPrompt: false,
+            isShowingSettings: false
+        ))
+
+        #expect(!CompanionNotificationSetupPromptPresentation.shouldShow(
+            hasServerURL: true,
+            authState: signedInState,
+            mobileAppRegistrationState: registeredState,
+            notificationStatus: .authorized,
+            hasHandledPrompt: false,
+            isShowingSettings: false
+        ))
+
+        #expect(!CompanionNotificationSetupPromptPresentation.shouldShow(
+            hasServerURL: true,
+            authState: signedInState,
+            mobileAppRegistrationState: registeredState,
+            notificationStatus: .notDetermined,
+            hasHandledPrompt: true,
+            isShowingSettings: false
+        ))
+
+        #expect(!CompanionNotificationSetupPromptPresentation.shouldShow(
+            hasServerURL: true,
+            authState: signedInState,
+            mobileAppRegistrationState: registeredState,
+            notificationStatus: .notDetermined,
+            hasHandledPrompt: false,
+            isShowingSettings: true
+        ))
+    }
+
+    @Test func companionNotificationSetupPromptRefreshesUnknownStatusOnlyWhenEligible() {
+        let credential = HAOAuthCredential(
+            baseURLString: "http://homeassistant.local:8123",
+            clientID: HAOAuthClientMetadata.clientID,
+            refreshToken: "refresh-token",
+            accessToken: "access-token",
+            accessTokenExpiresAt: .distantFuture,
+            tokenType: "Bearer",
+            updatedAt: .now
+        )
+        let registeredState = HAMobileAppRegistrationState.registered(
+            HAMobileAppRegistrationSummary(
+                info: HAMobileAppRegistrationInfo(
+                    serverIdentifier: "homeassistant.local",
+                    deviceID: "device-a",
+                    appVersion: "1.0",
+                    deviceName: "Test Phone",
+                    webhookID: "webhook-a"
+                )
+            )
+        )
+
+        #expect(CompanionNotificationSetupPromptPresentation.shouldRefreshNotificationStatus(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            mobileAppRegistrationState: registeredState,
+            notificationStatus: .unknown,
+            hasHandledPrompt: false
+        ))
+
+        #expect(!CompanionNotificationSetupPromptPresentation.shouldRefreshNotificationStatus(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            mobileAppRegistrationState: registeredState,
+            notificationStatus: .notDetermined,
+            hasHandledPrompt: false
+        ))
+
+        #expect(!CompanionNotificationSetupPromptPresentation.shouldRefreshNotificationStatus(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            mobileAppRegistrationState: registeredState,
+            notificationStatus: .unknown,
+            hasHandledPrompt: true
+        ))
+    }
+
     @Test func webSocketEndpointUsesExpectedSchemeAndPath() throws {
         let localURL = try HomeAssistantEndpointBuilder.webSocketURL(from: "http://homeassistant.local:8123")
         #expect(localURL.absoluteString == "ws://homeassistant.local:8123/api/websocket")

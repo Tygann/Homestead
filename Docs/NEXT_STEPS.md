@@ -84,6 +84,7 @@ Recommended reasoning level: High.
 - Added a native Settings > Permissions page covering Notifications, Local Network, Location, and Camera through app-owned permission models and public iOS APIs; Local Network is shown as iOS-managed because iOS does not expose a direct read-only permission status API.
 - Added required Camera, Location When In Use, and Local Network usage descriptions to the app plist.
 - Moved entity history/timelines out of the active workstream after multiple completed timeline passes; revisit only for concrete visual bugs, detail-surface polish, or a clearly useful state-only domain.
+- Added a non-blocking notification setup prompt after Home Assistant sign-in and mobile-app registration, requesting iOS notification permission in app and persisting Not Now/asked state so Settings remains the recovery surface without making users discover it first.
 
 ## Next Chunk
 
@@ -112,6 +113,8 @@ Recommended reasoning level: High.
 
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-TrustRecovery` after the trust-and-recovery permissions pass.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-TrustRecovery` after the trust-and-recovery permissions pass.
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-NotificationOnboarding` after the notification setup prompt pass.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-NotificationOnboarding` after the notification setup prompt pass.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePolish` after the Recent Activity UX polish pass.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePolish` after the Recent Activity UX polish pass.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-TimelinePass` after adding switch, automation, cover, person, and device-tracker Recent Activity timelines.

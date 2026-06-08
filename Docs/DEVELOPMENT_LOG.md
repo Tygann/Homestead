@@ -10,6 +10,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Kept platform permissions in app-owned native services: notifications use UserNotifications, camera uses AVFoundation authorization, location uses CoreLocation authorization, and Local Network is shown as iOS-managed because there is no direct read-only status API.
 - Added the required iOS usage descriptions for Camera, Location When In Use, and Local Network.
 - Improved service-call and reconnect recovery feedback in `HomeAssistantService` and app chrome so reconnecting can be retried immediately and action failures can explain automatic reconnect recovery without scattering error UI through individual views.
+- Added a non-blocking notification setup prompt after Home Assistant sign-in and mobile-app registration so users can grant notification permission without first finding Settings.
 
 ### Roadmap Handoff Reset
 
