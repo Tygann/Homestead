@@ -37,7 +37,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Settings > Permissions page for native iOS capabilities, including Notifications, Local Network, Location, and Camera, backed by public platform APIs or app-owned status where iOS does not expose direct status.
 - User-facing service-call and reconnect recovery feedback through `HomeAssistantService` and app chrome, including tappable reconnecting state and clearer action-failure copy.
 - Authenticated camera snapshot support.
-- Home Screen widgets for lights, switches, covers, fans, locks, sensors, numeric sensor graphs, people, scenes, and scripts using shared OAuth credentials, app-group state, WebSocket state refresh, documented REST history for graphs, and official WebSocket service calls where actions are available.
+- Experience-first Home Screen widgets: Control for lights, switches, covers, fans, and lock-only lock actions; Status for sensors and people; Graph for numeric sensors; and Action for scenes/scripts. They use shared OAuth credentials, app-group state, WebSocket state refresh, documented REST history for graphs, and official WebSocket service calls where actions are available.
 - App-facing model mapping through `EntityMapper`, with SwiftUI avoiding direct Home Assistant DTO use.
 
 ## Near-Term Priorities

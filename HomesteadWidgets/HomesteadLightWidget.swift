@@ -319,14 +319,9 @@ struct HomesteadLightWidgetView: View {
 @main
 struct HomesteadWidgetsBundle: WidgetBundle {
     var body: some Widget {
-        HomesteadLightWidget()
-        HomesteadSwitchWidget()
-        HomesteadCoverWidget()
-        HomesteadFanWidget()
-        HomesteadLockWidget()
-        HomesteadSensorWidget()
+        HomesteadControlWidget()
+        HomesteadStatusWidget()
         HomesteadSensorGraphWidget()
-        HomesteadPresenceWidget()
         HomesteadActionWidget()
     }
 }

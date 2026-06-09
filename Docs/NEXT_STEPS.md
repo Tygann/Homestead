@@ -95,11 +95,13 @@ Recommended reasoning level: High.
 - Added Home Screen cover, fan, and lock widgets using compact app-facing app-group snapshots, widget-side WebSocket `get_states` refresh, and official WebSocket `call_service` actions.
 - Cover widgets send `cover.open_cover`, `cover.close_cover`, or `cover.stop_cover` based on current state; fan widgets use `fan.turn_on` / `fan.turn_off` with optimistic widget state; lock widgets expose status and `lock.lock` only, avoiding one-tap unlock from widgets.
 - Extended widget snapshot persistence to covers, fans, and locks while keeping raw Home Assistant state parsing inside the widget action client.
+- Refactored the public Home Screen widget gallery to the modern experience-first shape: `Homestead Control` for lights/switches/fans/covers/locks, `Homestead Status` for sensors/people, `Homestead Sensor Graph` for numeric history, and `Homestead Action` for scenes/scripts.
+- Kept the underlying domain-specific widget code compileable, but the widget bundle now registers the smaller Control/Status/Graph/Action surface so users pick a widget experience first and the entity second.
 
 ## Next Chunk
 
 - Continue with widget polish/device testing or move to Control Center controls using the same official Home Assistant WebSocket/OAuth/service-call paths already used by the app and current widgets.
-- Recommended next scope: device-test the expanded Home Screen widget set, refine family-specific layouts if needed, then add Control Center controls for the safest actions.
+- Recommended next scope: device-test the experience-first Home Screen widget set, refine family-specific layouts or entity-picker ordering if needed, then add Control Center controls for the safest actions.
 - Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
 - Keep service calls official through WebSocket `call_service`; do not add REST, webhook, or private frontend endpoints for widget actions.
 - Keep lock widgets conservative unless a future design adds explicit confirmation; current widget scope intentionally does not expose one-tap unlock.
@@ -121,6 +123,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetUnified` after refactoring widgets into the experience-first Control/Status/Graph/Action gallery.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetUnified` after refactoring widgets into the experience-first Control/Status/Graph/Action gallery.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetCoverFanLock` after adding cover, fan, and lock widgets.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetCoverFanLock` after adding cover, fan, and lock widgets.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetGraph` after adding the numeric sensor graph widget.

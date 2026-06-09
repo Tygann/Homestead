@@ -45,14 +45,14 @@ Official references:
 | Native notification permission/status | iOS UserNotifications | Mapped | Settings > Notifications shows device permission status separately from Home Assistant mobile-app registration. |
 | Native iOS permissions | iOS UserNotifications, AVFoundation, CoreLocation, iOS Settings | Mapped | Settings > Permissions shows Notifications, Local Network, Location, and Camera. Camera/location use public authorization APIs. Local Network is represented as iOS-managed because there is no direct read-only status API. |
 | Mobile app WebSocket notifications | Native app WebSocket push notification channel | Mapped | Registers `push_websocket_channel`, subscribes with `mobile_app/push_notification_channel`, presents local iOS notifications, and confirms HA delivery when requested. |
-| Home Screen widgets | Widget/App Intents plus HA WebSocket/OAuth/history | Mapped | Light/switch/cover/fan/lock controls, sensor/person status, numeric sensor graphs, and scene/script actions use shared credentials, compact app-group snapshots, WebSocket state refresh, documented REST history for graphs, and official WebSocket service calls where actions are available. Lock widgets only expose a lock action, not one-tap unlock. |
+| Home Screen widgets | Widget/App Intents plus HA WebSocket/OAuth/history | Mapped | The gallery is organized by experience: Control covers light/switch/fan toggles, cover open/close/stop, and lock-only lock actions; Status covers sensor/person state; Graph covers numeric sensor history; Action covers scene/script runs. Widgets use shared credentials, compact app-group snapshots, WebSocket state refresh, documented REST history for graphs, and official WebSocket service calls where actions are available. |
 
 ## Near-Term API Targets
 
 | Feature | API family | Status | Intended Homestead surface |
 | --- | --- | --- | --- |
 | People/presence | `person.*`, `device_tracker.*`, registries, current user | Planned | Settings > People and presence cards/details. |
-| Expanded widgets | WidgetKit/App Intents plus OAuth/WebSocket/history/service calls | In progress | Home Screen light/switch/cover/fan/lock controls, sensor/person status, numeric sensor graphs, and scene/script action widgets exist; Control Center controls and widget polish/device testing remain follow-up scope. |
+| Expanded widgets | WidgetKit/App Intents plus OAuth/WebSocket/history/service calls | In progress | Home Screen Control, Status, Graph, and Action widgets exist; Control Center controls and widget polish/device testing remain follow-up scope. |
 
 ## Next Feature-Sized Mapping Queue
 
@@ -91,6 +91,7 @@ These are the next API slices to map when the matching feature is implemented. D
 ### Widgets And App Intents
 
 - Reuse OAuth and app-group credential patterns from the current Home Screen widgets.
+- Keep the widget gallery organized by user intent rather than Home Assistant domain: Control, Status, Graph, and Action are the primary user-facing widget kinds.
 - Add one safe action family at a time, starting with toggles/actions that map cleanly to WebSocket service calls. Light/switch/fan controls, cover open/close/stop, lock-only lock actions, and scene/script action widgets now use this pattern.
 - Numeric sensor graph widgets use the documented REST history endpoint with the same OAuth/app-group credential path.
 - Keep widget snapshots small and scoped to what WidgetKit needs to render quickly.

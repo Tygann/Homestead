@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-09
 
+### Experience-First Widgets
+
+- Reworked the public Home Screen widget gallery from domain-first widgets into Control, Status, Graph, and Action widget kinds.
+- Added a unified Control widget that lets users pick a light, switch, fan, cover, or lock entity, then renders the appropriate state and safe action for that domain.
+- Added a unified Status widget for sensor and person state so users pick the status entity directly instead of choosing separate sensor or presence widget kinds.
+
 ### Widget Cover Fan Lock Controls
 
 - Added Home Screen cover, fan, and lock widgets using compact app-group snapshots and widget-side WebSocket `get_states` refresh.
