@@ -114,18 +114,48 @@ struct HomesteadControlEntity: AppEntity, Identifiable {
     let displayName: String
     let statusText: String
     let systemImage: String
+    let areaName: String?
+    let deviceName: String?
     let isActive: Bool
     let isMoving: Bool
     let isAvailable: Bool
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(displayName)", subtitle: "\(domain) • \(id)")
+        DisplayRepresentation(title: "\(displayName)", subtitle: "\(pickerSubtitle)")
+    }
+
+    private var pickerSubtitle: String {
+        HomesteadWidgetEntityPickerText.subtitle(
+            areaName: areaName,
+            deviceName: deviceName,
+            kind: HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
+            id: id
+        )
+    }
+
+    func matches(_ query: String) -> Bool {
+        HomesteadWidgetEntityPickerText.matches(
+            query: query,
+            values: [
+                displayName,
+                statusText,
+                domain,
+                HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
+                areaName,
+                deviceName,
+                id
+            ]
+        )
     }
 }
 
-struct HomesteadControlEntityQuery: EntityQuery {
+struct HomesteadControlEntityQuery: EntityQuery, EntityStringQuery {
     func entities(for identifiers: [HomesteadControlEntity.ID]) async throws -> [HomesteadControlEntity] {
         allEntities().filter { identifiers.contains($0.id) }
+    }
+
+    func entities(matching string: String) async throws -> [HomesteadControlEntity] {
+        allEntities().filter { $0.matches(string) }
     }
 
     func suggestedEntities() async throws -> [HomesteadControlEntity] {
@@ -452,6 +482,8 @@ private enum HomesteadControlSnapshotBuilder {
                 displayName: snapshot.displayName,
                 statusText: lightStatusText(isOn: snapshot.isOn, brightnessPercentage: snapshot.brightnessPercentage),
                 systemImage: "lightbulb.fill",
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName,
                 isActive: snapshot.isOn,
                 isMoving: false,
                 isAvailable: true
@@ -467,6 +499,8 @@ private enum HomesteadControlSnapshotBuilder {
                 displayName: snapshot.displayName,
                 statusText: snapshot.isOn ? "On" : "Off",
                 systemImage: snapshot.systemImage,
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName,
                 isActive: snapshot.isOn,
                 isMoving: false,
                 isAvailable: true
@@ -482,6 +516,8 @@ private enum HomesteadControlSnapshotBuilder {
                 displayName: snapshot.displayName,
                 statusText: snapshot.statusText,
                 systemImage: "fan.fill",
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName,
                 isActive: snapshot.isOn,
                 isMoving: false,
                 isAvailable: snapshot.isAvailable
@@ -497,6 +533,8 @@ private enum HomesteadControlSnapshotBuilder {
                 displayName: snapshot.displayName,
                 statusText: snapshot.statusText,
                 systemImage: snapshot.systemImage,
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName,
                 isActive: snapshot.isOpen,
                 isMoving: snapshot.isMoving,
                 isAvailable: snapshot.isAvailable
@@ -512,6 +550,8 @@ private enum HomesteadControlSnapshotBuilder {
                 displayName: snapshot.displayName,
                 statusText: snapshot.statusText,
                 systemImage: snapshot.systemImage,
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName,
                 isActive: snapshot.isLocked,
                 isMoving: false,
                 isAvailable: snapshot.isAvailable

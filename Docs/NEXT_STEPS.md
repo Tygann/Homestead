@@ -101,11 +101,14 @@ Recommended reasoning level: High.
 - Removed first-entity default selection/fallback from the public Control, Status, Graph, and Action widgets so unconfigured add-widget previews stay sample-based and newly added widgets require explicit entity selection.
 - Tightened Status widget supporting text to show only alert/recovery-style messages and made Action widgets communicate command behavior through a play-badged icon rather than adding Run/Script labels to the small face.
 - Aligned Control and Status compact second-line text sizing and replaced the Action overlay badge with a single play-circle command glyph.
+- Added searchable App Intent entity queries for the public Control, Status, Graph, and Action widgets.
+- Enriched compact app-group widget snapshots with optional area/device context from existing registry metadata so the system picker can show room/type subtitles and search across name, entity ID, domain, room, device, and value/status without exposing Home Assistant DTOs to widget views.
+- WidgetKit still owns the configuration picker layout; true custom section headers like Apple Home's accessory picker are not currently implemented, so Homestead uses context-rich subtitles and searchable rows as the modern system-native compromise.
 
 ## Next Chunk
 
 - Continue with widget polish/device testing or move to Control Center controls using the same official Home Assistant WebSocket/OAuth/service-call paths already used by the app and current widgets.
-- Recommended next scope: device-test the experience-first Home Screen widget set, refine family-specific layouts or entity-picker ordering if needed, then add Control Center controls for the safest actions.
+- Recommended next scope: device-test the experience-first Home Screen widget set, refine family-specific layouts or picker subtitle/search behavior if needed, then add Control Center controls for the safest actions.
 - Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
 - Keep service calls official through WebSocket `call_service`; do not add REST, webhook, or private frontend endpoints for widget actions.
 - Keep lock widgets conservative unless a future design adds explicit confirmation; current widget scope intentionally does not expose one-tap unlock.
@@ -127,6 +130,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSearch` after adding searchable context-rich widget entity pickers.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSearch` after adding searchable context-rich widget entity pickers.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetVisualAlign` after aligning compact widget typography and simplifying the Action icon.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetVisualAlign` after aligning compact widget typography and simplifying the Action icon.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetFacePolish` after tightening Status supporting text and Action command icon treatment.

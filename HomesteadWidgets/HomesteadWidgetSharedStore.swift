@@ -256,7 +256,9 @@ enum HomesteadWidgetSharedStore {
                 entityID: snapshot.entityID,
                 displayName: snapshot.displayName,
                 isOn: isOn,
-                brightnessPercentage: snapshot.brightnessPercentage
+                brightnessPercentage: snapshot.brightnessPercentage,
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName
             )
         }
 
@@ -277,7 +279,9 @@ enum HomesteadWidgetSharedStore {
                 entityID: snapshot.entityID,
                 displayName: snapshot.displayName,
                 isOn: isOn,
-                systemImage: switchSystemImage(isOn: isOn, fallback: snapshot.systemImage)
+                systemImage: switchSystemImage(isOn: isOn, fallback: snapshot.systemImage),
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName
             )
         }
 
@@ -299,7 +303,9 @@ enum HomesteadWidgetSharedStore {
                 displayName: snapshot.displayName,
                 isOn: isOn,
                 statusText: isOn ? "On" : "Off",
-                isAvailable: snapshot.isAvailable
+                isAvailable: snapshot.isAvailable,
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName
             )
         }
 
@@ -457,6 +463,8 @@ struct WidgetLightSnapshot: Codable, Equatable, Sendable {
     let displayName: String
     let isOn: Bool
     let brightnessPercentage: Int?
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
@@ -464,6 +472,8 @@ struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
     let displayName: String
     let isOn: Bool
     let systemImage: String
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetCoverSnapshot: Codable, Equatable, Sendable {
@@ -476,6 +486,8 @@ struct WidgetCoverSnapshot: Codable, Equatable, Sendable {
     let isClosed: Bool
     let isMoving: Bool
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetFanSnapshot: Codable, Equatable, Sendable {
@@ -484,6 +496,8 @@ struct WidgetFanSnapshot: Codable, Equatable, Sendable {
     let isOn: Bool
     let statusText: String
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetLockSnapshot: Codable, Equatable, Sendable {
@@ -494,6 +508,8 @@ struct WidgetLockSnapshot: Codable, Equatable, Sendable {
     let systemImage: String
     let isLocked: Bool
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
@@ -506,6 +522,8 @@ struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     let isNumeric: Bool?
     let isAlerting: Bool
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetPresenceSnapshot: Codable, Equatable, Sendable {
@@ -515,6 +533,8 @@ struct WidgetPresenceSnapshot: Codable, Equatable, Sendable {
     let isHome: Bool
     let systemImage: String
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetActionSnapshot: Codable, Equatable, Sendable {
@@ -522,6 +542,70 @@ struct WidgetActionSnapshot: Codable, Equatable, Sendable {
     let displayName: String
     let domain: String
     let systemImage: String
+    let areaName: String?
+    let deviceName: String?
+}
+
+enum HomesteadWidgetEntityPickerText {
+    static func subtitle(
+        areaName: String?,
+        deviceName: String?,
+        kind: String,
+        id: String
+    ) -> String {
+        if let contextName = contextName(areaName: areaName, deviceName: deviceName) {
+            return "\(contextName) • \(kind)"
+        }
+
+        return "\(kind) • \(id)"
+    }
+
+    static func matches(query: String, values: [String?]) -> Bool {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            return true
+        }
+
+        return values
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .localizedCaseInsensitiveContains(trimmedQuery)
+    }
+
+    static func displayName(forDomain domain: String) -> String {
+        switch domain {
+        case "light":
+            "Light"
+        case "switch":
+            "Switch"
+        case "fan":
+            "Fan"
+        case "cover":
+            "Cover"
+        case "lock":
+            "Lock"
+        case "sensor":
+            "Sensor"
+        case "person":
+            "Person"
+        case "scene":
+            "Scene"
+        case "script":
+            "Script"
+        default:
+            domain.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private static func contextName(areaName: String?, deviceName: String?) -> String? {
+        nonEmptyValue(areaName) ?? nonEmptyValue(deviceName)
+    }
+
+    private static func nonEmptyValue(_ value: String?) -> String? {
+        let trimmedValue = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedValue?.isEmpty == false ? trimmedValue : nil
+    }
 }
 
 struct WidgetOAuthCredential: Codable, Equatable, Sendable {

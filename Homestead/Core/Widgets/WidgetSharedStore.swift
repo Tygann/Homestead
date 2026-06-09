@@ -18,8 +18,11 @@ enum WidgetSharedStore {
         sharedDefaults?.set(baseURL, forKey: baseURLKey)
     }
 
-    static func saveLightSnapshots(_ lights: [LightEntity]) {
-        let snapshots = lightSnapshots(from: lights)
+    static func saveLightSnapshots(
+        _ lights: [LightEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) {
+        let snapshots = lightSnapshots(from: lights, contextForEntityID: contextForEntityID)
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -28,8 +31,11 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: lightSnapshotsKey)
     }
 
-    static func saveSwitchSnapshots(_ entities: [HomeEntity]) {
-        let snapshots = switchSnapshots(from: entities)
+    static func saveSwitchSnapshots(
+        _ entities: [HomeEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) {
+        let snapshots = switchSnapshots(from: entities, contextForEntityID: contextForEntityID)
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -38,8 +44,11 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: switchSnapshotsKey)
     }
 
-    static func saveCoverSnapshots(_ covers: [CoverEntity]) {
-        let snapshots = coverSnapshots(from: covers)
+    static func saveCoverSnapshots(
+        _ covers: [CoverEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) {
+        let snapshots = coverSnapshots(from: covers, contextForEntityID: contextForEntityID)
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -48,8 +57,11 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: coverSnapshotsKey)
     }
 
-    static func saveFanSnapshots(_ fans: [FanEntity]) {
-        let snapshots = fanSnapshots(from: fans)
+    static func saveFanSnapshots(
+        _ fans: [FanEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) {
+        let snapshots = fanSnapshots(from: fans, contextForEntityID: contextForEntityID)
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -58,8 +70,11 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: fanSnapshotsKey)
     }
 
-    static func saveLockSnapshots(_ entities: [HomeEntity]) {
-        let snapshots = lockSnapshots(from: entities)
+    static func saveLockSnapshots(
+        _ entities: [HomeEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) {
+        let snapshots = lockSnapshots(from: entities, contextForEntityID: contextForEntityID)
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -68,8 +83,11 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: lockSnapshotsKey)
     }
 
-    static func saveSensorSnapshots(_ sensors: [SensorEntity]) {
-        let snapshots = sensorSnapshots(from: sensors)
+    static func saveSensorSnapshots(
+        _ sensors: [SensorEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) {
+        let snapshots = sensorSnapshots(from: sensors, contextForEntityID: contextForEntityID)
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -78,8 +96,11 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: sensorSnapshotsKey)
     }
 
-    static func savePresenceSnapshots(_ entities: [HomeEntity]) {
-        let snapshots = presenceSnapshots(from: entities)
+    static func savePresenceSnapshots(
+        _ entities: [HomeEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) {
+        let snapshots = presenceSnapshots(from: entities, contextForEntityID: contextForEntityID)
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -88,8 +109,11 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: presenceSnapshotsKey)
     }
 
-    static func saveActionSnapshots(_ entities: [HomeEntity]) {
-        let snapshots = actionSnapshots(from: entities)
+    static func saveActionSnapshots(
+        _ entities: [HomeEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) {
+        let snapshots = actionSnapshots(from: entities, contextForEntityID: contextForEntityID)
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -98,44 +122,60 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: actionSnapshotsKey)
     }
 
-    static func lightSnapshots(from lights: [LightEntity]) -> [WidgetLightSnapshot] {
+    static func lightSnapshots(
+        from lights: [LightEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) -> [WidgetLightSnapshot] {
         lights
             .sorted { lhs, rhs in
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map { light in
-                WidgetLightSnapshot(
+                let context = contextForEntityID(light.entityID)
+                return WidgetLightSnapshot(
                     entityID: light.entityID,
                     displayName: light.displayName,
                     isOn: light.isOn,
-                    brightnessPercentage: light.brightnessPercentage
+                    brightnessPercentage: light.brightnessPercentage,
+                    areaName: context.areaName,
+                    deviceName: context.deviceName
                 )
             }
     }
 
-    static func switchSnapshots(from entities: [HomeEntity]) -> [WidgetSwitchSnapshot] {
+    static func switchSnapshots(
+        from entities: [HomeEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) -> [WidgetSwitchSnapshot] {
         entities
             .filter { $0.domain == .switch }
             .sorted { lhs, rhs in
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map { entity in
-                WidgetSwitchSnapshot(
+                let context = contextForEntityID(entity.entityID)
+                return WidgetSwitchSnapshot(
                     entityID: entity.entityID,
                     displayName: entity.displayName,
                     isOn: entity.state == "on",
-                    systemImage: entity.iconName
+                    systemImage: entity.iconName,
+                    areaName: context.areaName,
+                    deviceName: context.deviceName
                 )
             }
     }
 
-    static func coverSnapshots(from covers: [CoverEntity]) -> [WidgetCoverSnapshot] {
+    static func coverSnapshots(
+        from covers: [CoverEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) -> [WidgetCoverSnapshot] {
         covers
             .sorted { lhs, rhs in
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map { cover in
-                WidgetCoverSnapshot(
+                let context = contextForEntityID(cover.entityID)
+                return WidgetCoverSnapshot(
                     entityID: cover.entityID,
                     displayName: cover.displayName,
                     state: cover.state,
@@ -144,53 +184,71 @@ enum WidgetSharedStore {
                     isOpen: cover.isOpen,
                     isClosed: cover.isClosed,
                     isMoving: cover.isMoving,
-                    isAvailable: !["unknown", "unavailable"].contains(cover.state)
+                    isAvailable: !["unknown", "unavailable"].contains(cover.state),
+                    areaName: context.areaName,
+                    deviceName: context.deviceName
                 )
             }
     }
 
-    static func fanSnapshots(from fans: [FanEntity]) -> [WidgetFanSnapshot] {
+    static func fanSnapshots(
+        from fans: [FanEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) -> [WidgetFanSnapshot] {
         fans
             .sorted { lhs, rhs in
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map { fan in
-                WidgetFanSnapshot(
+                let context = contextForEntityID(fan.entityID)
+                return WidgetFanSnapshot(
                     entityID: fan.entityID,
                     displayName: fan.displayName,
                     isOn: fan.isOn,
                     statusText: fanStatusText(for: fan),
-                    isAvailable: fan.isAvailable
+                    isAvailable: fan.isAvailable,
+                    areaName: context.areaName,
+                    deviceName: context.deviceName
                 )
             }
     }
 
-    static func lockSnapshots(from entities: [HomeEntity]) -> [WidgetLockSnapshot] {
+    static func lockSnapshots(
+        from entities: [HomeEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) -> [WidgetLockSnapshot] {
         entities
             .filter { $0.domain == .lock }
             .sorted { lhs, rhs in
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map { entity in
-                WidgetLockSnapshot(
+                let context = contextForEntityID(entity.entityID)
+                return WidgetLockSnapshot(
                     entityID: entity.entityID,
                     displayName: entity.displayName,
                     state: entity.state,
                     statusText: lockStatusText(for: entity.state),
                     systemImage: lockSystemImage(for: entity.state),
                     isLocked: entity.state == "locked",
-                    isAvailable: entity.isAvailable
+                    isAvailable: entity.isAvailable,
+                    areaName: context.areaName,
+                    deviceName: context.deviceName
                 )
             }
     }
 
-    static func sensorSnapshots(from sensors: [SensorEntity]) -> [WidgetSensorSnapshot] {
+    static func sensorSnapshots(
+        from sensors: [SensorEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) -> [WidgetSensorSnapshot] {
         sensors
             .sorted { lhs, rhs in
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map { sensor in
-                WidgetSensorSnapshot(
+                let context = contextForEntityID(sensor.entityID)
+                return WidgetSensorSnapshot(
                     entityID: sensor.entityID,
                     displayName: sensor.displayName,
                     valueText: sensor.formattedValue,
@@ -199,30 +257,41 @@ enum WidgetSharedStore {
                     unit: sensor.unitText,
                     isNumeric: sensor.numericValue != nil,
                     isAlerting: sensor.isAlerting,
-                    isAvailable: sensor.isAvailable
+                    isAvailable: sensor.isAvailable,
+                    areaName: context.areaName,
+                    deviceName: context.deviceName
                 )
             }
     }
 
-    static func presenceSnapshots(from entities: [HomeEntity]) -> [WidgetPresenceSnapshot] {
+    static func presenceSnapshots(
+        from entities: [HomeEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) -> [WidgetPresenceSnapshot] {
         entities
             .filter { $0.domain == .person }
             .sorted { lhs, rhs in
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map { entity in
-                WidgetPresenceSnapshot(
+                let context = contextForEntityID(entity.entityID)
+                return WidgetPresenceSnapshot(
                     entityID: entity.entityID,
                     displayName: entity.displayName,
                     statusText: presenceStatusText(for: entity.state),
                     isHome: entity.state == "home",
                     systemImage: entity.iconName,
-                    isAvailable: entity.isAvailable
+                    isAvailable: entity.isAvailable,
+                    areaName: context.areaName,
+                    deviceName: context.deviceName
                 )
             }
     }
 
-    static func actionSnapshots(from entities: [HomeEntity]) -> [WidgetActionSnapshot] {
+    static func actionSnapshots(
+        from entities: [HomeEntity],
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+    ) -> [WidgetActionSnapshot] {
         entities
             .filter { $0.domain == .scene || $0.domain == .script }
             .sorted { lhs, rhs in
@@ -234,11 +303,14 @@ enum WidgetSharedStore {
                 return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
             .map { entity in
-                WidgetActionSnapshot(
+                let context = contextForEntityID(entity.entityID)
+                return WidgetActionSnapshot(
                     entityID: entity.entityID,
                     displayName: entity.displayName,
                     domain: entity.domain.rawValue,
-                    systemImage: entity.iconName
+                    systemImage: entity.iconName,
+                    areaName: context.areaName,
+                    deviceName: context.deviceName
                 )
             }
     }
@@ -320,6 +392,8 @@ struct WidgetLightSnapshot: Codable, Equatable, Sendable {
     let displayName: String
     let isOn: Bool
     let brightnessPercentage: Int?
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
@@ -327,6 +401,8 @@ struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
     let displayName: String
     let isOn: Bool
     let systemImage: String
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetCoverSnapshot: Codable, Equatable, Sendable {
@@ -339,6 +415,8 @@ struct WidgetCoverSnapshot: Codable, Equatable, Sendable {
     let isClosed: Bool
     let isMoving: Bool
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetFanSnapshot: Codable, Equatable, Sendable {
@@ -347,6 +425,8 @@ struct WidgetFanSnapshot: Codable, Equatable, Sendable {
     let isOn: Bool
     let statusText: String
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetLockSnapshot: Codable, Equatable, Sendable {
@@ -357,6 +437,8 @@ struct WidgetLockSnapshot: Codable, Equatable, Sendable {
     let systemImage: String
     let isLocked: Bool
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
@@ -369,6 +451,8 @@ struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     let isNumeric: Bool
     let isAlerting: Bool
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetPresenceSnapshot: Codable, Equatable, Sendable {
@@ -378,6 +462,8 @@ struct WidgetPresenceSnapshot: Codable, Equatable, Sendable {
     let isHome: Bool
     let systemImage: String
     let isAvailable: Bool
+    let areaName: String?
+    let deviceName: String?
 }
 
 struct WidgetActionSnapshot: Codable, Equatable, Sendable {
@@ -385,4 +471,13 @@ struct WidgetActionSnapshot: Codable, Equatable, Sendable {
     let displayName: String
     let domain: String
     let systemImage: String
+    let areaName: String?
+    let deviceName: String?
+}
+
+struct WidgetEntityContext: Codable, Equatable, Sendable {
+    let areaName: String?
+    let deviceName: String?
+
+    static let empty = WidgetEntityContext(areaName: nil, deviceName: nil)
 }

@@ -36,16 +36,47 @@ struct HomesteadGraphSensorEntity: AppEntity, Identifiable {
     let subtitle: String
     let systemImage: String
     let unit: String?
+    let areaName: String?
+    let deviceName: String?
     let isAvailable: Bool
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(displayName)", subtitle: "\(id)")
+        DisplayRepresentation(title: "\(displayName)", subtitle: "\(pickerSubtitle)")
+    }
+
+    private var pickerSubtitle: String {
+        HomesteadWidgetEntityPickerText.subtitle(
+            areaName: areaName,
+            deviceName: deviceName,
+            kind: "Numeric Sensor",
+            id: id
+        )
+    }
+
+    func matches(_ query: String) -> Bool {
+        HomesteadWidgetEntityPickerText.matches(
+            query: query,
+            values: [
+                displayName,
+                valueText,
+                subtitle,
+                "sensor",
+                "Numeric Sensor",
+                areaName,
+                deviceName,
+                id
+            ]
+        )
     }
 }
 
-struct HomesteadGraphSensorEntityQuery: EntityQuery {
+struct HomesteadGraphSensorEntityQuery: EntityQuery, EntityStringQuery {
     func entities(for identifiers: [HomesteadGraphSensorEntity.ID]) async throws -> [HomesteadGraphSensorEntity] {
         allEntities().filter { identifiers.contains($0.id) }
+    }
+
+    func entities(matching string: String) async throws -> [HomesteadGraphSensorEntity] {
+        allEntities().filter { $0.matches(string) }
     }
 
     func suggestedEntities() async throws -> [HomesteadGraphSensorEntity] {
@@ -70,6 +101,8 @@ struct HomesteadGraphSensorEntityQuery: EntityQuery {
             subtitle: snapshot.subtitle,
             systemImage: snapshot.systemImage,
             unit: snapshot.unit,
+            areaName: snapshot.areaName,
+            deviceName: snapshot.deviceName,
             isAvailable: snapshot.isAvailable
         )
     }
@@ -205,6 +238,8 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             subtitle: snapshot.subtitle,
             systemImage: snapshot.systemImage,
             unit: snapshot.unit,
+            areaName: snapshot.areaName,
+            deviceName: snapshot.deviceName,
             isAvailable: snapshot.isAvailable
         )
     }

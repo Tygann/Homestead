@@ -714,14 +714,21 @@ final class HAStateStore {
     }
 
     private func saveWidgetSnapshots() {
-        WidgetSharedStore.saveLightSnapshots(Array(lightEntitiesByID.values))
-        WidgetSharedStore.saveSwitchSnapshots(Array(entitiesByID.values))
-        WidgetSharedStore.saveCoverSnapshots(Array(coverEntitiesByID.values))
-        WidgetSharedStore.saveFanSnapshots(Array(fanEntitiesByID.values))
-        WidgetSharedStore.saveLockSnapshots(Array(entitiesByID.values))
-        WidgetSharedStore.saveSensorSnapshots(Array(sensorEntitiesByID.values))
-        WidgetSharedStore.savePresenceSnapshots(Array(entitiesByID.values))
-        WidgetSharedStore.saveActionSnapshots(Array(entitiesByID.values))
+        let contextForEntityID: (String) -> WidgetEntityContext = { entityID in
+            WidgetEntityContext(
+                areaName: self.areaName(for: entityID),
+                deviceName: self.deviceRegistryMetadata(forEntityID: entityID)?.displayName.nonEmptyValue
+            )
+        }
+
+        WidgetSharedStore.saveLightSnapshots(Array(lightEntitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.saveSwitchSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.saveCoverSnapshots(Array(coverEntitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.saveFanSnapshots(Array(fanEntitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.saveLockSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.saveSensorSnapshots(Array(sensorEntitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.savePresenceSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.saveActionSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
     }
 
     private func refreshUpdateEntities() {

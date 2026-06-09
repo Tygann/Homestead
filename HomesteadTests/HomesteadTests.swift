@@ -2863,13 +2863,17 @@ struct HomesteadTests {
                 entityID: "light.a_lamp",
                 displayName: "A Lamp",
                 isOn: true,
-                brightnessPercentage: 50
+                brightnessPercentage: 50,
+                areaName: nil,
+                deviceName: nil
             ),
             WidgetLightSnapshot(
                 entityID: "light.z_lamp",
                 displayName: "Z Lamp",
                 isOn: false,
-                brightnessPercentage: nil
+                brightnessPercentage: nil,
+                areaName: nil,
+                deviceName: nil
             )
         ])
 
@@ -2878,13 +2882,17 @@ struct HomesteadTests {
                 entityID: "switch.coffee",
                 displayName: "Coffee",
                 isOn: true,
-                systemImage: "lightswitch.on.fill"
+                systemImage: "lightswitch.on.fill",
+                areaName: nil,
+                deviceName: nil
             ),
             WidgetSwitchSnapshot(
                 entityID: "switch.fan",
                 displayName: "Fan",
                 isOn: false,
-                systemImage: "lightswitch.off.fill"
+                systemImage: "lightswitch.off.fill",
+                areaName: nil,
+                deviceName: nil
             )
         ])
 
@@ -2898,7 +2906,9 @@ struct HomesteadTests {
                 isOpen: false,
                 isClosed: true,
                 isMoving: false,
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             ),
             WidgetCoverSnapshot(
                 entityID: "cover.living_room_shades",
@@ -2909,7 +2919,9 @@ struct HomesteadTests {
                 isOpen: true,
                 isClosed: false,
                 isMoving: false,
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             )
         ])
 
@@ -2919,14 +2931,18 @@ struct HomesteadTests {
                 displayName: "Bedroom Fan",
                 isOn: true,
                 statusText: "On • 50%",
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             ),
             WidgetFanSnapshot(
                 entityID: "fan.office",
                 displayName: "Office Fan",
                 isOn: false,
                 statusText: "Off",
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             )
         ])
 
@@ -2938,7 +2954,9 @@ struct HomesteadTests {
                 statusText: "Locked",
                 systemImage: "lock.fill",
                 isLocked: true,
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             ),
             WidgetLockSnapshot(
                 entityID: "lock.garage_entry",
@@ -2947,7 +2965,9 @@ struct HomesteadTests {
                 statusText: "Unlocked",
                 systemImage: "lock.open.fill",
                 isLocked: false,
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             )
         ])
 
@@ -2961,7 +2981,9 @@ struct HomesteadTests {
                 unit: "%",
                 isNumeric: true,
                 isAlerting: true,
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             ),
             WidgetSensorSnapshot(
                 entityID: "sensor.temperature",
@@ -2972,7 +2994,9 @@ struct HomesteadTests {
                 unit: "°F",
                 isNumeric: true,
                 isAlerting: false,
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             )
         ])
 
@@ -2983,7 +3007,9 @@ struct HomesteadTests {
                 statusText: "Away",
                 isHome: false,
                 systemImage: "person",
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             ),
             WidgetPresenceSnapshot(
                 entityID: "person.tyler",
@@ -2991,7 +3017,9 @@ struct HomesteadTests {
                 statusText: "Home",
                 isHome: true,
                 systemImage: "person.fill",
-                isAvailable: true
+                isAvailable: true,
+                areaName: nil,
+                deviceName: nil
             )
         ])
 
@@ -3000,15 +3028,30 @@ struct HomesteadTests {
                 entityID: "scene.movie_time",
                 displayName: "Movie Time",
                 domain: "scene",
-                systemImage: "sparkles"
+                systemImage: "sparkles",
+                areaName: nil,
+                deviceName: nil
             ),
             WidgetActionSnapshot(
                 entityID: "script.good_night",
                 displayName: "Good Night",
                 domain: "script",
-                systemImage: "play.circle"
+                systemImage: "play.circle",
+                areaName: nil,
+                deviceName: nil
             )
         ])
+
+        let contextualLightSnapshots = WidgetSharedStore.lightSnapshots(
+            from: lights,
+            contextForEntityID: { entityID in
+                entityID == "light.a_lamp"
+                    ? WidgetEntityContext(areaName: "Bedroom", deviceName: "Hue Bulb")
+                    : .empty
+            }
+        )
+        #expect(contextualLightSnapshots.first?.areaName == "Bedroom")
+        #expect(contextualLightSnapshots.first?.deviceName == "Hue Bulb")
     }
 
     @MainActor

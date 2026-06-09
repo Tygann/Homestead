@@ -11,6 +11,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Removed automatic first-entity defaults from the public unified widget intents so the add-widget gallery stays sample-based and unconfigured widgets do not silently bind to a real Home Assistant entity.
 - Further tightened Status widgets by hiding routine sensor subtitles like Temperature, while keeping alert/recovery text, and made Action widgets read as commands through a purple play-badged icon treatment instead of extra face text.
 - Aligned compact Control and Status second-line typography and simplified Action widget command icons to a single play-circle glyph after gallery review.
+- Added searchable App Intent entity queries for the public widgets and enriched compact widget snapshots with optional area/device context so the system picker can show cleaner room/type subtitles without changing widget faces.
 
 ### Experience-First Widgets
 

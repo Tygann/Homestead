@@ -36,18 +36,49 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
     let valueText: String
     let subtitle: String
     let systemImage: String
+    let areaName: String?
+    let deviceName: String?
     let isHighlighted: Bool
     let isAlerting: Bool
     let isAvailable: Bool
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(displayName)", subtitle: "\(domain) • \(id)")
+        DisplayRepresentation(title: "\(displayName)", subtitle: "\(pickerSubtitle)")
+    }
+
+    private var pickerSubtitle: String {
+        HomesteadWidgetEntityPickerText.subtitle(
+            areaName: areaName,
+            deviceName: deviceName,
+            kind: HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
+            id: id
+        )
+    }
+
+    func matches(_ query: String) -> Bool {
+        HomesteadWidgetEntityPickerText.matches(
+            query: query,
+            values: [
+                displayName,
+                valueText,
+                subtitle,
+                domain,
+                HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
+                areaName,
+                deviceName,
+                id
+            ]
+        )
     }
 }
 
-struct HomesteadStatusEntityQuery: EntityQuery {
+struct HomesteadStatusEntityQuery: EntityQuery, EntityStringQuery {
     func entities(for identifiers: [HomesteadStatusEntity.ID]) async throws -> [HomesteadStatusEntity] {
         allEntities().filter { identifiers.contains($0.id) }
+    }
+
+    func entities(matching string: String) async throws -> [HomesteadStatusEntity] {
+        allEntities().filter { $0.matches(string) }
     }
 
     func suggestedEntities() async throws -> [HomesteadStatusEntity] {
@@ -221,6 +252,8 @@ private enum HomesteadStatusSnapshotBuilder {
                 valueText: snapshot.valueText,
                 subtitle: snapshot.subtitle,
                 systemImage: snapshot.systemImage,
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName,
                 isHighlighted: false,
                 isAlerting: snapshot.isAlerting,
                 isAvailable: snapshot.isAvailable
@@ -237,6 +270,8 @@ private enum HomesteadStatusSnapshotBuilder {
                 valueText: snapshot.statusText,
                 subtitle: "Presence",
                 systemImage: snapshot.systemImage,
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName,
                 isHighlighted: snapshot.isHome,
                 isAlerting: false,
                 isAvailable: snapshot.isAvailable

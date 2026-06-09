@@ -58,15 +58,44 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
     let displayName: String
     let domain: String
     let systemImage: String
+    let areaName: String?
+    let deviceName: String?
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(displayName)", subtitle: "\(id)")
+        DisplayRepresentation(title: "\(displayName)", subtitle: "\(pickerSubtitle)")
+    }
+
+    private var pickerSubtitle: String {
+        HomesteadWidgetEntityPickerText.subtitle(
+            areaName: areaName,
+            deviceName: deviceName,
+            kind: HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
+            id: id
+        )
+    }
+
+    func matches(_ query: String) -> Bool {
+        HomesteadWidgetEntityPickerText.matches(
+            query: query,
+            values: [
+                displayName,
+                domain,
+                HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
+                areaName,
+                deviceName,
+                id
+            ]
+        )
     }
 }
 
-struct HomesteadActionEntityQuery: EntityQuery {
+struct HomesteadActionEntityQuery: EntityQuery, EntityStringQuery {
     func entities(for identifiers: [HomesteadActionEntity.ID]) async throws -> [HomesteadActionEntity] {
         allEntities().filter { identifiers.contains($0.id) }
+    }
+
+    func entities(matching string: String) async throws -> [HomesteadActionEntity] {
+        allEntities().filter { $0.matches(string) }
     }
 
     func suggestedEntities() async throws -> [HomesteadActionEntity] {
@@ -83,7 +112,9 @@ struct HomesteadActionEntityQuery: EntityQuery {
                 id: snapshot.entityID,
                 displayName: snapshot.displayName,
                 domain: snapshot.domain,
-                systemImage: snapshot.systemImage
+                systemImage: snapshot.systemImage,
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName
             )
         }
     }
@@ -171,7 +202,9 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
             id: snapshot.entityID,
             displayName: snapshot.displayName,
             domain: snapshot.domain,
-            systemImage: snapshot.systemImage
+            systemImage: snapshot.systemImage,
+            areaName: snapshot.areaName,
+            deviceName: snapshot.deviceName
         )
     }
 }
