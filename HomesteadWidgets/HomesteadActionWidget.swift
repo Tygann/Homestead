@@ -250,26 +250,11 @@ struct HomesteadActionWidgetView: View {
     }
 
     private var actionIcon: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Image(systemName: entry.systemImage)
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(entry.isConfigured ? .purple : .secondary)
-
-            if entry.isConfigured {
-                Image(systemName: "play.fill")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 17, height: 17)
-                    .background(.purple, in: Circle())
-                    .offset(x: 4, y: 4)
-            }
-        }
-        .frame(width: 44, height: 44)
-        .background(actionIconBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
-    private var actionIconBackground: Color {
-        entry.isConfigured ? .purple.opacity(0.16) : .secondary.opacity(0.12)
+        Image(systemName: entry.isConfigured ? "play.circle.fill" : entry.systemImage)
+            .font(.title2.weight(.semibold))
+            .foregroundStyle(entry.isConfigured ? .purple : .secondary)
+            .frame(width: 44, height: 44)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var supportingText: String? {

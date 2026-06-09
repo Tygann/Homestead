@@ -273,10 +273,10 @@ struct HomesteadStatusWidgetView: View {
                     .lineLimit(2)
 
                 Text(entry.valueText)
-                    .font(entry.domain == "sensor" ? .title2.weight(.semibold) : .subheadline.weight(.medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(entry.domain == "person" ? iconColor : .primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                    .minimumScaleFactor(0.8)
 
                 if let supportingText {
                     Text(supportingText)

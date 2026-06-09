@@ -10,6 +10,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Tightened small widget bodies by hiding generic labels such as Sensor, Script, and 6H Trend while preserving meaningful status copy like unavailable or setup guidance.
 - Removed automatic first-entity defaults from the public unified widget intents so the add-widget gallery stays sample-based and unconfigured widgets do not silently bind to a real Home Assistant entity.
 - Further tightened Status widgets by hiding routine sensor subtitles like Temperature, while keeping alert/recovery text, and made Action widgets read as commands through a purple play-badged icon treatment instead of extra face text.
+- Aligned compact Control and Status second-line typography and simplified Action widget command icons to a single play-circle glyph after gallery review.
 
 ### Experience-First Widgets
 

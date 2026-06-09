@@ -100,6 +100,7 @@ Recommended reasoning level: High.
 - Polished add-widget gallery snapshots to use curated sample entries when unconfigured and tightened small widget bodies by hiding generic domain/trend labels so names, state, and meaningful status have more room.
 - Removed first-entity default selection/fallback from the public Control, Status, Graph, and Action widgets so unconfigured add-widget previews stay sample-based and newly added widgets require explicit entity selection.
 - Tightened Status widget supporting text to show only alert/recovery-style messages and made Action widgets communicate command behavior through a play-badged icon rather than adding Run/Script labels to the small face.
+- Aligned Control and Status compact second-line text sizing and replaced the Action overlay badge with a single play-circle command glyph.
 
 ## Next Chunk
 
@@ -126,6 +127,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetVisualAlign` after aligning compact widget typography and simplifying the Action icon.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetVisualAlign` after aligning compact widget typography and simplifying the Action icon.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetFacePolish` after tightening Status supporting text and Action command icon treatment.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetFacePolish` after tightening Status supporting text and Action command icon treatment.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPreviewDefaults` after removing automatic first-entity defaults from unified widget intents.
