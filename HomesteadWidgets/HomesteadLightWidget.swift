@@ -281,7 +281,7 @@ struct HomesteadLightWidgetView: View {
 
     private var accessoryRectangular: some View {
         HStack(spacing: 8) {
-            Image(systemName: entry.isOn ? "lightbulb.fill" : "lightbulb")
+            Image(systemName: "lightbulb.fill")
                 .foregroundStyle(entry.isOn ? .yellow : .secondary)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -308,7 +308,7 @@ struct HomesteadLightWidgetView: View {
     }
 
     private var lightIcon: some View {
-        Image(systemName: entry.isOn ? "lightbulb.fill" : "lightbulb")
+        Image(systemName: "lightbulb.fill")
             .font(.title2.weight(.semibold))
             .foregroundStyle(entry.isOn ? .yellow : .secondary)
             .frame(width: 44, height: 44)
