@@ -558,8 +558,9 @@ private struct DashboardEntityCard: View {
                 .minimumScaleFactor(0.78)
                 .truncationMode(.tail)
                 .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: cardContainerMinHeight, alignment: .topLeading)
     }
 
     private var compactContent: some View {
@@ -942,7 +943,7 @@ private struct DashboardEntityCard: View {
 
     private var miniIconPlaceholder: some View {
         Color.clear
-            .frame(width: 28, height: 22)
+            .frame(width: 24, height: 18)
             .overlay(alignment: .topLeading) {
                 if toggle == nil {
                     miniGlyph
