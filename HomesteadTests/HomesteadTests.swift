@@ -807,6 +807,33 @@ struct HomesteadTests {
         #expect(message.mobileAppPushNotificationEvent?.hassConfirmID == "confirm-123")
     }
 
+    @Test func mobileAppPushNotificationEventDecodesNestedDataPayload() throws {
+        let payload = """
+        {
+            "id": 12,
+            "type": "event",
+            "event": {
+                "data": {
+                    "title": "Laundry",
+                    "message": "Washer finished",
+                    "hass_confirm_id": "confirm-123",
+                    "data": {
+                        "tag": "laundry"
+                    }
+                }
+            }
+        }
+        """
+
+        let message = try JSONDecoder().decode(HAWebSocketIncomingMessage.self, from: Data(payload.utf8))
+
+        #expect(message.event == nil)
+        #expect(message.mobileAppPushNotificationEvent?.title == "Laundry")
+        #expect(message.mobileAppPushNotificationEvent?.message == "Washer finished")
+        #expect(message.mobileAppPushNotificationEvent?.hassConfirmID == "confirm-123")
+        #expect(message.mobileAppPushNotificationEvent?.data?.objectValue?["tag"]?.stringValue == "laundry")
+    }
+
     @Test func serviceRegistryDecodesHomeAssistantServiceCatalog() throws {
         let payload = """
         {

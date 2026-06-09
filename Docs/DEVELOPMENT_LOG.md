@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-09
 
+### Notifications
+
+- Investigated Home Assistant automation notification delivery end to end.
+- Confirmed Homestead implements native iOS notification permission/status and Home Assistant mobile-app WebSocket notification delivery, but does not implement APNs remote notification registration, APNs token persistence, or Home Assistant cloud `push_url` forwarding.
+- Hardened mobile-app WebSocket notification decoding so Homestead accepts both the documented root-level event payload and nested `event.data` payload variants before presenting a local notification and confirming delivery.
+- Clarified durable docs that current Homestead notification support is connected-session delivery; suspended/closed-app APNs delivery remains out of scope unless Homestead adds APNs entitlements and a push forwarding service.
+
 ### Dashboard Mini Tiles
 
 - Polished Mini dashboard cards into glanceable accessory tiles with a compact icon and readable two-line entity name while preserving the existing quick-action icon and detail-opening card behavior.

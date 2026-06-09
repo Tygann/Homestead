@@ -18,6 +18,7 @@ Recommended reasoning level: High.
 - Added native iOS notification permission/status models and a `NativeNotificationService` separate from Home Assistant mobile-app registration state.
 - Replaced the Settings > Notifications placeholder with a real setup/status page that shows iOS permission state, Home Assistant account/mobile-app readiness, delivery readiness, recovery actions, an iOS Settings handoff, and advanced details behind disclosure.
 - Added Home Assistant's official mobile-app WebSocket notification delivery: registration advertises `push_websocket_channel`, the connected socket subscribes to `mobile_app/push_notification_channel`, received events present local iOS notifications, and Homestead confirms delivery when HA provides a confirmation ID.
+- Hardened Home Assistant WebSocket notification decoding so both the documented root-level event payload and nested `event.data` payload variants can present local notifications and send HA confirmations.
 - Kept cloud/APNs forwarding out of scope because Home Assistant's cloud path requires a separate push forwarding server and `push_url`.
 - Added a native Settings > Updates page backed by Home Assistant `.update` entities.
 - Added typed update mapping and presentation helpers for installed/latest version, title/name, release summary/notes URL, skipped state, in-progress/unavailable state, entity/device/area/floor context, grouping, filtering, and search.
@@ -141,6 +142,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-Notifications` after hardening Home Assistant WebSocket notification payload decoding and clarifying connected-session notification scope.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-Notifications` after hardening Home Assistant WebSocket notification payload decoding.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPlaceholderPolish` after aligning unconfigured widget setup faces.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPlaceholderPolish` after aligning unconfigured widget setup faces. The test compile emitted existing Swift 6-mode warnings around main actor-isolated snapshot `Equatable` conformances in macro-expanded expectations.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSubtitle` after removing routine domain subtitles from public widget picker rows.

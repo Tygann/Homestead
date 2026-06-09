@@ -33,7 +33,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Native entity history backed by Home Assistant's documented REST history API, including numeric `sensor.*` detail charts/dashboard chart cards and detail-surface timelines for binary sensors, locks, switches, automations, covers, people, and device trackers with fixed ranges.
 - Native dashboard card and detail surface for `.weather` entities, backed by typed state-attribute mapping for condition, temperature, humidity, wind, forecast availability, and attribution.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
-- Notifications support through Home Assistant's official mobile-app WebSocket notification channel, including native iOS permission status, post-registration permission setup prompt, mobile-app registration readiness, local notification presentation, and Home Assistant delivery confirmation.
+- Connected-session notifications through Home Assistant's official mobile-app WebSocket notification channel, including native iOS permission status, post-registration permission setup prompt, mobile-app registration readiness, local notification presentation, and Home Assistant delivery confirmation.
 - Settings > Permissions page for native iOS capabilities, including Notifications, Local Network, Location, and Camera, backed by public platform APIs or app-owned status where iOS does not expose direct status.
 - User-facing service-call and reconnect recovery feedback through `HomeAssistantService` and app chrome, including tappable reconnecting state and clearer action-failure copy.
 - Authenticated camera snapshot support.
@@ -57,7 +57,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - True Home Assistant users/admin views if an official supported API path is confirmed for the signed-in user's permissions.
 - iCloud sync for Homestead-owned preferences such as dashboard layouts, display overrides, widget configuration, and server configuration metadata.
 - Siri/Shortcuts once App Intents have stable action coverage.
-- Cloud/APNs notification forwarding if Homestead later commits to operating a separate push forwarding service for Home Assistant's `push_url` path.
+- Cloud/APNs notification forwarding if Homestead later commits to APNs entitlements, remote-notification token registration, and operating a separate push forwarding service for Home Assistant's `push_url` path.
 - Domain-specific cards and details for calendars, todo lists, humidifiers, water heaters, valves, sirens, air-quality sensors, and image entities.
 
 ## Be Careful

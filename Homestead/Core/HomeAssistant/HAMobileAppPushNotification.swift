@@ -13,6 +13,49 @@ nonisolated struct HAMobileAppPushNotificationEventDTO: Decodable, Sendable {
         case data
     }
 
+    nonisolated init(
+        message: String,
+        title: String?,
+        hassConfirmID: String?,
+        data: JSONValue?
+    ) {
+        self.message = message
+        self.title = title
+        self.hassConfirmID = hassConfirmID
+        self.data = data
+    }
+
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let payloadData = try container.decodeIfPresent(JSONValue.self, forKey: .data)
+
+        if let message = try container.decodeIfPresent(String.self, forKey: .message) {
+            self.message = message
+            title = try container.decodeIfPresent(String.self, forKey: .title)
+            hassConfirmID = try container.decodeIfPresent(String.self, forKey: .hassConfirmID)
+            data = payloadData
+            return
+        }
+
+        guard let nestedPayload = payloadData?.objectValue,
+              let message = nestedPayload["message"]?.stringValue else {
+            throw DecodingError.keyNotFound(
+                CodingKeys.message,
+                DecodingError.Context(
+                    codingPath: container.codingPath,
+                    debugDescription: "Expected a Home Assistant mobile-app notification message."
+                )
+            )
+        }
+
+        self.message = message
+        title = (try container.decodeIfPresent(String.self, forKey: .title)) ??
+            nestedPayload["title"]?.stringValue
+        hassConfirmID = (try container.decodeIfPresent(String.self, forKey: .hassConfirmID)) ??
+            nestedPayload["hass_confirm_id"]?.stringValue
+        data = nestedPayload["data"] ?? payloadData
+    }
+
     var notificationRequest: NativeNotificationRequest {
         NativeNotificationRequest(
             title: title?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty ?? "Home Assistant",

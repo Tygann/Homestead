@@ -44,7 +44,7 @@ Official references:
 | Mobile app camera stream handoff | Native app webhook | Mapped | Uses saved registration webhook metadata. |
 | Native notification permission/status | iOS UserNotifications | Mapped | Settings > Notifications shows device permission status separately from Home Assistant mobile-app registration. |
 | Native iOS permissions | iOS UserNotifications, AVFoundation, CoreLocation, iOS Settings | Mapped | Settings > Permissions shows Notifications, Local Network, Location, and Camera. Camera/location use public authorization APIs. Local Network is represented as iOS-managed because there is no direct read-only status API. |
-| Mobile app WebSocket notifications | Native app WebSocket push notification channel | Mapped | Registers `push_websocket_channel`, subscribes with `mobile_app/push_notification_channel`, presents local iOS notifications, and confirms HA delivery when requested. |
+| Mobile app WebSocket notifications | Native app WebSocket push notification channel | Mapped | Registers `push_websocket_channel`, subscribes with `mobile_app/push_notification_channel`, accepts documented root-level events and nested payload variants, presents local iOS notifications, and confirms HA delivery when requested. Delivery requires an active Home Assistant WebSocket connection; Homestead does not currently register an APNs token or operate a `push_url` forwarding service. |
 | Home Screen widgets | Widget/App Intents plus HA WebSocket/OAuth/history | Mapped | The gallery is organized by experience: Control covers light/switch/fan toggles, cover open/close/stop, and lock-only lock actions; Status covers sensor/person state; Graph covers numeric sensor history; Action covers scene/script runs. Widgets use shared credentials, compact app-group snapshots, WebSocket state refresh, documented REST history for graphs, and official WebSocket service calls where actions are available. |
 
 ## Near-Term API Targets
@@ -71,6 +71,7 @@ These are the next API slices to map when the matching feature is implemented. D
 - Build on existing mobile-app registration metadata.
 - Native iOS notification permission/status models and Settings > Notifications setup UI exist separately from Home Assistant registration state.
 - Homestead uses Home Assistant's official WebSocket push notification channel by setting `push_websocket_channel` during mobile-app registration, subscribing with the saved webhook ID, presenting local notifications, and confirming delivery when Home Assistant provides a confirmation ID.
+- This is connected-session notification delivery. Homestead currently has no `aps-environment` entitlement, no `registerForRemoteNotifications` APNs token flow, and no Home Assistant `push_url` server registration, so automations cannot wake a suspended/closed app through APNs.
 - Use the official native-app push notification path; do not invent a separate Homestead notification automation path.
 - Cloud/APNs notification forwarding would require a separate Homestead-operated push service and should stay out of scope unless the project explicitly accepts that infrastructure.
 
