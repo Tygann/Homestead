@@ -53,7 +53,7 @@ struct HomesteadGraphSensorEntityQuery: EntityQuery {
     }
 
     func defaultResult() async -> HomesteadGraphSensorEntity? {
-        allEntities().first
+        nil
     }
 
     private func allEntities() -> [HomesteadGraphSensorEntity] {
@@ -121,7 +121,14 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadSensorGraphWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadSensorGraphEntry> {
-        Timeline(
+        if context.isPreview, configuration.sensor == nil {
+            return Timeline(
+                entries: [placeholder(in: context)],
+                policy: .after(Date().addingTimeInterval(30 * 60))
+            )
+        }
+
+        return Timeline(
             entries: [await entry(for: configuration)],
             policy: .after(Date().addingTimeInterval(30 * 60))
         )
@@ -133,7 +140,6 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             HomesteadWidgetSharedStore.sensorSnapshot(entityID: sensor.id)
         }
         let selectedSensor = latestConfiguredSnapshot.flatMap(Self.entity) ?? configuredSensor
-            ?? HomesteadWidgetSharedStore.sensorSnapshots.first(where: { $0.isNumeric == true }).flatMap(Self.entity)
 
         guard let selectedSensor else {
             return HomesteadSensorGraphEntry(

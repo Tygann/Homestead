@@ -74,7 +74,7 @@ struct HomesteadActionEntityQuery: EntityQuery {
     }
 
     func defaultResult() async -> HomesteadActionEntity? {
-        allEntities().first
+        nil
     }
 
     private func allEntities() -> [HomesteadActionEntity] {
@@ -125,7 +125,14 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadActionWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadActionEntry> {
-        Timeline(
+        if context.isPreview, configuration.action == nil {
+            return Timeline(
+                entries: [placeholder(in: context)],
+                policy: .after(Date().addingTimeInterval(60 * 60))
+            )
+        }
+
+        return Timeline(
             entries: [entry(for: configuration)],
             policy: .after(Date().addingTimeInterval(60 * 60))
         )
@@ -137,7 +144,6 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
             HomesteadWidgetSharedStore.actionSnapshot(entityID: action.id)
         }
         let selectedAction = latestConfiguredSnapshot.map(Self.entity) ?? configuredAction
-            ?? HomesteadWidgetSharedStore.actionSnapshots.first.map(Self.entity)
 
         guard let selectedAction else {
             return HomesteadActionEntry(

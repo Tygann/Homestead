@@ -55,7 +55,7 @@ struct HomesteadStatusEntityQuery: EntityQuery {
     }
 
     func defaultResult() async -> HomesteadStatusEntity? {
-        allEntities().first
+        nil
     }
 
     private func allEntities() -> [HomesteadStatusEntity] {
@@ -109,7 +109,14 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadStatusWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadStatusEntry> {
-        Timeline(
+        if context.isPreview, configuration.entity == nil {
+            return Timeline(
+                entries: [placeholder(in: context)],
+                policy: .after(Date().addingTimeInterval(15 * 60))
+            )
+        }
+
+        return Timeline(
             entries: [await entry(for: configuration)],
             policy: .after(Date().addingTimeInterval(15 * 60))
         )
@@ -122,7 +129,6 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
         }
         let selectedEntity = latestConfiguredEntity
             ?? configuredEntity
-            ?? HomesteadStatusSnapshotBuilder.entities().first
 
         guard let selectedEntity else {
             return HomesteadStatusEntry(

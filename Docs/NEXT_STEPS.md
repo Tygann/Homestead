@@ -98,6 +98,7 @@ Recommended reasoning level: High.
 - Refactored the public Home Screen widget gallery to the modern experience-first shape: `Homestead Control` for lights/switches/fans/covers/locks, `Homestead Status` for sensors/people, `Homestead Sensor Graph` for numeric history, and `Homestead Action` for scenes/scripts.
 - Kept the underlying domain-specific widget code compileable, but the widget bundle now registers the smaller Control/Status/Graph/Action surface so users pick a widget experience first and the entity second.
 - Polished add-widget gallery snapshots to use curated sample entries when unconfigured and tightened small widget bodies by hiding generic domain/trend labels so names, state, and meaningful status have more room.
+- Removed first-entity default selection/fallback from the public Control, Status, Graph, and Action widgets so unconfigured add-widget previews stay sample-based and newly added widgets require explicit entity selection.
 
 ## Next Chunk
 
@@ -124,6 +125,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPreviewDefaults` after removing automatic first-entity defaults from unified widget intents.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPreviewDefaults` after removing automatic first-entity defaults from unified widget intents.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetGalleryPolish` after polishing experience-first widget gallery previews and compact widget labels.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetGalleryPolish` after polishing experience-first widget gallery previews and compact widget labels.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetUnified` after refactoring widgets into the experience-first Control/Status/Graph/Action gallery.
