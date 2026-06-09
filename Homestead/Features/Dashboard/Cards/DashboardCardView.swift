@@ -467,7 +467,11 @@ private struct DashboardEntityCard: View {
     }
 
     private func standardCard(visibleFeatures visibleFeatureSnapshot: [DashboardCardFeature]) -> some View {
-        CardContainer(isActive: presentation.isActive, minHeight: cardContainerMinHeight) {
+        CardContainer(
+            isActive: presentation.isActive,
+            accentColor: presentation.accentColor,
+            minHeight: cardContainerMinHeight
+        ) {
             ZStack(alignment: .topLeading) {
                 if !visibleFeatureSnapshot.isEmpty {
                     cardContent(visibleFeatures: visibleFeatureSnapshot)
@@ -489,10 +493,7 @@ private struct DashboardEntityCard: View {
 
                 if let toggle {
                     Button(action: toggle) {
-                        CardIconView(
-                            systemName: presentation.iconName,
-                            isActive: presentation.isActive
-                        )
+                        interactiveIconView
                     }
                     .buttonStyle(.plain)
                     .disabled(isPending || !isPrimaryActionAvailable)
@@ -543,7 +544,26 @@ private struct DashboardEntityCard: View {
     }
 
     private var miniContent: some View {
-        iconPlaceholder
+        VStack(alignment: .leading, spacing: 1) {
+            miniIconPlaceholder
+
+            Spacer(minLength: 0)
+
+            Text(presentation.title)
+                .font(.system(size: 10.5, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .truncationMode(.tail)
+
+            Text(presentation.subtitle)
+                .font(.system(size: 9.5, weight: .medium))
+                .foregroundStyle(miniSubtitleColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .truncationMode(.tail)
+        }
+        .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
     }
 
     private var compactContent: some View {
@@ -897,25 +917,76 @@ private struct DashboardEntityCard: View {
             .frame(width: 44, height: 44)
             .overlay(alignment: .topLeading) {
                 if toggle == nil {
-                    CardIconView(systemName: presentation.iconName, isActive: presentation.isActive)
+                    CardIconView(
+                        systemName: presentation.iconName,
+                        isActive: presentation.isActive,
+                        isAvailable: presentation.isAvailable,
+                        accentColor: presentation.accentColor
+                    )
                 }
             }
     }
 
+    private var interactiveIconView: some View {
+        Group {
+            if size == .mini {
+                miniIcon
+                    .frame(width: 44, height: 32, alignment: .topLeading)
+                    .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+            } else {
+                CardIconView(
+                    systemName: presentation.iconName,
+                    isActive: presentation.isActive,
+                    isAvailable: presentation.isAvailable,
+                    accentColor: presentation.accentColor
+                )
+            }
+        }
+    }
+
+    private var miniIconPlaceholder: some View {
+        Color.clear
+            .frame(width: 24, height: 22)
+            .overlay(alignment: .topLeading) {
+                if toggle == nil {
+                    miniIcon
+                }
+            }
+    }
+
+    private var miniIcon: some View {
+        CardIconView(
+            systemName: presentation.iconName,
+            isActive: presentation.isActive,
+            isAvailable: presentation.isAvailable,
+            accentColor: presentation.accentColor,
+            size: 22,
+            symbolSize: 11
+        )
+    }
+
+    private var miniSubtitleColor: Color {
+        guard presentation.isAvailable else {
+            return .red
+        }
+
+        return presentation.isActive ? presentation.accentColor : .secondary
+    }
+
     private var iconColor: Color {
-        presentation.isActive ? Color.accentColor : Color.primary
+        presentation.isActive ? presentation.accentColor : Color.primary
     }
 
     private var iconBackground: Color {
-        presentation.isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+        presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
 
     private var cameraCardBackground: Color {
-        presentation.isActive ? Color.accentColor.opacity(0.18) : Color(.secondarySystemGroupedBackground)
+        presentation.isActive ? presentation.accentColor.opacity(0.18) : Color(.secondarySystemGroupedBackground)
     }
 
     private var cameraCardBorder: Color {
-        presentation.isActive ? Color.accentColor.opacity(0.22) : Color(.separator).opacity(0.18)
+        presentation.isActive ? presentation.accentColor.opacity(0.22) : Color(.separator).opacity(0.18)
     }
     
     private var cardContentMinHeight: CGFloat {

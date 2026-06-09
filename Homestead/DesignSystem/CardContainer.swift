@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CardContainer<Content: View>: View {
     var isActive = false
+    var accentColor = Color.accentColor
     var minHeight: CGFloat = 132
     @ViewBuilder var content: Content
 
@@ -18,10 +19,10 @@ struct CardContainer<Content: View>: View {
     }
 
     private var cardBackground: some ShapeStyle {
-        isActive ? AnyShapeStyle(Color.accentColor.opacity(0.18)) : AnyShapeStyle(Color(.secondarySystemGroupedBackground))
+        isActive ? AnyShapeStyle(accentColor.opacity(0.18)) : AnyShapeStyle(Color(.secondarySystemGroupedBackground))
     }
 
     private var cardBorder: Color {
-        isActive ? Color.accentColor.opacity(0.18) : Color(.separator).opacity(0.16)
+        isActive ? accentColor.opacity(0.18) : Color(.separator).opacity(0.16)
     }
 }

@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-09
 
+### Dashboard Mini Tiles
+
+- Polished Mini dashboard cards into compact accessory tiles with icon, name, and state while preserving the existing quick-action icon and detail-opening card behavior.
+- Reused app-facing `DashboardEntityPresentation` state for active, inactive, unavailable, and accent styling without adding any Home Assistant API surface.
+- Parameterized the shared card icon/container styling so the mini tile language can later inform larger accessory grids if device testing supports it.
+
 ### Widget Gallery Polish
 
 - Polished the experience-first Home Screen widget previews so unconfigured add-widget gallery snapshots use curated sample data instead of whichever real entity happens to be first.

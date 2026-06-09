@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Polish the in-app mini dashboard card into a useful compact accessory tile, then use that design language to inform any future medium/large multi-entity widget work.
+Device-test the polished in-app mini dashboard accessory tile in real dense dashboards, then use that design language only where it helps future medium/large multi-entity widget work.
 
 Recommended reasoning level: High.
 
@@ -109,12 +109,15 @@ Recommended reasoning level: High.
 - Unconfigured Home Screen widget faces now use consistent short setup copy (`Choose Control/Status/Sensor/Action` and `Open Homestead`) and avoid placeholder data markers like `--`.
 - WidgetKit still owns the configuration picker layout; if iOS flattens sections in a context, Homestead still orders rows by the same room/device/type groups and keeps search matching context-rich metadata.
 - Public widget picker rows now omit routine domain subtitles entirely so grouped room/device lists feel closer to Apple Home's compact accessory chooser.
+- Polished the in-app mini dashboard card into an Apple Home-inspired compact accessory tile with icon, name, and state.
+- Reused app-facing dashboard presentation state for active, inactive, and unavailable styling; mini tiles now keep quick-action icon behavior and detail-opening card behavior inside the existing dashboard card architecture.
+- Parameterized shared card icon/container styling so dashboard cards can use entity-specific accent colors without adding any Home Assistant API surface.
 
 ## Next Chunk
 
-- Start the next pass by inspecting the dashboard card rendering/configuration code and the current mini card implementation only.
-- Recommended next scope: polish the in-app mini card into a reusable icon/name/state tile with Apple Home-inspired density, clear active/inactive/unavailable states, and no development-facing labels.
-- After the mini card is solid, consider a separate medium/large multi-entity Accessories widget built from the same tile language.
+- Start the next pass by device-testing dense dashboards with a mix of mini, compact, square, and camera/history cards.
+- Recommended next scope: visual tuning only if mini tiles show text clipping, tap-target confusion, or weak active/inactive/unavailable contrast on device.
+- If the mini tile holds up, consider a separate medium/large multi-entity Accessories widget built from the same tile language.
 - Keep Small Home Screen widgets focused on one configured entity; use medium/large families for any future multi-entity grid.
 - Treat App Intent boolean toggles as optional product controls only when they have a clear user-facing purpose, such as auto-filled recommendations or hiding labels in a dense multi-entity widget.
 - Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
