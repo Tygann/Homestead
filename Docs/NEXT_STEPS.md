@@ -99,6 +99,7 @@ Recommended reasoning level: High.
 - Kept the underlying domain-specific widget code compileable, but the widget bundle now registers the smaller Control/Status/Graph/Action surface so users pick a widget experience first and the entity second.
 - Polished add-widget gallery snapshots to use curated sample entries when unconfigured and tightened small widget bodies by hiding generic domain/trend labels so names, state, and meaningful status have more room.
 - Removed first-entity default selection/fallback from the public Control, Status, Graph, and Action widgets so unconfigured add-widget previews stay sample-based and newly added widgets require explicit entity selection.
+- Tightened Status widget supporting text to show only alert/recovery-style messages and made Action widgets communicate command behavior through a play-badged icon rather than adding Run/Script labels to the small face.
 
 ## Next Chunk
 
@@ -125,6 +126,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetFacePolish` after tightening Status supporting text and Action command icon treatment.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetFacePolish` after tightening Status supporting text and Action command icon treatment.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPreviewDefaults` after removing automatic first-entity defaults from unified widget intents.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPreviewDefaults` after removing automatic first-entity defaults from unified widget intents.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetGalleryPolish` after polishing experience-first widget gallery previews and compact widget labels.

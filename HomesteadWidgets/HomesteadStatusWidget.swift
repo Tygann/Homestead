@@ -349,13 +349,20 @@ struct HomesteadStatusWidgetView: View {
         }
 
         let trimmedSubtitle = entry.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedSubtitle.isEmpty,
-              trimmedSubtitle != "Sensor",
-              trimmedSubtitle != entry.valueText else {
+        guard !trimmedSubtitle.isEmpty, trimmedSubtitle != entry.valueText else {
             return nil
         }
 
-        return trimmedSubtitle
+        if entry.isAlerting {
+            return trimmedSubtitle
+        }
+
+        let lowercaseSubtitle = trimmedSubtitle.localizedLowercase
+        if lowercaseSubtitle.contains("connection") || lowercaseSubtitle.contains("unavailable") {
+            return trimmedSubtitle
+        }
+
+        return nil
     }
 }
 

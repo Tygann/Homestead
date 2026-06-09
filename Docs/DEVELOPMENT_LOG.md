@@ -9,6 +9,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Polished the experience-first Home Screen widget previews so unconfigured add-widget gallery snapshots use curated sample data instead of whichever real entity happens to be first.
 - Tightened small widget bodies by hiding generic labels such as Sensor, Script, and 6H Trend while preserving meaningful status copy like unavailable or setup guidance.
 - Removed automatic first-entity defaults from the public unified widget intents so the add-widget gallery stays sample-based and unconfigured widgets do not silently bind to a real Home Assistant entity.
+- Further tightened Status widgets by hiding routine sensor subtitles like Temperature, while keeping alert/recovery text, and made Action widgets read as commands through a purple play-badged icon treatment instead of extra face text.
 
 ### Experience-First Widgets
 
