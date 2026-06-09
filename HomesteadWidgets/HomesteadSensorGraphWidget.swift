@@ -42,9 +42,17 @@ struct HomesteadGraphSensorEntity: AppEntity, Identifiable {
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
-            title: "\(displayName)",
+            title: "\(pickerDisplayName)",
             subtitle: "\(pickerSubtitle)",
             image: DisplayRepresentation.Image(systemName: systemImage)
+        )
+    }
+
+    var pickerDisplayName: String {
+        HomesteadWidgetEntityPickerText.contextualDisplayName(
+            displayName,
+            areaName: areaName,
+            deviceName: deviceName
         )
     }
 
@@ -70,6 +78,7 @@ struct HomesteadGraphSensorEntity: AppEntity, Identifiable {
             query: query,
             values: [
                 displayName,
+                pickerDisplayName,
                 valueText,
                 subtitle,
                 "sensor",
@@ -115,7 +124,7 @@ struct HomesteadGraphSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
         HomesteadWidgetEntityPickerText.collection(
             from: entities,
             groupedBy: \.pickerGroupTitle,
-            sortedBy: \.displayName
+            sortedBy: \.pickerDisplayName
         )
     }
 

@@ -105,6 +105,7 @@ Recommended reasoning level: High.
 - Enriched compact app-group widget snapshots with optional area/device context from existing registry metadata so the system picker can show room/type subtitles and search across name, entity ID, domain, room, device, and value/status without exposing Home Assistant DTOs to widget views.
 - Public widget pickers now return sectioned App Intent collections grouped by room/device/type where the system honors sections, and entity display representations include SF Symbol images for picker rows.
 - Curated Control and Action add-widget/gallery placeholders are visual-only and no longer carry fake entity IDs, avoiding accidental sample service-call attempts before a real entity is selected.
+- Widget picker rows now shorten entity names by removing the current room/device prefix where possible, use the entity kind as the subtitle, and keep raw Home Assistant entity IDs searchable but hidden from the default row UI.
 - WidgetKit still owns the configuration picker layout; if iOS flattens sections in a context, Homestead still orders rows by the same room/device/type groups and keeps context-rich subtitles.
 
 ## Next Chunk
@@ -132,6 +133,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerNames` after shortening grouped widget picker row titles and hiding entity IDs from default subtitles.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerNames` after shortening grouped widget picker row titles and hiding entity IDs from default subtitles. The test compile emitted existing Swift 6-mode warnings around main actor-isolated snapshot `Equatable` conformances in macro-expanded expectations.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSections` after returning sectioned/icon App Intent picker collections and non-actionable sample placeholders.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSections` after returning sectioned/icon App Intent picker collections and non-actionable sample placeholders. The test compile emitted existing Swift 6-mode warnings around main actor-isolated snapshot `Equatable` conformances in macro-expanded expectations.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSearch` after adding searchable context-rich widget entity pickers.

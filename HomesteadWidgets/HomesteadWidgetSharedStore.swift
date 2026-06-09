@@ -573,11 +573,34 @@ enum HomesteadWidgetEntityPickerText {
         kind: String,
         id: String
     ) -> String {
-        if let contextName = contextName(areaName: areaName, deviceName: deviceName) {
-            return "\(contextName) • \(kind)"
+        kind
+    }
+
+    static func contextualDisplayName(
+        _ displayName: String,
+        areaName: String?,
+        deviceName: String?
+    ) -> String {
+        guard let contextName = contextName(areaName: areaName, deviceName: deviceName) else {
+            return displayName
         }
 
-        return "\(kind) • \(id)"
+        let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedName.count > contextName.count else {
+            return displayName
+        }
+
+        let lowercasedName = trimmedName.lowercased()
+        let lowercasedContextName = contextName.lowercased()
+        guard lowercasedName.hasPrefix(lowercasedContextName) else {
+            return displayName
+        }
+
+        let suffixStart = trimmedName.index(trimmedName.startIndex, offsetBy: contextName.count)
+        let suffix = String(trimmedName[suffixStart...])
+            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters))
+
+        return suffix.isEmpty ? displayName : suffix
     }
 
     static func matches(query: String, values: [String?]) -> Bool {

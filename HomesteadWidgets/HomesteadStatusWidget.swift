@@ -44,9 +44,17 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
-            title: "\(displayName)",
+            title: "\(pickerDisplayName)",
             subtitle: "\(pickerSubtitle)",
             image: DisplayRepresentation.Image(systemName: systemImage)
+        )
+    }
+
+    var pickerDisplayName: String {
+        HomesteadWidgetEntityPickerText.contextualDisplayName(
+            displayName,
+            areaName: areaName,
+            deviceName: deviceName
         )
     }
 
@@ -72,6 +80,7 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
             query: query,
             values: [
                 displayName,
+                pickerDisplayName,
                 valueText,
                 subtitle,
                 domain,
@@ -115,7 +124,7 @@ struct HomesteadStatusEntityQuery: EntityQuery, EntityStringQuery, EnumerableEnt
         HomesteadWidgetEntityPickerText.collection(
             from: entities,
             groupedBy: \.pickerGroupTitle,
-            sortedBy: \.displayName
+            sortedBy: \.pickerDisplayName
         )
     }
 }
