@@ -10,7 +10,7 @@ struct HomesteadLightWidget: Widget {
             provider: HomesteadLightTimelineProvider()
         ) { entry in
             HomesteadLightWidgetView(entry: entry)
-                .containerBackground(.ultraThinMaterial, for: .widget)
+                .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Homestead Light")
         .description("Control a Home Assistant light from your Home Screen.")
