@@ -42,12 +42,14 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Near-Term Priorities
 
+- Polish the in-app mini dashboard card into a useful compact accessory tile with icon, name, and state, using an Apple Home-inspired shape that can also inform future multi-entity widget tiles.
 - Polish and device-test the expanded WidgetKit/App Intents surface, then consider Control Center controls for the safest common actions.
 - Maintain existing entity history/timeline surfaces and polish them only when concrete visual issues or clearly useful state-only domains appear.
 - Continue dashboard organization, filtering, and add-card polish only when user testing or new card types expose concrete friction.
 
 ## Later Candidates
 
+- Multi-entity Home Screen widgets for medium/large families, likely as a separate Accessories-style widget using compact tile layouts and multiple App Intent entity parameters.
 - Multiple dashboards with a dashboard switcher or management screen; avoid adding every dashboard as a main tab by default.
 - Control Center controls and App Intents for common Home Assistant actions.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.

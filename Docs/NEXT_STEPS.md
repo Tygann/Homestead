@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Continue WidgetKit/App Intents support after the Home Screen control/status/action/graph widget expansion.
+Polish the in-app mini dashboard card into a useful compact accessory tile, then use that design language to inform any future medium/large multi-entity widget work.
 
 Recommended reasoning level: High.
 
@@ -112,8 +112,9 @@ Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Continue with widget polish/device testing or move to Control Center controls using the same official Home Assistant WebSocket/OAuth/service-call paths already used by the app and current widgets.
-- Recommended next widget scope: device-test the experience-first Home Screen widget set, polish the in-app mini card into a reusable icon/name/state tile, then consider a separate medium/large multi-entity Accessories widget built from the same tile language.
+- Start the next pass by inspecting the dashboard card rendering/configuration code and the current mini card implementation only.
+- Recommended next scope: polish the in-app mini card into a reusable icon/name/state tile with Apple Home-inspired density, clear active/inactive/unavailable states, and no development-facing labels.
+- After the mini card is solid, consider a separate medium/large multi-entity Accessories widget built from the same tile language.
 - Keep Small Home Screen widgets focused on one configured entity; use medium/large families for any future multi-entity grid.
 - Treat App Intent boolean toggles as optional product controls only when they have a clear user-facing purpose, such as auto-filled recommendations or hiding labels in a dense multi-entity widget.
 - Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
