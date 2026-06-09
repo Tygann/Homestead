@@ -109,7 +109,7 @@ Recommended reasoning level: High.
 - Unconfigured Home Screen widget faces now use consistent short setup copy (`Choose Control/Status/Sensor/Action` and `Open Homestead`) and avoid placeholder data markers like `--`.
 - WidgetKit still owns the configuration picker layout; if iOS flattens sections in a context, Homestead still orders rows by the same room/device/type groups and keeps search matching context-rich metadata.
 - Public widget picker rows now omit routine domain subtitles entirely so grouped room/device lists feel closer to Apple Home's compact accessory chooser.
-- Polished the in-app mini dashboard card into an Apple Home-inspired glance tile with a larger icon and one status/value line instead of cramped visible names.
+- Polished the in-app mini dashboard card into an Apple Home-inspired glance tile with a readable two-line entity name and compact icon, using tile/icon styling and accessibility for state.
 - Reused app-facing dashboard presentation state for active, inactive, and unavailable styling; mini tiles now keep quick-action icon behavior and detail-opening card behavior inside the existing dashboard card architecture.
 - Parameterized shared card icon/container styling so dashboard cards can use entity-specific accent colors without adding any Home Assistant API surface.
 

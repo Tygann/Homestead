@@ -4,6 +4,7 @@ struct CardContainer<Content: View>: View {
     var isActive = false
     var accentColor = Color.accentColor
     var minHeight: CGFloat = 132
+    var padding = AppSpacing.medium
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -11,7 +12,7 @@ struct CardContainer<Content: View>: View {
 
         content
             .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
-            .padding(AppSpacing.medium)
+            .padding(padding)
             .background(cardBackground, in: cardShape)
             .overlay {
                 cardShape.strokeBorder(cardBorder, lineWidth: 0.5)

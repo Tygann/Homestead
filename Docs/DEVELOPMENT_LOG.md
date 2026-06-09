@@ -6,7 +6,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Dashboard Mini Tiles
 
-- Polished Mini dashboard cards into glanceable accessory tiles with a larger icon and one status/value line while preserving the existing quick-action icon and detail-opening card behavior.
+- Polished Mini dashboard cards into glanceable accessory tiles with a compact icon and readable two-line entity name while preserving the existing quick-action icon and detail-opening card behavior.
 - Reused app-facing `DashboardEntityPresentation` state for active, inactive, unavailable, and accent styling without adding any Home Assistant API surface.
 - Parameterized the shared card icon/container styling so the mini tile language can later inform larger accessory grids if device testing supports it.
 

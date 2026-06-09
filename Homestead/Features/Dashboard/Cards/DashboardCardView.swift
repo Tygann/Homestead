@@ -470,7 +470,8 @@ private struct DashboardEntityCard: View {
         CardContainer(
             isActive: presentation.isActive,
             accentColor: presentation.accentColor,
-            minHeight: cardContainerMinHeight
+            minHeight: cardContainerMinHeight,
+            padding: cardContainerPadding
         ) {
             ZStack(alignment: .topLeading) {
                 if !visibleFeatureSnapshot.isEmpty {
@@ -545,19 +546,18 @@ private struct DashboardEntityCard: View {
     }
 
     private var miniContent: some View {
-        VStack(alignment: .center, spacing: AppSpacing.xSmall) {
+        VStack(alignment: .center, spacing: 2) {
             miniIconPlaceholder
 
             Spacer(minLength: 0)
 
-            Text(miniStatusText)
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundStyle(miniSubtitleColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.68)
+            Text(miniTitleText)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(miniTitleColor)
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
                 .truncationMode(.tail)
                 .multilineTextAlignment(.center)
-                .monospacedDigit()
         }
         .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .top)
     }
@@ -942,7 +942,7 @@ private struct DashboardEntityCard: View {
 
     private var miniIconPlaceholder: some View {
         Color.clear
-            .frame(width: 32, height: 30)
+            .frame(width: 26, height: 24)
             .frame(maxWidth: .infinity, alignment: .center)
             .overlay(alignment: .top) {
                 if toggle == nil {
@@ -957,30 +957,21 @@ private struct DashboardEntityCard: View {
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable,
             accentColor: presentation.accentColor,
-            size: 30,
-            symbolSize: 16
+            size: 24,
+            symbolSize: 13
         )
     }
 
-    private var miniStatusText: String {
-        guard presentation.isAvailable else {
-            return "Offline"
-        }
-
-        let subtitle = presentation.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !subtitle.isEmpty else {
-            return presentation.isActive ? "On" : "Off"
-        }
-
-        return subtitle
+    private var miniTitleText: String {
+        presentation.title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var miniSubtitleColor: Color {
+    private var miniTitleColor: Color {
         guard presentation.isAvailable else {
             return .secondary
         }
 
-        return presentation.isActive ? .primary : .secondary
+        return .primary
     }
 
     private var iconColor: Color {
@@ -1000,14 +991,15 @@ private struct DashboardEntityCard: View {
     }
     
     private var cardContentMinHeight: CGFloat {
-        max(0, cardContainerMinHeight - (AppSpacing.medium * 2))
+        max(0, cardContainerMinHeight - (cardContainerPadding * 2))
     }
 
     private var cardContainerMinHeight: CGFloat {
-        size.contentMinHeight(
-            rowSpacing: AppSpacing.medium,
-            cardPadding: AppSpacing.medium
-        )
+        max(0, renderedCardHeight - (cardContainerPadding * 2))
+    }
+
+    private var cardContainerPadding: CGFloat {
+        size == .mini ? AppSpacing.small : AppSpacing.medium
     }
 
     private var renderedCardHeight: CGFloat {
