@@ -497,6 +497,7 @@ private struct DashboardEntityCard: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(isPending || !isPrimaryActionAvailable)
+                    .frame(maxWidth: size == .mini ? .infinity : 44, alignment: size == .mini ? .center : .leading)
                     .accessibilityLabel(presentation.primaryActionAccessibilityLabel ?? presentation.title)
                     .accessibilityValue(presentation.accessibilityValue)
                     .accessibilityHint(presentation.primaryActionAccessibilityHint)
@@ -544,26 +545,21 @@ private struct DashboardEntityCard: View {
     }
 
     private var miniContent: some View {
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .center, spacing: AppSpacing.xSmall) {
             miniIconPlaceholder
 
             Spacer(minLength: 0)
 
-            Text(presentation.title)
-                .font(.system(size: 10.5, weight: .semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .truncationMode(.tail)
-
-            Text(presentation.subtitle)
-                .font(.system(size: 9.5, weight: .medium))
+            Text(miniStatusText)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .foregroundStyle(miniSubtitleColor)
                 .lineLimit(1)
-                .minimumScaleFactor(0.72)
+                .minimumScaleFactor(0.68)
                 .truncationMode(.tail)
+                .multilineTextAlignment(.center)
+                .monospacedDigit()
         }
-        .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .top)
     }
 
     private var compactContent: some View {
@@ -931,7 +927,7 @@ private struct DashboardEntityCard: View {
         Group {
             if size == .mini {
                 miniIcon
-                    .frame(width: 44, height: 32, alignment: .topLeading)
+                    .frame(width: 44, height: 32, alignment: .top)
                     .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
             } else {
                 CardIconView(
@@ -946,8 +942,9 @@ private struct DashboardEntityCard: View {
 
     private var miniIconPlaceholder: some View {
         Color.clear
-            .frame(width: 24, height: 22)
-            .overlay(alignment: .topLeading) {
+            .frame(width: 32, height: 30)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .overlay(alignment: .top) {
                 if toggle == nil {
                     miniIcon
                 }
@@ -960,17 +957,30 @@ private struct DashboardEntityCard: View {
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable,
             accentColor: presentation.accentColor,
-            size: 22,
-            symbolSize: 11
+            size: 30,
+            symbolSize: 16
         )
+    }
+
+    private var miniStatusText: String {
+        guard presentation.isAvailable else {
+            return "Offline"
+        }
+
+        let subtitle = presentation.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !subtitle.isEmpty else {
+            return presentation.isActive ? "On" : "Off"
+        }
+
+        return subtitle
     }
 
     private var miniSubtitleColor: Color {
         guard presentation.isAvailable else {
-            return .red
+            return .secondary
         }
 
-        return presentation.isActive ? presentation.accentColor : .secondary
+        return presentation.isActive ? .primary : .secondary
     }
 
     private var iconColor: Color {
