@@ -407,6 +407,7 @@ private struct DashboardCardDetail: Identifiable {
 private struct DashboardEntityCard: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @State private var historyPhase: DashboardHistoryCardPhase = .idle
 
@@ -498,7 +499,6 @@ private struct DashboardEntityCard: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(isPending || !isPrimaryActionAvailable)
-                    .frame(maxWidth: size == .mini ? .infinity : 44, alignment: size == .mini ? .center : .leading)
                     .accessibilityLabel(presentation.primaryActionAccessibilityLabel ?? presentation.title)
                     .accessibilityValue(presentation.accessibilityValue)
                     .accessibilityHint(presentation.primaryActionAccessibilityHint)
@@ -546,20 +546,20 @@ private struct DashboardEntityCard: View {
     }
 
     private var miniContent: some View {
-        VStack(alignment: .center, spacing: 2) {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
             miniIconPlaceholder
 
             Spacer(minLength: 0)
 
             Text(miniTitleText)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 12.25, weight: .semibold))
                 .foregroundStyle(miniTitleColor)
                 .lineLimit(2)
-                .minimumScaleFactor(0.82)
+                .minimumScaleFactor(0.78)
                 .truncationMode(.tail)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.leading)
         }
-        .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .top)
+        .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
     }
 
     private var compactContent: some View {
@@ -926,9 +926,9 @@ private struct DashboardEntityCard: View {
     private var interactiveIconView: some View {
         Group {
             if size == .mini {
-                miniIcon
-                    .frame(width: 44, height: 32, alignment: .top)
-                    .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+                miniGlyph
+                    .frame(width: 28, height: 24, alignment: .topLeading)
+                    .contentShape(Rectangle())
             } else {
                 CardIconView(
                     systemName: presentation.iconName,
@@ -942,24 +942,19 @@ private struct DashboardEntityCard: View {
 
     private var miniIconPlaceholder: some View {
         Color.clear
-            .frame(width: 26, height: 24)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .overlay(alignment: .top) {
+            .frame(width: 28, height: 22)
+            .overlay(alignment: .topLeading) {
                 if toggle == nil {
-                    miniIcon
+                    miniGlyph
                 }
             }
     }
 
-    private var miniIcon: some View {
-        CardIconView(
-            systemName: presentation.iconName,
-            isActive: presentation.isActive,
-            isAvailable: presentation.isAvailable,
-            accentColor: presentation.accentColor,
-            size: 24,
-            symbolSize: 13
-        )
+    private var miniGlyph: some View {
+        Image(systemName: presentation.iconName)
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundStyle(miniGlyphColor)
+            .accessibilityHidden(true)
     }
 
     private var miniTitleText: String {
@@ -972,6 +967,18 @@ private struct DashboardEntityCard: View {
         }
 
         return .primary
+    }
+
+    private var miniGlyphColor: Color {
+        guard presentation.isAvailable else {
+            return .secondary
+        }
+
+        guard presentation.isActive else {
+            return .primary
+        }
+
+        return colorScheme == .dark ? .white : presentation.accentColor
     }
 
     private var iconColor: Color {
@@ -999,7 +1006,7 @@ private struct DashboardEntityCard: View {
     }
 
     private var cardContainerPadding: CGFloat {
-        size == .mini ? AppSpacing.small : AppSpacing.medium
+        size == .mini ? 6 : AppSpacing.medium
     }
 
     private var renderedCardHeight: CGFloat {
