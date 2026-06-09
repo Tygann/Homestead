@@ -41,6 +41,38 @@ struct HAWidgetSwitchState: Sendable {
     var isOn: Bool { state == "on" }
 }
 
+struct HAWidgetCoverState: Sendable {
+    let entityID: String
+    let state: String
+    let displayName: String
+    let statusText: String
+    let systemImage: String
+    let isOpen: Bool
+    let isClosed: Bool
+    let isMoving: Bool
+    let isAvailable: Bool
+}
+
+struct HAWidgetFanState: Sendable {
+    let entityID: String
+    let state: String
+    let displayName: String
+    let statusText: String
+    let isAvailable: Bool
+
+    var isOn: Bool { state == "on" }
+}
+
+struct HAWidgetLockState: Sendable {
+    let entityID: String
+    let state: String
+    let displayName: String
+    let statusText: String
+    let systemImage: String
+    let isLocked: Bool
+    let isAvailable: Bool
+}
+
 struct HAWidgetSensorState: Sendable {
     let entityID: String
     let displayName: String
@@ -219,6 +251,99 @@ final class HAWidgetActionClient: Sendable {
             service: isOn ? "turn_on" : "turn_off",
             entityID: entityID
         )
+    }
+
+    func fetchCoverState(entityID: String) async throws -> HAWidgetCoverState {
+        try await withConnectedSocket { task in
+            let state = try await stateObject(entityID: entityID, over: task)
+            guard let stateValue = state["state"] as? String else {
+                throw HAWidgetActionError.unexpectedResponse
+            }
+
+            let attributes = state["attributes"] as? [String: Any]
+            let displayName = attributes?["friendly_name"] as? String ?? entityID
+            let deviceClass = attributes?["device_class"] as? String
+            let position = intValue(from: attributes?["current_position"])
+            let isOpen = stateValue == "open" || stateValue == "opening"
+            let isClosed = stateValue == "closed" || stateValue == "closing"
+            let isMoving = stateValue == "opening" || stateValue == "closing"
+
+            return HAWidgetCoverState(
+                entityID: entityID,
+                state: stateValue,
+                displayName: displayName,
+                statusText: coverStatusText(state: stateValue, position: position),
+                systemImage: coverSystemImage(deviceClass: deviceClass, state: stateValue),
+                isOpen: isOpen,
+                isClosed: isClosed,
+                isMoving: isMoving,
+                isAvailable: !["unknown", "unavailable"].contains(stateValue)
+            )
+        }
+    }
+
+    func runCoverService(entityID: String, service: String) async throws {
+        guard ["open_cover", "close_cover", "stop_cover"].contains(service) else {
+            throw HAWidgetActionError.serviceCallFailed
+        }
+
+        try await callService(domain: "cover", service: service, entityID: entityID)
+    }
+
+    func fetchFanState(entityID: String) async throws -> HAWidgetFanState {
+        try await withConnectedSocket { task in
+            let state = try await stateObject(entityID: entityID, over: task)
+            guard let stateValue = state["state"] as? String else {
+                throw HAWidgetActionError.unexpectedResponse
+            }
+
+            let attributes = state["attributes"] as? [String: Any]
+            let displayName = attributes?["friendly_name"] as? String ?? entityID
+            let percentage = intValue(from: attributes?["percentage"])
+            let presetMode = attributes?["preset_mode"] as? String
+
+            return HAWidgetFanState(
+                entityID: entityID,
+                state: stateValue,
+                displayName: displayName,
+                statusText: fanStatusText(state: stateValue, percentage: percentage, presetMode: presetMode),
+                isAvailable: !["unknown", "unavailable"].contains(stateValue)
+            )
+        }
+    }
+
+    func setFan(entityID: String, isOn: Bool) async throws {
+        try await callService(
+            domain: "fan",
+            service: isOn ? "turn_on" : "turn_off",
+            entityID: entityID
+        )
+    }
+
+    func fetchLockState(entityID: String) async throws -> HAWidgetLockState {
+        try await withConnectedSocket { task in
+            let state = try await stateObject(entityID: entityID, over: task)
+            guard let stateValue = state["state"] as? String else {
+                throw HAWidgetActionError.unexpectedResponse
+            }
+
+            let attributes = state["attributes"] as? [String: Any]
+            let displayName = attributes?["friendly_name"] as? String ?? entityID
+
+            return HAWidgetLockState(
+                entityID: entityID,
+                state: stateValue,
+                displayName: displayName,
+                statusText: lockStatusText(for: stateValue),
+                systemImage: lockSystemImage(for: stateValue),
+                isLocked: stateValue == "locked",
+                isAvailable: !["unknown", "unavailable"].contains(stateValue)
+            )
+        }
+    }
+
+    func lock(entityID: String) async throws {
+        try await callService(domain: "lock", service: "lock", entityID: entityID)
     }
 
     func fetchSensorState(entityID: String) async throws -> HAWidgetSensorState {
@@ -506,18 +631,7 @@ final class HAWidgetActionClient: Sendable {
     }
 
     private func brightnessPercentage(from value: Any?) -> Int? {
-        let brightness: Int?
-
-        switch value {
-        case let intValue as Int:
-            brightness = intValue
-        case let doubleValue as Double:
-            brightness = Int(doubleValue)
-        case let numberValue as NSNumber:
-            brightness = numberValue.intValue
-        default:
-            brightness = nil
-        }
+        let brightness = intValue(from: value)
 
         guard let brightness else {
             return nil
@@ -525,6 +639,129 @@ final class HAWidgetActionClient: Sendable {
 
         let percentage = Int((Double(brightness) / 255.0) * 100.0)
         return min(max(percentage, 1), 100)
+    }
+
+    private func intValue(from value: Any?) -> Int? {
+        switch value {
+        case let intValue as Int:
+            intValue
+        case let doubleValue as Double:
+            Int(doubleValue)
+        case let numberValue as NSNumber:
+            numberValue.intValue
+        default:
+            nil
+        }
+    }
+
+    private func coverStatusText(state: String, position: Int?) -> String {
+        let displayState: String
+        switch state {
+        case "open":
+            displayState = "Open"
+        case "closed":
+            displayState = "Closed"
+        case "opening":
+            displayState = "Opening"
+        case "closing":
+            displayState = "Closing"
+        case "unknown":
+            displayState = "Unknown"
+        case "unavailable":
+            displayState = "Unavailable"
+        default:
+            displayState = state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+
+        guard let position, position > 0 else {
+            return displayState
+        }
+
+        return "\(displayState) • \(min(max(position, 0), 100))%"
+    }
+
+    private func coverSystemImage(deviceClass: String?, state: String) -> String {
+        let isOpen = state == "open" || state == "opening"
+
+        switch deviceClass {
+        case "garage":
+            return isOpen ? "door.garage.open" : "door.garage.closed"
+        case "gate":
+            return isOpen ? "pedestrian.gate.open" : "pedestrian.gate.closed"
+        case "door":
+            return isOpen ? "door.left.hand.open" : "door.left.hand.closed"
+        case "window":
+            return isOpen ? "window.vertical.open" : "window.vertical.closed"
+        case "curtain":
+            return isOpen ? "curtains.open" : "curtains.closed"
+        case "awning":
+            return isOpen ? "window.awning" : "window.awning.closed"
+        case "blind":
+            return isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
+        case "shade":
+            return isOpen ? "window.shade.open" : "window.shade.closed"
+        case "shutter":
+            return isOpen ? "blinds.vertical.open" : "blinds.vertical.closed"
+        case "damper":
+            return isOpen ? "rectangle.portrait.tophalf.inset.filled" : "rectangle.portrait.bottomhalf.inset.filled"
+        default:
+            return isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
+        }
+    }
+
+    private func fanStatusText(state: String, percentage: Int?, presetMode: String?) -> String {
+        switch state {
+        case "on":
+            if let percentage {
+                return "On • \(percentage)%"
+            }
+
+            if let presetMode, !presetMode.isEmpty {
+                return "On • \(presetMode.replacingOccurrences(of: "_", with: " ").capitalized)"
+            }
+
+            return "On"
+        case "off":
+            return "Off"
+        case "unknown":
+            return "Unknown"
+        case "unavailable":
+            return "Unavailable"
+        default:
+            return state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private func lockStatusText(for state: String) -> String {
+        switch state {
+        case "locked":
+            "Locked"
+        case "unlocked":
+            "Unlocked"
+        case "locking":
+            "Locking"
+        case "unlocking":
+            "Unlocking"
+        case "jammed":
+            "Jammed"
+        case "unknown":
+            "Unknown"
+        case "unavailable":
+            "Unavailable"
+        default:
+            state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private func lockSystemImage(for state: String) -> String {
+        switch state {
+        case "locked", "locking":
+            "lock.fill"
+        case "jammed":
+            "exclamationmark.lock.fill"
+        default:
+            "lock.open.fill"
+        }
     }
 
     private func sensorValueText(value: String, unit: String?, deviceClass: String?) -> String {

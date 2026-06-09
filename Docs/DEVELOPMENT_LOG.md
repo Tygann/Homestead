@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-09
 
+### Widget Cover Fan Lock Controls
+
+- Added Home Screen cover, fan, and lock widgets using compact app-group snapshots and widget-side WebSocket `get_states` refresh.
+- Kept widget actions on official Home Assistant WebSocket service calls: `cover.open_cover` / `cover.close_cover` / `cover.stop_cover`, `fan.turn_on` / `fan.turn_off`, and conservative `lock.lock` only.
+- Extended app-owned widget snapshots to covers, fans, and locks while keeping widget views app-facing and raw Home Assistant state parsing inside the widget action client.
+
 ### Widget Status And Actions
 
 - Added Home Screen sensor and person/presence widgets using compact app-group snapshots and widget-side WebSocket `get_states` refresh.

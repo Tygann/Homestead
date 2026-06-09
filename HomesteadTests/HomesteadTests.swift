@@ -2736,6 +2736,44 @@ struct HomesteadTests {
                 lastUpdated: nil
             )
         ]
+        let covers = [
+            CoverEntity(
+                entityID: "cover.living_room_shades",
+                displayName: "Living Room Shades",
+                state: "open",
+                position: 70,
+                deviceClass: "shade",
+                iconName: "window.shade.open"
+            ),
+            CoverEntity(
+                entityID: "cover.garage_door",
+                displayName: "Garage Door",
+                state: "closed",
+                position: 0,
+                deviceClass: "garage",
+                iconName: "door.garage.closed"
+            )
+        ]
+        let fans = [
+            FanEntity(
+                entityID: "fan.office",
+                displayName: "Office Fan",
+                state: "off",
+                percentage: nil,
+                percentageStep: nil,
+                presetMode: nil,
+                presetModes: []
+            ),
+            FanEntity(
+                entityID: "fan.bedroom",
+                displayName: "Bedroom Fan",
+                state: "on",
+                percentage: 50,
+                percentageStep: 1,
+                presetMode: nil,
+                presetModes: []
+            )
+        ]
         let entities = [
             HomeEntity(
                 entityID: "sensor.temperature",
@@ -2779,6 +2817,24 @@ struct HomesteadTests {
                 displayName: "Good Night",
                 state: "off",
                 iconName: "play.circle",
+                isAvailable: true,
+                lastUpdated: nil
+            ),
+            HomeEntity(
+                entityID: "lock.front_door",
+                domain: .lock,
+                displayName: "Front Door",
+                state: "locked",
+                iconName: "lock.fill",
+                isAvailable: true,
+                lastUpdated: nil
+            ),
+            HomeEntity(
+                entityID: "lock.garage_entry",
+                domain: .lock,
+                displayName: "Garage Entry",
+                state: "unlocked",
+                iconName: "lock.open.fill",
                 isAvailable: true,
                 lastUpdated: nil
             ),
@@ -2829,6 +2885,69 @@ struct HomesteadTests {
                 displayName: "Fan",
                 isOn: false,
                 systemImage: "lightswitch.off.fill"
+            )
+        ])
+
+        #expect(WidgetSharedStore.coverSnapshots(from: covers) == [
+            WidgetCoverSnapshot(
+                entityID: "cover.garage_door",
+                displayName: "Garage Door",
+                state: "closed",
+                statusText: "Closed",
+                systemImage: "door.garage.closed",
+                isOpen: false,
+                isClosed: true,
+                isMoving: false,
+                isAvailable: true
+            ),
+            WidgetCoverSnapshot(
+                entityID: "cover.living_room_shades",
+                displayName: "Living Room Shades",
+                state: "open",
+                statusText: "Open • 70%",
+                systemImage: "window.shade.open",
+                isOpen: true,
+                isClosed: false,
+                isMoving: false,
+                isAvailable: true
+            )
+        ])
+
+        #expect(WidgetSharedStore.fanSnapshots(from: fans) == [
+            WidgetFanSnapshot(
+                entityID: "fan.bedroom",
+                displayName: "Bedroom Fan",
+                isOn: true,
+                statusText: "On • 50%",
+                isAvailable: true
+            ),
+            WidgetFanSnapshot(
+                entityID: "fan.office",
+                displayName: "Office Fan",
+                isOn: false,
+                statusText: "Off",
+                isAvailable: true
+            )
+        ])
+
+        #expect(WidgetSharedStore.lockSnapshots(from: entities) == [
+            WidgetLockSnapshot(
+                entityID: "lock.front_door",
+                displayName: "Front Door",
+                state: "locked",
+                statusText: "Locked",
+                systemImage: "lock.fill",
+                isLocked: true,
+                isAvailable: true
+            ),
+            WidgetLockSnapshot(
+                entityID: "lock.garage_entry",
+                displayName: "Garage Entry",
+                state: "unlocked",
+                statusText: "Unlocked",
+                systemImage: "lock.open.fill",
+                isLocked: false,
+                isAvailable: true
             )
         ])
 

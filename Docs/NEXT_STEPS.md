@@ -92,13 +92,17 @@ Recommended reasoning level: High.
 - Added a configurable Home Screen scene/script action widget using shared OAuth credentials and official WebSocket `call_service` for `scene.turn_on` / `script.turn_on`.
 - Extended widget snapshot persistence to sensors, people, scenes, and scripts while keeping raw Home Assistant state parsing inside the widget action client.
 - Added a Home Screen numeric sensor graph widget with Small and Medium families, numeric-only App Intent suggestions, compact sensor snapshot metadata, and a widget-side documented REST history fetch over the shared OAuth credential path.
+- Added Home Screen cover, fan, and lock widgets using compact app-facing app-group snapshots, widget-side WebSocket `get_states` refresh, and official WebSocket `call_service` actions.
+- Cover widgets send `cover.open_cover`, `cover.close_cover`, or `cover.stop_cover` based on current state; fan widgets use `fan.turn_on` / `fan.turn_off` with optimistic widget state; lock widgets expose status and `lock.lock` only, avoiding one-tap unlock from widgets.
+- Extended widget snapshot persistence to covers, fans, and locks while keeping raw Home Assistant state parsing inside the widget action client.
 
 ## Next Chunk
 
-- Continue with one small, safe widget expansion slice using official Home Assistant WebSocket/OAuth/service-call paths already used by the app and current widgets.
-- Recommended next scope: more control widgets for covers/locks/fans where service semantics and safety UX are clear, or widget polish after device testing the new graph/status/action widgets.
+- Continue with widget polish/device testing or move to Control Center controls using the same official Home Assistant WebSocket/OAuth/service-call paths already used by the app and current widgets.
+- Recommended next scope: device-test the expanded Home Screen widget set, refine family-specific layouts if needed, then add Control Center controls for the safest actions.
 - Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
 - Keep service calls official through WebSocket `call_service`; do not add REST, webhook, or private frontend endpoints for widget actions.
+- Keep lock widgets conservative unless a future design adds explicit confirmation; current widget scope intentionally does not expose one-tap unlock.
 - Leave timeline work parked unless a concrete bug or visual polish issue appears during normal feature work.
 
 ## Acceptance Notes
@@ -117,6 +121,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetCoverFanLock` after adding cover, fan, and lock widgets.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetCoverFanLock` after adding cover, fan, and lock widgets.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetGraph` after adding the numeric sensor graph widget.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetGraph` after adding the numeric sensor graph widget.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetStatusActions` after adding sensor, presence, and scene/script action widgets.

@@ -7,6 +7,9 @@ enum WidgetSharedStore {
     private static let baseURLKey = "homeAssistantBaseURL"
     private static let lightSnapshotsKey = "widgetLightSnapshots"
     private static let switchSnapshotsKey = "widgetSwitchSnapshots"
+    private static let coverSnapshotsKey = "widgetCoverSnapshots"
+    private static let fanSnapshotsKey = "widgetFanSnapshots"
+    private static let lockSnapshotsKey = "widgetLockSnapshots"
     private static let sensorSnapshotsKey = "widgetSensorSnapshots"
     private static let presenceSnapshotsKey = "widgetPresenceSnapshots"
     private static let actionSnapshotsKey = "widgetActionSnapshots"
@@ -33,6 +36,36 @@ enum WidgetSharedStore {
         }
 
         sharedDefaults?.set(data, forKey: switchSnapshotsKey)
+    }
+
+    static func saveCoverSnapshots(_ covers: [CoverEntity]) {
+        let snapshots = coverSnapshots(from: covers)
+
+        guard let data = try? JSONEncoder().encode(snapshots) else {
+            return
+        }
+
+        sharedDefaults?.set(data, forKey: coverSnapshotsKey)
+    }
+
+    static func saveFanSnapshots(_ fans: [FanEntity]) {
+        let snapshots = fanSnapshots(from: fans)
+
+        guard let data = try? JSONEncoder().encode(snapshots) else {
+            return
+        }
+
+        sharedDefaults?.set(data, forKey: fanSnapshotsKey)
+    }
+
+    static func saveLockSnapshots(_ entities: [HomeEntity]) {
+        let snapshots = lockSnapshots(from: entities)
+
+        guard let data = try? JSONEncoder().encode(snapshots) else {
+            return
+        }
+
+        sharedDefaults?.set(data, forKey: lockSnapshotsKey)
     }
 
     static func saveSensorSnapshots(_ sensors: [SensorEntity]) {
@@ -92,6 +125,61 @@ enum WidgetSharedStore {
                     displayName: entity.displayName,
                     isOn: entity.state == "on",
                     systemImage: entity.iconName
+                )
+            }
+    }
+
+    static func coverSnapshots(from covers: [CoverEntity]) -> [WidgetCoverSnapshot] {
+        covers
+            .sorted { lhs, rhs in
+                lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
+            .map { cover in
+                WidgetCoverSnapshot(
+                    entityID: cover.entityID,
+                    displayName: cover.displayName,
+                    state: cover.state,
+                    statusText: cover.displaySubtitle,
+                    systemImage: cover.iconName,
+                    isOpen: cover.isOpen,
+                    isClosed: cover.isClosed,
+                    isMoving: cover.isMoving,
+                    isAvailable: !["unknown", "unavailable"].contains(cover.state)
+                )
+            }
+    }
+
+    static func fanSnapshots(from fans: [FanEntity]) -> [WidgetFanSnapshot] {
+        fans
+            .sorted { lhs, rhs in
+                lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
+            .map { fan in
+                WidgetFanSnapshot(
+                    entityID: fan.entityID,
+                    displayName: fan.displayName,
+                    isOn: fan.isOn,
+                    statusText: fanStatusText(for: fan),
+                    isAvailable: fan.isAvailable
+                )
+            }
+    }
+
+    static func lockSnapshots(from entities: [HomeEntity]) -> [WidgetLockSnapshot] {
+        entities
+            .filter { $0.domain == .lock }
+            .sorted { lhs, rhs in
+                lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
+            .map { entity in
+                WidgetLockSnapshot(
+                    entityID: entity.entityID,
+                    displayName: entity.displayName,
+                    state: entity.state,
+                    statusText: lockStatusText(for: entity.state),
+                    systemImage: lockSystemImage(for: entity.state),
+                    isLocked: entity.state == "locked",
+                    isAvailable: entity.isAvailable
                 )
             }
     }
@@ -173,6 +261,58 @@ enum WidgetSharedStore {
             state.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
+
+    private static func fanStatusText(for fan: FanEntity) -> String {
+        guard fan.isAvailable else {
+            return "Unavailable"
+        }
+
+        guard fan.isOn else {
+            return fan.displayState
+        }
+
+        if let percentage = fan.percentage {
+            return "On • \(percentage)%"
+        }
+
+        if let presetMode = fan.presetMode, !presetMode.isEmpty {
+            return "On • \(fan.displayName(forPresetMode: presetMode))"
+        }
+
+        return fan.displayState
+    }
+
+    private static func lockStatusText(for state: String) -> String {
+        switch state {
+        case "locked":
+            "Locked"
+        case "unlocked":
+            "Unlocked"
+        case "locking":
+            "Locking"
+        case "unlocking":
+            "Unlocking"
+        case "jammed":
+            "Jammed"
+        case "unknown":
+            "Unknown"
+        case "unavailable":
+            "Unavailable"
+        default:
+            state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    private static func lockSystemImage(for state: String) -> String {
+        switch state {
+        case "locked", "locking":
+            "lock.fill"
+        case "jammed":
+            "exclamationmark.lock.fill"
+        default:
+            "lock.open.fill"
+        }
+    }
 }
 
 struct WidgetLightSnapshot: Codable, Equatable, Sendable {
@@ -187,6 +327,36 @@ struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
     let displayName: String
     let isOn: Bool
     let systemImage: String
+}
+
+struct WidgetCoverSnapshot: Codable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let state: String
+    let statusText: String
+    let systemImage: String
+    let isOpen: Bool
+    let isClosed: Bool
+    let isMoving: Bool
+    let isAvailable: Bool
+}
+
+struct WidgetFanSnapshot: Codable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let isOn: Bool
+    let statusText: String
+    let isAvailable: Bool
+}
+
+struct WidgetLockSnapshot: Codable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let state: String
+    let statusText: String
+    let systemImage: String
+    let isLocked: Bool
+    let isAvailable: Bool
 }
 
 struct WidgetSensorSnapshot: Codable, Equatable, Sendable {

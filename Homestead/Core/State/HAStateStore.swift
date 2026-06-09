@@ -716,6 +716,9 @@ final class HAStateStore {
     private func saveWidgetSnapshots() {
         WidgetSharedStore.saveLightSnapshots(Array(lightEntitiesByID.values))
         WidgetSharedStore.saveSwitchSnapshots(Array(entitiesByID.values))
+        WidgetSharedStore.saveCoverSnapshots(Array(coverEntitiesByID.values))
+        WidgetSharedStore.saveFanSnapshots(Array(fanEntitiesByID.values))
+        WidgetSharedStore.saveLockSnapshots(Array(entitiesByID.values))
         WidgetSharedStore.saveSensorSnapshots(Array(sensorEntitiesByID.values))
         WidgetSharedStore.savePresenceSnapshots(Array(entitiesByID.values))
         WidgetSharedStore.saveActionSnapshots(Array(entitiesByID.values))
@@ -918,7 +921,15 @@ private extension JSONValue {
 
 private extension EntityDomain {
     var isWidgetSnapshotDomain: Bool {
-        self == .light || self == .switch || self == .sensor || self == .person || self == .scene || self == .script
+        self == .light
+            || self == .switch
+            || self == .cover
+            || self == .fan
+            || self == .lock
+            || self == .sensor
+            || self == .person
+            || self == .scene
+            || self == .script
     }
 }
 

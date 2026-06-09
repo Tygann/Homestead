@@ -8,11 +8,15 @@ enum HomesteadWidgetSharedStore {
     private static let baseURLKey = "homeAssistantBaseURL"
     private static let lightSnapshotsKey = "widgetLightSnapshots"
     private static let switchSnapshotsKey = "widgetSwitchSnapshots"
+    private static let coverSnapshotsKey = "widgetCoverSnapshots"
+    private static let fanSnapshotsKey = "widgetFanSnapshots"
+    private static let lockSnapshotsKey = "widgetLockSnapshots"
     private static let sensorSnapshotsKey = "widgetSensorSnapshots"
     private static let presenceSnapshotsKey = "widgetPresenceSnapshots"
     private static let actionSnapshotsKey = "widgetActionSnapshots"
     private static let optimisticLightStatesKey = "widgetOptimisticLightStates"
     private static let optimisticSwitchStatesKey = "widgetOptimisticSwitchStates"
+    private static let optimisticFanStatesKey = "widgetOptimisticFanStates"
     private static let tokenService = "com.tyler.Homestead.homeAssistant"
     private static let oauthCredentialAccount = "oauthCredential"
     private static let oauthClientID = "https://homestead.keegan.pro"
@@ -137,6 +141,45 @@ enum HomesteadWidgetSharedStore {
         switchSnapshots.first { $0.entityID == entityID }
     }
 
+    static var coverSnapshots: [WidgetCoverSnapshot] {
+        guard let data = sharedDefaults?.data(forKey: coverSnapshotsKey),
+              let snapshots = try? JSONDecoder().decode([WidgetCoverSnapshot].self, from: data) else {
+            return []
+        }
+
+        return snapshots
+    }
+
+    static func coverSnapshot(entityID: String) -> WidgetCoverSnapshot? {
+        coverSnapshots.first { $0.entityID == entityID }
+    }
+
+    static var fanSnapshots: [WidgetFanSnapshot] {
+        guard let data = sharedDefaults?.data(forKey: fanSnapshotsKey),
+              let snapshots = try? JSONDecoder().decode([WidgetFanSnapshot].self, from: data) else {
+            return []
+        }
+
+        return snapshots
+    }
+
+    static func fanSnapshot(entityID: String) -> WidgetFanSnapshot? {
+        fanSnapshots.first { $0.entityID == entityID }
+    }
+
+    static var lockSnapshots: [WidgetLockSnapshot] {
+        guard let data = sharedDefaults?.data(forKey: lockSnapshotsKey),
+              let snapshots = try? JSONDecoder().decode([WidgetLockSnapshot].self, from: data) else {
+            return []
+        }
+
+        return snapshots
+    }
+
+    static func lockSnapshot(entityID: String) -> WidgetLockSnapshot? {
+        lockSnapshots.first { $0.entityID == entityID }
+    }
+
     static var sensorSnapshots: [WidgetSensorSnapshot] {
         guard let data = sharedDefaults?.data(forKey: sensorSnapshotsKey),
               let snapshots = try? JSONDecoder().decode([WidgetSensorSnapshot].self, from: data) else {
@@ -194,6 +237,15 @@ enum HomesteadWidgetSharedStore {
         return optimisticState.isOn
     }
 
+    static func optimisticFanState(entityID: String) -> Bool? {
+        guard let optimisticState = optimisticFanStates[entityID],
+              Date().timeIntervalSince(optimisticState.updatedAt) < 10 else {
+            return nil
+        }
+
+        return optimisticState.isOn
+    }
+
     static func updateLightSnapshot(entityID: String, isOn: Bool) {
         let updatedSnapshots = lightSnapshots.map { snapshot in
             guard snapshot.entityID == entityID else {
@@ -236,6 +288,28 @@ enum HomesteadWidgetSharedStore {
         saveOptimisticSwitchStates(optimisticStates)
     }
 
+    static func updateFanSnapshot(entityID: String, isOn: Bool) {
+        let updatedSnapshots = fanSnapshots.map { snapshot in
+            guard snapshot.entityID == entityID else {
+                return snapshot
+            }
+
+            return WidgetFanSnapshot(
+                entityID: snapshot.entityID,
+                displayName: snapshot.displayName,
+                isOn: isOn,
+                statusText: isOn ? "On" : "Off",
+                isAvailable: snapshot.isAvailable
+            )
+        }
+
+        saveFanSnapshots(updatedSnapshots)
+
+        var optimisticStates = optimisticFanStates
+        optimisticStates[entityID] = OptimisticFanState(isOn: isOn, updatedAt: Date())
+        saveOptimisticFanStates(optimisticStates)
+    }
+
     private static var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
     }
@@ -258,6 +332,15 @@ enum HomesteadWidgetSharedStore {
         return states
     }
 
+    private static var optimisticFanStates: [String: OptimisticFanState] {
+        guard let data = sharedDefaults?.data(forKey: optimisticFanStatesKey),
+              let states = try? JSONDecoder().decode([String: OptimisticFanState].self, from: data) else {
+            return [:]
+        }
+
+        return states
+    }
+
     private static func saveLightSnapshots(_ snapshots: [WidgetLightSnapshot]) {
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -274,6 +357,14 @@ enum HomesteadWidgetSharedStore {
         sharedDefaults?.set(data, forKey: switchSnapshotsKey)
     }
 
+    private static func saveFanSnapshots(_ snapshots: [WidgetFanSnapshot]) {
+        guard let data = try? JSONEncoder().encode(snapshots) else {
+            return
+        }
+
+        sharedDefaults?.set(data, forKey: fanSnapshotsKey)
+    }
+
     private static func saveOptimisticLightStates(_ states: [String: OptimisticLightState]) {
         guard let data = try? JSONEncoder().encode(states) else {
             return
@@ -288,6 +379,14 @@ enum HomesteadWidgetSharedStore {
         }
 
         sharedDefaults?.set(data, forKey: optimisticSwitchStatesKey)
+    }
+
+    private static func saveOptimisticFanStates(_ states: [String: OptimisticFanState]) {
+        guard let data = try? JSONEncoder().encode(states) else {
+            return
+        }
+
+        sharedDefaults?.set(data, forKey: optimisticFanStatesKey)
     }
 
     private static func switchSystemImage(isOn: Bool, fallback: String) -> String {
@@ -365,6 +464,36 @@ struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
     let displayName: String
     let isOn: Bool
     let systemImage: String
+}
+
+struct WidgetCoverSnapshot: Codable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let state: String
+    let statusText: String
+    let systemImage: String
+    let isOpen: Bool
+    let isClosed: Bool
+    let isMoving: Bool
+    let isAvailable: Bool
+}
+
+struct WidgetFanSnapshot: Codable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let isOn: Bool
+    let statusText: String
+    let isAvailable: Bool
+}
+
+struct WidgetLockSnapshot: Codable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let state: String
+    let statusText: String
+    let systemImage: String
+    let isLocked: Bool
+    let isAvailable: Bool
 }
 
 struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
@@ -469,6 +598,11 @@ private struct OptimisticLightState: Codable, Equatable {
 }
 
 private struct OptimisticSwitchState: Codable, Equatable {
+    let isOn: Bool
+    let updatedAt: Date
+}
+
+private struct OptimisticFanState: Codable, Equatable {
     let isOn: Bool
     let updatedAt: Date
 }
