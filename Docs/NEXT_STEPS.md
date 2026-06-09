@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Continue WidgetKit/App Intents support after the Home Screen control/status/action widget expansion.
+Continue WidgetKit/App Intents support after the Home Screen control/status/action/graph widget expansion.
 
 Recommended reasoning level: High.
 
@@ -91,11 +91,12 @@ Recommended reasoning level: High.
 - Added read-only Home Screen sensor and person/presence widgets using compact app-facing app-group snapshots plus widget-side WebSocket `get_states` refresh.
 - Added a configurable Home Screen scene/script action widget using shared OAuth credentials and official WebSocket `call_service` for `scene.turn_on` / `script.turn_on`.
 - Extended widget snapshot persistence to sensors, people, scenes, and scripts while keeping raw Home Assistant state parsing inside the widget action client.
+- Added a Home Screen numeric sensor graph widget with Small and Medium families, numeric-only App Intent suggestions, compact sensor snapshot metadata, and a widget-side documented REST history fetch over the shared OAuth credential path.
 
 ## Next Chunk
 
 - Continue with one small, safe widget expansion slice using official Home Assistant WebSocket/OAuth/service-call paths already used by the app and current widgets.
-- Recommended next scope: either graph widgets for numeric sensors using the documented history path already mapped in the app, or more control widgets for covers/locks/fans where service semantics and safety UX are clear.
+- Recommended next scope: more control widgets for covers/locks/fans where service semantics and safety UX are clear, or widget polish after device testing the new graph/status/action widgets.
 - Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
 - Keep service calls official through WebSocket `call_service`; do not add REST, webhook, or private frontend endpoints for widget actions.
 - Leave timeline work parked unless a concrete bug or visual polish issue appears during normal feature work.
@@ -116,6 +117,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetGraph` after adding the numeric sensor graph widget.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetGraph` after adding the numeric sensor graph widget.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetStatusActions` after adding sensor, presence, and scene/script action widgets.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetStatusActions` after adding sensor, presence, and scene/script action widgets.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetSwitch` after adding the switch widget.

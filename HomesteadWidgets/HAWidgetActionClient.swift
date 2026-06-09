@@ -60,6 +60,95 @@ struct HAWidgetPresenceState: Sendable {
     let isAvailable: Bool
 }
 
+struct HAWidgetHistorySample: Identifiable, Equatable, Sendable {
+    let id: String
+    let occurredAt: Date
+    let value: Double
+
+    init(occurredAt: Date, value: Double) {
+        self.id = "\(occurredAt.timeIntervalSince1970)-\(value)"
+        self.occurredAt = occurredAt
+        self.value = value
+    }
+}
+
+struct HAWidgetSensorHistorySeries: Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let unit: String?
+    let startDate: Date
+    let endDate: Date
+    let samples: [HAWidgetHistorySample]
+
+    var isEmpty: Bool {
+        samples.isEmpty
+    }
+
+    var latestSample: HAWidgetHistorySample? {
+        samples.last
+    }
+
+    var minimumValue: Double? {
+        samples.map(\.value).min()
+    }
+
+    var maximumValue: Double? {
+        samples.map(\.value).max()
+    }
+
+    var valueDomain: ClosedRange<Double> {
+        guard let minimumValue, let maximumValue else {
+            return 0...1
+        }
+
+        guard minimumValue != maximumValue else {
+            let padding = max(abs(minimumValue) * 0.05, 1)
+            return (minimumValue - padding)...(maximumValue + padding)
+        }
+
+        let padding = (maximumValue - minimumValue) * 0.12
+        return (minimumValue - padding)...(maximumValue + padding)
+    }
+
+    var latestValueText: String? {
+        latestSample.map { formatValue($0.value) }
+    }
+
+    var summaryText: String {
+        guard !samples.isEmpty,
+              let minimumValue,
+              let maximumValue else {
+            return "No numeric history"
+        }
+
+        return "Low \(formatValue(minimumValue)) • High \(formatValue(maximumValue))"
+    }
+
+    func formatValue(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = maximumFractionDigits
+        formatter.minimumFractionDigits = 0
+
+        let numberText = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        guard let unit, !unit.isEmpty else {
+            return numberText
+        }
+
+        let separator = unit.hasPrefix("°") || unit == "%" ? "" : " "
+        return "\(numberText)\(separator)\(unit)"
+    }
+
+    private var maximumFractionDigits: Int {
+        let values = samples.map(\.value)
+        guard values.contains(where: { abs($0.rounded() - $0) > 0.001 }) else {
+            return 0
+        }
+
+        return 2
+    }
+}
+
 final class HAWidgetActionClient: Sendable {
     private let session: URLSession
 
@@ -187,6 +276,63 @@ final class HAWidgetActionClient: Sendable {
         try await callService(domain: domain, service: "turn_on", entityID: entityID)
     }
 
+    func fetchSensorHistory(
+        entityID: String,
+        displayName: String,
+        unit: String?,
+        endingAt endDate: Date = Date()
+    ) async throws -> HAWidgetSensorHistorySeries {
+        guard let baseURL = HomesteadWidgetSharedStore.baseURL else {
+            throw HAWidgetActionError.missingCredentials
+        }
+
+        let token = try await HomesteadWidgetSharedStore.validAccessToken()
+        let startDate = endDate.addingTimeInterval(-(6 * 60 * 60))
+        let url = try historyURL(
+            from: baseURL,
+            entityID: entityID,
+            startDate: startDate,
+            endDate: endDate
+        )
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200..<300).contains(httpResponse.statusCode) else {
+            throw HAWidgetActionError.unexpectedResponse
+        }
+
+        let historyResponse = try JSONDecoder().decode(HAWidgetHistoryResponse.self, from: data)
+        let interval = DateInterval(start: startDate, end: endDate)
+        let samples = historyResponse.series
+            .flatMap { $0 }
+            .compactMap { state -> HAWidgetHistorySample? in
+                let resolvedEntityID = state.entityID?.nonEmptyValue ?? entityID
+                guard resolvedEntityID == entityID,
+                      interval.contains(state.lastChanged) || state.lastChanged == interval.end,
+                      let value = Double(state.state),
+                      value.isFinite else {
+                    return nil
+                }
+
+                return HAWidgetHistorySample(occurredAt: state.lastChanged, value: value)
+            }
+            .sorted { lhs, rhs in
+                lhs.occurredAt < rhs.occurredAt
+            }
+
+        return HAWidgetSensorHistorySeries(
+            entityID: entityID,
+            displayName: displayName,
+            unit: unit,
+            startDate: startDate,
+            endDate: endDate,
+            samples: samples
+        )
+    }
+
     private func callService(domain: String, service: String, entityID: String) async throws {
         try await withConnectedSocket { task in
             try await sendJSON([
@@ -299,6 +445,48 @@ final class HAWidgetActionClient: Sendable {
         let pathParts = [basePath, "api", "websocket"].filter { !$0.isEmpty }
         components.path = "/" + pathParts.joined(separator: "/")
         components.query = nil
+        components.fragment = nil
+
+        guard let url = components.url else {
+            throw HAWidgetActionError.invalidURL
+        }
+
+        return url
+    }
+
+    private func historyURL(
+        from baseURLString: String,
+        entityID: String,
+        startDate: Date,
+        endDate: Date
+    ) throws -> URL {
+        let normalizedString = baseURLString.contains("://") ? baseURLString : "http://\(baseURLString)"
+
+        guard var components = URLComponents(string: normalizedString),
+              let scheme = components.scheme,
+              components.host != nil,
+              !entityID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw HAWidgetActionError.invalidURL
+        }
+
+        switch scheme.lowercased() {
+        case "http", "ws":
+            components.scheme = "http"
+        case "https", "wss":
+            components.scheme = "https"
+        default:
+            throw HAWidgetActionError.invalidURL
+        }
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathParts = [basePath, "api", "history", "period", historyTimestamp(from: startDate)].filter { !$0.isEmpty }
+        components.path = "/" + pathParts.joined(separator: "/")
+        components.queryItems = [
+            URLQueryItem(name: "filter_entity_id", value: entityID),
+            URLQueryItem(name: "end_time", value: historyTimestamp(from: endDate)),
+            URLQueryItem(name: "minimal_response", value: nil),
+            URLQueryItem(name: "no_attributes", value: nil)
+        ]
         components.fragment = nil
 
         guard let url = components.url else {
@@ -457,5 +645,66 @@ final class HAWidgetActionClient: Sendable {
         default:
             state.replacingOccurrences(of: "_", with: " ").capitalized
         }
+    }
+
+    private func historyTimestamp(from date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter.string(from: date)
+    }
+}
+
+private struct HAWidgetHistoryResponse: Decodable {
+    let series: [[HAWidgetHistoryState]]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        series = try container.decode([[HAWidgetHistoryState]].self)
+    }
+}
+
+private struct HAWidgetHistoryState: Decodable {
+    let entityID: String?
+    let state: String
+    let lastChanged: Date
+
+    enum CodingKeys: String, CodingKey {
+        case entityID = "entity_id"
+        case state
+        case lastChanged = "last_changed"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let lastChangedString = try container.decode(String.self, forKey: .lastChanged)
+        guard let lastChanged = Self.date(from: lastChangedString) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .lastChanged,
+                in: container,
+                debugDescription: "Expected Home Assistant history last_changed timestamp."
+            )
+        }
+
+        entityID = try container.decodeIfPresent(String.self, forKey: .entityID)
+        state = try container.decode(String.self, forKey: .state)
+        self.lastChanged = lastChanged
+    }
+
+    private static func date(from value: String) -> Date? {
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        let standardFormatter = ISO8601DateFormatter()
+        standardFormatter.formatOptions = [.withInternetDateTime]
+
+        return fractionalFormatter.date(from: value) ?? standardFormatter.date(from: value)
+    }
+}
+
+private extension String {
+    var nonEmptyValue: String? {
+        let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedValue.isEmpty ? nil : trimmedValue
     }
 }

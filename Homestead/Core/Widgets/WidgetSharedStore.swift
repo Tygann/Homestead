@@ -108,6 +108,8 @@ enum WidgetSharedStore {
                     valueText: sensor.formattedValue,
                     subtitle: sensor.displaySubtitle,
                     systemImage: sensor.iconName,
+                    unit: sensor.unitText,
+                    isNumeric: sensor.numericValue != nil,
                     isAlerting: sensor.isAlerting,
                     isAvailable: sensor.isAvailable
                 )
@@ -193,6 +195,8 @@ struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     let valueText: String
     let subtitle: String
     let systemImage: String
+    let unit: String?
+    let isNumeric: Bool
     let isAlerting: Bool
     let isAvailable: Bool
 }

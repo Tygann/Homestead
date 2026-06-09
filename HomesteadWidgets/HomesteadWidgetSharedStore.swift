@@ -373,6 +373,8 @@ struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     let valueText: String
     let subtitle: String
     let systemImage: String
+    let unit: String?
+    let isNumeric: Bool?
     let isAlerting: Bool
     let isAvailable: Bool
 }

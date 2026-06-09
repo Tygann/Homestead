@@ -35,6 +35,8 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
     let valueText: String
     let subtitle: String
     let systemImage: String
+    let unit: String?
+    let isNumeric: Bool
     let isAlerting: Bool
     let isAvailable: Bool
 
@@ -64,6 +66,8 @@ struct HomesteadSensorEntityQuery: EntityQuery {
                 valueText: snapshot.valueText,
                 subtitle: snapshot.subtitle,
                 systemImage: snapshot.systemImage,
+                unit: snapshot.unit,
+                isNumeric: snapshot.isNumeric == true,
                 isAlerting: snapshot.isAlerting,
                 isAvailable: snapshot.isAvailable
             )
@@ -172,6 +176,8 @@ struct HomesteadSensorTimelineProvider: AppIntentTimelineProvider {
             valueText: snapshot.valueText,
             subtitle: snapshot.subtitle,
             systemImage: snapshot.systemImage,
+            unit: snapshot.unit,
+            isNumeric: snapshot.isNumeric == true,
             isAlerting: snapshot.isAlerting,
             isAvailable: snapshot.isAvailable
         )

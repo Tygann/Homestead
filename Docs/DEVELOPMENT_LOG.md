@@ -8,6 +8,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Added Home Screen sensor and person/presence widgets using compact app-group snapshots and widget-side WebSocket `get_states` refresh.
 - Added a configurable scene/script action widget using the existing shared OAuth credential path and official WebSocket `call_service` for `scene.turn_on` / `script.turn_on`.
+- Added a Home Screen numeric sensor graph widget using compact numeric sensor snapshot metadata and Home Assistant's documented REST history endpoint over the shared OAuth credential path.
 - Kept widget views app-facing while raw Home Assistant state parsing stays inside the widget action client.
 
 ## 2026-06-08

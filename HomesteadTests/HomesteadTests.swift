@@ -2839,6 +2839,8 @@ struct HomesteadTests {
                 valueText: "18%",
                 subtitle: "Low Battery",
                 systemImage: "battery.75percent",
+                unit: "%",
+                isNumeric: true,
                 isAlerting: true,
                 isAvailable: true
             ),
@@ -2848,6 +2850,8 @@ struct HomesteadTests {
                 valueText: "72.4°F",
                 subtitle: "Temperature",
                 systemImage: "thermometer.medium",
+                unit: "°F",
+                isNumeric: true,
                 isAlerting: false,
                 isAvailable: true
             )

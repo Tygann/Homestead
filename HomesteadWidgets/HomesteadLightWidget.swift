@@ -322,6 +322,7 @@ struct HomesteadWidgetsBundle: WidgetBundle {
         HomesteadLightWidget()
         HomesteadSwitchWidget()
         HomesteadSensorWidget()
+        HomesteadSensorGraphWidget()
         HomesteadPresenceWidget()
         HomesteadActionWidget()
     }
