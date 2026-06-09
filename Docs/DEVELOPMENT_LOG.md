@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-09
+
+### Widget Status And Actions
+
+- Added Home Screen sensor and person/presence widgets using compact app-group snapshots and widget-side WebSocket `get_states` refresh.
+- Added a configurable scene/script action widget using the existing shared OAuth credential path and official WebSocket `call_service` for `scene.turn_on` / `script.turn_on`.
+- Kept widget views app-facing while raw Home Assistant state parsing stays inside the widget action client.
+
 ## 2026-06-08
 
 ### Switch Widget

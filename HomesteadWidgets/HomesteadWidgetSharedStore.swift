@@ -8,6 +8,9 @@ enum HomesteadWidgetSharedStore {
     private static let baseURLKey = "homeAssistantBaseURL"
     private static let lightSnapshotsKey = "widgetLightSnapshots"
     private static let switchSnapshotsKey = "widgetSwitchSnapshots"
+    private static let sensorSnapshotsKey = "widgetSensorSnapshots"
+    private static let presenceSnapshotsKey = "widgetPresenceSnapshots"
+    private static let actionSnapshotsKey = "widgetActionSnapshots"
     private static let optimisticLightStatesKey = "widgetOptimisticLightStates"
     private static let optimisticSwitchStatesKey = "widgetOptimisticSwitchStates"
     private static let tokenService = "com.tyler.Homestead.homeAssistant"
@@ -132,6 +135,45 @@ enum HomesteadWidgetSharedStore {
 
     static func switchSnapshot(entityID: String) -> WidgetSwitchSnapshot? {
         switchSnapshots.first { $0.entityID == entityID }
+    }
+
+    static var sensorSnapshots: [WidgetSensorSnapshot] {
+        guard let data = sharedDefaults?.data(forKey: sensorSnapshotsKey),
+              let snapshots = try? JSONDecoder().decode([WidgetSensorSnapshot].self, from: data) else {
+            return []
+        }
+
+        return snapshots
+    }
+
+    static func sensorSnapshot(entityID: String) -> WidgetSensorSnapshot? {
+        sensorSnapshots.first { $0.entityID == entityID }
+    }
+
+    static var presenceSnapshots: [WidgetPresenceSnapshot] {
+        guard let data = sharedDefaults?.data(forKey: presenceSnapshotsKey),
+              let snapshots = try? JSONDecoder().decode([WidgetPresenceSnapshot].self, from: data) else {
+            return []
+        }
+
+        return snapshots
+    }
+
+    static func presenceSnapshot(entityID: String) -> WidgetPresenceSnapshot? {
+        presenceSnapshots.first { $0.entityID == entityID }
+    }
+
+    static var actionSnapshots: [WidgetActionSnapshot] {
+        guard let data = sharedDefaults?.data(forKey: actionSnapshotsKey),
+              let snapshots = try? JSONDecoder().decode([WidgetActionSnapshot].self, from: data) else {
+            return []
+        }
+
+        return snapshots
+    }
+
+    static func actionSnapshot(entityID: String) -> WidgetActionSnapshot? {
+        actionSnapshots.first { $0.entityID == entityID }
     }
 
     static func optimisticLightState(entityID: String) -> Bool? {
@@ -322,6 +364,32 @@ struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
     let entityID: String
     let displayName: String
     let isOn: Bool
+    let systemImage: String
+}
+
+struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let valueText: String
+    let subtitle: String
+    let systemImage: String
+    let isAlerting: Bool
+    let isAvailable: Bool
+}
+
+struct WidgetPresenceSnapshot: Codable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let statusText: String
+    let isHome: Bool
+    let systemImage: String
+    let isAvailable: Bool
+}
+
+struct WidgetActionSnapshot: Codable, Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let domain: String
     let systemImage: String
 }
 

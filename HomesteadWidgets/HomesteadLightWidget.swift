@@ -321,6 +321,9 @@ struct HomesteadWidgetsBundle: WidgetBundle {
     var body: some Widget {
         HomesteadLightWidget()
         HomesteadSwitchWidget()
+        HomesteadSensorWidget()
+        HomesteadPresenceWidget()
+        HomesteadActionWidget()
     }
 }
 

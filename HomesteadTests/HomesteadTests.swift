@@ -2695,7 +2695,7 @@ struct HomesteadTests {
         #expect(!json.contains("longLivedAccessToken"))
     }
 
-    @Test func widgetSharedStoreBuildsCompactControlSnapshots() {
+    @Test func widgetSharedStoreBuildsCompactSnapshots() {
         let lights = [
             LightEntity(
                 entityID: "light.z_lamp",
@@ -2716,6 +2716,26 @@ struct HomesteadTests {
                 lastUpdated: nil
             )
         ]
+        let sensors = [
+            SensorEntity(
+                entityID: "sensor.temperature",
+                displayName: "Temperature",
+                value: "72.4",
+                unit: "F",
+                deviceClass: "temperature",
+                iconName: "thermometer.medium",
+                lastUpdated: nil
+            ),
+            SensorEntity(
+                entityID: "sensor.battery",
+                displayName: "Battery",
+                value: "18",
+                unit: "%",
+                deviceClass: "battery",
+                iconName: "battery.75percent",
+                lastUpdated: nil
+            )
+        ]
         let entities = [
             HomeEntity(
                 entityID: "sensor.temperature",
@@ -2723,6 +2743,42 @@ struct HomesteadTests {
                 displayName: "Temperature",
                 state: "72",
                 iconName: "thermometer.medium",
+                isAvailable: true,
+                lastUpdated: nil
+            ),
+            HomeEntity(
+                entityID: "person.guest",
+                domain: .person,
+                displayName: "Guest",
+                state: "not_home",
+                iconName: "person",
+                isAvailable: true,
+                lastUpdated: nil
+            ),
+            HomeEntity(
+                entityID: "person.tyler",
+                domain: .person,
+                displayName: "Tyler",
+                state: "home",
+                iconName: "person.fill",
+                isAvailable: true,
+                lastUpdated: nil
+            ),
+            HomeEntity(
+                entityID: "scene.movie_time",
+                domain: .scene,
+                displayName: "Movie Time",
+                state: "scening",
+                iconName: "sparkles",
+                isAvailable: true,
+                lastUpdated: nil
+            ),
+            HomeEntity(
+                entityID: "script.good_night",
+                domain: .script,
+                displayName: "Good Night",
+                state: "off",
+                iconName: "play.circle",
                 isAvailable: true,
                 lastUpdated: nil
             ),
@@ -2773,6 +2829,61 @@ struct HomesteadTests {
                 displayName: "Fan",
                 isOn: false,
                 systemImage: "lightswitch.off.fill"
+            )
+        ])
+
+        #expect(WidgetSharedStore.sensorSnapshots(from: sensors) == [
+            WidgetSensorSnapshot(
+                entityID: "sensor.battery",
+                displayName: "Battery",
+                valueText: "18%",
+                subtitle: "Low Battery",
+                systemImage: "battery.75percent",
+                isAlerting: true,
+                isAvailable: true
+            ),
+            WidgetSensorSnapshot(
+                entityID: "sensor.temperature",
+                displayName: "Temperature",
+                valueText: "72.4°F",
+                subtitle: "Temperature",
+                systemImage: "thermometer.medium",
+                isAlerting: false,
+                isAvailable: true
+            )
+        ])
+
+        #expect(WidgetSharedStore.presenceSnapshots(from: entities) == [
+            WidgetPresenceSnapshot(
+                entityID: "person.guest",
+                displayName: "Guest",
+                statusText: "Away",
+                isHome: false,
+                systemImage: "person",
+                isAvailable: true
+            ),
+            WidgetPresenceSnapshot(
+                entityID: "person.tyler",
+                displayName: "Tyler",
+                statusText: "Home",
+                isHome: true,
+                systemImage: "person.fill",
+                isAvailable: true
+            )
+        ])
+
+        #expect(WidgetSharedStore.actionSnapshots(from: entities) == [
+            WidgetActionSnapshot(
+                entityID: "scene.movie_time",
+                displayName: "Movie Time",
+                domain: "scene",
+                systemImage: "sparkles"
+            ),
+            WidgetActionSnapshot(
+                entityID: "script.good_night",
+                displayName: "Good Night",
+                domain: "script",
+                systemImage: "play.circle"
             )
         ])
     }
