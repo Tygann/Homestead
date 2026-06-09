@@ -41,7 +41,8 @@ enum WidgetSharedStore {
                 WidgetLightSnapshot(
                     entityID: light.entityID,
                     displayName: light.displayName,
-                    isOn: light.isOn
+                    isOn: light.isOn,
+                    brightnessPercentage: light.brightnessPercentage
                 )
             }
     }
@@ -71,6 +72,7 @@ struct WidgetLightSnapshot: Codable, Equatable, Sendable {
     let entityID: String
     let displayName: String
     let isOn: Bool
+    let brightnessPercentage: Int?
 }
 
 struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {

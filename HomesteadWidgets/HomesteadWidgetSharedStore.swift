@@ -161,7 +161,8 @@ enum HomesteadWidgetSharedStore {
             return WidgetLightSnapshot(
                 entityID: snapshot.entityID,
                 displayName: snapshot.displayName,
-                isOn: isOn
+                isOn: isOn,
+                brightnessPercentage: snapshot.brightnessPercentage
             )
         }
 
@@ -314,6 +315,7 @@ struct WidgetLightSnapshot: Codable, Equatable, Sendable {
     let entityID: String
     let displayName: String
     let isOn: Bool
+    let brightnessPercentage: Int?
 }
 
 struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {

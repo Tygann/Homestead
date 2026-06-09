@@ -27,6 +27,7 @@ struct HAWidgetLightState: Sendable {
     let entityID: String
     let state: String
     let displayName: String
+    let brightnessPercentage: Int?
 
     var isOn: Bool { state == "on" }
 }
@@ -65,7 +66,8 @@ final class HAWidgetActionClient: Sendable {
             return HAWidgetLightState(
                 entityID: entityID,
                 state: stateValue,
-                displayName: displayName
+                displayName: displayName,
+                brightnessPercentage: brightnessPercentage(from: attributes?["brightness"])
             )
         }
     }
@@ -223,5 +225,27 @@ final class HAWidgetActionClient: Sendable {
         default:
             isOn ? "lightswitch.on.fill" : "lightswitch.off.fill"
         }
+    }
+
+    private func brightnessPercentage(from value: Any?) -> Int? {
+        let brightness: Int?
+
+        switch value {
+        case let intValue as Int:
+            brightness = intValue
+        case let doubleValue as Double:
+            brightness = Int(doubleValue)
+        case let numberValue as NSNumber:
+            brightness = numberValue.intValue
+        default:
+            brightness = nil
+        }
+
+        guard let brightness else {
+            return nil
+        }
+
+        let percentage = Int((Double(brightness) / 255.0) * 100.0)
+        return min(max(percentage, 1), 100)
     }
 }

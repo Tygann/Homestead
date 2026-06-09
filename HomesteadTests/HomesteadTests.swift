@@ -2747,8 +2747,18 @@ struct HomesteadTests {
         ]
 
         #expect(WidgetSharedStore.lightSnapshots(from: lights) == [
-            WidgetLightSnapshot(entityID: "light.a_lamp", displayName: "A Lamp", isOn: true),
-            WidgetLightSnapshot(entityID: "light.z_lamp", displayName: "Z Lamp", isOn: false)
+            WidgetLightSnapshot(
+                entityID: "light.a_lamp",
+                displayName: "A Lamp",
+                isOn: true,
+                brightnessPercentage: 50
+            ),
+            WidgetLightSnapshot(
+                entityID: "light.z_lamp",
+                displayName: "Z Lamp",
+                isOn: false,
+                brightnessPercentage: nil
+            )
         ])
 
         #expect(WidgetSharedStore.switchSnapshots(from: entities) == [

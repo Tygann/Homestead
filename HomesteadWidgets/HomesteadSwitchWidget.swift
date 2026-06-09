@@ -10,7 +10,7 @@ struct HomesteadSwitchWidget: Widget {
             provider: HomesteadSwitchTimelineProvider()
         ) { entry in
             HomesteadSwitchWidgetView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(.ultraThinMaterial, for: .widget)
         }
         .configurationDisplayName("Homestead Switch")
         .description("Control a Home Assistant switch from your Home Screen.")

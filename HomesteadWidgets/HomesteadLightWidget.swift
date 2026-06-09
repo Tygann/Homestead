@@ -10,7 +10,7 @@ struct HomesteadLightWidget: Widget {
             provider: HomesteadLightTimelineProvider()
         ) { entry in
             HomesteadLightWidgetView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(.ultraThinMaterial, for: .widget)
         }
         .configurationDisplayName("Homestead Light")
         .description("Control a Home Assistant light from your Home Screen.")
@@ -70,6 +70,7 @@ struct HomesteadLightEntity: AppEntity, Identifiable {
     let id: String
     let displayName: String
     let isOn: Bool
+    let brightnessPercentage: Int?
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(displayName)", subtitle: "\(id)")
@@ -94,7 +95,8 @@ struct HomesteadLightEntityQuery: EntityQuery {
             HomesteadLightEntity(
                 id: snapshot.entityID,
                 displayName: snapshot.displayName,
-                isOn: snapshot.isOn
+                isOn: snapshot.isOn,
+                brightnessPercentage: snapshot.brightnessPercentage
             )
         }
     }
@@ -116,7 +118,7 @@ struct HomesteadLightTimelineProvider: AppIntentTimelineProvider {
             entityID: "light.lamp",
             displayName: "Lamp",
             isOn: true,
-            statusText: "On",
+            statusText: "On • 50%",
             isConfigured: true
         )
     }
@@ -150,13 +152,15 @@ struct HomesteadLightTimelineProvider: AppIntentTimelineProvider {
             HomesteadLightEntity(
                 id: snapshot.entityID,
                 displayName: snapshot.displayName,
-                isOn: snapshot.isOn
+                isOn: snapshot.isOn,
+                brightnessPercentage: snapshot.brightnessPercentage
             )
         } ?? configuredLight ?? HomesteadWidgetSharedStore.lightSnapshots.first.map { snapshot in
             HomesteadLightEntity(
                 id: snapshot.entityID,
                 displayName: snapshot.displayName,
-                isOn: snapshot.isOn
+                isOn: snapshot.isOn,
+                brightnessPercentage: snapshot.brightnessPercentage
             )
         }
 
@@ -181,7 +185,7 @@ struct HomesteadLightTimelineProvider: AppIntentTimelineProvider {
                     entityID: selectedLight.id,
                     displayName: selectedLight.displayName,
                     isOn: isOn,
-                    statusText: isOn ? "On" : "Off",
+                    statusText: statusText(isOn: isOn, brightnessPercentage: selectedLight.brightnessPercentage),
                     isConfigured: true
                 ),
                 usedOptimisticState: true
@@ -197,7 +201,7 @@ struct HomesteadLightTimelineProvider: AppIntentTimelineProvider {
                     entityID: state.entityID,
                     displayName: state.displayName,
                     isOn: state.isOn,
-                    statusText: state.isOn ? "On" : "Off",
+                    statusText: statusText(isOn: state.isOn, brightnessPercentage: state.brightnessPercentage),
                     isConfigured: true
                 ),
                 usedOptimisticState: false
@@ -215,6 +219,18 @@ struct HomesteadLightTimelineProvider: AppIntentTimelineProvider {
                 usedOptimisticState: false
             )
         }
+    }
+
+    private func statusText(isOn: Bool, brightnessPercentage: Int?) -> String {
+        guard isOn else {
+            return "Off"
+        }
+
+        guard let brightnessPercentage else {
+            return "On"
+        }
+
+        return "On • \(brightnessPercentage)%"
     }
 
     private struct TimelineResult {
