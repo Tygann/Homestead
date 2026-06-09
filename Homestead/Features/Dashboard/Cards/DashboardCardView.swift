@@ -1006,7 +1006,7 @@ private struct DashboardEntityCard: View {
     }
 
     private var cardContainerPadding: CGFloat {
-        size == .mini ? 6 : AppSpacing.medium
+        size == .mini ? AppSpacing.small : AppSpacing.medium
     }
 
     private var renderedCardHeight: CGFloat {
