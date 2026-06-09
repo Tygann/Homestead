@@ -213,13 +213,13 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             return HomesteadSensorGraphEntry(
                 date: Date(),
                 entityID: nil,
-                displayName: "Choose a Sensor",
-                valueText: "--",
-                subtitle: "Open Homestead first",
+                displayName: "Choose Sensor",
+                valueText: "Open Homestead",
+                subtitle: "",
                 systemImage: "chart.xyaxis.line",
                 samples: [],
                 valueDomain: 0...1,
-                summaryText: "No numeric sensors",
+                summaryText: "",
                 isAvailable: false,
                 isConfigured: false
             )
@@ -307,62 +307,96 @@ struct HomesteadSensorGraphWidgetView: View {
         }
     }
 
+    @ViewBuilder
     private var systemSmall: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-
-            Text(entry.valueText)
-                .font(.title2.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-
-            graph
-                .frame(height: 44)
-
-            if let supportingText {
-                footerText(supportingText)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var systemMedium: some View {
-        HStack(alignment: .top, spacing: 14) {
+        if !entry.isConfigured {
+            unconfigured
+        } else {
             VStack(alignment: .leading, spacing: 8) {
                 header
 
-                Spacer(minLength: 0)
-
                 Text(entry.valueText)
-                    .font(.title.weight(.semibold))
+                    .font(.title2.weight(.semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+
+                graph
+                    .frame(height: 44)
 
                 if let supportingText {
                     footerText(supportingText)
                 }
             }
-            .frame(width: 118, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
 
-            graph
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+    @ViewBuilder
+    private var systemMedium: some View {
+        if !entry.isConfigured {
+            unconfigured
+        } else {
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    header
+
+                    Spacer(minLength: 0)
+
+                    Text(entry.valueText)
+                        .font(.title.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    if let supportingText {
+                        footerText(supportingText)
+                    }
+                }
+                .frame(width: 118, alignment: .leading)
+
+                graph
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    private var unconfigured: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            graphIcon
+
+            Spacer(minLength: 0)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.displayName)
+                    .font(.headline)
+                    .lineLimit(2)
+
+                Text(entry.valueText)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var header: some View {
         HStack(spacing: 7) {
-            Image(systemName: entry.systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(entry.isAvailable ? .blue : .secondary)
-                .frame(width: 24, height: 24)
-                .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            graphIcon
 
             Text(entry.displayName)
                 .font(.headline)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
         }
+    }
+
+    private var graphIcon: some View {
+        Image(systemName: entry.systemImage)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(entry.isAvailable ? .blue : .secondary)
+            .frame(width: 24, height: 24)
+            .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 
     private var graph: some View {

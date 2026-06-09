@@ -201,9 +201,9 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
                 date: Date(),
                 entityID: nil,
                 domain: "status",
-                displayName: "Choose a Status",
-                valueText: "--",
-                subtitle: "Open Homestead first",
+                displayName: "Choose Status",
+                valueText: "Open Homestead",
+                subtitle: "",
                 systemImage: "gauge.medium",
                 isHighlighted: false,
                 isAlerting: false,
@@ -344,7 +344,7 @@ struct HomesteadStatusWidgetView: View {
 
                 Text(entry.valueText)
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(entry.domain == "person" ? iconColor : .primary)
+                    .foregroundStyle(entry.isConfigured && entry.domain == "person" ? iconColor : entry.isConfigured ? .primary : .secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
@@ -407,7 +407,8 @@ struct HomesteadStatusWidgetView: View {
 
     private var supportingText: String? {
         guard entry.isConfigured else {
-            return entry.subtitle
+            let trimmedSubtitle = entry.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmedSubtitle.isEmpty ? nil : trimmedSubtitle
         }
 
         guard entry.isAvailable else {

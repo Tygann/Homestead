@@ -215,7 +215,7 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
             return HomesteadActionEntry(
                 date: Date(),
                 entityID: nil,
-                displayName: "Choose an Action",
+                displayName: "Choose Action",
                 domain: "scene",
                 systemImage: "sparkles",
                 isConfigured: false
@@ -327,7 +327,7 @@ struct HomesteadActionWidgetView: View {
 
     private var supportingText: String? {
         guard entry.isConfigured else {
-            return "Open Homestead first"
+            return "Open Homestead"
         }
 
         return nil

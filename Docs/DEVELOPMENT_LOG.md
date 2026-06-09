@@ -14,6 +14,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added searchable App Intent entity queries for the public widgets and enriched compact widget snapshots with optional area/device context so the system picker can show cleaner room/type subtitles without changing widget faces.
 - Returned sectioned App Intent picker collections with entity SF Symbol images for public widgets, and made curated Control/Action gallery placeholders non-actionable so sample taps do not attempt fake Home Assistant service calls.
 - Tightened widget picker rows so sectioned entities show context-shortened names, keep subtitles to the entity kind, and leave raw entity IDs searchable but hidden from the default row presentation.
+- Aligned unconfigured Home Screen widget faces around shorter `Choose Control/Status/Sensor/Action` setup copy and removed placeholder data glyphs like `--` from setup states.
 
 ### Experience-First Widgets
 
