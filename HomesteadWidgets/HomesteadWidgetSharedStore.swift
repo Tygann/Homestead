@@ -567,15 +567,6 @@ enum HomesteadWidgetEntityPickerText {
         return IntentItemCollection(sections: sections)
     }
 
-    static func subtitle(
-        areaName: String?,
-        deviceName: String?,
-        kind: String,
-        id: String
-    ) -> String {
-        kind
-    }
-
     static func contextualDisplayName(
         _ displayName: String,
         areaName: String?,

@@ -15,6 +15,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Returned sectioned App Intent picker collections with entity SF Symbol images for public widgets, and made curated Control/Action gallery placeholders non-actionable so sample taps do not attempt fake Home Assistant service calls.
 - Tightened widget picker rows so sectioned entities show context-shortened names, keep subtitles to the entity kind, and leave raw entity IDs searchable but hidden from the default row presentation.
 - Aligned unconfigured Home Screen widget faces around shorter `Choose Control/Status/Sensor/Action` setup copy and removed placeholder data glyphs like `--` from setup states.
+- Removed routine domain subtitles from public widget picker rows so grouped entity lists rely on room/device section headers, icons, and shortened entity names while keeping domain and entity IDs searchable.
 
 ### Experience-First Widgets
 

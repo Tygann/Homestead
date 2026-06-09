@@ -102,17 +102,20 @@ Recommended reasoning level: High.
 - Tightened Status widget supporting text to show only alert/recovery-style messages and made Action widgets communicate command behavior through a play-badged icon rather than adding Run/Script labels to the small face.
 - Aligned Control and Status compact second-line text sizing and replaced the Action overlay badge with a single play-circle command glyph.
 - Added searchable App Intent entity queries for the public Control, Status, Graph, and Action widgets.
-- Enriched compact app-group widget snapshots with optional area/device context from existing registry metadata so the system picker can show room/type subtitles and search across name, entity ID, domain, room, device, and value/status without exposing Home Assistant DTOs to widget views.
+- Enriched compact app-group widget snapshots with optional area/device context from existing registry metadata so the system picker can group by room/device/type and search across name, entity ID, domain, room, device, and value/status without exposing Home Assistant DTOs to widget views.
 - Public widget pickers now return sectioned App Intent collections grouped by room/device/type where the system honors sections, and entity display representations include SF Symbol images for picker rows.
 - Curated Control and Action add-widget/gallery placeholders are visual-only and no longer carry fake entity IDs, avoiding accidental sample service-call attempts before a real entity is selected.
-- Widget picker rows now shorten entity names by removing the current room/device prefix where possible, use the entity kind as the subtitle, and keep raw Home Assistant entity IDs searchable but hidden from the default row UI.
+- Widget picker rows now shorten entity names by removing the current room/device prefix where possible and keep raw Home Assistant domains/entity IDs searchable but hidden from the default row UI.
 - Unconfigured Home Screen widget faces now use consistent short setup copy (`Choose Control/Status/Sensor/Action` and `Open Homestead`) and avoid placeholder data markers like `--`.
-- WidgetKit still owns the configuration picker layout; if iOS flattens sections in a context, Homestead still orders rows by the same room/device/type groups and keeps context-rich subtitles.
+- WidgetKit still owns the configuration picker layout; if iOS flattens sections in a context, Homestead still orders rows by the same room/device/type groups and keeps search matching context-rich metadata.
+- Public widget picker rows now omit routine domain subtitles entirely so grouped room/device lists feel closer to Apple Home's compact accessory chooser.
 
 ## Next Chunk
 
 - Continue with widget polish/device testing or move to Control Center controls using the same official Home Assistant WebSocket/OAuth/service-call paths already used by the app and current widgets.
-- Recommended next scope: device-test the experience-first Home Screen widget set, refine family-specific layouts or picker subtitle/search behavior if needed, then add Control Center controls for the safest actions.
+- Recommended next widget scope: device-test the experience-first Home Screen widget set, polish the in-app mini card into a reusable icon/name/state tile, then consider a separate medium/large multi-entity Accessories widget built from the same tile language.
+- Keep Small Home Screen widgets focused on one configured entity; use medium/large families for any future multi-entity grid.
+- Treat App Intent boolean toggles as optional product controls only when they have a clear user-facing purpose, such as auto-filled recommendations or hiding labels in a dense multi-entity widget.
 - Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
 - Keep service calls official through WebSocket `call_service`; do not add REST, webhook, or private frontend endpoints for widget actions.
 - Keep lock widgets conservative unless a future design adds explicit confirmation; current widget scope intentionally does not expose one-tap unlock.
@@ -136,6 +139,8 @@ Recommended reasoning level: High.
 
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPlaceholderPolish` after aligning unconfigured widget setup faces.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPlaceholderPolish` after aligning unconfigured widget setup faces. The test compile emitted existing Swift 6-mode warnings around main actor-isolated snapshot `Equatable` conformances in macro-expanded expectations.
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSubtitle` after removing routine domain subtitles from public widget picker rows.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSubtitle` after removing routine domain subtitles from public widget picker rows.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerNames` after shortening grouped widget picker row titles and hiding entity IDs from default subtitles.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerNames` after shortening grouped widget picker row titles and hiding entity IDs from default subtitles. The test compile emitted existing Swift 6-mode warnings around main actor-isolated snapshot `Equatable` conformances in macro-expanded expectations.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSections` after returning sectioned/icon App Intent picker collections and non-actionable sample placeholders.

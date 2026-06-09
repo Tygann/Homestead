@@ -43,7 +43,6 @@ struct HomesteadGraphSensorEntity: AppEntity, Identifiable {
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: "\(pickerDisplayName)",
-            subtitle: "\(pickerSubtitle)",
             image: DisplayRepresentation.Image(systemName: systemImage)
         )
     }
@@ -53,15 +52,6 @@ struct HomesteadGraphSensorEntity: AppEntity, Identifiable {
             displayName,
             areaName: areaName,
             deviceName: deviceName
-        )
-    }
-
-    private var pickerSubtitle: String {
-        HomesteadWidgetEntityPickerText.subtitle(
-            areaName: areaName,
-            deviceName: deviceName,
-            kind: "Numeric Sensor",
-            id: id
         )
     }
 

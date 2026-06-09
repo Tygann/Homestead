@@ -64,7 +64,6 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: "\(pickerDisplayName)",
-            subtitle: "\(pickerSubtitle)",
             image: DisplayRepresentation.Image(systemName: systemImage)
         )
     }
@@ -74,15 +73,6 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
             displayName,
             areaName: areaName,
             deviceName: deviceName
-        )
-    }
-
-    private var pickerSubtitle: String {
-        HomesteadWidgetEntityPickerText.subtitle(
-            areaName: areaName,
-            deviceName: deviceName,
-            kind: HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
-            id: id
         )
     }
 
