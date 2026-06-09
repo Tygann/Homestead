@@ -43,7 +43,11 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
     let isAvailable: Bool
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(displayName)", subtitle: "\(pickerSubtitle)")
+        DisplayRepresentation(
+            title: "\(displayName)",
+            subtitle: "\(pickerSubtitle)",
+            image: DisplayRepresentation.Image(systemName: systemImage)
+        )
     }
 
     private var pickerSubtitle: String {
@@ -52,6 +56,14 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
             deviceName: deviceName,
             kind: HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
             id: id
+        )
+    }
+
+    var pickerGroupTitle: String {
+        HomesteadWidgetEntityPickerText.groupName(
+            areaName: areaName,
+            deviceName: deviceName,
+            fallback: domain == "person" ? "People" : "Sensors"
         )
     }
 
@@ -72,25 +84,39 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
     }
 }
 
-struct HomesteadStatusEntityQuery: EntityQuery, EntityStringQuery {
+struct HomesteadStatusEntityQuery: EntityQuery, EntityStringQuery, EnumerableEntityQuery {
+    typealias Result = IntentItemCollection<HomesteadStatusEntity>
+
     func entities(for identifiers: [HomesteadStatusEntity.ID]) async throws -> [HomesteadStatusEntity] {
-        allEntities().filter { identifiers.contains($0.id) }
+        flatEntities().filter { identifiers.contains($0.id) }
     }
 
-    func entities(matching string: String) async throws -> [HomesteadStatusEntity] {
-        allEntities().filter { $0.matches(string) }
+    func entities(matching string: String) async throws -> IntentItemCollection<HomesteadStatusEntity> {
+        collection(from: flatEntities().filter { $0.matches(string) })
     }
 
-    func suggestedEntities() async throws -> [HomesteadStatusEntity] {
-        allEntities()
+    func allEntities() async throws -> IntentItemCollection<HomesteadStatusEntity> {
+        collection(from: flatEntities())
+    }
+
+    func suggestedEntities() async throws -> IntentItemCollection<HomesteadStatusEntity> {
+        try await allEntities()
     }
 
     func defaultResult() async -> HomesteadStatusEntity? {
         nil
     }
 
-    private func allEntities() -> [HomesteadStatusEntity] {
+    private func flatEntities() -> [HomesteadStatusEntity] {
         HomesteadStatusSnapshotBuilder.entities()
+    }
+
+    private func collection(from entities: [HomesteadStatusEntity]) -> IntentItemCollection<HomesteadStatusEntity> {
+        HomesteadWidgetEntityPickerText.collection(
+            from: entities,
+            groupedBy: \.pickerGroupTitle,
+            sortedBy: \.displayName
+        )
     }
 }
 

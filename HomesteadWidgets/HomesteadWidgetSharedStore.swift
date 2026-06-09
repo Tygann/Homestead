@@ -1,3 +1,4 @@
+import AppIntents
 import Foundation
 import Security
 
@@ -547,6 +548,25 @@ struct WidgetActionSnapshot: Codable, Equatable, Sendable {
 }
 
 enum HomesteadWidgetEntityPickerText {
+    static func collection<Entity: AppEntity>(
+        from entities: [Entity],
+        groupedBy groupTitle: (Entity) -> String,
+        sortedBy sortTitle: (Entity) -> String
+    ) -> IntentItemCollection<Entity> {
+        let groupedEntities = Dictionary(grouping: entities, by: groupTitle)
+        let sections = groupedEntities.keys
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            .map { title in
+                let items = groupedEntities[title, default: []]
+                    .sorted {
+                        sortTitle($0).localizedCaseInsensitiveCompare(sortTitle($1)) == .orderedAscending
+                    }
+                return IntentItemSection("\(title)", items: items)
+            }
+
+        return IntentItemCollection(sections: sections)
+    }
+
     static func subtitle(
         areaName: String?,
         deviceName: String?,
@@ -598,8 +618,27 @@ enum HomesteadWidgetEntityPickerText {
         }
     }
 
+    static func pluralDisplayName(forDomain domain: String) -> String {
+        switch domain {
+        case "switch":
+            "Switches"
+        case "person":
+            "People"
+        default:
+            "\(displayName(forDomain: domain))s"
+        }
+    }
+
     private static func contextName(areaName: String?, deviceName: String?) -> String? {
         nonEmptyValue(areaName) ?? nonEmptyValue(deviceName)
+    }
+
+    static func groupName(
+        areaName: String?,
+        deviceName: String?,
+        fallback: String
+    ) -> String {
+        contextName(areaName: areaName, deviceName: deviceName) ?? fallback
     }
 
     private static func nonEmptyValue(_ value: String?) -> String? {

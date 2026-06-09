@@ -103,7 +103,9 @@ Recommended reasoning level: High.
 - Aligned Control and Status compact second-line text sizing and replaced the Action overlay badge with a single play-circle command glyph.
 - Added searchable App Intent entity queries for the public Control, Status, Graph, and Action widgets.
 - Enriched compact app-group widget snapshots with optional area/device context from existing registry metadata so the system picker can show room/type subtitles and search across name, entity ID, domain, room, device, and value/status without exposing Home Assistant DTOs to widget views.
-- WidgetKit still owns the configuration picker layout; true custom section headers like Apple Home's accessory picker are not currently implemented, so Homestead uses context-rich subtitles and searchable rows as the modern system-native compromise.
+- Public widget pickers now return sectioned App Intent collections grouped by room/device/type where the system honors sections, and entity display representations include SF Symbol images for picker rows.
+- Curated Control and Action add-widget/gallery placeholders are visual-only and no longer carry fake entity IDs, avoiding accidental sample service-call attempts before a real entity is selected.
+- WidgetKit still owns the configuration picker layout; if iOS flattens sections in a context, Homestead still orders rows by the same room/device/type groups and keeps context-rich subtitles.
 
 ## Next Chunk
 
@@ -130,6 +132,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSections` after returning sectioned/icon App Intent picker collections and non-actionable sample placeholders.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSections` after returning sectioned/icon App Intent picker collections and non-actionable sample placeholders. The test compile emitted existing Swift 6-mode warnings around main actor-isolated snapshot `Equatable` conformances in macro-expanded expectations.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSearch` after adding searchable context-rich widget entity pickers.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPickerSearch` after adding searchable context-rich widget entity pickers.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetVisualAlign` after aligning compact widget typography and simplifying the Action icon.
