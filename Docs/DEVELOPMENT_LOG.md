@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-09
 
+### Widget Gallery Polish
+
+- Polished the experience-first Home Screen widget previews so unconfigured add-widget gallery snapshots use curated sample data instead of whichever real entity happens to be first.
+- Tightened small widget bodies by hiding generic labels such as Sensor, Script, and 6H Trend while preserving meaningful status copy like unavailable or setup guidance.
+
 ### Experience-First Widgets
 
 - Reworked the public Home Screen widget gallery from domain-first widgets into Control, Status, Graph, and Action widget kinds.

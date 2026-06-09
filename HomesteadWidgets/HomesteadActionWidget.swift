@@ -114,7 +114,11 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadActionWidgetConfigurationIntent,
         in context: Context
     ) async -> HomesteadActionEntry {
-        entry(for: configuration)
+        if context.isPreview, configuration.action == nil {
+            return placeholder(in: context)
+        }
+
+        return entry(for: configuration)
     }
 
     func timeline(
@@ -191,12 +195,15 @@ struct HomesteadActionWidgetView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.displayName)
                     .font(.headline)
-                    .lineLimit(2)
+                    .lineLimit(entry.isConfigured ? 3 : 2)
+                    .minimumScaleFactor(0.86)
 
-                Text(statusText)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if let supportingText {
+                    Text(supportingText)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -214,9 +221,12 @@ struct HomesteadActionWidgetView: View {
                 Text(entry.displayName)
                     .font(.headline)
                     .lineLimit(1)
-                Text(statusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let supportingText {
+                    Text(supportingText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
         }
     }
@@ -241,17 +251,12 @@ struct HomesteadActionWidgetView: View {
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private var statusText: String {
+    private var supportingText: String? {
         guard entry.isConfigured else {
             return "Open Homestead first"
         }
 
-        switch entry.domain {
-        case "script":
-            return "Script"
-        default:
-            return "Scene"
-        }
+        return nil
     }
 }
 

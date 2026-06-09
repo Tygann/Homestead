@@ -195,7 +195,11 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadControlWidgetConfigurationIntent,
         in context: Context
     ) async -> HomesteadControlEntry {
-        await entry(for: configuration).entry
+        if context.isPreview, configuration.entity == nil {
+            return placeholder(in: context)
+        }
+
+        return await entry(for: configuration).entry
     }
 
     func timeline(

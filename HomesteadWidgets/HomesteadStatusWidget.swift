@@ -98,7 +98,11 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadStatusWidgetConfigurationIntent,
         in context: Context
     ) async -> HomesteadStatusEntry {
-        await entry(for: configuration)
+        if context.isPreview, configuration.entity == nil {
+            return placeholder(in: context)
+        }
+
+        return await entry(for: configuration)
     }
 
     func timeline(
@@ -268,11 +272,12 @@ struct HomesteadStatusWidgetView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
 
-                if entry.domain == "sensor" {
-                    Text(entry.subtitle)
+                if let supportingText {
+                    Text(supportingText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
         }
@@ -322,6 +327,29 @@ struct HomesteadStatusWidgetView: View {
         }
 
         return .accentColor
+    }
+
+    private var supportingText: String? {
+        guard entry.isConfigured else {
+            return entry.subtitle
+        }
+
+        guard entry.isAvailable else {
+            return "Unavailable"
+        }
+
+        guard entry.domain == "sensor" else {
+            return nil
+        }
+
+        let trimmedSubtitle = entry.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSubtitle.isEmpty,
+              trimmedSubtitle != "Sensor",
+              trimmedSubtitle != entry.valueText else {
+            return nil
+        }
+
+        return trimmedSubtitle
     }
 }
 

@@ -110,7 +110,11 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadSensorGraphWidgetConfigurationIntent,
         in context: Context
     ) async -> HomesteadSensorGraphEntry {
-        await entry(for: configuration)
+        if context.isPreview, configuration.sensor == nil {
+            return placeholder(in: context)
+        }
+
+        return await entry(for: configuration)
     }
 
     func timeline(
@@ -239,7 +243,9 @@ struct HomesteadSensorGraphWidgetView: View {
             graph
                 .frame(height: 44)
 
-            footerText
+            if let supportingText {
+                footerText(supportingText)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -256,7 +262,9 @@ struct HomesteadSensorGraphWidgetView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
 
-                footerText
+                if let supportingText {
+                    footerText(supportingText)
+                }
             }
             .frame(width: 118, alignment: .leading)
 
@@ -289,8 +297,25 @@ struct HomesteadSensorGraphWidgetView: View {
         )
     }
 
-    private var footerText: some View {
-        Text(entry.samples.isEmpty ? entry.subtitle : entry.summaryText)
+    private var supportingText: String? {
+        guard entry.isConfigured else {
+            return entry.subtitle
+        }
+
+        if entry.samples.isEmpty {
+            let trimmedSubtitle = entry.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedSubtitle.isEmpty, trimmedSubtitle != "6H Trend" else {
+                return nil
+            }
+
+            return trimmedSubtitle
+        }
+
+        return family == .systemMedium ? entry.summaryText : nil
+    }
+
+    private func footerText(_ text: String) -> some View {
+        Text(text)
             .font(.caption2)
             .foregroundStyle(.secondary)
             .lineLimit(family == .systemMedium ? 2 : 1)
