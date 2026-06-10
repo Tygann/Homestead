@@ -67,12 +67,17 @@ struct HomesteadTests {
             dataFreshness: .empty
         ) == nil)
 
-        let preparingCachedState = AppStatusAccessoryState.make(
+        #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .preparing,
             dataFreshness: .cached(Date(timeIntervalSinceNow: -60))
-        )
-        #expect(preparingCachedState?.title == "Showing cached state")
+        ) == nil)
+
+        #expect(AppStatusAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .connecting,
+            dataFreshness: .cached(Date(timeIntervalSinceNow: -60))
+        ) == nil)
 
         let cachedState = AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
@@ -159,7 +164,7 @@ struct HomesteadTests {
             hasServerURL: true,
             authState: .signedIn(HAAuthSessionSummary(credential: credential)),
             connectionStatus: .preparing,
-            dataFreshness: .empty,
+            dataFreshness: .cached(Date(timeIntervalSinceNow: -8)),
             serviceFeedback: nil
         )
         #expect(preparingChrome.statusAccessoryState == nil)

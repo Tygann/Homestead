@@ -85,7 +85,9 @@ nonisolated struct AppStatusAccessoryState: Equatable {
             }
 
             return disconnected
-        case .preparing, .connecting, .connected:
+        case .preparing, .connecting:
+            return freshnessState(for: dataFreshness, suppressCached: true)
+        case .connected:
             return freshnessState(for: dataFreshness)
         }
     }
@@ -98,9 +100,16 @@ nonisolated struct AppStatusAccessoryState: Equatable {
         return freshnessState(for: dataFreshness)
     }
 
-    private static func freshnessState(for dataFreshness: HADataFreshness) -> AppStatusAccessoryState? {
+    private static func freshnessState(
+        for dataFreshness: HADataFreshness,
+        suppressCached: Bool = false
+    ) -> AppStatusAccessoryState? {
         switch dataFreshness {
         case .cached(let date):
+            guard !suppressCached else {
+                return nil
+            }
+
             return cached(lastUpdated: date)
         case .stale(_, let lastUpdated):
             return interrupted(lastUpdated: lastUpdated)
