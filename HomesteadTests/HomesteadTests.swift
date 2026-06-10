@@ -4231,7 +4231,7 @@ struct HomesteadTests {
                 isAvailable: true,
                 lastChanged: nil,
                 lastUpdated: nil,
-                entityPicturePath: nil,
+                entityPicturePath: "/api/image/tyler",
                 sourceEntityID: "device_tracker.iphone",
                 sourceType: nil,
                 batteryLevel: nil,
@@ -4328,9 +4328,15 @@ struct HomesteadTests {
             records: people,
             searchText: ""
         )
+        let filteredPresentation = HAPersonPresencePresentation.make(
+            records: people,
+            searchText: "",
+            currentUserEntityPicturePath: "/api/image/tyler"
+        )
 
         #expect(searchPresentation.people.map(\.entityID) == ["person.tyler"])
         #expect(allPeoplePresentation.people.map(\.entityID) == ["person.guest", "person.tyler"])
+        #expect(filteredPresentation.people.map(\.entityID) == ["person.guest"])
     }
 
     @MainActor

@@ -9,6 +9,12 @@ struct SettingsView: View {
 
     var body: some View {
         let peopleRecords = stateStore.presenceRecords().filter(\.isPerson)
+        let visiblePeopleRecords = peopleRecords.filter {
+            !$0.isCurrentUser(
+                currentUserDisplayName: homeAssistantService.currentUserDisplayName,
+                currentUserEntityPicturePath: homeAssistantService.currentUserEntityPicturePath
+            )
+        }
 
         Form {
             Section {
@@ -23,7 +29,7 @@ struct SettingsView: View {
                 NavigationLink {
                     PeopleSettingsView()
                 } label: {
-                    PeopleSettingsRow(records: peopleRecords)
+                    PeopleSettingsRow(records: visiblePeopleRecords)
                 }
             }
 
@@ -145,7 +151,7 @@ private struct PeopleSettingsRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            PeoplePresenceAvatarStackView(records: records, size: 30)
+            PeoplePresenceAvatarStackView(records: records, size: 30, width: 82, maximumVisibleCount: records.count)
                 .frame(width: 82, alignment: .leading)
 
             Text("People")

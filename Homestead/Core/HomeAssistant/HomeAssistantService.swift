@@ -16,6 +16,7 @@ final class HomeAssistantService {
     private(set) var mobileAppPushNotificationState: HAMobileAppPushNotificationState = .unavailable
     private(set) var authState: HAAuthState = .signedOut
     private(set) var currentUserDisplayName: String?
+    private(set) var currentUserEntityPicturePath: String?
     private(set) var isNetworkAvailable = true
     private(set) var suppressesTransientConnectionHealth = false
     private(set) var serviceRegistry: HAServiceRegistry = .empty
@@ -298,6 +299,7 @@ final class HomeAssistantService {
         mobileAppPushNotificationState = .unavailable
         currentUserID = nil
         currentUserDisplayName = nil
+        currentUserEntityPicturePath = nil
         serviceRegistry = .empty
         serverConfiguration = nil
         serverConfigurationStatus = .unavailable
@@ -1672,11 +1674,13 @@ final class HomeAssistantService {
         await configureClientCallbacks()
         currentUserID = nil
         currentUserDisplayName = nil
+        currentUserEntityPicturePath = nil
         try await client.connect(configuration: configuration)
         let currentUser = try? await client.fetchCurrentUser()
         currentUserID = currentUser?.id
         let displayName = currentUser?.name?.trimmingCharacters(in: .whitespacesAndNewlines)
         currentUserDisplayName = displayName?.isEmpty == false ? displayName : nil
+        currentUserEntityPicturePath = currentUserID.flatMap { personEntityPicture(forUserID: $0) }
     }
 
     private func establishTransportConnectionWithAuthRecovery(

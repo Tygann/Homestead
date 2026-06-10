@@ -205,10 +205,17 @@ struct HAPersonPresencePresentation: Equatable, Sendable {
 
     static func make(
         records: [HAPresenceRecord],
-        searchText: String
+        searchText: String,
+        currentUserEntityPicturePath: String? = nil
     ) -> HAPersonPresencePresentation {
         let people = records
             .filter(\.isPerson)
+            .filter {
+                !$0.isCurrentUser(
+                    currentUserDisplayName: nil,
+                    currentUserEntityPicturePath: currentUserEntityPicturePath
+                )
+            }
             .filter { $0.matches(query: searchText) }
             .sortedByPresenceTitle
 
@@ -323,5 +330,36 @@ private extension String {
         default:
             return replacingOccurrences(of: "_", with: " ").capitalized
         }
+    }
+}
+
+extension HAPresenceRecord {
+    func isCurrentUser(
+        currentUserDisplayName: String?,
+        currentUserEntityPicturePath: String?
+    ) -> Bool {
+        if let currentUserEntityPicturePath,
+           let recordEntityPicturePath = entityPicturePath?.trimmingCharacters(in: .whitespacesAndNewlines),
+           recordEntityPicturePath == currentUserEntityPicturePath.trimmingCharacters(in: .whitespacesAndNewlines) {
+            return true
+        }
+
+        guard let currentUserDisplayName else {
+            return false
+        }
+
+        let recordName = displayName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let userName = currentUserDisplayName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !recordName.isEmpty, !userName.isEmpty else {
+            return false
+        }
+
+        if recordName == userName || userName.hasPrefix(recordName) || recordName.hasPrefix(userName) {
+            return true
+        }
+
+        let recordFirstName = recordName.split(whereSeparator: \.isWhitespace).first
+        let userFirstName = userName.split(whereSeparator: \.isWhitespace).first
+        return recordFirstName != nil && recordFirstName == userFirstName
     }
 }

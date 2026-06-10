@@ -4,16 +4,18 @@ import UIKit
 struct PeoplePresenceAvatarStackView: View {
     let records: [HAPresenceRecord]
     var size: CGFloat = 38
-
-    private let visibleCount = 3
+    var width: CGFloat?
+    var maximumVisibleCount: Int? = 3
 
     var body: some View {
-        let visibleRecords = Array(records.prefix(visibleCount))
+        let visibleRecords = Array(records.prefix(maximumVisibleCount ?? records.count))
+        let overlap = avatarOverlap(for: visibleRecords.count)
+        let stackWidth = width ?? intrinsicWidth(for: visibleRecords.count, overlap: overlap)
 
-        HStack(spacing: -size * 0.18) {
+        HStack(spacing: -overlap) {
             ForEach(Array(visibleRecords.enumerated()), id: \.element.entityID) { index, record in
                 PeoplePresenceAvatarView(record: record, size: size)
-                    .zIndex(Double(visibleCount - index))
+                    .zIndex(Double(visibleRecords.count - index))
             }
 
             if visibleRecords.isEmpty {
@@ -24,7 +26,29 @@ struct PeoplePresenceAvatarStackView: View {
                     .background(Color.secondary.opacity(0.16), in: Circle())
             }
         }
-        .frame(height: size)
+        .frame(width: stackWidth, height: size, alignment: .leading)
+    }
+
+    private func avatarOverlap(for count: Int) -> CGFloat {
+        guard count > 1 else {
+            return 0
+        }
+
+        let minimumOverlap = size * 0.18
+        guard let width else {
+            return minimumOverlap
+        }
+
+        let fitOverlap = size - ((width - size) / CGFloat(count - 1))
+        return max(minimumOverlap, fitOverlap)
+    }
+
+    private func intrinsicWidth(for count: Int, overlap: CGFloat) -> CGFloat {
+        guard count > 0 else {
+            return size
+        }
+
+        return size + CGFloat(count - 1) * (size - overlap)
     }
 }
 
