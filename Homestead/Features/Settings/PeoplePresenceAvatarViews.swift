@@ -11,6 +11,7 @@ struct PeoplePresenceAvatarStackView: View {
         let visibleRecords = Array(records.prefix(maximumVisibleCount ?? records.count))
         let overlap = avatarOverlap(for: visibleRecords.count)
         let stackWidth = width ?? intrinsicWidth(for: visibleRecords.count, overlap: overlap)
+        let stackAlignment: Alignment = visibleRecords.count <= 1 ? .center : .leading
 
         HStack(spacing: -overlap) {
             ForEach(Array(visibleRecords.enumerated()), id: \.element.entityID) { index, record in
@@ -27,6 +28,7 @@ struct PeoplePresenceAvatarStackView: View {
             }
         }
         .frame(width: stackWidth, height: size, alignment: .leading)
+        .frame(width: width ?? stackWidth, height: size, alignment: stackAlignment)
     }
 
     private func avatarOverlap(for count: Int) -> CGFloat {

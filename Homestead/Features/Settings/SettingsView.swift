@@ -2565,7 +2565,7 @@ struct HomeAssistantAvatarView: View {
                         .resizable()
                         .scaledToFit()
                         .foregroundStyle(.secondary)
-                        .padding(8)
+                        .padding(6)
                 }
             }
         }

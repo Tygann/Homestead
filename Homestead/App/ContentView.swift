@@ -232,7 +232,7 @@ struct SettingsAccountButton: View {
     var body: some View {
         Button(action: openSettings) {
             HomeAssistantAvatarView()
-                .frame(width: 30, height: 30)
+                .frame(width: 36, height: 36)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Settings")
