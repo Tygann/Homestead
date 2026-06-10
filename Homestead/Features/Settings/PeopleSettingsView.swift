@@ -13,6 +13,11 @@ struct PeopleSettingsView: View {
 
         List {
             if !presentation.people.isEmpty {
+                PeopleLandingHeader(records: presentation.people)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 4, trailing: 20))
+                    .listRowSeparator(.hidden)
+
                 Section {
                     ForEach(presentation.people) { record in
                         NavigationLink {
@@ -21,10 +26,7 @@ struct PeopleSettingsView: View {
                             PeoplePresenceRow(record: record)
                         }
                     }
-                } header: {
-                    PeoplePageHeader(records: presentation.people)
                 }
-                .textCase(nil)
             }
         }
         .overlay {
@@ -40,19 +42,19 @@ struct PeopleSettingsView: View {
     }
 }
 
-private struct PeoplePageHeader: View {
+private struct PeopleLandingHeader: View {
     let records: [HAPresenceRecord]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            PeoplePresenceAvatarStackView(records: records, size: 44)
+        VStack(alignment: .center, spacing: AppSpacing.medium) {
+            PeoplePresenceAvatarStackView(records: records, size: 52)
 
             Text("People")
-                .font(.title2.weight(.semibold))
+                .font(.title2.weight(.bold))
                 .foregroundStyle(.primary)
         }
-        .padding(.top, 4)
-        .padding(.bottom, 2)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.vertical, 2)
     }
 }
 
@@ -60,12 +62,12 @@ private struct PeoplePresenceRow: View {
     let record: HAPresenceRecord
 
     var body: some View {
-        HStack(alignment: .center, spacing: AppSpacing.medium) {
+        HStack(alignment: .center, spacing: 12) {
             PeoplePresenceAvatarView(record: record, size: 40)
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(record.displayName)
-                    .font(.headline)
+                    .font(.body.weight(.semibold))
                     .lineLimit(1)
             }
 

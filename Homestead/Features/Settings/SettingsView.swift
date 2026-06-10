@@ -20,9 +20,6 @@ struct SettingsView: View {
                         tint: accountStatusTint
                     )
                 }
-            }
-
-            Section {
                 NavigationLink {
                     PeopleSettingsView()
                 } label: {
@@ -147,12 +144,12 @@ private struct PeopleSettingsRow: View {
     let records: [HAPresenceRecord]
 
     var body: some View {
-        HStack(spacing: AppSpacing.medium) {
+        HStack(spacing: 12) {
             PeoplePresenceAvatarStackView(records: records, size: 34)
-                .frame(width: 64, alignment: .leading)
+                .frame(width: 56, alignment: .leading)
 
             Text("People")
-                .font(.body)
+                .font(.body.weight(.semibold))
                 .foregroundStyle(.primary)
 
             Spacer()

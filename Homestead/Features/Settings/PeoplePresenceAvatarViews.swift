@@ -10,13 +10,9 @@ struct PeoplePresenceAvatarStackView: View {
     var body: some View {
         let visibleRecords = Array(records.prefix(visibleCount))
 
-        HStack(spacing: -size * 0.36) {
+        HStack(spacing: -size * 0.18) {
             ForEach(Array(visibleRecords.enumerated()), id: \.element.entityID) { index, record in
                 PeoplePresenceAvatarView(record: record, size: size)
-                    .overlay {
-                        Circle()
-                            .stroke(Color(.systemBackground), lineWidth: 2)
-                    }
                     .zIndex(Double(visibleCount - index))
             }
 
