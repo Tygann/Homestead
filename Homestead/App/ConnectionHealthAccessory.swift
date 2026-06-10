@@ -68,28 +68,37 @@ nonisolated struct AppStatusAccessoryState: Equatable {
     static func make(
         hasHomeAssistantSession: Bool,
         connectionStatus: HAConnectionStatus,
-        dataFreshness: HADataFreshness
+        dataFreshness: HADataFreshness,
+        suppressTransientConnectionHealth: Bool = false
     ) -> AppStatusAccessoryState? {
         guard hasHomeAssistantSession else {
             return nil
         }
 
+        let state: AppStatusAccessoryState?
         switch connectionStatus {
         case .reconnecting:
-            return reconnecting
+            state = reconnecting
         case .failed(let message):
-            return failed(message: message)
+            state = failed(message: message)
         case .disconnected:
             if let staleState = staleState(for: dataFreshness) {
-                return staleState
+                state = staleState
+            } else {
+                state = disconnected
             }
-
-            return disconnected
         case .preparing, .connecting:
-            return freshnessState(for: dataFreshness, suppressCached: true)
+            state = freshnessState(for: dataFreshness, suppressCached: true)
         case .connected:
-            return freshnessState(for: dataFreshness)
+            state = freshnessState(for: dataFreshness)
         }
+
+        if suppressTransientConnectionHealth,
+           state?.isTransientConnectionHealth == true {
+            return nil
+        }
+
+        return state
     }
 
     private static func staleState(for dataFreshness: HADataFreshness) -> AppStatusAccessoryState? {
@@ -199,6 +208,15 @@ nonisolated struct AppStatusAccessoryState: Equatable {
         formatter.unitsStyle = .full
         let relativeDate = formatter.localizedString(for: lastUpdated, relativeTo: Date())
         return "Last live update \(relativeDate)."
+    }
+
+    private var isTransientConnectionHealth: Bool {
+        switch style {
+        case .progress, .warning:
+            true
+        case .success, .failure:
+            false
+        }
     }
 }
 

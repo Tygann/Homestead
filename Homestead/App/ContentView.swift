@@ -16,7 +16,8 @@ struct ContentView: View {
             authState: homeAssistantService.authState,
             connectionStatus: homeAssistantService.connectionStatus,
             dataFreshness: homeAssistantService.dataFreshness,
-            serviceFeedback: homeAssistantService.serviceFeedback
+            serviceFeedback: homeAssistantService.serviceFeedback,
+            suppressTransientConnectionHealth: homeAssistantService.suppressesTransientConnectionHealth
         )
 
         TabView {
@@ -69,6 +70,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
+                homeAssistantService.applicationWillEnterForeground()
                 Task { await homeAssistantService.resume(settings: connectionSettings) }
             case .background:
                 homeAssistantService.applicationDidEnterBackground()

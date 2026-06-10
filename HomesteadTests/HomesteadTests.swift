@@ -114,6 +114,20 @@ struct HomesteadTests {
             dataFreshness: .stale("offline")
         ) == .reconnecting)
 
+        #expect(AppStatusAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .reconnecting,
+            dataFreshness: .stale("offline"),
+            suppressTransientConnectionHealth: true
+        ) == nil)
+
+        #expect(AppStatusAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .connected,
+            dataFreshness: .stale("offline", lastUpdated: Date(timeIntervalSinceNow: -8)),
+            suppressTransientConnectionHealth: true
+        ) == nil)
+
         let failedState = AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .failed("No route to host"),
@@ -122,6 +136,13 @@ struct HomesteadTests {
         #expect(failedState?.title == "Connection failed")
         #expect(failedState?.message.contains("Tap to retry") == true)
         #expect(failedState?.message.contains("No route to host") == true)
+
+        #expect(AppStatusAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .failed("No route to host"),
+            dataFreshness: .empty,
+            suppressTransientConnectionHealth: true
+        )?.title == "Connection failed")
 
         #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
@@ -189,6 +210,26 @@ struct HomesteadTests {
         )
         #expect(failureDuringReconnectChrome.statusAccessoryState?.title == "Action failed, reconnecting")
         #expect(failureDuringReconnectChrome.statusAccessoryState?.style == .failure)
+
+        let suppressedReconnectChrome = AppChromePresentation.make(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            connectionStatus: .reconnecting,
+            dataFreshness: .stale("offline", lastUpdated: Date(timeIntervalSinceNow: -8)),
+            serviceFeedback: nil,
+            suppressTransientConnectionHealth: true
+        )
+        #expect(suppressedReconnectChrome.statusAccessoryState == nil)
+
+        let failedDuringSuppressionChrome = AppChromePresentation.make(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            connectionStatus: .failed("No route to host"),
+            dataFreshness: .stale("offline"),
+            serviceFeedback: nil,
+            suppressTransientConnectionHealth: true
+        )
+        #expect(failedDuringSuppressionChrome.statusAccessoryState?.title == "Connection failed")
     }
 
     @Test func serviceFeedbackDurationMatchesOutcomeSeverity() {

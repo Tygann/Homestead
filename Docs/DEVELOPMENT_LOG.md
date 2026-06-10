@@ -9,6 +9,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added a preparing connection phase for signed-in startup so cached Home Assistant state can remain visible while Homestead loads cache, refreshes tokens, selects a route, and begins the WebSocket handshake.
 - Kept real failures explicit: initial connection errors still move to failed state, reconnect interruptions still surface through reconnecting/stale/failure chrome, and the app no longer publishes signed-in plus disconnected during normal launch.
 - Suppressed transient cached-state bottom chrome during the preparing/connecting startup handshake so cached dashboard content remains visible without a split-second warning banner.
+- Added a short foreground grace window for connection-health chrome so brief socket recovery after returning from the Home Screen does not flash reconnecting/interrupted banners while real failures still surface after the grace period.
 
 ## 2026-06-09
 

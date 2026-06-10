@@ -113,6 +113,8 @@ Recommended reasoning level: High.
 - Polished the in-app mini dashboard card into an Apple Home-inspired glance tile with a readable two-line entity name and compact icon, using tile/icon styling and accessibility for state.
 - Reused app-facing dashboard presentation state for active, inactive, and unavailable styling; mini tiles now keep quick-action icon behavior and detail-opening card behavior inside the existing dashboard card architecture.
 - Parameterized shared card icon/container styling so dashboard cards can use entity-specific accent colors without adding any Home Assistant API surface.
+- Smoothed launch/resume connection chrome so cached dashboard state remains stable during startup and brief foreground WebSocket recovery.
+- Added a short foreground grace window for transient connection-health banners while preserving explicit failed connection and service-failure feedback.
 
 ## Next Chunk
 
@@ -142,6 +144,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-ForegroundChromeGrace` after suppressing transient foreground connection-health chrome.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-ForegroundChromeGrace` after suppressing transient foreground connection-health chrome.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-Notifications` after hardening Home Assistant WebSocket notification payload decoding and clarifying connected-session notification scope.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-Notifications` after hardening Home Assistant WebSocket notification payload decoding.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-WidgetPlaceholderPolish` after aligning unconfigured widget setup faces.

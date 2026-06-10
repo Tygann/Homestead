@@ -8,7 +8,8 @@ nonisolated struct AppChromePresentation: Equatable {
         authState: HAAuthState,
         connectionStatus: HAConnectionStatus,
         dataFreshness: HADataFreshness,
-        serviceFeedback: HAServiceFeedback?
+        serviceFeedback: HAServiceFeedback?,
+        suppressTransientConnectionHealth: Bool = false
     ) -> AppChromePresentation {
         let hasHomeAssistantSession = hasServerURL && authState.isSignedIn
         guard hasHomeAssistantSession else {
@@ -18,7 +19,8 @@ nonisolated struct AppChromePresentation: Equatable {
         let connectionState = AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: connectionStatus,
-            dataFreshness: dataFreshness
+            dataFreshness: dataFreshness,
+            suppressTransientConnectionHealth: suppressTransientConnectionHealth
         )
 
         if serviceFeedback?.style == .failure {

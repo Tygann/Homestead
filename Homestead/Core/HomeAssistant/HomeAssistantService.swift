@@ -17,6 +17,7 @@ final class HomeAssistantService {
     private(set) var authState: HAAuthState = .signedOut
     private(set) var currentUserDisplayName: String?
     private(set) var isNetworkAvailable = true
+    private(set) var suppressesTransientConnectionHealth = false
     private(set) var serviceRegistry: HAServiceRegistry = .empty
     private(set) var serverConfiguration: HAServerConfigurationSnapshot?
     private(set) var serverConfigurationStatus: HAServerConfigurationStatus = .unavailable
@@ -38,6 +39,7 @@ final class HomeAssistantService {
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
     @ObservationIgnored private var stateSyncTask: Task<Void, Never>?
     @ObservationIgnored private var stateEnrichmentTask: Task<Void, Never>?
+    @ObservationIgnored private var connectionHealthGraceTask: Task<Void, Never>?
     @ObservationIgnored private var pendingCommandTasksByID: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var bufferedStateChangesByID: [String: HAStateChangedEventDTO] = [:]
     @ObservationIgnored private var isBufferingStateChanges = false
@@ -50,6 +52,7 @@ final class HomeAssistantService {
     @ObservationIgnored private let reconnectDelaySeconds = [1, 2, 5, 10, 30]
     @ObservationIgnored private let pendingCommandTimeout: Duration = .seconds(3)
     @ObservationIgnored private let resumeRefreshInterval: TimeInterval = 5
+    @ObservationIgnored private let foregroundConnectionHealthGrace: Duration = .seconds(2)
 
     init(
         stateStore: HAStateStore,
@@ -279,6 +282,7 @@ final class HomeAssistantService {
 
     func disconnect() async {
         shouldReconnect = false
+        endConnectionHealthGrace()
         reconnectTask?.cancel()
         reconnectTask = nil
         stateSyncTask?.cancel()
@@ -369,6 +373,14 @@ final class HomeAssistantService {
 
     func applicationDidEnterBackground() {
         lastSuspendedAt = Date()
+    }
+
+    func applicationWillEnterForeground() {
+        guard lastSuspendedAt != nil else {
+            return
+        }
+
+        beginConnectionHealthGrace()
     }
 
     func resume(settings: HAConnectionSettings) async {
@@ -2153,6 +2165,32 @@ final class HomeAssistantService {
         if connectionStatus == .reconnecting {
             connectionStatus = .disconnected
         }
+    }
+
+    private func beginConnectionHealthGrace() {
+        connectionHealthGraceTask?.cancel()
+        let graceDuration = foregroundConnectionHealthGrace
+        suppressesTransientConnectionHealth = true
+        connectionHealthGraceTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: graceDuration)
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            self?.suppressesTransientConnectionHealth = false
+            self?.connectionHealthGraceTask = nil
+        }
+    }
+
+    private func endConnectionHealthGrace() {
+        connectionHealthGraceTask?.cancel()
+        connectionHealthGraceTask = nil
+        suppressesTransientConnectionHealth = false
     }
 
     private func reconnectRouteConfigurations(
