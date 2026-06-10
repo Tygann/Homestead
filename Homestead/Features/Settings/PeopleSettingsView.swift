@@ -2,13 +2,12 @@ import SwiftUI
 
 struct PeopleSettingsView: View {
     @Environment(HAStateStore.self) private var stateStore
-    @State private var searchText = ""
 
     var body: some View {
         let records = stateStore.presenceRecords()
         let presentation = HAPersonPresencePresentation.make(
             records: records,
-            searchText: searchText
+            searchText: ""
         )
 
         List {
@@ -30,13 +29,10 @@ struct PeopleSettingsView: View {
             }
         }
         .overlay {
-            if records.filter(\.isPerson).isEmpty {
+            if records.filter(\.isPerson).isEmpty || presentation.people.isEmpty {
                 ContentUnavailableView("No People", systemImage: "person.2")
-            } else if presentation.people.isEmpty {
-                ContentUnavailableView.search(text: searchText)
             }
         }
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
     }

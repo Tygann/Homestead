@@ -2557,12 +2557,18 @@ struct HomeAssistantAvatarView: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Image(systemName: "person.crop.circle.fill")
-                    .resizable()
-                    .foregroundColor(.gray)
+                ZStack {
+                    Circle()
+                        .fill(Color.secondary.opacity(0.16))
+
+                    Image(systemName: "person.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                }
             }
         }
-//        .frame(width: 60, height: 60)
         .clipShape(Circle())
         .task(id: taskID) {
             await loadImage()
@@ -2583,18 +2589,12 @@ struct HomeAssistantAvatarView: View {
             return
         }
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  let uiImage = UIImage(data: data) else {
-                image = nil
-                return
-            }
-            image = Image(uiImage: uiImage)
-        } catch {
+        guard let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
             image = nil
+            return
         }
+
+        image = Image(uiImage: uiImage)
     }
 }
 
