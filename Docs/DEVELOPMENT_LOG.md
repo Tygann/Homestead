@@ -9,6 +9,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added a native Settings > People page for presence management using existing `person.*` and `device_tracker.*` state plus registry metadata.
 - Mapped presence into app-facing records and presentation helpers so SwiftUI does not read raw Home Assistant DTOs; people are related to source trackers where Home Assistant exposes the `source` attribute.
 - Reused authenticated Home Assistant image loading and documented REST history timelines for person/tracker details while keeping true user/admin management and private frontend endpoints out of scope.
+- Simplified Settings > People into a people-first surface: the main list now shows only person rows, custom zone state casing is preserved exactly, global tracker browsing/filter summaries are removed, and empty registry context is hidden from detail views.
 
 ### Connection Startup
 

@@ -14,9 +14,11 @@ Recommended reasoning level: High.
 
 - Added native Settings > People backed by existing `person.*` and `device_tracker.*` state plus registry metadata.
 - Added app-facing `HAPresenceRecord` / presentation helpers that map home, away, zone, unknown, and unavailable states, relate people to their Home Assistant `source` tracker when present, include tracker source/battery/GPS context, and keep raw DTOs out of SwiftUI.
-- Added compact grouped/filterable/searchable Settings rows, detail forms for current presence, related tracker/person context, area/device metadata, last-changed/updated timestamps, authenticated person entity pictures, and a Recent Activity link reusing the documented REST history timeline path.
-- Added a generic authenticated Home Assistant image request helper in `HomeAssistantService` and focused tests for presence mapping, grouping/search/filter behavior, and image request URL/auth shape.
-- Kept true Home Assistant user/admin management out of scope; no private frontend user/admin endpoints or new person-management APIs were added.
+- Trimmed Settings > People to a people-only list with avatar, name, and presence badge; global tracker browsing, filter summaries, grouping controls, and raw entity subtitles are intentionally omitted.
+- Kept person detail focused on the header, useful timestamp/accuracy details, the active Home Assistant `source` tracker, optional non-empty registry context, Recent Activity, and standard Home Assistant identifiers.
+- Preserved Home Assistant custom-zone casing exactly in user-facing presence copy, so states like `PCS` are not title-cased or prefixed.
+- Added a generic authenticated Home Assistant image request helper in `HomeAssistantService` and focused tests for presence mapping, people-only search behavior, and image request URL/auth shape.
+- Kept true Home Assistant user/admin management and assigned-device editing out of scope; no private frontend user/admin endpoints or unconfirmed person-management APIs were added.
 - Added a read-only Settings > Logbook page backed by Home Assistant's documented REST logbook endpoint.
 - Added typed logbook request/DTO support, an authenticated HTTP client path, app-facing `HAActivityRow` models, grouped/searchable presentation helpers, and focused regression tests for URL shape, decoding, mapping, filtering, and service auth handoff.
 - Kept domain filtering and search local to Homestead; server requests use only the documented logbook start timestamp, `end_time`, and `entity` parameters.

@@ -24,22 +24,6 @@ struct HAPresenceRecord: Identifiable, Equatable, Sendable {
     var isPerson: Bool { domain == .person }
     var isTracker: Bool { domain == .deviceTracker }
 
-    var rowSubtitle: String {
-        if isPerson, !linkedTrackers.isEmpty {
-            return linkedTrackersSummary
-        }
-
-        if let linkedPersonName {
-            return "Used by \(linkedPersonName)"
-        }
-
-        if let sourceTypeTitle {
-            return sourceTypeTitle
-        }
-
-        return contextSummary
-    }
-
     var linkedTrackersSummary: String {
         let names = linkedTrackers.map(\.displayName)
         switch names.count {
@@ -171,7 +155,7 @@ enum HAPresenceStatus: Equatable, Sendable {
         case "unavailable":
             self = .unavailable
         default:
-            self = .zone(normalizedState.presenceDisplayTitle)
+            self = normalizedState.isEmpty ? .unknown : .zone(normalizedState)
         }
     }
 
@@ -182,7 +166,7 @@ enum HAPresenceStatus: Equatable, Sendable {
         case .away:
             return "Away"
         case .zone(let zone):
-            return "At \(zone)"
+            return zone
         case .unknown:
             return "Unknown"
         case .unavailable:
@@ -196,21 +180,6 @@ enum HAPresenceStatus: Equatable, Sendable {
             return zone
         default:
             return title
-        }
-    }
-
-    var sectionTitle: String {
-        switch self {
-        case .home:
-            return "Home"
-        case .away:
-            return "Away"
-        case .zone:
-            return "Zones"
-        case .unknown:
-            return "Unknown"
-        case .unavailable:
-            return "Unavailable"
         }
     }
 
@@ -229,235 +198,21 @@ enum HAPresenceStatus: Equatable, Sendable {
         }
     }
 
-    var sortPriority: Int {
-        switch self {
-        case .home:
-            return 0
-        case .zone:
-            return 1
-        case .away:
-            return 2
-        case .unavailable:
-            return 3
-        case .unknown:
-            return 4
-        }
-    }
-
-    var isUnavailableLike: Bool {
-        self == .unavailable || self == .unknown
-    }
 }
 
-enum HAPresenceFilter: String, CaseIterable, Identifiable, Sendable {
-    case all
-    case home
-    case away
-    case zones
-    case unavailable
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .all:
-            return "All Presence"
-        case .home:
-            return "Home"
-        case .away:
-            return "Away"
-        case .zones:
-            return "Zones"
-        case .unavailable:
-            return "Unavailable"
-        }
-    }
-
-    func includes(_ record: HAPresenceRecord) -> Bool {
-        switch self {
-        case .all:
-            return true
-        case .home:
-            return record.status == .home
-        case .away:
-            return record.status == .away
-        case .zones:
-            if case .zone = record.status {
-                return true
-            }
-            return false
-        case .unavailable:
-            return record.status.isUnavailableLike
-        }
-    }
-}
-
-enum HAPresenceGrouping: String, CaseIterable, Identifiable, Sendable {
-    case kind
-    case status
-    case area
-    case device
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .kind:
-            return "Kind"
-        case .status:
-            return "Status"
-        case .area:
-            return "Area"
-        case .device:
-            return "Device"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .kind:
-            return "person.2"
-        case .status:
-            return "circle.dashed"
-        case .area:
-            return "square.grid.3x3"
-        case .device:
-            return "laptopcomputer.and.iphone"
-        }
-    }
-}
-
-struct HAPresenceSection: Identifiable, Equatable, Sendable {
-    let id: String
-    let title: String
-    let records: [HAPresenceRecord]
-}
-
-struct HAPresenceSummary: Equatable, Sendable {
-    let totalCount: Int
-    let peopleCount: Int
-    let trackerCount: Int
-    let homeCount: Int
-    let awayCount: Int
-    let zoneCount: Int
-    let unavailableCount: Int
-}
-
-struct HAPresencePresentation: Equatable, Sendable {
-    let sections: [HAPresenceSection]
-    let visibleCount: Int
-    let summary: HAPresenceSummary
+struct HAPersonPresencePresentation: Equatable, Sendable {
+    let people: [HAPresenceRecord]
 
     static func make(
         records: [HAPresenceRecord],
-        searchText: String,
-        filter: HAPresenceFilter,
-        grouping: HAPresenceGrouping
-    ) -> HAPresencePresentation {
-        let sortedRecords = records.sortedByPresenceTitle
-        let matchingRecords = sortedRecords
-            .filter { filter.includes($0) }
+        searchText: String
+    ) -> HAPersonPresencePresentation {
+        let people = records
+            .filter(\.isPerson)
             .filter { $0.matches(query: searchText) }
+            .sortedByPresenceTitle
 
-        let sections: [HAPresenceSection]
-        switch grouping {
-        case .kind:
-            sections = [
-                HAPresenceSection(
-                    id: "people",
-                    title: "People",
-                    records: matchingRecords.filter(\.isPerson).sortedByPresenceTitle
-                ),
-                HAPresenceSection(
-                    id: "trackers",
-                    title: "Trackers",
-                    records: matchingRecords.filter(\.isTracker).sortedByPresenceTitle
-                )
-            ].filter { !$0.records.isEmpty }
-        case .status:
-            sections = groupedSections(
-                matchingRecords,
-                fallbackID: "status",
-                fallbackTitle: "Status",
-                title: { $0.status.sectionTitle },
-                sort: { lhs, rhs in
-                    let lhsPriority = lhs.records.first?.status.sortPriority ?? Int.max
-                    let rhsPriority = rhs.records.first?.status.sortPriority ?? Int.max
-                    if lhsPriority != rhsPriority {
-                        return lhsPriority < rhsPriority
-                    }
-                    return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-                }
-            )
-        case .area:
-            sections = groupedSections(
-                matchingRecords,
-                fallbackID: "no-area",
-                fallbackTitle: "No Area",
-                title: { $0.context.areaName }
-            )
-        case .device:
-            sections = groupedSections(
-                matchingRecords,
-                fallbackID: "no-device",
-                fallbackTitle: "No Device",
-                title: { $0.context.deviceName }
-            )
-        }
-
-        return HAPresencePresentation(
-            sections: sections,
-            visibleCount: matchingRecords.count,
-            summary: HAPresenceSummary(
-                totalCount: records.count,
-                peopleCount: records.filter(\.isPerson).count,
-                trackerCount: records.filter(\.isTracker).count,
-                homeCount: records.filter { $0.status == .home }.count,
-                awayCount: records.filter { $0.status == .away }.count,
-                zoneCount: records.filter {
-                    if case .zone = $0.status {
-                        return true
-                    }
-                    return false
-                }.count,
-                unavailableCount: records.filter { $0.status.isUnavailableLike }.count
-            )
-        )
-    }
-
-    private static func groupedSections(
-        _ records: [HAPresenceRecord],
-        fallbackID: String,
-        fallbackTitle: String,
-        title: (HAPresenceRecord) -> String?,
-        sort: ((HAPresenceSection, HAPresenceSection) -> Bool)? = nil
-    ) -> [HAPresenceSection] {
-        let sections = Dictionary(grouping: records) { record in
-            title(record)?.nonEmptyPresenceValue ?? fallbackTitle
-        }
-        .map { title, records in
-            HAPresenceSection(
-                id: title == fallbackTitle ? fallbackID : title,
-                title: title,
-                records: records.sortedByPresenceTitle
-            )
-        }
-
-        if let sort {
-            return sections.sorted(by: sort)
-        }
-
-        return sections.sorted { lhs, rhs in
-            if lhs.title == fallbackTitle {
-                return false
-            }
-
-            if rhs.title == fallbackTitle {
-                return true
-            }
-
-            return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-        }
+        return HAPersonPresencePresentation(people: people)
     }
 }
 
@@ -557,10 +312,6 @@ private extension String {
     var nonEmptyPresenceValue: String? {
         let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue
-    }
-
-    var presenceDisplayTitle: String {
-        replacingOccurrences(of: "_", with: " ").capitalized
     }
 
     var presenceSourceTypeTitle: String {

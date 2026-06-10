@@ -4,104 +4,35 @@ import UIKit
 struct PeopleSettingsView: View {
     @Environment(HAStateStore.self) private var stateStore
     @State private var searchText = ""
-    @State private var filter: HAPresenceFilter = .all
-    @State private var grouping: HAPresenceGrouping = .kind
 
     var body: some View {
         let records = stateStore.presenceRecords()
-        let presentation = HAPresencePresentation.make(
+        let presentation = HAPersonPresencePresentation.make(
             records: records,
-            searchText: searchText,
-            filter: filter,
-            grouping: grouping
+            searchText: searchText
         )
 
         List {
-            if !records.isEmpty {
-                controlsSection(summary: presentation.summary, visibleCount: presentation.visibleCount)
-            }
-
-            ForEach(presentation.sections) { section in
-                Section(section.title) {
-                    ForEach(section.records) { record in
-                        NavigationLink {
-                            PeoplePresenceDetailSettingsView(entityID: record.entityID)
-                        } label: {
-                            PeoplePresenceRow(record: record)
-                        }
+            Section("People") {
+                ForEach(presentation.people) { record in
+                    NavigationLink {
+                        PeoplePresenceDetailSettingsView(entityID: record.entityID)
+                    } label: {
+                        PeoplePresenceRow(record: record)
                     }
                 }
             }
         }
         .overlay {
-            if records.isEmpty {
+            if records.filter(\.isPerson).isEmpty {
                 ContentUnavailableView("No People", systemImage: "person.2")
-            } else if presentation.sections.isEmpty {
+            } else if presentation.people.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
         .navigationTitle("People")
         .toolbarTitleDisplayMode(.inline)
-        .toolbar {
-            if !records.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    groupingMenu
-                }
-            }
-        }
-    }
-
-    private func controlsSection(summary: HAPresenceSummary, visibleCount: Int) -> some View {
-        Section {
-            Picker("Filter", selection: $filter) {
-                ForEach(HAPresenceFilter.allCases) { option in
-                    Text(option.title).tag(option)
-                }
-            }
-            .pickerStyle(.menu)
-
-            LabeledContent("Showing", value: "\(visibleCount) of \(summary.totalCount)")
-
-            if summary.peopleCount > 0 {
-                LabeledContent("People", value: String(summary.peopleCount))
-            }
-
-            if summary.trackerCount > 0 {
-                LabeledContent("Trackers", value: String(summary.trackerCount))
-            }
-
-            if summary.homeCount > 0 {
-                LabeledContent("Home", value: String(summary.homeCount))
-            }
-
-            if summary.awayCount > 0 {
-                LabeledContent("Away", value: String(summary.awayCount))
-            }
-
-            if summary.zoneCount > 0 {
-                LabeledContent("Zones", value: String(summary.zoneCount))
-            }
-
-            if summary.unavailableCount > 0 {
-                LabeledContent("Unavailable", value: String(summary.unavailableCount))
-            }
-        }
-    }
-
-    private var groupingMenu: some View {
-        Menu {
-            ForEach(HAPresenceGrouping.allCases) { option in
-                Button {
-                    grouping = option
-                } label: {
-                    Label(option.title, systemImage: grouping == option ? "checkmark" : option.systemImage)
-                }
-            }
-        } label: {
-            Image(systemName: "line.3.horizontal.decrease")
-        }
-        .accessibilityLabel("Group people")
     }
 }
 
@@ -115,16 +46,6 @@ private struct PeoplePresenceRow: View {
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(record.displayName)
                     .font(.headline)
-                    .lineLimit(1)
-
-                Text(record.rowSubtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Text(record.contextSummary)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
                     .lineLimit(1)
             }
 
@@ -146,7 +67,7 @@ private struct PeoplePresenceDetailSettingsView: View {
             if let record {
                 Form {
                     headerSection(record)
-                    presenceSection(record)
+                    detailsSection(record)
                     relationshipsSection(record)
                     contextSection(record)
                     activitySection(record)
@@ -187,41 +108,26 @@ private struct PeoplePresenceDetailSettingsView: View {
         }
     }
 
-    private func presenceSection(_ record: HAPresenceRecord) -> some View {
-        Section("Presence") {
-            Label {
-                Text(record.status.title)
-            } icon: {
-                Image(systemName: record.status.systemImage)
-                    .foregroundStyle(record.status.tint)
-            }
-
-            LabeledContent("Kind", value: record.domain == .person ? "Person" : "Tracker")
-            LabeledContent("State", value: record.rawState)
-
-            if let sourceTypeTitle = record.sourceTypeTitle {
-                LabeledContent("Source", value: sourceTypeTitle)
-            }
-
-            if let batteryText = record.batteryText {
-                LabeledContent("Battery", value: batteryText)
-            }
-
-            if let gpsAccuracyText = record.gpsAccuracyText {
-                LabeledContent("Accuracy", value: gpsAccuracyText)
-            }
-
-            if let lastChanged = record.lastChanged {
-                LabeledContent("Changed") {
-                    Text(lastChanged.formatted(date: .abbreviated, time: .shortened))
-                        .foregroundStyle(.secondary)
+    @ViewBuilder
+    private func detailsSection(_ record: HAPresenceRecord) -> some View {
+        if record.hasPresenceDetails {
+            Section("Details") {
+                if let gpsAccuracyText = record.gpsAccuracyText {
+                    LabeledContent("Accuracy", value: gpsAccuracyText)
                 }
-            }
 
-            if let lastUpdated = record.lastUpdated, record.lastUpdated != record.lastChanged {
-                LabeledContent("Updated") {
-                    Text(lastUpdated.formatted(date: .abbreviated, time: .shortened))
-                        .foregroundStyle(.secondary)
+                if let lastChanged = record.lastChanged {
+                    LabeledContent("Changed") {
+                        Text(lastChanged.formatted(date: .abbreviated, time: .shortened))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let lastUpdated = record.lastUpdated, record.lastUpdated != record.lastChanged {
+                    LabeledContent("Updated") {
+                        Text(lastUpdated.formatted(date: .abbreviated, time: .shortened))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
@@ -232,7 +138,7 @@ private struct PeoplePresenceDetailSettingsView: View {
         if record.isPerson {
             Section("Trackers") {
                 if record.linkedTrackers.isEmpty {
-                    Label("No linked trackers", systemImage: "location.slash")
+                    Label("No active tracker", systemImage: "location.slash")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(record.linkedTrackers) { tracker in
@@ -258,25 +164,21 @@ private struct PeoplePresenceDetailSettingsView: View {
         }
     }
 
+    @ViewBuilder
     private func contextSection(_ record: HAPresenceRecord) -> some View {
-        Section("Context") {
-            if let areaName = record.context.areaName {
-                LabeledContent("Area", value: areaName)
-            }
+        if record.hasContext {
+            Section("Context") {
+                if let areaName = record.context.areaName {
+                    LabeledContent("Area", value: areaName)
+                }
 
-            if let floorName = record.context.floorName {
-                LabeledContent("Floor", value: floorName)
-            }
+                if let floorName = record.context.floorName {
+                    LabeledContent("Floor", value: floorName)
+                }
 
-            if let deviceName = record.context.deviceName {
-                LabeledContent("Device", value: deviceName)
-            }
-
-            if record.context.areaName == nil,
-               record.context.floorName == nil,
-               record.context.deviceName == nil {
-                Text("No area or device context")
-                    .foregroundStyle(.secondary)
+                if let deviceName = record.context.deviceName {
+                    LabeledContent("Device", value: deviceName)
+                }
             }
         }
     }
@@ -454,6 +356,16 @@ private extension HAPresenceStatus {
         case .unavailable:
             return .red
         }
+    }
+}
+
+private extension HAPresenceRecord {
+    var hasPresenceDetails: Bool {
+        gpsAccuracyText != nil || lastChanged != nil || (lastUpdated != nil && lastUpdated != lastChanged)
+    }
+
+    var hasContext: Bool {
+        context.areaName != nil || context.floorName != nil || context.deviceName != nil
     }
 }
 

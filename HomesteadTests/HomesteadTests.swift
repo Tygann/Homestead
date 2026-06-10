@@ -4121,7 +4121,7 @@ struct HomesteadTests {
         let updatedAt = try testDate("2026-06-10T14:16:00Z")
         let person = HAEntityDTO(
             entityID: "person.tyler",
-            state: "work",
+            state: "PCS",
             attributes: [
                 "friendly_name": .string("Tyler"),
                 "source": .string("device_tracker.tylers_iphone"),
@@ -4198,14 +4198,15 @@ struct HomesteadTests {
             "device_tracker.tylers_iphone",
             "device_tracker.tylers_watch"
         ])
-        #expect(personRecord.status == .zone("Work"))
+        #expect(personRecord.status == .zone("PCS"))
+        #expect(personRecord.status.title == "PCS")
+        #expect(personRecord.status.shortTitle == "PCS")
         #expect(personRecord.entityPicturePath == "/api/image/tyler")
         #expect(personRecord.lastChanged == changedAt)
         #expect(personRecord.lastUpdated == updatedAt)
         #expect(personRecord.linkedTrackers.map(\.entityID) == ["device_tracker.tylers_iphone"])
         #expect(personRecord.linkedTrackers.first?.sourceTypeTitle == "GPS")
         #expect(personRecord.linkedTrackers.first?.context.areaName == "Living Room")
-        #expect(personRecord.rowSubtitle == "Tyler's iPhone")
         #expect(trackerRecord.linkedPersonEntityID == "person.tyler")
         #expect(trackerRecord.linkedPersonName == "Tyler")
         #expect(trackerRecord.sourceTypeTitle == "GPS")
@@ -4218,7 +4219,7 @@ struct HomesteadTests {
         #expect(watchRecord.status == .away)
     }
 
-    @Test func presencePresentationFiltersGroupsAndSearchesLinkedTrackers() throws {
+    @Test func personPresencePresentationShowsPeopleOnlyAndSearchesLinkedTrackers() throws {
         let people = [
             HAPresenceRecord(
                 entityID: "person.tyler",
@@ -4319,37 +4320,17 @@ struct HomesteadTests {
             )
         ]
 
-        let searchPresentation = HAPresencePresentation.make(
+        let searchPresentation = HAPersonPresencePresentation.make(
             records: people,
-            searchText: "iphone",
-            filter: .all,
-            grouping: .kind
+            searchText: "iphone"
         )
-        let zonePresentation = HAPresencePresentation.make(
+        let allPeoplePresentation = HAPersonPresencePresentation.make(
             records: people,
-            searchText: "",
-            filter: .zones,
-            grouping: .status
-        )
-        let areaPresentation = HAPresencePresentation.make(
-            records: people,
-            searchText: "",
-            filter: .all,
-            grouping: .area
+            searchText: ""
         )
 
-        #expect(searchPresentation.visibleCount == 1)
-        #expect(searchPresentation.sections.first?.records.map(\.entityID) == ["person.tyler"])
-        #expect(searchPresentation.summary.totalCount == 3)
-        #expect(searchPresentation.summary.peopleCount == 2)
-        #expect(searchPresentation.summary.trackerCount == 1)
-        #expect(searchPresentation.summary.homeCount == 1)
-        #expect(searchPresentation.summary.awayCount == 1)
-        #expect(searchPresentation.summary.zoneCount == 1)
-        #expect(zonePresentation.visibleCount == 1)
-        #expect(zonePresentation.sections.map(\.title) == ["Zones"])
-        #expect(zonePresentation.sections.first?.records.map(\.entityID) == ["device_tracker.car"])
-        #expect(areaPresentation.sections.map(\.title) == ["Guest Room", "No Area"])
+        #expect(searchPresentation.people.map(\.entityID) == ["person.tyler"])
+        #expect(allPeoplePresentation.people.map(\.entityID) == ["person.guest", "person.tyler"])
     }
 
     @MainActor
