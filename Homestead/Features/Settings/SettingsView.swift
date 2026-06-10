@@ -151,8 +151,8 @@ private struct PeopleSettingsRow: View {
 
     var body: some View {
         HStack(spacing: 15) {
-            PeoplePresenceAvatarStackView(records: records, size: 30, width: 82, maximumVisibleCount: records.count)
-                .frame(width: 82, alignment: .leading)
+            PeoplePresenceAvatarStackView(records: records, size: 30, width: 60, maximumVisibleCount: records.count)
+                .frame(width: 60, alignment: .leading)
 
             Text("People")
                 .font(.body.weight(.medium))
