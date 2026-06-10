@@ -152,7 +152,6 @@ private struct PeopleSettingsRow: View {
     var body: some View {
         HStack(spacing: 15) {
             PeoplePresenceAvatarStackView(records: records, size: 30, width: 60, maximumVisibleCount: records.count)
-                .frame(width: 60, alignment: .leading)
 
             Text("People")
                 .font(.body.weight(.medium))
@@ -2546,9 +2545,15 @@ private struct HomeAssistantSettingsRow: View {
 
 // MARK: - Home Assistant Avatar View
 struct HomeAssistantAvatarView: View {
+    enum Style {
+        case standard
+        case toolbar
+    }
+
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var image: Image?
+    var style: Style = .standard
 
     var body: some View {
         Group {
@@ -2557,16 +2562,10 @@ struct HomeAssistantAvatarView: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                ZStack {
-                    Circle()
-                        .fill(Color.secondary.opacity(0.16))
-
-                    Image(systemName: "person.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(.secondary)
-                        .padding(6)
-                }
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .scaledToFill()
+                    .foregroundStyle(.gray)
             }
         }
         .clipShape(Circle())

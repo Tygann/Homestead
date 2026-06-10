@@ -231,7 +231,7 @@ struct SettingsAccountButton: View {
 
     var body: some View {
         Button(action: openSettings) {
-            HomeAssistantAvatarView()
+            HomeAssistantAvatarView(style: .toolbar)
                 .frame(width: 36, height: 36)
         }
         .buttonStyle(.plain)
