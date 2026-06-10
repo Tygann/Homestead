@@ -66,7 +66,7 @@ struct DashboardInitialSyncView: View {
                 errorMessage: errorMessage,
                 reconnect: reconnect
             )
-        case .disconnected, .connecting, .connected, .reconnecting:
+        case .disconnected, .preparing, .connecting, .connected, .reconnecting:
             DashboardLoadingPlaceholderView(connectionStatus: connectionStatus)
         }
     }
@@ -141,7 +141,7 @@ private struct DashboardLoadingPlaceholderView: View {
         switch connectionStatus {
         case .reconnecting:
             "Reconnecting"
-        case .connecting:
+        case .preparing, .connecting:
             "Connecting"
         case .connected:
             "Loading Dashboard"
@@ -156,7 +156,7 @@ private struct DashboardLoadingPlaceholderView: View {
             "Restoring live state"
         case .disconnected:
             "Preparing"
-        case .connecting, .connected, .failed:
+        case .preparing, .connecting, .connected, .failed:
             "Fetching latest state"
         }
     }

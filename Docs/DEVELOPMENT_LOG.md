@@ -2,6 +2,13 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-10
+
+### Connection Startup
+
+- Added a preparing connection phase for signed-in startup so cached Home Assistant state can remain visible while Homestead loads cache, refreshes tokens, selects a route, and begins the WebSocket handshake.
+- Kept real failures explicit: initial connection errors still move to failed state, reconnect interruptions still surface through reconnecting/stale/failure chrome, and the app no longer publishes signed-in plus disconnected during normal launch.
+
 ## 2026-06-09
 
 ### Notifications

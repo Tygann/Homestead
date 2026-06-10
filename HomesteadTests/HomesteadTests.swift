@@ -61,6 +61,19 @@ struct HomesteadTests {
             dataFreshness: .live(.now)
         ) == nil)
 
+        #expect(AppStatusAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .preparing,
+            dataFreshness: .empty
+        ) == nil)
+
+        let preparingCachedState = AppStatusAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .preparing,
+            dataFreshness: .cached(Date(timeIntervalSinceNow: -60))
+        )
+        #expect(preparingCachedState?.title == "Showing cached state")
+
         let cachedState = AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .connected,
@@ -141,6 +154,15 @@ struct HomesteadTests {
         )
 
         #expect(signedInChrome.statusAccessoryState == .reconnecting)
+
+        let preparingChrome = AppChromePresentation.make(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            connectionStatus: .preparing,
+            dataFreshness: .empty,
+            serviceFeedback: nil
+        )
+        #expect(preparingChrome.statusAccessoryState == nil)
 
         let feedbackChrome = AppChromePresentation.make(
             hasServerURL: true,
@@ -3231,6 +3253,7 @@ struct HomesteadTests {
         } else {
             Issue.record("Expected signed-in auth state.")
         }
+        #expect(service.connectionStatus == .preparing)
 
         try store.saveCredential(testCredential(expiresAt: now.addingTimeInterval(-1)))
         await service.refreshAuthState()
@@ -3239,6 +3262,7 @@ struct HomesteadTests {
         } else {
             Issue.record("Expected expired auth state.")
         }
+        #expect(service.connectionStatus == .preparing)
 
         let failingService = HomeAssistantService(
             stateStore: HAStateStore(),

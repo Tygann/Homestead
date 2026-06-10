@@ -2,6 +2,7 @@ import Foundation
 
 enum HAConnectionStatus: Equatable, Sendable {
     case disconnected
+    case preparing
     case connecting
     case reconnecting
     case connected
@@ -11,6 +12,8 @@ enum HAConnectionStatus: Equatable, Sendable {
         switch self {
         case .disconnected:
             "Disconnected"
+        case .preparing:
+            "Connecting"
         case .connecting:
             "Connecting"
         case .reconnecting:
@@ -26,6 +29,8 @@ enum HAConnectionStatus: Equatable, Sendable {
         switch self {
         case .disconnected:
             "wifi.slash"
+        case .preparing:
+            "arrow.triangle.2.circlepath"
         case .connecting:
             "arrow.triangle.2.circlepath"
         case .reconnecting:

@@ -116,6 +116,8 @@ final class HomeAssistantService {
         switch connectionStatus {
         case .connected:
             await refreshStates()
+        case .preparing:
+            await connectIfPossible(settings: settings)
         case .connecting:
             return
         case .reconnecting:
@@ -301,7 +303,19 @@ final class HomeAssistantService {
     }
 
     func refreshAuthState() async {
-        authState = await authManager.status()
+        let refreshedAuthState = await authManager.status()
+        if refreshedAuthState.isSignedIn {
+            if connectionStatus == .disconnected,
+               activeConfiguration == nil {
+                connectionStatus = .preparing
+            }
+            authState = refreshedAuthState
+        } else {
+            authState = refreshedAuthState
+            if connectionStatus == .preparing {
+                connectionStatus = .disconnected
+            }
+        }
     }
 
     func signInWithHomeAssistant(settings: HAConnectionSettings) async {
@@ -371,6 +385,8 @@ final class HomeAssistantService {
             reconnectTask?.cancel()
             reconnectTask = nil
             await connect(settings: settings)
+        case .preparing:
+            await connectIfPossible(settings: settings)
         case .connected:
             guard shouldRefreshAfterResume else { return }
             await refreshStates()
@@ -1603,6 +1619,8 @@ final class HomeAssistantService {
             }
 
             switch connectionStatus {
+            case .preparing:
+                await connectIfPossible(settings: settings)
             case .connecting:
                 return
             case .connected:

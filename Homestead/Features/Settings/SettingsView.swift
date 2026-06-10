@@ -304,7 +304,7 @@ struct HomeAssistantSettingsView: View {
             switch homeAssistantService.connectionStatus {
             case .failed, .disconnected:
                 return statusMessage
-            case .connected, .connecting, .reconnecting:
+            case .connected, .preparing, .connecting, .reconnecting:
                 return nil
             }
         }
@@ -524,7 +524,8 @@ private struct HomeAssistantServerSettingsView: View {
                         } label: {
                             Text("Retry Connection")
                         }
-                        .disabled(homeAssistantService.connectionStatus == .connecting ||
+                        .disabled(homeAssistantService.connectionStatus == .preparing ||
+                                  homeAssistantService.connectionStatus == .connecting ||
                                   homeAssistantService.connectionStatus == .reconnecting)
                         .frame(maxWidth: .infinity)
                     }
@@ -660,7 +661,7 @@ private struct HomeAssistantServerSettingsView: View {
         switch homeAssistantService.connectionStatus {
         case .failed, .disconnected:
             return true
-        case .connected, .connecting, .reconnecting:
+        case .connected, .preparing, .connecting, .reconnecting:
             return false
         }
     }
@@ -2182,7 +2183,7 @@ struct HomeAssistantDiagnosticsView: View {
             switch homeAssistantService.connectionStatus {
             case .connected:
                 return "Connected"
-            case .connecting, .reconnecting:
+            case .preparing, .connecting, .reconnecting:
                 return "Connecting"
             case .failed:
                 return "Needs attention"
@@ -2617,7 +2618,7 @@ private enum SettingsHomeAssistantStatus {
             switch connectionStatus {
             case .connected:
                 "Connected"
-            case .connecting:
+            case .preparing, .connecting:
                 "Connecting"
             case .reconnecting:
                 "Reconnecting"
@@ -2667,7 +2668,7 @@ private enum SettingsHomeAssistantStatus {
             switch connectionStatus {
             case .connected:
                 return "Connected"
-            case .connecting:
+            case .preparing, .connecting:
                 return "Connecting"
             case .reconnecting:
                 return "Reconnecting"
@@ -2704,7 +2705,7 @@ private enum SettingsHomeAssistantStatus {
             switch connectionStatus {
             case .connected:
                 return "Homestead is connected to Home Assistant."
-            case .connecting:
+            case .preparing, .connecting:
                 return "Homestead is connecting to Home Assistant."
             case .reconnecting:
                 return "Homestead is restoring the connection."
@@ -2722,7 +2723,7 @@ private enum SettingsHomeAssistantStatus {
             .green
         case .failed:
             .red
-        case .connecting, .reconnecting:
+        case .preparing, .connecting, .reconnecting:
             .orange
         case .disconnected:
             .secondary

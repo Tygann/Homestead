@@ -85,7 +85,7 @@ nonisolated struct AppStatusAccessoryState: Equatable {
             }
 
             return disconnected
-        case .connecting, .connected:
+        case .preparing, .connecting, .connected:
             return freshnessState(for: dataFreshness)
         }
     }

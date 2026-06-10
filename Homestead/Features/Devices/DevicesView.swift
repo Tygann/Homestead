@@ -212,7 +212,7 @@ struct EntityBrowserList<Accessory: View>: View {
             "Loading Home Assistant"
         case .reconnecting:
             "Reconnecting"
-        case .connected, .connecting:
+        case .connected, .preparing, .connecting:
             "Loading Home Assistant"
         }
     }
@@ -225,7 +225,7 @@ struct EntityBrowserList<Accessory: View>: View {
             "Preparing to fetch your latest entity state."
         case .reconnecting:
             "Restoring your live entity state."
-        case .connected, .connecting:
+        case .connected, .preparing, .connecting:
             "Fetching your latest entity state."
         }
     }
