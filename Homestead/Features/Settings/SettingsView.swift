@@ -145,11 +145,11 @@ private struct PeopleSettingsRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            PeoplePresenceAvatarStackView(records: records, size: 34)
-                .frame(width: 56, alignment: .leading)
+            PeoplePresenceAvatarStackView(records: records, size: 30)
+                .frame(width: 82, alignment: .leading)
 
             Text("People")
-                .font(.body.weight(.semibold))
+                .font(.body.weight(.medium))
                 .foregroundStyle(.primary)
 
             Spacer()

@@ -15,7 +15,7 @@ struct PeopleSettingsView: View {
             if !presentation.people.isEmpty {
                 PeopleLandingHeader(records: presentation.people)
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 4, trailing: 20))
+                    .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 6, trailing: 20))
                     .listRowSeparator(.hidden)
 
                 Section {
@@ -37,7 +37,7 @@ struct PeopleSettingsView: View {
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
-        .navigationTitle("People")
+        .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
     }
 }
@@ -46,11 +46,11 @@ private struct PeopleLandingHeader: View {
     let records: [HAPresenceRecord]
 
     var body: some View {
-        VStack(alignment: .center, spacing: AppSpacing.medium) {
-            PeoplePresenceAvatarStackView(records: records, size: 52)
+        VStack(alignment: .center, spacing: 20) {
+            PeoplePresenceAvatarStackView(records: records, size: 68)
 
             Text("People")
-                .font(.title2.weight(.bold))
+                .font(.title2.weight(.semibold))
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .center)
