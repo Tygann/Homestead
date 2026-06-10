@@ -42,6 +42,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Near-Term Priorities
 
+- Build Settings > People for presence management based on `person.*`, `device_tracker.*`, registry metadata, and official user/person APIs where available; keep true Home Assistant user/admin management separate until a supported API path is confirmed.
 - Device-test dashboard mini accessory tiles in real dense dashboards, then use that tile language only where it helps future medium/large multi-entity widget work.
 - Polish and device-test the expanded WidgetKit/App Intents surface, then consider Control Center controls for the safest common actions.
 - Maintain existing entity history/timeline surfaces and polish them only when concrete visual issues or clearly useful state-only domains appear.
@@ -53,7 +54,6 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Multiple dashboards with a dashboard switcher or management screen; avoid adding every dashboard as a main tab by default.
 - Control Center controls and App Intents for common Home Assistant actions.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.
-- People and presence management based on `person.*`, `device_tracker.*`, and official user/person APIs where available.
 - True Home Assistant users/admin views if an official supported API path is confirmed for the signed-in user's permissions.
 - iCloud sync for Homestead-owned preferences such as dashboard layouts, display overrides, widget configuration, and server configuration metadata.
 - Siri/Shortcuts once App Intents have stable action coverage.

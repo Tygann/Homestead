@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Device-test the polished in-app mini dashboard accessory tile in real dense dashboards, then use that design language only where it helps future medium/large multi-entity widget work.
+Build Settings > People as the next management surface, focused on Home Assistant presence from `person.*`, `device_tracker.*`, registry metadata, and any confirmed official user/person APIs. Keep true users/admin management separate until a supported API path and permission behavior are confirmed.
 
 Recommended reasoning level: High.
 
@@ -118,15 +118,11 @@ Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Start the next pass by device-testing dense dashboards with a mix of mini, compact, square, and camera/history cards.
-- Recommended next scope: visual tuning only if mini tiles show text clipping, tap-target confusion, or weak active/inactive/unavailable contrast on device.
-- If the mini tile holds up, consider a separate medium/large multi-entity Accessories widget built from the same tile language.
-- Keep Small Home Screen widgets focused on one configured entity; use medium/large families for any future multi-entity grid.
-- Treat App Intent boolean toggles as optional product controls only when they have a clear user-facing purpose, such as auto-filled recommendations or hiding labels in a dense multi-entity widget.
-- Keep widget snapshots compact and app-facing; do not expose Home Assistant transport DTOs directly to widget views.
-- Keep service calls official through WebSocket `call_service`; do not add REST, webhook, or private frontend endpoints for widget actions.
-- Keep lock widgets conservative unless a future design adds explicit confirmation; current widget scope intentionally does not expose one-tap unlock.
-- Leave timeline work parked unless a concrete bug or visual polish issue appears during normal feature work.
+- Inspect existing Settings navigation, entity presentation, `HAStateStore`, `EntityMapper`, registry metadata, person/device-tracker state support, profile image handling, and existing presence widgets/timelines before designing the People page.
+- Implement Settings > People as a native management page that groups people and presence trackers into app-facing models, shows current presence/home-away/zone state, related devices or trackers where available, last-changed/update context, and clear empty/unavailable states.
+- Prefer existing `person.*` and `device_tracker.*` entity state plus registry metadata; use official Home Assistant user/person APIs only if confirmed in `Docs/API_CAPABILITY_INVENTORY.md` or current docs. Do not use private frontend user/admin endpoints.
+- Keep the UI polished and Settings-appropriate: compact native rows/cards, searchable/filterable if useful, and detail surfaces only where they add real value.
+- Add focused tests for mapping, grouping, search/filter behavior, Settings presentation routing, and API shape if any new API request is introduced.
 
 ## Acceptance Notes
 
@@ -141,6 +137,7 @@ Recommended reasoning level: High.
 - Settings > Permissions has native iOS status rows for Notifications, Local Network, Location, and Camera. Keep future native permission work in app-owned platform services rather than Home Assistant API code.
 - User-facing service-call and reconnect recovery feedback belongs in `HomeAssistantService` and app chrome, not scattered card/detail views.
 - Numeric sensor history already has documented REST history plumbing, authenticated service handoff, app-facing chart models, fixed detail ranges, and lightweight dashboard chart cards; binary sensors, locks, switches, automations, covers, people, and device trackers now have app-facing detail timeline models and a shared Recent Activity panel. Reuse those shapes where they fit.
+- Settings > People should be presence-first. Avoid implying Homestead can manage all Home Assistant users unless an official supported user/admin API is confirmed for the signed-in user's permissions.
 
 ## Recent Verification Notes
 
