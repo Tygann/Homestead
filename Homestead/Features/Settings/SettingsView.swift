@@ -150,7 +150,7 @@ private struct PeopleSettingsRow: View {
     let records: [HAPresenceRecord]
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 15) {
             PeoplePresenceAvatarStackView(records: records, size: 30, width: 82, maximumVisibleCount: records.count)
                 .frame(width: 82, alignment: .leading)
 
