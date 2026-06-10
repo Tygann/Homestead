@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct PeopleSettingsView: View {
     @Environment(HAStateStore.self) private var stateStore
@@ -13,14 +12,19 @@ struct PeopleSettingsView: View {
         )
 
         List {
-            Section("People") {
-                ForEach(presentation.people) { record in
-                    NavigationLink {
-                        PeoplePresenceDetailSettingsView(entityID: record.entityID)
-                    } label: {
-                        PeoplePresenceRow(record: record)
+            if !presentation.people.isEmpty {
+                Section {
+                    ForEach(presentation.people) { record in
+                        NavigationLink {
+                            PeoplePresenceDetailSettingsView(entityID: record.entityID)
+                        } label: {
+                            PeoplePresenceRow(record: record)
+                        }
                     }
+                } header: {
+                    PeoplePageHeader(records: presentation.people)
                 }
+                .textCase(nil)
             }
         }
         .overlay {
@@ -36,12 +40,28 @@ struct PeopleSettingsView: View {
     }
 }
 
+private struct PeoplePageHeader: View {
+    let records: [HAPresenceRecord]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            PeoplePresenceAvatarStackView(records: records, size: 44)
+
+            Text("People")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.primary)
+        }
+        .padding(.top, 4)
+        .padding(.bottom, 2)
+    }
+}
+
 private struct PeoplePresenceRow: View {
     let record: HAPresenceRecord
 
     var body: some View {
         HStack(alignment: .center, spacing: AppSpacing.medium) {
-            PeoplePresenceImageView(record: record, size: 40)
+            PeoplePresenceAvatarView(record: record, size: 40)
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(record.displayName)
@@ -89,7 +109,7 @@ private struct PeoplePresenceDetailSettingsView: View {
     private func headerSection(_ record: HAPresenceRecord) -> some View {
         Section {
             HStack(spacing: AppSpacing.medium) {
-                PeoplePresenceImageView(record: record, size: 56)
+                PeoplePresenceAvatarView(record: record, size: 56)
 
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                     Text(record.displayName)
@@ -263,70 +283,6 @@ private struct PeoplePresenceActivitySettingsView: View {
     }
 }
 
-private struct PeoplePresenceImageView: View {
-    @Environment(HAConnectionSettings.self) private var connectionSettings
-    @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var image: Image?
-
-    let record: HAPresenceRecord
-    let size: CGFloat
-
-    var body: some View {
-        Group {
-            if let image {
-                image
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image(systemName: record.iconSystemName)
-                    .font(.system(size: size * 0.48, weight: .semibold))
-                    .foregroundStyle(record.status.tint)
-                    .frame(width: size, height: size)
-                    .background(record.status.tint.opacity(0.12), in: Circle())
-            }
-        }
-        .frame(width: size, height: size)
-        .clipShape(Circle())
-        .task(id: taskID) {
-            await loadImage()
-        }
-        .accessibilityHidden(true)
-    }
-
-    private var taskID: String {
-        [
-            connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
-            homeAssistantService.authState.title,
-            homeAssistantService.connectionStatus.title,
-            record.entityPicturePath ?? "no-picture"
-        ].joined(separator: "|")
-    }
-
-    private func loadImage() async {
-        guard let entityPicturePath = record.entityPicturePath,
-              let request = await homeAssistantService.homeAssistantImageRequest(
-                settings: connectionSettings,
-                pathOrURL: entityPicturePath
-              ) else {
-            image = nil
-            return
-        }
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  let uiImage = UIImage(data: data) else {
-                image = nil
-                return
-            }
-            image = Image(uiImage: uiImage)
-        } catch {
-            image = nil
-        }
-    }
-}
-
 private struct PeoplePresenceStatusBadge: View {
     let status: HAPresenceStatus
 
@@ -339,23 +295,6 @@ private struct PeoplePresenceStatusBadge: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(status.tint.opacity(0.12), in: Capsule())
-    }
-}
-
-private extension HAPresenceStatus {
-    var tint: Color {
-        switch self {
-        case .home:
-            return .green
-        case .zone:
-            return .accentColor
-        case .away:
-            return .secondary
-        case .unknown:
-            return .orange
-        case .unavailable:
-            return .red
-        }
     }
 }
 

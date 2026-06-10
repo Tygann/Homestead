@@ -3,10 +3,13 @@ import UIKit
 
 // MARK: - Settings View
 struct SettingsView: View {
+    @Environment(HAStateStore.self) private var stateStore
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
 
     var body: some View {
+        let peopleRecords = stateStore.presenceRecords().filter(\.isPerson)
+
         Form {
             Section {
                 NavigationLink(destination: HomeAssistantSettingsView()) {
@@ -19,13 +22,15 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Home Assistant") {
+            Section {
                 NavigationLink {
                     PeopleSettingsView()
                 } label: {
-                    Label("People", systemImage: "person.2")
+                    PeopleSettingsRow(records: peopleRecords)
                 }
+            }
 
+            Section("Home Assistant") {
                 NavigationLink {
                     DevicesAndServicesManagementView()
                 } label: {
@@ -135,6 +140,23 @@ struct SettingsView: View {
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
             homeAssistantService.authState.title
         ].joined(separator: "|")
+    }
+}
+
+private struct PeopleSettingsRow: View {
+    let records: [HAPresenceRecord]
+
+    var body: some View {
+        HStack(spacing: AppSpacing.medium) {
+            PeoplePresenceAvatarStackView(records: records, size: 34)
+                .frame(width: 64, alignment: .leading)
+
+            Text("People")
+                .font(.body)
+                .foregroundStyle(.primary)
+
+            Spacer()
+        }
     }
 }
 

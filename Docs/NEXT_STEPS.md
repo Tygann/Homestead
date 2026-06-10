@@ -15,6 +15,7 @@ Recommended reasoning level: High.
 - Added native Settings > People backed by existing `person.*` and `device_tracker.*` state plus registry metadata.
 - Added app-facing `HAPresenceRecord` / presentation helpers that map home, away, zone, unknown, and unavailable states, relate people to their Home Assistant `source` tracker when present, include tracker source/battery/GPS context, and keep raw DTOs out of SwiftUI.
 - Trimmed Settings > People to a people-only list with avatar, name, and presence badge; global tracker browsing, filter summaries, grouping controls, and raw entity subtitles are intentionally omitted.
+- Added a Family-style people treatment in Settings with overlapping avatar clusters at the top of the main Settings row and the People landing page.
 - Kept person detail focused on the header, useful timestamp/accuracy details, the active Home Assistant `source` tracker, optional non-empty registry context, Recent Activity, and standard Home Assistant identifiers.
 - Preserved Home Assistant custom-zone casing exactly in user-facing presence copy, so states like `PCS` are not title-cased or prefixed.
 - Added a generic authenticated Home Assistant image request helper in `HomeAssistantService` and focused tests for presence mapping, people-only search behavior, and image request URL/auth shape.
