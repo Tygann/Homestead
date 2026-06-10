@@ -6,12 +6,17 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Build Settings > People as the next management surface, focused on Home Assistant presence from `person.*`, `device_tracker.*`, registry metadata, and any confirmed official user/person APIs. Keep true users/admin management separate until a supported API path and permission behavior are confirmed.
+Settings > People is implemented as a presence-first management surface. Next recommended focus is live-device review/polish of Settings > People with real Home Assistant presence data, then continue the existing dashboard mini tile and WidgetKit/App Intents polish priorities from the roadmap.
 
 Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added native Settings > People backed by existing `person.*` and `device_tracker.*` state plus registry metadata.
+- Added app-facing `HAPresenceRecord` / presentation helpers that map home, away, zone, unknown, and unavailable states, relate people to their Home Assistant `source` tracker when present, include tracker source/battery/GPS context, and keep raw DTOs out of SwiftUI.
+- Added compact grouped/filterable/searchable Settings rows, detail forms for current presence, related tracker/person context, area/device metadata, last-changed/updated timestamps, authenticated person entity pictures, and a Recent Activity link reusing the documented REST history timeline path.
+- Added a generic authenticated Home Assistant image request helper in `HomeAssistantService` and focused tests for presence mapping, grouping/search/filter behavior, and image request URL/auth shape.
+- Kept true Home Assistant user/admin management out of scope; no private frontend user/admin endpoints or new person-management APIs were added.
 - Added a read-only Settings > Logbook page backed by Home Assistant's documented REST logbook endpoint.
 - Added typed logbook request/DTO support, an authenticated HTTP client path, app-facing `HAActivityRow` models, grouped/searchable presentation helpers, and focused regression tests for URL shape, decoding, mapping, filtering, and service auth handoff.
 - Kept domain filtering and search local to Homestead; server requests use only the documented logbook start timestamp, `end_time`, and `entity` parameters.
@@ -118,11 +123,9 @@ Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Inspect existing Settings navigation, entity presentation, `HAStateStore`, `EntityMapper`, registry metadata, person/device-tracker state support, profile image handling, and existing presence widgets/timelines before designing the People page.
-- Implement Settings > People as a native management page that groups people and presence trackers into app-facing models, shows current presence/home-away/zone state, related devices or trackers where available, last-changed/update context, and clear empty/unavailable states.
-- Prefer existing `person.*` and `device_tracker.*` entity state plus registry metadata; use official Home Assistant user/person APIs only if confirmed in `Docs/API_CAPABILITY_INVENTORY.md` or current docs. Do not use private frontend user/admin endpoints.
-- Keep the UI polished and Settings-appropriate: compact native rows/cards, searchable/filterable if useful, and detail surfaces only where they add real value.
-- Add focused tests for mapping, grouping, search/filter behavior, Settings presentation routing, and API shape if any new API request is introduced.
+- Device-test Settings > People against real Home Assistant instances with multiple people, zone states, unavailable trackers, and tracker/device registry metadata; polish row density, image loading, and detail copy only where real data exposes friction.
+- Continue roadmap follow-up work: device-test dashboard mini accessory tiles in dense dashboards, then polish the expanded WidgetKit/App Intents surface and consider Control Center controls for the safest common actions.
+- Keep true Home Assistant users/admin views in research-needed status until an official supported API path and permission behavior are confirmed.
 
 ## Acceptance Notes
 
@@ -141,6 +144,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-PeopleSettings` after adding Settings > People.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-PeopleSettings` after adding Settings > People.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-ForegroundChromeGrace` after suppressing transient foreground connection-health chrome.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-ForegroundChromeGrace` after suppressing transient foreground connection-health chrome.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-Notifications` after hardening Home Assistant WebSocket notification payload decoding and clarifying connected-session notification scope.

@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-10
 
+### Settings People
+
+- Added a native Settings > People page for presence management using existing `person.*` and `device_tracker.*` state plus registry metadata.
+- Mapped presence into app-facing records and presentation helpers so SwiftUI does not read raw Home Assistant DTOs; people are related to source trackers where Home Assistant exposes the `source` attribute.
+- Reused authenticated Home Assistant image loading and documented REST history timelines for person/tracker details while keeping true user/admin management and private frontend endpoints out of scope.
+
 ### Connection Startup
 
 - Added a preparing connection phase for signed-in startup so cached Home Assistant state can remain visible while Homestead loads cache, refreshes tokens, selects a route, and begins the WebSocket handshake.

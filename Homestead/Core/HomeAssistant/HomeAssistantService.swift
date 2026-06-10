@@ -971,6 +971,16 @@ final class HomeAssistantService {
             return nil
         }
 
+        return await homeAssistantImageRequest(settings: settings, pathOrURL: entityPicture)
+    }
+
+    func homeAssistantImageRequest(settings: HAConnectionSettings, pathOrURL: String) async -> URLRequest? {
+        currentConnectionSettings = settings
+        let trimmedPathOrURL = pathOrURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard settings.hasServerURL, !trimmedPathOrURL.isEmpty else {
+            return nil
+        }
+
         do {
             let selection = routeSelection(for: settings)
             guard let configuration = try await authManager
@@ -981,7 +991,7 @@ final class HomeAssistantService {
 
             let url = try HomeAssistantEndpointBuilder.httpURL(
                 from: configuration.baseURLString,
-                pathOrURL: entityPicture
+                pathOrURL: trimmedPathOrURL
             )
             var request = URLRequest(url: url)
             request.setValue("Bearer \(configuration.accessToken)", forHTTPHeaderField: "Authorization")

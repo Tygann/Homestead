@@ -30,6 +30,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status, recovery actions, automatic route status, saved internal/external URL and home network metadata, and Home Assistant `get_config` details.
 - Native Settings > Updates page backed by Home Assistant `.update` entities, with grouped/filterable/searchable presentation, release/version/status/context details, and official `update.install`, `update.skip`, and `update.clear_skipped` service actions.
 - Read-only Settings > Logbook page backed by Home Assistant's documented REST logbook API, with date range, entity/domain filtering, search, and app-facing activity row models.
+- Native Settings > People page backed by `person.*` and `device_tracker.*` state plus registry metadata, with grouped/filterable/searchable presence rows, authenticated person imagery, related tracker/person context, last-changed/update details, and recent activity timelines.
 - Native entity history backed by Home Assistant's documented REST history API, including numeric `sensor.*` detail charts/dashboard chart cards and detail-surface timelines for binary sensors, locks, switches, automations, covers, people, and device trackers with fixed ranges.
 - Native dashboard card and detail surface for `.weather` entities, backed by typed state-attribute mapping for condition, temperature, humidity, wind, forecast availability, and attribution.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
@@ -42,7 +43,6 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Near-Term Priorities
 
-- Build Settings > People for presence management based on `person.*`, `device_tracker.*`, registry metadata, and official user/person APIs where available; keep true Home Assistant user/admin management separate until a supported API path is confirmed.
 - Device-test dashboard mini accessory tiles in real dense dashboards, then use that tile language only where it helps future medium/large multi-entity widget work.
 - Polish and device-test the expanded WidgetKit/App Intents surface, then consider Control Center controls for the safest common actions.
 - Maintain existing entity history/timeline surfaces and polish them only when concrete visual issues or clearly useful state-only domains appear.

@@ -270,6 +270,63 @@ final class HAStateStore {
         updateEntities.first { $0.entityID == entityID }
     }
 
+    func presenceRecords() -> [HAPresenceRecord] {
+        let presenceDTOs = rawEntitiesByID.values.filter { dto in
+            let domain = EntityDomain(entityID: dto.entityID)
+            return domain == .person || domain == .deviceTracker
+        }
+
+        let trackerDTOsByID = Dictionary(
+            uniqueKeysWithValues: presenceDTOs
+                .filter { EntityDomain(entityID: $0.entityID) == .deviceTracker }
+                .map { ($0.entityID, $0) }
+        )
+
+        let personDTOs = presenceDTOs.filter { EntityDomain(entityID: $0.entityID) == .person }
+        let personBySourceTrackerID = personDTOs.reduce(into: [String: HAEntityDTO]()) { peopleByTrackerID, person in
+            guard let sourceEntityID = person.attributes["source"]?.stringValue?.nonEmptyValue,
+                  trackerDTOsByID[sourceEntityID] != nil,
+                  peopleByTrackerID[sourceEntityID] == nil else {
+                return
+            }
+
+            peopleByTrackerID[sourceEntityID] = person
+        }
+
+        return presenceDTOs.compactMap { dto -> HAPresenceRecord? in
+            let domain = EntityDomain(entityID: dto.entityID)
+            let context = presenceContext(for: dto.entityID)
+
+            if domain == .person {
+                let linkedTrackers = linkedTrackerSummaries(for: dto, trackerDTOsByID: trackerDTOsByID)
+                return EntityMapper.presenceRecord(
+                    from: dto,
+                    context: context,
+                    linkedTrackers: linkedTrackers
+                )
+            }
+
+            let linkedPerson = personBySourceTrackerID[dto.entityID]
+            return EntityMapper.presenceRecord(
+                from: dto,
+                context: context,
+                linkedPersonEntityID: linkedPerson?.entityID,
+                linkedPersonName: linkedPerson.map { EntityMapper.displayName(for: $0) }
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.domain != rhs.domain {
+                return lhs.domain == .person
+            }
+
+            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+        }
+    }
+
+    func presenceRecord(for entityID: String) -> HAPresenceRecord? {
+        presenceRecords().first { $0.entityID == entityID }
+    }
+
     func replaceDataSourceIfNeeded(_ dataSourceID: String) {
         guard self.dataSourceID != dataSourceID else {
             return
@@ -422,6 +479,37 @@ final class HAStateStore {
     ) -> String {
         let parts = [manufacturer, model, areaName].compactMap { $0 }
         return parts.isEmpty ? "No additional details" : parts.joined(separator: " • ")
+    }
+
+    private func presenceContext(for entityID: String) -> HAPresenceContext {
+        let registry = entityRegistryByID[entityID]
+        let deviceID = registry?.deviceID?.nonEmptyValue
+        let device = deviceID.flatMap { deviceRegistryByID[$0] }
+        let areaContext = areaContext(for: entityID)
+
+        return HAPresenceContext(
+            deviceID: deviceID,
+            deviceName: device?.displayName.nonEmptyValue,
+            areaID: areaContext?.areaID,
+            areaName: areaContext?.name,
+            floorID: areaContext?.floorID,
+            floorName: areaContext?.floorName
+        )
+    }
+
+    private func linkedTrackerSummaries(
+        for person: HAEntityDTO,
+        trackerDTOsByID: [String: HAEntityDTO]
+    ) -> [HAPresenceTrackerSummary] {
+        guard let sourceEntityID = person.attributes["source"]?.stringValue?.nonEmptyValue,
+              let tracker = trackerDTOsByID[sourceEntityID] else {
+            return []
+        }
+
+        return EntityMapper.presenceTrackerSummary(
+            from: tracker,
+            context: presenceContext(for: tracker.entityID)
+        ).map { [$0] } ?? []
     }
 
     private func clearAllEntities() {

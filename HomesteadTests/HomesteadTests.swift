@@ -4116,6 +4116,243 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func presenceRecordsMapPeopleTrackersAndRegistryContext() throws {
+        let changedAt = try testDate("2026-06-10T14:15:00Z")
+        let updatedAt = try testDate("2026-06-10T14:16:00Z")
+        let person = HAEntityDTO(
+            entityID: "person.tyler",
+            state: "work",
+            attributes: [
+                "friendly_name": .string("Tyler"),
+                "source": .string("device_tracker.tylers_iphone"),
+                "entity_picture": .string("/api/image/tyler")
+            ],
+            lastChanged: changedAt,
+            lastUpdated: updatedAt
+        )
+        let tracker = HAEntityDTO(
+            entityID: "device_tracker.tylers_iphone",
+            state: "home",
+            attributes: [
+                "friendly_name": .string("Tyler's iPhone"),
+                "source_type": .string("gps"),
+                "battery_level": .number(88),
+                "gps_accuracy": .number(12)
+            ],
+            lastChanged: changedAt,
+            lastUpdated: updatedAt
+        )
+        let watch = HAEntityDTO(
+            entityID: "device_tracker.tylers_watch",
+            state: "not_home",
+            attributes: [
+                "friendly_name": .string("Tyler's Watch"),
+                "source_type": .string("bluetooth_le")
+            ]
+        )
+        let store = HAStateStore()
+        store.applySnapshot([person, tracker, watch])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "device_tracker.tylers_iphone",
+                    deviceID: "phone-device",
+                    originalName: "Tyler's iPhone"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "device_tracker.tylers_watch",
+                    deviceID: "watch-device",
+                    originalName: "Tyler's Watch"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(
+                    id: "phone-device",
+                    name: "Tyler's iPhone",
+                    areaID: "living_room",
+                    manufacturer: "Apple",
+                    model: "iPhone"
+                ),
+                HADeviceRegistryDTO(
+                    id: "watch-device",
+                    name: "Tyler's Watch",
+                    manufacturer: "Apple",
+                    model: "Watch"
+                )
+            ],
+            areas: [
+                HAAreaRegistryDTO(id: "living_room", name: "Living Room", floorID: "downstairs")
+            ],
+            floors: [
+                HAFloorRegistryDTO(id: "downstairs", name: "Downstairs")
+            ]
+        )
+
+        let records = store.presenceRecords()
+        let personRecord = try #require(records.first { $0.entityID == "person.tyler" })
+        let trackerRecord = try #require(records.first { $0.entityID == "device_tracker.tylers_iphone" })
+        let watchRecord = try #require(records.first { $0.entityID == "device_tracker.tylers_watch" })
+
+        #expect(records.map(\.entityID) == [
+            "person.tyler",
+            "device_tracker.tylers_iphone",
+            "device_tracker.tylers_watch"
+        ])
+        #expect(personRecord.status == .zone("Work"))
+        #expect(personRecord.entityPicturePath == "/api/image/tyler")
+        #expect(personRecord.lastChanged == changedAt)
+        #expect(personRecord.lastUpdated == updatedAt)
+        #expect(personRecord.linkedTrackers.map(\.entityID) == ["device_tracker.tylers_iphone"])
+        #expect(personRecord.linkedTrackers.first?.sourceTypeTitle == "GPS")
+        #expect(personRecord.linkedTrackers.first?.context.areaName == "Living Room")
+        #expect(personRecord.rowSubtitle == "Tyler's iPhone")
+        #expect(trackerRecord.linkedPersonEntityID == "person.tyler")
+        #expect(trackerRecord.linkedPersonName == "Tyler")
+        #expect(trackerRecord.sourceTypeTitle == "GPS")
+        #expect(trackerRecord.batteryText == "88%")
+        #expect(trackerRecord.gpsAccuracyText == "12m")
+        #expect(trackerRecord.context.deviceName == "Tyler's iPhone")
+        #expect(trackerRecord.context.areaName == "Living Room")
+        #expect(trackerRecord.context.floorName == "Downstairs")
+        #expect(watchRecord.sourceTypeTitle == "Bluetooth LE")
+        #expect(watchRecord.status == .away)
+    }
+
+    @Test func presencePresentationFiltersGroupsAndSearchesLinkedTrackers() throws {
+        let people = [
+            HAPresenceRecord(
+                entityID: "person.tyler",
+                domain: .person,
+                displayName: "Tyler",
+                status: .home,
+                rawState: "home",
+                iconSystemName: "person.fill",
+                isAvailable: true,
+                lastChanged: nil,
+                lastUpdated: nil,
+                entityPicturePath: nil,
+                sourceEntityID: "device_tracker.iphone",
+                sourceType: nil,
+                batteryLevel: nil,
+                gpsAccuracy: nil,
+                linkedPersonEntityID: nil,
+                linkedPersonName: nil,
+                linkedTrackers: [
+                    HAPresenceTrackerSummary(
+                        entityID: "device_tracker.iphone",
+                        displayName: "Tyler iPhone",
+                        status: .home,
+                        sourceType: "gps",
+                        batteryLevel: 91,
+                        context: HAPresenceContext(
+                            deviceID: "phone",
+                            deviceName: "Tyler iPhone",
+                            areaID: "office",
+                            areaName: "Office",
+                            floorID: nil,
+                            floorName: nil
+                        )
+                    )
+                ],
+                context: HAPresenceContext(
+                    deviceID: nil,
+                    deviceName: nil,
+                    areaID: nil,
+                    areaName: nil,
+                    floorID: nil,
+                    floorName: nil
+                )
+            ),
+            HAPresenceRecord(
+                entityID: "person.guest",
+                domain: .person,
+                displayName: "Guest",
+                status: .away,
+                rawState: "not_home",
+                iconSystemName: "person",
+                isAvailable: true,
+                lastChanged: nil,
+                lastUpdated: nil,
+                entityPicturePath: nil,
+                sourceEntityID: nil,
+                sourceType: nil,
+                batteryLevel: nil,
+                gpsAccuracy: nil,
+                linkedPersonEntityID: nil,
+                linkedPersonName: nil,
+                linkedTrackers: [],
+                context: HAPresenceContext(
+                    deviceID: nil,
+                    deviceName: nil,
+                    areaID: "guest_room",
+                    areaName: "Guest Room",
+                    floorID: nil,
+                    floorName: nil
+                )
+            ),
+            HAPresenceRecord(
+                entityID: "device_tracker.car",
+                domain: .deviceTracker,
+                displayName: "Car",
+                status: .zone("Work"),
+                rawState: "work",
+                iconSystemName: "location",
+                isAvailable: true,
+                lastChanged: nil,
+                lastUpdated: nil,
+                entityPicturePath: nil,
+                sourceEntityID: nil,
+                sourceType: "gps",
+                batteryLevel: nil,
+                gpsAccuracy: nil,
+                linkedPersonEntityID: nil,
+                linkedPersonName: nil,
+                linkedTrackers: [],
+                context: HAPresenceContext(
+                    deviceID: "car",
+                    deviceName: "Car",
+                    areaID: nil,
+                    areaName: nil,
+                    floorID: nil,
+                    floorName: nil
+                )
+            )
+        ]
+
+        let searchPresentation = HAPresencePresentation.make(
+            records: people,
+            searchText: "iphone",
+            filter: .all,
+            grouping: .kind
+        )
+        let zonePresentation = HAPresencePresentation.make(
+            records: people,
+            searchText: "",
+            filter: .zones,
+            grouping: .status
+        )
+        let areaPresentation = HAPresencePresentation.make(
+            records: people,
+            searchText: "",
+            filter: .all,
+            grouping: .area
+        )
+
+        #expect(searchPresentation.visibleCount == 1)
+        #expect(searchPresentation.sections.first?.records.map(\.entityID) == ["person.tyler"])
+        #expect(searchPresentation.summary.totalCount == 3)
+        #expect(searchPresentation.summary.peopleCount == 2)
+        #expect(searchPresentation.summary.trackerCount == 1)
+        #expect(searchPresentation.summary.homeCount == 1)
+        #expect(searchPresentation.summary.awayCount == 1)
+        #expect(searchPresentation.summary.zoneCount == 1)
+        #expect(zonePresentation.visibleCount == 1)
+        #expect(zonePresentation.sections.map(\.title) == ["Zones"])
+        #expect(zonePresentation.sections.first?.records.map(\.entityID) == ["device_tracker.car"])
+        #expect(areaPresentation.sections.map(\.title) == ["Guest Room", "No Area"])
+    }
+
+    @MainActor
     @Test func transientServiceActionDoesNotCallHomeAssistantWhenEntityUnavailable() async throws {
         let unavailableScript = HAEntityDTO(
             entityID: "script.good_morning",
@@ -4302,6 +4539,41 @@ struct HomesteadTests {
         let request = try #require(await service.homeAssistantProfileImageRequest(settings: settings))
         #expect(request.url?.absoluteString == "http://homeassistant.local:8123/api/image/current")
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer profile-access")
+    }
+
+    @MainActor
+    @Test func imageRequestUsesStoredOAuthConfigurationAndRelativeOrAbsolutePaths() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "image-access")
+        )
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: StubHAWebSocketClient(),
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+
+        let relativeRequest = try #require(await service.homeAssistantImageRequest(
+            settings: settings,
+            pathOrURL: "/api/image/person"
+        ))
+        let absoluteRequest = try #require(await service.homeAssistantImageRequest(
+            settings: settings,
+            pathOrURL: "https://cdn.example.com/person.jpg"
+        ))
+        let blankRequest = await service.homeAssistantImageRequest(settings: settings, pathOrURL: " ")
+
+        #expect(relativeRequest.url?.absoluteString == "http://homeassistant.local:8123/api/image/person")
+        #expect(relativeRequest.value(forHTTPHeaderField: "Authorization") == "Bearer image-access")
+        #expect(absoluteRequest.url?.absoluteString == "https://cdn.example.com/person.jpg")
+        #expect(absoluteRequest.value(forHTTPHeaderField: "Authorization") == "Bearer image-access")
+        #expect(blankRequest == nil)
     }
 
     @MainActor

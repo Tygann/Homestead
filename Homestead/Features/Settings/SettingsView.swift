@@ -21,11 +21,7 @@ struct SettingsView: View {
 
             Section("Home Assistant") {
                 NavigationLink {
-                    SettingsFeaturePlaceholderView(
-                        title: "People",
-                        systemImage: "person.2",
-                        message: "Native people and presence management will be added after Homestead maps the needed Home Assistant people and tracker data."
-                    )
+                    PeopleSettingsView()
                 } label: {
                     Label("People", systemImage: "person.2")
                 }
