@@ -3,16 +3,13 @@ import SwiftUI
 struct UpdatesSettingsView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var searchText = ""
     @State private var updateToInstall: HAUpdateEntity?
     @State private var isConfirmingUpdateAll = false
+    @State private var selectedUpdate: UpdateRoute?
 
     var body: some View {
         let updates = stateStore.updateEntities
-        let presentation = HAUpdatePresentation.makeActionable(
-            updates: updates,
-            searchText: searchText
-        )
+        let presentation = HAUpdatePresentation.makeActionable(updates: updates)
         let availableUpdates = updates.filter { $0.status == .available }.sortedByUpdatePriority
 
         List {
@@ -23,9 +20,15 @@ struct UpdatesSettingsView: View {
             ForEach(presentation.sections) { section in
                 Section(section.title) {
                     ForEach(section.updates) { update in
-                        UpdateRowLink(update: update) {
-                            updateToInstall = update
-                        }
+                        UpdateRowView(
+                            update: update,
+                            openDetail: {
+                                selectedUpdate = UpdateRoute(entityID: update.entityID)
+                            },
+                            install: {
+                                updateToInstall = update
+                            }
+                        )
                     }
                 }
             }
@@ -34,14 +37,15 @@ struct UpdatesSettingsView: View {
             if updates.isEmpty {
                 ContentUnavailableView("No Updates", systemImage: EntityDomain.update.systemImage)
             } else if presentation.sections.isEmpty {
-                if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    ContentUnavailableView("All Updates Installed", systemImage: "checkmark.circle")
-                } else {
-                    ContentUnavailableView.search(text: searchText)
-                }
+                ContentUnavailableView("All Updates Installed", systemImage: "checkmark.circle")
             }
         }
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+        .refreshable {
+            await homeAssistantService.refreshStates()
+        }
+        .navigationDestination(item: $selectedUpdate) { route in
+            UpdateDetailSettingsView(entityID: route.entityID)
+        }
         .navigationTitle("Updates")
         .toolbarTitleDisplayMode(.inline)
         .confirmationDialog(
@@ -69,19 +73,19 @@ struct UpdatesSettingsView: View {
         } message: { update in
             Text(installConfirmationMessage(for: update))
         }
-        .confirmationDialog(
+        .alert(
             "Update all?",
             isPresented: $isConfirmingUpdateAll,
-            titleVisibility: .visible
-        ) {
-            Button("Install All with Backup") {
-                Task { await homeAssistantService.installAvailableUpdates(availableUpdates, backup: true) }
+            actions: {
+                Button("Cancel", role: .cancel) {}
+                Button("Install All with Backup") {
+                    Task { await homeAssistantService.installAvailableUpdates(availableUpdates, backup: true) }
+                }
+            },
+            message: {
+                Text(updateAllConfirmationMessage(count: availableUpdates.count))
             }
-
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(updateAllConfirmationMessage(count: availableUpdates.count))
-        }
+        )
     }
 
     private func updateAllSection(count: Int) -> some View {
@@ -91,11 +95,13 @@ struct UpdatesSettingsView: View {
             } label: {
                 HStack {
                     Text("Update All")
+                        .foregroundStyle(Color.accentColor)
                     Spacer()
                     Text(count, format: .number)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondary)
                 }
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -109,18 +115,24 @@ struct UpdatesSettingsView: View {
     }
 }
 
-private struct UpdateRowLink: View {
+private struct UpdateRoute: Identifiable, Hashable {
+    let entityID: String
+
+    var id: String { entityID }
+}
+
+private struct UpdateRowView: View {
     let update: HAUpdateEntity
+    let openDetail: () -> Void
     let install: () -> Void
 
     var body: some View {
         HStack(spacing: AppSpacing.small) {
-            NavigationLink {
-                UpdateDetailSettingsView(entityID: update.entityID)
-            } label: {
-                UpdateRowContent(update: update)
-            }
-            .buttonStyle(.plain)
+            UpdateRowContent(update: update)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: openDetail)
+
+            Spacer(minLength: AppSpacing.small)
 
             UpdateRowAction(status: update.status, progressText: update.progressText, install: install)
         }
@@ -135,7 +147,7 @@ private struct UpdateRowContent: View {
             UpdateIconView(update: update, size: 52)
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(update.title)
+                Text(update.displayTitle)
                     .font(.headline)
                     .foregroundStyle(.primary)
                     .lineLimit(2)
@@ -179,7 +191,8 @@ private struct UpdateIconView: View {
             if let image {
                 image
                     .resizable()
-                    .scaledToFill()
+                    .scaledToFit()
+                    .padding(3)
             } else {
                 Image(systemName: update.iconSystemName)
                     .font(.system(size: size * 0.42, weight: .semibold))
@@ -232,11 +245,15 @@ private struct UpdateRowAction: View {
     var body: some View {
         switch status {
         case .available:
-            Button("Update", action: install)
-                .font(.subheadline.weight(.semibold))
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .controlSize(.small)
+            Button(action: install) {
+                Text("Update")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 7)
+                    .background(Color(.secondarySystemFill), in: Capsule())
+            }
+            .buttonStyle(.plain)
         case .inProgress:
             Text(progressText)
                 .font(.caption.weight(.semibold))
@@ -262,9 +279,9 @@ private struct UpdateDetailSettingsView: View {
         Group {
             if let update {
                 Form {
-                    statusSection(update)
+                    overviewSection(update)
                     releaseSection(update)
-                    contextSection(update)
+                    locationSection(update)
                     actionsSection(update)
                 }
                 .confirmationDialog(
@@ -290,7 +307,7 @@ private struct UpdateDetailSettingsView: View {
                     .background(Color(.systemGroupedBackground))
             }
         }
-        .navigationTitle(update?.title ?? "Update")
+        .navigationTitle(update?.displayTitle ?? "Update")
         .toolbarTitleDisplayMode(.inline)
     }
 
@@ -298,33 +315,32 @@ private struct UpdateDetailSettingsView: View {
         stateStore.updateEntity(for: entityID)
     }
 
-    private func statusSection(_ update: HAUpdateEntity) -> some View {
-        Section("Status") {
-            Label {
-                Text(update.status.title)
-            } icon: {
-                Image(systemName: update.status.systemImage)
-                    .foregroundStyle(update.status.tint)
-            }
+    private func overviewSection(_ update: HAUpdateEntity) -> some View {
+        Section {
+            HStack(spacing: AppSpacing.medium) {
+                UpdateIconView(update: update, size: 64)
 
-            LabeledContent("Installed", value: update.installedVersion ?? "Unknown")
-            LabeledContent("Latest", value: update.latestVersion ?? "Unknown")
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    Text(update.displayTitle)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
 
-            if let skippedVersion = update.skippedVersion {
-                LabeledContent("Skipped", value: skippedVersion)
+                    Text(update.status.title)
+                        .font(.subheadline)
+                        .foregroundStyle(update.status.tint)
+
+                    Text(update.versionSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             if update.isInProgress {
                 LabeledContent("Progress", value: update.progressText)
             }
 
-            LabeledContent("Entity", value: update.entityID)
-
-            if let lastUpdated = update.lastUpdated {
-                LabeledContent("Updated") {
-                    Text(lastUpdated.formatted(date: .abbreviated, time: .shortened))
-                        .foregroundStyle(.secondary)
-                }
+            if let skippedVersion = update.skippedVersion {
+                LabeledContent("Skipped", value: skippedVersion)
             }
         }
     }
@@ -348,24 +364,24 @@ private struct UpdateDetailSettingsView: View {
         }
     }
 
-    private func contextSection(_ update: HAUpdateEntity) -> some View {
-        Section("Context") {
-            LabeledContent("Name", value: update.name)
+    @ViewBuilder
+    private func locationSection(_ update: HAUpdateEntity) -> some View {
+        if update.context.deviceName != nil || update.context.areaName != nil || update.lastUpdated != nil {
+            Section {
+                if let deviceName = update.context.deviceName {
+                    LabeledContent("Device", value: deviceName)
+                }
 
-            if let areaName = update.context.areaName {
-                LabeledContent("Area", value: areaName)
-            }
+                if let areaName = update.context.areaName {
+                    LabeledContent("Area", value: areaName)
+                }
 
-            if let floorName = update.context.floorName {
-                LabeledContent("Floor", value: floorName)
-            }
-
-            if let deviceName = update.context.deviceName {
-                LabeledContent("Device", value: deviceName)
-            }
-
-            if let deviceClass = update.deviceClass {
-                LabeledContent("Type", value: deviceClass.replacingOccurrences(of: "_", with: " ").capitalized)
+                if let lastUpdated = update.lastUpdated {
+                    LabeledContent("Last checked") {
+                        Text(lastUpdated.formatted(date: .abbreviated, time: .shortened))
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
     }
@@ -379,28 +395,33 @@ private struct UpdateDetailSettingsView: View {
         )
 
         return Section {
-            Button {
-                isConfirmingInstall = true
-            } label: {
-                Label("Install Update", systemImage: "square.and.arrow.down")
+            if availability.canInstall {
+                Button {
+                    isConfirmingInstall = true
+                } label: {
+                    Label("Update", systemImage: "square.and.arrow.down")
+                }
             }
-            .disabled(!availability.canInstall)
 
-            Button {
-                Task { await homeAssistantService.skipUpdate(entityID: update.entityID) }
-            } label: {
-                Label("Skip Update", systemImage: "forward")
+            if availability.canSkip {
+                Button {
+                    Task { await homeAssistantService.skipUpdate(entityID: update.entityID) }
+                } label: {
+                    Label("Skip This Version", systemImage: "forward")
+                }
             }
-            .disabled(!availability.canSkip)
 
-            Button {
-                Task { await homeAssistantService.clearSkippedUpdate(entityID: update.entityID) }
-            } label: {
-                Label("Clear Skipped Update", systemImage: "arrow.uturn.backward")
+            if availability.canClearSkipped {
+                Button {
+                    Task { await homeAssistantService.clearSkippedUpdate(entityID: update.entityID) }
+                } label: {
+                    Label("Show This Version Again", systemImage: "arrow.uturn.backward")
+                }
             }
-            .disabled(!availability.canClearSkipped)
         } footer: {
-            Text(actionFooterText(availability: availability))
+            if let reason = actionFooterText(availability: availability) {
+                Text(reason)
+            }
         }
     }
 
@@ -409,30 +430,22 @@ private struct UpdateDetailSettingsView: View {
         return "Install \(update.title)\(versionText). Some updates may restart Home Assistant, an add-on, or a device. Choose backup when the integration supports it or when you are unsure."
     }
 
-    private func actionFooterText(availability: HAUpdateSettingsActionAvailability) -> String {
+    private func actionFooterText(availability: HAUpdateSettingsActionAvailability) -> String? {
         [
             availability.installUnavailableReason,
             availability.skipUnavailableReason,
             availability.clearSkippedUnavailableReason
         ]
             .compactMap { $0 }
-            .first ?? "Actions use Home Assistant's official update services."
-    }
-}
-
-private struct UpdateStatusBadge: View {
-    let status: HAUpdateStatus
-
-    var body: some View {
-        Text(status.shortTitle)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(status.tint)
-            .lineLimit(1)
-            .frame(width: 88, alignment: .trailing)
+            .first
     }
 }
 
 private extension HAUpdateEntity {
+    var displayTitle: String {
+        trimmedUpdateSuffix(from: title)
+    }
+
     var releaseNotesURL: URL? {
         guard let releaseURLString else { return nil }
         return URL(string: releaseURLString)
@@ -445,6 +458,19 @@ private extension HAUpdateEntity {
 
         let clampedProgress = min(max(progress, 0), 100)
         return "\(Int(clampedProgress.rounded()))%"
+    }
+
+    private func trimmedUpdateSuffix(from value: String) -> String {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffix = " Update"
+        guard trimmedValue.localizedCaseInsensitiveContains(suffix),
+              trimmedValue.range(of: suffix, options: [.caseInsensitive, .backwards])?.upperBound == trimmedValue.endIndex,
+              let range = trimmedValue.range(of: suffix, options: [.caseInsensitive, .backwards]) else {
+            return trimmedValue
+        }
+
+        let result = trimmedValue[..<range.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.isEmpty ? trimmedValue : result
     }
 }
 
