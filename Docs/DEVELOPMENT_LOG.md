@@ -11,6 +11,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Reused authenticated Home Assistant image loading and documented REST history timelines for person/tracker details while keeping true user/admin management and private frontend endpoints out of scope.
 - Simplified Settings > People into a people-first surface: the main list now shows only person rows, custom zone state casing is preserved exactly, global tracker browsing/filter summaries are removed, and empty registry context is hidden from detail views.
 - Aligned the Settings row and People landing page with Apple's Family-style overlapping avatar treatment to make the people area feel more native and household-oriented.
+- Completed live-preview polish by removing the People search field, centering sparse household avatar clusters, caching authenticated avatar images, and aligning toolbar/account avatar rendering with the Settings profile treatment.
 
 ### Connection Startup
 

@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Settings > People is implemented as a presence-first management surface. Next recommended focus is live-device review/polish of Settings > People with real Home Assistant presence data, then continue the existing dashboard mini tile and WidgetKit/App Intents polish priorities from the roadmap.
+Settings > People is completed for now as a presence-first management surface. Next recommended focus is the existing dashboard mini tile and WidgetKit/App Intents polish priorities from the roadmap.
 
 Recommended reasoning level: High.
 
@@ -16,9 +16,10 @@ Recommended reasoning level: High.
 - Added app-facing `HAPresenceRecord` / presentation helpers that map home, away, zone, unknown, and unavailable states, relate people to their Home Assistant `source` tracker when present, include tracker source/battery/GPS context, and keep raw DTOs out of SwiftUI.
 - Trimmed Settings > People to a people-only list with avatar, name, and presence badge; global tracker browsing, filter summaries, grouping controls, and raw entity subtitles are intentionally omitted.
 - Added a Family-style people treatment in Settings with overlapping avatar clusters at the top of the main Settings row and the People landing page.
+- Removed the People search/filter chrome after live preview review, centered sparse household avatar clusters, and tuned the shared toolbar/account avatar rendering so placeholder and real profile images stay visually consistent.
 - Kept person detail focused on the header, useful timestamp/accuracy details, the active Home Assistant `source` tracker, optional non-empty registry context, Recent Activity, and standard Home Assistant identifiers.
 - Preserved Home Assistant custom-zone casing exactly in user-facing presence copy, so states like `PCS` are not title-cased or prefixed.
-- Added a generic authenticated Home Assistant image request helper in `HomeAssistantService` and focused tests for presence mapping, people-only search behavior, and image request URL/auth shape.
+- Added a generic authenticated Home Assistant image request helper in `HomeAssistantService`, a shared in-memory avatar image cache, and focused tests for presence mapping, people-only presentation behavior, and image request URL/auth shape.
 - Kept true Home Assistant user/admin management and assigned-device editing out of scope; no private frontend user/admin endpoints or unconfirmed person-management APIs were added.
 - Added a read-only Settings > Logbook page backed by Home Assistant's documented REST logbook endpoint.
 - Added typed logbook request/DTO support, an authenticated HTTP client path, app-facing `HAActivityRow` models, grouped/searchable presentation helpers, and focused regression tests for URL shape, decoding, mapping, filtering, and service auth handoff.
@@ -126,7 +127,6 @@ Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Device-test Settings > People against real Home Assistant instances with multiple people, zone states, unavailable trackers, and tracker/device registry metadata; polish row density, image loading, and detail copy only where real data exposes friction.
 - Continue roadmap follow-up work: device-test dashboard mini accessory tiles in dense dashboards, then polish the expanded WidgetKit/App Intents surface and consider Control Center controls for the safest common actions.
 - Keep true Home Assistant users/admin views in research-needed status until an official supported API path and permission behavior are confirmed.
 
@@ -149,6 +149,7 @@ Recommended reasoning level: High.
 
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-PeopleSettings` after adding Settings > People.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-PeopleSettings` after adding Settings > People.
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-AvatarFix5` after final People/settings avatar polish.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-ForegroundChromeGrace` after suppressing transient foreground connection-health chrome.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-ForegroundChromeGrace` after suppressing transient foreground connection-health chrome.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-Notifications` after hardening Home Assistant WebSocket notification payload decoding and clarifying connected-session notification scope.
