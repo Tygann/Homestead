@@ -58,6 +58,35 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1.0 (Build 10)
+
+- Release Date: 2026-06-11
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build adds Home Screen widgets, richer Settings pages, entity history, and smoother dashboard customization.
+
+What's new:
+
+- Home Screen widgets for controls, status, graphs, scenes, and scripts
+- New Settings pages for Updates, Logbook, Permissions, Notifications, and People
+- History charts and recent activity timelines for more entity types
+- Native Weather support and expanded entity detail views
+
+Improvements:
+
+- Better dashboard editing, drag reordering, mini cards, and add-card customization
+- More polished widget setup, previews, and entity pickers
+- Improved startup, reconnect behavior, notification delivery, and internal/external URL switching
+
+Please test:
+
+- Adding and configuring Home Screen widgets
+- Dashboard editing and card reordering
+- Settings pages and entity history views
+- Reconnect behavior after app launch or returning from the Home Screen
+
 ## Version 1.0 (Build 8)
 
 - Release Date: 2026-06-02
