@@ -2561,11 +2561,13 @@ struct HomeAssistantAvatarView: View {
                 image
                     .resizable()
                     .scaledToFill()
+                    .scaleEffect(style == .toolbar ? 1.18 : 1)
             } else {
                 Image(systemName: "person.crop.circle.fill")
                     .resizable()
-                    .scaledToFill()
+                    .scaledToFit()
                     .foregroundStyle(.gray)
+                    .scaleEffect(style == .toolbar ? 1.2 : 1)
             }
         }
         .clipShape(Circle())
