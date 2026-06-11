@@ -5845,12 +5845,20 @@ struct HomesteadTests {
             ]
         )
 
-        await cache.save(entities, registryMetadata: registryMetadata, for: primaryConfiguration)
+        let currentUser = HAStateCacheCurrentUser(id: "current-user", name: "Tyler")
+
+        await cache.save(
+            entities,
+            registryMetadata: registryMetadata,
+            currentUser: currentUser,
+            for: primaryConfiguration
+        )
 
         let restoredSnapshot = try #require(await cache.load(for: primaryConfiguration))
         let metadata = try #require(await cache.metadata(for: primaryConfiguration))
         #expect(restoredSnapshot.entities == entities)
         #expect(restoredSnapshot.registryMetadata == registryMetadata)
+        #expect(restoredSnapshot.currentUser == currentUser)
         #expect(metadata.entityCount == 1)
         #expect(metadata.entityRegistryCount == 1)
         #expect(metadata.deviceRegistryCount == 1)
@@ -5926,6 +5934,15 @@ struct HomesteadTests {
         )
         let entities = [
             HAEntityDTO(
+                entityID: "person.tyler",
+                state: "home",
+                attributes: [
+                    "friendly_name": .string("Tyler"),
+                    "user_id": .string("current-user"),
+                    "entity_picture": .string("/api/image/current")
+                ]
+            ),
+            HAEntityDTO(
                 entityID: "light.kitchen",
                 state: "on",
                 attributes: ["friendly_name": .string("Kitchen")],
@@ -5948,7 +5965,12 @@ struct HomesteadTests {
             ]
         )
 
-        await cache.save(entities, registryMetadata: registryMetadata, for: configuration)
+        await cache.save(
+            entities,
+            registryMetadata: registryMetadata,
+            currentUser: HAStateCacheCurrentUser(id: "current-user", name: "Tyler"),
+            for: configuration
+        )
 
         let store = HAStateStore()
         let tokenStore = InMemoryHAOAuthTokenStore(
@@ -5969,7 +5991,9 @@ struct HomesteadTests {
         #expect(store.hasLoadedInitialSnapshot == true)
         #expect(store.entity(for: "light.kitchen")?.state == "on")
         #expect(store.areaName(for: "light.kitchen") == "Kitchen")
-        #expect(service.stateCacheMetadata?.entityCount == 1)
+        #expect(service.currentUserDisplayName == "Tyler")
+        #expect(service.currentUserEntityPicturePath == "/api/image/current")
+        #expect(service.stateCacheMetadata?.entityCount == 2)
         #expect(service.stateCacheMetadata?.areaRegistryCount == 1)
         if case .cached = service.dataFreshness {
             // Expected cached-first launch state.

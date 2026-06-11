@@ -68,6 +68,7 @@ actor HAStateCache {
     func save(
         _ entities: [HAEntityDTO],
         registryMetadata: HARegistryMetadataSnapshot? = nil,
+        currentUser: HAStateCacheCurrentUser? = nil,
         for configuration: HAConnectionConfiguration
     ) async {
         do {
@@ -80,7 +81,8 @@ actor HAStateCache {
             let snapshot = HAStateCacheSnapshot(
                 savedAt: Date(),
                 entities: entities,
-                registryMetadata: registryMetadata
+                registryMetadata: registryMetadata,
+                currentUser: currentUser
             )
             let data = try encoder.encode(snapshot)
             try data.write(to: url, options: [.atomic])
@@ -215,14 +217,27 @@ nonisolated struct HAStateCacheSnapshot: Codable, Equatable, Sendable {
     let savedAt: Date
     let entities: [HAEntityDTO]
     let registryMetadata: HARegistryMetadataSnapshot?
+    let currentUser: HAStateCacheCurrentUser?
 
     nonisolated init(
         savedAt: Date,
         entities: [HAEntityDTO],
-        registryMetadata: HARegistryMetadataSnapshot? = nil
+        registryMetadata: HARegistryMetadataSnapshot? = nil,
+        currentUser: HAStateCacheCurrentUser? = nil
     ) {
         self.savedAt = savedAt
         self.entities = entities
         self.registryMetadata = registryMetadata
+        self.currentUser = currentUser
+    }
+}
+
+nonisolated struct HAStateCacheCurrentUser: Codable, Equatable, Sendable {
+    let id: String
+    let name: String?
+
+    nonisolated init(id: String, name: String?) {
+        self.id = id
+        self.name = name
     }
 }

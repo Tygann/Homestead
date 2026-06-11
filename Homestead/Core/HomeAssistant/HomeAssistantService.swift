@@ -1307,6 +1307,38 @@ final class HomeAssistantService {
             .first
     }
 
+    private func applyCurrentUser(_ currentUser: HACurrentUserDTO) {
+        currentUserID = currentUser.id
+        let displayName = currentUser.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        currentUserDisplayName = displayName?.isEmpty == false ? displayName : nil
+        refreshCurrentUserEntityPicturePath()
+    }
+
+    private func applyCachedCurrentUser(_ currentUser: HAStateCacheCurrentUser?) {
+        guard let currentUser else {
+            refreshCurrentUserEntityPicturePath()
+            return
+        }
+
+        currentUserID = currentUser.id
+        let displayName = currentUser.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        currentUserDisplayName = displayName?.isEmpty == false ? displayName : nil
+        refreshCurrentUserEntityPicturePath()
+    }
+
+    private func refreshCurrentUserEntityPicturePath() {
+        currentUserEntityPicturePath = currentUserID.flatMap { personEntityPicture(forUserID: $0) }
+    }
+
+    private func stateCacheCurrentUserSnapshot() -> HAStateCacheCurrentUser? {
+        guard let currentUserID,
+              !currentUserID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+
+        return HAStateCacheCurrentUser(id: currentUserID, name: currentUserDisplayName)
+    }
+
     private func cameraConfiguration(for entityID: String) throws -> HAConnectionConfiguration {
         guard let configuration = activeConfiguration else {
             throw HAWebSocketError.notConnected
@@ -1590,6 +1622,7 @@ final class HomeAssistantService {
         let startDate = Date()
         #endif
         stateStore.applySnapshot(snapshot.entities, dataSourceID: configuration.dataSourceID)
+        applyCachedCurrentUser(snapshot.currentUser)
         if let registryMetadata = snapshot.registryMetadata {
             stateStore.applyRegistryMetadata(registryMetadata)
         }
@@ -1672,15 +1705,13 @@ final class HomeAssistantService {
 
     private func establishTransportConnection(configuration: HAConnectionConfiguration) async throws {
         await configureClientCallbacks()
-        currentUserID = nil
-        currentUserDisplayName = nil
-        currentUserEntityPicturePath = nil
         try await client.connect(configuration: configuration)
         let currentUser = try? await client.fetchCurrentUser()
-        currentUserID = currentUser?.id
-        let displayName = currentUser?.name?.trimmingCharacters(in: .whitespacesAndNewlines)
-        currentUserDisplayName = displayName?.isEmpty == false ? displayName : nil
-        currentUserEntityPicturePath = currentUserID.flatMap { personEntityPicture(forUserID: $0) }
+        if let currentUser {
+            applyCurrentUser(currentUser)
+        } else {
+            refreshCurrentUserEntityPicturePath()
+        }
     }
 
     private func establishTransportConnectionWithAuthRecovery(
@@ -1848,6 +1879,7 @@ final class HomeAssistantService {
     private func scheduleStateCacheSave(configuration: HAConnectionConfiguration) {
         let entities = stateStore.rawEntitySnapshot()
         let registryMetadata = stateStore.registryMetadataSnapshot()
+        let currentUser = stateCacheCurrentUserSnapshot()
         stateCacheMetadata = HAStateCacheMetadata(
             scopeIdentifier: HAStateCache.cacheScopeIdentifier(for: configuration),
             savedAt: Date(),
@@ -1861,6 +1893,7 @@ final class HomeAssistantService {
             await stateCache.save(
                 entities,
                 registryMetadata: registryMetadata,
+                currentUser: currentUser,
                 for: configuration
             )
         }
@@ -1882,6 +1915,7 @@ final class HomeAssistantService {
         await stateCache.save(
             stateStore.rawEntitySnapshot(),
             registryMetadata: registryMetadata ?? stateStore.registryMetadataSnapshot(),
+            currentUser: stateCacheCurrentUserSnapshot(),
             for: configuration
         )
     }
