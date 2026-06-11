@@ -2545,29 +2545,21 @@ private struct HomeAssistantSettingsRow: View {
 
 // MARK: - Home Assistant Avatar View
 struct HomeAssistantAvatarView: View {
-    enum Style {
-        case standard
-        case toolbar
-    }
-
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var image: Image?
-    var style: Style = .standard
 
     var body: some View {
         Group {
             if let image {
                 image
                     .resizable()
-                    .scaledToFill()
-                    .scaleEffect(style == .toolbar ? 1.18 : 1)
+                    .scaledToFit()
             } else {
                 Image(systemName: "person.crop.circle.fill")
                     .resizable()
                     .scaledToFit()
                     .foregroundStyle(.gray)
-                    .scaleEffect(style == .toolbar ? 1.2 : 1)
             }
         }
         .clipShape(Circle())
