@@ -12,6 +12,7 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added a native dashboard Options card feature for `select.*` and `input_select.*`, backed by typed select option state in `HAStateStore` and WebSocket `select_option` service calls routed to each entity's real Home Assistant domain.
 - Added native Settings > People backed by existing `person.*` and `device_tracker.*` state plus registry metadata.
 - Added app-facing `HAPresenceRecord` / presentation helpers that map home, away, zone, unknown, and unavailable states, relate people to their Home Assistant `source` tracker when present, include tracker source/battery/GPS context, and keep raw DTOs out of SwiftUI.
 - Trimmed Settings > People to a people-only list with avatar, name, and presence badge; global tracker browsing, filter summaries, grouping controls, and raw entity subtitles are intentionally omitted.

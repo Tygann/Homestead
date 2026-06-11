@@ -10,6 +10,7 @@ struct DashboardCardFeatureActions {
     var setCoverPosition: ((Double) -> Void)?
     var lock: (() -> Void)?
     var unlock: (() -> Void)?
+    var selectOption: ((String) -> Void)?
 
     func canRender(_ feature: DashboardCardFeature) -> Bool {
         switch feature.content {
@@ -24,6 +25,8 @@ struct DashboardCardFeatureActions {
             }
         case .commandGroup(let group):
             return group.commands.contains { commandAction(for: $0.action) != nil }
+        case .options(let options):
+            return selectOption != nil && !options.options.isEmpty
         }
     }
 
@@ -71,6 +74,8 @@ struct DashboardCardFeatureView: View {
                 setpointControl(setpoint)
             case .commandGroup(let group):
                 commandGroupControl(group)
+            case .options(let options):
+                optionsControl(options)
             }
         }
         .allowsHitTesting(isInteractionEnabled)
@@ -162,6 +167,45 @@ struct DashboardCardFeatureView: View {
                 .accessibilityLabel(command.title)
             }
         }
+    }
+
+    private func optionsControl(_ options: DashboardCardOptionsFeature) -> some View {
+        Menu {
+            ForEach(options.options) { option in
+                Button {
+                    HapticFeedback.selection()
+                    actions.selectOption?(option.value)
+                } label: {
+                    if option.isSelected {
+                        Label(option.displayValue, systemImage: "checkmark")
+                    } else {
+                        Text(option.displayValue)
+                    }
+                }
+                .disabled(option.isSelected)
+            }
+        } label: {
+            HStack(spacing: AppSpacing.small) {
+                Text(options.selectedDisplayValue)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Spacer(minLength: AppSpacing.xSmall)
+
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, AppSpacing.medium)
+            .frame(height: 44)
+            .background(controlBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(isPending || actions.selectOption == nil || options.options.isEmpty)
+        .accessibilityLabel("Options")
+        .accessibilityValue(options.selectedDisplayValue)
     }
 
     private var isShowingCommandConfirmation: Binding<Bool> {

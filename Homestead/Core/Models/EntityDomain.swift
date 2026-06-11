@@ -47,6 +47,11 @@ nonisolated enum EntityDomain: String, CaseIterable, Hashable, Sendable {
             return
         }
 
+        if domain == "input_select" {
+            self = .select
+            return
+        }
+
         self = EntityDomain(rawValue: String(domain)) ?? .other
     }
 

@@ -2,6 +2,13 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-11
+
+### Select Options Cards
+
+- Added typed select option state for `select.*` and `input_select.*`, mapping both into native select presentation while preserving their distinct Home Assistant service domains.
+- Added the reusable dashboard Options feature so larger select cards show a native menu row and call `select_option` through the existing WebSocket service path.
+
 ## 2026-06-10
 
 ### Settings People

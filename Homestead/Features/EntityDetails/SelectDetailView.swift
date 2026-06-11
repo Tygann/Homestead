@@ -16,10 +16,11 @@ struct SelectDetailView: View {
     }
 
     private var options: [String] {
-        stateStore.rawEntity(for: entity.entityID)?
-            .attributes["options"]?
-            .arrayValue?
-            .compactMap(\.stringValue) ?? []
+        entityBox.selectEntity?.options ?? []
+    }
+
+    private var serviceDomain: String {
+        HomeAssistantService.selectServiceDomain(for: entity.entityID)
     }
 
     var body: some View {
@@ -54,7 +55,7 @@ struct SelectDetailView: View {
                 title: "Current",
                 systemImage: "checkmark.circle",
                 value: entity.state.displayStateText,
-                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "select", service: "select_option")
+                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: serviceDomain, service: "select_option")
             ) {
                 ForEach(options, id: \.self) { option in
                     Button {
@@ -91,7 +92,7 @@ struct SelectDetailView: View {
             rows: [
                 EntityMetadataRow(title: "Entity ID", value: entity.entityID),
                 EntityMetadataRow(title: "Domain", value: entity.domain.displayName),
-                EntityMetadataRow(title: "Service", value: "select.select_option")
+                EntityMetadataRow(title: "Service", value: "\(serviceDomain).select_option")
             ]
         )
     }

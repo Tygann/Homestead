@@ -1861,6 +1861,7 @@ struct HomesteadTests {
         let examples: [(String, EntityDomain, String)] = [
             ("button.identify", .button, "button.programmable"),
             ("select.hvac_mode", .select, "filemenu.and.selection"),
+            ("input_select.house_mode", .select, "filemenu.and.selection"),
             ("number.target_humidity", .number, "gauge.medium"),
             ("text.status_message", .text, "text.cursor"),
             ("date.vacation_start", .date, "calendar"),
@@ -1894,6 +1895,31 @@ struct HomesteadTests {
         let unsupported = EntityMapper.homeEntity(from: HAEntityDTO(entityID: "moon_phase.home", state: "full_moon"))
         #expect(unsupported.domain == .other)
         #expect(unsupported.iconName == "circle.hexagongrid")
+    }
+
+    @MainActor
+    @Test func entityMapperMapsSelectOptionsFromSelectAndInputSelectDomains() throws {
+        let selectDTO = HAEntityDTO(
+            entityID: "select.hvac_mode",
+            state: "home",
+            attributes: ["options": .array([.string("home"), .string("away")])]
+        )
+        let inputSelectDTO = HAEntityDTO(
+            entityID: "input_select.house_mode",
+            state: "Home",
+            attributes: ["options": .array([.string("Morning"), .string("Home"), .string("Away")])]
+        )
+
+        let select = try #require(EntityMapper.selectEntity(from: selectDTO))
+        let inputSelect = try #require(EntityMapper.selectEntity(from: inputSelectDTO))
+        let inputSelectHomeEntity = EntityMapper.homeEntity(from: inputSelectDTO)
+        let inputSelectBox = HAEntityState(homeEntity: inputSelectHomeEntity, selectEntity: inputSelect)
+        let inputSelectPresentation = DashboardEntityPresentation(entityBox: inputSelectBox)
+
+        #expect(select.options == ["home", "away"])
+        #expect(inputSelect.options == ["Morning", "Home", "Away"])
+        #expect(inputSelectHomeEntity.domain == .select)
+        #expect(inputSelectPresentation.detailKind == .select)
     }
 
     @Test func entityMapperMapsHomeAssistantUpdateEntities() throws {
@@ -3952,6 +3978,30 @@ struct HomesteadTests {
         #expect(service.serviceFeedback?.title == "Scene activated")
         #expect(webSocketClient.callServiceInvocations.last?.domain == "scene")
         #expect(webSocketClient.callServiceInvocations.last?.service == "turn_on")
+    }
+
+    @MainActor
+    @Test func selectOptionRoutesByHomeAssistantEntityDomain() async throws {
+        let stateStore = HAStateStore()
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "select-access"))
+            )
+        )
+
+        await service.selectOption(entityID: "select.house_mode", option: "Away")
+        await service.selectOption(entityID: "input_select.house_mode", option: "Home")
+
+        #expect(webSocketClient.callServiceInvocations.map(\.domain) == ["select", "input_select"])
+        #expect(webSocketClient.callServiceInvocations.map(\.service) == ["select_option", "select_option"])
+        #expect(webSocketClient.callServiceInvocations.map(\.entityID) == ["select.house_mode", "input_select.house_mode"])
+        #expect(webSocketClient.callServiceInvocations[0].serviceData["option"] == .string("Away"))
+        #expect(webSocketClient.callServiceInvocations[1].serviceData["option"] == .string("Home"))
     }
 
     @MainActor
@@ -6638,7 +6688,24 @@ struct HomesteadTests {
                     "current_position": .number(0)
                 ]
             ),
-            HAEntityDTO(entityID: "lock.front_door", state: "locked")
+            HAEntityDTO(entityID: "lock.front_door", state: "locked"),
+            HAEntityDTO(
+                entityID: "select.house_mode",
+                state: "Home",
+                attributes: [
+                    "friendly_name": .string("House Mode"),
+                    "options": .array([.string("Morning"), .string("Home"), .string("Away")])
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "input_select.guest_mode",
+                state: "Away",
+                attributes: [
+                    "friendly_name": .string("Guest Mode"),
+                    "options": .array([.string("Home"), .string("Away")])
+                ]
+            ),
+            HAEntityDTO(entityID: "select.empty_mode", state: "Home")
         ])
 
         let lightBox = try #require(store.entityBox(for: "light.kitchen"))
@@ -6702,6 +6769,38 @@ struct HomesteadTests {
             message: "This will send an unlock command to Home Assistant.",
             isDestructive: true
         ))
+
+        let selectBox = try #require(store.entityBox(for: "select.house_mode"))
+        let selectFeatures = DashboardCardFeatureProvider.features(
+            for: selectBox,
+            presentation: DashboardEntityPresentation(entityBox: selectBox)
+        )
+        #expect(selectFeatures.map(\.key) == [.selectOptions])
+        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: selectBox) == .square)
+        guard case .options(let selectOptions) = try #require(selectFeatures.first?.content) else {
+            Issue.record("Expected select options feature")
+            return
+        }
+        #expect(selectOptions.selectedValue == "Home")
+        #expect(selectOptions.selectedDisplayValue == "Home")
+        #expect(selectOptions.options.map(\.value) == ["Morning", "Home", "Away"])
+        #expect(selectOptions.options.map(\.isSelected) == [false, true, false])
+
+        let inputSelectBox = try #require(store.entityBox(for: "input_select.guest_mode"))
+        let inputSelectFeatures = DashboardCardFeatureProvider.features(
+            for: inputSelectBox,
+            presentation: DashboardEntityPresentation(entityBox: inputSelectBox)
+        )
+        #expect(inputSelectBox.domain == .select)
+        #expect(inputSelectFeatures.map(\.key) == [.selectOptions])
+        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: inputSelectBox) == .square)
+
+        let emptySelectBox = try #require(store.entityBox(for: "select.empty_mode"))
+        #expect(DashboardCardFeatureProvider.features(
+            for: emptySelectBox,
+            presentation: DashboardEntityPresentation(entityBox: emptySelectBox)
+        ).isEmpty)
+        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: emptySelectBox) == .compact)
     }
 
     @MainActor
@@ -6765,6 +6864,20 @@ struct HomesteadTests {
                         action: .setCoverPosition
                     )
                 )
+            ),
+            DashboardCardFeature(
+                key: .selectOptions,
+                title: "Options",
+                content: .options(
+                    DashboardCardOptionsFeature(
+                        selectedValue: "Home",
+                        selectedDisplayValue: "Home",
+                        options: [
+                            DashboardCardOption(value: "Home", displayValue: "Home", isSelected: true),
+                            DashboardCardOption(value: "Away", displayValue: "Away", isSelected: false)
+                        ]
+                    )
+                )
             )
         ]
 
@@ -6778,9 +6891,17 @@ struct HomesteadTests {
         #expect(DashboardCardSize.compact.visibleFeatures(from: features).isEmpty)
         #expect(DashboardCardSize.row.visibleFeatures(from: features).map(\.key) == [.coverControls])
         #expect(DashboardCardSize.square.visibleFeatures(from: features).map(\.key) == [.coverControls])
-        #expect(DashboardCardSize.large.visibleFeatures(from: features).map(\.key) == [.coverControls, .coverPosition])
+        #expect(DashboardCardSize.large.visibleFeatures(from: features).map(\.key) == [.coverControls, .coverPosition, .selectOptions])
         #expect(DashboardCardSize.large.visibleFeatures(from: features, visibility: .hidden).isEmpty)
-        #expect(DashboardCardSize.large.visibleFeatures(from: features, visibility: .automatic).map(\.key) == [.coverControls, .coverPosition])
+        #expect(DashboardCardSize.large.visibleFeatures(from: features, visibility: .automatic).map(\.key) == [.coverControls, .coverPosition, .selectOptions])
+
+        let optionFeatures = [features[2]]
+        #expect(DashboardCardSize.mini.visibleFeatures(from: optionFeatures).isEmpty)
+        #expect(DashboardCardSize.compact.visibleFeatures(from: optionFeatures).isEmpty)
+        #expect(DashboardCardSize.row.visibleFeatures(from: optionFeatures).map(\.key) == [.selectOptions])
+        #expect(DashboardCardSize.square.visibleFeatures(from: optionFeatures).map(\.key) == [.selectOptions])
+        #expect(DashboardCardSize.wide.visibleFeatures(from: optionFeatures).map(\.key) == [.selectOptions])
+        #expect(DashboardCardSize.large.visibleFeatures(from: optionFeatures).map(\.key) == [.selectOptions])
     }
 
     @MainActor

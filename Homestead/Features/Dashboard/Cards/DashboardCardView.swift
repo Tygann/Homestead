@@ -303,6 +303,22 @@ struct DashboardCardView: View {
         }
     }
 
+    private func selectOptionAction(for entityBox: HAEntityState) -> ((String) -> Void)? {
+        guard entityBox.selectEntity?.options.isEmpty == false,
+              homeAssistantService.serviceActionAvailable(
+                domain: HomeAssistantService.selectServiceDomain(for: entityBox.entityID),
+                service: "select_option"
+              ) else {
+            return nil
+        }
+
+        return { option in
+            Task {
+                await homeAssistantService.selectOption(entityID: entityBox.entityID, option: option)
+            }
+        }
+    }
+
     private func featureActions(for entityBox: HAEntityState) -> DashboardCardFeatureActions {
         DashboardCardFeatureActions(
             setLightBrightness: setLightBrightnessAction(for: entityBox),
@@ -313,7 +329,8 @@ struct DashboardCardView: View {
             closeCover: closeCoverAction(for: entityBox),
             setCoverPosition: setCoverPositionAction(for: entityBox),
             lock: lockAction(for: entityBox),
-            unlock: unlockAction(for: entityBox)
+            unlock: unlockAction(for: entityBox),
+            selectOption: selectOptionAction(for: entityBox)
         )
     }
 
@@ -331,7 +348,8 @@ struct DashboardCardView: View {
             closeCover: entityBox.coverEntity != nil ? noopCommand : nil,
             setCoverPosition: entityBox.coverEntity?.positionPercentage != nil ? noopSingle : nil,
             lock: entityBox.domain == .lock ? noopCommand : nil,
-            unlock: entityBox.domain == .lock ? noopCommand : nil
+            unlock: entityBox.domain == .lock ? noopCommand : nil,
+            selectOption: entityBox.selectEntity?.options.isEmpty == false ? { _ in } : nil
         )
     }
 

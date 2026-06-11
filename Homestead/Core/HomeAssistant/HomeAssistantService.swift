@@ -1047,7 +1047,7 @@ final class HomeAssistantService {
         )
 
         let succeeded = await callService(
-            domain: "select",
+            domain: Self.selectServiceDomain(for: entityID),
             service: "select_option",
             entityID: entityID,
             serviceData: serviceData
@@ -1057,6 +1057,10 @@ final class HomeAssistantService {
         } else {
             clearPendingCommand(pendingCommand)
         }
+    }
+
+    nonisolated static func selectServiceDomain(for entityID: String) -> String {
+        entityID.hasPrefix("input_select.") ? "input_select" : "select"
     }
 
     func setNumberValue(entityID: String, value: Double) async {

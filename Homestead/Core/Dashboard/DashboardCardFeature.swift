@@ -6,6 +6,7 @@ enum DashboardCardFeatureKey: String, Codable, Equatable, Sendable {
     case coverControls
     case coverPosition
     case lockControls
+    case selectOptions
 }
 
 enum DashboardCardFeatureVisibility: String, CaseIterable, Codable, Equatable, Sendable {
@@ -35,6 +36,7 @@ enum DashboardCardFeatureContent: Equatable, Sendable {
     case level(DashboardCardLevelFeature)
     case setpoint(DashboardCardSetpointFeature)
     case commandGroup(DashboardCardCommandGroupFeature)
+    case options(DashboardCardOptionsFeature)
 }
 
 struct DashboardCardFeature: Equatable, Identifiable, Sendable {
@@ -119,6 +121,20 @@ struct DashboardCardCommandGroupFeature: Equatable, Sendable {
     let commands: [DashboardCardCommand]
 }
 
+struct DashboardCardOption: Equatable, Identifiable, Sendable {
+    let value: String
+    let displayValue: String
+    let isSelected: Bool
+
+    var id: String { value }
+}
+
+struct DashboardCardOptionsFeature: Equatable, Sendable {
+    let selectedValue: String
+    let selectedDisplayValue: String
+    let options: [DashboardCardOption]
+}
+
 enum DashboardCardFeatureProvider {
     static func features(
         for entityBox: HAEntityState,
@@ -136,6 +152,9 @@ enum DashboardCardFeatureProvider {
             return coverFeatures(cover, entityBox: entityBox)
         case .lock:
             return lockFeatures(entityBox.homeEntity)
+        case .select:
+            guard let select = entityBox.selectEntity else { return [] }
+            return selectOptionsFeatures(select, entityBox: entityBox)
         default:
             return []
         }
@@ -336,6 +355,34 @@ enum DashboardCardFeatureProvider {
                                 )
                             )
                         ]
+                    )
+                )
+            )
+        ]
+    }
+
+    private static func selectOptionsFeatures(
+        _ select: SelectEntity,
+        entityBox: HAEntityState
+    ) -> [DashboardCardFeature] {
+        guard !select.options.isEmpty else { return [] }
+
+        let selectedValue = entityBox.pendingCommand?.expectedState ?? select.state
+        return [
+            DashboardCardFeature(
+                key: .selectOptions,
+                title: "Options",
+                content: .options(
+                    DashboardCardOptionsFeature(
+                        selectedValue: selectedValue,
+                        selectedDisplayValue: selectedValue.displayStateText,
+                        options: select.options.map { option in
+                            DashboardCardOption(
+                                value: option,
+                                displayValue: option.displayStateText,
+                                isSelected: option == selectedValue
+                            )
+                        }
                     )
                 )
             )

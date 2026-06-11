@@ -108,7 +108,9 @@ These are the next API slices to map when the matching feature is implemented. D
 
 ## Entity Domain Mapping Notes
 
-Homestead already recognizes many Home Assistant domains through `EntityDomain` and maps common presentation behavior through `EntityMapper` and dashboard presentation helpers. Strong domain models currently exist only where the UI needs richer native state or controls, such as lights, climate, covers, fans, media players, sensors, and binary sensors.
+Homestead already recognizes many Home Assistant domains through `EntityDomain` and maps common presentation behavior through `EntityMapper` and dashboard presentation helpers. Strong domain models currently exist only where the UI needs richer native state or controls, such as lights, climate, covers, fans, media players, sensors, binary sensors, and select-style option entities.
+
+`select.*` and `input_select.*` share Homestead's select-style presentation and dashboard Options feature, but service calls preserve Home Assistant's real service domain: `select.select_option` for `select.*` and `input_select.select_option` for `input_select.*`.
 
 When adding richer support for a domain:
 

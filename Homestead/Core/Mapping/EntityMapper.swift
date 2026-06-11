@@ -142,6 +142,17 @@ enum EntityMapper {
         )
     }
 
+    static func selectEntity(from dto: HAEntityDTO) -> SelectEntity? {
+        guard EntityDomain(entityID: dto.entityID) == .select else { return nil }
+
+        return SelectEntity(
+            entityID: dto.entityID,
+            displayName: displayName(for: dto),
+            state: dto.state,
+            options: dto.attributes["options"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        )
+    }
+
     static func displayName(for dto: HAEntityDTO) -> String {
         if let friendlyName = dto.attributes["friendly_name"]?.stringValue, !friendlyName.isEmpty {
             return friendlyName
