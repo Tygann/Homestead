@@ -3,9 +3,11 @@ import SwiftUI
 struct NumberDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(HAStateStore.self) private var stateStore
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
 
     @State private var draftValue: Double = 0
     @State private var isEditingValue = false
+    @State private var confirmationRequest: ActionConfirmationRequest?
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -35,6 +37,7 @@ struct NumberDetailView: View {
             guard !isEditingValue else { return }
             syncDraftValue()
         }
+        .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
@@ -70,7 +73,7 @@ struct NumberDetailView: View {
                     accessibilityValue: formattedValue(draftValue),
                     onEditingChanged: { isEditingValue = $0 },
                     onCommit: { value in
-                        Task { await homeAssistantService.setNumberValue(entityID: entity.entityID, value: value) }
+                        setValue(value)
                     }
                 )
 
@@ -148,7 +151,30 @@ struct NumberDetailView: View {
     private func adjustValue(by delta: Double) {
         let updatedValue = min(max(draftValue + delta, valueRange.lowerBound), valueRange.upperBound)
         draftValue = (updatedValue / step).rounded() * step
-        Task { await homeAssistantService.setNumberValue(entityID: entity.entityID, value: draftValue) }
+        setValue(draftValue)
+    }
+
+    private func setValue(_ value: Double) {
+        confirmOrPerform(domain: "number", service: "set_value") {
+            Task { await homeAssistantService.setNumberValue(entityID: entity.entityID, value: value) }
+        }
+    }
+
+    private func confirmOrPerform(domain: String, service: String, perform: @escaping () -> Void) {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: perform
+        )
     }
 
     private func formattedValue(_ value: Double) -> String {

@@ -65,7 +65,9 @@ struct DashboardCardView: View {
 
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
     @State private var selectedDetail: DashboardCardDetail?
+    @State private var confirmationRequest: ActionConfirmationRequest?
 
     var body: some View {
         if let entityBox = stateStore.entityBox(for: entityID) {
@@ -90,7 +92,7 @@ struct DashboardCardView: View {
                 ),
                 toggle: isEditing || isPreview ? nil : primaryAction(
                     presentation.primaryAction,
-                    entityID: entityBox.entityID
+                    entityBox: entityBox
                 ),
                 showDetails: isEditing || isPreview ? nil : detailsAction(
                     entityID: entityBox.entityID,
@@ -106,6 +108,7 @@ struct DashboardCardView: View {
                     ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
                 }
             }
+            .actionConfirmationDialog(request: $confirmationRequest)
         }
     }
 
@@ -125,14 +128,19 @@ struct DashboardCardView: View {
 
     private func primaryAction(
         _ primaryAction: DashboardEntityPrimaryAction?,
-        entityID: String
+        entityBox: HAEntityState
     ) -> (() -> Void)? {
         guard let primaryAction else { return nil }
 
         return {
             HapticFeedback.selection()
-            Task {
-                await homeAssistantService.perform(primaryAction, entityID: entityID)
+            guard let serviceCall = resolvedServiceCall(for: primaryAction, entityBox: entityBox) else {
+                Task { await homeAssistantService.perform(primaryAction, entityID: entityBox.entityID) }
+                return
+            }
+
+            confirmOrPerform(entityBox: entityBox, domain: serviceCall.domain, service: serviceCall.service) {
+                Task { await homeAssistantService.perform(primaryAction, entityID: entityBox.entityID) }
             }
         }
     }
@@ -224,8 +232,10 @@ struct DashboardCardView: View {
 
         return {
             HapticFeedback.selection()
-            Task {
-                await homeAssistantService.openCover(entityID: entityBox.entityID)
+            confirmOrPerform(entityBox: entityBox, domain: "cover", service: "open_cover") {
+                Task {
+                    await homeAssistantService.openCover(entityID: entityBox.entityID)
+                }
             }
         }
     }
@@ -238,8 +248,10 @@ struct DashboardCardView: View {
 
         return {
             HapticFeedback.selection()
-            Task {
-                await homeAssistantService.stopCover(entityID: entityBox.entityID)
+            confirmOrPerform(entityBox: entityBox, domain: "cover", service: "stop_cover") {
+                Task {
+                    await homeAssistantService.stopCover(entityID: entityBox.entityID)
+                }
             }
         }
     }
@@ -252,8 +264,10 @@ struct DashboardCardView: View {
 
         return {
             HapticFeedback.selection()
-            Task {
-                await homeAssistantService.closeCover(entityID: entityBox.entityID)
+            confirmOrPerform(entityBox: entityBox, domain: "cover", service: "close_cover") {
+                Task {
+                    await homeAssistantService.closeCover(entityID: entityBox.entityID)
+                }
             }
         }
     }
@@ -283,8 +297,10 @@ struct DashboardCardView: View {
 
         return {
             HapticFeedback.selection()
-            Task {
-                await homeAssistantService.toggleLock(entityID: entityBox.entityID)
+            confirmOrPerform(entityBox: entityBox, domain: "lock", service: "lock") {
+                Task {
+                    await homeAssistantService.toggleLock(entityID: entityBox.entityID)
+                }
             }
         }
     }
@@ -297,8 +313,10 @@ struct DashboardCardView: View {
 
         return {
             HapticFeedback.selection()
-            Task {
-                await homeAssistantService.toggleLock(entityID: entityBox.entityID)
+            confirmOrPerform(entityBox: entityBox, domain: "lock", service: "unlock") {
+                Task {
+                    await homeAssistantService.toggleLock(entityID: entityBox.entityID)
+                }
             }
         }
     }
@@ -332,6 +350,58 @@ struct DashboardCardView: View {
             unlock: unlockAction(for: entityBox),
             selectOption: selectOptionAction(for: entityBox)
         )
+    }
+
+    private func confirmOrPerform(
+        entityBox: HAEntityState,
+        domain: String,
+        service: String,
+        perform: @escaping () -> Void
+    ) {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: perform
+        )
+    }
+
+    private func resolvedServiceCall(
+        for action: DashboardEntityPrimaryAction,
+        entityBox: HAEntityState
+    ) -> DashboardServiceCall? {
+        switch action {
+        case .toggleLight:
+            let service = entityBox.lightEntity?.isOn == true ? "turn_off" : "turn_on"
+            return DashboardServiceCall(domain: "light", service: service)
+        case .toggleCover:
+            let service = entityBox.coverEntity?.isOpen == true ? "close_cover" : "open_cover"
+            return DashboardServiceCall(domain: "cover", service: service)
+        case .toggleSwitch:
+            let service = entityBox.homeEntity.state == "on" ? "turn_off" : "turn_on"
+            return DashboardServiceCall(domain: "switch", service: service)
+        case .toggleFan:
+            let service = entityBox.homeEntity.state == "on" ? "turn_off" : "turn_on"
+            return DashboardServiceCall(domain: "fan", service: service)
+        case .toggleLock:
+            let service = entityBox.homeEntity.state == "locked" ? "unlock" : "lock"
+            return DashboardServiceCall(domain: "lock", service: service)
+        case .toggleAutomation:
+            let service = entityBox.homeEntity.state == "on" ? "turn_off" : "turn_on"
+            return DashboardServiceCall(domain: "automation", service: service)
+        case .activateScene:
+            return DashboardServiceCall(domain: "scene", service: "turn_on")
+        case .runScript:
+            return DashboardServiceCall(domain: "script", service: "turn_on")
+        }
     }
 
     private func previewFeatureActions(for entityBox: HAEntityState) -> DashboardCardFeatureActions {
@@ -391,6 +461,11 @@ struct DashboardCardView: View {
             .entity
         }
     }
+}
+
+private struct DashboardServiceCall {
+    let domain: String
+    let service: String
 }
 
 private struct DashboardCardDetail: Identifiable {

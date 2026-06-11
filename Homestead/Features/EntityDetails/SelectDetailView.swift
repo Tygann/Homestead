@@ -3,6 +3,8 @@ import SwiftUI
 struct SelectDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(HAStateStore.self) private var stateStore
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @State private var confirmationRequest: ActionConfirmationRequest?
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -34,6 +36,7 @@ struct SelectDetailView: View {
             currentPanel
             contextDetails
         }
+        .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
@@ -59,7 +62,9 @@ struct SelectDetailView: View {
             ) {
                 ForEach(options, id: \.self) { option in
                     Button {
-                        Task { await homeAssistantService.selectOption(entityID: entity.entityID, option: option) }
+                        confirmOrPerform(domain: serviceDomain, service: "select_option") {
+                            Task { await homeAssistantService.selectOption(entityID: entity.entityID, option: option) }
+                        }
                     } label: {
                         if option == entity.state {
                             Label(option.displayStateText, systemImage: "checkmark")
@@ -101,6 +106,23 @@ struct SelectDetailView: View {
         guard entity.isAvailable else { return "Select unavailable" }
         if entityBox.pendingCommand != nil { return "Waiting for Home Assistant confirmation" }
         return "Current option"
+    }
+
+    private func confirmOrPerform(domain: String, service: String, perform: @escaping () -> Void) {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: perform
+        )
     }
 }
 

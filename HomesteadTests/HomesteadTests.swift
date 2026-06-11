@@ -240,6 +240,134 @@ struct HomesteadTests {
         #expect(failureFeedback.displayDuration == .seconds(5))
     }
 
+    @MainActor
+    @Test func actionConfirmationSettingsDefaultToSmartSafetyAndPersist() throws {
+        let defaults = try isolatedDefaults()
+        let settings = ActionConfirmationSettings(defaults: defaults)
+
+        #expect(settings.mode == .smart)
+        #expect(settings.confirmsLockUnlocks)
+        #expect(settings.confirmsSecurityCoverOpens)
+        #expect(settings.confirmsScenes)
+        #expect(settings.confirmsScripts)
+        #expect(settings.confirmsOtherImpactfulActions)
+
+        settings.mode = .off
+        settings.confirmsScenes = false
+        settings.confirmsOtherImpactfulActions = false
+
+        let restoredSettings = ActionConfirmationSettings(defaults: defaults)
+        #expect(restoredSettings.mode == .off)
+        #expect(restoredSettings.confirmsScenes == false)
+        #expect(restoredSettings.confirmsOtherImpactfulActions == false)
+        #expect(restoredSettings.confirmsLockUnlocks)
+    }
+
+    @MainActor
+    @Test func actionConfirmationPolicyConfirmsSensitiveSmartActions() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "lock.front_door", state: "locked"),
+            HAEntityDTO(entityID: "lock.back_door", state: "unlocked"),
+            HAEntityDTO(
+                entityID: "cover.garage_door",
+                state: "closed",
+                attributes: ["device_class": .string("garage")]
+            ),
+            HAEntityDTO(
+                entityID: "cover.office_shade",
+                state: "closed",
+                attributes: ["device_class": .string("shade")]
+            ),
+            HAEntityDTO(entityID: "cover.unknown_cover", state: "closed"),
+            HAEntityDTO(entityID: "scene.movie_night", state: "scening"),
+            HAEntityDTO(entityID: "script.good_morning", state: "off"),
+            HAEntityDTO(entityID: "button.restart_router", state: "unknown"),
+            HAEntityDTO(entityID: "light.kitchen", state: "off"),
+            HAEntityDTO(entityID: "switch.coffee", state: "off"),
+            HAEntityDTO(entityID: "fan.bedroom", state: "off"),
+            HAEntityDTO(entityID: "climate.downstairs", state: "heat"),
+            HAEntityDTO(
+                entityID: "select.house_mode",
+                state: "Home",
+                attributes: ["options": .array([.string("Home"), .string("Away")])]
+            )
+        ])
+        let settings = ActionConfirmationSettingsSnapshot(
+            mode: .smart,
+            confirmsLockUnlocks: true,
+            confirmsSecurityCoverOpens: true,
+            confirmsScenes: true,
+            confirmsScripts: true,
+            confirmsOtherImpactfulActions: true
+        )
+
+        #expect(confirmation(store, "lock.front_door", "lock", "unlock", settings) != nil)
+        #expect(confirmation(store, "lock.back_door", "lock", "lock", settings) == nil)
+        #expect(confirmation(store, "cover.garage_door", "cover", "open_cover", settings) != nil)
+        #expect(confirmation(store, "cover.unknown_cover", "cover", "open_cover", settings) != nil)
+        #expect(confirmation(store, "cover.office_shade", "cover", "open_cover", settings) == nil)
+        #expect(confirmation(store, "cover.garage_door", "cover", "close_cover", settings) == nil)
+        #expect(confirmation(store, "cover.garage_door", "cover", "stop_cover", settings) == nil)
+        #expect(confirmation(store, "cover.garage_door", "cover", "set_cover_position", settings) == nil)
+        #expect(confirmation(store, "scene.movie_night", "scene", "turn_on", settings) != nil)
+        #expect(confirmation(store, "script.good_morning", "script", "turn_on", settings) != nil)
+        #expect(confirmation(store, "button.restart_router", "button", "press", settings) != nil)
+        #expect(confirmation(store, "light.kitchen", "light", "turn_on", settings) == nil)
+        #expect(confirmation(store, "switch.coffee", "switch", "turn_on", settings) == nil)
+        #expect(confirmation(store, "fan.bedroom", "fan", "turn_on", settings) == nil)
+        #expect(confirmation(store, "climate.downstairs", "climate", "set_temperature", settings) == nil)
+        #expect(confirmation(store, "select.house_mode", "select", "select_option", settings) == nil)
+    }
+
+    @MainActor
+    @Test func actionConfirmationPolicyHonorsOffAllAndCategoryToggles() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "lock.front_door", state: "locked"),
+            HAEntityDTO(
+                entityID: "cover.garage_door",
+                state: "closed",
+                attributes: ["device_class": .string("garage")]
+            ),
+            HAEntityDTO(entityID: "scene.movie_night", state: "scening"),
+            HAEntityDTO(entityID: "light.kitchen", state: "off")
+        ])
+
+        let offSettings = ActionConfirmationSettingsSnapshot(
+            mode: .off,
+            confirmsLockUnlocks: true,
+            confirmsSecurityCoverOpens: true,
+            confirmsScenes: true,
+            confirmsScripts: true,
+            confirmsOtherImpactfulActions: true
+        )
+        #expect(confirmation(store, "lock.front_door", "lock", "unlock", offSettings) == nil)
+
+        let allSettings = ActionConfirmationSettingsSnapshot(
+            mode: .all,
+            confirmsLockUnlocks: false,
+            confirmsSecurityCoverOpens: false,
+            confirmsScenes: false,
+            confirmsScripts: false,
+            confirmsOtherImpactfulActions: false
+        )
+        #expect(confirmation(store, "light.kitchen", "light", "turn_on", allSettings) != nil)
+        #expect(confirmation(store, "cover.garage_door", "cover", "close_cover", allSettings) != nil)
+
+        let smartDisabledSettings = ActionConfirmationSettingsSnapshot(
+            mode: .smart,
+            confirmsLockUnlocks: false,
+            confirmsSecurityCoverOpens: false,
+            confirmsScenes: false,
+            confirmsScripts: true,
+            confirmsOtherImpactfulActions: true
+        )
+        #expect(confirmation(store, "lock.front_door", "lock", "unlock", smartDisabledSettings) == nil)
+        #expect(confirmation(store, "cover.garage_door", "cover", "open_cover", smartDisabledSettings) == nil)
+        #expect(confirmation(store, "scene.movie_night", "scene", "turn_on", smartDisabledSettings) == nil)
+    }
+
     @Test func companionNotificationSetupPromptRequiresRegisteredRequestableNotifications() {
         let credential = HAOAuthCredential(
             baseURLString: "http://homeassistant.local:8123",
@@ -6763,13 +6891,6 @@ struct HomesteadTests {
         #expect(lockCommands.commands.map(\.action) == [.lock, .unlock])
         #expect(lockCommands.commands.first?.isDisabled == true)
         #expect(lockCommands.commands.last?.isDisabled == false)
-        #expect(lockCommands.commands.last?.confirmation == DashboardCardCommandConfirmation(
-            title: "Unlock?",
-            actionTitle: "Unlock",
-            message: "This will send an unlock command to Home Assistant.",
-            isDestructive: true
-        ))
-
         let selectBox = try #require(store.entityBox(for: "select.house_mode"))
         let selectFeatures = DashboardCardFeatureProvider.features(
             for: selectBox,
@@ -6804,7 +6925,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func lockCardFeatureProviderRequiresInlineUnlockConfirmation() throws {
+    @Test func lockCardFeatureProviderDisablesUnavailableLockCommands() throws {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(entityID: "lock.front_door", state: "locked"),
@@ -6816,7 +6937,6 @@ struct HomesteadTests {
         let lockedCommands = try lockCommands(for: lockedBox)
         #expect(lockedCommands.commands[0].isDisabled)
         #expect(lockedCommands.commands[1].isDisabled == false)
-        #expect(lockedCommands.commands[1].confirmation?.isDestructive == true)
 
         let unlockedBox = try #require(store.entityBox(for: "lock.back_door"))
         let unlockedCommands = try lockCommands(for: unlockedBox)
@@ -7399,6 +7519,27 @@ struct HomesteadTests {
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
         return defaults
+    }
+
+    @MainActor
+    private func confirmation(
+        _ store: HAStateStore,
+        _ entityID: String,
+        _ domain: String,
+        _ service: String,
+        _ settings: ActionConfirmationSettingsSnapshot
+    ) -> ActionConfirmationPresentation? {
+        guard let entityBox = store.entityBox(for: entityID) else {
+            Issue.record("Missing test entity \(entityID)")
+            return nil
+        }
+
+        return ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: settings
+        )
     }
 }
 

@@ -105,16 +105,8 @@ struct DashboardCardCommand: Equatable, Identifiable, Sendable {
     let title: String
     let systemImage: String
     let isDisabled: Bool
-    var confirmation: DashboardCardCommandConfirmation? = nil
 
     var id: String { action.rawValue }
-}
-
-struct DashboardCardCommandConfirmation: Equatable, Sendable {
-    let title: String
-    let actionTitle: String
-    let message: String
-    let isDestructive: Bool
 }
 
 struct DashboardCardCommandGroupFeature: Equatable, Sendable {
@@ -346,13 +338,7 @@ enum DashboardCardFeatureProvider {
                                 action: .unlock,
                                 title: "Unlock",
                                 systemImage: "lock.open.fill",
-                                isDisabled: !entity.isAvailable || isUnlocked || isUnlocking,
-                                confirmation: DashboardCardCommandConfirmation(
-                                    title: "Unlock?",
-                                    actionTitle: "Unlock",
-                                    message: "This will send an unlock command to Home Assistant.",
-                                    isDestructive: true
-                                )
+                                isDisabled: !entity.isAvailable || isUnlocked || isUnlocking
                             )
                         ]
                     )

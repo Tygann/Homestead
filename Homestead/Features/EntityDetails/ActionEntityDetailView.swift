@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ActionEntityDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @State private var confirmationRequest: ActionConfirmationRequest?
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -20,6 +22,7 @@ struct ActionEntityDetailView: View {
             actionPanel
             stateDetails
         }
+        .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
@@ -145,12 +148,39 @@ struct ActionEntityDetailView: View {
     private func performAction() async {
         switch entity.domain {
         case .scene:
-            await homeAssistantService.activateScene(entityID: entity.entityID)
+            await confirmOrPerform(domain: "scene", service: "turn_on") {
+                await homeAssistantService.activateScene(entityID: entity.entityID)
+            }
         case .script:
-            await homeAssistantService.runScript(entityID: entity.entityID)
+            await confirmOrPerform(domain: "script", service: "turn_on") {
+                await homeAssistantService.runScript(entityID: entity.entityID)
+            }
         default:
             break
         }
+    }
+
+    private func confirmOrPerform(
+        domain: String,
+        service: String,
+        perform: @escaping () async -> Void
+    ) async {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            await perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: {
+                Task { await perform() }
+            }
+        )
     }
 }
 

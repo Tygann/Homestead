@@ -2,6 +2,8 @@ import SwiftUI
 
 struct LightDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @State private var confirmationRequest: ActionConfirmationRequest?
     @State private var brightnessPercentage = 100.0
     @State private var isEditingBrightness = false
 
@@ -35,6 +37,7 @@ struct LightDetailView: View {
                 guard !isEditingBrightness else { return }
                 syncBrightness(with: light)
             }
+            .actionConfirmationDialog(request: $confirmationRequest)
         } else {
             EntityUnavailableDetailView(
                 title: "Light",
@@ -68,11 +71,13 @@ struct LightDetailView: View {
                 style: light.isOn ? .secondary : .primary,
                 isDisabled: isPending || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "light", service: service)
             ) {
-                Task {
+                confirmOrPerform(domain: "light", service: service) {
+                    Task {
                     if light.isOn {
                         await homeAssistantService.turnOffLight(entityID: entityBox.entityID)
                     } else {
                         await homeAssistantService.turnOnLight(entityID: entityBox.entityID)
+                    }
                     }
                 }
             }
@@ -176,12 +181,31 @@ struct LightDetailView: View {
     private func setBrightness(_ preset: Double) {
         brightnessPercentage = preset
 
-        Task {
-            await homeAssistantService.setLightBrightness(
-                entityID: entityBox.entityID,
-                brightnessPercentage: preset
-            )
+        confirmOrPerform(domain: "light", service: "turn_on") {
+            Task {
+                await homeAssistantService.setLightBrightness(
+                    entityID: entityBox.entityID,
+                    brightnessPercentage: preset
+                )
+            }
         }
+    }
+
+    private func confirmOrPerform(domain: String, service: String, perform: @escaping () -> Void) {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: perform
+        )
     }
 
     private func isSelectedPreset(_ preset: Double) -> Bool {

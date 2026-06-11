@@ -3,6 +3,8 @@ import SwiftUI
 struct CoverDetailView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @State private var confirmationRequest: ActionConfirmationRequest?
     @State private var position = 100.0
     @State private var isEditingPosition = false
     @State private var selectedHistoryRange: HAHistoryRangePreset = .day
@@ -36,6 +38,7 @@ struct CoverDetailView: View {
                 guard !isEditingPosition else { return }
                 syncPosition(with: cover)
             }
+            .actionConfirmationDialog(request: $confirmationRequest)
         } else {
             EntityUnavailableDetailView(
                 title: "Cover",
@@ -68,7 +71,9 @@ struct CoverDetailView: View {
                     systemImage: "arrow.up",
                     isDisabled: isPending || cover.state == "open" || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover")
                 ) {
-                    Task { await homeAssistantService.openCover(entityID: entityBox.entityID) }
+                    confirmOrPerform(domain: "cover", service: "open_cover") {
+                        Task { await homeAssistantService.openCover(entityID: entityBox.entityID) }
+                    }
                 }
 
                 EntityDetailActionButton(
@@ -77,7 +82,9 @@ struct CoverDetailView: View {
                     style: .secondary,
                     isDisabled: isPending || cover.state == "closed" || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "close_cover")
                 ) {
-                    Task { await homeAssistantService.closeCover(entityID: entityBox.entityID) }
+                    confirmOrPerform(domain: "cover", service: "close_cover") {
+                        Task { await homeAssistantService.closeCover(entityID: entityBox.entityID) }
+                    }
                 }
             }
 
@@ -87,7 +94,9 @@ struct CoverDetailView: View {
                 style: .secondary,
                 isDisabled: isPending || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "stop_cover")
             ) {
-                Task { await homeAssistantService.stopCover(entityID: entityBox.entityID) }
+                confirmOrPerform(domain: "cover", service: "stop_cover") {
+                    Task { await homeAssistantService.stopCover(entityID: entityBox.entityID) }
+                }
             }
         }
     }
@@ -166,11 +175,13 @@ struct CoverDetailView: View {
     private func setPosition(_ updatedPosition: Double) {
         position = updatedPosition
 
-        Task {
-            await homeAssistantService.setCoverPosition(
-                entityID: entityBox.entityID,
-                position: updatedPosition
-            )
+        confirmOrPerform(domain: "cover", service: "set_cover_position") {
+            Task {
+                await homeAssistantService.setCoverPosition(
+                    entityID: entityBox.entityID,
+                    position: updatedPosition
+                )
+            }
         }
     }
 
@@ -191,6 +202,23 @@ struct CoverDetailView: View {
 
     private func syncPosition(with cover: CoverEntity) {
         position = Double(cover.positionPercentage ?? 100)
+    }
+
+    private func confirmOrPerform(domain: String, service: String, perform: @escaping () -> Void) {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: perform
+        )
     }
 
     @MainActor

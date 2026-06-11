@@ -3,7 +3,8 @@ import SwiftUI
 struct LockDetailView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var isShowingUnlockConfirmation = false
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @State private var confirmationRequest: ActionConfirmationRequest?
     @State private var selectedHistoryRange: HAHistoryRangePreset = .day
     @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
 
@@ -28,19 +29,7 @@ struct LockDetailView: View {
         .task(id: timelineTaskID) {
             await refreshTimeline()
         }
-        .confirmationDialog(
-            "Unlock \(presentation.title)?",
-            isPresented: $isShowingUnlockConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Unlock", role: .destructive) {
-                Task { await homeAssistantService.toggleLock(entityID: entity.entityID) }
-            }
-
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will send an unlock command to Home Assistant.")
-        }
+        .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
@@ -64,9 +53,8 @@ struct LockDetailView: View {
                 style: entity.state == "locked" ? .secondary : .primary,
                 isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
             ) {
-                if entity.state == "locked" {
-                    isShowingUnlockConfirmation = true
-                } else {
+                let service = entity.state == "locked" ? "unlock" : "lock"
+                confirmOrPerform(domain: "lock", service: service) {
                     Task { await homeAssistantService.toggleLock(entityID: entity.entityID) }
                 }
             }
@@ -137,6 +125,23 @@ struct LockDetailView: View {
     private var statusBackground: Color {
         guard entity.isAvailable else { return Color.red.opacity(0.12) }
         return presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+    }
+
+    private func confirmOrPerform(domain: String, service: String, perform: @escaping () -> Void) {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: perform
+        )
     }
 
     @MainActor

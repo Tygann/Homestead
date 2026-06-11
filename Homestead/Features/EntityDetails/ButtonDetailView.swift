@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ButtonDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @State private var confirmationRequest: ActionConfirmationRequest?
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -20,6 +22,7 @@ struct ButtonDetailView: View {
             actionPanel
             contextDetails
         }
+        .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
@@ -42,7 +45,9 @@ struct ButtonDetailView: View {
                 systemImage: "button.programmable",
                 isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "button", service: "press")
             ) {
-                Task { await homeAssistantService.pressButton(entityID: entity.entityID) }
+                confirmOrPerform(domain: "button", service: "press") {
+                    Task { await homeAssistantService.pressButton(entityID: entity.entityID) }
+                }
             }
         }
     }
@@ -65,6 +70,23 @@ struct ButtonDetailView: View {
         guard entity.isAvailable else { return "Button unavailable" }
         if entityBox.pendingCommand != nil { return "Waiting for Home Assistant confirmation" }
         return entity.state == "unknown" ? "Ready for command" : entity.state.displayStateText
+    }
+
+    private func confirmOrPerform(domain: String, service: String, perform: @escaping () -> Void) {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: perform
+        )
     }
 }
 

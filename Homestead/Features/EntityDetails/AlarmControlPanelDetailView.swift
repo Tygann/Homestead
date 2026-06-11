@@ -2,10 +2,10 @@ import SwiftUI
 
 struct AlarmControlPanelDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
 
     @State private var code = ""
-    @State private var pendingService: AlarmServiceAction?
-    @State private var isShowingConfirmation = false
+    @State private var confirmationRequest: ActionConfirmationRequest?
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -27,19 +27,7 @@ struct AlarmControlPanelDetailView: View {
             }
             contextDetails
         }
-        .confirmationDialog(
-            confirmationTitle,
-            isPresented: $isShowingConfirmation,
-            titleVisibility: .visible
-        ) {
-            if let pendingService {
-                Button(pendingService.confirmationButtonTitle, role: pendingService.isDisarm ? .destructive : nil) {
-                    Task { await perform(pendingService) }
-                }
-            }
-
-            Button("Cancel", role: .cancel) {}
-        }
+        .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
@@ -144,17 +132,27 @@ struct AlarmControlPanelDetailView: View {
         return iconColor.opacity(0.12)
     }
 
-    private var confirmationTitle: String {
-        pendingService?.confirmationTitle ?? "Update alarm?"
-    }
-
     private func isActionDisabled(_ action: AlarmServiceAction) -> Bool {
         entityBox.pendingCommand != nil || !entity.isAvailable || entity.state == action.expectedState
     }
 
     private func confirm(_ action: AlarmServiceAction) {
-        pendingService = action
-        isShowingConfirmation = true
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: "alarm_control_panel",
+            service: action.service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            Task { await perform(action) }
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: {
+                Task { await perform(action) }
+            }
+        )
     }
 
     private func perform(_ action: AlarmServiceAction) async {
@@ -230,31 +228,6 @@ private enum AlarmServiceAction: String, CaseIterable, Identifiable {
         self == .disarm
     }
 
-    var confirmationTitle: String {
-        switch self {
-        case .disarm:
-            "Disarm alarm?"
-        case .armHome:
-            "Arm home?"
-        case .armAway:
-            "Arm away?"
-        case .armNight:
-            "Arm night?"
-        }
-    }
-
-    var confirmationButtonTitle: String {
-        switch self {
-        case .disarm:
-            "Disarm"
-        case .armHome:
-            "Arm Home"
-        case .armAway:
-            "Arm Away"
-        case .armNight:
-            "Arm Night"
-        }
-    }
 }
 
 #if DEBUG

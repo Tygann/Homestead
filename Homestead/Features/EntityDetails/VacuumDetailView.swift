@@ -2,6 +2,8 @@ import SwiftUI
 
 struct VacuumDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @State private var confirmationRequest: ActionConfirmationRequest?
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -20,6 +22,7 @@ struct VacuumDetailView: View {
             vacuumControls
             contextDetails
         }
+        .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
@@ -42,20 +45,24 @@ struct VacuumDetailView: View {
             HStack(spacing: AppSpacing.small) {
                 EntityDetailActionButton(
                     title: "Start",
-                    systemImage: "play.fill",
-                    isDisabled: isPending || !entity.isAvailable || entity.state == "cleaning" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "start")
-                ) {
+                systemImage: "play.fill",
+                isDisabled: isPending || !entity.isAvailable || entity.state == "cleaning" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "start")
+            ) {
+                confirmOrPerform(domain: "vacuum", service: "start") {
                     Task { await homeAssistantService.startVacuum(entityID: entity.entityID) }
                 }
+            }
 
                 EntityDetailActionButton(
                     title: "Stop",
                     systemImage: "stop.fill",
-                    style: .secondary,
-                    isDisabled: isPending || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "stop")
-                ) {
+                style: .secondary,
+                isDisabled: isPending || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "stop")
+            ) {
+                confirmOrPerform(domain: "vacuum", service: "stop") {
                     Task { await homeAssistantService.stopVacuum(entityID: entity.entityID) }
                 }
+            }
             }
 
             EntityDetailActionButton(
@@ -64,7 +71,9 @@ struct VacuumDetailView: View {
                 style: .secondary,
                 isDisabled: isPending || !entity.isAvailable || entity.state == "docked" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "return_to_base")
             ) {
-                Task { await homeAssistantService.returnVacuumToBase(entityID: entity.entityID) }
+                confirmOrPerform(domain: "vacuum", service: "return_to_base") {
+                    Task { await homeAssistantService.returnVacuumToBase(entityID: entity.entityID) }
+                }
             }
         }
     }
@@ -106,6 +115,23 @@ struct VacuumDetailView: View {
     private var statusBackground: Color {
         guard entity.isAvailable else { return Color.red.opacity(0.12) }
         return presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+    }
+
+    private func confirmOrPerform(domain: String, service: String, perform: @escaping () -> Void) {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: perform
+        )
     }
 }
 

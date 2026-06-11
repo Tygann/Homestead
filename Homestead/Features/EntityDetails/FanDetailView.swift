@@ -2,6 +2,8 @@ import SwiftUI
 
 struct FanDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @State private var confirmationRequest: ActionConfirmationRequest?
     @State private var percentage = 100.0
     @State private var isEditingPercentage = false
 
@@ -34,6 +36,7 @@ struct FanDetailView: View {
                 guard !isEditingPercentage else { return }
                 syncPercentage(with: fan)
             }
+            .actionConfirmationDialog(request: $confirmationRequest)
         } else {
             EntityUnavailableDetailView(
                 title: "Fan",
@@ -66,7 +69,9 @@ struct FanDetailView: View {
                 style: fan.isOn ? .secondary : .primary,
                 isDisabled: isPending || !fan.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "fan", service: fan.isOn ? "turn_off" : "turn_on")
             ) {
-                Task { await homeAssistantService.toggleFan(entityID: entityBox.entityID) }
+                confirmOrPerform(domain: "fan", service: fan.isOn ? "turn_off" : "turn_on") {
+                    Task { await homeAssistantService.toggleFan(entityID: entityBox.entityID) }
+                }
             }
         }
     }
@@ -119,11 +124,13 @@ struct FanDetailView: View {
                         isSelected: presetMode == fan.presetMode,
                         isDisabled: entityBox.pendingCommand != nil || presetMode == fan.presetMode || !fan.isAvailable
                     ) {
-                        Task {
-                            await homeAssistantService.setFanPresetMode(
-                                entityID: fan.entityID,
-                                presetMode: presetMode
-                            )
+                        confirmOrPerform(domain: "fan", service: "set_preset_mode") {
+                            Task {
+                                await homeAssistantService.setFanPresetMode(
+                                    entityID: fan.entityID,
+                                    presetMode: presetMode
+                                )
+                            }
                         }
                     }
                 }
@@ -157,16 +164,35 @@ struct FanDetailView: View {
             percentage = updatedPercentage
         }
 
-        Task {
-            await homeAssistantService.setFanPercentage(
-                entityID: entityBox.entityID,
-                percentage: percentage
-            )
+        confirmOrPerform(domain: "fan", service: "set_percentage") {
+            Task {
+                await homeAssistantService.setFanPercentage(
+                    entityID: entityBox.entityID,
+                    percentage: percentage
+                )
+            }
         }
     }
 
     private func syncPercentage(with fan: FanEntity) {
         percentage = Double(fan.percentage ?? (fan.isOn ? 100 : 0))
+    }
+
+    private func confirmOrPerform(domain: String, service: String, perform: @escaping () -> Void) {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: perform
+        )
     }
 }
 

@@ -3,6 +3,8 @@ import SwiftUI
 struct ToggleEntityDetailView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @State private var confirmationRequest: ActionConfirmationRequest?
     @State private var selectedHistoryRange: HAHistoryRangePreset = .day
     @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
 
@@ -29,6 +31,7 @@ struct ToggleEntityDetailView: View {
         .task(id: timelineTaskID) {
             await refreshTimeline()
         }
+        .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
@@ -181,16 +184,47 @@ struct ToggleEntityDetailView: View {
     private func performPrimaryAction() async {
         switch entity.domain {
         case .switch:
-            await homeAssistantService.toggleSwitch(entityID: entity.entityID)
+            await confirmOrPerform(domain: "switch", service: presentation.isActive ? "turn_off" : "turn_on") {
+                await homeAssistantService.toggleSwitch(entityID: entity.entityID)
+            }
         case .fan:
-            await homeAssistantService.toggleFan(entityID: entity.entityID)
+            await confirmOrPerform(domain: "fan", service: presentation.isActive ? "turn_off" : "turn_on") {
+                await homeAssistantService.toggleFan(entityID: entity.entityID)
+            }
         case .lock:
-            await homeAssistantService.toggleLock(entityID: entity.entityID)
+            await confirmOrPerform(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock") {
+                await homeAssistantService.toggleLock(entityID: entity.entityID)
+            }
         case .automation:
-            await homeAssistantService.toggleAutomation(entityID: entity.entityID)
+            await confirmOrPerform(domain: "automation", service: presentation.isActive ? "turn_off" : "turn_on") {
+                await homeAssistantService.toggleAutomation(entityID: entity.entityID)
+            }
         default:
             break
         }
+    }
+
+    private func confirmOrPerform(
+        domain: String,
+        service: String,
+        perform: @escaping () async -> Void
+    ) async {
+        guard let presentation = ActionConfirmationPolicy.confirmation(
+            for: entityBox,
+            domain: domain,
+            service: service,
+            settings: actionConfirmationSettings.snapshot
+        ) else {
+            await perform()
+            return
+        }
+
+        confirmationRequest = ActionConfirmationRequest(
+            presentation: presentation,
+            perform: {
+                Task { await perform() }
+            }
+        )
     }
 
     @MainActor

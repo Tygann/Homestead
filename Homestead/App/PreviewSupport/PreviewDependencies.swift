@@ -9,12 +9,14 @@ struct PreviewDependencies {
     let nativeNotificationService: NativeNotificationService
     let nativePermissionService: NativePermissionService
     let dashboardConfiguration: DashboardConfiguration
+    let actionConfirmationSettings: ActionConfirmationSettings
 
     static var sample: PreviewDependencies {
         let previewDefaults = UserDefaults.samplePreview
         let stateStore = HAStateStore()
         stateStore.applyInitialStates(PreviewData.entities)
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
+        let actionConfirmationSettings = ActionConfirmationSettings(defaults: previewDefaults)
         dashboardConfiguration.reset(using: stateStore.allEntities)
 
         let credential = PreviewCredentialProvider.sampleCredential(
@@ -49,7 +51,8 @@ struct PreviewDependencies {
             homeAssistantService: service,
             nativeNotificationService: nativeNotificationService,
             nativePermissionService: nativePermissionService,
-            dashboardConfiguration: dashboardConfiguration
+            dashboardConfiguration: dashboardConfiguration,
+            actionConfirmationSettings: actionConfirmationSettings
         )
     }
 
@@ -57,6 +60,7 @@ struct PreviewDependencies {
         let previewDefaults = UserDefaults.livePreview
         let stateStore = HAStateStore()
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
+        let actionConfirmationSettings = ActionConfirmationSettings(defaults: previewDefaults)
 
         if let credential = PreviewCredentialProvider.liveCredential() {
             let tokenStore = InMemoryHAOAuthTokenStore(credential: credential)
@@ -85,7 +89,8 @@ struct PreviewDependencies {
                 homeAssistantService: service,
                 nativeNotificationService: nativeNotificationService,
                 nativePermissionService: nativePermissionService,
-                dashboardConfiguration: dashboardConfiguration
+                dashboardConfiguration: dashboardConfiguration,
+                actionConfirmationSettings: actionConfirmationSettings
             )
         }
 
@@ -113,7 +118,8 @@ struct PreviewDependencies {
             homeAssistantService: service,
             nativeNotificationService: nativeNotificationService,
             nativePermissionService: nativePermissionService,
-            dashboardConfiguration: dashboardConfiguration
+            dashboardConfiguration: dashboardConfiguration,
+            actionConfirmationSettings: actionConfirmationSettings
         )
     }
 }
@@ -132,6 +138,7 @@ extension View {
             .environment(dependencies.nativeNotificationService)
             .environment(dependencies.nativePermissionService)
             .environment(dependencies.dashboardConfiguration)
+            .environment(dependencies.actionConfirmationSettings)
     }
 }
 
