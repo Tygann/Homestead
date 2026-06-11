@@ -2061,6 +2061,7 @@ struct HomesteadTests {
                 "latest_version": .string("2026.6.1"),
                 "release_summary": .string("Fixes and polish."),
                 "release_url": .string("https://www.home-assistant.io/blog/2026/06/01/release-20266/"),
+                "entity_picture": .string("/api/image/core-update"),
                 "device_class": .string("firmware")
             ],
             lastUpdated: Date(timeIntervalSince1970: 100)
@@ -2083,6 +2084,7 @@ struct HomesteadTests {
         #expect(update.latestVersion == "2026.6.1")
         #expect(update.releaseSummary == "Fixes and polish.")
         #expect(update.releaseURLString?.contains("release-20266") == true)
+        #expect(update.entityPicturePath == "/api/image/core-update")
         #expect(update.status == .available)
         #expect(update.iconSystemName == "memorychip.fill")
         #expect(update.versionSummary == "2026.6.0 -> 2026.6.1")
@@ -2176,6 +2178,49 @@ struct HomesteadTests {
         #expect(availablePresentation.summary.availableCount == 1)
         #expect(availablePresentation.summary.skippedCount == 1)
         #expect(areaPresentation.sections.map(\.title) == ["Living Room", "Network Closet", "Server Closet"])
+    }
+
+    @Test func updateActionablePresentationShowsOnlyAvailableAndInProgressUpdates() throws {
+        let core = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.home_assistant_core_update",
+            state: "on",
+            attributes: ["friendly_name": .string("Home Assistant Core")]
+        )))
+        let bridge = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.bridge",
+            state: "on",
+            attributes: [
+                "friendly_name": .string("Bridge"),
+                "in_progress": .number(24)
+            ]
+        )))
+        let current = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.current",
+            state: "off",
+            attributes: ["friendly_name": .string("Current")]
+        )))
+        let skipped = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.skipped",
+            state: "off",
+            attributes: [
+                "friendly_name": .string("Skipped"),
+                "skipped_version": .string("1.1")
+            ]
+        )))
+
+        let presentation = HAUpdatePresentation.makeActionable(
+            updates: [current, skipped, bridge, core]
+        )
+
+        #expect(presentation.visibleCount == 2)
+        #expect(presentation.sections.map(\.title) == ["Available Updates"])
+        #expect(presentation.sections.first?.updates.map(\.entityID) == [
+            "update.home_assistant_core_update",
+            "update.bridge"
+        ])
+        #expect(presentation.summary.availableCount == 1)
+        #expect(presentation.summary.inProgressCount == 1)
+        #expect(presentation.summary.totalCount == 4)
     }
 
     @MainActor
@@ -4291,6 +4336,58 @@ struct HomesteadTests {
         #expect(skippedActions.canClearSkipped)
         #expect(!missingInstallActions.canInstall)
         #expect(missingInstallActions.installUnavailableReason?.contains("not available") == true)
+    }
+
+    @MainActor
+    @Test func serviceInstallsAllAvailableUpdatesWithBackup() async throws {
+        let availableCore = HAEntityDTO(
+            entityID: "update.home_assistant_core_update",
+            state: "on",
+            attributes: ["friendly_name": .string("Home Assistant Core")]
+        )
+        let availableRouter = HAEntityDTO(
+            entityID: "update.router_firmware",
+            state: "on",
+            attributes: ["friendly_name": .string("Router Firmware")]
+        )
+        let currentBridge = HAEntityDTO(
+            entityID: "update.bridge",
+            state: "off",
+            attributes: ["friendly_name": .string("Bridge")]
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([availableCore, availableRouter, currentBridge])
+        let webSocketClient = StubHAWebSocketClient(states: [availableCore, availableRouter, currentBridge])
+        webSocketClient.serviceRegistry = HAServiceRegistry(domains: [
+            "update": [
+                "install": HAServiceDescription(name: "Install")
+            ]
+        ])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "update-all-access"))
+            )
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        try await waitUntil {
+            service.serviceRegistry.hasLoaded
+        }
+        stateStore.applySnapshot([availableCore, availableRouter, currentBridge])
+
+        await service.installAvailableUpdates(stateStore.updateEntities, backup: true)
+
+        #expect(webSocketClient.callServiceInvocations.map(\.domain) == ["update", "update"])
+        #expect(webSocketClient.callServiceInvocations.map(\.service) == ["install", "install"])
+        #expect(webSocketClient.callServiceInvocations.map(\.entityID) == [
+            "update.home_assistant_core_update",
+            "update.router_firmware"
+        ])
+        #expect(webSocketClient.callServiceInvocations.allSatisfy { $0.serviceData["backup"] == .bool(true) })
     }
 
     @MainActor

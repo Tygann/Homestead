@@ -9,6 +9,7 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
     let skippedVersion: String?
     let releaseSummary: String?
     let releaseURLString: String?
+    let entityPicturePath: String?
     let deviceClass: String?
     let isAvailable: Bool
     let hasUpdate: Bool
@@ -92,6 +93,7 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
             skippedVersion,
             releaseSummary,
             releaseURLString,
+            entityPicturePath,
             deviceClass,
             status.title,
             context.deviceName,
@@ -288,6 +290,26 @@ struct HAUpdatePresentation: Equatable, Sendable {
     let visibleCount: Int
     let summary: HAUpdateSummary
 
+    static func makeActionable(
+        updates: [HAUpdateEntity],
+        searchText: String = ""
+    ) -> HAUpdatePresentation {
+        let sortedUpdates = updates.sortedByUpdatePriority
+        let matchingUpdates = sortedUpdates
+            .filter { $0.status == .available || $0.status == .inProgress }
+            .filter { $0.matches(query: searchText) }
+
+        let sections = [
+            HAUpdateSection(id: "available-updates", title: "Available Updates", updates: matchingUpdates)
+        ].filter { !$0.updates.isEmpty }
+
+        return HAUpdatePresentation(
+            sections: sections,
+            visibleCount: matchingUpdates.count,
+            summary: summary(for: updates)
+        )
+    }
+
     static func make(
         updates: [HAUpdateEntity],
         searchText: String,
@@ -330,13 +352,17 @@ struct HAUpdatePresentation: Equatable, Sendable {
         return HAUpdatePresentation(
             sections: sections,
             visibleCount: matchingUpdates.count,
-            summary: HAUpdateSummary(
-                totalCount: updates.count,
-                availableCount: updates.filter { $0.status == .available }.count,
-                skippedCount: updates.filter { $0.status == .skipped }.count,
-                inProgressCount: updates.filter { $0.status == .inProgress }.count,
-                unavailableCount: updates.filter { $0.status == .unavailable }.count
-            )
+            summary: summary(for: updates)
+        )
+    }
+
+    private static func summary(for updates: [HAUpdateEntity]) -> HAUpdateSummary {
+        HAUpdateSummary(
+            totalCount: updates.count,
+            availableCount: updates.filter { $0.status == .available }.count,
+            skippedCount: updates.filter { $0.status == .skipped }.count,
+            inProgressCount: updates.filter { $0.status == .inProgress }.count,
+            unavailableCount: updates.filter { $0.status == .unavailable }.count
         )
     }
 
@@ -470,6 +496,7 @@ extension EntityMapper {
             skippedVersion: dto.attributes["skipped_version"]?.stringValue?.nonEmptyUpdateValue,
             releaseSummary: dto.attributes["release_summary"]?.stringValue?.nonEmptyUpdateValue,
             releaseURLString: dto.attributes["release_url"]?.stringValue?.nonEmptyUpdateValue,
+            entityPicturePath: dto.attributes["entity_picture"]?.stringValue?.nonEmptyUpdateValue,
             deviceClass: dto.attributes["device_class"]?.stringValue?.nonEmptyUpdateValue,
             isAvailable: !["unavailable", "unknown"].contains(state),
             hasUpdate: state == "on",
@@ -506,7 +533,7 @@ extension EntityMapper {
     }
 }
 
-private extension Array where Element == HAUpdateEntity {
+extension Array where Element == HAUpdateEntity {
     var sortedByUpdatePriority: [HAUpdateEntity] {
         sorted { lhs, rhs in
             if lhs.status.sortPriority != rhs.status.sortPriority {

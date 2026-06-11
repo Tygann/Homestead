@@ -618,6 +618,12 @@ final class HomeAssistantService {
         )
     }
 
+    func installAvailableUpdates(_ updates: [HAUpdateEntity], backup: Bool) async {
+        for update in updates where update.status == .available {
+            await installUpdate(entityID: update.entityID, backup: backup)
+        }
+    }
+
     func skipUpdate(entityID: String) async {
         await callTransientEntityService(
             domain: "update",

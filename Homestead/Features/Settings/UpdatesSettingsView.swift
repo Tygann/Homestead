@@ -2,31 +2,29 @@ import SwiftUI
 
 struct UpdatesSettingsView: View {
     @Environment(HAStateStore.self) private var stateStore
+    @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var searchText = ""
-    @State private var filter: HAUpdateFilter = .all
-    @State private var grouping: HAUpdateGrouping = .status
+    @State private var updateToInstall: HAUpdateEntity?
+    @State private var isConfirmingUpdateAll = false
 
     var body: some View {
         let updates = stateStore.updateEntities
-        let presentation = HAUpdatePresentation.make(
+        let presentation = HAUpdatePresentation.makeActionable(
             updates: updates,
-            searchText: searchText,
-            filter: filter,
-            grouping: grouping
+            searchText: searchText
         )
+        let availableUpdates = updates.filter { $0.status == .available }.sortedByUpdatePriority
 
         List {
-            if !updates.isEmpty {
-                controlsSection(summary: presentation.summary, visibleCount: presentation.visibleCount)
+            if !availableUpdates.isEmpty {
+                updateAllSection(count: presentation.summary.availableCount)
             }
 
             ForEach(presentation.sections) { section in
                 Section(section.title) {
                     ForEach(section.updates) { update in
-                        NavigationLink {
-                            UpdateDetailSettingsView(entityID: update.entityID)
-                        } label: {
-                            UpdateRowView(update: update)
+                        UpdateRowLink(update: update) {
+                            updateToInstall = update
                         }
                     }
                 }
@@ -36,104 +34,219 @@ struct UpdatesSettingsView: View {
             if updates.isEmpty {
                 ContentUnavailableView("No Updates", systemImage: EntityDomain.update.systemImage)
             } else if presentation.sections.isEmpty {
-                ContentUnavailableView.search(text: searchText)
+                if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    ContentUnavailableView("All Updates Installed", systemImage: "checkmark.circle")
+                } else {
+                    ContentUnavailableView.search(text: searchText)
+                }
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
         .navigationTitle("Updates")
         .toolbarTitleDisplayMode(.inline)
-        .toolbar {
-            if !updates.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    groupingMenu
+        .confirmationDialog(
+            "Install update?",
+            isPresented: Binding(
+                get: { updateToInstall != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        updateToInstall = nil
+                    }
                 }
+            ),
+            titleVisibility: .visible,
+            presenting: updateToInstall
+        ) { update in
+            Button("Install with Backup") {
+                Task { await homeAssistantService.installUpdate(entityID: update.entityID, backup: true) }
             }
+
+            Button("Install Without Backup") {
+                Task { await homeAssistantService.installUpdate(entityID: update.entityID, backup: false) }
+            }
+
+            Button("Cancel", role: .cancel) {}
+        } message: { update in
+            Text(installConfirmationMessage(for: update))
+        }
+        .confirmationDialog(
+            "Update all?",
+            isPresented: $isConfirmingUpdateAll,
+            titleVisibility: .visible
+        ) {
+            Button("Install All with Backup") {
+                Task { await homeAssistantService.installAvailableUpdates(availableUpdates, backup: true) }
+            }
+
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(updateAllConfirmationMessage(count: availableUpdates.count))
         }
     }
 
-    private func controlsSection(summary: HAUpdateSummary, visibleCount: Int) -> some View {
+    private func updateAllSection(count: Int) -> some View {
         Section {
-            Picker("Filter", selection: $filter) {
-                ForEach(HAUpdateFilter.allCases) { option in
-                    Text(option.title).tag(option)
+            Button {
+                isConfirmingUpdateAll = true
+            } label: {
+                HStack {
+                    Text("Update All")
+                    Spacer()
+                    Text(count, format: .number)
+                        .foregroundStyle(.secondary)
                 }
-            }
-            .pickerStyle(.menu)
-
-            LabeledContent("Showing", value: "\(visibleCount) of \(summary.totalCount)")
-
-            if summary.availableCount > 0 {
-                LabeledContent("Available", value: String(summary.availableCount))
-            }
-
-            if summary.skippedCount > 0 {
-                LabeledContent("Skipped", value: String(summary.skippedCount))
-            }
-
-            if summary.inProgressCount > 0 {
-                LabeledContent("In Progress", value: String(summary.inProgressCount))
-            }
-
-            if summary.unavailableCount > 0 {
-                LabeledContent("Unavailable", value: String(summary.unavailableCount))
             }
         }
     }
 
-    private var groupingMenu: some View {
-        Menu {
-            ForEach(HAUpdateGrouping.allCases) { option in
-                Button {
-                    grouping = option
-                } label: {
-                    Label(option.title, systemImage: grouping == option ? "checkmark" : option.systemImage)
-                }
-            }
-        } label: {
-            Image(systemName: "line.3.horizontal.decrease")
-        }
-        .accessibilityLabel("Group updates")
+    private func installConfirmationMessage(for update: HAUpdateEntity) -> String {
+        let versionText = update.latestVersion.map { " to \($0)" } ?? ""
+        return "Install \(update.title)\(versionText). Some updates may restart Home Assistant, an add-on, or a device. Choose backup when the integration supports it or when you are unsure."
+    }
+
+    private func updateAllConfirmationMessage(count: Int) -> String {
+        "Install \(count) available \(count == 1 ? "update" : "updates") with backup enabled. Some updates may restart Home Assistant, add-ons, or devices."
     }
 }
 
-private struct UpdateRowView: View {
+private struct UpdateRowLink: View {
+    let update: HAUpdateEntity
+    let install: () -> Void
+
+    var body: some View {
+        HStack(spacing: AppSpacing.small) {
+            NavigationLink {
+                UpdateDetailSettingsView(entityID: update.entityID)
+            } label: {
+                UpdateRowContent(update: update)
+            }
+            .buttonStyle(.plain)
+
+            UpdateRowAction(status: update.status, progressText: update.progressText, install: install)
+        }
+    }
+}
+
+private struct UpdateRowContent: View {
     let update: HAUpdateEntity
 
     var body: some View {
-        Label {
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(update.title)
-                        .font(.headline)
-                        .lineLimit(1)
+        HStack(spacing: AppSpacing.small) {
+            UpdateIconView(update: update, size: 52)
 
-                    if update.name != update.title {
-                        Text(update.name)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(update.title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
 
-                    Text(update.versionSummary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-
-                    Text(update.contextSummary)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: AppSpacing.medium)
-
-                UpdateStatusBadge(status: update.status)
+                versionText
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            .padding(.vertical, AppSpacing.xSmall)
-        } icon: {
-            Image(systemName: update.iconSystemName)
-                .foregroundStyle(update.status.tint)
-                .frame(width: 28)
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+    }
+
+    @ViewBuilder
+    private var versionText: some View {
+        if let installed = update.installedVersion,
+           let latest = update.latestVersion,
+           installed != latest {
+            HStack(spacing: 4) {
+                Text(installed)
+                Image(systemName: "arrowshape.right.fill")
+                    .imageScale(.small)
+                Text(latest)
+            }
+        } else {
+            Text(update.installedVersion ?? update.latestVersion ?? "Version unknown")
+        }
+    }
+}
+
+private struct UpdateIconView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var image: Image?
+
+    let update: HAUpdateEntity
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if let image {
+                image
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: update.iconSystemName)
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                    .foregroundStyle(update.status.tint)
+                    .frame(width: size, height: size)
+                    .background(update.status.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .task(id: taskID) {
+            await loadImage()
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var taskID: String {
+        [
+            connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            homeAssistantService.authState.title,
+            homeAssistantService.connectionStatus.title,
+            update.entityPicturePath ?? "no-picture"
+        ].joined(separator: "|")
+    }
+
+    private func loadImage() async {
+        guard let entityPicturePath = update.entityPicturePath,
+              let request = await homeAssistantService.homeAssistantImageRequest(
+                settings: connectionSettings,
+                pathOrURL: entityPicturePath
+              ) else {
+            image = nil
+            return
+        }
+
+        guard let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
+            image = nil
+            return
+        }
+
+        image = Image(uiImage: uiImage)
+    }
+}
+
+private struct UpdateRowAction: View {
+    let status: HAUpdateStatus
+    let progressText: String
+    let install: () -> Void
+
+    var body: some View {
+        switch status {
+        case .available:
+            Button("Update", action: install)
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+        case .inProgress:
+            Text(progressText)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(status.tint)
+                .lineLimit(1)
+        default:
+            Text(status.shortTitle)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(status.tint)
+                .lineLimit(1)
         }
     }
 }
