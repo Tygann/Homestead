@@ -7,7 +7,7 @@ Entries are newest first. Use this as the published-build boundary when preparin
 ## Future Workflow
 
 1. Before uploading a new TestFlight or App Store build, ask Codex to compare project changes since the latest release-history entry.
-2. Generate concise user-facing update notes from meaningful product, reliability, performance, and polish changes.
+2. Generate concise user-facing update notes from meaningful product, reliability, performance, and polish changes. Lead with new user-visible features, then meaningful improvements, then reliability or fix notes.
 3. Append the finalized notes to this file with the version, build number, release date, and optional internal source notes.
 4. Commit the release-history update with the build-related changes.
 5. Optionally, later introduce git tags to mark shipped builds and improve release-note generation accuracy:
@@ -15,6 +15,16 @@ Entries are newest first. Use this as the published-build boundary when preparin
    - `tf-version-build`
 
 Keep entries human-readable and focused on what testers or App Store users should know. Internal summaries are useful only when they help future release-note generation.
+
+## Note Style
+
+Write notes for the audience and channel:
+
+- TestFlight notes may include a short `Please test` section because testers are being asked to exercise specific flows.
+- Public App Store notes should skip tester instructions and focus on what changed, what is new, and what improved.
+- Lead with new features or the highest-value user-visible changes. Put polish, performance, reliability, and bug fixes after that unless they are the main reason for the release.
+- Avoid generic "bug fixes and improvements" when significant product changes shipped. Name the changes in plain user-facing language.
+- Keep the final App Store copy short enough to scan on a phone. A brief intro plus a few bullets is usually enough.
 
 ## Entry Template
 
@@ -26,7 +36,22 @@ Keep entries human-readable and focused on what testers or App Store users shoul
 
 ### User-Facing Release Notes
 
-...
+This update adds [new/highest-value changes] and improves [main improvement area].
+
+What's new:
+
+- ...
+- ...
+
+Improvements:
+
+- ...
+- ...
+
+Please test:
+
+- Include this section for TestFlight builds only.
+- Omit this section for public App Store release notes.
 
 ### Internal Summary
 
