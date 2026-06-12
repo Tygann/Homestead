@@ -146,21 +146,7 @@ struct DashboardCardFeatureView: View {
     }
 
     private func optionsControl(_ options: DashboardCardOptionsFeature) -> some View {
-        Picker(
-            selection: Binding(
-                get: { options.selectedValue },
-                set: { value in
-                    guard value != options.selectedValue else { return }
-                    HapticFeedback.selection()
-                    actions.selectOption?(value)
-                }
-            )
-        ) {
-            ForEach(options.options) { option in
-                Text(option.displayValue)
-                    .tag(option.value)
-            }
-        } label: {
+        ZStack {
             HStack(spacing: AppSpacing.small) {
                 Text(options.selectedDisplayValue)
                     .font(.subheadline.weight(.semibold))
@@ -177,9 +163,30 @@ struct DashboardCardFeatureView: View {
             .padding(.horizontal, AppSpacing.medium)
             .frame(height: 44)
             .background(controlBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+
+            Picker(
+                selection: Binding(
+                    get: { options.selectedValue },
+                    set: { value in
+                        guard value != options.selectedValue else { return }
+                        HapticFeedback.selection()
+                        actions.selectOption?(value)
+                    }
+                )
+            ) {
+                ForEach(options.options) { option in
+                    Text(option.displayValue)
+                        .tag(option.value)
+                }
+            } label: {
+                Color.clear
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+            }
+            .pickerStyle(.menu)
+            .opacity(0.01)
         }
-        .pickerStyle(.menu)
-        .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
         .disabled(isPending || actions.selectOption == nil || options.options.isEmpty)
         .accessibilityLabel("Options")
         .accessibilityValue(options.selectedDisplayValue)
