@@ -179,6 +179,7 @@ struct DashboardCardFeatureView: View {
             .background(controlBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
         }
         .pickerStyle(.menu)
+        .buttonStyle(.plain)
         .disabled(isPending || actions.selectOption == nil || options.options.isEmpty)
         .accessibilityLabel("Options")
         .accessibilityValue(options.selectedDisplayValue)
