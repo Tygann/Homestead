@@ -12,6 +12,11 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added reusable gauge presentation for range-aware numeric `sensor.*` entities.
+- `SensorEntity` now carries optional Home Assistant min/max-style range metadata and exposes an app-facing `GaugePresentation` with normalized value, range source, status tone, and accessibility text.
+- Added a read-only dashboard `sensorGauge` card feature that appears in larger card layouts for clearly bounded sensors such as battery, humidity, AQI/air quality, signal, percentage/level readings, or sensors with Home Assistant-provided ranges; Mini and Compact cards remain simple.
+- Preserved existing numeric sensor trend behavior for ordinary numeric sensors, including typical temperature sensors without explicit range metadata, so dashboard chart cards are not broadly replaced by gauges.
+- Reused the same gauge presentation in sensor detail Current Reading panels; no gauge customization UI, new API surface, or raw DTO access in SwiftUI views was added.
 - Added a native dashboard Options card feature for `select.*` and `input_select.*`, backed by typed select option state in `HAStateStore` and WebSocket `select_option` service calls routed to each entity's real Home Assistant domain.
 - Added native Settings > People backed by existing `person.*` and `device_tracker.*` state plus registry metadata.
 - Added app-facing `HAPresenceRecord` / presentation helpers that map home, away, zone, unknown, and unavailable states, relate people to their Home Assistant `source` tracker when present, include tracker source/battery/GPS context, and keep raw DTOs out of SwiftUI.
@@ -144,10 +149,13 @@ Recommended reasoning level: High.
 - Settings > Permissions has native iOS status rows for Notifications, Local Network, Location, and Camera. Keep future native permission work in app-owned platform services rather than Home Assistant API code.
 - User-facing service-call and reconnect recovery feedback belongs in `HomeAssistantService` and app chrome, not scattered card/detail views.
 - Numeric sensor history already has documented REST history plumbing, authenticated service handoff, app-facing chart models, fixed detail ranges, and lightweight dashboard chart cards; binary sensors, locks, switches, automations, covers, people, and device trackers now have app-facing detail timeline models and a shared Recent Activity panel. Reuse those shapes where they fit.
+- Sensor gauges now have reusable app-facing presentation and a larger-card dashboard feature for range-aware readings. Keep future widget/detail gauge work on that model instead of reading raw Home Assistant DTOs in SwiftUI.
 - Settings > People should be presence-first. Avoid implying Homestead can manage all Home Assistant users unless an official supported user/admin API is confirmed for the signed-in user's permissions.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-Gauges` after adding reusable sensor gauges.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-Gauges` after adding gauge range/status/card feature coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-PeopleSettings` after adding Settings > People.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-PeopleSettings` after adding Settings > People.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-AvatarFix5` after final People/settings avatar polish.

@@ -1128,7 +1128,7 @@ private struct DashboardEntityCard: View {
     }
 
     private var shouldUseDashboardHistoryCard: Bool {
-        DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size)
+        visibleFeatures.isEmpty && DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size)
     }
 
     private var dashboardHistoryTaskID: String {

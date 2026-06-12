@@ -7,6 +7,7 @@ enum DashboardCardFeatureKey: String, Codable, Equatable, Sendable {
     case coverPosition
     case lockControls
     case selectOptions
+    case sensorGauge
 }
 
 enum DashboardCardFeatureVisibility: String, CaseIterable, Codable, Equatable, Sendable {
@@ -37,6 +38,7 @@ enum DashboardCardFeatureContent: Equatable, Sendable {
     case setpoint(DashboardCardSetpointFeature)
     case commandGroup(DashboardCardCommandGroupFeature)
     case options(DashboardCardOptionsFeature)
+    case gauge(DashboardCardGaugeFeature)
 }
 
 struct DashboardCardFeature: Equatable, Identifiable, Sendable {
@@ -127,6 +129,10 @@ struct DashboardCardOptionsFeature: Equatable, Sendable {
     let options: [DashboardCardOption]
 }
 
+struct DashboardCardGaugeFeature: Equatable, Sendable {
+    let presentation: GaugePresentation
+}
+
 enum DashboardCardFeatureProvider {
     static func features(
         for entityBox: HAEntityState,
@@ -147,6 +153,9 @@ enum DashboardCardFeatureProvider {
         case .select:
             guard let select = entityBox.selectEntity else { return [] }
             return selectOptionsFeatures(select, entityBox: entityBox)
+        case .sensor:
+            guard let sensor = entityBox.sensorEntity else { return [] }
+            return sensorGaugeFeatures(sensor)
         default:
             return []
         }
@@ -371,6 +380,21 @@ enum DashboardCardFeatureProvider {
                         }
                     )
                 )
+            )
+        ]
+    }
+
+    private static func sensorGaugeFeatures(_ sensor: SensorEntity) -> [DashboardCardFeature] {
+        guard let gauge = sensor.gaugePresentation,
+              gauge.isDashboardFeatureEligible else {
+            return []
+        }
+
+        return [
+            DashboardCardFeature(
+                key: .sensorGauge,
+                title: "Gauge",
+                content: .gauge(DashboardCardGaugeFeature(presentation: gauge))
             )
         ]
     }

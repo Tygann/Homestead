@@ -106,7 +106,15 @@ enum EntityMapper {
             unit: dto.attributes["unit_of_measurement"]?.stringValue,
             deviceClass: dto.attributes["device_class"]?.stringValue,
             iconName: sensorIconName(for: dto),
-            lastUpdated: dto.lastUpdated
+            lastUpdated: dto.lastUpdated,
+            suggestedMinimumValue: numericAttribute(
+                from: dto,
+                keys: ["min", "minimum", "min_value", "native_min_value"]
+            ),
+            suggestedMaximumValue: numericAttribute(
+                from: dto,
+                keys: ["max", "maximum", "max_value", "native_max_value"]
+            )
         )
     }
 
@@ -184,6 +192,19 @@ enum EntityMapper {
         ]
         let supportedModes = dto.attributes["supported_color_modes"]?.arrayValue?.compactMap(\.stringValue) ?? []
         return supportedModes.contains { brightnessModes.contains($0) }
+    }
+
+    private static func numericAttribute(
+        from dto: HAEntityDTO,
+        keys: [String]
+    ) -> Double? {
+        for key in keys {
+            if let doubleValue = dto.attributes[key]?.doubleValue {
+                return doubleValue
+            }
+        }
+
+        return nil
     }
 
     private static func iconName(for dto: HAEntityDTO) -> String {

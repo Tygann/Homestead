@@ -8,6 +8,30 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
     let deviceClass: String?
     let iconName: String
     let lastUpdated: Date?
+    let suggestedMinimumValue: Double?
+    let suggestedMaximumValue: Double?
+
+    init(
+        entityID: String,
+        displayName: String,
+        value: String,
+        unit: String?,
+        deviceClass: String?,
+        iconName: String,
+        lastUpdated: Date?,
+        suggestedMinimumValue: Double? = nil,
+        suggestedMaximumValue: Double? = nil
+    ) {
+        self.entityID = entityID
+        self.displayName = displayName
+        self.value = value
+        self.unit = unit
+        self.deviceClass = deviceClass
+        self.iconName = iconName
+        self.lastUpdated = lastUpdated
+        self.suggestedMinimumValue = suggestedMinimumValue
+        self.suggestedMaximumValue = suggestedMaximumValue
+    }
 
     var id: String { entityID }
 
@@ -88,6 +112,10 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
 
     var numericValue: Double? {
         Double(value)
+    }
+
+    var gaugePresentation: GaugePresentation? {
+        GaugePresentation(sensor: self)
     }
 
     private var formattedNumber: String? {

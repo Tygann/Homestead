@@ -209,16 +209,16 @@ enum DashboardAddCardPresentation {
         presentation: DashboardEntityPresentation,
         visibleFeatures: [DashboardCardFeature]
     ) -> String {
-        if DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size) {
-            return "Shows a 6-hour trend chart."
-        }
-
         if presentation.capability.domain == .camera, size.usesCameraPreviewCard {
             return "Shows a live camera-style preview."
         }
 
         if !visibleFeatures.isEmpty {
             return "Includes \(featureSummary(from: visibleFeatures))."
+        }
+
+        if DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size) {
+            return "Shows a 6-hour trend chart."
         }
 
         switch size {
@@ -238,17 +238,23 @@ enum DashboardAddCardPresentation {
     }
 
     private static func featureSummary(from features: [DashboardCardFeature]) -> String {
-        let titles = features.map(\.title)
+        let titles = features.map { feature in
+            switch feature.content {
+            case .gauge:
+                "gauge"
+            case .level, .setpoint, .commandGroup, .options:
+                "\(feature.title.lowercased()) controls"
+            }
+        }
         guard let firstTitle = titles.first else {
             return "inline controls"
         }
 
         if titles.count == 1 {
-            return "\(firstTitle.lowercased()) controls"
+            return firstTitle
         }
 
-        let remainingTitles = titles.dropFirst().map { $0.lowercased() }
-        return ([firstTitle.lowercased()] + remainingTitles).joined(separator: " and ") + " controls"
+        return titles.joined(separator: " and ")
     }
 }
 

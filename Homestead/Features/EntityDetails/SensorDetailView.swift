@@ -55,13 +55,21 @@ struct SensorDetailView: View {
 
     private var currentReading: some View {
         EntityControlPanel(title: "Current Reading", systemImage: "gauge.medium") {
-            Text(primaryValue)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .foregroundStyle(statusColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-                .monospacedDigit()
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if let gauge = entityBox.sensorEntity?.gaugePresentation {
+                GaugePresentationView(
+                    presentation: gauge,
+                    style: .detail,
+                    tint: presentation.accentColor
+                )
+            } else {
+                Text(primaryValue)
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundStyle(statusColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 

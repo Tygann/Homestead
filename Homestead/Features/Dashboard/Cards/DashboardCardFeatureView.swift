@@ -27,6 +27,8 @@ struct DashboardCardFeatureActions {
             return group.commands.contains { commandAction(for: $0.action) != nil }
         case .options(let options):
             return selectOption != nil && !options.options.isEmpty
+        case .gauge:
+            return true
         }
     }
 
@@ -75,6 +77,8 @@ struct DashboardCardFeatureView: View {
                 commandGroupControl(group)
             case .options(let options):
                 optionsControl(options)
+            case .gauge(let gauge):
+                gaugePresentation(gauge)
             }
         }
         .allowsHitTesting(isInteractionEnabled)
@@ -177,6 +181,15 @@ struct DashboardCardFeatureView: View {
         .disabled(isPending || actions.selectOption == nil || options.options.isEmpty)
         .accessibilityLabel("Options")
         .accessibilityValue(options.selectedDisplayValue)
+    }
+
+    private func gaugePresentation(_ gauge: DashboardCardGaugeFeature) -> some View {
+        GaugePresentationView(
+            presentation: gauge.presentation,
+            style: .card,
+            tint: fillColor
+        )
+        .frame(maxWidth: .infinity)
     }
 
     private func perform(_ command: DashboardCardCommand) {

@@ -2548,6 +2548,81 @@ struct HomesteadTests {
         #expect(waterDetected.displaySubtitle == "Water Detected")
     }
 
+    @Test func sensorGaugePresentationInfersSafeRangesAndStatus() {
+        let lowBattery = SensorEntity(
+            entityID: "sensor.front_door_battery",
+            displayName: "Front Door Battery",
+            value: "8",
+            unit: "%",
+            deviceClass: "battery",
+            iconName: "battery.25percent",
+            lastUpdated: nil
+        )
+        let batteryGauge = lowBattery.gaugePresentation
+        #expect(batteryGauge?.range == 0...100)
+        #expect(batteryGauge?.rangeSource == .deviceClass)
+        #expect(batteryGauge?.status == .critical)
+        #expect(batteryGauge?.isDashboardFeatureEligible == true)
+
+        let warmTemperature = SensorEntity(
+            entityID: "sensor.living_room_temperature",
+            displayName: "Living Room Temperature",
+            value: "82",
+            unit: "F",
+            deviceClass: "temperature",
+            iconName: "thermometer.medium",
+            lastUpdated: nil
+        )
+        let temperatureGauge = warmTemperature.gaugePresentation
+        #expect(temperatureGauge?.range == 0...120)
+        #expect(temperatureGauge?.status == .high)
+        #expect(temperatureGauge?.isDashboardFeatureEligible == false)
+
+        let tankLevel = SensorEntity(
+            entityID: "sensor.water_tank",
+            displayName: "Water Tank Level",
+            value: "72",
+            unit: "%",
+            deviceClass: nil,
+            iconName: "drop.fill",
+            lastUpdated: nil,
+            suggestedMinimumValue: 10,
+            suggestedMaximumValue: 90
+        )
+        let levelGauge = tankLevel.gaugePresentation
+        #expect(levelGauge?.range == 10...90)
+        #expect(levelGauge?.rangeSource == .homeAssistant)
+        #expect(levelGauge?.isDashboardFeatureEligible == true)
+
+        let textSensor = SensorEntity(
+            entityID: "sensor.mode",
+            displayName: "Mode",
+            value: "auto",
+            unit: nil,
+            deviceClass: nil,
+            iconName: "gauge.medium",
+            lastUpdated: nil
+        )
+        #expect(textSensor.gaugePresentation == nil)
+    }
+
+    @Test func entityMapperCarriesSensorGaugeRangeMetadata() throws {
+        let dto = HAEntityDTO(
+            entityID: "sensor.water_tank",
+            state: "62",
+            attributes: [
+                "unit_of_measurement": .string("%"),
+                "min": .number(10),
+                "max": .number(90)
+            ]
+        )
+
+        let sensor = try #require(EntityMapper.sensorEntity(from: dto))
+        #expect(sensor.suggestedMinimumValue == 10)
+        #expect(sensor.suggestedMaximumValue == 90)
+        #expect(sensor.gaugePresentation?.range == 10...90)
+    }
+
     @Test func entityMapperMapsExpandedSensorDeviceClasses() throws {
         let carbonDioxide = try #require(EntityMapper.sensorEntity(from: HAEntityDTO(
             entityID: "sensor.living_room_co2",
@@ -6930,7 +7005,25 @@ struct HomesteadTests {
                     "options": .array([.string("Home"), .string("Away")])
                 ]
             ),
-            HAEntityDTO(entityID: "select.empty_mode", state: "Home")
+            HAEntityDTO(entityID: "select.empty_mode", state: "Home"),
+            HAEntityDTO(
+                entityID: "sensor.front_door_battery",
+                state: "18",
+                attributes: [
+                    "friendly_name": .string("Front Door Battery"),
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.living_room_temperature",
+                state: "72",
+                attributes: [
+                    "friendly_name": .string("Living Room Temperature"),
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("F")
+                ]
+            )
         ])
 
         let lightBox = try #require(store.entityBox(for: "light.kitchen"))
@@ -7019,6 +7112,26 @@ struct HomesteadTests {
             presentation: DashboardEntityPresentation(entityBox: emptySelectBox)
         ).isEmpty)
         #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: emptySelectBox) == .compact)
+
+        let batteryBox = try #require(store.entityBox(for: "sensor.front_door_battery"))
+        let batteryFeatures = DashboardCardFeatureProvider.features(
+            for: batteryBox,
+            presentation: DashboardEntityPresentation(entityBox: batteryBox)
+        )
+        #expect(batteryFeatures.map(\.key) == [.sensorGauge])
+        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: batteryBox) == .square)
+        guard case .gauge(let gauge) = try #require(batteryFeatures.first?.content) else {
+            Issue.record("Expected sensor gauge feature")
+            return
+        }
+        #expect(gauge.presentation.range == 0...100)
+        #expect(gauge.presentation.status == .warning)
+
+        let temperatureBox = try #require(store.entityBox(for: "sensor.living_room_temperature"))
+        #expect(DashboardCardFeatureProvider.features(
+            for: temperatureBox,
+            presentation: DashboardEntityPresentation(entityBox: temperatureBox)
+        ).isEmpty)
     }
 
     @MainActor
