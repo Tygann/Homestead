@@ -103,10 +103,12 @@ struct GaugePresentationView: View {
                 .accessibilityLabel(presentation.accessibilityLabel)
                 .accessibilityValue(presentation.accessibilityValue)
 
-                rangeMarkers(font: markerFont)
-                    .frame(width: arcWidth)
+                endpointRangeMarkers(
+                    width: arcWidth,
+                    endpointInset: lineWidth / 2,
+                    font: markerFont
+                )
                     .opacity(0.78)
-                    .offset(y: -AppSpacing.xSmall)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
@@ -117,39 +119,65 @@ struct GaugePresentationView: View {
         GeometryReader { proxy in
             let width = proxy.size.width
 
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color(.tertiarySystemGroupedBackground))
+            VStack(spacing: 3) {
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color(.tertiarySystemGroupedBackground))
 
-                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
-                    let segment = visualSegment(for: section, at: index)
-                    let start = segment.start
-                    let end = segment.end
-                    let segmentWidth = max(CGFloat(end - start) * width, 0)
+                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                        let segment = visualSegment(for: section, at: index)
+                        let start = segment.start
+                        let end = segment.end
+                        let segmentWidth = max(CGFloat(end - start) * width, 0)
+
+                        Capsule()
+                            .fill(statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)))
+                            .frame(width: segmentWidth)
+                            .offset(x: CGFloat(start) * width)
+                    }
+
+                    if presentation.normalizedValue > 0 {
+                        Capsule()
+                            .fill(statusColor(for: presentation.status))
+                            .frame(width: max(CGFloat(presentation.normalizedValue) * width, dashboardLineWidth))
+                    }
 
                     Capsule()
-                        .fill(statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)))
-                        .frame(width: segmentWidth)
-                        .offset(x: CGFloat(start) * width)
+                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+
+                    sectionBoundaryTicks(width: width)
                 }
+                .frame(height: dashboardLineWidth)
+                .clipShape(Capsule())
 
-                if presentation.normalizedValue > 0 {
-                    Capsule()
-                        .fill(statusColor(for: presentation.status))
-                        .frame(width: max(CGFloat(presentation.normalizedValue) * width, dashboardLineWidth))
-                }
-
-                Capsule()
-                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-
-                sectionBoundaryTicks(width: width)
+                rangeMarkers(font: .caption2.weight(.semibold))
+                    .opacity(0.72)
             }
-            .clipShape(Capsule())
         }
-        .frame(height: dashboardLineWidth)
+        .frame(height: dashboardLineWidth + arcMarkerHeight + 3)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(presentation.accessibilityValue)
+    }
+
+    private func endpointRangeMarkers(
+        width: CGFloat,
+        endpointInset: CGFloat,
+        font: Font
+    ) -> some View {
+        ZStack {
+            Text(rangeText(presentation.range.lowerBound))
+                .position(x: endpointInset, y: arcMarkerHeight / 2)
+
+            Text(rangeText(presentation.range.upperBound))
+                .position(x: width - endpointInset, y: arcMarkerHeight / 2)
+        }
+        .frame(width: width, height: arcMarkerHeight)
+        .font(font)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+        .monospacedDigit()
     }
 
     private func rangeMarkers(font: Font) -> some View {
