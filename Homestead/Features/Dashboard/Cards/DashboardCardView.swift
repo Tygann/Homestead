@@ -887,12 +887,19 @@ private struct DashboardEntityCard: View {
     }
 
     private func stackedFeatureContent(visibleFeatures: [DashboardCardFeature]) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+        let showsGauge = visibleFeatures.contains { feature in
+            if case .gauge = feature.content {
+                return true
+            }
+            return false
+        }
+
+        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
             featureHeader
 
             if size == .large {
                 largeFeatureContext(visibleFeatures: visibleFeatures)
-            } else {
+            } else if !showsGauge {
                 Spacer(minLength: AppSpacing.xSmall)
             }
 
