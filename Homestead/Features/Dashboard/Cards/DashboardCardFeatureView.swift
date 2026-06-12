@@ -147,19 +147,24 @@ struct DashboardCardFeatureView: View {
 
     private func optionsControl(_ options: DashboardCardOptionsFeature) -> some View {
         Menu {
-            ForEach(options.options) { option in
-                Button {
-                    HapticFeedback.selection()
-                    actions.selectOption?(option.value)
-                } label: {
-                    if option.isSelected {
-                        Label(option.displayValue, systemImage: "checkmark")
-                    } else {
-                        Text(option.displayValue)
+            Picker(
+                selection: Binding(
+                    get: { options.selectedValue },
+                    set: { value in
+                        guard value != options.selectedValue else { return }
+                        HapticFeedback.selection()
+                        actions.selectOption?(value)
                     }
+                )
+            ) {
+                ForEach(options.options) { option in
+                    Text(option.displayValue)
+                        .tag(option.value)
                 }
-                .disabled(option.isSelected)
+            } label: {
+                Text("Options")
             }
+            .pickerStyle(.menu)
         } label: {
             HStack(spacing: AppSpacing.small) {
                 Text(options.selectedDisplayValue)
