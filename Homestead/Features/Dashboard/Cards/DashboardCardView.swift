@@ -877,6 +877,7 @@ private struct DashboardEntityCard: View {
                     isActive: presentation.isActive,
                     fillColor: iconColor,
                     trackColor: iconBackground,
+                    gaugeStyle: .row,
                     isInteractionEnabled: isFeatureInteractionEnabled,
                     actions: featureActions
                 )
@@ -890,7 +891,7 @@ private struct DashboardEntityCard: View {
             featureHeader
 
             if size == .large {
-                largeFeatureContext
+                largeFeatureContext(visibleFeatures: visibleFeatures)
             } else {
                 Spacer(minLength: AppSpacing.xSmall)
             }
@@ -903,6 +904,7 @@ private struct DashboardEntityCard: View {
                         isActive: presentation.isActive,
                         fillColor: iconColor,
                         trackColor: iconBackground,
+                        gaugeStyle: .arc,
                         isInteractionEnabled: isFeatureInteractionEnabled,
                         actions: featureActions
                     )
@@ -911,14 +913,20 @@ private struct DashboardEntityCard: View {
         }
     }
 
-    private var largeFeatureContext: some View {
+    private func largeFeatureContext(visibleFeatures: [DashboardCardFeature]) -> some View {
         let contentModel = DashboardEntityCardContentModel.make(
             presentation: presentation,
             size: size
         )
+        let showsGauge = visibleFeatures.contains { feature in
+            if case .gauge = feature.content {
+                return true
+            }
+            return false
+        }
 
         return VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            if let headline = contentModel.headline {
+            if !showsGauge, let headline = contentModel.headline {
                 Text(headline)
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(presentation.headlineColor)
@@ -926,7 +934,7 @@ private struct DashboardEntityCard: View {
                     .minimumScaleFactor(0.7)
             }
 
-            if !contentModel.metrics.isEmpty {
+            if !showsGauge, !contentModel.metrics.isEmpty {
                 VStack(alignment: .leading, spacing: AppSpacing.small) {
                     ForEach(contentModel.metrics.prefix(2)) { metric in
                         DashboardCardMetricRow(metric: metric)

@@ -14,14 +14,21 @@ nonisolated enum GaugeRangeSource: String, Equatable, Sendable {
     case percentageUnit
 }
 
+struct GaugePresentationSection: Equatable, Sendable {
+    let range: ClosedRange<Double>
+    let status: GaugePresentationStatus
+}
+
 struct GaugePresentation: Equatable, Sendable {
     let value: Double
     let range: ClosedRange<Double>
     let valueText: String
     let unitText: String?
     let status: GaugePresentationStatus
+    let statusDisplayText: String
     let rangeSource: GaugeRangeSource
     let isDashboardFeatureEligible: Bool
+    let sections: [GaugePresentationSection]
     let accessibilityLabel: String
     let accessibilityValue: String
 
@@ -48,6 +55,11 @@ struct GaugePresentation: Equatable, Sendable {
             sensor: sensor,
             range: rangeResolution.range
         )
+        statusDisplayText = GaugePresentation.statusDisplayText(for: status, sensor: sensor)
+        sections = GaugePresentation.sections(
+            for: sensor,
+            range: rangeResolution.range
+        )
         isDashboardFeatureEligible = GaugePresentation.isDashboardFeatureEligible(
             sensor: sensor,
             rangeSource: rangeResolution.source
@@ -58,6 +70,7 @@ struct GaugePresentation: Equatable, Sendable {
             status: status
         )
     }
+
 }
 
 private struct GaugeRangeResolution: Equatable, Sendable {
@@ -177,6 +190,147 @@ private extension GaugePresentation {
             return sensor.unitText == "%" ? lowIsBadStatus(value, warning: 25, critical: 10) : .nominal
         case .area, .carbonMonoxide, .conductivity, .data, .date, .distance, .duration, .enum, .energy, .energyDistance, .energyStorage, .frequency, .gas, .generic, .illuminance, .irradiance, .monetary, .pH, .power, .powerFactor, .precipitation, .pressure, .problem, .reactiveEnergy, .reactivePower, .soundPressure, .speed, .temperatureDelta, .uptime, .voltage, .current, .volume, .volumeFlowRate, .weight, .windDirection:
             return value < range.lowerBound || value > range.upperBound ? .warning : .nominal
+        }
+    }
+
+    static func sections(
+        for sensor: SensorEntity,
+        range: ClosedRange<Double>
+    ) -> [GaugePresentationSection] {
+        switch sensor.displayKind {
+        case .battery:
+            return clampedSections(
+                [
+                    GaugePresentationSection(range: range.lowerBound...10, status: .critical),
+                    GaugePresentationSection(range: 10...20, status: .warning),
+                    GaugePresentationSection(range: 20...range.upperBound, status: .nominal)
+                ],
+                to: range
+            )
+        case .humidity, .moisture:
+            return clampedSections(
+                [
+                    GaugePresentationSection(range: range.lowerBound...25, status: .warning),
+                    GaugePresentationSection(range: 25...30, status: .low),
+                    GaugePresentationSection(range: 30...60, status: .nominal),
+                    GaugePresentationSection(range: 60...70, status: .high),
+                    GaugePresentationSection(range: 70...range.upperBound, status: .warning)
+                ],
+                to: range
+            )
+        case .temperature:
+            return temperatureSections(unitText: sensor.unitText, range: range)
+        case .airQuality:
+            return highBadSections(range: range, elevated: 50, warning: 100, critical: 150)
+        case .carbonDioxide:
+            return highBadSections(range: range, elevated: 800, warning: 1000, critical: 1500)
+        case .particulateMatter, .volatileOrganicCompounds:
+            return highBadSections(range: range, elevated: 50, warning: 100, critical: 150)
+        case .signal:
+            if sensor.unitText == "%" {
+                return lowBadSections(range: range, warning: 35, critical: 20)
+            }
+            return lowBadSections(range: range, warning: -80, critical: -90)
+        case .water:
+            if sensor.unitText == "%" {
+                return lowBadSections(range: range, warning: 25, critical: 10)
+            }
+            return [GaugePresentationSection(range: range, status: .nominal)]
+        case .area, .carbonMonoxide, .conductivity, .data, .date, .distance, .duration, .enum, .energy, .energyDistance, .energyStorage, .frequency, .gas, .generic, .illuminance, .irradiance, .monetary, .pH, .power, .powerFactor, .precipitation, .pressure, .problem, .reactiveEnergy, .reactivePower, .soundPressure, .speed, .temperatureDelta, .uptime, .voltage, .current, .volume, .volumeFlowRate, .weight, .windDirection:
+            return [GaugePresentationSection(range: range, status: .nominal)]
+        }
+    }
+
+    static func statusDisplayText(
+        for status: GaugePresentationStatus,
+        sensor: SensorEntity
+    ) -> String {
+        switch (sensor.displayKind, status) {
+        case (.humidity, .nominal), (.moisture, .nominal), (.temperature, .nominal):
+            return "Comfortable"
+        case (_, .nominal):
+            return "Normal"
+        case (_, .low):
+            return "Low"
+        case (_, .high):
+            return "High"
+        case (_, .warning):
+            return "Warning"
+        case (_, .critical):
+            return "Critical"
+        }
+    }
+
+    static func lowBadSections(
+        range: ClosedRange<Double>,
+        warning: Double,
+        critical: Double
+    ) -> [GaugePresentationSection] {
+        clampedSections(
+            [
+                GaugePresentationSection(range: range.lowerBound...critical, status: .critical),
+                GaugePresentationSection(range: critical...warning, status: .warning),
+                GaugePresentationSection(range: warning...range.upperBound, status: .nominal)
+            ],
+            to: range
+        )
+    }
+
+    static func highBadSections(
+        range: ClosedRange<Double>,
+        elevated: Double,
+        warning: Double,
+        critical: Double
+    ) -> [GaugePresentationSection] {
+        clampedSections(
+            [
+                GaugePresentationSection(range: range.lowerBound...elevated, status: .nominal),
+                GaugePresentationSection(range: elevated...warning, status: .high),
+                GaugePresentationSection(range: warning...critical, status: .warning),
+                GaugePresentationSection(range: critical...range.upperBound, status: .critical)
+            ],
+            to: range
+        )
+    }
+
+    static func temperatureSections(
+        unitText: String?,
+        range: ClosedRange<Double>
+    ) -> [GaugePresentationSection] {
+        if unitText == "°C" {
+            return clampedSections(
+                [
+                    GaugePresentationSection(range: range.lowerBound...4.5, status: .warning),
+                    GaugePresentationSection(range: 4.5...15.5, status: .low),
+                    GaugePresentationSection(range: 15.5...26.5, status: .nominal),
+                    GaugePresentationSection(range: 26.5...37.5, status: .high),
+                    GaugePresentationSection(range: 37.5...range.upperBound, status: .warning)
+                ],
+                to: range
+            )
+        }
+
+        return clampedSections(
+            [
+                GaugePresentationSection(range: range.lowerBound...40, status: .warning),
+                GaugePresentationSection(range: 40...60, status: .low),
+                GaugePresentationSection(range: 60...80, status: .nominal),
+                GaugePresentationSection(range: 80...100, status: .high),
+                GaugePresentationSection(range: 100...range.upperBound, status: .warning)
+            ],
+            to: range
+        )
+    }
+
+    static func clampedSections(
+        _ sections: [GaugePresentationSection],
+        to range: ClosedRange<Double>
+    ) -> [GaugePresentationSection] {
+        sections.compactMap { section in
+            let lowerBound = max(section.range.lowerBound, range.lowerBound)
+            let upperBound = min(section.range.upperBound, range.upperBound)
+            guard lowerBound < upperBound else { return nil }
+            return GaugePresentationSection(range: lowerBound...upperBound, status: section.status)
         }
     }
 

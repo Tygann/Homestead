@@ -9,6 +9,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added reusable app-facing gauge presentation for numeric sensor readings, including resolved range source, normalized value, warning status, and accessibility copy.
 - Exposed gauges as a read-only dashboard card feature for larger cards when range metadata or safe bounded sensor classes make the reading glanceable, while preserving Mini/Compact simplicity and ordinary numeric trend cards.
 - Reused the same gauge presentation in sensor detail current readings and kept raw Home Assistant DTO access inside mapping/model layers.
+- Revised gauge rendering from a slider-like bar into passive HA-inspired visuals: semi-circular segmented arcs for square/large/detail contexts and a read-only segmented horizontal gauge for row cards, while keeping card header layout unchanged.
 
 ## 2026-06-11
 

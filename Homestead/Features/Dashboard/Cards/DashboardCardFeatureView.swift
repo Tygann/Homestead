@@ -63,6 +63,7 @@ struct DashboardCardFeatureView: View {
     let isActive: Bool
     let fillColor: Color
     let trackColor: Color
+    let gaugeStyle: GaugePresentationStyle
     let isInteractionEnabled: Bool
     let actions: DashboardCardFeatureActions
 
@@ -186,7 +187,7 @@ struct DashboardCardFeatureView: View {
     private func gaugePresentation(_ gauge: DashboardCardGaugeFeature) -> some View {
         GaugePresentationView(
             presentation: gauge.presentation,
-            style: .card,
+            style: gaugeStyle,
             tint: fillColor
         )
         .frame(maxWidth: .infinity)

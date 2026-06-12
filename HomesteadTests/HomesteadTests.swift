@@ -2527,6 +2527,7 @@ struct HomesteadTests {
         #expect(humidity.valueText == "44")
         #expect(humidity.unitText == "%")
         #expect(humidity.displayKind == .humidity)
+        #expect(humidity.gaugePresentation?.statusDisplayText == "Comfortable")
         #expect(humidity.isAlerting == false)
         #expect(humidity.displaySubtitle == "Humidity")
         #expect(energy.formattedValue == "12.35 kWh")
@@ -2562,7 +2563,9 @@ struct HomesteadTests {
         #expect(batteryGauge?.range == 0...100)
         #expect(batteryGauge?.rangeSource == .deviceClass)
         #expect(batteryGauge?.status == .critical)
+        #expect(batteryGauge?.statusDisplayText == "Critical")
         #expect(batteryGauge?.isDashboardFeatureEligible == true)
+        #expect(batteryGauge?.sections.map(\.status) == [.critical, .warning, .nominal])
 
         let warmTemperature = SensorEntity(
             entityID: "sensor.living_room_temperature",
@@ -2576,6 +2579,7 @@ struct HomesteadTests {
         let temperatureGauge = warmTemperature.gaugePresentation
         #expect(temperatureGauge?.range == 0...120)
         #expect(temperatureGauge?.status == .high)
+        #expect(temperatureGauge?.statusDisplayText == "High")
         #expect(temperatureGauge?.isDashboardFeatureEligible == false)
 
         let tankLevel = SensorEntity(
@@ -6586,7 +6590,16 @@ struct HomesteadTests {
             HAEntityDTO(entityID: "scene.movie_night", state: "scening"),
             HAEntityDTO(entityID: "script.good_morning", state: "off"),
             HAEntityDTO(entityID: "automation.good_night", state: "on"),
-            HAEntityDTO(entityID: "sensor.temperature", state: "72")
+            HAEntityDTO(entityID: "sensor.temperature", state: "72"),
+            HAEntityDTO(
+                entityID: "sensor.front_door_battery",
+                state: "68",
+                attributes: [
+                    "friendly_name": .string("Front Door Battery"),
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
+            )
         ])
 
         let lightPresentation = DashboardEntityPresentation(
@@ -6600,6 +6613,9 @@ struct HomesteadTests {
         )
         let sensorPresentation = DashboardEntityPresentation(
             entityBox: try #require(store.entityBox(for: "sensor.temperature"))
+        )
+        let batteryPresentation = DashboardEntityPresentation(
+            entityBox: try #require(store.entityBox(for: "sensor.front_door_battery"))
         )
         let scriptPresentation = DashboardEntityPresentation(
             entityBox: try #require(store.entityBox(for: "script.good_morning"))
@@ -6639,6 +6655,7 @@ struct HomesteadTests {
         #expect(sensorPresentation.primaryServiceIntent == nil)
         #expect(sensorPresentation.cardStyle == .value)
         #expect(sensorPresentation.detailKind == .sensor)
+        #expect(batteryPresentation.subtitle == "68% • Normal")
     }
 
     @MainActor

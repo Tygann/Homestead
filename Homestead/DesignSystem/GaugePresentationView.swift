@@ -1,7 +1,8 @@
 import SwiftUI
 
 enum GaugePresentationStyle: Equatable, Sendable {
-    case card
+    case arc
+    case row
     case detail
 }
 
@@ -11,140 +12,166 @@ struct GaugePresentationView: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: verticalSpacing) {
-            if style == .detail {
-                HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                    Text(presentation.valueText)
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(statusColor)
+        switch style {
+        case .arc:
+            arcGauge(height: 82, lineWidth: 15, markerFont: .caption2.weight(.semibold))
+        case .row:
+            rowGauge
+        case .detail:
+            detailGauge
+        }
+    }
+
+    private var detailGauge: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
+                Text(presentation.valueText)
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundStyle(statusColor(for: presentation.status))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.58)
+                    .monospacedDigit()
+
+                if let unitText = presentation.unitText {
+                    Text(unitText)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.58)
-                        .monospacedDigit()
-
-                    if let unitText = presentation.unitText {
-                        Text(unitText)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: AppSpacing.small)
-
-                    statusLabel
                 }
+
+                Spacer(minLength: AppSpacing.small)
+
+                Text(presentation.statusDisplayText)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(statusColor(for: presentation.status))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .padding(.horizontal, AppSpacing.medium)
+                    .padding(.vertical, AppSpacing.small)
+                    .background(statusColor(for: presentation.status).opacity(0.12), in: Capsule())
             }
 
+            arcGauge(height: 104, lineWidth: 18, markerFont: .caption.weight(.medium))
+        }
+    }
+
+    private func arcGauge(
+        height: CGFloat,
+        lineWidth: CGFloat,
+        markerFont: Font
+    ) -> some View {
+        VStack(spacing: AppSpacing.xSmall) {
+            ZStack {
+                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { _, section in
+                    GaugeArcShape(
+                        start: normalized(section.range.lowerBound),
+                        end: normalized(section.range.upperBound)
+                    )
+                    .stroke(
+                        statusColor(for: section.status).opacity(0.18),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                    )
+                }
+
+                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { _, section in
+                    let start = normalized(section.range.lowerBound)
+                    let end = min(normalized(section.range.upperBound), presentation.normalizedValue)
+
+                    if end > start {
+                        GaugeArcShape(start: start, end: end)
+                            .stroke(
+                                statusColor(for: section.status),
+                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                            )
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(presentation.accessibilityLabel)
+            .accessibilityValue(presentation.accessibilityValue)
+
+            rangeMarkers(font: markerFont)
+        }
+    }
+
+    private var rowGauge: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
             GeometryReader { proxy in
                 let width = proxy.size.width
-                let fillWidth = width * CGFloat(presentation.normalizedValue)
 
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                        .fill(trackColor)
+                    Capsule()
+                        .fill(Color(.tertiarySystemGroupedBackground))
 
-                    RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                        .fill(statusColor)
-                        .frame(width: max(fillWidth, minimumFillWidth))
+                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { _, section in
+                        let start = normalized(section.range.lowerBound)
+                        let end = normalized(section.range.upperBound)
+                        let segmentWidth = max(CGFloat(end - start) * width, 0)
 
-                    Circle()
-                        .fill(Color(.systemBackground))
-                        .frame(width: markerSize, height: markerSize)
-                        .overlay {
-                            Circle()
-                                .stroke(statusColor, lineWidth: style == .detail ? 3 : 2)
+                        Capsule()
+                            .fill(statusColor(for: section.status).opacity(0.18))
+                            .frame(width: segmentWidth)
+                            .offset(x: CGFloat(start) * width)
+                    }
+
+                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { _, section in
+                        let start = normalized(section.range.lowerBound)
+                        let end = min(normalized(section.range.upperBound), presentation.normalizedValue)
+                        let segmentWidth = max(CGFloat(end - start) * width, 0)
+
+                        if end > start {
+                            Capsule()
+                                .fill(statusColor(for: section.status))
+                                .frame(width: segmentWidth)
+                                .offset(x: CGFloat(start) * width)
                         }
-                        .shadow(color: .black.opacity(style == .detail ? 0.10 : 0.06), radius: 2, x: 0, y: 1)
-                        .offset(x: min(max(fillWidth - markerSize / 2, 0), max(width - markerSize, 0)))
+                    }
                 }
+                .clipShape(Capsule())
             }
-            .frame(height: gaugeHeight)
+            .frame(height: 12)
 
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                Text(rangeText(presentation.range.lowerBound))
-                Spacer(minLength: AppSpacing.small)
-                if style == .card {
-                    Text(presentation.valueText)
-                        .foregroundStyle(statusColor)
-                }
-                Spacer(minLength: AppSpacing.small)
-                Text(rangeText(presentation.range.upperBound))
-            }
-            .font(rangeFont)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
-            .monospacedDigit()
+            rangeMarkers(font: .caption2.weight(.semibold))
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(presentation.accessibilityValue)
     }
 
-    private var statusLabel: some View {
-        Text(statusText)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(statusColor)
-            .lineLimit(1)
-            .minimumScaleFactor(0.72)
-            .padding(.horizontal, AppSpacing.medium)
-            .padding(.vertical, AppSpacing.small)
-            .background(statusColor.opacity(0.12), in: Capsule())
-    }
-
-    private var verticalSpacing: CGFloat {
-        style == .detail ? AppSpacing.medium : AppSpacing.xSmall
-    }
-
-    private var gaugeHeight: CGFloat {
-        style == .detail ? 18 : 10
-    }
-
-    private var markerSize: CGFloat {
-        style == .detail ? 22 : 14
-    }
-
-    private var minimumFillWidth: CGFloat {
-        presentation.normalizedValue > 0 ? markerSize / 2 : 0
-    }
-
-    private var rangeFont: Font {
-        style == .detail ? .caption.weight(.medium) : .caption2.weight(.semibold)
-    }
-
-    private var trackColor: Color {
-        switch style {
-        case .card:
-            Color(.tertiarySystemGroupedBackground)
-        case .detail:
-            Color(.tertiarySystemGroupedBackground)
+    private func rangeMarkers(font: Font) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
+            Text(rangeText(presentation.range.lowerBound))
+            Spacer(minLength: AppSpacing.small)
+            Text(rangeText(presentation.range.upperBound))
         }
+        .font(font)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+        .monospacedDigit()
     }
 
-    private var statusColor: Color {
-        switch presentation.status {
+    private func normalized(_ value: Double) -> Double {
+        guard presentation.range.upperBound > presentation.range.lowerBound else {
+            return 0
+        }
+
+        let normalizedValue = (value - presentation.range.lowerBound) / (presentation.range.upperBound - presentation.range.lowerBound)
+        return min(max(normalizedValue, 0), 1)
+    }
+
+    private func statusColor(for status: GaugePresentationStatus) -> Color {
+        switch status {
         case .nominal:
-            tint
-        case .low, .high:
-            .orange
-        case .warning:
+            .green
+        case .low:
+            .blue
+        case .high, .warning:
             .orange
         case .critical:
             .red
-        }
-    }
-
-    private var statusText: String {
-        switch presentation.status {
-        case .nominal:
-            "Normal"
-        case .low:
-            "Low"
-        case .high:
-            "High"
-        case .warning:
-            "Warning"
-        case .critical:
-            "Critical"
         }
     }
 
@@ -160,6 +187,38 @@ struct GaugePresentationView: View {
     }
 }
 
+private struct GaugeArcShape: Shape {
+    let start: Double
+    let end: Double
+
+    func path(in rect: CGRect) -> Path {
+        let radius = min(rect.width / 2, rect.height * 1.72)
+        let center = CGPoint(x: rect.midX, y: rect.maxY - 2)
+        var path = Path()
+
+        let clampedStart = min(max(start, 0), 1)
+        let clampedEnd = min(max(end, clampedStart), 1)
+        let stepCount = max(Int((clampedEnd - clampedStart) * 48), 2)
+
+        for step in 0...stepCount {
+            let progress = clampedStart + ((clampedEnd - clampedStart) * (Double(step) / Double(stepCount)))
+            let angle = Double.pi * (1 - progress)
+            let point = CGPoint(
+                x: center.x + (radius * CGFloat(cos(angle))),
+                y: center.y - (radius * CGFloat(sin(angle)))
+            )
+
+            if step == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+
+        return path
+    }
+}
+
 private let gaugeRangeFormatter: NumberFormatter = {
     let formatter = NumberFormatter()
     formatter.numberStyle = .decimal
@@ -167,4 +226,3 @@ private let gaugeRangeFormatter: NumberFormatter = {
     formatter.minimumFractionDigits = 0
     return formatter
 }()
-

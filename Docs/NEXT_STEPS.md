@@ -17,6 +17,7 @@ Recommended reasoning level: High.
 - Added a read-only dashboard `sensorGauge` card feature that appears in larger card layouts for clearly bounded sensors such as battery, humidity, AQI/air quality, signal, percentage/level readings, or sensors with Home Assistant-provided ranges; Mini and Compact cards remain simple.
 - Preserved existing numeric sensor trend behavior for ordinary numeric sensors, including typical temperature sensors without explicit range metadata, so dashboard chart cards are not broadly replaced by gauges.
 - Reused the same gauge presentation in sensor detail Current Reading panels; no gauge customization UI, new API surface, or raw DTO access in SwiftUI views was added.
+- Revised gauge visuals to use passive severity-segmented semi-circular arcs for square/wide/large/detail contexts and a read-only segmented horizontal gauge for row cards. The card header keeps icon/title/subtitle, with current gauge value/status in the subtitle and min/max markers on the gauge.
 - Added a native dashboard Options card feature for `select.*` and `input_select.*`, backed by typed select option state in `HAStateStore` and WebSocket `select_option` service calls routed to each entity's real Home Assistant domain.
 - Added native Settings > People backed by existing `person.*` and `device_tracker.*` state plus registry metadata.
 - Added app-facing `HAPresenceRecord` / presentation helpers that map home, away, zone, unknown, and unavailable states, relate people to their Home Assistant `source` tracker when present, include tracker source/battery/GPS context, and keep raw DTOs out of SwiftUI.
@@ -156,6 +157,8 @@ Recommended reasoning level: High.
 
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-Gauges` after adding reusable sensor gauges.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-Gauges` after adding gauge range/status/card feature coverage.
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-GaugeVisuals` after revising gauge visuals.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-GaugeVisuals` after adding gauge section/status subtitle coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-PeopleSettings` after adding Settings > People.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-PeopleSettings` after adding Settings > People.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-AvatarFix5` after final People/settings avatar polish.

@@ -484,7 +484,11 @@ struct DashboardEntityPresentation {
             accentColor = Self.accentColor(for: effectiveIsOn, behavior: capability.iconAccentBehavior)
         } else if let sensor = entityBox.sensorEntity {
             title = overrideTitle ?? sensor.displayName
-            subtitle = sensor.displaySubtitle
+            if let gauge = sensor.gaugePresentation {
+                subtitle = "\(sensor.formattedValue) • \(gauge.statusDisplayText)"
+            } else {
+                subtitle = sensor.displaySubtitle
+            }
             headline = sensor.formattedValue
             iconName = overrideIconName ?? sensor.iconName
             isActive = sensor.isAlerting
