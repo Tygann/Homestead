@@ -146,25 +146,20 @@ struct DashboardCardFeatureView: View {
     }
 
     private func optionsControl(_ options: DashboardCardOptionsFeature) -> some View {
-        Menu {
-            Picker(
-                selection: Binding(
-                    get: { options.selectedValue },
-                    set: { value in
-                        guard value != options.selectedValue else { return }
-                        HapticFeedback.selection()
-                        actions.selectOption?(value)
-                    }
-                )
-            ) {
-                ForEach(options.options) { option in
-                    Text(option.displayValue)
-                        .tag(option.value)
+        Picker(
+            selection: Binding(
+                get: { options.selectedValue },
+                set: { value in
+                    guard value != options.selectedValue else { return }
+                    HapticFeedback.selection()
+                    actions.selectOption?(value)
                 }
-            } label: {
-                Text("Options")
+            )
+        ) {
+            ForEach(options.options) { option in
+                Text(option.displayValue)
+                    .tag(option.value)
             }
-            .pickerStyle(.menu)
         } label: {
             HStack(spacing: AppSpacing.small) {
                 Text(options.selectedDisplayValue)
@@ -183,7 +178,7 @@ struct DashboardCardFeatureView: View {
             .frame(height: 44)
             .background(controlBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .pickerStyle(.menu)
         .disabled(isPending || actions.selectOption == nil || options.options.isEmpty)
         .accessibilityLabel("Options")
         .accessibilityValue(options.selectedDisplayValue)
