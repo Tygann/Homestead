@@ -16,6 +16,7 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func fetchServices() async throws -> HAServiceRegistry
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities
     func subscribeToStateChanges() async throws
+    func subscribeToRegistryChanges() async throws
     func unsubscribeFromStateChanges() async throws
     func subscribeToMobileAppPushNotifications(webhookID: String, supportConfirm: Bool) async throws
     func confirmMobileAppPushNotification(webhookID: String, confirmID: String) async throws
@@ -41,6 +42,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     private var mobileAppPushNotificationHandler: (@Sendable (HAMobileAppPushNotificationEventDTO) async -> Void)?
     private var disconnectHandler: (@MainActor @Sendable (Error) -> Void)?
     private var stateChangeSubscriptionID: Int?
+    private var registryChangeSubscriptionIDs: [String: Int] = [:]
     private var mobileAppPushNotificationSubscriptionID: Int?
     private var isDisconnecting = false
 
@@ -115,6 +117,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         stateChangeSubscriptionID = nil
+        registryChangeSubscriptionIDs.removeAll()
         mobileAppPushNotificationSubscriptionID = nil
         resumeAllPending(throwing: HAWebSocketError.notConnected)
         resumeAllPongs(throwing: HAWebSocketError.notConnected)
@@ -258,6 +261,24 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
             id: id
         )
         self.stateChangeSubscriptionID = nil
+    }
+
+    func subscribeToRegistryChanges() async throws {
+        let eventTypes = [
+            "entity_registry_updated",
+            "device_registry_updated",
+            "area_registry_updated",
+            "floor_registry_updated"
+        ]
+
+        for eventType in eventTypes where registryChangeSubscriptionIDs[eventType] == nil {
+            let id = makeRequestID()
+            _ = try await sendRequest(
+                .subscribeEvents(id: id, eventType: eventType),
+                id: id
+            )
+            registryChangeSubscriptionIDs[eventType] = id
+        }
     }
 
     func subscribeToMobileAppPushNotifications(webhookID: String, supportConfirm: Bool = true) async throws {

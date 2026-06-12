@@ -59,6 +59,17 @@ struct HAEventDTO: Decodable, Equatable, Sendable {
         stateChanged?.newState
     }
 
+    nonisolated var isRegistryMetadataChanged: Bool {
+        Self.registryMetadataEventTypes.contains(eventType)
+    }
+
+    private nonisolated static let registryMetadataEventTypes: Set<String> = [
+        "entity_registry_updated",
+        "device_registry_updated",
+        "area_registry_updated",
+        "floor_registry_updated"
+    ]
+
     private nonisolated static func entityDTO(from value: JSONValue) -> HAEntityDTO? {
         guard case .object(let stateObject) = value,
               case .string(let entityID)? = stateObject["entity_id"],

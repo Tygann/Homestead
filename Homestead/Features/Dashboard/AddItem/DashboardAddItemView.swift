@@ -597,9 +597,7 @@ struct DashboardAddItemView: View {
                   let presentation = DashboardSummaryProvider.makeSummary(
                     kind: kind,
                     entityBoxes: entityBoxes,
-                    preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
-                    nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
-                    diagnosticEntityIDs: stateStore.diagnosticEntityIDs()
+                    membershipContext: stateStore.dashboardSummaryMembershipContext()
                   ) else {
                 return nil
             }

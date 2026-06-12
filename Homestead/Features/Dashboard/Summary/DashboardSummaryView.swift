@@ -25,9 +25,7 @@ struct DashboardSummaryView: View {
             entityBoxes: stateStore.allEntityBoxes(),
             titleOverride: titleOverride,
             iconNameOverride: iconNameOverride,
-            preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
-            nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
-            diagnosticEntityIDs: stateStore.diagnosticEntityIDs(),
+            membershipContext: stateStore.dashboardSummaryMembershipContext(),
             areaNameForEntityID: stateStore.areaName(for:)
         )
 

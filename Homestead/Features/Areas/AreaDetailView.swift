@@ -64,18 +64,14 @@ private struct AreaDetailPresentation {
     static func make(area: DashboardAreaSummary, stateStore: HAStateStore) -> AreaDetailPresentation {
         let entityBoxes = area.entityIDs.compactMap { stateStore.entityBox(for: $0) }
         let boxesByID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
-        let preferredClimateReadingEntityIDs = stateStore.preferredClimateReadingEntityIDs()
-        let nonPrimaryEntityIDs = stateStore.nonPrimaryEntityIDs()
-        let diagnosticEntityIDs = stateStore.diagnosticEntityIDs()
+        let membershipContext = stateStore.dashboardSummaryMembershipContext()
         var categorizedEntityIDs = Set<String>()
 
         let summarySections = DashboardSummaryKind.areaSectionOrder.compactMap { kind -> AreaEntitySection? in
             guard let detail = DashboardSummaryProvider.makeDetail(
                 kind: kind,
                 entityBoxes: entityBoxes,
-                preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                diagnosticEntityIDs: diagnosticEntityIDs
+                membershipContext: membershipContext
             ) else {
                 return nil
             }

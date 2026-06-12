@@ -1381,9 +1381,7 @@ struct DashboardView: View {
                 entityBoxes: stateStore.allEntityBoxes(),
                 titleOverride: item.displayNameOverride,
                 iconNameOverride: item.iconNameOverride,
-                preferredClimateReadingEntityIDs: stateStore.preferredClimateReadingEntityIDs(),
-                nonPrimaryEntityIDs: stateStore.nonPrimaryEntityIDs(),
-                diagnosticEntityIDs: stateStore.diagnosticEntityIDs()
+                membershipContext: stateStore.dashboardSummaryMembershipContext()
             )
         case .entity:
             guard let entityID = item.entityID,

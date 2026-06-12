@@ -6,12 +6,16 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Settings > People is completed for now as a presence-first management surface. Next recommended focus is the existing dashboard mini tile and WidgetKit/App Intents polish priorities from the roadmap.
+Home Assistant summary membership alignment is completed for now. Next recommended focus is the existing dashboard mini tile and WidgetKit/App Intents polish priorities from the roadmap.
 
 Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Aligned Climate, Lights, Security, Media, and Maintenance summary membership with the current Home Assistant frontend filter strategies using entity state plus entity/device/area registry metadata; HA does not expose direct summary-group membership.
+- Centralized summary classification, added humidifier/water-heater Climate membership, corrected Security and Maintenance device-class/category rules, matched HA chip status text, and used HA-selected area temperature sensors for the Climate range.
+- Confirmed HA includes every visible primary `camera.*` entity in Security, including snapshot-named entities; Homestead therefore does not apply a name-based snapshot exclusion.
+- Subscribed to entity/device/area/floor registry update events and refreshes cached registry metadata after a short debounce so summary membership follows Home Assistant changes during a connected session.
 - Added reusable gauge presentation for range-aware numeric `sensor.*` entities.
 - `SensorEntity` now carries optional Home Assistant min/max-style range metadata and exposes an app-facing `GaugePresentation` with normalized value, range source, status tone, and accessibility text.
 - Added a read-only dashboard `sensorGauge` card feature that appears in larger card layouts for clearly bounded sensors such as battery, humidity, AQI/air quality, signal, percentage/level readings, or sensors with Home Assistant-provided ranges; Mini and Compact cards remain simple.
@@ -155,6 +159,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SummaryAlignment` after aligning summary membership with current Home Assistant frontend strategies.
+- Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SummaryAlignment` after adding summary membership/status and registry-refresh coverage. The test compile emitted existing Swift 6-mode warnings around main actor-isolated widget snapshot `Equatable` conformances.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-Gauges` after adding reusable sensor gauges.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-Gauges` after adding gauge range/status/card feature coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-GaugeVisuals` after revising gauge visuals.

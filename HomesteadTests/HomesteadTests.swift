@@ -3857,7 +3857,54 @@ struct HomesteadTests {
         #expect(mobileAppClient.lastRegistrationRequest?.appData?["push_websocket_channel"]?.boolValue == true)
         #expect(webSocketClient.mobileAppPushNotificationSubscription?.webhookID == "webhook-created")
         #expect(webSocketClient.mobileAppPushNotificationSubscription?.supportConfirm == true)
+        try await waitUntil {
+            webSocketClient.registryChangeSubscriptionCount == 1
+        }
+        #expect(webSocketClient.registryChangeSubscriptionCount == 1)
         #expect(service.mobileAppPushNotificationState.isSubscribed)
+    }
+
+    @MainActor
+    @Test func registryUpdateEventsRefreshSummaryMembershipMetadata() async throws {
+        let stateStore = HAStateStore()
+        let webSocketClient = StubHAWebSocketClient(states: [
+            HAEntityDTO(entityID: "light.utility", state: "off")
+        ])
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(
+                    credential: testCredential(accessToken: "registry-refresh-access")
+                )
+            )
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+        try await waitUntil {
+            webSocketClient.entityRegistryFetchCount >= 1
+        }
+
+        webSocketClient.entityRegistryEntities = [
+            HAEntityRegistryDisplayDTO(
+                entityID: "light.utility",
+                deviceID: nil,
+                originalName: "Utility",
+                entityCategory: "diagnostic"
+            )
+        ]
+        await webSocketClient.emitEvent(HAEventDTO(
+            eventType: "entity_registry_updated",
+            data: .object([:])
+        ))
+
+        try await waitUntil(timeout: .seconds(2)) {
+            webSocketClient.entityRegistryFetchCount >= 2 &&
+                stateStore.dashboardSummaryMembershipContext()
+                    .metadata(for: "light.utility")?.entityCategory == "diagnostic"
+        }
     }
 
     @MainActor
@@ -7313,13 +7360,13 @@ struct HomesteadTests {
         #expect(lights.systemImage == "lightbulb.fill")
         #expect(lights.iconTint == .lights)
         #expect(security.title == "Security")
-        #expect(security.value == "2 Open")
+        #expect(security.value == "All Secure")
         #expect(security.systemImage == "lock.fill")
         #expect(security.iconTint == .security)
-        #expect(climate.value == "74.5°F")
+        #expect(climate.value.isEmpty)
         #expect(climate.iconTint == .climate)
         #expect(maintenance.title == "Maintenance")
-        #expect(maintenance.value == "1 Issue")
+        #expect(maintenance.value == "1 Low Battery")
         #expect(maintenance.systemImage == "wrench.fill")
         #expect(maintenance.iconTint == .maintenance)
         #expect(media.value == "1 Playing")
@@ -7365,7 +7412,11 @@ struct HomesteadTests {
         let detail = try #require(DashboardSummaryProvider.makeDetail(
             kind: .climate,
             entityBoxes: store.allEntityBoxes(),
-            preferredClimateReadingEntityIDs: ["sensor.office_temperature"],
+            membershipContext: DashboardSummaryMembershipContext(
+                entityMetadataByID: [:],
+                preferredClimateReadingEntityIDs: ["sensor.office_temperature"],
+                chargingDeviceIDs: []
+            ),
             areaNameForEntityID: { _ in "Office" }
         ))
 
@@ -7442,43 +7493,195 @@ struct HomesteadTests {
         )
 
         let boxes = store.allEntityBoxes()
-        let nonPrimaryEntityIDs = store.nonPrimaryEntityIDs()
-        let diagnosticEntityIDs = store.diagnosticEntityIDs()
+        let membershipContext = store.dashboardSummaryMembershipContext()
 
         let lights = try #require(DashboardSummaryProvider.makeDetail(
             kind: .lights,
             entityBoxes: boxes,
-            nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-            diagnosticEntityIDs: diagnosticEntityIDs
+            membershipContext: membershipContext
         ))
         #expect(lights.sections.flatMap(\.items).map(\.entityID) == ["light.room"])
 
         let maintenance = try #require(DashboardSummaryProvider.makeDetail(
             kind: .maintenance,
             entityBoxes: boxes,
-            nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-            diagnosticEntityIDs: diagnosticEntityIDs
+            membershipContext: membershipContext
         ))
         #expect(maintenance.sections.flatMap(\.items).map(\.entityID) == [
             "binary_sensor.remote_low_battery",
+            "sensor.remote_diagnostic_battery",
             "sensor.remote_battery"
         ])
 
         let media = try #require(DashboardSummaryProvider.makeDetail(
             kind: .media,
             entityBoxes: boxes,
-            nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-            diagnosticEntityIDs: diagnosticEntityIDs
+            membershipContext: membershipContext
         ))
         #expect(media.sections.flatMap(\.items).map(\.entityID) == ["media_player.tv"])
 
         let security = try #require(DashboardSummaryProvider.makeDetail(
             kind: .security,
             entityBoxes: boxes,
-            nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-            diagnosticEntityIDs: diagnosticEntityIDs
+            membershipContext: membershipContext
         ))
         #expect(security.sections.flatMap(\.items).map(\.entityID) == ["binary_sensor.case_tamper"])
+    }
+
+    @MainActor
+    @Test func summariesMatchCurrentHomeAssistantFrontendMembershipRules() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "humidifier.bedroom", state: "off"),
+            HAEntityDTO(entityID: "water_heater.house", state: "eco"),
+            HAEntityDTO(entityID: "camera.entry_snapshot", state: "idle"),
+            HAEntityDTO(entityID: "camera.hidden_driveway", state: "idle"),
+            HAEntityDTO(entityID: "camera.diagnostic_thumbnail", state: "idle"),
+            HAEntityDTO(
+                entityID: "binary_sensor.attic_heat",
+                state: "on",
+                attributes: ["device_class": .string("heat")]
+            ),
+            HAEntityDTO(
+                entityID: "binary_sensor.window_vibration",
+                state: "on",
+                attributes: ["device_class": .string("vibration")]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.remote_battery",
+                state: "10",
+                attributes: ["device_class": .string("battery")]
+            ),
+            HAEntityDTO(
+                entityID: "binary_sensor.remote_low_battery",
+                state: "on",
+                attributes: ["device_class": .string("battery")]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "camera.hidden_driveway",
+                    deviceID: nil,
+                    originalName: "Hidden Driveway",
+                    hiddenBy: true
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "camera.diagnostic_thumbnail",
+                    deviceID: nil,
+                    originalName: "Diagnostic Thumbnail",
+                    entityCategory: "diagnostic"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.remote_battery",
+                    deviceID: nil,
+                    originalName: "Remote Battery",
+                    entityCategory: "diagnostic"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "binary_sensor.remote_low_battery",
+                    deviceID: nil,
+                    originalName: "Remote Low Battery",
+                    entityCategory: "diagnostic"
+                )
+            ],
+            devices: []
+        )
+
+        let boxes = store.allEntityBoxes()
+        let membershipContext = store.dashboardSummaryMembershipContext()
+        let climate = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .climate,
+            entityBoxes: boxes,
+            membershipContext: membershipContext
+        ))
+        let security = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .security,
+            entityBoxes: boxes,
+            membershipContext: membershipContext
+        ))
+        let maintenance = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .maintenance,
+            entityBoxes: boxes,
+            membershipContext: membershipContext
+        ))
+
+        #expect(Set(climate.sections.flatMap(\.items).map(\.entityID)) == [
+            "humidifier.bedroom",
+            "water_heater.house"
+        ])
+        #expect(security.sections.flatMap(\.items).map(\.entityID) == ["camera.entry_snapshot"])
+        #expect(maintenance.sections.flatMap(\.items).map(\.entityID) == ["sensor.remote_battery"])
+    }
+
+    @MainActor
+    @Test func climateAndMaintenanceSummaryValuesMatchHomeAssistantBehavior() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.downstairs_temperature",
+                state: "68",
+                attributes: ["device_class": .string("temperature")]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.upstairs_temperature",
+                state: "72",
+                attributes: ["device_class": .string("temperature")]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.remote_battery",
+                state: "10",
+                attributes: ["device_class": .string("battery")]
+            ),
+            HAEntityDTO(
+                entityID: "binary_sensor.remote_charging",
+                state: "on",
+                attributes: ["device_class": .string("battery_charging")]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.remote_battery",
+                    deviceID: "remote",
+                    originalName: "Battery"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "binary_sensor.remote_charging",
+                    deviceID: "remote",
+                    originalName: "Charging"
+                )
+            ],
+            devices: [HADeviceRegistryDTO(id: "remote", name: "Remote")],
+            areas: [
+                HAAreaRegistryDTO(
+                    id: "downstairs",
+                    name: "Downstairs",
+                    temperatureEntityID: "sensor.downstairs_temperature"
+                ),
+                HAAreaRegistryDTO(
+                    id: "upstairs",
+                    name: "Upstairs",
+                    temperatureEntityID: "sensor.upstairs_temperature"
+                )
+            ]
+        )
+
+        let membershipContext = store.dashboardSummaryMembershipContext()
+        let climate = try #require(DashboardSummaryProvider.makeSummary(
+            kind: .climate,
+            entityBoxes: store.allEntityBoxes(),
+            membershipContext: membershipContext
+        ))
+        let maintenance = try #require(DashboardSummaryProvider.makeSummary(
+            kind: .maintenance,
+            entityBoxes: store.allEntityBoxes(),
+            membershipContext: membershipContext
+        ))
+
+        #expect(climate.value == "68.0 - 72.0°")
+        #expect(maintenance.value == "All Good")
+        #expect(!maintenance.isActive)
     }
 
     @MainActor
@@ -7873,10 +8076,14 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     private(set) var callServiceInvocations: [(domain: String, service: String, entityID: String?, serviceData: [String: JSONValue])] = []
     private(set) var mobileAppPushNotificationSubscription: (webhookID: String, supportConfirm: Bool)?
     private(set) var mobileAppPushNotificationConfirmations: [(webhookID: String, confirmID: String)] = []
+    private(set) var registryChangeSubscriptionCount = 0
+    private(set) var entityRegistryFetchCount = 0
     private var mobileAppPushNotificationHandler: (@Sendable (HAMobileAppPushNotificationEventDTO) async -> Void)?
+    private var eventHandler: (@Sendable (HAEventDTO) async -> Void)?
     var callServiceError: Error?
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
+    var entityRegistryEntities: [HAEntityRegistryDisplayDTO] = []
     var config = HAConfigDTO(
         version: nil,
         locationName: nil,
@@ -7897,7 +8104,9 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         self.states = states
     }
 
-    func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) async {}
+    func setEventHandler(_ handler: (@Sendable (HAEventDTO) async -> Void)?) async {
+        eventHandler = handler
+    }
 
     func setMobileAppPushNotificationHandler(_ handler: (@Sendable (HAMobileAppPushNotificationEventDTO) async -> Void)?) async {
         mobileAppPushNotificationHandler = handler
@@ -7931,7 +8140,8 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func fetchEntityRegistryForDisplay() async throws -> HAEntityRegistryDisplayResponseDTO {
-        HAEntityRegistryDisplayResponseDTO(entities: [])
+        entityRegistryFetchCount += 1
+        return HAEntityRegistryDisplayResponseDTO(entities: entityRegistryEntities)
     }
 
     func fetchDeviceRegistry() async throws -> [HADeviceRegistryDTO] {
@@ -7968,6 +8178,10 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func subscribeToStateChanges() async throws {}
 
+    func subscribeToRegistryChanges() async throws {
+        registryChangeSubscriptionCount += 1
+    }
+
     func unsubscribeFromStateChanges() async throws {}
 
     func subscribeToMobileAppPushNotifications(webhookID: String, supportConfirm: Bool) async throws {
@@ -7980,6 +8194,10 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func emitMobileAppPushNotification(_ event: HAMobileAppPushNotificationEventDTO) async {
         await mobileAppPushNotificationHandler?(event)
+    }
+
+    func emitEvent(_ event: HAEventDTO) async {
+        await eventHandler?(event)
     }
 
     func callService(

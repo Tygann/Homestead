@@ -103,9 +103,7 @@ private struct AreasOverviewPresentation {
     @MainActor
     static func make(from stateStore: HAStateStore) -> AreasOverviewPresentation {
         let entityBoxes = stateStore.allEntityBoxes()
-        let preferredClimateReadingEntityIDs = stateStore.preferredClimateReadingEntityIDs()
-        let nonPrimaryEntityIDs = stateStore.nonPrimaryEntityIDs()
-        let diagnosticEntityIDs = stateStore.diagnosticEntityIDs()
+        let membershipContext = stateStore.dashboardSummaryMembershipContext()
 
         let areas = DashboardAreaBuilder.buildAreas(
             from: entityBoxes,
@@ -118,9 +116,7 @@ private struct AreasOverviewPresentation {
                 DashboardSummaryProvider.makeSummary(
                     kind: kind,
                     entityBoxes: entityBoxes,
-                    preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
-                    nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                    diagnosticEntityIDs: diagnosticEntityIDs
+                    membershipContext: membershipContext
                 ).map { SummaryChipItem(kind: kind, presentation: $0) }
             }
         )

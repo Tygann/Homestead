@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-12
 
+### Home Assistant Summary Alignment
+
+- Confirmed Home Assistant does not expose direct summary-category membership through REST or WebSocket; its frontend derives membership from entity state and registry metadata.
+- Centralized Homestead's Climate, Lights, Security, Media, and Maintenance filters around the current HA frontend strategies, including registry category/visibility handling, selected area climate readings, security device classes, and charging-aware battery status.
+- Confirmed HA Security includes visible primary camera entities regardless of snapshot-like naming, so Homestead intentionally avoids camera-name heuristics.
+- Added connected-session subscriptions for entity, device, area, and floor registry updates so summary membership metadata refreshes after Home Assistant registry changes.
+
 ### Sensor Gauges
 
 - Added reusable app-facing gauge presentation for numeric sensor readings, including resolved range source, normalized value, warning status, and accessibility copy.

@@ -30,10 +30,11 @@ Official references:
 | Service catalog | WebSocket `get_services` | Mapped | Used to hide unsupported optional controls where practical. |
 | Server config snapshot | WebSocket `get_config` | Mapped | Used by Settings > Account > Server for HA version/status/location/unit and official URL values returned by Home Assistant. |
 | Current user | WebSocket `auth/current_user` | Mapped | Used for account display and matching person entity imagery. |
-| Entity registry display | WebSocket registry command | Mapped | Used for Browse, Settings management, summaries, and filtering. |
-| Device registry | WebSocket registry command | Mapped | Used for device grouping and Settings management. |
-| Area registry | WebSocket registry command | Mapped | Used for Areas and area context. |
-| Floor registry | WebSocket registry command | Mapped | Used for Areas grouping where helpful. |
+| Entity registry display | WebSocket registry command | Mapped | Used for Browse, Settings management, summaries, and filtering. Registry update events trigger a debounced metadata refresh. |
+| Device registry | WebSocket registry command | Mapped | Used for device grouping and Settings management. Registry update events trigger a debounced metadata refresh. |
+| Area registry | WebSocket registry command | Mapped | Used for Areas and area context, including HA-selected climate reading entities. Registry update events trigger a debounced metadata refresh. |
+| Floor registry | WebSocket registry command | Mapped | Used for Areas grouping where helpful. Registry update events trigger a debounced metadata refresh. |
+| Dashboard summary membership | Entity state plus entity/device/area registry metadata | Mapped, frontend-derived | Home Assistant does not expose summary-category membership directly through REST or WebSocket. Homestead mirrors the current HA frontend filter strategies for Climate, Lights, Security, Media, and Maintenance using registry visibility/category metadata, device classes, selected area climate readings, and charging-device context. |
 | Camera capabilities | WebSocket `camera/capabilities` | Mapped | Used to reason about live camera modes. |
 | Camera snapshots | Documented HTTP camera proxy | Mapped | Authenticated snapshot loading. |
 | Logbook | REST logbook API | Mapped | Read-only Settings > Logbook page uses the documented start timestamp, `end_time`, and `entity` request shape, then applies domain/search presentation locally. |

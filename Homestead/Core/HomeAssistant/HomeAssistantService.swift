@@ -40,6 +40,7 @@ final class HomeAssistantService {
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
     @ObservationIgnored private var stateSyncTask: Task<Void, Never>?
     @ObservationIgnored private var stateEnrichmentTask: Task<Void, Never>?
+    @ObservationIgnored private var registryRefreshTask: Task<Void, Never>?
     @ObservationIgnored private var connectionHealthGraceTask: Task<Void, Never>?
     @ObservationIgnored private var pendingCommandTasksByID: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var bufferedStateChangesByID: [String: HAStateChangedEventDTO] = [:]
@@ -181,6 +182,8 @@ final class HomeAssistantService {
         stateSyncTask = nil
         stateEnrichmentTask?.cancel()
         stateEnrichmentTask = nil
+        registryRefreshTask?.cancel()
+        registryRefreshTask = nil
         discardBufferedStateChanges()
         await stateEventBatcher.discardPendingUpdates()
         let previousDataSourceID = activeConfiguration?.dataSourceID
@@ -290,6 +293,8 @@ final class HomeAssistantService {
         stateSyncTask = nil
         stateEnrichmentTask?.cancel()
         stateEnrichmentTask = nil
+        registryRefreshTask?.cancel()
+        registryRefreshTask = nil
         discardBufferedStateChanges()
         await stateEventBatcher.discardPendingUpdates()
         cancelPendingCommandTasks()
@@ -1839,6 +1844,13 @@ final class HomeAssistantService {
 
         do {
             try await client.subscribeToStateChanges()
+            do {
+                try await client.subscribeToRegistryChanges()
+            } catch {
+                #if DEBUG
+                print("Home Assistant registry subscriptions failed: \(error.localizedDescription)")
+                #endif
+            }
             let states = try await client.fetchStates()
             stateStore.applySnapshot(states, dataSourceID: configuration.dataSourceID)
             applyBufferedStateChanges()
@@ -2084,6 +2096,11 @@ final class HomeAssistantService {
     }
 
     private func handleStateEvent(_ event: HAEventDTO) async {
+        if event.isRegistryMetadataChanged {
+            scheduleRegistryMetadataRefresh()
+            return
+        }
+
         guard let stateChanged = event.stateChanged else {
             return
         }
@@ -2097,6 +2114,30 @@ final class HomeAssistantService {
             stateStore.applyStateChanged(stateChanged)
         } else {
             await stateEventBatcher.enqueue(stateChanged)
+        }
+    }
+
+    private func scheduleRegistryMetadataRefresh() {
+        guard let activeConfiguration else {
+            return
+        }
+
+        registryRefreshTask?.cancel()
+        registryRefreshTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(500))
+            } catch {
+                return
+            }
+            guard let self,
+                  self.activeConfiguration?.dataSourceID == activeConfiguration.dataSourceID else {
+                return
+            }
+            let metadata = await self.fetchRegistryMetadataIfAvailable(configuration: activeConfiguration)
+            guard metadata != nil else {
+                return
+            }
+            self.scheduleStateCacheSave(configuration: activeConfiguration)
         }
     }
 
@@ -2150,6 +2191,8 @@ final class HomeAssistantService {
         stateSyncTask = nil
         stateEnrichmentTask?.cancel()
         stateEnrichmentTask = nil
+        registryRefreshTask?.cancel()
+        registryRefreshTask = nil
         discardBufferedStateChanges()
         Task {
             await stateEventBatcher.discardPendingUpdates()

@@ -138,16 +138,14 @@ enum DashboardSummaryProvider {
         entityBoxes: [HAEntityState],
         titleOverride: String? = nil,
         iconNameOverride: String? = nil,
-        preferredClimateReadingEntityIDs: Set<String> = [],
-        nonPrimaryEntityIDs: Set<String> = [],
-        diagnosticEntityIDs: Set<String> = []
+        membershipContext: DashboardSummaryMembershipContext = .empty
     ) -> DashboardChipPresentation? {
         let title = normalizedOverride(titleOverride) ?? kind.title
         let defaultSystemImage = normalizedOverride(iconNameOverride) ?? kind.systemImage
 
         switch kind {
         case .lights:
-            let lights = entityBoxes.filter { isPrimaryEntity($0, nonPrimaryEntityIDs: nonPrimaryEntityIDs) && $0.domain == .light }
+            let lights = entities(in: .lights, from: entityBoxes, context: membershipContext)
             guard !lights.isEmpty else { return nil }
             let activeCount = lights.filter { $0.homeEntity.state == "on" }.count
             return DashboardChipPresentation(
@@ -162,59 +160,51 @@ enum DashboardSummaryProvider {
             let securityItems = entityBoxes.compactMap {
                 securityContext(
                     for: $0,
-                    nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                    diagnosticEntityIDs: diagnosticEntityIDs
+                    membershipContext: membershipContext
                 )
             }
             guard !securityItems.isEmpty else { return nil }
-            let issues = securityItems.filter(\.isIssue)
-            let issueValue = securitySummaryValue(for: issues)
+            let securityStatus = securitySummaryStatus(for: securityItems)
             return DashboardChipPresentation(
                 title: title,
-                value: issueValue,
+                value: securityStatus.value,
                 systemImage: defaultSystemImage,
-                isActive: !issues.isEmpty,
+                isActive: securityStatus.isActive,
                 isAvailable: securityItems.contains { $0.entityBox.homeEntity.isAvailable },
                 iconTint: .security
             )
         case .climate:
-            let climateItems = entityBoxes.filter {
-                isClimateSummaryEntity(
-                    $0,
-                    preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
-                    nonPrimaryEntityIDs: nonPrimaryEntityIDs
-                )
-            }
+            let climateItems = entities(in: .climate, from: entityBoxes, context: membershipContext)
             guard !climateItems.isEmpty else { return nil }
             let activeCount = climateItems.filter(isClimateActive).count
             return DashboardChipPresentation(
                 title: title,
-                value: primaryClimateTemperatureText(from: climateItems) ?? countValue(activeCount, activeWord: "active", inactiveWord: "idle"),
+                value: climateTemperatureRangeText(
+                    from: climateItems,
+                    preferredEntityIDs: membershipContext.preferredClimateReadingEntityIDs
+                ),
                 systemImage: defaultSystemImage,
                 isActive: activeCount > 0,
                 isAvailable: climateItems.contains { $0.homeEntity.isAvailable },
                 iconTint: .climate
             )
         case .maintenance:
-            let maintenanceItems = entityBoxes.filter {
-                isMaintenanceSummaryEntity(
-                    $0,
-                    nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                    diagnosticEntityIDs: diagnosticEntityIDs
-                )
-            }
+            let maintenanceItems = entities(in: .maintenance, from: entityBoxes, context: membershipContext)
             guard !maintenanceItems.isEmpty else { return nil }
-            let issueCount = maintenanceItems.filter(isMaintenanceIssue).count
+            let lowBatteryCount = maintenanceItems.filter {
+                isLowBatteryIssue($0, membershipContext: membershipContext)
+            }.count
+            let unavailableCount = maintenanceItems.filter { !$0.homeEntity.isAvailable }.count
             return DashboardChipPresentation(
                 title: title,
-                value: countValue(issueCount, activeWord: "issue", inactiveWord: "ok"),
+                value: maintenanceSummaryValue(lowBatteryCount: lowBatteryCount, unavailableCount: unavailableCount),
                 systemImage: defaultSystemImage,
-                isActive: issueCount > 0,
+                isActive: lowBatteryCount > 0 || unavailableCount > 0,
                 isAvailable: maintenanceItems.contains { $0.homeEntity.isAvailable },
                 iconTint: .maintenance
             )
         case .media:
-            let players = entityBoxes.filter { isPrimaryEntity($0, nonPrimaryEntityIDs: nonPrimaryEntityIDs) && $0.domain == .mediaPlayer }
+            let players = entities(in: .media, from: entityBoxes, context: membershipContext)
             guard !players.isEmpty else { return nil }
             let playingCount = players.filter { $0.mediaPlayerEntity?.isPlaying == true }.count
             return DashboardChipPresentation(
@@ -233,9 +223,7 @@ enum DashboardSummaryProvider {
         entityBoxes: [HAEntityState],
         titleOverride: String? = nil,
         iconNameOverride: String? = nil,
-        preferredClimateReadingEntityIDs: Set<String> = [],
-        nonPrimaryEntityIDs: Set<String> = [],
-        diagnosticEntityIDs: Set<String> = [],
+        membershipContext: DashboardSummaryMembershipContext = .empty,
         areaNameForEntityID: (String) -> String? = { _ in nil }
     ) -> DashboardSummaryDetailPresentation? {
         guard let summary = makeSummary(
@@ -243,9 +231,7 @@ enum DashboardSummaryProvider {
             entityBoxes: entityBoxes,
             titleOverride: titleOverride,
             iconNameOverride: iconNameOverride,
-            preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
-            nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-            diagnosticEntityIDs: diagnosticEntityIDs
+            membershipContext: membershipContext
         ) else {
             return nil
         }
@@ -255,34 +241,31 @@ enum DashboardSummaryProvider {
         case .lights:
             sections = lightSections(
                 from: entityBoxes,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+                membershipContext: membershipContext,
                 areaNameForEntityID: areaNameForEntityID
             )
         case .security:
             sections = securitySections(
                 from: entityBoxes,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                diagnosticEntityIDs: diagnosticEntityIDs,
+                membershipContext: membershipContext,
                 areaNameForEntityID: areaNameForEntityID
             )
         case .climate:
             sections = climateSections(
                 from: entityBoxes,
-                preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+                membershipContext: membershipContext,
                 areaNameForEntityID: areaNameForEntityID
             )
         case .maintenance:
             sections = maintenanceSections(
                 from: entityBoxes,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                diagnosticEntityIDs: diagnosticEntityIDs,
+                membershipContext: membershipContext,
                 areaNameForEntityID: areaNameForEntityID
             )
         case .media:
             sections = mediaSections(
                 from: entityBoxes,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
+                membershipContext: membershipContext,
                 areaNameForEntityID: areaNameForEntityID
             )
         }
@@ -325,12 +308,12 @@ enum DashboardSummaryProvider {
 
     private static func lightSections(
         from entityBoxes: [HAEntityState],
-        nonPrimaryEntityIDs: Set<String>,
+        membershipContext: DashboardSummaryMembershipContext,
         areaNameForEntityID: (String) -> String?
     ) -> [DashboardSummarySectionPresentation] {
         areaSections(
             idPrefix: "lights",
-            entityBoxes: entityBoxes.filter { isPrimaryEntity($0, nonPrimaryEntityIDs: nonPrimaryEntityIDs) && $0.domain == .light },
+            entityBoxes: entities(in: .lights, from: entityBoxes, context: membershipContext),
             areaNameForEntityID: areaNameForEntityID,
             makeItem: lightItem
         )
@@ -357,15 +340,13 @@ enum DashboardSummaryProvider {
 
     private static func securitySections(
         from entityBoxes: [HAEntityState],
-        nonPrimaryEntityIDs: Set<String>,
-        diagnosticEntityIDs: Set<String>,
+        membershipContext: DashboardSummaryMembershipContext,
         areaNameForEntityID: (String) -> String?
     ) -> [DashboardSummarySectionPresentation] {
         let contextsByEntityID = Dictionary(uniqueKeysWithValues: entityBoxes.compactMap { entityBox in
             securityContext(
                 for: entityBox,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                diagnosticEntityIDs: diagnosticEntityIDs
+                membershipContext: membershipContext
             ).map { (entityBox.entityID, $0) }
         })
 
@@ -400,19 +381,12 @@ enum DashboardSummaryProvider {
 
     private static func climateSections(
         from entityBoxes: [HAEntityState],
-        preferredClimateReadingEntityIDs: Set<String>,
-        nonPrimaryEntityIDs: Set<String>,
+        membershipContext: DashboardSummaryMembershipContext,
         areaNameForEntityID: (String) -> String?
     ) -> [DashboardSummarySectionPresentation] {
         areaSections(
             idPrefix: "climate",
-            entityBoxes: entityBoxes.filter {
-                isClimateSummaryEntity(
-                    $0,
-                    preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs,
-                    nonPrimaryEntityIDs: nonPrimaryEntityIDs
-                )
-            },
+            entityBoxes: entities(in: .climate, from: entityBoxes, context: membershipContext),
             areaNameForEntityID: areaNameForEntityID,
             makeItem: climateItem
         )
@@ -439,31 +413,27 @@ enum DashboardSummaryProvider {
 
     private static func maintenanceSections(
         from entityBoxes: [HAEntityState],
-        nonPrimaryEntityIDs: Set<String>,
-        diagnosticEntityIDs: Set<String>,
+        membershipContext: DashboardSummaryMembershipContext,
         areaNameForEntityID: (String) -> String?
     ) -> [DashboardSummarySectionPresentation] {
-        let maintenanceBoxes = entityBoxes.filter {
-            isMaintenanceSummaryEntity(
-                $0,
-                nonPrimaryEntityIDs: nonPrimaryEntityIDs,
-                diagnosticEntityIDs: diagnosticEntityIDs
-            )
-        }
+        let maintenanceBoxes = entities(in: .maintenance, from: entityBoxes, context: membershipContext)
         return areaSections(
             idPrefix: "maintenance",
             entityBoxes: maintenanceBoxes,
             areaNameForEntityID: areaNameForEntityID,
-            makeItem: maintenanceItem
+            makeItem: { maintenanceItem(for: $0, membershipContext: membershipContext) }
         )
     }
 
-    private static func maintenanceItem(for entityBox: HAEntityState) -> DashboardSummaryEntityPresentation {
+    private static func maintenanceItem(
+        for entityBox: HAEntityState,
+        membershipContext: DashboardSummaryMembershipContext
+    ) -> DashboardSummaryEntityPresentation {
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
         let sensor = entityBox.sensorEntity
         let binarySensor = entityBox.binarySensorEntity
         let sortPriority: Int
-        if isMaintenanceIssue(entityBox) {
+        if isMaintenanceIssue(entityBox, membershipContext: membershipContext) {
             sortPriority = 0
         } else if !entityBox.homeEntity.isAvailable {
             sortPriority = 1
@@ -481,10 +451,10 @@ enum DashboardSummaryProvider {
 
     private static func mediaSections(
         from entityBoxes: [HAEntityState],
-        nonPrimaryEntityIDs: Set<String>,
+        membershipContext: DashboardSummaryMembershipContext,
         areaNameForEntityID: (String) -> String?
     ) -> [DashboardSummarySectionPresentation] {
-        let playerBoxes = entityBoxes.filter { isPrimaryEntity($0, nonPrimaryEntityIDs: nonPrimaryEntityIDs) && $0.domain == .mediaPlayer }
+        let playerBoxes = entities(in: .media, from: entityBoxes, context: membershipContext)
         return areaSections(
             idPrefix: "media",
             entityBoxes: playerBoxes,
@@ -599,34 +569,45 @@ enum DashboardSummaryProvider {
         }
     }
 
-    private static func securitySummaryValue(for issues: [SecurityContext]) -> String {
-        guard !issues.isEmpty else {
-            return "All secure"
+    private static func entities(
+        in kind: DashboardSummaryKind,
+        from entityBoxes: [HAEntityState],
+        context: DashboardSummaryMembershipContext
+    ) -> [HAEntityState] {
+        entityBoxes.filter { HomeAssistantSummaryClassifier.contains($0, in: kind, context: context) }
+    }
+
+    private static func securitySummaryStatus(for contexts: [SecurityContext]) -> SecuritySummaryStatus {
+        let unlockedLockCount = contexts.filter { context in
+            context.entityBox.domain == .lock &&
+                ["unlocked", "jammed", "open"].contains(context.entityBox.homeEntity.state)
+        }.count
+        if unlockedLockCount > 0 {
+            return SecuritySummaryStatus(value: "\(unlockedLockCount) Unlocked", isActive: true)
         }
 
-        for issueKind in SecurityIssueKind.summaryPriority {
-            let count = issues.filter { $0.issueKind == issueKind }.count
-            guard count > 0 else {
-                continue
-            }
-
-            return "\(count) \(issueKind.summaryWord.capitalizedFirstLetter)"
+        let disarmedAlarmCount = contexts.filter { context in
+            context.entityBox.domain == .alarmControlPanel && context.entityBox.homeEntity.state == "disarmed"
+        }.count
+        if disarmedAlarmCount > 0 {
+            return SecuritySummaryStatus(value: "\(disarmedAlarmCount) Disarmed", isActive: true)
         }
 
-        return "\(issues.count) \("need attention".capitalizedFirstLetter)"
+        return SecuritySummaryStatus(value: "All Secure", isActive: false)
     }
 
     private static func securityContext(
         for entityBox: HAEntityState,
-        nonPrimaryEntityIDs: Set<String>,
-        diagnosticEntityIDs: Set<String>
+        membershipContext: DashboardSummaryMembershipContext
     ) -> SecurityContext? {
+        guard HomeAssistantSummaryClassifier.contains(entityBox, in: .security, context: membershipContext) else {
+            return nil
+        }
         let entity = entityBox.homeEntity
 
         switch entity.domain {
         case .lock:
-            guard isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs) else { return nil }
-            let isIssue = entity.isAvailable && entity.state != "locked"
+            let isIssue = entity.isAvailable && ["unlocked", "jammed", "open"].contains(entity.state)
             return SecurityContext(
                 entityBox: entityBox,
                 isIssue: isIssue,
@@ -634,7 +615,6 @@ enum DashboardSummaryProvider {
                 detail: entity.state.displayStateText
             )
         case .camera:
-            guard isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs) else { return nil }
             return SecurityContext(
                 entityBox: entityBox,
                 isIssue: !entity.isAvailable,
@@ -642,11 +622,6 @@ enum DashboardSummaryProvider {
                 detail: entity.isAvailable ? "Ready" : "Unavailable"
             )
         case .cover:
-            let securityCoverClasses = ["door", "garage", "gate", "window"]
-            guard isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs),
-                  securityCoverClasses.contains(entityBox.coverEntity?.deviceClass ?? "") else {
-                return nil
-            }
             let isIssue = entity.isAvailable && entityBox.coverEntity?.isOpen == true
             return SecurityContext(
                 entityBox: entityBox,
@@ -659,12 +634,6 @@ enum DashboardSummaryProvider {
                 return nil
             }
 
-            guard isHomeAssistantSecurityBinarySensor(binarySensor),
-                  isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs) ||
-                    isDiagnosticTamperSensor(entityBox, diagnosticEntityIDs: diagnosticEntityIDs) else {
-                return nil
-            }
-
             let isIssue = entity.isAvailable && entity.state == "on"
             return SecurityContext(
                 entityBox: entityBox,
@@ -673,10 +642,7 @@ enum DashboardSummaryProvider {
                 detail: binarySensor.displaySubtitle
             )
         case .alarmControlPanel:
-            guard isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs) else {
-                return nil
-            }
-            let isIssue = ["triggered", "pending", "arming"].contains(entity.state)
+            let isIssue = entity.state == "disarmed"
             return SecurityContext(
                 entityBox: entityBox,
                 isIssue: isIssue,
@@ -705,79 +671,23 @@ enum DashboardSummaryProvider {
         }
     }
 
-    private static func isClimateSummaryEntity(
+    private static func isMaintenanceIssue(
         _ entityBox: HAEntityState,
-        preferredClimateReadingEntityIDs: Set<String>,
-        nonPrimaryEntityIDs: Set<String>
+        membershipContext: DashboardSummaryMembershipContext
     ) -> Bool {
-        switch entityBox.domain {
-        case .climate, .fan:
-            return isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs)
-        case .cover:
-            let climateCoverClasses = ["awning", "blind", "curtain", "shade", "shutter", "window", "none"]
-            return isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs) &&
-                climateCoverClasses.contains(entityBox.coverEntity?.deviceClass ?? "")
-        case .binarySensor:
-            return isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs) &&
-                entityBox.binarySensorEntity?.displayKind == .window
-        case .sensor:
-            return preferredClimateReadingEntityIDs.contains(entityBox.entityID) && isClimateReading(entityBox)
-        default:
-            return false
-        }
-    }
-
-    private static func isPrimaryEntity(
-        _ entityBox: HAEntityState,
-        nonPrimaryEntityIDs: Set<String>
-    ) -> Bool {
-        !nonPrimaryEntityIDs.contains(entityBox.entityID)
-    }
-
-    private static func isHomeAssistantSecurityBinarySensor(_ binarySensor: BinarySensorEntity) -> Bool {
-        switch binarySensor.displayKind {
-        case .lock, .door, .window, .garageDoor, .opening, .gas, .carbonMonoxide, .heat, .moisture, .safety, .smoke, .tamper, .vibration:
-            return true
-        case .motion, .occupancy, .presence, .problem, .battery, .batteryCharging, .cold, .moving, .running, .sound, .update, .connectivity, .plug, .power, .light, .generic:
-            return false
-        }
-    }
-
-    private static func isDiagnosticTamperSensor(
-        _ entityBox: HAEntityState,
-        diagnosticEntityIDs: Set<String>
-    ) -> Bool {
-        diagnosticEntityIDs.contains(entityBox.entityID) &&
-            entityBox.binarySensorEntity?.displayKind == .tamper
-    }
-
-    private static func isMaintenanceSummaryEntity(
-        _ entityBox: HAEntityState,
-        nonPrimaryEntityIDs: Set<String>,
-        diagnosticEntityIDs: Set<String>
-    ) -> Bool {
-        guard isPrimaryEntity(entityBox, nonPrimaryEntityIDs: nonPrimaryEntityIDs),
-              !diagnosticEntityIDs.contains(entityBox.entityID) else {
-            return false
-        }
-
-        switch entityBox.domain {
-        case .sensor:
-            return entityBox.sensorEntity?.displayKind == .battery
-        case .binarySensor:
-            return entityBox.binarySensorEntity?.displayKind == .battery
-        default:
-            return false
-        }
-    }
-
-    private static func isMaintenanceIssue(_ entityBox: HAEntityState) -> Bool {
         if !entityBox.homeEntity.isAvailable {
             return true
         }
 
+        return isLowBatteryIssue(entityBox, membershipContext: membershipContext)
+    }
+
+    private static func isLowBatteryIssue(
+        _ entityBox: HAEntityState,
+        membershipContext: DashboardSummaryMembershipContext
+    ) -> Bool {
         if entityBox.sensorEntity?.isAlerting == true {
-            return true
+            return !HomeAssistantSummaryClassifier.isCharging(entityBox, context: membershipContext)
         }
 
         if entityBox.binarySensorEntity?.displayKind == .battery {
@@ -787,12 +697,15 @@ enum DashboardSummaryProvider {
         return false
     }
 
-    private static func isClimateReading(_ entityBox: HAEntityState) -> Bool {
-        guard let sensor = entityBox.sensorEntity else {
-            return false
+    private static func maintenanceSummaryValue(lowBatteryCount: Int, unavailableCount: Int) -> String {
+        var parts: [String] = []
+        if lowBatteryCount > 0 {
+            parts.append("\(lowBatteryCount) Low Battery")
         }
-
-        return sensor.displayKind == .temperature || sensor.displayKind == .humidity
+        if unavailableCount > 0 {
+            parts.append("\(unavailableCount) Unavailable")
+        }
+        return parts.isEmpty ? "All Good" : parts.joined(separator: ", ")
     }
 
     private static func isClimateActive(_ entityBox: HAEntityState) -> Bool {
@@ -819,30 +732,28 @@ enum DashboardSummaryProvider {
         return entityBox.sensorEntity?.formattedValue
     }
 
-    private static func primaryClimateTemperatureText(from entityBoxes: [HAEntityState]) -> String? {
-        let climateTemperature = entityBoxes
-            .compactMap(\.climateEntity)
-            .sorted { lhs, rhs in
-                if lhs.isActive != rhs.isActive {
-                    return lhs.isActive && !rhs.isActive
-                }
-                return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+    private static func climateTemperatureRangeText(
+        from entityBoxes: [HAEntityState],
+        preferredEntityIDs: Set<String>
+    ) -> String {
+        let values = entityBoxes.compactMap { entityBox -> Double? in
+            guard preferredEntityIDs.contains(entityBox.entityID),
+                  entityBox.sensorEntity?.deviceClass == "temperature" else {
+                return nil
             }
-            .compactMap(\.currentTemperatureText)
-            .first
-
-        if let climateTemperature {
-            return climateTemperature
+            return entityBox.sensorEntity?.numericValue
+        }
+        guard let minimum = values.min(), let maximum = values.max() else {
+            return ""
         }
 
-        return entityBoxes
-            .compactMap(\.sensorEntity)
-            .filter { $0.displayKind == .temperature }
-            .sorted { lhs, rhs in
-                lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
-            }
-            .compactMap(\.formattedValue.nonEmptyValue)
-            .first
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 1
+        formatter.maximumFractionDigits = 1
+        let minimumText = formatter.string(from: NSNumber(value: minimum)) ?? String(format: "%.1f", minimum)
+        let maximumText = formatter.string(from: NSNumber(value: maximum)) ?? String(format: "%.1f", maximum)
+        return minimumText == maximumText ? "\(minimumText)°" : "\(minimumText) - \(maximumText)°"
     }
 
 }
@@ -852,6 +763,11 @@ private struct SecurityContext {
     let isIssue: Bool
     let issueKind: SecurityIssueKind
     let detail: String?
+}
+
+private struct SecuritySummaryStatus {
+    let value: String
+    let isActive: Bool
 }
 
 private enum SecurityIssueKind {

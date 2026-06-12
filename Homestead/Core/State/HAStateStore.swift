@@ -219,20 +219,29 @@ final class HAStateStore {
         })
     }
 
-    func nonPrimaryEntityIDs() -> Set<String> {
-        Set(entityRegistryByID.values.compactMap { metadata in
-            guard metadata.hiddenBy == true || metadata.entityCategory != nil else {
+    func dashboardSummaryMembershipContext() -> DashboardSummaryMembershipContext {
+        let metadataByID = entityRegistryByID.mapValues { metadata in
+            DashboardSummaryEntityMetadata(
+                isHidden: metadata.hiddenBy == true,
+                entityCategory: metadata.entityCategory?.nonEmptyValue,
+                deviceID: metadata.deviceID?.nonEmptyValue
+            )
+        }
+        let chargingDeviceIDs = Set(entityRegistryByID.values.compactMap { metadata -> String? in
+            guard let deviceID = metadata.deviceID?.nonEmptyValue,
+                  let entity = rawEntitiesByID[metadata.entityID],
+                  entity.attributes["device_class"]?.stringValue == "battery_charging",
+                  entity.state == "on" else {
                 return nil
             }
-
-            return metadata.entityID
+            return deviceID
         })
-    }
 
-    func diagnosticEntityIDs() -> Set<String> {
-        Set(entityRegistryByID.values.compactMap { metadata in
-            metadata.entityCategory == "diagnostic" ? metadata.entityID : nil
-        })
+        return DashboardSummaryMembershipContext(
+            entityMetadataByID: metadataByID,
+            preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs(),
+            chargingDeviceIDs: chargingDeviceIDs
+        )
     }
 
     func lightEntity(for entityID: String) -> LightEntity? {
