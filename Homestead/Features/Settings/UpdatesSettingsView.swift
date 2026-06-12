@@ -248,7 +248,7 @@ private struct UpdateRowAction: View {
             Button(action: install) {
                 Text("Update")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.accentColor)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 7)
                     .background(Color(.secondarySystemFill), in: Capsule())

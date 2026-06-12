@@ -46,8 +46,8 @@ private struct PeopleLandingHeader: View {
             PeoplePresenceAvatarStackView(records: records, size: 68)
 
             Text("People")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.primary)
+//                .font(.title2.weight(.semibold))
+//                .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.vertical, 2)

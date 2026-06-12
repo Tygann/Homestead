@@ -268,7 +268,6 @@ struct HomeAssistantSettingsView: View {
                 Text(accountTitle)
 //                    .foregroundStyle(.primary)
                     .font(.title)
-                    .fontWeight(.bold)
 //                    .fontDesign(.rounded)
                 
                 Text(serverDisplayText)
@@ -2569,14 +2568,16 @@ private struct HomeAssistantSettingsRow: View {
             
             VStack(alignment: .leading) {
                 Text(title)
-                    .font(.headline)
+//                    .font(.headline)
+                    .font(.title3)
+                    .bold()
                     .foregroundStyle(.primary)
                 
                 Text(server)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            .fontDesign(.rounded)
+//            .fontDesign(.rounded)
             .lineLimit(1)
 
             Spacer()
