@@ -881,7 +881,7 @@ private struct DashboardEntityCard: View {
                     isInteractionEnabled: isFeatureInteractionEnabled,
                     actions: featureActions
                 )
-                .frame(maxWidth: 180)
+                .frame(maxWidth: 154)
             }
         }
     }

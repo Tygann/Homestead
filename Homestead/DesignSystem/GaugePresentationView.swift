@@ -11,7 +11,7 @@ struct GaugePresentationView: View {
     let style: GaugePresentationStyle
     let tint: Color
 
-    private let dashboardLineWidth: CGFloat = 10
+    private let dashboardLineWidth: CGFloat = 11
     private let sectionGap: Double = 0.018
     private let arcMarkerHeight: CGFloat = 10
 
@@ -65,7 +65,8 @@ struct GaugePresentationView: View {
         markerFont: Font
     ) -> some View {
         GeometryReader { proxy in
-            let arcWidth = min(proxy.size.width, max((arcHeight - lineWidth) * 2, 0))
+            let maxArcWidth = max((arcHeight - lineWidth) * 2 * horizontalArcScale, 0)
+            let arcWidth = min(max(proxy.size.width - lineWidth, 0), maxArcWidth)
 
             VStack(spacing: 0) {
                 ZStack {
@@ -75,7 +76,8 @@ struct GaugePresentationView: View {
                         GaugeArcShape(
                             start: segment.start,
                             end: segment.end,
-                            inset: lineWidth / 2
+                            inset: lineWidth / 2,
+                            horizontalScale: horizontalArcScale
                         )
                         .stroke(
                             statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
@@ -84,7 +86,12 @@ struct GaugePresentationView: View {
                     }
 
                     if presentation.normalizedValue > 0 {
-                        GaugeArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
+                        GaugeArcShape(
+                            start: 0,
+                            end: presentation.normalizedValue,
+                            inset: lineWidth / 2,
+                            horizontalScale: horizontalArcScale
+                        )
                             .stroke(
                                 statusColor(for: presentation.status),
                                 style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
@@ -99,6 +106,7 @@ struct GaugePresentationView: View {
                 rangeMarkers(font: markerFont)
                     .frame(width: arcWidth)
                     .opacity(0.78)
+                    .offset(y: -AppSpacing.xSmall)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
@@ -130,6 +138,11 @@ struct GaugePresentationView: View {
                         .fill(statusColor(for: presentation.status))
                         .frame(width: max(CGFloat(presentation.normalizedValue) * width, dashboardLineWidth))
                 }
+
+                Capsule()
+                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+
+                sectionBoundaryTicks(width: width)
             }
             .clipShape(Capsule())
         }
@@ -182,6 +195,30 @@ struct GaugePresentationView: View {
         }
     }
 
+    private var horizontalArcScale: CGFloat {
+        switch style {
+        case .arc:
+            1.24
+        case .row:
+            1
+        case .detail:
+            1.08
+        }
+    }
+
+    @ViewBuilder
+    private func sectionBoundaryTicks(width: CGFloat) -> some View {
+        ForEach(presentation.sections.indices.dropLast(), id: \.self) { index in
+            let boundary = normalized(presentation.sections[index].range.upperBound)
+            let xOffset = min(max(CGFloat(boundary) * width, dashboardLineWidth / 2), width - (dashboardLineWidth / 2))
+
+            Capsule()
+                .fill(Color.white.opacity(0.13))
+                .frame(width: 1.5, height: dashboardLineWidth - 3)
+                .offset(x: xOffset - 0.75)
+        }
+    }
+
     private func statusColor(for status: GaugePresentationStatus) -> Color {
         switch status {
         case .nominal:
@@ -211,9 +248,11 @@ private struct GaugeArcShape: Shape {
     let start: Double
     let end: Double
     let inset: CGFloat
+    let horizontalScale: CGFloat
 
     func path(in rect: CGRect) -> Path {
-        let radius = max(min((rect.width - (inset * 2)) / 2, rect.height - (inset * 2)), 0)
+        let yRadius = max(rect.height - (inset * 2), 0)
+        let xRadius = max(min((rect.width - (inset * 2)) / 2, yRadius * horizontalScale), 0)
         let center = CGPoint(x: rect.midX, y: rect.maxY - inset)
         var path = Path()
 
@@ -225,8 +264,8 @@ private struct GaugeArcShape: Shape {
             let progress = clampedStart + ((clampedEnd - clampedStart) * (Double(step) / Double(stepCount)))
             let angle = Double.pi * (1 - progress)
             let point = CGPoint(
-                x: center.x + (radius * CGFloat(cos(angle))),
-                y: center.y - (radius * CGFloat(sin(angle)))
+                x: center.x + (xRadius * CGFloat(cos(angle))),
+                y: center.y - (yRadius * CGFloat(sin(angle)))
             )
 
             if step == 0 {
