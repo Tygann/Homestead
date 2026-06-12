@@ -11,10 +11,13 @@ struct GaugePresentationView: View {
     let style: GaugePresentationStyle
     let tint: Color
 
+    private let dashboardLineWidth: CGFloat = 10
+    private let sectionGap: Double = 0.018
+
     var body: some View {
         switch style {
         case .arc:
-            arcGauge(height: 82, lineWidth: 15, markerFont: .caption2.weight(.semibold))
+            arcGauge(height: 54, lineWidth: dashboardLineWidth, markerFont: .caption2.weight(.semibold))
         case .row:
             rowGauge
         case .detail:
@@ -51,7 +54,7 @@ struct GaugePresentationView: View {
                     .background(statusColor(for: presentation.status).opacity(0.12), in: Capsule())
             }
 
-            arcGauge(height: 104, lineWidth: 18, markerFont: .caption.weight(.medium))
+            arcGauge(height: 104, lineWidth: 14, markerFont: .caption.weight(.medium))
         }
     }
 
@@ -62,10 +65,13 @@ struct GaugePresentationView: View {
     ) -> some View {
         VStack(spacing: AppSpacing.xSmall) {
             ZStack {
-                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { _, section in
+                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                    let segment = visualSegment(for: section, at: index)
+
                     GaugeArcShape(
-                        start: normalized(section.range.lowerBound),
-                        end: normalized(section.range.upperBound)
+                        start: segment.start,
+                        end: segment.end,
+                        inset: lineWidth / 2
                     )
                     .stroke(
                         statusColor(for: section.status).opacity(0.18),
@@ -73,12 +79,13 @@ struct GaugePresentationView: View {
                     )
                 }
 
-                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { _, section in
-                    let start = normalized(section.range.lowerBound)
-                    let end = min(normalized(section.range.upperBound), presentation.normalizedValue)
+                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                    let segment = visualSegment(for: section, at: index)
+                    let start = segment.start
+                    let end = min(segment.end, presentation.normalizedValue)
 
                     if end > start {
-                        GaugeArcShape(start: start, end: end)
+                        GaugeArcShape(start: start, end: end, inset: lineWidth / 2)
                             .stroke(
                                 statusColor(for: section.status),
                                 style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
@@ -105,9 +112,10 @@ struct GaugePresentationView: View {
                     Capsule()
                         .fill(Color(.tertiarySystemGroupedBackground))
 
-                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { _, section in
-                        let start = normalized(section.range.lowerBound)
-                        let end = normalized(section.range.upperBound)
+                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                        let segment = visualSegment(for: section, at: index)
+                        let start = segment.start
+                        let end = segment.end
                         let segmentWidth = max(CGFloat(end - start) * width, 0)
 
                         Capsule()
@@ -116,9 +124,10 @@ struct GaugePresentationView: View {
                             .offset(x: CGFloat(start) * width)
                     }
 
-                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { _, section in
-                        let start = normalized(section.range.lowerBound)
-                        let end = min(normalized(section.range.upperBound), presentation.normalizedValue)
+                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                        let segment = visualSegment(for: section, at: index)
+                        let start = segment.start
+                        let end = min(segment.end, presentation.normalizedValue)
                         let segmentWidth = max(CGFloat(end - start) * width, 0)
 
                         if end > start {
@@ -131,7 +140,7 @@ struct GaugePresentationView: View {
                 }
                 .clipShape(Capsule())
             }
-            .frame(height: 12)
+            .frame(height: dashboardLineWidth)
 
             rangeMarkers(font: .caption2.weight(.semibold))
         }
@@ -162,6 +171,18 @@ struct GaugePresentationView: View {
         return min(max(normalizedValue, 0), 1)
     }
 
+    private func visualSegment(
+        for section: GaugePresentationSection,
+        at index: Int
+    ) -> (start: Double, end: Double) {
+        let rawStart = normalized(section.range.lowerBound)
+        let rawEnd = normalized(section.range.upperBound)
+        let start = index == 0 ? rawStart : rawStart + (sectionGap / 2)
+        let end = index == presentation.sections.indices.last ? rawEnd : rawEnd - (sectionGap / 2)
+
+        return (min(max(start, 0), 1), min(max(end, start), 1))
+    }
+
     private func statusColor(for status: GaugePresentationStatus) -> Color {
         switch status {
         case .nominal:
@@ -190,10 +211,11 @@ struct GaugePresentationView: View {
 private struct GaugeArcShape: Shape {
     let start: Double
     let end: Double
+    let inset: CGFloat
 
     func path(in rect: CGRect) -> Path {
-        let radius = min(rect.width / 2, rect.height * 1.72)
-        let center = CGPoint(x: rect.midX, y: rect.maxY - 2)
+        let radius = max(min((rect.width - (inset * 2)) / 2, rect.height - (inset * 2)), 0)
+        let center = CGPoint(x: rect.midX, y: rect.maxY - inset)
         var path = Path()
 
         let clampedStart = min(max(start, 0), 1)

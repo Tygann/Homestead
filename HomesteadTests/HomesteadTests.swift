@@ -6599,6 +6599,15 @@ struct HomesteadTests {
                     "device_class": .string("battery"),
                     "unit_of_measurement": .string("%")
                 ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.back_door_battery",
+                state: "8",
+                attributes: [
+                    "friendly_name": .string("Back Door Battery"),
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
             )
         ])
 
@@ -6616,6 +6625,9 @@ struct HomesteadTests {
         )
         let batteryPresentation = DashboardEntityPresentation(
             entityBox: try #require(store.entityBox(for: "sensor.front_door_battery"))
+        )
+        let lowBatteryPresentation = DashboardEntityPresentation(
+            entityBox: try #require(store.entityBox(for: "sensor.back_door_battery"))
         )
         let scriptPresentation = DashboardEntityPresentation(
             entityBox: try #require(store.entityBox(for: "script.good_morning"))
@@ -6655,7 +6667,8 @@ struct HomesteadTests {
         #expect(sensorPresentation.primaryServiceIntent == nil)
         #expect(sensorPresentation.cardStyle == .value)
         #expect(sensorPresentation.detailKind == .sensor)
-        #expect(batteryPresentation.subtitle == "68% • Normal")
+        #expect(batteryPresentation.subtitle == "68%")
+        #expect(lowBatteryPresentation.subtitle == "8% • Critical")
     }
 
     @MainActor

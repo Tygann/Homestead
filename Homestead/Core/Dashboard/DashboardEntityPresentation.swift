@@ -485,7 +485,7 @@ struct DashboardEntityPresentation {
         } else if let sensor = entityBox.sensorEntity {
             title = overrideTitle ?? sensor.displayName
             if let gauge = sensor.gaugePresentation {
-                subtitle = "\(sensor.formattedValue) • \(gauge.statusDisplayText)"
+                subtitle = Self.sensorGaugeSubtitle(sensor: sensor, gauge: gauge)
             } else {
                 subtitle = sensor.displaySubtitle
             }
@@ -630,6 +630,17 @@ struct DashboardEntityPresentation {
         guard let brightnessPercentage else { return "On" }
 
         return "\(brightnessPercentage)%"
+    }
+
+    private static func sensorGaugeSubtitle(
+        sensor: SensorEntity,
+        gauge: GaugePresentation
+    ) -> String {
+        guard gauge.status != .nominal else {
+            return sensor.formattedValue
+        }
+
+        return "\(sensor.formattedValue) • \(gauge.statusDisplayText)"
     }
 
     private static func pendingBrightnessPercentage(from pendingCommand: HAEntityPendingCommand?) -> Int? {
