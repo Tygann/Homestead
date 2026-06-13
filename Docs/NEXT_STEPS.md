@@ -12,6 +12,9 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Replaced the dashboard card/chip Change Icon submenu with a dedicated searchable SF Symbols picker sheet while preserving the existing optional `iconNameOverride` persistence path.
+- Added a curated 180-symbol smart-home catalog grouped for browsing, friendly search tags, visible selection state, domain/summary-specific recommendations, and a prominent Use Default Icon action that clears the override and returns to the Home Assistant/domain-derived icon.
+- Kept icon customization scoped to dashboard cards and chips; no Material Design Icons, custom packs, Home Assistant API changes, entity mapper rewrites, recents, or favorites were added.
 - Aligned Climate, Lights, Security, Media, and Maintenance summary membership with the current Home Assistant frontend filter strategies using entity state plus entity/device/area registry metadata; HA does not expose direct summary-group membership.
 - Centralized summary classification, added humidifier/water-heater Climate membership, corrected Security and Maintenance device-class/category rules, matched HA chip status text, and used HA-selected area temperature sensors for the Climate range.
 - Confirmed HA includes every visible primary `camera.*` entity in Security, including snapshot-named entities; Homestead therefore does not apply a name-based snapshot exclusion.
@@ -159,6 +162,9 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-IconPicker` after adding the dashboard SF Symbols picker.
+- Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-IconPicker`, including catalog search/recommendation, reset persistence, uniqueness, and runtime symbol-availability coverage. The test compile emitted the existing Swift 6-mode widget snapshot `Equatable` warnings.
+- Direct iPhone 17 simulator screenshots verified the picker in light and dark appearance with recommended and selected states visible; a smaller iOS 26.5 iPhone simulator was not installed.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SummaryAlignment` after aligning summary membership with current Home Assistant frontend strategies.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SummaryAlignment` after adding summary membership/status and registry-refresh coverage. The test compile emitted existing Swift 6-mode warnings around main actor-isolated widget snapshot `Equatable` conformances.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-Gauges` after adding reusable sensor gauges.

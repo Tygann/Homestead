@@ -115,6 +115,7 @@ struct DashboardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isEditingDashboard = false
     @State private var addSheetMode: DashboardAddItemMode?
+    @State private var iconPickerContext: DashboardIconPickerContext?
     @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
@@ -216,6 +217,16 @@ struct DashboardView: View {
             }
             .sheet(item: $addSheetMode) { mode in
                 DashboardAddItemView(initialMode: mode, onAddItem: dashboardItemWasAdded)
+            }
+            .sheet(item: $iconPickerContext) { context in
+                DashboardIconPickerView(
+                    defaultSystemName: context.defaultSystemName,
+                    selectedSystemName: context.selectedSystemName,
+                    recommendation: context.recommendation,
+                    onSelectionChange: { iconName in
+                        dashboardConfiguration.setIconNameOverride(iconName, forItemID: context.id)
+                    }
+                )
             }
             .navigationDestination(item: $selectedEntityDetailRoute) { route in
                 if let entityBox = stateStore.entityBox(for: route.entityID) {
@@ -1156,13 +1167,13 @@ struct DashboardView: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            chipEditMenuContent(for: item, presentation: presentation)
+                            chipEditMenuContent(for: item)
                         }
                     }
                 case .entity:
                     DashboardChipView(presentation: presentation)
                         .contextMenu {
-                            chipEditMenuContent(for: item, presentation: presentation)
+                            chipEditMenuContent(for: item)
                         }
                 }
             }
@@ -1195,7 +1206,7 @@ struct DashboardView: View {
                 isVisible: !isDragging,
                 accessibilityLabel: "Edit \(presentation.title)"
             ) {
-                chipEditMenuContent(for: item, presentation: presentation)
+                chipEditMenuContent(for: item)
             }
             .transaction { transaction in
                 transaction.animation = nil
@@ -1271,13 +1282,8 @@ struct DashboardView: View {
             }
         }
 
-        Menu {
-            iconOverrideMenuContent(
-                selectedSystemName: currentCardIconName(for: item),
-                setIconNameOverride: { iconName in
-                    dashboardConfiguration.setIconNameOverride(iconName, forItemID: item.id)
-                }
-            )
+        Button {
+            presentIconPicker(for: item)
         } label: {
             Label("Change Icon", systemImage: "circle.grid.2x2")
         }
@@ -1292,20 +1298,15 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func chipEditMenuContent(for item: DashboardChipItem, presentation: DashboardChipPresentation) -> some View {
+    private func chipEditMenuContent(for item: DashboardChipItem) -> some View {
         Button {
             beginRenamingChip(item)
         } label: {
             Label("Rename Chip", systemImage: "pencil")
         }
 
-        Menu {
-            iconOverrideMenuContent(
-                selectedSystemName: presentation.systemImage,
-                setIconNameOverride: { iconName in
-                    dashboardConfiguration.setIconNameOverride(iconName, forItemID: item.id)
-                }
-            )
+        Button {
+            presentIconPicker(for: item)
         } label: {
             Label("Change Icon", systemImage: "circle.grid.2x2")
         }
@@ -1319,34 +1320,36 @@ struct DashboardView: View {
         }
     }
 
-    @ViewBuilder
-    private func iconOverrideMenuContent(
-        selectedSystemName: String,
-        setIconNameOverride: @escaping (String?) -> Void
-    ) -> some View {
-        Button {
-            HapticFeedback.selection()
-            setIconNameOverride(nil)
-        } label: {
-            Label("Default Icon", systemImage: "arrow.counterclockwise")
-        }
-
-        ForEach(DashboardIconChoice.choices) { choice in
-            Button {
-                HapticFeedback.selection()
-                setIconNameOverride(choice.systemName)
-            } label: {
-                Label {
-                    Text(choice.title)
-                } icon: {
-                    Image(systemName: choice.systemName == selectedSystemName ? "checkmark.circle.fill" : choice.systemName)
-                }
-            }
-        }
+    private func presentIconPicker(for item: DashboardCardItem) {
+        let entity = stateStore.entity(for: item.entityID)
+        iconPickerContext = DashboardIconPickerContext(
+            id: item.id,
+            defaultSystemName: entity?.iconName ?? "square.grid.2x2",
+            selectedSystemName: item.iconNameOverride,
+            recommendation: .domain(entity?.domain ?? EntityDomain(entityID: item.entityID))
+        )
     }
 
-    private func currentCardIconName(for item: DashboardCardItem) -> String {
-        item.iconNameOverride ?? stateStore.entity(for: item.entityID)?.iconName ?? "square.grid.2x2"
+    private func presentIconPicker(for item: DashboardChipItem) {
+        switch item.chipKind {
+        case .summary:
+            guard let summaryKind = item.summaryKind else { return }
+            iconPickerContext = DashboardIconPickerContext(
+                id: item.id,
+                defaultSystemName: summaryKind.systemImage,
+                selectedSystemName: item.iconNameOverride,
+                recommendation: .summary(summaryKind)
+            )
+        case .entity:
+            guard let entityID = item.entityID else { return }
+            let entity = stateStore.entity(for: entityID)
+            iconPickerContext = DashboardIconPickerContext(
+                id: item.id,
+                defaultSystemName: entity?.iconName ?? "square.grid.2x2",
+                selectedSystemName: item.iconNameOverride,
+                recommendation: .domain(entity?.domain ?? EntityDomain(entityID: entityID))
+            )
+        }
     }
 
     private func currentCardDisplayNameOverride(for item: DashboardCardItem) -> String? {

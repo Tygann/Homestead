@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 @testable import Homestead
 
 @MainActor
@@ -5866,6 +5867,38 @@ struct HomesteadTests {
         #expect(EntityDisplayNameResolver.cameraDisplayName("Driveway Cam") == "Driveway Cam")
     }
 
+    @Test func dashboardIconCatalogSupportsSearchAndRecommendations() {
+        let choices = DashboardIconChoice.choices
+        let choiceNames = Set(choices.map(\.systemName))
+        let floorLampResults = DashboardIconChoice.matching("floor lamp")
+        let irrigationResults = DashboardIconChoice.matching("irrigation")
+        let lightRecommendations = DashboardIconChoice.recommended(for: .domain(.light))
+        let securityRecommendations = DashboardIconChoice.recommended(for: .summary(.security))
+
+        #expect(choices.count >= 150)
+        #expect(choiceNames.count == choices.count)
+        #expect(DashboardIconCategory.allCases.allSatisfy { category in
+            choices.contains { $0.category == category }
+        })
+        #expect(floorLampResults.first?.systemName == "lamp.floor.fill")
+        #expect(irrigationResults.contains { $0.systemName == "sprinkler.and.droplets.fill" })
+        #expect(lightRecommendations.map(\.systemName) == [
+            "lightbulb.fill", "light.recessed.3.fill", "lamp.table.fill", "lamp.floor.fill", "chandelier.fill"
+        ])
+        #expect(securityRecommendations.map(\.systemName) == [
+            "lock.fill", "shield.fill", "camera.fill", "video.doorbell.fill", "key.fill"
+        ])
+    }
+
+    @MainActor
+    @Test func dashboardIconCatalogOnlyContainsAvailableSFSymbols() {
+        let unavailableNames = DashboardIconChoice.choices.compactMap { choice in
+            UIImage(systemName: choice.systemName) == nil ? choice.systemName : nil
+        }
+
+        #expect(unavailableNames.isEmpty)
+    }
+
     @MainActor
     @Test func dashboardHeaderItemsExposeFullWidthRowLayoutMetadata() {
         let header = DashboardItemConfiguration.header(title: "Downstairs")
@@ -5896,6 +5929,23 @@ struct HomesteadTests {
             DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1),
             DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1)
         ])
+    }
+
+    @MainActor
+    @Test func dashboardIconOverrideCanResetToDefault() throws {
+        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let cardID = configuration.add("light.kitchen")
+        configuration.setIconNameOverride("lamp.table.fill", forItemID: cardID)
+        configuration.setIconNameOverride(nil, forItemID: cardID)
+
+        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
+        let restoredCard = try #require(restoredConfiguration.items.first)
+        #expect(restoredCard.iconNameOverride == nil)
+        #expect(restoredCard.resolvedIconName(default: "lightbulb.fill") == "lightbulb.fill")
     }
 
     @MainActor

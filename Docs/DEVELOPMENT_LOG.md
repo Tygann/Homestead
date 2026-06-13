@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-12
 
+### Dashboard Icon Picker
+
+- Replaced the limited nested dashboard icon menu with a dedicated searchable grid picker shared by dashboard cards and chips.
+- Expanded icon choices into a curated 180-symbol SF Symbols catalog with smart-home categories, friendly search tags, and recommendations based on entity domain or summary kind.
+- Preserved the existing optional dashboard icon override persistence; Use Default Icon clears the override so live Home Assistant/domain-derived icons remain the fallback.
+- Kept the catalog intentionally app-owned and SF Symbols-only so future recents/favorites can build on the picker without adding icon-pack or Home Assistant mapping complexity.
+
 ### Home Assistant Summary Alignment
 
 - Confirmed Home Assistant does not expose direct summary-category membership through REST or WebSocket; its frontend derives membership from entity state and registry metadata.
