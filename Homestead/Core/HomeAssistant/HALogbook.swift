@@ -17,6 +17,7 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
     let when: Date
     let name: String?
     let message: String?
+    let state: String?
     let domain: String?
     let entityID: String?
     let contextUserID: String?
@@ -25,6 +26,7 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
         case when
         case name
         case message
+        case state
         case domain
         case entityID = "entity_id"
         case contextUserID = "context_user_id"
@@ -34,6 +36,7 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
         when: Date,
         name: String? = nil,
         message: String? = nil,
+        state: String? = nil,
         domain: String? = nil,
         entityID: String? = nil,
         contextUserID: String? = nil
@@ -41,6 +44,7 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
         self.when = when
         self.name = name
         self.message = message
+        self.state = state
         self.domain = domain
         self.entityID = entityID
         self.contextUserID = contextUserID
@@ -60,6 +64,7 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
         self.when = when
         name = try container.decodeIfPresent(String.self, forKey: .name)
         message = try container.decodeIfPresent(String.self, forKey: .message)
+        state = try container.decodeIfPresent(String.self, forKey: .state)
         domain = try container.decodeIfPresent(String.self, forKey: .domain)
         entityID = try container.decodeIfPresent(String.self, forKey: .entityID)
         contextUserID = try container.decodeIfPresent(String.self, forKey: .contextUserID)
@@ -114,23 +119,34 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
 
     static func makeRows(
         from entries: [HALogbookEntryDTO],
-        entityDisplayName: (String) -> String?
+        entityDisplayName: (String) -> String?,
+        entityDeviceClass: (String) -> String? = { _ in nil }
     ) -> [HAActivityRow] {
         entries.enumerated().map { index, entry in
-            HAActivityRow(entry: entry, index: index, entityDisplayName: entityDisplayName)
+            HAActivityRow(
+                entry: entry,
+                index: index,
+                entityDisplayName: entityDisplayName,
+                entityDeviceClass: entityDeviceClass
+            )
         }
     }
 
     private init(
         entry: HALogbookEntryDTO,
         index: Int,
-        entityDisplayName: (String) -> String?
+        entityDisplayName: (String) -> String?,
+        entityDeviceClass: (String) -> String?
     ) {
         let entityID = entry.entityID?.nonEmptyValue
         let entityDomain = entityID.map(EntityDomain.init(entityID:))
         let sourceName = entry.name?.nonEmptyValue
         let sourceDomain = entry.domain?.nonEmptyValue
-        let message = entry.message?.nonEmptyValue ?? "Updated"
+        let message = entry.message?.nonEmptyValue ?? Self.stateMessage(
+            state: entry.state?.nonEmptyValue,
+            domain: entityDomain,
+            deviceClass: entityID.flatMap(entityDeviceClass)
+        )
         let title = entityID.flatMap(entityDisplayName) ??
             sourceName ??
             entityDomain?.displayName.singularActivityTitle ??
@@ -155,6 +171,51 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         self.sourceDomain = sourceDomain
         self.sourceName = sourceName
         self.contextUserID = entry.contextUserID?.nonEmptyValue
+    }
+
+    private static func stateMessage(
+        state: String?,
+        domain: EntityDomain?,
+        deviceClass: String?
+    ) -> String {
+        guard let state else { return "Updated" }
+
+        switch domain {
+        case .person, .deviceTracker:
+            if state == "not_home" { return "was detected away" }
+            if state == "home" { return "was detected home" }
+            return "was detected at \(state.displayStateText)"
+        case .lock:
+            return switch state {
+            case "unlocked": "was unlocked"
+            case "locking": "is locking"
+            case "unlocking": "is unlocking"
+            case "opening": "is opening"
+            case "open": "was opened"
+            case "locked": "was locked"
+            case "jammed": "is jammed"
+            default: "changed to \(state.displayStateText)"
+            }
+        case .cover:
+            return switch state {
+            case "open": "was opened"
+            case "opening": "is opening"
+            case "closing": "is closing"
+            case "closed": "was closed"
+            default: "changed to \(state.displayStateText)"
+            }
+        case .binarySensor:
+            if ["door", "garage_door", "lock", "opening", "window"].contains(deviceClass ?? "") {
+                return state == "on" ? "was opened" : "was closed"
+            }
+            return state == "on" ? "was detected" : "was cleared"
+        default:
+            if state == "on" { return "turned on" }
+            if state == "off" { return "turned off" }
+            if state == "unknown" { return "became unknown" }
+            if state == "unavailable" { return "became unavailable" }
+            return "changed to \(state.displayStateText)"
+        }
     }
 }
 

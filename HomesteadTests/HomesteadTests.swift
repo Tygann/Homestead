@@ -1297,6 +1297,7 @@ struct HomesteadTests {
                 "when": "2026-06-05T15:30:00.000000+00:00",
                 "name": "Kitchen",
                 "message": "turned on",
+                "state": "on",
                 "domain": "light",
                 "entity_id": "light.kitchen",
                 "context_user_id": "user-123"
@@ -1318,6 +1319,7 @@ struct HomesteadTests {
         #expect(entries.count == 2)
         #expect(rows[0].title == "Kitchen Pendant")
         #expect(rows[0].message == "turned on")
+        #expect(entries[0].state == "on")
         #expect(rows[0].entityID == "light.kitchen")
         #expect(rows[0].entityDomain == .light)
         #expect(rows[0].sourceDomain == "light")
@@ -1326,6 +1328,55 @@ struct HomesteadTests {
         #expect(rows[0].matches(query: "pendant"))
         #expect(rows[1].title == "Automation")
         #expect(rows[1].iconSystemName == "list.bullet.clipboard")
+    }
+
+    @Test func logbookStateChangesMapToHomeAssistantStyleActivityMessages() throws {
+        let date = try testDate("2026-06-13T15:30:00Z")
+        let entries = [
+            HALogbookEntryDTO(
+                when: date,
+                name: "Malissa",
+                state: "not_home",
+                domain: "person",
+                entityID: "person.malissa"
+            ),
+            HALogbookEntryDTO(
+                when: date,
+                name: "Front Door Lock",
+                state: "locked",
+                domain: "lock",
+                entityID: "lock.front_door"
+            ),
+            HALogbookEntryDTO(
+                when: date,
+                name: "Garage Door",
+                state: "open",
+                domain: "cover",
+                entityID: "cover.garage_door"
+            ),
+            HALogbookEntryDTO(
+                when: date,
+                name: "Garage Entry Door",
+                state: "off",
+                domain: "binary_sensor",
+                entityID: "binary_sensor.garage_entry_door"
+            )
+        ]
+
+        let rows = HAActivityRow.makeRows(
+            from: entries,
+            entityDisplayName: { _ in nil },
+            entityDeviceClass: { entityID in
+                entityID == "binary_sensor.garage_entry_door" ? "door" : nil
+            }
+        )
+
+        #expect(rows.map(\.message) == [
+            "was detected away",
+            "was locked",
+            "was opened",
+            "was closed"
+        ])
     }
 
     @Test func supervisorAppsDecodeFilterInstalledAndMapStatus() throws {
@@ -8334,6 +8385,8 @@ struct HomesteadTests {
             "Other Areas",
             "Other Devices"
         ])
+        #expect(detail.groups.prefix(3).allSatisfy { $0.systemImage == nil })
+        #expect(detail.groups.last?.systemImage == "square.grid.2x2")
         #expect(detail.groups.flatMap(\.sections).map(\.areaID) == [
             "kitchen",
             "bedroom",

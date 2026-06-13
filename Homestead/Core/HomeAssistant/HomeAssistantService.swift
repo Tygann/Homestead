@@ -669,9 +669,16 @@ final class HomeAssistantService {
         activeConfiguration = configuration
         let entries = try await httpClient.fetchLogbook(configuration: configuration, request: request)
 
-        return HAActivityRow.makeRows(from: entries) { [stateStore] entityID in
-            stateStore.entity(for: entityID)?.displayName
-        }
+        return HAActivityRow.makeRows(
+            from: entries,
+            entityDisplayName: { [stateStore] entityID in
+                stateStore.entity(for: entityID)?.displayName
+            },
+            entityDeviceClass: { [stateStore] entityID in
+                let entityBox = stateStore.entityBox(for: entityID)
+                return entityBox?.binarySensorEntity?.deviceClass ?? entityBox?.coverEntity?.deviceClass
+            }
+        )
     }
 
     func fetchSupervisorApps(settings: HAConnectionSettings) async -> HASupervisorAppsFetchResult {

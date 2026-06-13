@@ -151,8 +151,14 @@ struct DashboardSummaryView: View {
 
                 ForEach(detail.groups) { group in
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                        Label(group.title, systemImage: group.systemImage)
-                            .font(.title3.weight(.semibold))
+                        Group {
+                            if let systemImage = group.systemImage {
+                                Label(group.title, systemImage: systemImage)
+                            } else {
+                                Text(group.title)
+                            }
+                        }
+                        .font(.title3.weight(.semibold))
 
                         ForEach(group.sections) { section in
                             VStack(alignment: .leading, spacing: AppSpacing.medium) {
@@ -320,6 +326,8 @@ private enum SecuritySummaryTab: String, CaseIterable, Identifiable {
 }
 
 private struct SecuritySummaryActivityView: View {
+    @Environment(HAStateStore.self) private var stateStore
+
     let presentation: HALogbookPresentation
     let isLoading: Bool
     let errorMessage: String?
@@ -401,7 +409,10 @@ private struct SecuritySummaryActivityView: View {
             Button {
                 openEntity(row)
             } label: {
-                HAActivityRowView(row: row, showsDetailText: false, showsRelativeTime: true)
+                SecurityActivityRowView(
+                    row: row,
+                    personRecord: row.entityID.flatMap(stateStore.presenceRecord(for:))
+                )
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -411,7 +422,64 @@ private struct SecuritySummaryActivityView: View {
             )
             .accessibilityHint("Opens \(entityID) details")
         } else {
-            HAActivityRowView(row: row, showsDetailText: false, showsRelativeTime: true)
+            SecurityActivityRowView(row: row, personRecord: nil)
+        }
+    }
+}
+
+private struct SecurityActivityRowView: View {
+    let row: HAActivityRow
+    let personRecord: HAPresenceRecord?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: AppSpacing.medium) {
+            activityIcon
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                narrativeText
+                    .font(.subheadline)
+                    .lineLimit(2)
+
+                HStack(spacing: AppSpacing.xSmall) {
+                    Text(row.occurredAt.formatted(date: .omitted, time: .standard))
+                    Text("-")
+                    Text(row.occurredAt.formatted(.relative(presentation: .named, unitsStyle: .wide)))
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(row.occurredAt.formatted(date: .abbreviated, time: .standard))
+    }
+
+    private var narrativeText: Text {
+        guard row.message != "Updated" else {
+            return Text(row.title).foregroundStyle(Color.accentColor)
+        }
+
+        return Text(row.title).foregroundStyle(Color.accentColor) +
+            Text(" \(row.message)").foregroundStyle(Color.primary)
+    }
+
+    private var accessibilityLabel: String {
+        row.message == "Updated" ? row.title : "\(row.title) \(row.message)"
+    }
+
+    @ViewBuilder
+    private var activityIcon: some View {
+        if let personRecord {
+            PeoplePresenceAvatarView(record: personRecord, size: 32)
+        } else {
+            Image(systemName: row.iconSystemName)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 32, height: 32)
         }
     }
 }

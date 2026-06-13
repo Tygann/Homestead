@@ -110,7 +110,7 @@ struct DashboardSummaryDetailPresentation: Equatable, Sendable {
 struct DashboardSummaryGroupPresentation: Identifiable, Equatable, Sendable {
     let id: String
     let title: String
-    let systemImage: String
+    let systemImage: String?
     let sections: [DashboardSummarySectionPresentation]
 }
 
@@ -566,7 +566,7 @@ enum DashboardSummaryProvider {
             DashboardSummaryGroupPresentation(
                 id: "\(idPrefix)-\(areaSection.id)",
                 title: areaSection.title ?? "Areas",
-                systemImage: "house.fill",
+                systemImage: nil,
                 sections: areaSection.areas.map { area in
                     DashboardSummarySectionPresentation(
                         id: "\(idPrefix)-\(area.id)",
