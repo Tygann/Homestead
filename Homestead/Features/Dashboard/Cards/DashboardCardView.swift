@@ -645,7 +645,8 @@ private struct DashboardEntityCard: View {
             Spacer(minLength: 0)
 
             Text(miniTitleText)
-                .font(.system(size: 12.25, weight: .semibold))
+//                .font(.system(size: 12.25, weight: .semibold))
+                .font(.system(size: 12.25))
                 .foregroundStyle(miniTitleColor)
                 .lineLimit(2)
                 .minimumScaleFactor(0.78)
@@ -662,7 +663,8 @@ private struct DashboardEntityCard: View {
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(presentation.title)
-                    .font(.subheadline.weight(.semibold))
+//                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -976,7 +978,8 @@ private struct DashboardEntityCard: View {
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(presentation.title)
-                    .font(.headline)
+//                    .font(.headline)
+                    .font(.subheadline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -1254,7 +1257,8 @@ private struct CameraCardPreview: View {
                         Color.black.opacity(0.42)
 
                         Text(title)
-                            .font(.headline)
+//                            .font(.headline)
+                            .font(.subheadline)
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .truncationMode(.tail)
