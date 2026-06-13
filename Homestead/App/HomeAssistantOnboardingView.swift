@@ -166,113 +166,157 @@ struct HomeAssistantOnboardingView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @FocusState private var isURLFieldFocused: Bool
 
-    let presentation: HomeAssistantOnboardingPresentation
+    let authState: HAAuthState
+    let connectionStatus: HAConnectionStatus
+    let serviceError: String?
+    let storageError: String?
     let signIn: () -> Void
     let openSettings: () -> Void
 
     var body: some View {
         @Bindable var connectionSettings = connectionSettings
+        let presentation = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: connectionSettings.hasServerURL,
+            authState: authState,
+            connectionStatus: connectionStatus,
+            serviceError: serviceError,
+            storageError: storageError
+        )
 
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                VStack(spacing: 32) {
                     header
 
-                    VStack(alignment: .leading, spacing: AppSpacing.large) {
-                        TextField("homeassistant.local:8123", text: $connectionSettings.baseURL)
-                            .textInputAutocapitalization(.never)
-                            .keyboardType(.URL)
-                            .textContentType(.URL)
-                            .autocorrectionDisabled()
-                            .focused($isURLFieldFocused)
-                            .padding(.horizontal, AppSpacing.medium)
-                            .frame(minHeight: 54)
-                            .background(
-                                Color(.tertiarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                            )
-                            .submitLabel(.go)
-                            .onSubmit {
-                                attemptSignIn()
-                            }
+                    VStack(spacing: AppSpacing.large) {
+                        setupGroup(
+                            baseURL: $connectionSettings.baseURL,
+                            presentation: presentation
+                        )
 
-                        statusRow
-
-                        Button {
-                            attemptSignIn()
-                        } label: {
-                            HStack(spacing: AppSpacing.small) {
-                                if presentation.isBusy {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Image(systemName: "person.badge.key.fill")
-                                }
-
-                                Text(presentation.buttonTitle)
-                                    .fontWeight(.semibold)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 52)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!presentation.isButtonEnabled)
-
-                        Button {
-                            isURLFieldFocused = false
-                            openSettings()
-                        } label: {
-                            Text("Open Settings")
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                        }
-                        .buttonStyle(.borderless)
+                        actionGroup(presentation: presentation)
                     }
-                    .padding(AppSpacing.large)
-                    .background(
-                        Color(.secondarySystemGroupedBackground),
-                        in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                    )
+                    .frame(maxWidth: 420)
                 }
-                .frame(maxWidth: 560, alignment: .leading)
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, AppSpacing.large)
-                .padding(.vertical, AppSpacing.xLarge)
-                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 58)
+                .padding(.bottom, AppSpacing.xLarge)
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Homestead")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbarTitleDisplayMode(.inline)
         }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.large) {
+        VStack(spacing: AppSpacing.large) {
             Image("HomesteadLogo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 74, height: 74)
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+                .frame(width: 78, height: 78)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: AppSpacing.small) {
-                Text(presentation.title)
+            VStack(spacing: AppSpacing.small) {
+                Text("Set Up Homestead")
                     .font(.largeTitle.weight(.bold))
                     .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
 
-                Text(presentation.message)
+                Text("Connect to Home Assistant to control your home from this iPhone.")
                     .font(.body)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: 420)
         .accessibilityElement(children: .combine)
     }
 
-    private var statusRow: some View {
+    private func setupGroup(
+        baseURL: Binding<String>,
+        presentation: HomeAssistantOnboardingPresentation
+    ) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: AppSpacing.medium) {
+                Image(systemName: "server.rack")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+
+                TextField("homeassistant.local:8123", text: baseURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .textContentType(.URL)
+                    .autocorrectionDisabled()
+                    .focused($isURLFieldFocused)
+                    .submitLabel(.go)
+                    .onSubmit {
+                        attemptSignIn(presentation: presentation)
+                    }
+            }
+            .frame(minHeight: 52)
+            .padding(.horizontal, AppSpacing.medium)
+
+            Divider()
+                .padding(.leading, 56)
+
+            statusRow(presentation: presentation)
+                .padding(.horizontal, AppSpacing.medium)
+                .padding(.vertical, AppSpacing.medium)
+        }
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+        )
+    }
+
+    private func actionGroup(presentation: HomeAssistantOnboardingPresentation) -> some View {
+        VStack(spacing: AppSpacing.small) {
+            Button {
+                attemptSignIn(presentation: presentation)
+            } label: {
+                HStack(spacing: AppSpacing.small) {
+                    if presentation.isBusy {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white)
+                    }
+
+                    Text(presentation.buttonTitle)
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity, minHeight: 50)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle(radius: AppRadius.control))
+            .disabled(!presentation.isButtonEnabled)
+
+            Button {
+                isURLFieldFocused = false
+                openSettings()
+            } label: {
+                Text("Advanced Setup")
+                    .font(.body.weight(.medium))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.accentColor)
+        }
+    }
+
+    private func statusRow(presentation: HomeAssistantOnboardingPresentation) -> some View {
         HStack(alignment: .top, spacing: AppSpacing.medium) {
             Image(systemName: presentation.statusSystemImage)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(statusTint)
-                .frame(width: 28)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(statusTint(for: presentation))
+                .frame(width: 24)
+                .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(presentation.statusTitle)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
@@ -283,10 +327,11 @@ struct HomeAssistantOnboardingView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
-    private var statusTint: Color {
+    private func statusTint(for presentation: HomeAssistantOnboardingPresentation) -> Color {
         if presentation.statusSystemImage == "exclamationmark.triangle.fill" {
             return .orange
         }
@@ -295,10 +340,10 @@ struct HomeAssistantOnboardingView: View {
             return .green
         }
 
-        return .accentColor
+        return .secondary
     }
 
-    private func attemptSignIn() {
+    private func attemptSignIn(presentation: HomeAssistantOnboardingPresentation) {
         guard presentation.isButtonEnabled else {
             return
         }
@@ -311,13 +356,10 @@ struct HomeAssistantOnboardingView: View {
 #if DEBUG
 #Preview("Onboarding") {
     HomeAssistantOnboardingView(
-        presentation: .make(
-            hasServerURL: false,
-            authState: .signedOut,
-            connectionStatus: .disconnected,
-            serviceError: nil,
-            storageError: nil
-        ),
+        authState: .signedOut,
+        connectionStatus: .disconnected,
+        serviceError: nil,
+        storageError: nil,
         signIn: {},
         openSettings: {}
     )

@@ -30,7 +30,10 @@ struct ContentView: View {
         Group {
             if onboarding.shouldShow {
                 HomeAssistantOnboardingView(
-                    presentation: onboarding,
+                    authState: homeAssistantService.authState,
+                    connectionStatus: homeAssistantService.connectionStatus,
+                    serviceError: homeAssistantService.lastErrorMessage,
+                    storageError: connectionSettings.authStorageErrorMessage,
                     signIn: {
                         Task {
                             await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
