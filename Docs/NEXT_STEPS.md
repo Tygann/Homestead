@@ -14,7 +14,7 @@ Recommended reasoning level: High.
 
 - Added an app-level first-run Home Assistant setup surface for users without a complete saved server/sign-in session.
 - The setup surface writes the existing `HAConnectionSettings.baseURL`, starts the existing Home Assistant OAuth flow through `HomeAssistantService.signInWithHomeAssistant(settings:)`, and keeps normal setup focused on a single server-address row with a bottom Continue action.
-- Added an optional Advanced Setup sheet during onboarding for internal URL, external URL, and manually entered home network metadata, reusing existing `HAConnectionSettings` routing fields without adding discovery or permission prompts.
+- Added an optional Settings-style Advanced Setup sheet during onboarding for internal URL, external URL, and manually entered home network metadata, reusing existing `HAConnectionSettings` routing fields without adding discovery or permission prompts.
 - Removed the passive signed-out dashboard setup card path so fresh users no longer land on a non-actionable dashboard message.
 - Suppressed the post-registration notification setup prompt while onboarding is visible, so permission prompts remain after sign-in instead of interrupting setup.
 - Replaced the dashboard card/chip Change Icon submenu with a dedicated searchable SF Symbols picker sheet while preserving the existing optional `iconNameOverride` persistence path.

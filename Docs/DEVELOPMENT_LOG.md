@@ -8,7 +8,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Replaced the signed-out dashboard setup card with an app-level Home Assistant onboarding surface that lets new users enter their server URL and start the existing OAuth sign-in directly.
 - Kept setup intentionally focused: no Bonjour discovery, wizard, alternate auth path, or new Home Assistant API surface; optional internal/external URL and home-network routing metadata lives behind an Advanced Setup sheet.
-- Polished the first-run surface toward native iOS setup patterns with a compact centered hero, Settings-style server row, quiet footer/status behavior, and a bottom Continue action.
+- Polished the first-run surface toward native iOS setup patterns with a compact centered hero, grouped server entry, quiet footer/status behavior, and a bottom Continue action.
+- Kept Advanced Setup visually aligned with Settings by using grouped Form sections for optional addresses and home-network metadata.
 - Added app-facing onboarding presentation tests for fresh install, URL-entered, signing-in, failed/retry, and signed-in transition states.
 
 ## 2026-06-12

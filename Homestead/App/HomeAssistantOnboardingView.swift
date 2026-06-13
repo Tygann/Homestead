@@ -239,7 +239,7 @@ struct HomeAssistantOnboardingView: View {
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 actionBar(presentation: presentation)
-                    .background(.bar)
+                    .background(Color(.systemGroupedBackground))
             }
             .sheet(isPresented: $isShowingAdvancedSetup) {
                 NavigationStack {
@@ -249,6 +249,7 @@ struct HomeAssistantOnboardingView: View {
                                 Button("Done") {
                                     isShowingAdvancedSetup = false
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                 }
@@ -271,7 +272,7 @@ struct HomeAssistantOnboardingView: View {
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
 
-                Text("Connect to Home Assistant to control your home from this iPhone.")
+                Text("Connect to Home Assistant to control your home.")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -288,24 +289,27 @@ struct HomeAssistantOnboardingView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
             VStack(spacing: 0) {
-                HStack(spacing: AppSpacing.medium) {
-                    Text("Server Address")
-                        .foregroundStyle(.primary)
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    Text("Home Assistant Address")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
 
                     TextField("homeassistant.local:8123", text: baseURL)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.URL)
                         .textContentType(.URL)
                         .autocorrectionDisabled()
-                        .multilineTextAlignment(.trailing)
+                        .font(.body)
+                        .multilineTextAlignment(.leading)
                         .focused($isURLFieldFocused)
                         .submitLabel(.go)
                         .onSubmit {
                             attemptSignIn(presentation: presentation)
                         }
                 }
-                .frame(minHeight: 52)
+                .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
                 .padding(.horizontal, AppSpacing.medium)
+                .padding(.vertical, AppSpacing.small)
 
                 if presentation.showsStatusRow {
                     Divider()
@@ -325,7 +329,7 @@ struct HomeAssistantOnboardingView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, AppSpacing.medium)
+                .padding(.horizontal, AppSpacing.large)
         }
     }
 
@@ -354,8 +358,8 @@ struct HomeAssistantOnboardingView: View {
                 isURLFieldFocused = false
                 isShowingAdvancedSetup = true
             } label: {
-                Text("Advanced Setup")
-                    .font(.body.weight(.medium))
+                Text("Configure Advanced Settings")
+                    .font(.body)
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.plain)
@@ -430,16 +434,20 @@ private struct HomeAssistantAdvancedOnboardingSettingsView: View {
                     .keyboardType(.URL)
                     .textContentType(.URL)
                     .autocorrectionDisabled()
+            } header: {
+                Text("Addresses")
             } footer: {
                 Text("Homestead can switch between internal and external addresses after sign-in.")
             }
 
             Section {
-                TextField("Home Network", text: $connectionSettings.homeNetworkName)
+                TextField("Wi-Fi Network Name", text: $connectionSettings.homeNetworkName)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+            } header: {
+                Text("Home Network")
             } footer: {
-                Text("Enter the Wi-Fi network name Homestead should treat as home.")
+                Text("Enter the Wi-Fi network Homestead should treat as home.")
             }
         }
         .navigationTitle("Advanced Setup")
