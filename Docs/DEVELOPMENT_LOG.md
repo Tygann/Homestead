@@ -35,8 +35,9 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Centralized Homestead's Climate, Lights, Security, Media, and Maintenance filters around the current HA frontend strategies, including registry category/visibility handling, selected area climate readings, security device classes, and charging-aware battery status.
 - Confirmed HA Security includes visible primary camera entities regardless of snapshot-like naming, so Homestead intentionally avoids camera-name heuristics.
 - Added connected-session subscriptions for entity, device, area, and floor registry updates so summary membership metadata refreshes after Home Assistant registry changes.
-- Made generated card defaults universal across summary views, area views, and Add to Dashboard: cameras default to preview-sized cards, Climate defaults to setpoint-capable cards, ordinary numeric sensors still default to chart cards, and lights/security/battery-style maintenance entities default to compact cards unless the user chooses a larger dashboard card.
+- Made generated card defaults universal across summary views, area views, and Add to Dashboard: cameras default to preview-sized cards, Climate defaults to setpoint-capable cards, ordinary numeric sensors still default to chart cards, and non-feature/default status entities stay compact unless the user chooses a larger dashboard card.
 - Added generated-card feature visibility defaults so humidity and other history-capable sensors that also have read-only gauge features still render their trend graph by default, matching Home Assistant's Climate summary behavior while preserving the gauge as an optional larger-card feature.
+- Shifted universal generated card sizing toward Home Assistant's area-view defaults for interactive tile features: dimmable lights, covers/garage doors, climate entities with setpoints, and locks now default to Square cards with their first supported control feature visible.
 
 ### Sensor Gauges
 

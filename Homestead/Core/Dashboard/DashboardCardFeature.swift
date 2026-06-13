@@ -551,7 +551,10 @@ extension DashboardCardSize {
     }
 
     private static func defaultsToVisibleCardFeature(_ entityBox: HAEntityState) -> Bool {
-        guard entityBox.domain == .climate else {
+        switch entityBox.domain {
+        case .light, .climate, .cover, .lock:
+            break
+        default:
             return false
         }
 

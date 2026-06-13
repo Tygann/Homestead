@@ -6099,7 +6099,7 @@ struct HomesteadTests {
         let lightChoices = DashboardAddCardPresentation.makeSizeChoices(
             for: try #require(store.entityBox(for: "light.kitchen"))
         )
-        #expect(lightChoices.first { $0.size == .compact }?.isRecommended == true)
+        #expect(lightChoices.first { $0.size == .square }?.isRecommended == true)
         #expect(lightChoices.first { $0.size == .square }?.summary == "Includes brightness controls.")
         #expect(lightChoices.first { $0.size == .square }?.featureTitles == ["Brightness"])
     }
@@ -7485,6 +7485,7 @@ struct HomesteadTests {
             presentation: DashboardEntityPresentation(entityBox: lightBox)
         )
         #expect(lightFeatures.map(\.key) == [.lightBrightness])
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: lightBox) == .square)
         guard case .level(let brightness) = try #require(lightFeatures.first?.content) else {
             Issue.record("Expected light brightness level feature")
             return
@@ -7513,7 +7514,7 @@ struct HomesteadTests {
             presentation: DashboardEntityPresentation(entityBox: coverBox)
         )
         #expect(coverFeatures.map(\.key) == [.coverControls, .coverPosition])
-        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: coverBox) == .compact)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: coverBox) == .square)
         guard case .commandGroup(let commands) = try #require(coverFeatures.first?.content) else {
             Issue.record("Expected cover command feature")
             return
@@ -7528,6 +7529,7 @@ struct HomesteadTests {
             presentation: DashboardEntityPresentation(entityBox: lockBox)
         )
         #expect(lockFeatures.map(\.key) == [.lockControls])
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: lockBox) == .square)
         guard case .commandGroup(let lockCommands) = try #require(lockFeatures.first?.content) else {
             Issue.record("Expected lock command feature")
             return
