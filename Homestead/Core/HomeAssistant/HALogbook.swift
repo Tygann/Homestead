@@ -172,7 +172,8 @@ nonisolated struct HALogbookPresentation: Equatable, Sendable {
         rows: [HAActivityRow],
         searchText: String,
         selectedDomain: EntityDomain?,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        usesRelativeSectionTitles: Bool = true
     ) -> HALogbookPresentation {
         let matchingRows = rows
             .filter { row in
@@ -191,7 +192,11 @@ nonisolated struct HALogbookPresentation: Equatable, Sendable {
             .map { day, rows in
                 HAActivitySection(
                     id: String(day.timeIntervalSince1970),
-                    title: sectionTitle(for: day, calendar: calendar),
+                    title: sectionTitle(
+                        for: day,
+                        calendar: calendar,
+                        usesRelativeTitles: usesRelativeSectionTitles
+                    ),
                     rows: rows.sorted { lhs, rhs in lhs.occurredAt > rhs.occurredAt }
                 )
             }
@@ -207,16 +212,43 @@ nonisolated struct HALogbookPresentation: Equatable, Sendable {
         return HALogbookPresentation(sections: sections, visibleRowCount: matchingRows.count)
     }
 
-    private static func sectionTitle(for date: Date, calendar: Calendar) -> String {
-        if calendar.isDateInToday(date) {
+    static func makeSecurityActivity(
+        rows: [HAActivityRow],
+        entityIDs: Set<String>,
+        limit: Int = 50,
+        calendar: Calendar = .current
+    ) -> HALogbookPresentation {
+        let securityRows = rows
+            .filter { row in
+                row.entityID.map(entityIDs.contains) == true
+            }
+            .sorted { lhs, rhs in
+                lhs.occurredAt > rhs.occurredAt
+            }
+
+        return make(
+            rows: Array(securityRows.prefix(max(0, limit))),
+            searchText: "",
+            selectedDomain: nil,
+            calendar: calendar,
+            usesRelativeSectionTitles: false
+        )
+    }
+
+    private static func sectionTitle(
+        for date: Date,
+        calendar: Calendar,
+        usesRelativeTitles: Bool
+    ) -> String {
+        if usesRelativeTitles, calendar.isDateInToday(date) {
             return "Today"
         }
 
-        if calendar.isDateInYesterday(date) {
+        if usesRelativeTitles, calendar.isDateInYesterday(date) {
             return "Yesterday"
         }
 
-        return date.formatted(date: .abbreviated, time: .omitted)
+        return date.formatted(date: usesRelativeTitles ? .abbreviated : .long, time: .omitted)
     }
 }
 

@@ -1428,6 +1428,48 @@ struct HomesteadTests {
         #expect(presentation.sections.first?.rows.first?.entityID == "sensor.kitchen_temperature")
     }
 
+    @Test func securityActivityPresentationKeepsOnlySummaryEntitiesAndNewestRows() throws {
+        let baseDate = try testDate("2026-06-05T15:30:00Z")
+        let entries = (0..<5).map { index in
+            HALogbookEntryDTO(
+                when: baseDate.addingTimeInterval(TimeInterval(index * 60)),
+                name: "Front Door",
+                message: index.isMultiple(of: 2) ? "was locked" : "was unlocked",
+                domain: "lock",
+                entityID: "lock.front_door"
+            )
+        } + [
+            HALogbookEntryDTO(
+                when: baseDate.addingTimeInterval(600),
+                name: "Kitchen Light",
+                message: "turned on",
+                domain: "light",
+                entityID: "light.kitchen"
+            ),
+            HALogbookEntryDTO(
+                when: baseDate.addingTimeInterval(660),
+                name: "Automation",
+                message: "triggered",
+                domain: "automation"
+            )
+        ]
+        let rows = HAActivityRow.makeRows(from: entries, entityDisplayName: { $0 })
+        let presentation = HALogbookPresentation.makeSecurityActivity(
+            rows: rows,
+            entityIDs: ["lock.front_door"],
+            limit: 3,
+            calendar: Calendar(identifier: .gregorian)
+        )
+
+        #expect(presentation.visibleRowCount == 3)
+        #expect(presentation.sections.flatMap(\.rows).map(\.entityID) == Array(repeating: "lock.front_door", count: 3))
+        #expect(presentation.sections.flatMap(\.rows).map(\.occurredAt) == [
+            baseDate.addingTimeInterval(240),
+            baseDate.addingTimeInterval(180),
+            baseDate.addingTimeInterval(120)
+        ])
+    }
+
     @Test func historyResponseDecodesMinimalStateRowsAndMapsNumericSamples() throws {
         let payload = """
         [

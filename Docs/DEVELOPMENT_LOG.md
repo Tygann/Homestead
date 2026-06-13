@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-13
 
+### Security Summary Activity
+
+- Added a Home Assistant-style Security activity surface backed by Homestead's existing documented REST logbook client, without introducing private frontend endpoints or a second activity model.
+- Compact layouts use a native bottom Devices/Activity segmented control; regular-width layouts keep activity visible in a dedicated sidebar beside the existing Security card grid.
+- Filtered the 24-hour logbook response locally to the exact entity IDs admitted by the shared HA-aligned Security summary classifier, grouped the newest 50 events by explicit date, retained cached rows during refresh failures, and linked rows to existing entity detail views.
+
 ### First-Run Onboarding
 
 - Replaced the signed-out dashboard setup card with an app-level Home Assistant onboarding surface that lets new users enter their server URL and start the existing OAuth sign-in directly.

@@ -64,7 +64,7 @@ struct LogbookSettingsView: View {
                 ForEach(presentation.sections) { section in
                     Section(section.title) {
                         ForEach(section.rows) { row in
-                            LogbookActivityRowView(row: row)
+                            HAActivityRowView(row: row)
                         }
                     }
                 }
@@ -236,8 +236,10 @@ struct LogbookSettingsView: View {
     }
 }
 
-private struct LogbookActivityRowView: View {
+struct HAActivityRowView: View {
     let row: HAActivityRow
+    var showsDetailText = true
+    var showsRelativeTime = false
 
     var body: some View {
         Label {
@@ -252,18 +254,27 @@ private struct LogbookActivityRowView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
 
-                    Text(row.detailText)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+                    if showsDetailText {
+                        Text(row.detailText)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
                 }
 
                 Spacer(minLength: AppSpacing.medium)
 
-                Text(row.occurredAt.formatted(date: .omitted, time: .shortened))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                VStack(alignment: .trailing, spacing: AppSpacing.xSmall) {
+                    Text(row.occurredAt.formatted(date: .omitted, time: .shortened))
+
+                    if showsRelativeTime {
+                        Text(row.occurredAt, style: .relative)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
             }
             .padding(.vertical, AppSpacing.xSmall)
         } icon: {

@@ -21,7 +21,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Native SwiftUI iOS app shell with Home, Areas, and Browse tabs.
 - Home Assistant OAuth sign-in with short-lived access-token refresh and Keychain-backed credentials.
 - WebSocket-first state sync, registry loading, service discovery, service calls, reconnect handling, automatic internal/external URL route selection, and cached startup state.
-- Home dashboard with configurable entity cards, Apple Home-inspired mini accessory tiles, Home Assistant frontend-aligned summary chips/views, section headers, card sizes, card feature visibility, display names, searchable SF Symbols icon overrides with entity-aware recommendations, direct card/header drag editing, chip reordering, and edit mode.
+- Home dashboard with configurable entity cards, Apple Home-inspired mini accessory tiles, Home Assistant frontend-aligned summary chips/views, an adaptive Security activity log, section headers, card sizes, card feature visibility, display names, searchable SF Symbols icon overrides with entity-aware recommendations, direct card/header drag editing, chip reordering, and edit mode.
 - Native dashboard and area detail flows for common domains, including lights, switches, fans, locks, covers, climate, media players, cameras, vacuums, alarm panels, buttons, selects, numbers, sensors, scenes, scripts, and automations.
 - Areas browsing backed by Home Assistant area and floor registries, with area summaries and domain-grouped area detail pages.
 - Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
