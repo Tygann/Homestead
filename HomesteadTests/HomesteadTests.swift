@@ -5952,15 +5952,43 @@ struct HomesteadTests {
                     "device_class": .string("battery")
                 ]
             ),
+            HAEntityDTO(
+                entityID: "sensor.living_room_humidity",
+                state: "44",
+                attributes: [
+                    "unit_of_measurement": .string("%"),
+                    "device_class": .string("humidity")
+                ]
+            ),
             HAEntityDTO(entityID: "sensor.mode", state: "auto")
         ])
 
         let numericSensor = try #require(store.entityBox(for: "sensor.hallway_temperature"))
         let batterySensor = try #require(store.entityBox(for: "sensor.remote_battery"))
+        let humiditySensor = try #require(store.entityBox(for: "sensor.living_room_humidity"))
         let textSensor = try #require(store.entityBox(for: "sensor.mode"))
 
         #expect(DashboardCardSize.defaultGeneratedSize(entityBox: numericSensor) == .square)
+        #expect(
+            DashboardCardSize.defaultGeneratedFeatureVisibility(
+                entityBox: numericSensor,
+                size: .square
+            ) == .automatic
+        )
         #expect(DashboardCardSize.defaultGeneratedSize(entityBox: batterySensor) == .compact)
+        #expect(
+            DashboardCardSize.defaultGeneratedFeatureVisibility(
+                entityBox: batterySensor,
+                size: .compact
+            ) == .automatic
+        )
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: humiditySensor) == .square)
+        #expect(
+            DashboardCardSize.defaultGeneratedFeatureVisibility(
+                entityBox: humiditySensor,
+                size: .square
+            ) == .hidden
+        )
         #expect(DashboardCardSize.defaultGeneratedSize(entityBox: textSensor) == .compact)
     }
 
@@ -5986,6 +6014,15 @@ struct HomesteadTests {
                 ]
             ),
             HAEntityDTO(
+                entityID: "sensor.kitchen_humidity",
+                state: "44",
+                attributes: [
+                    "friendly_name": .string("Kitchen Humidity"),
+                    "unit_of_measurement": .string("%"),
+                    "device_class": .string("humidity")
+                ]
+            ),
+            HAEntityDTO(
                 entityID: "camera.driveway",
                 state: "idle",
                 attributes: ["friendly_name": .string("Driveway Camera")]
@@ -6005,6 +6042,7 @@ struct HomesteadTests {
             entities: [
                 HAEntityRegistryDisplayDTO(entityID: "light.kitchen", deviceID: "kitchen-device", originalName: "Kitchen Light"),
                 HAEntityRegistryDisplayDTO(entityID: "sensor.kitchen_temperature", deviceID: "kitchen-device", originalName: "Kitchen Temperature"),
+                HAEntityRegistryDisplayDTO(entityID: "sensor.kitchen_humidity", deviceID: "kitchen-device", originalName: "Kitchen Humidity"),
                 HAEntityRegistryDisplayDTO(entityID: "camera.driveway", deviceID: "driveway-device", originalName: "Driveway Camera"),
                 HAEntityRegistryDisplayDTO(entityID: "scene.movie_night", deviceID: nil, originalName: "Movie Night"),
                 HAEntityRegistryDisplayDTO(entityID: "media_player.tv", deviceID: "tv-device", originalName: "TV")
@@ -6029,8 +6067,11 @@ struct HomesteadTests {
         let candidates = groups.flatMap(\.candidates)
 
         #expect(groups.map(\.title) == ["Driveway", "Kitchen Hub", "Other Entities"])
-        #expect(candidates.map(\.entityID) == ["camera.driveway", "sensor.kitchen_temperature", "scene.movie_night"])
+        #expect(candidates.map(\.entityID) == ["camera.driveway", "sensor.kitchen_humidity", "sensor.kitchen_temperature", "scene.movie_night"])
         #expect(candidates.first { $0.entityID == "sensor.kitchen_temperature" }?.recommendedSize == .square)
+        #expect(candidates.first { $0.entityID == "sensor.kitchen_temperature" }?.recommendedFeatureVisibility == .automatic)
+        #expect(candidates.first { $0.entityID == "sensor.kitchen_humidity" }?.recommendedSize == .square)
+        #expect(candidates.first { $0.entityID == "sensor.kitchen_humidity" }?.recommendedFeatureVisibility == .hidden)
         #expect(candidates.first { $0.entityID == "camera.driveway" }?.recommendedSize == .square)
         #expect(candidates.first { $0.entityID == "scene.movie_night" }?.cardStyle == .action)
 
@@ -6039,7 +6080,7 @@ struct HomesteadTests {
 
         let categorySummaries = DashboardAddCardPresentation.makeCategorySummaries(from: candidates)
         #expect(categorySummaries.map(\.category.title) == ["All", "Values", "Cameras", "Actions"])
-        #expect(categorySummaries.map(\.count) == [3, 1, 1, 1])
+        #expect(categorySummaries.map(\.count) == [4, 2, 1, 1])
 
         let sensorChoices = DashboardAddCardPresentation.makeSizeChoices(
             for: try #require(store.entityBox(for: "sensor.kitchen_temperature"))

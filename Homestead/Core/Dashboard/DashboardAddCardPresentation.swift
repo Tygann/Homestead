@@ -40,6 +40,7 @@ struct DashboardAddCardCandidate: Identifiable, Equatable, Sendable {
     let iconName: String
     let cardStyle: DashboardEntityCardStyle
     let recommendedSize: DashboardCardSize
+    let recommendedFeatureVisibility: DashboardCardFeatureVisibility
 
     var id: String { entityID }
 }
@@ -110,6 +111,10 @@ enum DashboardAddCardPresentation {
                     ?? entityBox.homeEntity.displayName
                 let presentation = DashboardEntityPresentation(entityBox: entityBox)
                 let recommendedSize = DashboardCardSize.defaultGeneratedSize(entityBox: entityBox)
+                let recommendedFeatureVisibility = DashboardCardSize.defaultGeneratedFeatureVisibility(
+                    entityBox: entityBox,
+                    size: recommendedSize
+                )
                 let candidate = DashboardAddCardCandidate(
                     entityID: entityBox.entityID,
                     displayName: displayName,
@@ -117,7 +122,8 @@ enum DashboardAddCardPresentation {
                     domain: entityBox.domain,
                     iconName: entityBox.homeEntity.iconName,
                     cardStyle: presentation.cardStyle,
-                    recommendedSize: recommendedSize
+                    recommendedSize: recommendedSize,
+                    recommendedFeatureVisibility: recommendedFeatureVisibility
                 )
 
                 return (entityBox.entityID, candidate)

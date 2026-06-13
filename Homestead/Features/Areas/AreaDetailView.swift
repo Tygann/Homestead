@@ -20,6 +20,7 @@ struct AreaDetailView: View {
                                 DashboardCardView(
                                     entityID: item.entityID,
                                     size: item.cardSize,
+                                    featureVisibility: item.featureVisibility,
                                     contextualAreaName: area.name,
                                     openDetails: {
                                         selectedEntityDetailRoute = DashboardEntityDetailRoute(
@@ -127,9 +128,14 @@ private struct AreaDetailPresentation {
             title: title,
             systemImage: systemImage,
             items: sortedEntityBoxes.map { entityBox in
-                AreaEntityItem(
+                let cardSize = DashboardCardSize.defaultGeneratedSize(entityBox: entityBox)
+                return AreaEntityItem(
                     entityID: entityBox.entityID,
-                    cardSize: DashboardCardSize.defaultGeneratedSize(entityBox: entityBox)
+                    cardSize: cardSize,
+                    featureVisibility: DashboardCardSize.defaultGeneratedFeatureVisibility(
+                        entityBox: entityBox,
+                        size: cardSize
+                    )
                 )
             },
             sortPriority: entityBoxes
@@ -154,6 +160,7 @@ private struct AreaEntitySection: Identifiable {
 private struct AreaEntityItem: Identifiable {
     let entityID: String
     let cardSize: DashboardCardSize
+    let featureVisibility: DashboardCardFeatureVisibility
 
     var id: String { entityID }
 }

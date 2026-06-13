@@ -529,6 +529,18 @@ extension DashboardCardSize {
         return .compact
     }
 
+    static func defaultGeneratedFeatureVisibility(
+        entityBox: HAEntityState,
+        size: DashboardCardSize
+    ) -> DashboardCardFeatureVisibility {
+        guard DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size),
+              hasVisibleReadOnlySensorGauge(entityBox: entityBox, size: size) else {
+            return .automatic
+        }
+
+        return .hidden
+    }
+
     private static func defaultsToDashboardHistory(_ entityBox: HAEntityState) -> Bool {
         guard DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: .square),
               entityBox.sensorEntity?.deviceClass != "battery" else {
@@ -549,5 +561,18 @@ extension DashboardCardSize {
             presentation: presentation
         )
         return !DashboardCardSize.square.visibleFeatures(from: features).isEmpty
+    }
+
+    private static func hasVisibleReadOnlySensorGauge(
+        entityBox: HAEntityState,
+        size: DashboardCardSize
+    ) -> Bool {
+        guard entityBox.domain == .sensor else {
+            return false
+        }
+
+        let presentation = DashboardEntityPresentation(entityBox: entityBox)
+        let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
+        return size.visibleFeatures(from: features).contains { $0.key == .sensorGauge }
     }
 }

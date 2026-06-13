@@ -49,6 +49,7 @@ struct DashboardSummaryView: View {
                                         DashboardCardView(
                                             entityID: item.entityID,
                                             size: size,
+                                            featureVisibility: featureVisibility(for: entityBox, size: size),
                                             contextualAreaName: section.title,
                                             openDetails: {
                                                 selectedEntityDetailRoute = DashboardEntityDetailRoute(
@@ -90,6 +91,15 @@ struct DashboardSummaryView: View {
     private func cardSize(for entityBox: HAEntityState?) -> DashboardCardSize {
         guard let entityBox else { return .compact }
         return DashboardCardSize.defaultGeneratedSize(entityBox: entityBox)
+    }
+
+    @MainActor
+    private func featureVisibility(
+        for entityBox: HAEntityState?,
+        size: DashboardCardSize
+    ) -> DashboardCardFeatureVisibility {
+        guard let entityBox else { return .automatic }
+        return DashboardCardSize.defaultGeneratedFeatureVisibility(entityBox: entityBox, size: size)
     }
 
     private func cardTransitionID(for item: DashboardSummaryEntityPresentation) -> String {

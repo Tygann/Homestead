@@ -25,6 +25,7 @@ Recommended reasoning level: High.
 - Confirmed HA includes every visible primary `camera.*` entity in Security, including snapshot-named entities; Homestead therefore does not apply a name-based snapshot exclusion.
 - Subscribed to entity/device/area/floor registry update events and refreshes cached registry metadata after a short debounce so summary membership follows Home Assistant changes during a connected session.
 - Made HA-like generated dashboard card defaults universal across summary views, area views, and Add to Dashboard instead of summary-specific: cameras default to Square previews, Climate defaults to Square cards with setpoint controls when available, ordinary numeric sensors keep Square chart defaults, and lights/security/maintenance battery entities default to Compact cards while still exposing larger-card features when users choose them.
+- Added generated-card feature visibility defaults so humidity sensors in Climate-style generated views prefer the history graph over the read-only gauge feature; users can still choose Automatic features on manually configured dashboard cards.
 - Added reusable gauge presentation for range-aware numeric `sensor.*` entities.
 - `SensorEntity` now carries optional Home Assistant min/max-style range metadata and exposes an app-facing `GaugePresentation` with normalized value, range source, status tone, and accessibility text.
 - Added a read-only dashboard `sensorGauge` card feature that appears in larger card layouts for clearly bounded sensors such as battery, humidity, AQI/air quality, signal, percentage/level readings, or sensors with Home Assistant-provided ranges; Mini and Compact cards remain simple.
@@ -171,6 +172,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-HumidityHistory` after making history-capable humidity sensors prefer generated graph cards over gauge features.
+- Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-HumidityHistory` after making history-capable humidity sensors prefer generated graph cards over gauge features.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-DefaultCards` after making generated card defaults universal.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-DefaultCards` after making generated card defaults universal.
 - Generic iOS Simulator build passed after fixing Settings > Apps to use Home Assistant Core's WebSocket `supervisor/api` bridge instead of direct native-client Supervisor HTTP.

@@ -207,7 +207,7 @@ struct DashboardAddItemView: View {
                                     addCard(
                                         candidate,
                                         size: candidate.recommendedSize,
-                                        featureVisibility: .automatic
+                                        featureVisibility: candidate.recommendedFeatureVisibility
                                     )
                                 }
                             )
@@ -727,6 +727,15 @@ private struct DashboardAddCardChooserView: View {
 
     let candidate: DashboardAddCardCandidate
     let add: (DashboardCardSize, DashboardCardFeatureVisibility) -> Void
+
+    init(
+        candidate: DashboardAddCardCandidate,
+        add: @escaping (DashboardCardSize, DashboardCardFeatureVisibility) -> Void
+    ) {
+        self.candidate = candidate
+        self.add = add
+        _featureVisibility = State(initialValue: candidate.recommendedFeatureVisibility)
+    }
 
     var body: some View {
         NavigationStack {
