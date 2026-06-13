@@ -10,6 +10,8 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
     let isButtonEnabled: Bool
     let isBusy: Bool
     let statusSystemImage: String
+    let showsStatusRow: Bool
+    let footerMessage: String
 
     static func make(
         hasServerURL: Bool,
@@ -40,7 +42,9 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
             buttonTitle: buttonTitle(authState: authState),
             isButtonEnabled: hasServerURL && !isBusy,
             isBusy: isBusy,
-            statusSystemImage: statusSystemImage(authState: authState, connectionStatus: connectionStatus)
+            statusSystemImage: statusSystemImage(authState: authState, connectionStatus: connectionStatus),
+            showsStatusRow: showsStatusRow(authState: authState, storageError: storageError),
+            footerMessage: footerMessage(hasServerURL: hasServerURL, authState: authState)
         )
     }
 
@@ -134,10 +138,42 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
             return "Signing In"
         case .refreshing:
             return "Refreshing"
-        case .accessTokenExpired, .refreshFailed:
-            return "Sign in again"
-        case .signedOut, .signedIn:
-            return "Sign in with Home Assistant"
+        case .signedOut, .signedIn, .accessTokenExpired, .refreshFailed:
+            return "Continue"
+        }
+    }
+
+    private static func showsStatusRow(authState: HAAuthState, storageError: String?) -> Bool {
+        if storageError != nil {
+            return true
+        }
+
+        switch authState {
+        case .signedOut:
+            return false
+        case .signingIn, .refreshing, .signedIn, .accessTokenExpired, .refreshFailed:
+            return true
+        }
+    }
+
+    private static func footerMessage(hasServerURL: Bool, authState: HAAuthState) -> String {
+        guard hasServerURL else {
+            return "Use the address you normally use to open Home Assistant."
+        }
+
+        switch authState {
+        case .signedOut:
+            return "Homestead will open Home Assistant to authorize this iPhone."
+        case .signingIn:
+            return "Finish authorization in the Home Assistant sign-in window."
+        case .refreshing:
+            return "Checking the saved Home Assistant session."
+        case .signedIn:
+            return "Homestead is loading your Home Assistant dashboard."
+        case .accessTokenExpired:
+            return "Sign in again to continue using Home Assistant."
+        case .refreshFailed(let message):
+            return message
         }
     }
 
@@ -165,13 +201,13 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
 struct HomeAssistantOnboardingView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @FocusState private var isURLFieldFocused: Bool
+    @State private var isShowingAdvancedSetup = false
 
     let authState: HAAuthState
     let connectionStatus: HAConnectionStatus
     let serviceError: String?
     let storageError: String?
     let signIn: () -> Void
-    let openSettings: () -> Void
 
     var body: some View {
         @Bindable var connectionSettings = connectionSettings
@@ -188,24 +224,35 @@ struct HomeAssistantOnboardingView: View {
                 VStack(spacing: 32) {
                     header
 
-                    VStack(spacing: AppSpacing.large) {
-                        setupGroup(
-                            baseURL: $connectionSettings.baseURL,
-                            presentation: presentation
-                        )
-
-                        actionGroup(presentation: presentation)
-                    }
+                    setupGroup(
+                        baseURL: $connectionSettings.baseURL,
+                        presentation: presentation
+                    )
                     .frame(maxWidth: 420)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, AppSpacing.large)
-                .padding(.top, 58)
-                .padding(.bottom, AppSpacing.xLarge)
+                .padding(.top, 76)
+                .padding(.bottom, 132)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Homestead")
-            .toolbarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                actionBar(presentation: presentation)
+                    .background(.bar)
+            }
+            .sheet(isPresented: $isShowingAdvancedSetup) {
+                NavigationStack {
+                    HomeAssistantAdvancedOnboardingSettingsView()
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") {
+                                    isShowingAdvancedSetup = false
+                                }
+                            }
+                        }
+                }
+            }
         }
     }
 
@@ -239,42 +286,50 @@ struct HomeAssistantOnboardingView: View {
         baseURL: Binding<String>,
         presentation: HomeAssistantOnboardingPresentation
     ) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: AppSpacing.medium) {
-                Image(systemName: "server.rack")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 24)
-                    .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            VStack(spacing: 0) {
+                HStack(spacing: AppSpacing.medium) {
+                    Text("Server Address")
+                        .foregroundStyle(.primary)
 
-                TextField("homeassistant.local:8123", text: baseURL)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .textContentType(.URL)
-                    .autocorrectionDisabled()
-                    .focused($isURLFieldFocused)
-                    .submitLabel(.go)
-                    .onSubmit {
-                        attemptSignIn(presentation: presentation)
-                    }
-            }
-            .frame(minHeight: 52)
-            .padding(.horizontal, AppSpacing.medium)
-
-            Divider()
-                .padding(.leading, 56)
-
-            statusRow(presentation: presentation)
+                    TextField("homeassistant.local:8123", text: baseURL)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .textContentType(.URL)
+                        .autocorrectionDisabled()
+                        .multilineTextAlignment(.trailing)
+                        .focused($isURLFieldFocused)
+                        .submitLabel(.go)
+                        .onSubmit {
+                            attemptSignIn(presentation: presentation)
+                        }
+                }
+                .frame(minHeight: 52)
                 .padding(.horizontal, AppSpacing.medium)
-                .padding(.vertical, AppSpacing.medium)
+
+                if presentation.showsStatusRow {
+                    Divider()
+                        .padding(.leading, AppSpacing.medium)
+
+                    statusRow(presentation: presentation)
+                        .padding(.horizontal, AppSpacing.medium)
+                        .padding(.vertical, AppSpacing.medium)
+                }
+            }
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+            )
+
+            Text(presentation.footerMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, AppSpacing.medium)
         }
-        .background(
-            Color(.secondarySystemGroupedBackground),
-            in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-        )
     }
 
-    private func actionGroup(presentation: HomeAssistantOnboardingPresentation) -> some View {
+    private func actionBar(presentation: HomeAssistantOnboardingPresentation) -> some View {
         VStack(spacing: AppSpacing.small) {
             Button {
                 attemptSignIn(presentation: presentation)
@@ -297,7 +352,7 @@ struct HomeAssistantOnboardingView: View {
 
             Button {
                 isURLFieldFocused = false
-                openSettings()
+                isShowingAdvancedSetup = true
             } label: {
                 Text("Advanced Setup")
                     .font(.body.weight(.medium))
@@ -306,6 +361,9 @@ struct HomeAssistantOnboardingView: View {
             .buttonStyle(.plain)
             .foregroundStyle(Color.accentColor)
         }
+        .padding(.horizontal, AppSpacing.large)
+        .padding(.top, AppSpacing.medium)
+        .padding(.bottom, AppSpacing.small)
     }
 
     private func statusRow(presentation: HomeAssistantOnboardingPresentation) -> some View {
@@ -353,6 +411,42 @@ struct HomeAssistantOnboardingView: View {
     }
 }
 
+private struct HomeAssistantAdvancedOnboardingSettingsView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+
+    var body: some View {
+        @Bindable var connectionSettings = connectionSettings
+
+        Form {
+            Section {
+                TextField("Internal URL", text: $connectionSettings.internalURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .textContentType(.URL)
+                    .autocorrectionDisabled()
+
+                TextField("External URL", text: $connectionSettings.externalURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .textContentType(.URL)
+                    .autocorrectionDisabled()
+            } footer: {
+                Text("Homestead can switch between internal and external addresses after sign-in.")
+            }
+
+            Section {
+                TextField("Home Network", text: $connectionSettings.homeNetworkName)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } footer: {
+                Text("Enter the Wi-Fi network name Homestead should treat as home.")
+            }
+        }
+        .navigationTitle("Advanced Setup")
+        .toolbarTitleDisplayMode(.inline)
+    }
+}
+
 #if DEBUG
 #Preview("Onboarding") {
     HomeAssistantOnboardingView(
@@ -360,8 +454,7 @@ struct HomeAssistantOnboardingView: View {
         connectionStatus: .disconnected,
         serviceError: nil,
         storageError: nil,
-        signIn: {},
-        openSettings: {}
+        signIn: {}
     )
     .withPreviewEnvironment()
 }

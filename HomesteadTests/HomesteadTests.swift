@@ -244,9 +244,10 @@ struct HomesteadTests {
 
         #expect(presentation.shouldShow)
         #expect(presentation.statusTitle == "Server Needed")
-        #expect(presentation.buttonTitle == "Sign in with Home Assistant")
+        #expect(presentation.buttonTitle == "Continue")
         #expect(!presentation.isButtonEnabled)
         #expect(!presentation.isBusy)
+        #expect(!presentation.showsStatusRow)
     }
 
     @Test func onboardingPresentationEnablesSignInWhenServerIsEntered() {
@@ -262,6 +263,7 @@ struct HomesteadTests {
         #expect(presentation.statusTitle == "Ready to Sign In")
         #expect(presentation.isButtonEnabled)
         #expect(!presentation.isBusy)
+        #expect(!presentation.showsStatusRow)
     }
 
     @Test func onboardingPresentationDisablesSignInWhileSigningIn() {
@@ -292,8 +294,9 @@ struct HomesteadTests {
         #expect(presentation.shouldShow)
         #expect(presentation.statusTitle == "Sign-In Failed")
         #expect(presentation.statusMessage == "Home Assistant rejected the sign-in.")
-        #expect(presentation.buttonTitle == "Sign in again")
+        #expect(presentation.buttonTitle == "Continue")
         #expect(presentation.isButtonEnabled)
+        #expect(presentation.showsStatusRow)
     }
 
     @Test func onboardingPresentationSuppressesSetupAfterSignIn() {

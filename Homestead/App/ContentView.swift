@@ -38,9 +38,6 @@ struct ContentView: View {
                         Task {
                             await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
                         }
-                    },
-                    openSettings: {
-                        isShowingSettings = true
                     }
                 )
             } else {
