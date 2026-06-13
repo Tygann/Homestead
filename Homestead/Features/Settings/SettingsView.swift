@@ -41,17 +41,17 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
-                    AppsSettingsView()
-                } label: {
-                    Label("Apps", systemImage: "puzzlepiece.extension")
-                }
-
-                NavigationLink {
                     AutomationsAndScenesManagementView()
                 } label: {
                     Label("Automations & Scenes", systemImage: "sparkles")
                 }
 
+                NavigationLink {
+                    AppsSettingsView()
+                } label: {
+                    Label("Apps", systemImage: "puzzlepiece.extension")
+                }
+                
                 NavigationLink {
                     UpdatesSettingsView()
                 } label: {
