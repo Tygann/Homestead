@@ -1300,7 +1300,9 @@ struct HomesteadTests {
                 "state": "on",
                 "domain": "light",
                 "entity_id": "light.kitchen",
-                "context_user_id": "user-123"
+                "context_user_id": "user-123",
+                "context_name": "Tyler",
+                "context_message": "action Light: Turn on"
             },
             {
                 "when": "2026-06-05T15:35:00+00:00",
@@ -1324,6 +1326,9 @@ struct HomesteadTests {
         #expect(rows[0].entityDomain == .light)
         #expect(rows[0].sourceDomain == "light")
         #expect(rows[0].contextUserID == "user-123")
+        #expect(rows[0].contextName == "Tyler")
+        #expect(rows[0].attributionName == "Tyler")
+        #expect(rows[0].triggerText == "triggered by action Light: Turn on")
         #expect(rows[0].iconSystemName == EntityDomain.light.systemImage)
         #expect(rows[0].matches(query: "pendant"))
         #expect(rows[1].title == "Automation")
@@ -1377,6 +1382,41 @@ struct HomesteadTests {
             "was opened",
             "was closed"
         ])
+    }
+
+    @Test func securityActivityUsesStateSpecificIconsAndAttribution() throws {
+        let date = try testDate("2026-06-13T15:30:00Z")
+        let rows = HAActivityRow.makeRows(
+            from: [
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Front Door Lock",
+                    state: "unlocked",
+                    domain: "lock",
+                    entityID: "lock.front_door"
+                ),
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Front Door Lock",
+                    state: "locked",
+                    domain: "lock",
+                    entityID: "lock.front_door",
+                    contextUserID: "user-123",
+                    contextName: "Tyler",
+                    contextMessage: "action Lock: Lock lock"
+                )
+            ],
+            entityDisplayName: { _ in nil }
+        )
+
+        #expect(rows[0].message == "was unlocked")
+        #expect(rows[0].iconSystemName == "lock.open.fill")
+        #expect(rows[0].triggerText == nil)
+        #expect(rows[0].attributionName == nil)
+        #expect(rows[1].message == "was locked")
+        #expect(rows[1].iconSystemName == "lock.fill")
+        #expect(rows[1].triggerText == "triggered by action Lock: Lock lock")
+        #expect(rows[1].attributionName == "Tyler")
     }
 
     @Test func securityActivityCacheRetainsRowsAcrossViewLifetimes() async throws {

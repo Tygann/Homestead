@@ -13,6 +13,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Refined Security activity to decode logbook state changes into HA-style narrative rows, use authenticated cached person avatars, and remove redundant generic status text; floor headings no longer imply a generic house icon when no faithful floor icon mapping exists.
 - Added a shared session-memory Security activity cache with stale-while-refresh behavior so reopening the summary presents recent rows immediately, and removed duplicated in-content summary titles in favor of the native navigation title.
 - Removed the compact Security tab-switch hitch by isolating segmented-control state from the summary parent, resolving person records once per activity presentation, and lazily constructing activity rows instead of rebuilding summary grouping and every row on each tab selection.
+- Added Home Assistant logbook context attribution to Security activity rows, including trigger descriptions, user names when HA supplies `context_user_id`/`context_name`, and lock/unlock-specific activity icons.
 
 ### First-Run Onboarding
 

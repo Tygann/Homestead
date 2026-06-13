@@ -21,6 +21,11 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
     let domain: String?
     let entityID: String?
     let contextUserID: String?
+    let contextName: String?
+    let contextDomain: String?
+    let contextService: String?
+    let contextSource: String?
+    let contextMessage: String?
 
     enum CodingKeys: String, CodingKey {
         case when
@@ -30,6 +35,11 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
         case domain
         case entityID = "entity_id"
         case contextUserID = "context_user_id"
+        case contextName = "context_name"
+        case contextDomain = "context_domain"
+        case contextService = "context_service"
+        case contextSource = "context_source"
+        case contextMessage = "context_message"
     }
 
     init(
@@ -39,7 +49,12 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
         state: String? = nil,
         domain: String? = nil,
         entityID: String? = nil,
-        contextUserID: String? = nil
+        contextUserID: String? = nil,
+        contextName: String? = nil,
+        contextDomain: String? = nil,
+        contextService: String? = nil,
+        contextSource: String? = nil,
+        contextMessage: String? = nil
     ) {
         self.when = when
         self.name = name
@@ -48,6 +63,11 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
         self.domain = domain
         self.entityID = entityID
         self.contextUserID = contextUserID
+        self.contextName = contextName
+        self.contextDomain = contextDomain
+        self.contextService = contextService
+        self.contextSource = contextSource
+        self.contextMessage = contextMessage
     }
 
     init(from decoder: Decoder) throws {
@@ -68,6 +88,11 @@ nonisolated struct HALogbookEntryDTO: Decodable, Equatable, Sendable {
         domain = try container.decodeIfPresent(String.self, forKey: .domain)
         entityID = try container.decodeIfPresent(String.self, forKey: .entityID)
         contextUserID = try container.decodeIfPresent(String.self, forKey: .contextUserID)
+        contextName = try container.decodeIfPresent(String.self, forKey: .contextName)
+        contextDomain = try container.decodeIfPresent(String.self, forKey: .contextDomain)
+        contextService = try container.decodeIfPresent(String.self, forKey: .contextService)
+        contextSource = try container.decodeIfPresent(String.self, forKey: .contextSource)
+        contextMessage = try container.decodeIfPresent(String.self, forKey: .contextMessage)
     }
 }
 
@@ -78,12 +103,27 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     let message: String
     let entityID: String?
     let entityDomain: EntityDomain?
+    let state: String?
     let sourceDomain: String?
     let sourceName: String?
     let contextUserID: String?
+    let contextName: String?
+    let triggerText: String?
+    let attributionName: String?
 
     var iconSystemName: String {
-        entityDomain?.systemImage ?? "list.bullet.clipboard"
+        if entityDomain == .lock {
+            switch state {
+            case "unlocked", "unlocking", "open", "opening":
+                return "lock.open.fill"
+            case "locking", "locked", "jammed":
+                return "lock.fill"
+            default:
+                break
+            }
+        }
+
+        return entityDomain?.systemImage ?? "list.bullet.clipboard"
     }
 
     var detailText: String {
@@ -109,7 +149,10 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
             entityDomain?.displayName,
             sourceDomain,
             sourceName,
-            contextUserID
+            contextUserID,
+            contextName,
+            triggerText,
+            attributionName
         ]
             .compactMap { $0 }
             .joined(separator: " ")
@@ -140,10 +183,11 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     ) {
         let entityID = entry.entityID?.nonEmptyValue
         let entityDomain = entityID.map(EntityDomain.init(entityID:))
+        let state = entry.state?.nonEmptyValue
         let sourceName = entry.name?.nonEmptyValue
         let sourceDomain = entry.domain?.nonEmptyValue
         let message = entry.message?.nonEmptyValue ?? Self.stateMessage(
-            state: entry.state?.nonEmptyValue,
+            state: state,
             domain: entityDomain,
             deviceClass: entityID.flatMap(entityDeviceClass)
         )
@@ -159,6 +203,7 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
             sourceDomain,
             sourceName,
             message,
+            entry.contextMessage,
             String(index)
         ]
             .compactMap { $0?.nonEmptyValue }
@@ -168,9 +213,18 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         self.message = message
         self.entityID = entityID
         self.entityDomain = entityDomain
+        self.state = state
         self.sourceDomain = sourceDomain
         self.sourceName = sourceName
         self.contextUserID = entry.contextUserID?.nonEmptyValue
+        self.contextName = entry.contextName?.nonEmptyValue
+        self.triggerText = Self.triggerText(
+            contextMessage: entry.contextMessage?.nonEmptyValue,
+            contextSource: entry.contextSource?.nonEmptyValue,
+            contextDomain: entry.contextDomain?.nonEmptyValue,
+            contextService: entry.contextService?.nonEmptyValue
+        )
+        self.attributionName = self.contextUserID == nil ? nil : self.contextName
     }
 
     private static func stateMessage(
@@ -221,6 +275,45 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     private static func formattedState(_ state: String) -> String {
         let words = state.replacingOccurrences(of: "_", with: " ")
         return words == words.uppercased() ? words : words.capitalized
+    }
+
+    private static func triggerText(
+        contextMessage: String?,
+        contextSource: String?,
+        contextDomain: String?,
+        contextService: String?
+    ) -> String? {
+        if let contextMessage {
+            return "triggered by \(contextMessage)"
+        }
+
+        if let contextSource {
+            return "triggered by \(triggerDescription(from: contextSource))"
+        }
+
+        if let contextDomain, let contextService {
+            return "triggered by action \(formattedState(contextDomain)): \(formattedState(contextService))"
+        }
+
+        return nil
+    }
+
+    private static func triggerDescription(from source: String) -> String {
+        let replacements = [
+            "numeric state of": "numeric state of",
+            "state of": "state of",
+            "event": "event",
+            "time pattern": "time pattern",
+            "time": "time",
+            "Home Assistant stopping": "Home Assistant stopping",
+            "Home Assistant starting": "Home Assistant starting"
+        ]
+
+        for (prefix, replacement) in replacements where source.hasPrefix(prefix) {
+            return source.replacingOccurrences(of: prefix, with: replacement, options: [.anchored])
+        }
+
+        return source
     }
 }
 

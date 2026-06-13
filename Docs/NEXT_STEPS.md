@@ -33,6 +33,7 @@ Recommended reasoning level: High.
 - Security activity rows use Home Assistant-style state narratives and timestamps, reuse authenticated cached person avatars, and avoid generic `Updated` subtitles; floor headings intentionally omit icons unless Homestead can represent HA's floor icon faithfully.
 - Security activity now restores a server/user/membership-scoped in-memory snapshot when the summary is reopened, treats it as fresh for one minute, and leaves stale rows visible during refresh. Summary screens use the native navigation title without repeating the summary name in their content.
 - Compact Security tab selection is isolated in a child view so switching to Activity does not rebuild summary membership, floors, areas, or device cards; activity rows resolve person metadata once and use lazy construction.
+- Security activity decodes HA logbook context fields for trigger attribution and user names, and uses state-specific lock/unlock icons for lock events.
 - Added reusable gauge presentation for range-aware numeric `sensor.*` entities.
 - `SensorEntity` now carries optional Home Assistant min/max-style range metadata and exposes an app-facing `GaugePresentation` with normalized value, range source, status tone, and accessibility text.
 - Added a read-only dashboard `sensorGauge` card feature that appears in larger card layouts for clearly bounded sensors such as battery, humidity, AQI/air quality, signal, percentage/level readings, or sensors with Home Assistant-provided ranges; Mini and Compact cards remain simple.
@@ -179,6 +180,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityAttribution` after adding Security activity trigger/user attribution.
+- Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityAttributionTests`, including attribution and lock-icon coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityTabPerformance` after removing synchronous tab-switch rebuild work.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityTabPerformanceTests` after the compact Security tab performance changes.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityCache` after adding session activity caching and simplifying summary titles.

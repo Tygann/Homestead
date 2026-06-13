@@ -490,6 +490,11 @@ private struct SecurityActivityRowView: View {
                     Text(row.occurredAt.formatted(date: .omitted, time: .standard))
                     Text("-")
                     Text(row.occurredAt.formatted(.relative(presentation: .named, unitsStyle: .wide)))
+
+                    if let attributionName = row.attributionName {
+                        Text("-")
+                        Text(attributionName)
+                    }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -509,11 +514,22 @@ private struct SecurityActivityRowView: View {
             return Text(row.title).foregroundStyle(Color.accentColor)
         }
 
-        return Text("\(Text(row.title).foregroundStyle(Color.accentColor)) \(Text(row.message).foregroundStyle(Color.primary))")
+        let base = Text("\(Text(row.title).foregroundStyle(Color.accentColor)) \(Text(row.message).foregroundStyle(Color.primary))")
+        guard let triggerText = row.triggerText else {
+            return base
+        }
+
+        return Text("\(base) \(Text(triggerText).foregroundStyle(Color.primary))")
     }
 
     private var accessibilityLabel: String {
-        row.message == "Updated" ? row.title : "\(row.title) \(row.message)"
+        [
+            row.message == "Updated" ? row.title : "\(row.title) \(row.message)",
+            row.triggerText,
+            row.attributionName.map { "by \($0)" }
+        ]
+            .compactMap { $0 }
+            .joined(separator: " ")
     }
 
     @ViewBuilder
