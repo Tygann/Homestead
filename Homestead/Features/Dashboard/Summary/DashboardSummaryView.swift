@@ -35,7 +35,8 @@ struct DashboardSummaryView: View {
             titleOverride: titleOverride,
             iconNameOverride: iconNameOverride,
             membershipContext: stateStore.dashboardSummaryMembershipContext(),
-            areaNameForEntityID: stateStore.areaName(for:)
+            areaNameForEntityID: stateStore.areaName(for:),
+            areaContextForEntityID: stateStore.areaContext(for:)
         )
 
         Group {
@@ -59,7 +60,7 @@ struct DashboardSummaryView: View {
         }
         .task(id: securityActivityTaskID(for: detail)) {
             guard kind == .security, let detail else { return }
-            await refreshSecurityActivity(entityIDs: securityEntityIDs(in: detail))
+            await refreshSecurityActivity(entityIDs: securityActivityEntityIDs())
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard kind == .security,
@@ -70,7 +71,7 @@ struct DashboardSummaryView: View {
             }
 
             Task {
-                await refreshSecurityActivity(entityIDs: securityEntityIDs(in: detail))
+                await refreshSecurityActivity(entityIDs: securityActivityEntityIDs())
             }
         }
     }
@@ -86,7 +87,7 @@ struct DashboardSummaryView: View {
 
     @ViewBuilder
     private func securitySummaryContent(detail: DashboardSummaryDetailPresentation) -> some View {
-        let entityIDs = securityEntityIDs(in: detail)
+        let entityIDs = securityActivityEntityIDs()
         let activityPresentation = HALogbookPresentation.makeSecurityActivity(
             rows: securityActivityRows,
             entityIDs: entityIDs
@@ -137,35 +138,52 @@ struct DashboardSummaryView: View {
     }
 
     private func devicesContent(detail: DashboardSummaryDetailPresentation) -> some View {
-        ScrollView {
+        let areasByID = Dictionary(uniqueKeysWithValues: DashboardAreaBuilder.buildAreas(
+            from: stateStore.allEntityBoxes(),
+            areaContextForEntityID: stateStore.areaContext(for:)
+        ).compactMap { area in
+            area.areaID.map { ($0, area) }
+        })
+
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                 DashboardSummaryHeader(presentation: detail.summary)
 
-                ForEach(detail.sections) { section in
+                ForEach(detail.groups) { group in
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                        Text(section.title)
+                        Label(group.title, systemImage: group.systemImage)
                             .font(.title3.weight(.semibold))
-                            .foregroundStyle(.secondary)
 
-                        CardGrid {
-                            ForEach(section.items) { item in
-                                let entityBox = stateStore.entityBox(for: item.entityID)
-                                let size = cardSize(for: entityBox)
+                        ForEach(group.sections) { section in
+                            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                                if let title = section.title {
+                                    summaryAreaHeader(
+                                        title: title,
+                                        area: section.areaID.flatMap { areasByID[$0] }
+                                    )
+                                }
 
-                                DashboardCardView(
-                                    entityID: item.entityID,
-                                    size: size,
-                                    featureVisibility: featureVisibility(for: entityBox, size: size),
-                                    contextualAreaName: section.title,
-                                    openDetails: {
-                                        selectedEntityDetailRoute = DashboardEntityDetailRoute(
+                                CardGrid {
+                                    ForEach(section.items) { item in
+                                        let entityBox = stateStore.entityBox(for: item.entityID)
+                                        let size = cardSize(for: entityBox)
+
+                                        DashboardCardView(
                                             entityID: item.entityID,
-                                            sourceID: cardTransitionID(for: item)
+                                            size: size,
+                                            featureVisibility: featureVisibility(for: entityBox, size: size),
+                                            contextualAreaName: section.title,
+                                            openDetails: {
+                                                selectedEntityDetailRoute = DashboardEntityDetailRoute(
+                                                    entityID: item.entityID,
+                                                    sourceID: cardTransitionID(for: item)
+                                                )
+                                            }
                                         )
+                                        .cardGridSpan(size.layoutMetadata)
+                                        .matchedTransitionSource(id: cardTransitionID(for: item), in: cardTransitionNamespace)
                                     }
-                                )
-                                .cardGridSpan(size.layoutMetadata)
-                                .matchedTransitionSource(id: cardTransitionID(for: item), in: cardTransitionNamespace)
+                                }
                             }
                         }
                     }
@@ -177,8 +195,36 @@ struct DashboardSummaryView: View {
         .background(Color(.systemGroupedBackground))
     }
 
-    private func securityEntityIDs(in detail: DashboardSummaryDetailPresentation) -> Set<String> {
-        Set(detail.sections.flatMap(\.items).map(\.entityID))
+    @ViewBuilder
+    private func summaryAreaHeader(title: String, area: DashboardAreaSummary?) -> some View {
+        if let area {
+            NavigationLink {
+                AreaDetailView(area: area)
+            } label: {
+                HStack(spacing: AppSpacing.small) {
+                    Text(title)
+                        .font(.headline)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func securityActivityEntityIDs() -> Set<String> {
+        HomeAssistantSummaryClassifier.securityActivityEntityIDs(
+            from: stateStore.allEntityBoxes(),
+            context: stateStore.dashboardSummaryMembershipContext()
+        )
     }
 
     private func securityActivityTaskID(for detail: DashboardSummaryDetailPresentation?) -> String {
@@ -186,7 +232,7 @@ struct DashboardSummaryView: View {
         return [
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
             homeAssistantService.authState.title,
-            securityEntityIDs(in: detail).sorted().joined(separator: ",")
+            securityActivityEntityIDs().sorted().joined(separator: ",")
         ].joined(separator: "|")
     }
 

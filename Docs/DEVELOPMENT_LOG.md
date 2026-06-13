@@ -8,7 +8,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Added a Home Assistant-style Security activity surface backed by Homestead's existing documented REST logbook client, without introducing private frontend endpoints or a second activity model.
 - Compact layouts use a native bottom Devices/Activity segmented control; regular-width layouts keep activity visible in a dedicated sidebar beside the existing Security card grid.
-- Filtered the 24-hour logbook response locally to the exact entity IDs admitted by the shared HA-aligned Security summary classifier, grouped the newest 50 events by explicit date, retained cached rows during refresh failures, and linked rows to existing entity detail views.
+- Filtered the 24-hour logbook response locally to the Security summary entities plus every `person.*` entity, matching Home Assistant's Security strategy, grouped the newest 50 events by explicit date, retained cached rows during refresh failures, and linked rows to existing entity detail views.
+- Grouped summary device views by floor and then area using Home Assistant registry metadata; floor headings remain informational while area headings navigate to Homestead's native area views.
 
 ### First-Run Onboarding
 

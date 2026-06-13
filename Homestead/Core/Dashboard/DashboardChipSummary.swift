@@ -96,16 +96,28 @@ nonisolated enum DashboardChipIconTint: Equatable, Sendable {
 struct DashboardSummaryDetailPresentation: Equatable, Sendable {
     let kind: DashboardSummaryKind
     let summary: DashboardChipPresentation
-    let sections: [DashboardSummarySectionPresentation]
+    let groups: [DashboardSummaryGroupPresentation]
+
+    var sections: [DashboardSummarySectionPresentation] {
+        groups.flatMap(\.sections)
+    }
 
     var isEmpty: Bool {
         sections.allSatisfy(\.items.isEmpty)
     }
 }
 
-struct DashboardSummarySectionPresentation: Identifiable, Equatable, Sendable {
+struct DashboardSummaryGroupPresentation: Identifiable, Equatable, Sendable {
     let id: String
     let title: String
+    let systemImage: String
+    let sections: [DashboardSummarySectionPresentation]
+}
+
+struct DashboardSummarySectionPresentation: Identifiable, Equatable, Sendable {
+    let id: String
+    let areaID: String?
+    let title: String?
     let items: [DashboardSummaryEntityPresentation]
 }
 
@@ -224,7 +236,8 @@ enum DashboardSummaryProvider {
         titleOverride: String? = nil,
         iconNameOverride: String? = nil,
         membershipContext: DashboardSummaryMembershipContext = .empty,
-        areaNameForEntityID: (String) -> String? = { _ in nil }
+        areaNameForEntityID: (String) -> String? = { _ in nil },
+        areaContextForEntityID: ((String) -> DashboardAreaContext?)? = nil
     ) -> DashboardSummaryDetailPresentation? {
         guard let summary = makeSummary(
             kind: kind,
@@ -236,44 +249,49 @@ enum DashboardSummaryProvider {
             return nil
         }
 
-        let sections: [DashboardSummarySectionPresentation]
+        let groups: [DashboardSummaryGroupPresentation]
         switch kind {
         case .lights:
-            sections = lightSections(
+            groups = lightSections(
                 from: entityBoxes,
                 membershipContext: membershipContext,
-                areaNameForEntityID: areaNameForEntityID
+                areaNameForEntityID: areaNameForEntityID,
+                areaContextForEntityID: areaContextForEntityID
             )
         case .security:
-            sections = securitySections(
+            groups = securitySections(
                 from: entityBoxes,
                 membershipContext: membershipContext,
-                areaNameForEntityID: areaNameForEntityID
+                areaNameForEntityID: areaNameForEntityID,
+                areaContextForEntityID: areaContextForEntityID
             )
         case .climate:
-            sections = climateSections(
+            groups = climateSections(
                 from: entityBoxes,
                 membershipContext: membershipContext,
-                areaNameForEntityID: areaNameForEntityID
+                areaNameForEntityID: areaNameForEntityID,
+                areaContextForEntityID: areaContextForEntityID
             )
         case .maintenance:
-            sections = maintenanceSections(
+            groups = maintenanceSections(
                 from: entityBoxes,
                 membershipContext: membershipContext,
-                areaNameForEntityID: areaNameForEntityID
+                areaNameForEntityID: areaNameForEntityID,
+                areaContextForEntityID: areaContextForEntityID
             )
         case .media:
-            sections = mediaSections(
+            groups = mediaSections(
                 from: entityBoxes,
                 membershipContext: membershipContext,
-                areaNameForEntityID: areaNameForEntityID
+                areaNameForEntityID: areaNameForEntityID,
+                areaContextForEntityID: areaContextForEntityID
             )
         }
 
         return DashboardSummaryDetailPresentation(
             kind: kind,
             summary: summary,
-            sections: sections
+            groups: groups
         )
     }
 
@@ -309,12 +327,14 @@ enum DashboardSummaryProvider {
     private static func lightSections(
         from entityBoxes: [HAEntityState],
         membershipContext: DashboardSummaryMembershipContext,
-        areaNameForEntityID: (String) -> String?
-    ) -> [DashboardSummarySectionPresentation] {
+        areaNameForEntityID: (String) -> String?,
+        areaContextForEntityID: ((String) -> DashboardAreaContext?)?
+    ) -> [DashboardSummaryGroupPresentation] {
         areaSections(
             idPrefix: "lights",
             entityBoxes: entities(in: .lights, from: entityBoxes, context: membershipContext),
             areaNameForEntityID: areaNameForEntityID,
+            areaContextForEntityID: areaContextForEntityID,
             makeItem: lightItem
         )
     }
@@ -341,8 +361,9 @@ enum DashboardSummaryProvider {
     private static func securitySections(
         from entityBoxes: [HAEntityState],
         membershipContext: DashboardSummaryMembershipContext,
-        areaNameForEntityID: (String) -> String?
-    ) -> [DashboardSummarySectionPresentation] {
+        areaNameForEntityID: (String) -> String?,
+        areaContextForEntityID: ((String) -> DashboardAreaContext?)?
+    ) -> [DashboardSummaryGroupPresentation] {
         let contextsByEntityID = Dictionary(uniqueKeysWithValues: entityBoxes.compactMap { entityBox in
             securityContext(
                 for: entityBox,
@@ -354,6 +375,7 @@ enum DashboardSummaryProvider {
             idPrefix: "security",
             entityBoxes: entityBoxes.filter { contextsByEntityID[$0.entityID] != nil },
             areaNameForEntityID: areaNameForEntityID,
+            areaContextForEntityID: areaContextForEntityID,
             makeItem: { entityBox in
                 securityItem(for: contextsByEntityID[entityBox.entityID]!)
             }
@@ -382,12 +404,14 @@ enum DashboardSummaryProvider {
     private static func climateSections(
         from entityBoxes: [HAEntityState],
         membershipContext: DashboardSummaryMembershipContext,
-        areaNameForEntityID: (String) -> String?
-    ) -> [DashboardSummarySectionPresentation] {
+        areaNameForEntityID: (String) -> String?,
+        areaContextForEntityID: ((String) -> DashboardAreaContext?)?
+    ) -> [DashboardSummaryGroupPresentation] {
         areaSections(
             idPrefix: "climate",
             entityBoxes: entities(in: .climate, from: entityBoxes, context: membershipContext),
             areaNameForEntityID: areaNameForEntityID,
+            areaContextForEntityID: areaContextForEntityID,
             makeItem: climateItem
         )
     }
@@ -414,13 +438,15 @@ enum DashboardSummaryProvider {
     private static func maintenanceSections(
         from entityBoxes: [HAEntityState],
         membershipContext: DashboardSummaryMembershipContext,
-        areaNameForEntityID: (String) -> String?
-    ) -> [DashboardSummarySectionPresentation] {
+        areaNameForEntityID: (String) -> String?,
+        areaContextForEntityID: ((String) -> DashboardAreaContext?)?
+    ) -> [DashboardSummaryGroupPresentation] {
         let maintenanceBoxes = entities(in: .maintenance, from: entityBoxes, context: membershipContext)
         return areaSections(
             idPrefix: "maintenance",
             entityBoxes: maintenanceBoxes,
             areaNameForEntityID: areaNameForEntityID,
+            areaContextForEntityID: areaContextForEntityID,
             makeItem: { maintenanceItem(for: $0, membershipContext: membershipContext) }
         )
     }
@@ -452,13 +478,15 @@ enum DashboardSummaryProvider {
     private static func mediaSections(
         from entityBoxes: [HAEntityState],
         membershipContext: DashboardSummaryMembershipContext,
-        areaNameForEntityID: (String) -> String?
-    ) -> [DashboardSummarySectionPresentation] {
+        areaNameForEntityID: (String) -> String?,
+        areaContextForEntityID: ((String) -> DashboardAreaContext?)?
+    ) -> [DashboardSummaryGroupPresentation] {
         let playerBoxes = entities(in: .media, from: entityBoxes, context: membershipContext)
         return areaSections(
             idPrefix: "media",
             entityBoxes: playerBoxes,
             areaNameForEntityID: areaNameForEntityID,
+            areaContextForEntityID: areaContextForEntityID,
             makeItem: mediaItem
         )
     }
@@ -509,25 +537,70 @@ enum DashboardSummaryProvider {
         idPrefix: String,
         entityBoxes: [HAEntityState],
         areaNameForEntityID: (String) -> String?,
+        areaContextForEntityID: ((String) -> DashboardAreaContext?)?,
         makeItem: (HAEntityState) -> DashboardSummaryEntityPresentation
-    ) -> [DashboardSummarySectionPresentation] {
-        let itemsByArea = Dictionary(grouping: entityBoxes) { entityBox in
-            areaNameForEntityID(entityBox.entityID) ?? "Unassigned"
-        }
+    ) -> [DashboardSummaryGroupPresentation] {
+        let resolvedContext: (String) -> DashboardAreaContext? = { entityID in
+            if let context = areaContextForEntityID?(entityID) {
+                return context
+            }
 
-        return itemsByArea
-            .map { area, boxes in
-                DashboardSummarySectionPresentation(
-                    id: "\(idPrefix)-\(area)",
-                    title: area,
-                    items: sortedItems(boxes.map(makeItem))
+            return areaNameForEntityID(entityID).map { areaName in
+                DashboardAreaContext(
+                    areaID: areaName,
+                    name: areaName,
+                    floorID: nil,
+                    floorName: nil,
+                    floorLevel: nil,
+                    floorSortOrder: nil
                 )
             }
-            .sorted { lhs, rhs in
-                if lhs.title == "Unassigned" { return false }
-                if rhs.title == "Unassigned" { return true }
-                return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-            }
+        }
+        let boxesByEntityID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
+        let areas = DashboardAreaBuilder.buildAreas(
+            from: entityBoxes,
+            areaContextForEntityID: resolvedContext
+        )
+        let assignedAreas = areas.filter { $0.areaID != nil }
+        var groups = assignedAreas.isEmpty ? [] : DashboardAreaBuilder.buildSections(from: assignedAreas).map { areaSection in
+            DashboardSummaryGroupPresentation(
+                id: "\(idPrefix)-\(areaSection.id)",
+                title: areaSection.title ?? "Areas",
+                systemImage: "house.fill",
+                sections: areaSection.areas.map { area in
+                    DashboardSummarySectionPresentation(
+                        id: "\(idPrefix)-\(area.id)",
+                        areaID: area.areaID,
+                        title: area.name,
+                        items: sortedItems(
+                            area.entityIDs.compactMap { boxesByEntityID[$0] }.map(makeItem)
+                        )
+                    )
+                }
+            )
+        }
+
+        if let unassignedArea = areas.first(where: { $0.areaID == nil }) {
+            groups.append(
+                DashboardSummaryGroupPresentation(
+                    id: "\(idPrefix)-unassigned",
+                    title: groups.isEmpty ? "Devices" : "Other Devices",
+                    systemImage: "square.grid.2x2",
+                    sections: [
+                        DashboardSummarySectionPresentation(
+                            id: "\(idPrefix)-unassigned-items",
+                            areaID: nil,
+                            title: nil,
+                            items: sortedItems(
+                                unassignedArea.entityIDs.compactMap { boxesByEntityID[$0] }.map(makeItem)
+                            )
+                        )
+                    ]
+                )
+            )
+        }
+
+        return groups
     }
 
     private static func sortedItems(_ items: [DashboardSummaryEntityPresentation]) -> [DashboardSummaryEntityPresentation] {

@@ -28,7 +28,8 @@ Recommended reasoning level: High.
 - Added generated-card feature visibility defaults so humidity sensors in Climate-style generated views prefer the history graph over the read-only gauge feature; users can still choose Automatic features on manually configured dashboard cards.
 - Matched the current Home Assistant area-view tile feature priority where Homestead supports it: brightness for lights, cover open/close for covers and garage doors, target temperature for climate, and lock commands for locks.
 - Added Home Assistant-style activity to the Security summary using the existing documented REST logbook client: compact layouts switch between Devices and Activity with a bottom segmented control, while regular-width layouts keep a dedicated activity sidebar beside the device grid.
-- Security activity requests the latest 24 hours, filters locally to the exact entities admitted by the shared Security summary classifier, groups events under explicit dates, caps the display at the newest 50 rows, preserves successful rows across refresh failures, and opens existing entity detail destinations from activity rows.
+- Security activity requests the latest 24 hours, filters locally to the Security summary entities plus every `person.*` entity like Home Assistant, groups events under explicit dates, caps the display at the newest 50 rows, preserves successful rows across refresh failures, and opens existing entity detail destinations from activity rows.
+- Summary device views now follow Home Assistant's floor-first hierarchy, keep floor headings informational, and make area headings native navigation links into the corresponding Homestead area view.
 - Added reusable gauge presentation for range-aware numeric `sensor.*` entities.
 - `SensorEntity` now carries optional Home Assistant min/max-style range metadata and exposes an app-facing `GaugePresentation` with normalized value, range source, status tone, and accessibility text.
 - Added a read-only dashboard `sensorGauge` card feature that appears in larger card layouts for clearly bounded sensors such as battery, humidity, AQI/air quality, signal, percentage/level readings, or sensors with Home Assistant-provided ranges; Mini and Compact cards remain simple.
@@ -175,6 +176,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SummaryHierarchy` after adding Security person activity, summary floor grouping, and area navigation.
+- Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SummaryHierarchyTests`, including Security activity membership and summary hierarchy coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-AreaDefaults` after aligning generated interactive feature defaults with Home Assistant area-view tile behavior.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-AreaDefaults` after aligning generated interactive feature defaults with Home Assistant area-view tile behavior.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-HumidityHistory` after making history-capable humidity sensors prefer generated graph cards over gauge features.

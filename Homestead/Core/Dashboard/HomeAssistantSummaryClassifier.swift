@@ -24,6 +24,19 @@ nonisolated struct DashboardSummaryMembershipContext: Equatable, Sendable {
 
 @MainActor
 enum HomeAssistantSummaryClassifier {
+    static func securityActivityEntityIDs(
+        from entityBoxes: [HAEntityState],
+        context: DashboardSummaryMembershipContext
+    ) -> Set<String> {
+        Set(entityBoxes.compactMap { entityBox in
+            if entityBox.domain == .person {
+                return entityBox.entityID
+            }
+
+            return contains(entityBox, in: .security, context: context) ? entityBox.entityID : nil
+        })
+    }
+
     static func contains(
         _ entityBox: HAEntityState,
         in kind: DashboardSummaryKind,

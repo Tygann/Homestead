@@ -8246,6 +8246,103 @@ struct HomesteadTests {
         #expect(maintenanceDetail.sections.first?.items.map(\.entityID) == ["sensor.remote_battery"])
     }
 
+    @MainActor
+    @Test func securityActivityIncludesAllPeopleAlongsideSecurityEntities() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "lock.front_door", state: "locked"),
+            HAEntityDTO(entityID: "person.malissa", state: "not_home"),
+            HAEntityDTO(entityID: "person.tyler", state: "home"),
+            HAEntityDTO(entityID: "light.entryway", state: "on"),
+            HAEntityDTO(entityID: "camera.hidden_driveway", state: "idle")
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "person.malissa",
+                    deviceID: nil,
+                    originalName: "Malissa",
+                    hiddenBy: true
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "camera.hidden_driveway",
+                    deviceID: nil,
+                    originalName: "Hidden Driveway",
+                    hiddenBy: true
+                )
+            ],
+            devices: []
+        )
+
+        let entityIDs = HomeAssistantSummaryClassifier.securityActivityEntityIDs(
+            from: store.allEntityBoxes(),
+            context: store.dashboardSummaryMembershipContext()
+        )
+
+        #expect(entityIDs == [
+            "lock.front_door",
+            "person.malissa",
+            "person.tyler"
+        ])
+    }
+
+    @MainActor
+    @Test func summaryDetailsGroupAreasByFloorAndKeepUnassignedDevicesSeparate() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "on"),
+            HAEntityDTO(entityID: "light.bedroom", state: "off"),
+            HAEntityDTO(entityID: "light.garage", state: "off"),
+            HAEntityDTO(entityID: "light.portable", state: "off")
+        ])
+        let contexts: [String: DashboardAreaContext] = [
+            "light.kitchen": DashboardAreaContext(
+                areaID: "kitchen",
+                name: "Kitchen",
+                floorID: "main",
+                floorName: "Main Floor",
+                floorLevel: 0,
+                floorSortOrder: 0
+            ),
+            "light.bedroom": DashboardAreaContext(
+                areaID: "bedroom",
+                name: "Bedroom",
+                floorID: "upstairs",
+                floorName: "Upstairs",
+                floorLevel: 1,
+                floorSortOrder: 1
+            ),
+            "light.garage": DashboardAreaContext(
+                areaID: "garage",
+                name: "Garage",
+                floorID: nil,
+                floorName: nil,
+                floorLevel: nil,
+                floorSortOrder: nil
+            )
+        ]
+
+        let detail = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .lights,
+            entityBoxes: store.allEntityBoxes(),
+            areaContextForEntityID: { contexts[$0] }
+        ))
+
+        #expect(detail.groups.map(\.title) == [
+            "Main Floor",
+            "Upstairs",
+            "Other Areas",
+            "Other Devices"
+        ])
+        #expect(detail.groups.flatMap(\.sections).map(\.areaID) == [
+            "kitchen",
+            "bedroom",
+            "garage",
+            nil
+        ])
+        #expect(detail.groups.last?.sections.first?.title == nil)
+    }
+
     private var dashboardTestEntities: [HomeEntity] {
         [
             HomeEntity(
