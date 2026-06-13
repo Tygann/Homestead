@@ -1379,6 +1379,29 @@ struct HomesteadTests {
         ])
     }
 
+    @Test func securityActivityCacheRetainsRowsAcrossViewLifetimes() async throws {
+        let date = try testDate("2026-06-13T15:30:00Z")
+        let rows = HAActivityRow.makeRows(
+            from: [
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Front Door Lock",
+                    state: "locked",
+                    domain: "lock",
+                    entityID: "lock.front_door"
+                )
+            ],
+            entityDisplayName: { _ in nil }
+        )
+        let cache = HASecurityActivityCache()
+        let snapshot = HASecurityActivityCacheSnapshot(rows: rows, loadedAt: date)
+
+        await cache.store(snapshot, for: "test-server|test-user|lock.front_door")
+        let restored = await cache.snapshot(for: "test-server|test-user|lock.front_door")
+
+        #expect(restored == snapshot)
+    }
+
     @Test func supervisorAppsDecodeFilterInstalledAndMapStatus() throws {
         let payload = """
         {

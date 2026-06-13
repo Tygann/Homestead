@@ -184,7 +184,7 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         case .person, .deviceTracker:
             if state == "not_home" { return "was detected away" }
             if state == "home" { return "was detected home" }
-            return "was detected at \(state.displayStateText)"
+            return "was detected at \(formattedState(state))"
         case .lock:
             return switch state {
             case "unlocked": "was unlocked"
@@ -194,7 +194,7 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
             case "open": "was opened"
             case "locked": "was locked"
             case "jammed": "is jammed"
-            default: "changed to \(state.displayStateText)"
+            default: "changed to \(formattedState(state))"
             }
         case .cover:
             return switch state {
@@ -202,7 +202,7 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
             case "opening": "is opening"
             case "closing": "is closing"
             case "closed": "was closed"
-            default: "changed to \(state.displayStateText)"
+            default: "changed to \(formattedState(state))"
             }
         case .binarySensor:
             if ["door", "garage_door", "lock", "opening", "window"].contains(deviceClass ?? "") {
@@ -214,8 +214,13 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
             if state == "off" { return "turned off" }
             if state == "unknown" { return "became unknown" }
             if state == "unavailable" { return "became unavailable" }
-            return "changed to \(state.displayStateText)"
+            return "changed to \(formattedState(state))"
         }
+    }
+
+    private static func formattedState(_ state: String) -> String {
+        let words = state.replacingOccurrences(of: "_", with: " ")
+        return words == words.uppercased() ? words : words.capitalized
     }
 }
 
@@ -310,6 +315,25 @@ nonisolated struct HALogbookPresentation: Equatable, Sendable {
         }
 
         return date.formatted(date: usesRelativeTitles ? .abbreviated : .long, time: .omitted)
+    }
+}
+
+nonisolated struct HASecurityActivityCacheSnapshot: Equatable, Sendable {
+    let rows: [HAActivityRow]
+    let loadedAt: Date
+}
+
+actor HASecurityActivityCache {
+    static let shared = HASecurityActivityCache()
+
+    private var snapshotsByKey: [String: HASecurityActivityCacheSnapshot] = [:]
+
+    func snapshot(for key: String) -> HASecurityActivityCacheSnapshot? {
+        snapshotsByKey[key]
+    }
+
+    func store(_ snapshot: HASecurityActivityCacheSnapshot, for key: String) {
+        snapshotsByKey[key] = snapshot
     }
 }
 

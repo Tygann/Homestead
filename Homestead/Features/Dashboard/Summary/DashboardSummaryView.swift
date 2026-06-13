@@ -59,13 +59,13 @@ struct DashboardSummaryView: View {
             }
         }
         .task(id: securityActivityTaskID(for: detail)) {
-            guard kind == .security, let detail else { return }
-            await refreshSecurityActivity(entityIDs: securityActivityEntityIDs())
+            guard kind == .security, detail != nil else { return }
+            await loadSecurityActivity(entityIDs: securityActivityEntityIDs())
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard kind == .security,
                   newPhase == .active,
-                  let detail,
+                  detail != nil,
                   shouldRefreshSecurityActivity else {
                 return
             }
@@ -147,8 +147,6 @@ struct DashboardSummaryView: View {
 
         return ScrollView {
             LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                DashboardSummaryHeader(presentation: detail.summary)
-
                 ForEach(detail.groups) { group in
                     VStack(alignment: .leading, spacing: AppSpacing.medium) {
                         Group {
@@ -234,7 +232,7 @@ struct DashboardSummaryView: View {
     }
 
     private func securityActivityTaskID(for detail: DashboardSummaryDetailPresentation?) -> String {
-        guard kind == .security, let detail else { return "inactive" }
+        guard kind == .security, detail != nil else { return "inactive" }
         return [
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
             homeAssistantService.authState.title,
@@ -245,6 +243,20 @@ struct DashboardSummaryView: View {
     private var shouldRefreshSecurityActivity: Bool {
         guard let lastSecurityActivityLoadAt else { return true }
         return Date().timeIntervalSince(lastSecurityActivityLoadAt) >= 60
+    }
+
+    private func loadSecurityActivity(entityIDs: Set<String>) async {
+        let cacheKey = securityActivityCacheKey(entityIDs: entityIDs)
+        if let cached = await HASecurityActivityCache.shared.snapshot(for: cacheKey) {
+            securityActivityRows = cached.rows
+            lastSecurityActivityLoadAt = cached.loadedAt
+
+            guard Date().timeIntervalSince(cached.loadedAt) >= 60 else {
+                return
+            }
+        }
+
+        await refreshSecurityActivity(entityIDs: entityIDs)
     }
 
     private func refreshSecurityActivity(entityIDs: Set<String>) async {
@@ -276,9 +288,24 @@ struct DashboardSummaryView: View {
                     .prefix(50)
             )
             lastSecurityActivityLoadAt = endDate
+            await HASecurityActivityCache.shared.store(
+                HASecurityActivityCacheSnapshot(
+                    rows: securityActivityRows,
+                    loadedAt: endDate
+                ),
+                for: securityActivityCacheKey(entityIDs: entityIDs)
+            )
         } catch {
             securityActivityErrorMessage = "Couldn't load activity from Home Assistant."
         }
+    }
+
+    private func securityActivityCacheKey(entityIDs: Set<String>) -> String {
+        [
+            connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            homeAssistantService.activityCacheUserIdentifier,
+            entityIDs.sorted().joined(separator: ",")
+        ].joined(separator: "|")
     }
 
     private func openActivityEntity(_ row: HAActivityRow) {
@@ -463,8 +490,7 @@ private struct SecurityActivityRowView: View {
             return Text(row.title).foregroundStyle(Color.accentColor)
         }
 
-        return Text(row.title).foregroundStyle(Color.accentColor) +
-            Text(" \(row.message)").foregroundStyle(Color.primary)
+        return Text("\(Text(row.title).foregroundStyle(Color.accentColor)) \(Text(row.message).foregroundStyle(Color.primary))")
     }
 
     private var accessibilityLabel: String {
@@ -481,54 +507,5 @@ private struct SecurityActivityRowView: View {
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 32, height: 32)
         }
-    }
-}
-
-private struct DashboardSummaryHeader: View {
-    let presentation: DashboardChipPresentation
-
-    var body: some View {
-        HStack(alignment: .center, spacing: AppSpacing.medium) {
-            Image(systemName: presentation.systemImage)
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(iconColor)
-                .frame(width: 48, height: 48)
-                .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                Text(presentation.value)
-                    .font(.headline)
-                    .foregroundStyle(valueColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-
-            Spacer(minLength: AppSpacing.small)
-        }
-        .padding(.vertical, AppSpacing.small)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(presentation.title)
-        .accessibilityValue(presentation.value)
-    }
-
-    private var iconColor: Color {
-        guard presentation.isAvailable else { return .red }
-        return presentation.isActive ? .accentColor : .secondary
-    }
-
-    private var valueColor: Color {
-        guard presentation.isAvailable else { return .red }
-        return presentation.isActive ? .primary : .secondary
-    }
-
-    private var iconBackground: Color {
-        guard presentation.isAvailable else { return Color.red.opacity(0.12) }
-        return presentation.isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
 }

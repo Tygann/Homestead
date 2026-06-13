@@ -11,6 +11,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Filtered the 24-hour logbook response locally to the Security summary entities plus every `person.*` entity, matching Home Assistant's Security strategy, grouped the newest 50 events by explicit date, retained cached rows during refresh failures, and linked rows to existing entity detail views.
 - Grouped summary device views by floor and then area using Home Assistant registry metadata; floor headings remain informational while area headings navigate to Homestead's native area views.
 - Refined Security activity to decode logbook state changes into HA-style narrative rows, use authenticated cached person avatars, and remove redundant generic status text; floor headings no longer imply a generic house icon when no faithful floor icon mapping exists.
+- Added a shared session-memory Security activity cache with stale-while-refresh behavior so reopening the summary presents recent rows immediately, and removed duplicated in-content summary titles in favor of the native navigation title.
 
 ### First-Run Onboarding
 

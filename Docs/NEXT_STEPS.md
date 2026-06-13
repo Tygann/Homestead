@@ -31,6 +31,7 @@ Recommended reasoning level: High.
 - Security activity requests the latest 24 hours, filters locally to the Security summary entities plus every `person.*` entity like Home Assistant, groups events under explicit dates, caps the display at the newest 50 rows, preserves successful rows across refresh failures, and opens existing entity detail destinations from activity rows.
 - Summary device views now follow Home Assistant's floor-first hierarchy, keep floor headings informational, and make area headings native navigation links into the corresponding Homestead area view.
 - Security activity rows use Home Assistant-style state narratives and timestamps, reuse authenticated cached person avatars, and avoid generic `Updated` subtitles; floor headings intentionally omit icons unless Homestead can represent HA's floor icon faithfully.
+- Security activity now restores a server/user/membership-scoped in-memory snapshot when the summary is reopened, treats it as fresh for one minute, and leaves stale rows visible during refresh. Summary screens use the native navigation title without repeating the summary name in their content.
 - Added reusable gauge presentation for range-aware numeric `sensor.*` entities.
 - `SensorEntity` now carries optional Home Assistant min/max-style range metadata and exposes an app-facing `GaugePresentation` with normalized value, range source, status tone, and accessibility text.
 - Added a read-only dashboard `sensorGauge` card feature that appears in larger card layouts for clearly bounded sensors such as battery, humidity, AQI/air quality, signal, percentage/level readings, or sensors with Home Assistant-provided ranges; Mini and Compact cards remain simple.
@@ -177,6 +178,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityCache` after adding session activity caching and simplifying summary titles.
+- Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityCacheTests`, including Security activity cache coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityStyle` after refining floor headings and Security activity rows.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityStyleTests`, including logbook state-message mapping coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SummaryHierarchy` after adding Security person activity, summary floor grouping, and area navigation.

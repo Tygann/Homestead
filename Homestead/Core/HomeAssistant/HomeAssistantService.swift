@@ -25,6 +25,10 @@ final class HomeAssistantService {
     private(set) var stateCacheMetadata: HAStateCacheMetadata?
     private(set) var activeRouteSummary: HAConnectionRouteSummary?
 
+    var activityCacheUserIdentifier: String {
+        currentUserID ?? currentUserDisplayName ?? "current-user"
+    }
+
     @ObservationIgnored private let client: any HAWebSocketClientProtocol
     @ObservationIgnored private let httpClient: any HAHTTPClientProtocol
     @ObservationIgnored private let mobileAppClient: any HAMobileAppClientProtocol
