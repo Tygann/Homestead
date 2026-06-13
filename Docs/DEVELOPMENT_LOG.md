@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-13
+
+### First-Run Onboarding
+
+- Replaced the signed-out dashboard setup card with an app-level Home Assistant onboarding surface that lets new users enter their server URL and start the existing OAuth sign-in directly.
+- Kept setup intentionally focused: no Bonjour discovery, wizard, alternate auth path, or new Home Assistant API surface; advanced routing and diagnostics remain in Settings.
+- Added app-facing onboarding presentation tests for fresh install, URL-entered, signing-in, failed/retry, and signed-in transition states.
+
 ## 2026-06-12
 
 ### Settings Apps

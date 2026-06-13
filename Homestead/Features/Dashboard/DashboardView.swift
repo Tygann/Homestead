@@ -151,10 +151,6 @@ struct DashboardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                     if !hasHomeAssistantSession {
-                        DashboardSetupCard()
-                    }
-
-                    if !hasHomeAssistantSession {
                         EmptyView()
                     } else if !stateStore.hasLoadedInitialSnapshot {
                         if showsInitialSyncPlaceholder {

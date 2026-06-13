@@ -233,6 +233,92 @@ struct HomesteadTests {
         #expect(failedDuringSuppressionChrome.statusAccessoryState?.title == "Connection failed")
     }
 
+    @Test func onboardingPresentationShowsServerEntryForFreshInstall() {
+        let presentation = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: false,
+            authState: .signedOut,
+            connectionStatus: .disconnected,
+            serviceError: nil,
+            storageError: nil
+        )
+
+        #expect(presentation.shouldShow)
+        #expect(presentation.statusTitle == "Server Needed")
+        #expect(presentation.buttonTitle == "Sign in with Home Assistant")
+        #expect(!presentation.isButtonEnabled)
+        #expect(!presentation.isBusy)
+    }
+
+    @Test func onboardingPresentationEnablesSignInWhenServerIsEntered() {
+        let presentation = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: true,
+            authState: .signedOut,
+            connectionStatus: .disconnected,
+            serviceError: nil,
+            storageError: nil
+        )
+
+        #expect(presentation.shouldShow)
+        #expect(presentation.statusTitle == "Ready to Sign In")
+        #expect(presentation.isButtonEnabled)
+        #expect(!presentation.isBusy)
+    }
+
+    @Test func onboardingPresentationDisablesSignInWhileSigningIn() {
+        let presentation = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: true,
+            authState: .signingIn,
+            connectionStatus: .disconnected,
+            serviceError: nil,
+            storageError: nil
+        )
+
+        #expect(presentation.shouldShow)
+        #expect(presentation.statusTitle == "Signing In")
+        #expect(presentation.buttonTitle == "Signing In")
+        #expect(!presentation.isButtonEnabled)
+        #expect(presentation.isBusy)
+    }
+
+    @Test func onboardingPresentationShowsRetryStateAfterAuthFailure() {
+        let presentation = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: true,
+            authState: .refreshFailed("Home Assistant rejected the sign-in."),
+            connectionStatus: .failed("Unauthorized"),
+            serviceError: nil,
+            storageError: nil
+        )
+
+        #expect(presentation.shouldShow)
+        #expect(presentation.statusTitle == "Sign-In Failed")
+        #expect(presentation.statusMessage == "Home Assistant rejected the sign-in.")
+        #expect(presentation.buttonTitle == "Sign in again")
+        #expect(presentation.isButtonEnabled)
+    }
+
+    @Test func onboardingPresentationSuppressesSetupAfterSignIn() {
+        let credential = HAOAuthCredential(
+            baseURLString: "http://homeassistant.local:8123",
+            clientID: HAOAuthClientMetadata.clientID,
+            refreshToken: "refresh-token",
+            accessToken: "access-token",
+            accessTokenExpiresAt: .distantFuture,
+            tokenType: "Bearer",
+            updatedAt: .now
+        )
+
+        let presentation = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: true,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            connectionStatus: .connecting,
+            serviceError: nil,
+            storageError: nil
+        )
+
+        #expect(!presentation.shouldShow)
+        #expect(presentation.statusTitle == "Connecting")
+    }
+
     @Test func serviceFeedbackDurationMatchesOutcomeSeverity() {
         let successFeedback = HAServiceFeedback(title: "Done", message: nil, style: .success)
         let failureFeedback = HAServiceFeedback(title: "Failed", message: nil, style: .failure)

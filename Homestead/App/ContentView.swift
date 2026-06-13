@@ -19,24 +19,29 @@ struct ContentView: View {
             serviceFeedback: homeAssistantService.serviceFeedback,
             suppressTransientConnectionHealth: homeAssistantService.suppressesTransientConnectionHealth
         )
+        let onboarding = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: connectionSettings.hasServerURL,
+            authState: homeAssistantService.authState,
+            connectionStatus: homeAssistantService.connectionStatus,
+            serviceError: homeAssistantService.lastErrorMessage,
+            storageError: connectionSettings.authStorageErrorMessage
+        )
 
-        TabView {
-            Tab("Home", systemImage: "house.fill") {
-                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
-                    DashboardView()
-                }
-            }
-
-            Tab("Areas", systemImage: "square.split.bottomrightquarter") {
-                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
-                    AreasView()
-                }
-            }
-
-            Tab("Browse", systemImage: "magnifyingglass", role: .search) {
-                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
-                    DevicesView()
-                }
+        Group {
+            if onboarding.shouldShow {
+                HomeAssistantOnboardingView(
+                    presentation: onboarding,
+                    signIn: {
+                        Task {
+                            await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
+                        }
+                    },
+                    openSettings: {
+                        isShowingSettings = true
+                    }
+                )
+            } else {
+                mainTabs(chrome: chrome)
             }
         }
         .environment(\.openSettings, { isShowingSettings = true })
@@ -101,6 +106,28 @@ struct ContentView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
     }
 
+    private func mainTabs(chrome: AppChromePresentation) -> some View {
+        TabView {
+            Tab("Home", systemImage: "house.fill") {
+                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                    DashboardView()
+                }
+            }
+
+            Tab("Areas", systemImage: "square.split.bottomrightquarter") {
+                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                    AreasView()
+                }
+            }
+
+            Tab("Browse", systemImage: "magnifyingglass", role: .search) {
+                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                    DevicesView()
+                }
+            }
+        }
+    }
+
     private func tabContent<Content: View>(
         statusAccessoryState: AppStatusAccessoryState?,
         @ViewBuilder content: () -> Content
@@ -131,13 +158,22 @@ struct ContentView: View {
     }
 
     private var notificationSetupPromptEvaluationID: String {
-        [
+        let onboarding = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: connectionSettings.hasServerURL,
+            authState: homeAssistantService.authState,
+            connectionStatus: homeAssistantService.connectionStatus,
+            serviceError: homeAssistantService.lastErrorMessage,
+            storageError: connectionSettings.authStorageErrorMessage
+        )
+
+        return [
             connectionSettings.hasServerURL.description,
             homeAssistantService.authState.title,
             mobileAppRegistrationPromptID,
             nativeNotificationService.status.authorizationStatus.promptID,
             hasHandledNotificationSetupPrompt.description,
-            isShowingSettings.description
+            isShowingSettings.description,
+            onboarding.shouldShow.description
         ].joined(separator: "|")
     }
 
@@ -181,13 +217,21 @@ struct ContentView: View {
     }
 
     private func presentNotificationSetupPromptIfNeeded() {
+        let onboarding = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: connectionSettings.hasServerURL,
+            authState: homeAssistantService.authState,
+            connectionStatus: homeAssistantService.connectionStatus,
+            serviceError: homeAssistantService.lastErrorMessage,
+            storageError: connectionSettings.authStorageErrorMessage
+        )
+
         guard CompanionNotificationSetupPromptPresentation.shouldShow(
             hasServerURL: connectionSettings.hasServerURL,
             authState: homeAssistantService.authState,
             mobileAppRegistrationState: homeAssistantService.mobileAppRegistrationState,
             notificationStatus: nativeNotificationService.status.authorizationStatus,
             hasHandledPrompt: hasHandledNotificationSetupPrompt,
-            isShowingSettings: isShowingSettings
+            isShowingSettings: isShowingSettings || onboarding.shouldShow
         ) else {
             return
         }

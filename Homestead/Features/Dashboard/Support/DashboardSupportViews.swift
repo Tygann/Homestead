@@ -39,21 +39,6 @@ struct DashboardSection<Content: View>: View {
     }
 }
 
-struct DashboardSetupCard: View {
-    var body: some View {
-        CardContainer {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                CardIconView(systemName: "house")
-                Text("Connect Home Assistant")
-                    .font(.headline)
-                Text("Add your server URL in Settings, then sign in with Home Assistant.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-}
-
 struct DashboardInitialSyncView: View {
     let connectionStatus: HAConnectionStatus
     let errorMessage: String?
