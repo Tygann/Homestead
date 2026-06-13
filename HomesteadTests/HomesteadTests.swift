@@ -5928,11 +5928,11 @@ struct HomesteadTests {
             )
         )
 
-        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: camera) == .square)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: camera) == .square)
     }
 
     @MainActor
-    @Test func generatedNumericSensorCardsPreferSquareHistorySize() throws {
+    @Test func generatedSensorCardsPreferHistoryExceptBatterySize() throws {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(
@@ -5944,14 +5944,24 @@ struct HomesteadTests {
                     "device_class": .string("temperature")
                 ]
             ),
+            HAEntityDTO(
+                entityID: "sensor.remote_battery",
+                state: "85",
+                attributes: [
+                    "unit_of_measurement": .string("%"),
+                    "device_class": .string("battery")
+                ]
+            ),
             HAEntityDTO(entityID: "sensor.mode", state: "auto")
         ])
 
         let numericSensor = try #require(store.entityBox(for: "sensor.hallway_temperature"))
+        let batterySensor = try #require(store.entityBox(for: "sensor.remote_battery"))
         let textSensor = try #require(store.entityBox(for: "sensor.mode"))
 
-        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: numericSensor) == .square)
-        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: textSensor) == .compact)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: numericSensor) == .square)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: batterySensor) == .compact)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: textSensor) == .compact)
     }
 
     @MainActor
@@ -6048,6 +6058,7 @@ struct HomesteadTests {
         let lightChoices = DashboardAddCardPresentation.makeSizeChoices(
             for: try #require(store.entityBox(for: "light.kitchen"))
         )
+        #expect(lightChoices.first { $0.size == .compact }?.isRecommended == true)
         #expect(lightChoices.first { $0.size == .square }?.summary == "Includes brightness controls.")
         #expect(lightChoices.first { $0.size == .square }?.featureTitles == ["Brightness"])
     }
@@ -7446,6 +7457,7 @@ struct HomesteadTests {
             presentation: DashboardEntityPresentation(entityBox: climateBox)
         )
         #expect(climateFeatures.map(\.key) == [.climateSetpoint])
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: climateBox) == .square)
         guard case .setpoint(let setpoint) = try #require(climateFeatures.first?.content) else {
             Issue.record("Expected climate setpoint feature")
             return
@@ -7460,7 +7472,7 @@ struct HomesteadTests {
             presentation: DashboardEntityPresentation(entityBox: coverBox)
         )
         #expect(coverFeatures.map(\.key) == [.coverControls, .coverPosition])
-        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: coverBox) == .square)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: coverBox) == .compact)
         guard case .commandGroup(let commands) = try #require(coverFeatures.first?.content) else {
             Issue.record("Expected cover command feature")
             return
@@ -7488,7 +7500,7 @@ struct HomesteadTests {
             presentation: DashboardEntityPresentation(entityBox: selectBox)
         )
         #expect(selectFeatures.map(\.key) == [.selectOptions])
-        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: selectBox) == .square)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: selectBox) == .compact)
         guard case .options(let selectOptions) = try #require(selectFeatures.first?.content) else {
             Issue.record("Expected select options feature")
             return
@@ -7505,14 +7517,14 @@ struct HomesteadTests {
         )
         #expect(inputSelectBox.domain == .select)
         #expect(inputSelectFeatures.map(\.key) == [.selectOptions])
-        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: inputSelectBox) == .square)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: inputSelectBox) == .compact)
 
         let emptySelectBox = try #require(store.entityBox(for: "select.empty_mode"))
         #expect(DashboardCardFeatureProvider.features(
             for: emptySelectBox,
             presentation: DashboardEntityPresentation(entityBox: emptySelectBox)
         ).isEmpty)
-        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: emptySelectBox) == .compact)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: emptySelectBox) == .compact)
 
         let batteryBox = try #require(store.entityBox(for: "sensor.front_door_battery"))
         let batteryFeatures = DashboardCardFeatureProvider.features(
@@ -7520,7 +7532,7 @@ struct HomesteadTests {
             presentation: DashboardEntityPresentation(entityBox: batteryBox)
         )
         #expect(batteryFeatures.map(\.key) == [.sensorGauge])
-        #expect(DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: batteryBox) == .square)
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: batteryBox) == .compact)
         guard case .gauge(let gauge) = try #require(batteryFeatures.first?.content) else {
             Issue.record("Expected sensor gauge feature")
             return

@@ -109,7 +109,7 @@ enum DashboardAddCardPresentation {
                 let displayName = displayNameForDeviceGroupedEntity(entityBox.entityID)
                     ?? entityBox.homeEntity.displayName
                 let presentation = DashboardEntityPresentation(entityBox: entityBox)
-                let recommendedSize = DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
+                let recommendedSize = DashboardCardSize.defaultGeneratedSize(entityBox: entityBox)
                 let candidate = DashboardAddCardCandidate(
                     entityID: entityBox.entityID,
                     displayName: displayName,
@@ -185,7 +185,7 @@ enum DashboardAddCardPresentation {
     static func makeSizeChoices(for entityBox: HAEntityState) -> [DashboardAddCardSizeChoice] {
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
         let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
-        let recommendedSize = DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
+        let recommendedSize = DashboardCardSize.defaultGeneratedSize(entityBox: entityBox)
 
         return DashboardCardSize.allCases.map { size in
             let visibleFeatures = size.visibleFeatures(from: features)

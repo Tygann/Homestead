@@ -24,6 +24,7 @@ Recommended reasoning level: High.
 - Centralized summary classification, added humidifier/water-heater Climate membership, corrected Security and Maintenance device-class/category rules, matched HA chip status text, and used HA-selected area temperature sensors for the Climate range.
 - Confirmed HA includes every visible primary `camera.*` entity in Security, including snapshot-named entities; Homestead therefore does not apply a name-based snapshot exclusion.
 - Subscribed to entity/device/area/floor registry update events and refreshes cached registry metadata after a short debounce so summary membership follows Home Assistant changes during a connected session.
+- Made HA-like generated dashboard card defaults universal across summary views, area views, and Add to Dashboard instead of summary-specific: cameras default to Square previews, Climate defaults to Square cards with setpoint controls when available, ordinary numeric sensors keep Square chart defaults, and lights/security/maintenance battery entities default to Compact cards while still exposing larger-card features when users choose them.
 - Added reusable gauge presentation for range-aware numeric `sensor.*` entities.
 - `SensorEntity` now carries optional Home Assistant min/max-style range metadata and exposes an app-facing `GaugePresentation` with normalized value, range source, status tone, and accessibility text.
 - Added a read-only dashboard `sensorGauge` card feature that appears in larger card layouts for clearly bounded sensors such as battery, humidity, AQI/air quality, signal, percentage/level readings, or sensors with Home Assistant-provided ranges; Mini and Compact cards remain simple.
@@ -170,6 +171,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-DefaultCards` after making generated card defaults universal.
+- Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-DefaultCards` after making generated card defaults universal.
 - Generic iOS Simulator build passed after fixing Settings > Apps to use Home Assistant Core's WebSocket `supervisor/api` bridge instead of direct native-client Supervisor HTTP.
 - Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after adding WebSocket bridge request encoding, DTO decoding/status mapping, service handoff, and unavailable-state coverage.
 - Generic iOS Simulator build passed after adding Supervisor app artwork loading and read-only app detail pages.

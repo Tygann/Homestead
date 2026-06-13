@@ -129,7 +129,7 @@ private struct AreaDetailPresentation {
             items: sortedEntityBoxes.map { entityBox in
                 AreaEntityItem(
                     entityID: entityBox.entityID,
-                    cardSize: DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
+                    cardSize: DashboardCardSize.defaultGeneratedSize(entityBox: entityBox)
                 )
             },
             sortPriority: entityBoxes

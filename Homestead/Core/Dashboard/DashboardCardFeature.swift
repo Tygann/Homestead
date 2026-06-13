@@ -513,13 +513,34 @@ extension DashboardCardSize {
         return visibleFeatures(from: features)
     }
 
-    static func compactOrSquareForAvailableFeatures(entityBox: HAEntityState) -> DashboardCardSize {
+    static func defaultGeneratedSize(entityBox: HAEntityState) -> DashboardCardSize {
         guard entityBox.domain != .camera else {
             return .square
         }
 
-        if DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: .square) {
+        if defaultsToDashboardHistory(entityBox) {
             return .square
+        }
+
+        if defaultsToVisibleCardFeature(entityBox) {
+            return .square
+        }
+
+        return .compact
+    }
+
+    private static func defaultsToDashboardHistory(_ entityBox: HAEntityState) -> Bool {
+        guard DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: .square),
+              entityBox.sensorEntity?.deviceClass != "battery" else {
+            return false
+        }
+
+        return true
+    }
+
+    private static func defaultsToVisibleCardFeature(_ entityBox: HAEntityState) -> Bool {
+        guard entityBox.domain == .climate else {
+            return false
         }
 
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
@@ -527,7 +548,6 @@ extension DashboardCardSize {
             for: entityBox,
             presentation: presentation
         )
-
-        return DashboardCardSize.square.visibleFeatures(from: features).isEmpty ? .compact : .square
+        return !DashboardCardSize.square.visibleFeatures(from: features).isEmpty
     }
 }

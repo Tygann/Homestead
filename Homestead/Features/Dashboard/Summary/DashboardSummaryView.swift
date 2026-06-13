@@ -89,7 +89,7 @@ struct DashboardSummaryView: View {
     @MainActor
     private func cardSize(for entityBox: HAEntityState?) -> DashboardCardSize {
         guard let entityBox else { return .compact }
-        return DashboardCardSize.compactOrSquareForAvailableFeatures(entityBox: entityBox)
+        return DashboardCardSize.defaultGeneratedSize(entityBox: entityBox)
     }
 
     private func cardTransitionID(for item: DashboardSummaryEntityPresentation) -> String {
