@@ -7,7 +7,6 @@ struct DashboardSummaryView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
-    @State private var selectedSecurityTab: SecuritySummaryTab = .devices
     @State private var securityActivityRows: [HAActivityRow] = []
     @State private var isLoadingSecurityActivity = false
     @State private var securityActivityErrorMessage: String?
@@ -92,6 +91,11 @@ struct DashboardSummaryView: View {
             rows: securityActivityRows,
             entityIDs: entityIDs
         )
+        let peopleByEntityID = Dictionary(
+            uniqueKeysWithValues: stateStore.presenceRecords()
+                .filter(\.isPerson)
+                .map { ($0.entityID, $0) }
+        )
 
         if horizontalSizeClass == .regular {
             HStack(alignment: .top, spacing: 0) {
@@ -101,6 +105,7 @@ struct DashboardSummaryView: View {
                     presentation: activityPresentation,
                     isLoading: isLoadingSecurityActivity,
                     errorMessage: securityActivityErrorMessage,
+                    peopleByEntityID: peopleByEntityID,
                     transitionNamespace: cardTransitionNamespace,
                     refresh: { await refreshSecurityActivity(entityIDs: entityIDs) },
                     openEntity: openActivityEntity
@@ -108,32 +113,18 @@ struct DashboardSummaryView: View {
                 .frame(width: 390)
             }
         } else {
-            Group {
-                switch selectedSecurityTab {
-                case .devices:
-                    devicesContent(detail: detail)
-                case .activity:
-                    SecuritySummaryActivityView(
-                        presentation: activityPresentation,
-                        isLoading: isLoadingSecurityActivity,
-                        errorMessage: securityActivityErrorMessage,
-                        transitionNamespace: cardTransitionNamespace,
-                        refresh: { await refreshSecurityActivity(entityIDs: entityIDs) },
-                        openEntity: openActivityEntity
-                    )
-                }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                Picker("Security View", selection: $selectedSecurityTab) {
-                    ForEach(SecuritySummaryTab.allCases) { tab in
-                        Text(tab.title).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, AppSpacing.xLarge)
-                .padding(.vertical, AppSpacing.medium)
-                .background(.bar)
-            }
+            SecuritySummaryCompactView(
+                devices: devicesContent(detail: detail),
+                activity: SecuritySummaryActivityView(
+                    presentation: activityPresentation,
+                    isLoading: isLoadingSecurityActivity,
+                    errorMessage: securityActivityErrorMessage,
+                    peopleByEntityID: peopleByEntityID,
+                    transitionNamespace: cardTransitionNamespace,
+                    refresh: { await refreshSecurityActivity(entityIDs: entityIDs) },
+                    openEntity: openActivityEntity
+                )
+            )
         }
     }
 
@@ -352,12 +343,40 @@ private enum SecuritySummaryTab: String, CaseIterable, Identifiable {
     }
 }
 
-private struct SecuritySummaryActivityView: View {
-    @Environment(HAStateStore.self) private var stateStore
+private struct SecuritySummaryCompactView<Devices: View, Activity: View>: View {
+    @State private var selectedTab: SecuritySummaryTab = .devices
 
+    let devices: Devices
+    let activity: Activity
+
+    var body: some View {
+        Group {
+            switch selectedTab {
+            case .devices:
+                devices
+            case .activity:
+                activity
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Picker("Security View", selection: $selectedTab) {
+                ForEach(SecuritySummaryTab.allCases) { tab in
+                    Text(tab.title).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, AppSpacing.xLarge)
+            .padding(.vertical, AppSpacing.medium)
+            .background(.bar)
+        }
+    }
+}
+
+private struct SecuritySummaryActivityView: View {
     let presentation: HALogbookPresentation
     let isLoading: Bool
     let errorMessage: String?
+    let peopleByEntityID: [String: HAPresenceRecord]
     let transitionNamespace: Namespace.ID
     let refresh: () async -> Void
     let openEntity: (HAActivityRow) -> Void
@@ -398,9 +417,9 @@ private struct SecuritySummaryActivityView: View {
                     }
 
                     CardContainer(minHeight: 0, padding: AppSpacing.large) {
-                        VStack(alignment: .leading, spacing: AppSpacing.large) {
+                        LazyVStack(alignment: .leading, spacing: AppSpacing.large) {
                             ForEach(Array(presentation.sections.enumerated()), id: \.element.id) { sectionIndex, section in
-                                VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                                LazyVStack(alignment: .leading, spacing: AppSpacing.medium) {
                                     Text(section.title)
                                         .font(.headline)
 
@@ -409,7 +428,7 @@ private struct SecuritySummaryActivityView: View {
                                             Divider()
                                         }
 
-                                        activityRow(row)
+                                        activityRow(row, personRecord: row.entityID.flatMap { peopleByEntityID[$0] })
                                     }
                                 }
 
@@ -431,14 +450,14 @@ private struct SecuritySummaryActivityView: View {
     }
 
     @ViewBuilder
-    private func activityRow(_ row: HAActivityRow) -> some View {
+    private func activityRow(_ row: HAActivityRow, personRecord: HAPresenceRecord?) -> some View {
         if let entityID = row.entityID {
             Button {
                 openEntity(row)
             } label: {
                 SecurityActivityRowView(
                     row: row,
-                    personRecord: row.entityID.flatMap(stateStore.presenceRecord(for:))
+                    personRecord: personRecord
                 )
                     .contentShape(Rectangle())
             }
