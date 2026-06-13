@@ -47,6 +47,7 @@ Recommended reasoning level: High.
 - Added typed update mapping and presentation helpers for installed/latest version, title/name, release summary/notes URL, skipped state, in-progress/unavailable state, entity/device/area/floor context, grouping, filtering, and search.
 - Added official Home Assistant update service actions for install, skip, and clear skipped update through WebSocket `call_service`, gated by `HomeAssistantService.serviceActionAvailable(...)` and confirmation UX for install backup choices.
 - Kept private frontend repairs, system health, admin, and update-metadata endpoints out of scope.
+- Added a native Settings > Apps page backed by the Home Assistant Supervisor `/addons` API, mapping installed Supervisor apps/add-ons into app-facing rows with version, update availability, and Running/Stopped/Unknown status while treating non-Supervisor installs as unavailable.
 - Added a focused History/Charts pass for numeric `sensor.*` entities using Home Assistant's documented REST history endpoint only.
 - Added typed history request/response models, authenticated HTTP/service handoff, app-facing chart series/range helpers, and a native Swift Charts history panel in the existing sensor detail surface with fixed 1H/6H/24H ranges.
 - Kept raw Home Assistant history DTOs out of SwiftUI and kept chart aggregation/formatting outside `HAStateStore`.
@@ -159,9 +160,12 @@ Recommended reasoning level: High.
 - Numeric sensor history already has documented REST history plumbing, authenticated service handoff, app-facing chart models, fixed detail ranges, and lightweight dashboard chart cards; binary sensors, locks, switches, automations, covers, people, and device trackers now have app-facing detail timeline models and a shared Recent Activity panel. Reuse those shapes where they fit.
 - Sensor gauges now have reusable app-facing presentation and a larger-card dashboard feature for range-aware readings. Keep future widget/detail gauge work on that model instead of reading raw Home Assistant DTOs in SwiftUI.
 - Settings > People should be presence-first. Avoid implying Homestead can manage all Home Assistant users unless an official supported user/admin API is confirmed for the signed-in user's permissions.
+- Settings > Apps is read-only Supervisor status. Keep install, uninstall, start, stop, update, and configuration actions out of scope until Homestead deliberately designs safe Supervisor management flows.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed after adding Settings > Apps backed by the Supervisor `/addons` API.
+- Focused `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` after adding Settings > Apps, including Supervisor URL, DTO decoding/status mapping, service routing, and unavailable-state coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-IconPicker` after adding the dashboard SF Symbols picker.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-IconPicker`, including catalog search/recommendation, reset persistence, uniqueness, and runtime symbol-availability coverage. The test compile emitted the existing Swift 6-mode widget snapshot `Equatable` warnings.
 - Direct iPhone 17 simulator screenshots verified the picker in light and dark appearance with recommended and selected states visible; a smaller iOS 26.5 iPhone simulator was not installed.

@@ -533,6 +533,18 @@ struct HomesteadTests {
         #expect(webhookURL.absoluteString == "http://homeassistant.local:8123/api/webhook/webhook-abc")
     }
 
+    @Test func supervisorAppsEndpointUsesOfficialSupervisorPath() throws {
+        let rootURL = try HomeAssistantEndpointBuilder.supervisorAppsURL(
+            from: "http://homeassistant.local:8123"
+        )
+        let nestedURL = try HomeAssistantEndpointBuilder.supervisorAppsURL(
+            from: "https://example.com/ha"
+        )
+
+        #expect(rootURL.absoluteString == "http://homeassistant.local:8123/addons")
+        #expect(nestedURL.absoluteString == "https://example.com/ha/addons")
+    }
+
     @Test func logbookEndpointUsesOfficialHTTPPathAndDocumentedQueryItems() throws {
         let startDate = try testDate("2026-06-05T15:30:00Z")
         let endDate = try testDate("2026-06-05T16:45:00Z")
@@ -1221,6 +1233,68 @@ struct HomesteadTests {
         #expect(rows[0].matches(query: "pendant"))
         #expect(rows[1].title == "Automation")
         #expect(rows[1].iconSystemName == "list.bullet.clipboard")
+    }
+
+    @Test func supervisorAppsDecodeFilterInstalledAndMapStatus() throws {
+        let payload = """
+        {
+            "addons": [
+                {
+                    "name": "Studio Code Server",
+                    "slug": "core_vscode",
+                    "description": "Edit Home Assistant configuration",
+                    "version": "5.19.1",
+                    "version_latest": "5.20.0",
+                    "update_available": true,
+                    "installed": true,
+                    "available": true,
+                    "icon": true,
+                    "logo": false,
+                    "state": "started"
+                },
+                {
+                    "name": "Terminal",
+                    "slug": "core_terminal",
+                    "description": "Command line access",
+                    "version": "9.15.0",
+                    "version_latest": "9.15.0",
+                    "update_available": false,
+                    "installed": true,
+                    "available": true,
+                    "icon": false,
+                    "logo": false,
+                    "state": "stopped"
+                },
+                {
+                    "name": "Store App",
+                    "slug": "store_app",
+                    "description": "Not installed",
+                    "version": null,
+                    "version_latest": "1.0.0",
+                    "update_available": false,
+                    "installed": false,
+                    "available": true,
+                    "icon": false,
+                    "logo": false,
+                    "state": null
+                }
+            ]
+        }
+        """
+
+        let response = try JSONDecoder().decode(HASupervisorAppsResponseDTO.self, from: Data(payload.utf8))
+        let apps = HASupervisorApp.installedApps(from: response)
+
+        #expect(apps.map(\.slug) == ["core_vscode", "core_terminal"])
+        #expect(apps[0].name == "Studio Code Server")
+        #expect(apps[0].description == "Edit Home Assistant configuration")
+        #expect(apps[0].installedVersion == "5.19.1")
+        #expect(apps[0].latestVersion == "5.20.0")
+        #expect(apps[0].updateAvailable)
+        #expect(apps[0].status == .running)
+        #expect(apps[1].status == .stopped)
+        #expect(HASupervisorAppStatus(supervisorState: nil) == .unknown)
+        #expect(HASupervisorAppStatus(supervisorState: "restarting") == .unknown)
     }
 
     @Test func logbookPresentationFiltersByDomainAndSearchText() throws {
@@ -5051,6 +5125,88 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func serviceFetchesSupervisorAppsThroughResolvedRoute() async throws {
+        let baseURLString = "https://home.example.com"
+        let externalURLString = "https://remote.example.com"
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: baseURLString, accessToken: "apps-access")
+        )
+        let httpClient = StubHAHTTPClient(
+            supervisorAppsResponse: HASupervisorAppsResponseDTO(addons: [
+                HASupervisorAppDTO(
+                    name: "Terminal",
+                    slug: "core_terminal",
+                    description: "Command line access",
+                    version: "9.15.0",
+                    versionLatest: "9.15.0",
+                    updateAvailable: false,
+                    installed: true,
+                    available: true,
+                    icon: false,
+                    logo: false,
+                    state: "started"
+                )
+            ])
+        )
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: false)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: baseURLString,
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        settings.internalURL = "http://homeassistant.local:8123"
+        settings.externalURL = externalURLString
+        settings.homeNetworkName = "Home Wi-Fi"
+
+        let result = await service.fetchSupervisorApps(settings: settings)
+
+        let configuration = try #require(httpClient.lastSupervisorAppsConfiguration)
+        #expect(configuration.baseURLString == externalURLString)
+        #expect(configuration.accessToken == "apps-access")
+        #expect(result == .available([
+            HASupervisorApp(
+                id: "core_terminal",
+                slug: "core_terminal",
+                name: "Terminal",
+                description: "Command line access",
+                installedVersion: "9.15.0",
+                latestVersion: "9.15.0",
+                updateAvailable: false,
+                status: .running
+            )
+        ]))
+    }
+
+    @MainActor
+    @Test func serviceMapsSupervisorAppsUnavailableAndConnectionFailures() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "apps-access")
+        )
+        let httpClient = StubHAHTTPClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+
+        httpClient.supervisorAppsError = HASupervisorAppsHTTPError.unavailable(statusCode: 404)
+        #expect(await service.fetchSupervisorApps(settings: settings) == .unavailable(.unsupported))
+
+        httpClient.supervisorAppsError = URLError(.cannotConnectToHost)
+        #expect(await service.fetchSupervisorApps(settings: settings) == .unavailable(.connectionUnavailable))
+    }
+
+    @MainActor
     @Test func serviceRegistersMobileAppThroughResolvedExternalRoute() async throws {
         let baseURLString = "https://home.example.com"
         let externalURLString = "https://remote.example.com"
@@ -8267,19 +8423,24 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
     var logbookEntries: [HALogbookEntryDTO]
     var historyResponse: HAHistoryResponseDTO
+    var supervisorAppsResponse: HASupervisorAppsResponseDTO
     var logbookError: Error?
     var historyError: Error?
+    var supervisorAppsError: Error?
     private(set) var lastLogbookConfiguration: HAConnectionConfiguration?
     private(set) var lastLogbookRequest: HALogbookRequest?
     private(set) var lastHistoryConfiguration: HAConnectionConfiguration?
     private(set) var lastHistoryRequest: HAHistoryRequest?
+    private(set) var lastSupervisorAppsConfiguration: HAConnectionConfiguration?
 
     init(
         logbookEntries: [HALogbookEntryDTO] = [],
-        historyResponse: HAHistoryResponseDTO = HAHistoryResponseDTO(series: [])
+        historyResponse: HAHistoryResponseDTO = HAHistoryResponseDTO(series: []),
+        supervisorAppsResponse: HASupervisorAppsResponseDTO = HASupervisorAppsResponseDTO(addons: [])
     ) {
         self.logbookEntries = logbookEntries
         self.historyResponse = historyResponse
+        self.supervisorAppsResponse = supervisorAppsResponse
     }
 
     func fetchCameraSnapshot(configuration: HAConnectionConfiguration, entityID: String) async throws -> Data {
@@ -8306,6 +8467,16 @@ final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
         }
 
         return historyResponse
+    }
+
+    func fetchSupervisorApps(configuration: HAConnectionConfiguration) async throws -> HASupervisorAppsResponseDTO {
+        lastSupervisorAppsConfiguration = configuration
+
+        if let supervisorAppsError {
+            throw supervisorAppsError
+        }
+
+        return supervisorAppsResponse
     }
 }
 

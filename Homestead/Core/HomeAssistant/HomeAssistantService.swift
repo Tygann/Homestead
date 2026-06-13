@@ -674,6 +674,40 @@ final class HomeAssistantService {
         }
     }
 
+    func fetchSupervisorApps(settings: HAConnectionSettings) async -> HASupervisorAppsFetchResult {
+        currentConnectionSettings = settings
+        guard settings.hasServerURL else {
+            return .unavailable(.notConfigured)
+        }
+
+        do {
+            let configuration = try await preferredConfiguration(for: settings)
+            activeConfiguration = configuration
+            let response = try await httpClient.fetchSupervisorApps(configuration: configuration)
+            return .available(HASupervisorApp.installedApps(from: response))
+        } catch HASupervisorAppsHTTPError.unavailable(_) {
+            return .unavailable(.unsupported)
+        } catch let urlError as URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost, .timedOut:
+                return .unavailable(.connectionUnavailable)
+            default:
+                return .failed(urlError.localizedDescription)
+            }
+        } catch let webSocketError as HAWebSocketError {
+            switch webSocketError {
+            case .invalidURL:
+                return .unavailable(.notConfigured)
+            case .notConnected, .requestTimedOut, .transportFailure:
+                return .unavailable(.connectionUnavailable)
+            case .unexpectedMessage, .authenticationFailed, .requestFailed, .missingResult:
+                return .failed(webSocketError.localizedDescription)
+            }
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
     func fetchHistory(
         settings: HAConnectionSettings,
         request: HAHistoryRequest,

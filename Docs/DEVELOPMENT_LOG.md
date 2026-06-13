@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-12
 
+### Settings Apps
+
+- Added a native Settings > Apps page backed by the official Home Assistant Supervisor `/addons` endpoint.
+- Mapped Supervisor app/add-on DTOs into app-facing installed app rows with description, installed/latest version, update availability, and Running/Stopped/Unknown status labels.
+- Kept Supervisor management actions out of scope and render non-Supervisor or unreachable installs as unavailable/retry states rather than using private frontend endpoints.
+
 ### Dashboard Icon Picker
 
 - Replaced the limited nested dashboard icon menu with a dedicated searchable grid picker shared by dashboard cards and chips.
