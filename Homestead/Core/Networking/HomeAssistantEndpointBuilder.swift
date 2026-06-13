@@ -193,23 +193,6 @@ enum HomeAssistantEndpointBuilder {
         return url
     }
 
-    nonisolated static func supervisorAppsURL(from baseURLString: String) throws -> URL {
-        var components = try baseComponents(from: baseURLString)
-        components.scheme = try httpScheme(from: components.scheme)
-
-        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let pathParts = [basePath, "addons"].filter { !$0.isEmpty }
-        components.path = "/" + pathParts.joined(separator: "/")
-        components.query = nil
-        components.fragment = nil
-
-        guard let url = components.url else {
-            throw HAWebSocketError.invalidURL
-        }
-
-        return url
-    }
-
     nonisolated static func httpURL(from baseURLString: String, pathOrURL: String) throws -> URL {
         if let absoluteURL = URL(string: pathOrURL),
            absoluteURL.scheme != nil,

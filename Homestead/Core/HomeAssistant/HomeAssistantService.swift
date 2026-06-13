@@ -680,13 +680,13 @@ final class HomeAssistantService {
             return .unavailable(.notConfigured)
         }
 
+        guard connectionStatus == .connected else {
+            return .unavailable(.connectionUnavailable)
+        }
+
         do {
-            let configuration = try await preferredConfiguration(for: settings)
-            activeConfiguration = configuration
-            let response = try await httpClient.fetchSupervisorApps(configuration: configuration)
+            let response = try await client.fetchSupervisorApps()
             return .available(HASupervisorApp.installedApps(from: response))
-        } catch HASupervisorAppsHTTPError.unavailable(_) {
-            return .unavailable(.unsupported)
         } catch let urlError as URLError {
             switch urlError.code {
             case .notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost, .timedOut:
@@ -701,6 +701,9 @@ final class HomeAssistantService {
             case .notConnected, .requestTimedOut, .transportFailure:
                 return .unavailable(.connectionUnavailable)
             case .unexpectedMessage, .authenticationFailed, .requestFailed, .missingResult:
+                if webSocketError.isSupervisorAppsUnsupported {
+                    return .unavailable(.unsupported)
+                }
                 return .failed(webSocketError.localizedDescription)
             }
         } catch {

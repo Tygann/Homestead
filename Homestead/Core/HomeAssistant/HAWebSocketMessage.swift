@@ -23,6 +23,7 @@ enum HAWebSocketMessageType {
     nonisolated static var areaRegistryList: String { "config/area_registry/list" }
     nonisolated static var floorRegistryList: String { "config/floor_registry/list" }
     nonisolated static var cameraCapabilities: String { "camera/capabilities" }
+    nonisolated static var supervisorAPI: String { "supervisor/api" }
 }
 
 struct HAWebSocketIncomingMessage: Decodable, Sendable {
@@ -102,6 +103,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case mobileAppPushNotificationConfirm(id: Int, webhookID: String, confirmID: String)
     case registryCommand(id: Int, type: String)
     case cameraCapabilities(id: Int, entityID: String)
+    case supervisorAPI(id: Int, endpoint: String, method: String)
     case callService(
         id: Int,
         domain: String,
@@ -124,6 +126,8 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case webhookID = "webhook_id"
         case supportConfirm = "support_confirm"
         case confirmID = "confirm_id"
+        case endpoint
+        case method
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -173,6 +177,11 @@ enum HAWebSocketRequest: Encodable, Sendable {
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.cameraCapabilities, forKey: .type)
             try container.encode(entityID, forKey: .entityID)
+        case .supervisorAPI(let id, let endpoint, let method):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.supervisorAPI, forKey: .type)
+            try container.encode(endpoint, forKey: .endpoint)
+            try container.encode(method, forKey: .method)
         case .callService(let id, let domain, let service, let target, let serviceData):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.callService, forKey: .type)

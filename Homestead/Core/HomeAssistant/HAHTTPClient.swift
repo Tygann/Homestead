@@ -4,7 +4,6 @@ protocol HAHTTPClientProtocol: Sendable {
     func fetchCameraSnapshot(configuration: HAConnectionConfiguration, entityID: String) async throws -> Data
     func fetchLogbook(configuration: HAConnectionConfiguration, request: HALogbookRequest) async throws -> [HALogbookEntryDTO]
     func fetchHistory(configuration: HAConnectionConfiguration, request: HAHistoryRequest) async throws -> HAHistoryResponseDTO
-    func fetchSupervisorApps(configuration: HAConnectionConfiguration) async throws -> HASupervisorAppsResponseDTO
 }
 
 actor HAHTTPClient: HAHTTPClientProtocol {
@@ -84,27 +83,4 @@ actor HAHTTPClient: HAHTTPClientProtocol {
         return try JSONDecoder().decode(HAHistoryResponseDTO.self, from: data)
     }
 
-    func fetchSupervisorApps(configuration: HAConnectionConfiguration) async throws -> HASupervisorAppsResponseDTO {
-        let url = try HomeAssistantEndpointBuilder.supervisorAppsURL(
-            from: configuration.baseURLString
-        )
-        var urlRequest = URLRequest(url: url)
-        urlRequest.setValue("Bearer \(configuration.accessToken)", forHTTPHeaderField: "Authorization")
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        let (data, response) = try await session.data(for: urlRequest)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw HAWebSocketError.transportFailure("Home Assistant returned an invalid Supervisor apps response.")
-        }
-
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            if httpResponse.statusCode == 404 {
-                throw HASupervisorAppsHTTPError.unavailable(statusCode: httpResponse.statusCode)
-            }
-
-            throw HAWebSocketError.requestFailed("Home Assistant Supervisor apps failed with status \(httpResponse.statusCode).")
-        }
-
-        return try JSONDecoder().decode(HASupervisorAppsResponseDTO.self, from: data)
-    }
 }

@@ -151,20 +151,23 @@ nonisolated enum HASupervisorAppsFetchResult: Equatable, Sendable {
     case failed(String)
 }
 
-nonisolated enum HASupervisorAppsHTTPError: LocalizedError, Equatable, Sendable {
-    case unavailable(statusCode: Int)
-
-    var errorDescription: String? {
-        switch self {
-        case .unavailable:
-            return "Home Assistant Supervisor apps are unavailable."
-        }
-    }
-}
-
 nonisolated private extension String {
     var nonEmptyValue: String? {
         let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue
+    }
+}
+
+nonisolated extension HAWebSocketError {
+    var isSupervisorAppsUnsupported: Bool {
+        guard case .requestFailed(let message) = self else {
+            return false
+        }
+
+        let normalizedMessage = message?.lowercased() ?? ""
+        return normalizedMessage.contains("unknown command") ||
+            normalizedMessage.contains("supervisor") ||
+            normalizedMessage.contains("hassio") ||
+            normalizedMessage.contains("not found")
     }
 }

@@ -533,18 +533,6 @@ struct HomesteadTests {
         #expect(webhookURL.absoluteString == "http://homeassistant.local:8123/api/webhook/webhook-abc")
     }
 
-    @Test func supervisorAppsEndpointUsesOfficialSupervisorPath() throws {
-        let rootURL = try HomeAssistantEndpointBuilder.supervisorAppsURL(
-            from: "http://homeassistant.local:8123"
-        )
-        let nestedURL = try HomeAssistantEndpointBuilder.supervisorAppsURL(
-            from: "https://example.com/ha"
-        )
-
-        #expect(rootURL.absoluteString == "http://homeassistant.local:8123/addons")
-        #expect(nestedURL.absoluteString == "https://example.com/ha/addons")
-    }
-
     @Test func logbookEndpointUsesOfficialHTTPPathAndDocumentedQueryItems() throws {
         let startDate = try testDate("2026-06-05T15:30:00Z")
         let endDate = try testDate("2026-06-05T16:45:00Z")
@@ -965,6 +953,22 @@ struct HomesteadTests {
         #expect(object["id"] as? Int == 9)
         #expect(object["type"] as? String == "camera/capabilities")
         #expect(object["entity_id"] as? String == "camera.driveway")
+    }
+
+    @Test func supervisorAppsRequestUsesHomeAssistantSupervisorAPIBridge() throws {
+        let request = HAWebSocketRequest.supervisorAPI(
+            id: 11,
+            endpoint: "/addons",
+            method: "get"
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["id"] as? Int == 11)
+        #expect(object["type"] as? String == "supervisor/api")
+        #expect(object["endpoint"] as? String == "/addons")
+        #expect(object["method"] as? String == "get")
     }
 
     @Test func mobileAppPushNotificationRequestsEncodeHomeAssistantShape() throws {
@@ -5125,32 +5129,32 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func serviceFetchesSupervisorAppsThroughResolvedRoute() async throws {
+    @Test func serviceFetchesSupervisorAppsThroughConnectedWebSocketBridge() async throws {
         let baseURLString = "https://home.example.com"
         let externalURLString = "https://remote.example.com"
         let tokenStore = InMemoryHAOAuthTokenStore(
             credential: testCredential(baseURL: baseURLString, accessToken: "apps-access")
         )
-        let httpClient = StubHAHTTPClient(
-            supervisorAppsResponse: HASupervisorAppsResponseDTO(addons: [
-                HASupervisorAppDTO(
-                    name: "Terminal",
-                    slug: "core_terminal",
-                    description: "Command line access",
-                    version: "9.15.0",
-                    versionLatest: "9.15.0",
-                    updateAvailable: false,
-                    installed: true,
-                    available: true,
-                    icon: false,
-                    logo: false,
-                    state: "started"
-                )
-            ])
-        )
+        let webSocketClient = StubHAWebSocketClient()
+        webSocketClient.supervisorAppsResponse = HASupervisorAppsResponseDTO(addons: [
+            HASupervisorAppDTO(
+                name: "Terminal",
+                slug: "core_terminal",
+                description: "Command line access",
+                version: "9.15.0",
+                versionLatest: "9.15.0",
+                updateAvailable: false,
+                installed: true,
+                available: true,
+                icon: false,
+                logo: false,
+                state: "started"
+            )
+        ])
         let service = HomeAssistantService(
             stateStore: HAStateStore(),
-            httpClient: httpClient,
+            client: webSocketClient,
+            connectionStatus: .connected,
             authManager: HAOAuthManager(tokenStore: tokenStore),
             networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: false)
         )
@@ -5165,9 +5169,7 @@ struct HomesteadTests {
 
         let result = await service.fetchSupervisorApps(settings: settings)
 
-        let configuration = try #require(httpClient.lastSupervisorAppsConfiguration)
-        #expect(configuration.baseURLString == externalURLString)
-        #expect(configuration.accessToken == "apps-access")
+        #expect(webSocketClient.fetchSupervisorAppsCount == 1)
         #expect(result == .available([
             HASupervisorApp(
                 id: "core_terminal",
@@ -5187,10 +5189,11 @@ struct HomesteadTests {
         let tokenStore = InMemoryHAOAuthTokenStore(
             credential: testCredential(accessToken: "apps-access")
         )
-        let httpClient = StubHAHTTPClient()
+        let webSocketClient = StubHAWebSocketClient()
         let service = HomeAssistantService(
             stateStore: HAStateStore(),
-            httpClient: httpClient,
+            client: webSocketClient,
+            connectionStatus: .connected,
             authManager: HAOAuthManager(tokenStore: tokenStore)
         )
         let settings = HAConnectionSettings(
@@ -5199,11 +5202,33 @@ struct HomesteadTests {
             tokenStore: tokenStore
         )
 
-        httpClient.supervisorAppsError = HASupervisorAppsHTTPError.unavailable(statusCode: 404)
+        webSocketClient.supervisorAppsError = HAWebSocketError.requestFailed("Unknown command.")
         #expect(await service.fetchSupervisorApps(settings: settings) == .unavailable(.unsupported))
 
-        httpClient.supervisorAppsError = URLError(.cannotConnectToHost)
+        webSocketClient.supervisorAppsError = HAWebSocketError.notConnected
         #expect(await service.fetchSupervisorApps(settings: settings) == .unavailable(.connectionUnavailable))
+    }
+
+    @MainActor
+    @Test func serviceDoesNotFetchSupervisorAppsWhenDisconnected() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "apps-access")
+        )
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            connectionStatus: .disconnected,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+
+        #expect(await service.fetchSupervisorApps(settings: settings) == .unavailable(.connectionUnavailable))
+        #expect(webSocketClient.fetchSupervisorAppsCount == 0)
     }
 
     @MainActor
@@ -5233,13 +5258,13 @@ struct HomesteadTests {
 
         await service.registerMobileApp(settings: settings)
 
-        let registrationConfiguration = try #require(mobileAppClient.lastRegistrationConfiguration)
-        #expect(registrationConfiguration.baseURLString == externalURLString)
-        #expect(registrationConfiguration.dataSourceID == HAConnectionConfiguration(
+        let configuration = try #require(mobileAppClient.lastRegistrationConfiguration)
+        #expect(configuration.baseURLString == externalURLString)
+        #expect(configuration.tokenRefreshBaseURLString == baseURLString)
+        #expect(configuration.dataSourceID == HAConnectionConfiguration(
             baseURLString: baseURLString,
             accessToken: "mobile-app-access"
         ).dataSourceID)
-        #expect(try registrationStore.readRegistration()?.serverIdentifier == registrationConfiguration.dataSourceID)
     }
 
     @MainActor
@@ -8301,9 +8326,12 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         unitSystem: nil
     )
     var serviceRegistry: HAServiceRegistry = .empty
+    var supervisorAppsResponse = HASupervisorAppsResponseDTO(addons: [])
     var fetchServicesDelay: Duration?
     var fetchServicesError: Error?
+    var supervisorAppsError: Error?
     var connectErrorsByBaseURL: [String: Error] = [:]
+    private(set) var fetchSupervisorAppsCount = 0
 
     init(currentUser: HACurrentUserDTO? = nil, states: [HAEntityDTO] = []) {
         self.currentUser = currentUser
@@ -8382,6 +8410,16 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         HACameraCapabilities(frontendStreamTypes: [])
     }
 
+    func fetchSupervisorApps() async throws -> HASupervisorAppsResponseDTO {
+        fetchSupervisorAppsCount += 1
+
+        if let supervisorAppsError {
+            throw supervisorAppsError
+        }
+
+        return supervisorAppsResponse
+    }
+
     func subscribeToStateChanges() async throws {}
 
     func subscribeToRegistryChanges() async throws {
@@ -8423,24 +8461,19 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
     var logbookEntries: [HALogbookEntryDTO]
     var historyResponse: HAHistoryResponseDTO
-    var supervisorAppsResponse: HASupervisorAppsResponseDTO
     var logbookError: Error?
     var historyError: Error?
-    var supervisorAppsError: Error?
     private(set) var lastLogbookConfiguration: HAConnectionConfiguration?
     private(set) var lastLogbookRequest: HALogbookRequest?
     private(set) var lastHistoryConfiguration: HAConnectionConfiguration?
     private(set) var lastHistoryRequest: HAHistoryRequest?
-    private(set) var lastSupervisorAppsConfiguration: HAConnectionConfiguration?
 
     init(
         logbookEntries: [HALogbookEntryDTO] = [],
-        historyResponse: HAHistoryResponseDTO = HAHistoryResponseDTO(series: []),
-        supervisorAppsResponse: HASupervisorAppsResponseDTO = HASupervisorAppsResponseDTO(addons: [])
+        historyResponse: HAHistoryResponseDTO = HAHistoryResponseDTO(series: [])
     ) {
         self.logbookEntries = logbookEntries
         self.historyResponse = historyResponse
-        self.supervisorAppsResponse = supervisorAppsResponse
     }
 
     func fetchCameraSnapshot(configuration: HAConnectionConfiguration, entityID: String) async throws -> Data {
@@ -8467,16 +8500,6 @@ final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
         }
 
         return historyResponse
-    }
-
-    func fetchSupervisorApps(configuration: HAConnectionConfiguration) async throws -> HASupervisorAppsResponseDTO {
-        lastSupervisorAppsConfiguration = configuration
-
-        if let supervisorAppsError {
-            throw supervisorAppsError
-        }
-
-        return supervisorAppsResponse
     }
 }
 

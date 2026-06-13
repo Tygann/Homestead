@@ -6,9 +6,10 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Settings Apps
 
-- Added a native Settings > Apps page backed by the official Home Assistant Supervisor `/addons` endpoint.
+- Added a native Settings > Apps page backed by Home Assistant Core's WebSocket `supervisor/api` bridge to the official Supervisor `/addons` endpoint.
 - Mapped Supervisor app/add-on DTOs into app-facing installed app rows with description, installed/latest version, update availability, and Running/Stopped/Unknown status labels.
 - Kept Supervisor management actions out of scope and render non-Supervisor or unreachable installs as unavailable/retry states rather than using private frontend endpoints.
+- Corrected the first implementation from a direct native-client `/addons` HTTP call to the Core WebSocket bridge, because external OAuth clients cannot access Supervisor's internal `http://supervisor` API or `SUPERVISOR_TOKEN` directly.
 
 ### Dashboard Icon Picker
 
