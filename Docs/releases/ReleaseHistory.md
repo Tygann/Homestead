@@ -61,7 +61,7 @@ Optional notes about the major source changes covered by this release.
 ## Version 1.0 (Build 11)
 
 - Release Date: 2026-06-13
-- Channel: App Store Connect
+- Channel: TestFlight
 
 ### User-Facing Release Notes
 
@@ -79,6 +79,12 @@ Improvements:
 - Dashboard summary groups now more closely match Home Assistant's own Climate, Lights, Security, Media, and Maintenance behavior
 - Select option controls are easier to tap and use
 - Settings organization and Apps detail pages have been cleaned up for easier scanning
+
+Please test:
+
+- Settings > Apps on Home Assistant Supervisor installs
+- Apps/Add-ons artwork, status, detail pages, and unavailable state handling
+- Dashboard icon picker search/recommendations and sensor gauge cards
 
 ### Internal Summary
 
