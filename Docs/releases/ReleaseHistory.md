@@ -58,6 +58,32 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1.0 (Build 11)
+
+- Release Date: 2026-06-13
+- Channel: App Store Connect
+
+### User-Facing Release Notes
+
+This update adds a native Apps/Add-ons status page, more dashboard customization, and better Home Assistant summary views.
+
+What's new:
+
+- New Settings > Apps page for installed Home Assistant Supervisor apps/add-ons
+- App rows show running/stopped status, versions, update availability, and add-on artwork when available
+- New dashboard icon picker with searchable SF Symbols and smart-home recommendations
+- New gauge-style dashboard and detail visuals for supported numeric sensors
+
+Improvements:
+
+- Dashboard summary groups now more closely match Home Assistant's own Climate, Lights, Security, Media, and Maintenance behavior
+- Select option controls are easier to tap and use
+- Settings organization and Apps detail pages have been cleaned up for easier scanning
+
+### Internal Summary
+
+Build 11 covers the June 12-13 feature/polish pass after Build 10: Supervisor Apps via Home Assistant Core's `supervisor/api` bridge and add-on artwork proxy paths, dashboard icon picker, Home Assistant summary alignment, reusable sensor gauges, select-option tap refinements, and Settings reordering.
+
 ## Version 1.0 (Build 10)
 
 - Release Date: 2026-06-11
