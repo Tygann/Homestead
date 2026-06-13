@@ -40,6 +40,8 @@ nonisolated struct HASupervisorApp: Identifiable, Equatable, Sendable {
     let installedVersion: String?
     let latestVersion: String?
     let updateAvailable: Bool
+    let hasIcon: Bool
+    let hasLogo: Bool
     let status: HASupervisorAppStatus
 
     init(
@@ -50,6 +52,8 @@ nonisolated struct HASupervisorApp: Identifiable, Equatable, Sendable {
         installedVersion: String?,
         latestVersion: String?,
         updateAvailable: Bool,
+        hasIcon: Bool = false,
+        hasLogo: Bool = false,
         status: HASupervisorAppStatus
     ) {
         self.id = id
@@ -59,7 +63,17 @@ nonisolated struct HASupervisorApp: Identifiable, Equatable, Sendable {
         self.installedVersion = installedVersion
         self.latestVersion = latestVersion
         self.updateAvailable = updateAvailable
+        self.hasIcon = hasIcon
+        self.hasLogo = hasLogo
         self.status = status
+    }
+
+    var iconPath: String? {
+        hasIcon ? "/api/hassio/addons/\(slug)/icon" : nil
+    }
+
+    var logoPath: String? {
+        hasLogo ? "/api/hassio/addons/\(slug)/logo" : nil
     }
 
     static func installedApps(from response: HASupervisorAppsResponseDTO) -> [HASupervisorApp] {
@@ -84,6 +98,8 @@ nonisolated struct HASupervisorApp: Identifiable, Equatable, Sendable {
             installedVersion: dto.version?.nonEmptyValue,
             latestVersion: dto.versionLatest?.nonEmptyValue,
             updateAvailable: dto.updateAvailable == true,
+            hasIcon: dto.icon == true,
+            hasLogo: dto.logo == true,
             status: HASupervisorAppStatus(supervisorState: dto.state)
         )
     }

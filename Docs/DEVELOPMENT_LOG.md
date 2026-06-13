@@ -10,6 +10,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Mapped Supervisor app/add-on DTOs into app-facing installed app rows with description, installed/latest version, update availability, and Running/Stopped/Unknown status labels.
 - Kept Supervisor management actions out of scope and render non-Supervisor or unreachable installs as unavailable/retry states rather than using private frontend endpoints.
 - Corrected the first implementation from a direct native-client `/addons` HTTP call to the Core WebSocket bridge, because external OAuth clients cannot access Supervisor's internal `http://supervisor` API or `SUPERVISOR_TOKEN` directly.
+- Added Supervisor app artwork loading through Home Assistant Core's `/api/hassio/addons/<slug>/icon` and `/logo` proxy paths, and moved descriptions into a simple read-only app detail page so the Apps list stays scannable.
 
 ### Dashboard Icon Picker
 

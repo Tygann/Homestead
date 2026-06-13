@@ -1253,7 +1253,7 @@ struct HomesteadTests {
                     "installed": true,
                     "available": true,
                     "icon": true,
-                    "logo": false,
+                    "logo": true,
                     "state": "started"
                 },
                 {
@@ -1295,6 +1295,10 @@ struct HomesteadTests {
         #expect(apps[0].installedVersion == "5.19.1")
         #expect(apps[0].latestVersion == "5.20.0")
         #expect(apps[0].updateAvailable)
+        #expect(apps[0].hasIcon)
+        #expect(apps[0].hasLogo)
+        #expect(apps[0].iconPath == "/api/hassio/addons/core_vscode/icon")
+        #expect(apps[0].logoPath == "/api/hassio/addons/core_vscode/logo")
         #expect(apps[0].status == .running)
         #expect(apps[1].status == .stopped)
         #expect(HASupervisorAppStatus(supervisorState: nil) == .unknown)

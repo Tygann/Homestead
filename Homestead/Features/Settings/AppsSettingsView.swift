@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AppsSettingsView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
@@ -63,7 +64,11 @@ struct AppsSettingsView: View {
     private func appsSection(_ apps: [HASupervisorApp]) -> some View {
         Section("Installed Apps") {
             ForEach(apps) { app in
-                SupervisorAppRow(app: app)
+                NavigationLink {
+                    SupervisorAppDetailView(app: app)
+                } label: {
+                    SupervisorAppRow(app: app)
+                }
             }
         }
     }
@@ -141,18 +146,11 @@ private struct SupervisorAppRow: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
-                    if let description = app.description {
-                        Text(description)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-
                     HStack(spacing: AppSpacing.small) {
                         if let versionText {
                             Text(versionText)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
 
@@ -177,21 +175,164 @@ private struct SupervisorAppRow: View {
             }
             .padding(.vertical, AppSpacing.xSmall)
         } icon: {
-            Image(systemName: "puzzlepiece.extension")
-                .foregroundStyle(statusTint)
+            SupervisorAppIconView(app: app, size: 34)
         }
     }
 
     private var versionText: String? {
-        guard let installedVersion = app.installedVersion else {
+        guard let installedVersion = app.installedVersion?.nonEmptyValue else {
             return nil
         }
 
-        return "Version \(installedVersion)"
+        return installedVersion
     }
 
     private var statusTint: Color {
-        switch app.status {
+        app.status.tint
+    }
+}
+
+private struct SupervisorAppDetailView: View {
+    let app: HASupervisorApp
+
+    var body: some View {
+        List {
+            Section {
+                VStack(spacing: AppSpacing.small) {
+                    SupervisorAppIconView(app: app, size: 72, prefersLogo: true)
+
+                    Text(app.name)
+                        .font(.title3.weight(.semibold))
+                        .multilineTextAlignment(.center)
+
+                    Text(app.status.title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(statusTint)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(statusTint.opacity(0.12), in: Capsule())
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.small)
+            }
+            .listRowBackground(Color.clear)
+
+            if let description = app.description {
+                Section("About") {
+                    Text(description)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Section("Status") {
+                LabeledContent("State", value: app.status.title)
+
+                if let installedVersion = app.installedVersion {
+                    LabeledContent("Installed", value: installedVersion)
+                }
+
+                if let latestVersion = app.latestVersion {
+                    LabeledContent("Latest", value: latestVersion)
+                }
+
+                if app.updateAvailable {
+                    LabeledContent("Update") {
+                        Text("Available")
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+
+            Section("Home Assistant") {
+                LabeledContent("Slug", value: app.slug)
+            }
+        }
+        .navigationTitle(app.name)
+        .toolbarTitleDisplayMode(.inline)
+    }
+
+    private var statusTint: Color {
+        app.status.tint
+    }
+}
+
+private struct SupervisorAppIconView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var image: Image?
+
+    let app: HASupervisorApp
+    let size: CGFloat
+    var prefersLogo = false
+
+    var body: some View {
+        Group {
+            if let image {
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .padding(size * 0.12)
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            } else {
+                Image(systemName: "puzzlepiece.extension")
+                    .font(.system(size: size * 0.48, weight: .semibold))
+                    .foregroundStyle(app.status.tint)
+                    .frame(width: size, height: size)
+                    .background(app.status.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .task(id: taskID) {
+            await loadImage()
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var imagePath: String? {
+        if prefersLogo, let logoPath = app.logoPath {
+            return logoPath
+        }
+
+        return app.iconPath ?? app.logoPath
+    }
+
+    private var taskID: String {
+        [
+            connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            homeAssistantService.authState.title,
+            homeAssistantService.connectionStatus.title,
+            imagePath ?? "no-image"
+        ].joined(separator: "|")
+    }
+
+    private var cornerRadius: CGFloat {
+        max(10, size * 0.22)
+    }
+
+    private func loadImage() async {
+        guard let imagePath,
+              let request = await homeAssistantService.homeAssistantImageRequest(
+                settings: connectionSettings,
+                pathOrURL: imagePath
+              ) else {
+            image = nil
+            return
+        }
+
+        guard let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
+            image = nil
+            return
+        }
+
+        image = Image(uiImage: uiImage)
+    }
+}
+
+private extension HASupervisorAppStatus {
+    var tint: Color {
+        switch self {
         case .running:
             return .green
         case .stopped:
@@ -199,6 +340,13 @@ private struct SupervisorAppRow: View {
         case .unknown:
             return .gray
         }
+    }
+}
+
+nonisolated private extension String {
+    var nonEmptyValue: String? {
+        let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedValue.isEmpty ? nil : trimmedValue
     }
 }
 
