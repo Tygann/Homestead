@@ -19,7 +19,7 @@ struct NativeNotificationSettingsView: View {
                         .foregroundStyle(.red)
                 }
             } footer: {
-                Text("Use iOS Settings to adjust banners, sounds, badges, lock screen visibility, and notification grouping.")
+                Text("Use Settings to adjust banners, sounds, badges, lock screen visibility, and notification grouping.")
             }
 
             Section {
@@ -36,7 +36,7 @@ struct NativeNotificationSettingsView: View {
                 Button {
                     openIOSNotificationSettings()
                 } label: {
-                    Label("Open Homestead in iOS Settings", systemImage: "gearshape")
+                    Label("Open Homestead in Settings", systemImage: "gearshape")
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -167,17 +167,17 @@ struct NativeNotificationSettingsView: View {
     private var permissionMessage: String {
         switch nativeNotificationService.status.authorizationStatus {
         case .authorized:
-            return "Homestead can show Home Assistant notifications on this iPhone."
+            return "Homestead can show Home Assistant notifications on this device."
         case .provisional:
             return "Homestead can deliver Home Assistant notifications quietly."
         case .ephemeral:
             return "Homestead has temporary permission to show notifications."
         case .denied:
-            return "Turn on notifications in iOS Settings to receive Home Assistant alerts."
+            return "Turn on notifications in Settings to receive Home Assistant alerts."
         case .notDetermined:
             return "Allow Homestead to show notifications from Home Assistant."
         case .unknown:
-            return "Homestead is checking iOS notification permission."
+            return "Homestead is checking notification permission."
         }
     }
 

@@ -48,7 +48,7 @@ struct NativePermissionsSettingsView: View {
                         .foregroundStyle(.red)
                 }
             } footer: {
-                Text("iOS controls permission decisions. Homestead only requests access when a native feature needs it.")
+                Text("The system controls permission decisions. Homestead only requests access when a native feature needs it.")
             }
 
             if showsPermissionActions {
@@ -89,7 +89,7 @@ struct NativePermissionsSettingsView: View {
                 Button {
                     openIOSSettings()
                 } label: {
-                    Label("Open Homestead in iOS Settings", systemImage: "gearshape")
+                    Label("Open Homestead in Settings", systemImage: "gearshape")
                 }
 
                 Button {
@@ -138,13 +138,13 @@ struct NativePermissionsSettingsView: View {
     private var notificationMessage: String {
         switch nativeNotificationService.status.authorizationStatus {
         case .authorized:
-            return "Home Assistant alerts can appear on this iPhone."
+            return "Home Assistant alerts can appear on this device."
         case .provisional:
             return "Home Assistant alerts can be delivered quietly."
         case .ephemeral:
             return "Notification access is temporarily allowed."
         case .denied:
-            return "Turn on notifications in iOS Settings."
+            return "Turn on notifications in Settings."
         case .notDetermined:
             return "Set up alerts from Notification Settings."
         case .unknown:
@@ -155,19 +155,19 @@ struct NativePermissionsSettingsView: View {
     private var locationMessage: String {
         switch nativePermissionService.status.location {
         case .allowed:
-            return "Ready for presence features that use this iPhone."
+            return "Ready for presence features that use this device."
         case .limited:
             return "Location access is limited."
         case .denied:
-            return "Turn on location in iOS Settings."
+            return "Turn on location in Settings."
         case .restricted:
             return "Location access is restricted on this device."
         case .notDetermined:
-            return "Allow when a presence feature needs this iPhone's location."
+            return "Allow when a presence feature needs this device's location."
         case .unavailable:
             return "Location Services are off or unavailable."
         case .managedBySystem:
-            return "Managed by iOS."
+            return "Managed by the system."
         case .unknown:
             return "Homestead is checking location access."
         }
@@ -180,7 +180,7 @@ struct NativePermissionsSettingsView: View {
         case .limited:
             return "Camera access is limited."
         case .denied:
-            return "Turn on camera access in iOS Settings."
+            return "Turn on camera access in Settings."
         case .restricted:
             return "Camera access is restricted on this device."
         case .notDetermined:
@@ -188,7 +188,7 @@ struct NativePermissionsSettingsView: View {
         case .unavailable:
             return "Camera access is unavailable on this device."
         case .managedBySystem:
-            return "Managed by iOS."
+            return "Managed by the system."
         case .unknown:
             return "Homestead is checking camera access."
         }

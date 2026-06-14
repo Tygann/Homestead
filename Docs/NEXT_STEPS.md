@@ -12,6 +12,10 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Confirmed the app and widget targets support iPhone and iPad, and that Xcode exposes and builds the app for Apple silicon Mac using Designed for iPad while Mac Catalyst remains intentionally disabled.
+- Kept the existing adaptive SwiftUI structure for iPad/Mac: dashboard and area grids add tracks at wider widths, Security retains its regular-width activity sidebar, and Browse/Settings continue using native List/Form adaptation without duplicated platform views.
+- Replaced iPhone/iOS-specific user-facing permission, notification, onboarding, privacy, and About copy with device-neutral language, and made copied diagnostics identify iPhone, iPad, or Mac (Designed for iPad) accurately.
+- Preserved bundle identifiers, signing, entitlements, orientations, widget embedding, and supported-destination settings; Mac widget-gallery behavior and full pointer/window/manual interaction remain device-test items.
 - Removed the legacy Browse/Devices star affordance and stale quick-access dashboard presentation metadata; Dashboard customization is now the only quick-access model.
 - Added fan percentage slider features to dashboard cards using the existing reusable level-slider system and Home Assistant `fan.set_percentage`, with off fans presenting at 0% and HA `percentage_step` respected.
 - Made the Settings > Account profile header user-friendly by suppressing raw transport/auth storage error strings there; detailed connection errors remain in Server/Diagnostics.
@@ -199,6 +203,9 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator, iPad Air 11-inch (M4) iOS 26.5, and Apple silicon Mac Designed-for-iPad builds passed with isolated derived-data paths after the platform-support review.
+- Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5`; a signed iPad simulator launch also confirmed the first-run surface is centered and unclipped in portrait.
+- Authenticated dashboard/Areas/Browse/Settings behavior in iPad landscape and multitasking widths, plus Mac pointer/window behavior and Mac widget-gallery availability, still require manual testing with a real Home Assistant session.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SettingsPlaceholders` after completing Settings placeholder surfaces and iCloud sync.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SettingsPlaceholdersTests` after adding integration/helper/iCloud sync coverage. The build emitted the existing App Intents metadata extraction warning for targets without AppIntents.framework dependencies.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityIcons` after adding People-backed attribution, historical-state activity icons, and uncapped Security activity rows.

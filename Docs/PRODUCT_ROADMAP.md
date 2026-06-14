@@ -2,7 +2,7 @@
 
 This document is product memory for Homestead. It helps future maintainers and coding agents understand what Homestead already supports, what is likely worth building next, and which tempting paths should be treated carefully.
 
-Homestead is a polished native iOS frontend for Home Assistant. Home Assistant remains the source of truth for integrations, devices, entities, automations, scenes, scripts, users, service execution, and system behavior. Homestead should focus on native daily control, Home Assistant-familiar management views, and official companion-app capabilities.
+Homestead is a polished native SwiftUI frontend for Home Assistant on iPhone and iPad, with basic Apple silicon Mac support through Designed for iPad. Home Assistant remains the source of truth for integrations, devices, entities, automations, scenes, scripts, users, service execution, and system behavior. Homestead should focus on native daily control, Home Assistant-familiar management views, and official companion-app capabilities.
 
 For the technical map of official Home Assistant API families, current Homestead coverage, and API research targets, read `Docs/API_CAPABILITY_INVENTORY.md`.
 
@@ -18,7 +18,8 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Existing Features
 
-- Native SwiftUI iOS app shell with Home, Areas, and Browse tabs.
+- Native SwiftUI app shell with Home, Areas, and Browse tabs.
+- Native iPhone and iPad destinations with adaptive dashboard/area grids, plus basic Apple silicon Mac availability through the shared Designed for iPad experience; Mac Catalyst and a desktop-specific redesign remain deferred.
 - Home Assistant OAuth sign-in with short-lived access-token refresh and Keychain-backed credentials.
 - WebSocket-first state sync, registry loading, service discovery, service calls, reconnect handling, automatic internal/external URL route selection, and cached startup state.
 - Home dashboard with configurable entity cards, Apple Home-inspired mini accessory tiles, Home Assistant frontend-aligned summary chips/views with floor grouping and area navigation, an adaptive Security activity log including person presence changes, section headers, card sizes, card feature visibility, display names, searchable SF Symbols icon overrides with entity-aware recommendations, direct card/header drag editing, chip reordering, and edit mode.

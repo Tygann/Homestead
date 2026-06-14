@@ -107,7 +107,7 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
 
         switch authState {
         case .signedOut:
-            return "Homestead will open Home Assistant to authorize this iPhone."
+            return "Homestead will open Home Assistant to authorize this device."
         case .signingIn:
             return "Finish authorization in the Home Assistant sign-in window."
         case .refreshing:
@@ -163,7 +163,7 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
 
         switch authState {
         case .signedOut:
-            return "Homestead will open Home Assistant to authorize this iPhone."
+            return "Homestead will open Home Assistant to authorize this device."
         case .signingIn:
             return "Finish authorization in the Home Assistant sign-in window."
         case .refreshing:

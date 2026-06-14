@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-14
 
+### iPad and Apple Silicon Mac Support
+
+- Confirmed both app and widget targets support iPhone and iPad and that the existing adaptive card grid, regular-width Security sidebar, and native List/Form surfaces provide the shared iPad layout without a navigation rewrite.
+- Confirmed Apple silicon Mac support through Designed for iPad and intentionally left Mac Catalyst disabled until Homestead needs desktop-specific menus, keyboard commands, multiwindow behavior, or Intel Mac distribution.
+- Made onboarding, notification, permission, privacy, and About copy device-neutral and updated diagnostics to distinguish iPhone, iPad, and Mac (Designed for iPad).
+- Preserved existing bundle identifiers, entitlements, signing capabilities, orientations, and widget embedding; Mac widget availability and full pointer/window behavior still require manual verification before marking App Store Connect compatibility as verified.
+
 ### Settings Placeholder Completion
 
 - Replaced Settings > Devices & Services > Integrations with a read-only integration-platform overview derived from documented entity registry display metadata and existing state/device registry context, with cached light/dark brand icons loaded through Home Assistant's local Brands API when available.

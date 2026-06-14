@@ -27,7 +27,7 @@ struct AboutView: View {
             .listRowBackground(Color.clear)
 
             Section {
-                Text("A native iOS frontend for Home Assistant, focused on fast access to the devices and spaces you use most.")
+                Text("A native Apple-platform frontend for Home Assistant, focused on fast access to the devices and spaces you use most.")
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                     .foregroundStyle(.secondary)

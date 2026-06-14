@@ -70,7 +70,7 @@ struct ContentView: View {
                 Task { await nativeNotificationService.requestAuthorization() }
             }
         } message: {
-            Text("Homestead can show alerts sent by Home Assistant on this iPhone.")
+            Text("Homestead can show alerts sent by Home Assistant on this device.")
         }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {

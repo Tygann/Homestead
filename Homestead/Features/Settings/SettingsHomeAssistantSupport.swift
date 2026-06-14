@@ -282,17 +282,17 @@ extension NativeNotificationAuthorizationStatus {
     var settingsMessage: String {
         switch self {
         case .unknown:
-            return "Homestead has not checked iOS notification permission yet."
+            return "Homestead has not checked notification permission yet."
         case .notDetermined:
             return "Allow notifications before Home Assistant notification delivery is enabled."
         case .denied:
-            return "Notifications are turned off for Homestead in iOS Settings."
+            return "Notifications are turned off for Homestead in Settings."
         case .authorized:
-            return "iOS allows Homestead to show notifications on this device."
+            return "The system allows Homestead to show notifications on this device."
         case .provisional:
-            return "iOS allows Homestead to deliver notifications quietly."
+            return "The system allows Homestead to deliver notifications quietly."
         case .ephemeral:
-            return "iOS has granted temporary notification permission."
+            return "The system has granted temporary notification permission."
         }
     }
 

@@ -240,7 +240,7 @@ private struct HomeAssistantDiagnosticsSnapshot: Equatable {
         mobileApp = homeAssistantService.mobileAppRegistrationState.diagnosticTitle
         cache = Self.cacheDescription(homeAssistantService.stateCacheMetadata)
         app = "\(Bundle.main.settingsDisplayName) \(Bundle.main.settingsShortVersionString) (\(Bundle.main.settingsBuildVersionString))"
-        device = "\(UIDevice.current.model), iOS \(UIDevice.current.systemVersion)"
+        device = Self.deviceDescription()
     }
 
     var clipboardText: String {
@@ -280,6 +280,30 @@ private struct HomeAssistantDiagnosticsSnapshot: Equatable {
         ]
         parts.append(contentsOf: registryParts)
         return parts.joined(separator: ", ")
+    }
+
+    private static func deviceDescription() -> String {
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            let version = ProcessInfo.processInfo.operatingSystemVersion
+            let versionComponents = [version.majorVersion, version.minorVersion, version.patchVersion]
+            let versionString = versionComponents
+                .dropLast(version.patchVersion == 0 ? 1 : 0)
+                .map(String.init)
+                .joined(separator: ".")
+            return "Mac (Designed for iPad), macOS \(versionString)"
+        }
+
+        let deviceName: String
+        switch UIDevice.current.userInterfaceIdiom {
+        case .phone:
+            deviceName = "iPhone"
+        case .pad:
+            deviceName = "iPad"
+        default:
+            deviceName = UIDevice.current.model
+        }
+
+        return "\(deviceName), \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
     }
 }
 
