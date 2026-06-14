@@ -6,12 +6,15 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Focused first-run onboarding is completed. Next recommended focus is the existing dashboard mini tile and WidgetKit/App Intents polish priorities from the roadmap.
+Focused first-run onboarding and global wallpaper personalization are completed. Next recommended focus is the existing dashboard mini tile and WidgetKit/App Intents polish priorities from the roadmap.
 
 Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added global local-only wallpaper personalization for Homestead-owned appearance: Settings > Appearance imports one optimized photo into Application Support, stores only lightweight preference/revision data in `UserDefaults`, and can enable/disable or remove the wallpaper.
+- Applied the wallpaper only behind Home, Areas, and area detail views through a shared background helper; Browse, Settings, onboarding, widgets, detail sheets, and camera card previews remain unchanged.
+- Preserved dashboard legibility and scrolling performance by keeping cards opaque/near-opaque and using only static dim/tint overlays instead of material blur or animated effects.
 - Added an app-level first-run Home Assistant setup surface for users without a complete saved server/sign-in session.
 - The setup surface writes the existing `HAConnectionSettings.baseURL`, starts the existing Home Assistant OAuth flow through `HomeAssistantService.signInWithHomeAssistant(settings:)`, and keeps normal setup focused on a single server-address row with a bottom Continue action.
 - Added an optional Settings-style Advanced Setup sheet during onboarding for internal URL, external URL, and manually entered home network metadata, reusing existing `HAConnectionSettings` routing fields without adding discovery or permission prompts.

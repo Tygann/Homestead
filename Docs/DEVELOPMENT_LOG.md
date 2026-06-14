@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-14
+
+### Global Wallpaper
+
+- Added a local-only Homestead appearance setting for one optimized wallpaper image stored in Application Support, with no Home Assistant upload, API surface, or iCloud sync.
+- Added Settings > Appearance with photo picking, preview, enable/disable, and removal controls.
+- Applied the shared wallpaper background only behind Home, Areas, and area detail scroll surfaces, preserving opaque dashboard cards and avoiding material/blur effects in live scrolling grids.
+
 ## 2026-06-13
 
 ### Area Icons

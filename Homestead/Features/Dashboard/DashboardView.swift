@@ -81,7 +81,7 @@ struct DashboardView: View {
                 await homeAssistantService.refreshStates()
                 cameraRefreshGeneration += 1
             }
-            .background(Color(.systemGroupedBackground))
+            .homesteadWallpaperBackground()
             .navigationTitle("Homestead")
             //        .navigationSubtitle(connectionSettings.baseURL)
             .toolbarTitleDisplayMode(.inlineLarge)

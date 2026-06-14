@@ -48,7 +48,105 @@ private func testDate(_ value: String) throws -> Date {
     return date
 }
 
+private func testUserDefaults(suiteName: String = "com.tyler.Homestead.tests.\(UUID().uuidString)") -> UserDefaults {
+    let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+    defaults.removePersistentDomain(forName: suiteName)
+    return defaults
+}
+
+private func temporaryTestDirectory() throws -> URL {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("HomesteadTests", isDirectory: true)
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    return directory
+}
+
+private func testImageData(color: UIColor, size: CGSize = CGSize(width: 320, height: 240)) throws -> Data {
+    let renderer = UIGraphicsImageRenderer(size: size)
+    let image = renderer.image { _ in
+        color.setFill()
+        UIBezierPath(rect: CGRect(origin: .zero, size: size)).fill()
+    }
+
+    return try #require(image.pngData())
+}
+
 struct HomesteadTests {
+    @Test @MainActor func appearanceSettingsPersistsImportedWallpaperState() async throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: directory)
+        #expect(!settings.hasWallpaper)
+        #expect(!settings.isWallpaperEnabled)
+
+        try await settings.importWallpaper(from: testImageData(color: .systemTeal))
+
+        #expect(settings.hasWallpaper)
+        #expect(settings.isWallpaperEnabled)
+        #expect(settings.activeWallpaperURL != nil)
+
+        let reloadedSettings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: directory)
+        #expect(reloadedSettings.hasWallpaper)
+        #expect(reloadedSettings.isWallpaperEnabled)
+        #expect(reloadedSettings.wallpaperRevision == settings.wallpaperRevision)
+    }
+
+    @Test @MainActor func appearanceSettingsFallsBackWhenStoredWallpaperFileIsMissing() async throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: directory)
+        try await settings.importWallpaper(from: testImageData(color: .systemBlue))
+        let storedWallpaperURL = try #require(settings.storedWallpaperURL)
+        try FileManager.default.removeItem(at: storedWallpaperURL)
+
+        let reloadedSettings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: directory)
+        #expect(!reloadedSettings.hasWallpaper)
+        #expect(reloadedSettings.activeWallpaperURL == nil)
+        #expect(reloadedSettings.isWallpaperEnabled)
+    }
+
+    @Test @MainActor func appearanceSettingsRemoveDeletesWallpaperAndDisablesIt() async throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: directory)
+        try await settings.importWallpaper(from: testImageData(color: .systemGreen))
+        let revisionAfterImport = settings.wallpaperRevision
+
+        settings.removeWallpaper()
+
+        #expect(!settings.hasWallpaper)
+        #expect(!settings.isWallpaperEnabled)
+        #expect(settings.activeWallpaperURL == nil)
+        #expect(settings.wallpaperRevision == revisionAfterImport + 1)
+    }
+
+    @Test @MainActor func appearanceSettingsReplacementUpdatesStoredImageAndRevision() async throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: directory)
+        try await settings.importWallpaper(from: testImageData(color: .systemRed))
+        let firstRevision = settings.wallpaperRevision
+        let storedWallpaperURL = try #require(settings.storedWallpaperURL)
+        let firstStoredData = try Data(contentsOf: storedWallpaperURL)
+
+        try await settings.importWallpaper(from: testImageData(color: .systemPurple))
+        let replacementStoredData = try Data(contentsOf: storedWallpaperURL)
+
+        #expect(settings.wallpaperRevision == firstRevision + 1)
+        #expect(settings.hasWallpaper)
+        #expect(settings.isWallpaperEnabled)
+        #expect(firstStoredData != replacementStoredData)
+    }
+
     @Test func connectionHealthAccessoryStateAppearsOnlyForGlobalConnectionIssues() {
         #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: false,

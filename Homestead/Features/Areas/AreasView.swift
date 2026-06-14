@@ -44,7 +44,7 @@ struct AreasView: View {
         .refreshable {
             await homeAssistantService.refreshStates()
         }
-        .background(Color(.systemGroupedBackground))
+        .homesteadWallpaperBackground()
         .overlay {
             if !stateStore.hasEntities {
                 ContentUnavailableView("No Areas", systemImage: "square.grid.3x3")

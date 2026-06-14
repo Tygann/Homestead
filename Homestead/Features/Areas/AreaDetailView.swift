@@ -39,7 +39,7 @@ struct AreaDetailView: View {
             .padding(.horizontal, AppSpacing.large)
             .padding(.vertical, AppSpacing.xLarge)
         }
-        .background(Color(.systemGroupedBackground))
+        .homesteadWallpaperBackground()
         .navigationTitle(area.name)
         .toolbarTitleDisplayMode(.inlineLarge)
         .navigationDestination(item: $selectedEntityDetailRoute) { route in

@@ -66,6 +66,12 @@ struct SettingsView: View {
 
             Section("Homestead") {
                 NavigationLink {
+                    AppearanceSettingsView()
+                } label: {
+                    Label("Appearance", systemImage: "paintpalette")
+                }
+
+                NavigationLink {
                     NativeNotificationSettingsView()
                 } label: {
                     Label("Notifications", systemImage: "bell.badge")

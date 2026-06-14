@@ -22,6 +22,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Home Assistant OAuth sign-in with short-lived access-token refresh and Keychain-backed credentials.
 - WebSocket-first state sync, registry loading, service discovery, service calls, reconnect handling, automatic internal/external URL route selection, and cached startup state.
 - Home dashboard with configurable entity cards, Apple Home-inspired mini accessory tiles, Home Assistant frontend-aligned summary chips/views with floor grouping and area navigation, an adaptive Security activity log including person presence changes, section headers, card sizes, card feature visibility, display names, searchable SF Symbols icon overrides with entity-aware recommendations, direct card/header drag editing, chip reordering, and edit mode.
+- Local-only Homestead appearance personalization with one optimized wallpaper image behind Home and Areas.
 - Native dashboard and area detail flows for common domains, including lights, switches, fans, locks, covers, climate, media players, cameras, vacuums, alarm panels, buttons, selects, numbers, sensors, scenes, scripts, and automations.
 - Areas browsing backed by Home Assistant area and floor registries, with area summaries and domain-grouped area detail pages.
 - Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
@@ -54,6 +55,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 - Multi-entity Home Screen widgets for medium/large families, likely as a separate Accessories-style widget using compact tile layouts and multiple App Intent entity parameters.
 - Multiple dashboards with a dashboard switcher or management screen; avoid adding every dashboard as a main tab by default.
+- Per-dashboard or per-area wallpaper choices if the single global wallpaper proves too limiting.
 - Control Center controls and App Intents for common Home Assistant actions.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.
 - True Home Assistant users/admin views if an official supported API path is confirmed for the signed-in user's permissions.

@@ -12,6 +12,7 @@ struct HomesteadApp: App {
     @State private var nativePermissionService: NativePermissionService
     @State private var dashboardConfiguration: DashboardConfiguration
     @State private var actionConfirmationSettings: ActionConfirmationSettings
+    @State private var appearanceSettings: HomesteadAppearanceSettings
 
     init() {
         let stateStore = HAStateStore()
@@ -19,6 +20,7 @@ struct HomesteadApp: App {
         let nativeNotificationService = NativeNotificationService()
         let nativePermissionService = NativePermissionService()
         let actionConfirmationSettings = ActionConfirmationSettings()
+        let appearanceSettings = HomesteadAppearanceSettings()
         let homeAssistantService = HomeAssistantService(
             stateStore: stateStore,
             nativeNotificationService: nativeNotificationService
@@ -31,6 +33,7 @@ struct HomesteadApp: App {
         _nativePermissionService = State(initialValue: nativePermissionService)
         _dashboardConfiguration = State(initialValue: DashboardConfiguration())
         _actionConfirmationSettings = State(initialValue: actionConfirmationSettings)
+        _appearanceSettings = State(initialValue: appearanceSettings)
 
         guard !RuntimeEnvironment.isRunningForPreviews else {
             return
@@ -56,6 +59,7 @@ struct HomesteadApp: App {
                 .environment(nativePermissionService)
                 .environment(dashboardConfiguration)
                 .environment(actionConfirmationSettings)
+                .environment(appearanceSettings)
         }
     }
 }
