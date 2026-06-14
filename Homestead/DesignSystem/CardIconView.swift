@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct CardIconView: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let icon: ResolvedIcon
     var isActive = false
     var isAvailable = true
@@ -59,11 +61,12 @@ struct CardIconView: View {
     }
 
     private var iconBackground: Color {
-        guard isAvailable else {
-            return Color(.tertiarySystemGroupedBackground)
-        }
-
-        return isActive ? accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+        HomesteadSurfaceStyle.iconBackground(
+            isWallpaperActive: isWallpaperSurfaceActive,
+            isActive: isActive,
+            isAvailable: isAvailable,
+            accentColor: accentColor
+        )
     }
 
     private var iconRadius: CGFloat {

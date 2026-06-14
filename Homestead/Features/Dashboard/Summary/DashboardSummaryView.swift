@@ -45,7 +45,7 @@ struct DashboardSummaryView: View {
                 ContentUnavailableView("No Summary Available", systemImage: kind.systemImage)
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .homesteadWallpaperBackground()
         .navigationTitle(detail?.summary.title ?? kind.title)
         .toolbarTitleDisplayMode(.inline)
         .navigationDestination(item: $selectedEntityDetailRoute) { route in
@@ -187,7 +187,7 @@ struct DashboardSummaryView: View {
             .padding(.horizontal, AppSpacing.large)
             .padding(.vertical, AppSpacing.xLarge)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.clear)
     }
 
     @ViewBuilder
@@ -442,7 +442,7 @@ private struct SecuritySummaryActivityView: View {
             .padding(.horizontal, AppSpacing.large)
             .padding(.vertical, AppSpacing.xLarge)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.clear)
         .refreshable {
             await refresh()
         }

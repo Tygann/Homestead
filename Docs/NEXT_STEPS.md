@@ -15,6 +15,9 @@ Recommended reasoning level: High.
 - Added global local-only wallpaper personalization for Homestead-owned appearance: Settings > Appearance imports one optimized photo into Application Support, stores only lightweight preference/revision data in `UserDefaults`, and can enable/disable or remove the wallpaper.
 - Applied the wallpaper only behind Home, Areas, and area detail views through a shared background helper; Browse, Settings, onboarding, widgets, detail sheets, and camera card previews remain unchanged.
 - Preserved dashboard legibility and scrolling performance by keeping cards opaque/near-opaque and using only static dim/tint overlays instead of material blur or animated effects.
+- Extended wallpaper support to dashboard summary views, including Security activity surfaces, by clearing inner grouped backgrounds and reusing the shared wallpaper helper.
+- Added shared wallpaper-aware surface tokens for cards, chips, icon wells, camera cards, and dashboard feature controls. The current direction is soft glass via translucent fills/strokes, not per-card `.ultraThinMaterial`.
+- Replaced the Appearance form preview with a phone-shaped wallpaper preview that uses the stored image crop and a small Homestead-style overlay before the picker/toggle/remove controls.
 - Added an app-level first-run Home Assistant setup surface for users without a complete saved server/sign-in session.
 - The setup surface writes the existing `HAConnectionSettings.baseURL`, starts the existing Home Assistant OAuth flow through `HomeAssistantService.signInWithHomeAssistant(settings:)`, and keeps normal setup focused on a single server-address row with a bottom Continue action.
 - Added an optional Settings-style Advanced Setup sheet during onboarding for internal URL, external URL, and manually entered home network metadata, reusing existing `HAConnectionSettings` routing fields without adding discovery or permission prompts.

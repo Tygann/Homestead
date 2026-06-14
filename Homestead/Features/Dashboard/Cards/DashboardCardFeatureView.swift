@@ -58,6 +58,8 @@ struct DashboardCardFeatureActions {
 }
 
 struct DashboardCardFeatureView: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let feature: DashboardCardFeature
     let isPending: Bool
     let isActive: Bool
@@ -215,7 +217,10 @@ struct DashboardCardFeatureView: View {
     }
 
     private var controlBackground: Color {
-        isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+        HomesteadSurfaceStyle.controlBackground(
+            isWallpaperActive: isWallpaperSurfaceActive,
+            isActive: isActive
+        )
     }
 }
 
@@ -234,6 +239,8 @@ private extension DashboardCardSetpointFeature {
 }
 
 private struct InlineStepperControl: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let value: String
     let isActive: Bool
     let decrementAccessibilityLabel: String
@@ -277,11 +284,16 @@ private struct InlineStepperControl: View {
     }
 
     private var controlBackground: Color {
-        isActive ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+        HomesteadSurfaceStyle.controlBackground(
+            isWallpaperActive: isWallpaperSurfaceActive,
+            isActive: isActive
+        )
     }
 }
 
 private struct InlineLevelSliderControl: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let value: Double
     let range: ClosedRange<Double>
     let step: Double
@@ -323,10 +335,10 @@ private struct InlineLevelSliderControl: View {
 
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                    .fill(trackColor)
+                    .fill(isWallpaperSurfaceActive ? Color.white.opacity(0.10) : trackColor)
 
                 RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                    .fill(fillColor)
+                    .fill(fillColor.opacity(isWallpaperSurfaceActive ? 0.82 : 1))
                     .frame(width: fillWidth)
             }
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))

@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct DashboardChipView: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let presentation: DashboardChipPresentation
 
     var body: some View {
@@ -28,10 +30,10 @@ struct DashboardChipView: View {
         .padding(.leading, 6)
         .padding(.trailing, 10)
         .padding(.vertical, 4)
-        .background(Color(.secondarySystemGroupedBackground).opacity(0.72), in: Capsule())
+        .background(HomesteadSurfaceStyle.chipBackground(isWallpaperActive: isWallpaperSurfaceActive), in: Capsule())
         .overlay {
             Capsule()
-                .strokeBorder(Color(.separator).opacity(0.12), lineWidth: 1)
+                .strokeBorder(HomesteadSurfaceStyle.chipBorder(isWallpaperActive: isWallpaperSurfaceActive), lineWidth: 1)
         }
         .fixedSize(horizontal: true, vertical: false)
         .accessibilityElement(children: .ignore)

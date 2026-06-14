@@ -9,6 +9,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added a local-only Homestead appearance setting for one optimized wallpaper image stored in Application Support, with no Home Assistant upload, API surface, or iCloud sync.
 - Added Settings > Appearance with photo picking, preview, enable/disable, and removal controls.
 - Applied the shared wallpaper background only behind Home, Areas, and area detail scroll surfaces, preserving opaque dashboard cards and avoiding material/blur effects in live scrolling grids.
+- Extended wallpaper support to dashboard summary views and replaced the flat settings preview with a phone-shaped preview using the same wallpaper crop/overlay behavior as daily-use surfaces.
+- Standardized wallpaper-aware dashboard surfaces around a lightweight soft-glass treatment: translucent dark fills, subtle strokes, and toned-down active control fills instead of per-card material blur.
 
 ## 2026-06-13
 

@@ -56,8 +56,18 @@ struct HomesteadWallpaperBackground: View {
 
 extension View {
     func homesteadWallpaperBackground() -> some View {
-        background {
-            HomesteadWallpaperBackground()
-        }
+        modifier(HomesteadWallpaperBackgroundModifier())
+    }
+}
+
+private struct HomesteadWallpaperBackgroundModifier: ViewModifier {
+    @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                HomesteadWallpaperBackground()
+            }
+            .environment(\.homesteadWallpaperSurfaceActive, appearanceSettings.activeWallpaperURL != nil)
     }
 }

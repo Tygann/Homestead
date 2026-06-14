@@ -5,6 +5,7 @@ struct DashboardEntityCard: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
     @Environment(\.scenePhase) private var scenePhase
     @State private var historyPhase: DashboardHistoryCardPhase = .idle
 
@@ -600,15 +601,28 @@ struct DashboardEntityCard: View {
     }
 
     private var iconBackground: Color {
-        presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+        HomesteadSurfaceStyle.iconBackground(
+            isWallpaperActive: isWallpaperSurfaceActive,
+            isActive: presentation.isActive,
+            isAvailable: presentation.isAvailable,
+            accentColor: presentation.accentColor
+        )
     }
 
-    private var cameraCardBackground: Color {
-        presentation.isActive ? presentation.accentColor.opacity(0.18) : Color(.secondarySystemGroupedBackground)
+    private var cameraCardBackground: some ShapeStyle {
+        HomesteadSurfaceStyle.cardBackground(
+            isWallpaperActive: isWallpaperSurfaceActive,
+            isActive: presentation.isActive,
+            accentColor: presentation.accentColor
+        )
     }
 
     private var cameraCardBorder: Color {
-        presentation.isActive ? presentation.accentColor.opacity(0.22) : Color(.separator).opacity(0.18)
+        HomesteadSurfaceStyle.cardBorder(
+            isWallpaperActive: isWallpaperSurfaceActive,
+            isActive: presentation.isActive,
+            accentColor: presentation.accentColor
+        )
     }
 
     private var cardContentMinHeight: CGFloat {
