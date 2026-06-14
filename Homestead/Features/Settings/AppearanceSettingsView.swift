@@ -23,19 +23,7 @@ struct AppearanceSettingsView: View {
                         .frame(width: 162)
                         .frame(maxWidth: .infinity)
 
-                    PhotosPicker(
-                        selection: $selectedPhoto,
-                        matching: .images,
-                        photoLibrary: .shared()
-                    ) {
-                        Label(
-                            appearanceSettings.hasWallpaper ? "Change Wallpaper" : "Choose Wallpaper",
-                            systemImage: "photo"
-                        )
-                        .font(.headline)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isImportingWallpaper)
+                    wallpaperPicker
 
                     Divider()
 
@@ -54,13 +42,22 @@ struct AppearanceSettingsView: View {
                     }
                 }
                 .padding(AppSpacing.large)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+                .background(
+                    Color(.secondarySystemGroupedBackground).opacity(0.76),
+                    in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                        .strokeBorder(Color(.separator).opacity(0.10), lineWidth: 0.5)
+                }
                 .padding(.horizontal, AppSpacing.large)
 
-                Text("Shown behind Home and Areas.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, AppSpacing.xLarge)
+                if !appearanceSettings.hasWallpaper {
+                    Text("Shown behind Home and Areas.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, AppSpacing.xLarge)
+                }
             }
             .padding(.vertical, AppSpacing.xLarge)
         }
@@ -74,6 +71,33 @@ struct AppearanceSettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(importErrorMessage ?? "Choose another photo and try again.")
+        }
+    }
+
+    @ViewBuilder
+    private var wallpaperPicker: some View {
+        if appearanceSettings.hasWallpaper {
+            PhotosPicker(
+                selection: $selectedPhoto,
+                matching: .images,
+                photoLibrary: .shared()
+            ) {
+                Label("Change Wallpaper", systemImage: "photo")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .disabled(isImportingWallpaper)
+        } else {
+            PhotosPicker(
+                selection: $selectedPhoto,
+                matching: .images,
+                photoLibrary: .shared()
+            ) {
+                Label("Choose Wallpaper", systemImage: "photo")
+                    .font(.headline)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isImportingWallpaper)
         }
     }
 
