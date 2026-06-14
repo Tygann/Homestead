@@ -231,15 +231,19 @@ private struct IntegrationBrandImageView: View {
                 image
                     .resizable()
                     .scaledToFit()
-                    .padding(size * 0.1)
+                    .padding(size * 0.06)
             } else {
                 Image(systemName: "puzzlepiece.extension")
                     .font(.system(size: size * 0.46, weight: .medium))
                     .foregroundStyle(Color.accentColor)
+                    .frame(width: size, height: size)
+                    .background(
+                        Color.accentColor.opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: min(10, size * 0.22), style: .continuous)
+                    )
             }
         }
         .frame(width: size, height: size)
-        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: min(10, size * 0.22)))
         .task(id: taskID) {
             await loadImage()
         }

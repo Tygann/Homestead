@@ -272,8 +272,7 @@ private struct SupervisorAppIconView: View {
                 image
                     .resizable()
                     .scaledToFit()
-                    .padding(size * 0.12)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .padding(size * 0.06)
             } else {
                 Image(systemName: "puzzlepiece.extension")
                     .font(.system(size: size * 0.48, weight: .semibold))
@@ -283,7 +282,6 @@ private struct SupervisorAppIconView: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .task(id: taskID) {
             await loadImage()
         }
