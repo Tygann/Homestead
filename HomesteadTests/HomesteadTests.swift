@@ -72,6 +72,23 @@ private func testImageData(color: UIColor, size: CGSize = CGSize(width: 320, hei
     return try #require(image.pngData())
 }
 
+private final class FakeICloudKeyValueStore: HomesteadICloudKeyValueStore {
+    var values: [String: Data] = [:]
+    var shouldSynchronize = true
+
+    func data(forKey key: String) -> Data? {
+        values[key]
+    }
+
+    func set(_ value: Data?, forKey key: String) {
+        values[key] = value
+    }
+
+    func synchronize() -> Bool {
+        shouldSynchronize
+    }
+}
+
 struct HomesteadTests {
     @Test @MainActor func appearanceSettingsPersistsImportedWallpaperState() async throws {
         let defaults = testUserDefaults()
@@ -8900,6 +8917,162 @@ struct HomesteadTests {
         #expect(summaries.last?.matches(query: "kitchen") == false)
         #expect(store.entityRegistryAdminDetail(for: "sensor.router_status") == "Closet • Router • Diagnostic • Unavailable")
         #expect(store.entityRegistryAdminDetail(for: "light.kitchen") == "Kitchen • Kitchen Light")
+    }
+
+    @Test @MainActor func integrationManagementSummariesGroupRegistryPlatforms() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "on"),
+            HAEntityDTO(entityID: "sensor.bridge_status", state: "unavailable"),
+            HAEntityDTO(entityID: "switch.outlet", state: "off")
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.kitchen",
+                    deviceID: "hue-bridge",
+                    originalName: "Kitchen",
+                    platform: "hue"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.bridge_status",
+                    deviceID: "hue-bridge",
+                    originalName: "Bridge Status",
+                    platform: "hue",
+                    hiddenBy: true,
+                    entityCategory: "diagnostic"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "switch.outlet",
+                    deviceID: "plug",
+                    originalName: "Outlet",
+                    platform: "tplink",
+                    entityCategory: "config"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "hue-bridge", name: "Hue Bridge"),
+                HADeviceRegistryDTO(id: "plug", name: "Plug")
+            ]
+        )
+
+        let summaries = store.integrationManagementSummaries()
+
+        #expect(summaries.map(\.platform) == ["hue", "tplink"])
+        #expect(summaries.first?.title == "Hue")
+        #expect(summaries.first?.entityCount == 2)
+        #expect(summaries.first?.deviceCount == 1)
+        #expect(summaries.first?.unavailableEntityCount == 1)
+        #expect(summaries.first?.hiddenEntityCount == 1)
+        #expect(summaries.first?.diagnosticEntityCount == 1)
+        #expect(summaries.first?.entityIDs == ["sensor.bridge_status", "light.kitchen"])
+        #expect(summaries.last?.configEntityCount == 1)
+        #expect(summaries.first?.matches(query: "hue") == true)
+    }
+
+    @Test @MainActor func helperManagementSummariesClassifyHelperEntityDomains() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "input_boolean.guest_mode", state: "off"),
+            HAEntityDTO(entityID: "input_select.house_mode", state: "Home"),
+            HAEntityDTO(entityID: "counter.coffee_count", state: "3"),
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+
+        let summaries = store.helperManagementSummaries()
+
+        #expect(store.helperEntityIDs() == [
+            "input_boolean.guest_mode",
+            "input_select.house_mode",
+            "counter.coffee_count"
+        ])
+        #expect(summaries.map(\.domain) == [.counter, .inputSelect, .inputBoolean])
+        #expect(HAHelperDomain(entityID: "input_text.note") == .inputText)
+        #expect(HAHelperDomain(entityID: "light.kitchen") == nil)
+    }
+
+    @Test @MainActor func iCloudSyncPayloadIncludesOnlyHomesteadPreferences() throws {
+        let defaults = testUserDefaults()
+        let connectionSettings = HAConnectionSettings(baseURL: "https://home.example", defaults: defaults, tokenStore: InMemoryHAOAuthTokenStore())
+        connectionSettings.internalURL = "http://homeassistant.local:8123"
+        connectionSettings.externalURL = "https://home.example"
+        connectionSettings.homeNetworkName = "Home Wi-Fi"
+        let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
+        dashboardConfiguration.add("light.kitchen", size: .square)
+        dashboardConfiguration.setEntityDisplayNameOverride("Kitchen", for: "light.kitchen")
+        let actionSettings = ActionConfirmationSettings(defaults: defaults)
+        actionSettings.mode = .all
+        let appearanceSettings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: try temporaryTestDirectory())
+        let syncService = HomesteadICloudSyncService(defaults: defaults, store: FakeICloudKeyValueStore())
+
+        let payload = syncService.makePayload(
+            connectionSettings: connectionSettings,
+            dashboardConfiguration: dashboardConfiguration,
+            actionConfirmationSettings: actionSettings,
+            appearanceSettings: appearanceSettings,
+            now: try testDate("2026-06-14T12:00:00Z")
+        )
+        let encodedPayload = try syncService.encodedPayload(payload)
+        let encodedText = String(decoding: encodedPayload, as: UTF8.self)
+
+        #expect(payload.connection.baseURL == "https://home.example")
+        #expect(payload.connection.homeNetworkName == "Home Wi-Fi")
+        #expect(payload.dashboard.items.first?.entityID == "light.kitchen")
+        #expect(payload.dashboard.entityDisplayNameOverrides == ["light.kitchen": "Kitchen"])
+        #expect(payload.actionConfirmations.mode == .all)
+        #expect(!encodedText.localizedCaseInsensitiveContains("token"))
+        #expect(!encodedText.localizedCaseInsensitiveContains("refresh"))
+        #expect(!encodedText.localizedCaseInsensitiveContains("wallpaper.jpg"))
+    }
+
+    @Test @MainActor func iCloudSyncAppliesNewerRemotePreferences() throws {
+        let defaults = testUserDefaults()
+        let store = FakeICloudKeyValueStore()
+        let syncService = HomesteadICloudSyncService(defaults: defaults, store: store)
+        syncService.isEnabled = true
+        let connectionSettings = HAConnectionSettings(baseURL: "https://old.example", defaults: defaults, tokenStore: InMemoryHAOAuthTokenStore())
+        let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
+        let actionSettings = ActionConfirmationSettings(defaults: defaults)
+        let appearanceSettings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: try temporaryTestDirectory())
+        let payload = HomesteadICloudSyncPayload(
+            version: HomesteadICloudSyncPayload.currentVersion,
+            updatedAt: try testDate("2026-06-14T12:00:00Z"),
+            connection: HAConnectionSettingsSyncSnapshot(
+                baseURL: "https://new.example",
+                internalURL: "http://new.local:8123",
+                externalURL: "https://new.example",
+                homeNetworkName: "New Wi-Fi"
+            ),
+            dashboard: DashboardConfigurationSyncSnapshot(
+                items: [.entity(entityID: "switch.outlet", size: .wide)],
+                entityDisplayNameOverrides: ["switch.outlet": "Outlet"]
+            ),
+            actionConfirmations: ActionConfirmationSettingsSyncSnapshot(
+                mode: .off,
+                confirmsLockUnlocks: false,
+                confirmsSecurityCoverOpens: false,
+                confirmsScenes: false,
+                confirmsScripts: false,
+                confirmsOtherImpactfulActions: false
+            ),
+            appearance: HomesteadAppearanceSettingsSyncSnapshot(isWallpaperEnabled: true)
+        )
+        store.set(try JSONEncoder().encode(payload), forKey: "homestead.preferences.v1")
+
+        syncService.applyRemoteIfNewer(
+            connectionSettings: connectionSettings,
+            dashboardConfiguration: dashboardConfiguration,
+            actionConfirmationSettings: actionSettings,
+            appearanceSettings: appearanceSettings
+        )
+
+        #expect(connectionSettings.baseURL == "https://new.example")
+        #expect(connectionSettings.homeNetworkName == "New Wi-Fi")
+        #expect(dashboardConfiguration.items.first?.entityID == "switch.outlet")
+        #expect(dashboardConfiguration.entityDisplayNameOverride(for: "switch.outlet") == "Outlet")
+        #expect(actionSettings.mode == .off)
+        #expect(!appearanceSettings.isWallpaperEnabled)
+        #expect(syncService.lastRemoteChangeDate == payload.updatedAt)
     }
 
     @Test func iconResolverHonorsPrecedenceAndProvenance() {

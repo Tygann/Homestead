@@ -84,37 +84,13 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
-                    SettingsFeaturePlaceholderView(
-                        title: "Widgets",
-                        systemImage: "rectangle.grid.2x2",
-                        message: "Widget configuration will be added as Homestead expands its WidgetKit and App Intents support."
-                    )
-                } label: {
-                    Label("Widgets", systemImage: "rectangle.grid.2x2")
-                }
-
-                NavigationLink {
-                    SettingsFeaturePlaceholderView(
-                        title: "Live Activities",
-                        systemImage: "timer",
-                        message: "Live Activity controls will be added after Homestead defines supported glanceable activity types."
-                    )
-                } label: {
-                    Label("Live Activities", systemImage: "timer")
-                }
-
-                NavigationLink {
                     NativePermissionsSettingsView()
                 } label: {
                     Label("Permissions", systemImage: "hand.raised")
                 }
 
                 NavigationLink {
-                    SettingsFeaturePlaceholderView(
-                        title: "iCloud Sync",
-                        systemImage: "icloud",
-                        message: "iCloud sync for Homestead-owned preferences and configuration metadata is not implemented yet."
-                    )
+                    ICloudSyncSettingsView()
                 } label: {
                     Label("iCloud Sync", systemImage: "icloud")
                 }

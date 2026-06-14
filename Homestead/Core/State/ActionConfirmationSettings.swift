@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum ActionConfirmationMode: String, CaseIterable, Identifiable, Sendable {
+enum ActionConfirmationMode: String, CaseIterable, Codable, Identifiable, Sendable {
     case smart
     case all
     case off
@@ -80,6 +80,17 @@ final class ActionConfirmationSettings {
         )
     }
 
+    var syncSnapshot: ActionConfirmationSettingsSyncSnapshot {
+        ActionConfirmationSettingsSyncSnapshot(
+            mode: mode,
+            confirmsLockUnlocks: confirmsLockUnlocks,
+            confirmsSecurityCoverOpens: confirmsSecurityCoverOpens,
+            confirmsScenes: confirmsScenes,
+            confirmsScripts: confirmsScripts,
+            confirmsOtherImpactfulActions: confirmsOtherImpactfulActions
+        )
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         mode = defaults.string(forKey: Keys.mode).flatMap(ActionConfirmationMode.init(rawValue:)) ?? .smart
@@ -88,6 +99,15 @@ final class ActionConfirmationSettings {
         confirmsScenes = Self.boolValue(defaults, key: Keys.confirmsScenes, defaultValue: true)
         confirmsScripts = Self.boolValue(defaults, key: Keys.confirmsScripts, defaultValue: true)
         confirmsOtherImpactfulActions = Self.boolValue(defaults, key: Keys.confirmsOtherImpactfulActions, defaultValue: true)
+    }
+
+    func applySyncSnapshot(_ snapshot: ActionConfirmationSettingsSyncSnapshot) {
+        mode = snapshot.mode
+        confirmsLockUnlocks = snapshot.confirmsLockUnlocks
+        confirmsSecurityCoverOpens = snapshot.confirmsSecurityCoverOpens
+        confirmsScenes = snapshot.confirmsScenes
+        confirmsScripts = snapshot.confirmsScripts
+        confirmsOtherImpactfulActions = snapshot.confirmsOtherImpactfulActions
     }
 
     private static func boolValue(_ defaults: UserDefaults, key: String, defaultValue: Bool) -> Bool {
@@ -106,4 +126,13 @@ final class ActionConfirmationSettings {
         static let confirmsScripts = "homestead.actionConfirmations.confirmsScripts"
         static let confirmsOtherImpactfulActions = "homestead.actionConfirmations.confirmsOtherImpactfulActions"
     }
+}
+
+struct ActionConfirmationSettingsSyncSnapshot: Codable, Equatable, Sendable {
+    var mode: ActionConfirmationMode
+    var confirmsLockUnlocks: Bool
+    var confirmsSecurityCoverOpens: Bool
+    var confirmsScenes: Bool
+    var confirmsScripts: Bool
+    var confirmsOtherImpactfulActions: Bool
 }

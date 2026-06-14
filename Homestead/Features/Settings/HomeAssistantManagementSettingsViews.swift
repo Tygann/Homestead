@@ -17,7 +17,7 @@ struct DevicesAndServicesManagementView: View {
                     }
                 }
             } footer: {
-                Text("Registry views use Home Assistant data already available to Homestead. Unsupported management categories are placeholders until official API support is added.")
+                Text("Registry views use Home Assistant data already available to Homestead. Setup and configuration changes stay in Home Assistant.")
             }
         }
         .navigationTitle("Devices & Services")
@@ -28,11 +28,7 @@ struct DevicesAndServicesManagementView: View {
     private func destination(for section: DevicesAndServicesSection) -> some View {
         switch section {
         case .integrations:
-            SettingsManagementPlaceholderView(
-                title: section.title,
-                systemImage: section.systemImage,
-                message: "Native integration details are not available in Homestead yet."
-            )
+            IntegrationRegistryManagementList()
         case .devices:
             DeviceRegistryManagementList()
         case .entities:
@@ -42,11 +38,7 @@ struct DevicesAndServicesManagementView: View {
                 emptySystemImage: section.systemImage
             )
         case .helpers:
-            SettingsManagementPlaceholderView(
-                title: section.title,
-                systemImage: section.systemImage,
-                message: "Native helper management will be added after Homestead supports the right Home Assistant APIs."
-            )
+            HelperRegistryManagementList()
         }
     }
 }
@@ -75,13 +67,13 @@ private enum DevicesAndServicesSection: CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .integrations:
-            "Installed integrations and setup details"
+            "Read-only integration entity and device overview"
         case .devices:
             "Registered hardware, bridges, and entity counts"
         case .entities:
             "Entity registry, status, area, and device details"
         case .helpers:
-            "Home Assistant helper management"
+            "Read-only helper entities exposed by Home Assistant"
         }
     }
 
@@ -96,6 +88,142 @@ private enum DevicesAndServicesSection: CaseIterable, Identifiable {
         case .helpers:
             "wrench.and.screwdriver"
         }
+    }
+}
+
+private struct IntegrationRegistryManagementList: View {
+    @Environment(HAStateStore.self) private var stateStore
+    @State private var searchText = ""
+
+    var body: some View {
+        let summaries = stateStore.integrationManagementSummaries()
+        let visibleSummaries = summaries.filter { $0.matches(query: searchText) }
+
+        List {
+            Section {
+                ForEach(visibleSummaries) { summary in
+                    NavigationLink {
+                        IntegrationRegistryDetailView(summary: summary)
+                    } label: {
+                        SettingsManagementOverviewRow(
+                            title: summary.title,
+                            subtitle: summary.subtitle,
+                            systemImage: "puzzlepiece.extension"
+                        )
+                    }
+                }
+            }
+        }
+        .overlay {
+            if summaries.isEmpty {
+                ContentUnavailableView("No Integrations", systemImage: "puzzlepiece.extension")
+            } else if visibleSummaries.isEmpty {
+                ContentUnavailableView.search(text: searchText)
+            }
+        }
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+        .navigationTitle("Integrations")
+        .toolbarTitleDisplayMode(.inline)
+    }
+}
+
+private struct IntegrationRegistryDetailView: View {
+    @Environment(HAStateStore.self) private var stateStore
+    @State private var selectedEntity: SettingsSelectedEntity?
+
+    let summary: HAIntegrationManagementSummary
+
+    var body: some View {
+        List {
+            Section {
+                LabeledContent("Platform", value: summary.platform)
+                LabeledContent("Entities", value: "\(summary.entityCount)")
+                LabeledContent("Devices", value: "\(summary.deviceCount)")
+
+                if summary.unavailableEntityCount > 0 {
+                    LabeledContent("Unavailable", value: "\(summary.unavailableEntityCount)")
+                }
+                if summary.configEntityCount > 0 {
+                    LabeledContent("Config Entities", value: "\(summary.configEntityCount)")
+                }
+                if summary.diagnosticEntityCount > 0 {
+                    LabeledContent("Diagnostic Entities", value: "\(summary.diagnosticEntityCount)")
+                }
+                if summary.hiddenEntityCount > 0 {
+                    LabeledContent("Hidden", value: "\(summary.hiddenEntityCount)")
+                }
+            }
+
+            Section("Entities") {
+                ForEach(summary.entityIDs, id: \.self) { entityID in
+                    if let entityBox = stateStore.entityBox(for: entityID) {
+                        Button {
+                            selectedEntity = SettingsSelectedEntity(entityID: entityID)
+                        } label: {
+                            EntityBrowserRow(
+                                entityBox: entityBox,
+                                displayNameOverride: nil,
+                                detailText: stateStore.entityRegistryAdminDetail(for: entityID),
+                                accessory: EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: true)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .sheet(item: $selectedEntity) { selectedEntity in
+            if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
+                NavigationStack {
+                    EntityDiagnosticsView(entityBox: entityBox)
+                }
+            }
+        }
+        .navigationTitle(summary.title)
+        .toolbarTitleDisplayMode(.inline)
+    }
+}
+
+private struct HelperRegistryManagementList: View {
+    @Environment(HAStateStore.self) private var stateStore
+    @State private var selectedEntity: SettingsSelectedEntity?
+
+    var body: some View {
+        let summaries = stateStore.helperManagementSummaries()
+        let helperEntityIDs = stateStore.helperEntityIDs()
+
+        EntityBrowserList(
+            hiddenEntityIDs: [],
+            emptyTitle: "No Helpers",
+            emptySystemImage: "wrench.and.screwdriver",
+            includesUnavailableByDefault: true,
+            showsGroupingMenu: true,
+            showsSingleGroupHeaders: summaries.count > 1,
+            allowedEntityIDs: helperEntityIDs,
+            initialGrouping: .type,
+            rowAction: { entityBox in
+                selectedEntity = SettingsSelectedEntity(entityID: entityBox.entityID)
+            },
+            rowDetail: { entityBox in
+                stateStore.entityRegistryAdminDetail(for: entityBox.entityID) ?? helperDetail(for: entityBox.entityID)
+            },
+            accessory: { entityBox in
+                EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: false)
+            }
+        )
+        .sheet(item: $selectedEntity) { selectedEntity in
+            if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
+                NavigationStack {
+                    EntityDiagnosticsView(entityBox: entityBox)
+                }
+            }
+        }
+        .navigationTitle("Helpers")
+        .toolbarTitleDisplayMode(.inline)
+    }
+
+    private func helperDetail(for entityID: String) -> String? {
+        HAHelperDomain(entityID: entityID)?.displayName
     }
 }
 
@@ -304,7 +432,7 @@ struct AutomationsAndScenesManagementView: View {
                     }
                 }
             } footer: {
-                Text("Automations, scenes, and scripts use entity data already available to Homestead. Blueprint browsing is a placeholder until official API support is added.")
+                Text("Automations, scenes, and scripts use entity data already available to Homestead. Blueprint browsing stays in Home Assistant until an official external API is available.")
             }
         }
         .navigationTitle("Automations & Scenes")
@@ -335,12 +463,6 @@ struct AutomationsAndScenesManagementView: View {
                 emptySystemImage: section.systemImage,
                 allowedDomains: [.script]
             )
-        case .blueprints:
-            SettingsManagementPlaceholderView(
-                title: section.title,
-                systemImage: section.systemImage,
-                message: "Native blueprint browsing will be added after Homestead supports an official Home Assistant API for it."
-            )
         }
     }
 }
@@ -349,7 +471,6 @@ private enum AutomationsAndScenesSection: CaseIterable, Identifiable {
     case automations
     case scenes
     case scripts
-    case blueprints
 
     var id: Self { self }
 
@@ -361,8 +482,6 @@ private enum AutomationsAndScenesSection: CaseIterable, Identifiable {
             "Scenes"
         case .scripts:
             "Scripts"
-        case .blueprints:
-            "Blueprints"
         }
     }
 
@@ -374,8 +493,6 @@ private enum AutomationsAndScenesSection: CaseIterable, Identifiable {
             "Scene entities available for native activation"
         case .scripts:
             "Script entities available for native runs"
-        case .blueprints:
-            "Reusable automation and script templates"
         }
     }
 
@@ -387,8 +504,6 @@ private enum AutomationsAndScenesSection: CaseIterable, Identifiable {
             EntityDomain.scene.systemImage
         case .scripts:
             EntityDomain.script.systemImage
-        case .blueprints:
-            "doc.badge.gearshape"
         }
     }
 }
@@ -419,7 +534,7 @@ private struct EntityRegistryManagementBrowser: View {
                 stateStore.entityRegistryAdminDetail(for: entityBox.entityID)
             },
             accessory: { entityBox in
-                EntityRegistryStatusAccessory(entityBox: entityBox)
+                EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: allowedDomains == nil)
             }
         )
         .sheet(item: $selectedEntity) { selectedEntity in
@@ -436,13 +551,16 @@ private struct EntityRegistryManagementBrowser: View {
 
 private struct EntityRegistryStatusAccessory: View {
     let entityBox: HAEntityState
+    var showsDomain = true
 
     var body: some View {
-        Text(statusText)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(entityBox.homeEntity.isAvailable ? .secondary : Color.red)
-            .lineLimit(1)
-            .frame(width: 88, alignment: .trailing)
+        if !entityBox.homeEntity.isAvailable || showsDomain {
+            Text(statusText)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(entityBox.homeEntity.isAvailable ? .secondary : Color.red)
+                .lineLimit(1)
+                .frame(width: 88, alignment: .trailing)
+        }
     }
 
     private var statusText: String {

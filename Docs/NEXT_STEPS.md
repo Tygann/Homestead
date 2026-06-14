@@ -27,6 +27,8 @@ Recommended reasoning level: High.
 - The latest wallpaper card experiment reuses standard adaptive grouped card/chip/icon/control fills with wallpaper-specific opacity instead of dark-only fills or live material; this should make light-mode wallpaper dashboards readable while leaving `.ultraThinMaterial` / `.glassEffect()` as future A/B candidates if performance can be profiled.
 - Current wallpaper card experiment uses `.thinMaterial` for wallpaper-mode card/chip fills, removes full-card active tint in wallpaper mode, keeps generic controls neutral, and leaves active emphasis to icon wells plus feature-specific fills such as brightness sliders.
 - Polished the Appearance wallpaper panel by keeping the miniature-device preview at its current size, reducing the surrounding panel weight, making Change Wallpaper quieter once a wallpaper exists, and showing helper text only for the empty state.
+- Replaced the remaining Settings placeholders with production surfaces or removals: Integrations is now a read-only registry-platform overview, Helpers is a read-only helper entity browser, Blueprints is removed until an official external API is confirmed, and Widgets/Live Activities no longer appear as placeholder Settings rows.
+- Added opt-in Settings > iCloud Sync backed by Apple iCloud key-value storage for small Homestead-owned preferences: server routing metadata, dashboard layout/display preferences, action confirmations, and small appearance flags. Credentials, tokens, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, and wallpaper images remain local.
 - Added an app-level first-run Home Assistant setup surface for users without a complete saved server/sign-in session.
 - The setup surface writes the existing `HAConnectionSettings.baseURL`, starts the existing Home Assistant OAuth flow through `HomeAssistantService.signInWithHomeAssistant(settings:)`, and keeps normal setup focused on a single server-address row with a bottom Continue action.
 - Added an optional Settings-style Advanced Setup sheet during onboarding for internal URL, external URL, and manually entered home network metadata, reusing existing `HAConnectionSettings` routing fields without adding discovery or permission prompts.
@@ -197,6 +199,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SettingsPlaceholders` after completing Settings placeholder surfaces and iCloud sync.
+- Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SettingsPlaceholdersTests` after adding integration/helper/iCloud sync coverage. The build emitted the existing App Intents metadata extraction warning for targets without AppIntents.framework dependencies.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityIcons` after adding People-backed attribution, historical-state activity icons, and uncapped Security activity rows.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityIconsTests`, including current-user/person attribution, historical door icons, and uncapped activity presentation coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityAttribution` after adding Security activity trigger/user attribution.

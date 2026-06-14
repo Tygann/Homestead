@@ -11,6 +11,7 @@ struct PreviewDependencies {
     let dashboardConfiguration: DashboardConfiguration
     let actionConfirmationSettings: ActionConfirmationSettings
     let appearanceSettings: HomesteadAppearanceSettings
+    let iCloudSyncService: HomesteadICloudSyncService
 
     static var sample: PreviewDependencies {
         let previewDefaults = UserDefaults.samplePreview
@@ -19,6 +20,7 @@ struct PreviewDependencies {
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         let actionConfirmationSettings = ActionConfirmationSettings(defaults: previewDefaults)
         let appearanceSettings = HomesteadAppearanceSettings(defaults: previewDefaults)
+        let iCloudSyncService = HomesteadICloudSyncService(defaults: previewDefaults)
         dashboardConfiguration.reset(using: stateStore.allEntities)
 
         let credential = PreviewCredentialProvider.sampleCredential(
@@ -55,7 +57,8 @@ struct PreviewDependencies {
             nativePermissionService: nativePermissionService,
             dashboardConfiguration: dashboardConfiguration,
             actionConfirmationSettings: actionConfirmationSettings,
-            appearanceSettings: appearanceSettings
+            appearanceSettings: appearanceSettings,
+            iCloudSyncService: iCloudSyncService
         )
     }
 
@@ -65,6 +68,7 @@ struct PreviewDependencies {
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         let actionConfirmationSettings = ActionConfirmationSettings(defaults: previewDefaults)
         let appearanceSettings = HomesteadAppearanceSettings(defaults: previewDefaults)
+        let iCloudSyncService = HomesteadICloudSyncService(defaults: previewDefaults)
 
         if let credential = PreviewCredentialProvider.liveCredential() {
             let tokenStore = InMemoryHAOAuthTokenStore(credential: credential)
@@ -95,7 +99,8 @@ struct PreviewDependencies {
                 nativePermissionService: nativePermissionService,
                 dashboardConfiguration: dashboardConfiguration,
                 actionConfirmationSettings: actionConfirmationSettings,
-                appearanceSettings: appearanceSettings
+                appearanceSettings: appearanceSettings,
+                iCloudSyncService: iCloudSyncService
             )
         }
 
@@ -125,7 +130,8 @@ struct PreviewDependencies {
             nativePermissionService: nativePermissionService,
             dashboardConfiguration: dashboardConfiguration,
             actionConfirmationSettings: actionConfirmationSettings,
-            appearanceSettings: appearanceSettings
+            appearanceSettings: appearanceSettings,
+            iCloudSyncService: iCloudSyncService
         )
     }
 }
@@ -146,6 +152,7 @@ extension View {
             .environment(dependencies.dashboardConfiguration)
             .environment(dependencies.actionConfirmationSettings)
             .environment(dependencies.appearanceSettings)
+            .environment(dependencies.iCloudSyncService)
     }
 }
 

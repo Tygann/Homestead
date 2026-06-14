@@ -6,6 +6,8 @@
 	<array>
 		<string>group.com.tyler.Homestead</string>
 	</array>
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)com.tyler.Homestead</string>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)com.tyler.Homestead.shared</string>

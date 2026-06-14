@@ -47,6 +47,15 @@ final class HAConnectionSettings {
         )
     }
 
+    var syncSnapshot: HAConnectionSettingsSyncSnapshot {
+        HAConnectionSettingsSyncSnapshot(
+            baseURL: baseURL,
+            internalURL: internalURL,
+            externalURL: externalURL,
+            homeNetworkName: homeNetworkName
+        )
+    }
+
     var hasAutomaticRouteCandidates: Bool {
         routingSnapshot.hasAutomaticRouteCandidates
     }
@@ -80,10 +89,24 @@ final class HAConnectionSettings {
         WidgetSharedStore.saveBaseURL(self.baseURL)
     }
 
+    func applySyncSnapshot(_ snapshot: HAConnectionSettingsSyncSnapshot) {
+        baseURL = snapshot.baseURL
+        internalURL = snapshot.internalURL
+        externalURL = snapshot.externalURL
+        homeNetworkName = snapshot.homeNetworkName
+    }
+
     private enum Keys {
         static let baseURL = "homeAssistantBaseURL"
         static let internalURL = "homeAssistantInternalURL"
         static let externalURL = "homeAssistantExternalURL"
         static let homeNetworkName = "homeAssistantHomeNetworkName"
     }
+}
+
+struct HAConnectionSettingsSyncSnapshot: Codable, Equatable, Sendable {
+    var baseURL: String
+    var internalURL: String
+    var externalURL: String
+    var homeNetworkName: String
 }

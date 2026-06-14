@@ -20,6 +20,7 @@ struct EntityBrowserList<Accessory: View>: View {
     let showsSingleGroupHeaders: Bool
     let allowsRefresh: Bool
     let allowedDomains: Set<EntityDomain>?
+    let allowedEntityIDs: Set<String>?
     let rowAction: (HAEntityState) -> Void
     let rowDetail: (HAEntityState) -> String?
     private let accessory: (HAEntityState) -> Accessory
@@ -36,6 +37,7 @@ struct EntityBrowserList<Accessory: View>: View {
         showsSingleGroupHeaders: Bool = true,
         allowsRefresh: Bool = true,
         allowedDomains: Set<EntityDomain>? = nil,
+        allowedEntityIDs: Set<String>? = nil,
         initialGrouping: EntityBrowserGrouping = .device,
         rowAction: @escaping (HAEntityState) -> Void,
         rowDetail: @escaping (HAEntityState) -> String? = { _ in nil },
@@ -51,6 +53,7 @@ struct EntityBrowserList<Accessory: View>: View {
         self.showsSingleGroupHeaders = showsSingleGroupHeaders
         self.allowsRefresh = allowsRefresh
         self.allowedDomains = allowedDomains
+        self.allowedEntityIDs = allowedEntityIDs
         self.rowAction = rowAction
         self.rowDetail = rowDetail
         self.accessory = accessory
@@ -279,6 +282,10 @@ struct EntityBrowserList<Accessory: View>: View {
         let visibleCandidateEntityIDs = stateStore.availableEntityIDs
             .subtracting(hiddenEntityIDs)
             .filter { entityID in
+                if let allowedEntityIDs, !allowedEntityIDs.contains(entityID) {
+                    return false
+                }
+
                 guard let allowedDomains else {
                     return true
                 }
@@ -391,6 +398,10 @@ struct EntityBrowserList<Accessory: View>: View {
     private func entityPassesVisibility(_ entityID: String) -> Bool {
         guard !hiddenEntityIDs.contains(entityID),
               let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
+            return false
+        }
+
+        if let allowedEntityIDs, !allowedEntityIDs.contains(entityID) {
             return false
         }
 

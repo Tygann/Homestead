@@ -66,6 +66,10 @@ final class HomesteadAppearanceSettings {
         hasWallpaper ? wallpaperURL : nil
     }
 
+    var syncSnapshot: HomesteadAppearanceSettingsSyncSnapshot {
+        HomesteadAppearanceSettingsSyncSnapshot(isWallpaperEnabled: isWallpaperEnabled)
+    }
+
     func importWallpaper(from imageData: Data) async throws {
         guard let image = UIImage(data: imageData) else {
             throw HomesteadAppearanceSettingsError.invalidImage
@@ -99,6 +103,10 @@ final class HomesteadAppearanceSettings {
 
         isWallpaperEnabled = false
         wallpaperRevision += 1
+    }
+
+    func applySyncSnapshot(_ snapshot: HomesteadAppearanceSettingsSyncSnapshot) {
+        isWallpaperEnabled = snapshot.isWallpaperEnabled && hasWallpaper
     }
 
     private var wallpaperURL: URL {
@@ -140,4 +148,8 @@ final class HomesteadAppearanceSettings {
         static let isWallpaperEnabled = "homestead.appearance.isWallpaperEnabled"
         static let wallpaperRevision = "homestead.appearance.wallpaperRevision"
     }
+}
+
+struct HomesteadAppearanceSettingsSyncSnapshot: Codable, Equatable, Sendable {
+    var isWallpaperEnabled: Bool
 }

@@ -27,7 +27,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Areas browsing backed by Home Assistant area and floor registries, with area summaries and domain-grouped area detail pages.
 - Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
 - Settings sheet opened from account/avatar buttons on daily-use tabs.
-- Settings hub with Home Assistant and Homestead sections, native management overviews for Devices & Services and Automations & Scenes, registry/admin-oriented devices and entities, and placeholders for unsupported categories.
+- Settings hub with Home Assistant and Homestead sections, native management overviews for Devices & Services and Automations & Scenes, registry/admin-oriented devices/entities/integration-platform/helper browsers, and no production placeholder rows for unsupported categories.
 - Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status, recovery actions, automatic route status, saved internal/external URL and home network metadata, and Home Assistant `get_config` details.
 - Native Settings > Updates page backed by Home Assistant `.update` entities, with grouped/filterable/searchable presentation, release/version/status/context details, and official `update.install`, `update.skip`, and `update.clear_skipped` service actions.
 - Native Settings > Apps page backed by Home Assistant Core's Supervisor WebSocket bridge to `/addons`, showing installed Supervisor apps/add-ons, version, update availability, and Running/Stopped/Unknown status where Supervisor is available.
@@ -42,6 +42,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - User-facing service-call and reconnect recovery feedback through `HomeAssistantService` and app chrome, including tappable reconnecting state and clearer action-failure copy.
 - Authenticated camera snapshot support.
 - Experience-first Home Screen widgets: Control for lights, switches, covers, fans, and lock-only lock actions; Status for sensors and people; Graph for numeric sensors; and Action for scenes/scripts. They use shared OAuth credentials, app-group state, WebSocket state refresh, documented REST history for graphs, and official WebSocket service calls where actions are available.
+- Opt-in iCloud key-value sync for small Homestead-owned preferences, including server routing metadata, dashboard layout/display preferences, action confirmation preferences, and small appearance settings. OAuth credentials, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, and wallpaper image files stay local.
 - App-facing model mapping through `EntityMapper`, with SwiftUI avoiding direct Home Assistant DTO use.
 
 ## Near-Term Priorities
@@ -59,7 +60,6 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Control Center controls and App Intents for common Home Assistant actions.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.
 - True Home Assistant users/admin views if an official supported API path is confirmed for the signed-in user's permissions.
-- iCloud sync for Homestead-owned preferences such as dashboard layouts, display overrides, widget configuration, and server configuration metadata.
 - Siri/Shortcuts once App Intents have stable action coverage.
 - Cloud/APNs notification forwarding if Homestead later commits to APNs entitlements, remote-notification token registration, and operating a separate push forwarding service for Home Assistant's `push_url` path.
 - Domain-specific cards and details for calendars, todo lists, humidifiers, water heaters, valves, sirens, air-quality sensors, and image entities.
@@ -83,4 +83,4 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Use documented HTTP APIs for auth/token exchange, camera snapshots, history, logbook, media, and other official HTTP surfaces.
 - Use native-app/mobile-app registration only for companion-app capabilities such as app identity, notifications, webhooks, app-provided sensors, and camera stream handoff.
 - Mark new feature ideas as "API research needed" before implementation when Home Assistant's official public path is unclear.
-- Keep unsupported future sections as honest placeholders rather than fake data or private API experiments.
+- Keep unsupported future sections out of production Settings unless they provide real status, recovery, or handoff value; do not use fake data or private API experiments.

@@ -13,6 +13,7 @@ struct HomesteadApp: App {
     @State private var dashboardConfiguration: DashboardConfiguration
     @State private var actionConfirmationSettings: ActionConfirmationSettings
     @State private var appearanceSettings: HomesteadAppearanceSettings
+    @State private var iCloudSyncService: HomesteadICloudSyncService
 
     init() {
         let stateStore = HAStateStore()
@@ -21,6 +22,8 @@ struct HomesteadApp: App {
         let nativePermissionService = NativePermissionService()
         let actionConfirmationSettings = ActionConfirmationSettings()
         let appearanceSettings = HomesteadAppearanceSettings()
+        let dashboardConfiguration = DashboardConfiguration()
+        let iCloudSyncService = HomesteadICloudSyncService()
         let homeAssistantService = HomeAssistantService(
             stateStore: stateStore,
             nativeNotificationService: nativeNotificationService
@@ -31,9 +34,10 @@ struct HomesteadApp: App {
         _homeAssistantService = State(initialValue: homeAssistantService)
         _nativeNotificationService = State(initialValue: nativeNotificationService)
         _nativePermissionService = State(initialValue: nativePermissionService)
-        _dashboardConfiguration = State(initialValue: DashboardConfiguration())
+        _dashboardConfiguration = State(initialValue: dashboardConfiguration)
         _actionConfirmationSettings = State(initialValue: actionConfirmationSettings)
         _appearanceSettings = State(initialValue: appearanceSettings)
+        _iCloudSyncService = State(initialValue: iCloudSyncService)
 
         guard !RuntimeEnvironment.isRunningForPreviews else {
             return
@@ -60,7 +64,43 @@ struct HomesteadApp: App {
                 .environment(dashboardConfiguration)
                 .environment(actionConfirmationSettings)
                 .environment(appearanceSettings)
+                .environment(iCloudSyncService)
+                .task {
+                    iCloudSyncService.startObserving(
+                        connectionSettings: connectionSettings,
+                        dashboardConfiguration: dashboardConfiguration,
+                        actionConfirmationSettings: actionConfirmationSettings,
+                        appearanceSettings: appearanceSettings
+                    )
+                    iCloudSyncService.applyRemoteIfNewer(
+                        connectionSettings: connectionSettings,
+                        dashboardConfiguration: dashboardConfiguration,
+                        actionConfirmationSettings: actionConfirmationSettings,
+                        appearanceSettings: appearanceSettings
+                    )
+                }
+                .onChange(of: connectionSettings.syncSnapshot) { _, _ in
+                    syncPreferencesToICloud()
+                }
+                .onChange(of: dashboardConfiguration.syncSnapshot) { _, _ in
+                    syncPreferencesToICloud()
+                }
+                .onChange(of: actionConfirmationSettings.syncSnapshot) { _, _ in
+                    syncPreferencesToICloud()
+                }
+                .onChange(of: appearanceSettings.syncSnapshot) { _, _ in
+                    syncPreferencesToICloud()
+                }
         }
+    }
+
+    private func syncPreferencesToICloud() {
+        iCloudSyncService.syncNow(
+            connectionSettings: connectionSettings,
+            dashboardConfiguration: dashboardConfiguration,
+            actionConfirmationSettings: actionConfirmationSettings,
+            appearanceSettings: appearanceSettings
+        )
     }
 }
 

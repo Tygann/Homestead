@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-14
 
+### Settings Placeholder Completion
+
+- Replaced Settings > Devices & Services > Integrations with a read-only integration-platform overview derived from documented entity registry display metadata and existing state/device registry context.
+- Replaced Settings > Devices & Services > Helpers with a read-only browser for helper entity domains exposed by Home Assistant state/registry data.
+- Removed the Blueprints, Widgets, and Live Activities placeholder rows from production Settings; Blueprints still needs an official external API before native browsing/import/management, while widgets are configured from the Home Screen and Live Activities are not implemented yet.
+- Added opt-in Settings > iCloud Sync backed by Apple iCloud key-value storage for small Homestead-owned preferences, intentionally excluding credentials, tokens, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, wallpaper files, and generated user data.
+
 ### UX Cleanup and Fan Controls
 
 - Removed the legacy Browse/Devices star affordance and stale quick-access presentation metadata so Dashboard customization is the only quick-access model.
@@ -12,7 +19,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Global Wallpaper
 
-- Added a local-only Homestead appearance setting for one optimized wallpaper image stored in Application Support, with no Home Assistant upload, API surface, or iCloud sync.
+- Added a local-only Homestead appearance setting for one optimized wallpaper image stored in Application Support, with no Home Assistant upload, API surface, or wallpaper image-file sync.
 - Added Settings > Appearance with photo picking, preview, enable/disable, and removal controls.
 - Applied the shared wallpaper background only behind Home, Areas, and area detail scroll surfaces, preserving opaque dashboard cards and avoiding material/blur effects in live scrolling grids.
 - Extended wallpaper support to dashboard summary views and replaced the flat settings preview with a phone-shaped preview using the same wallpaper crop/overlay behavior as daily-use surfaces.

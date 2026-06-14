@@ -180,6 +180,13 @@ final class DashboardConfiguration {
         !items.isEmpty
     }
 
+    var syncSnapshot: DashboardConfigurationSyncSnapshot {
+        DashboardConfigurationSyncSnapshot(
+            items: items,
+            entityDisplayNameOverrides: entityDisplayNameOverrides
+        )
+    }
+
     var entityIDs: [String] {
         items.compactMap { item in
             guard item.type == .entity else { return nil }
@@ -478,6 +485,11 @@ final class DashboardConfiguration {
         }
     }
 
+    func applySyncSnapshot(_ snapshot: DashboardConfigurationSyncSnapshot) {
+        items = snapshot.items
+        entityDisplayNameOverrides = snapshot.entityDisplayNameOverrides
+    }
+
     func cardSize(forItemID itemID: UUID) -> DashboardCardSize {
         items.first { $0.id == itemID }?.resolvedCardSize ?? .compact
     }
@@ -580,6 +592,11 @@ final class DashboardConfiguration {
 
         return Array(sortedEntities.prefix(10).map(\.entityID))
     }
+}
+
+struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
+    var items: [DashboardItemConfiguration]
+    var entityDisplayNameOverrides: [String: String]
 }
 
 private extension DashboardReorderGroup {

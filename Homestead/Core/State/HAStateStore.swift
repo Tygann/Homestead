@@ -146,6 +146,58 @@ final class HAStateStore {
             }
     }
 
+    func integrationManagementSummaries() -> [HAIntegrationManagementSummary] {
+        Dictionary(grouping: entityRegistryByID.values) { metadata in
+            metadata.platform?.nonEmptyValue ?? "unknown"
+        }
+        .map { platform, metadataEntries in
+            let entityIDs = metadataEntries.map(\.entityID).filter { entitiesByID[$0] != nil }
+            let deviceIDs = Set(metadataEntries.compactMap { $0.deviceID?.nonEmptyValue })
+            let unavailableCount = entityIDs.filter { entitiesByID[$0]?.isAvailable == false }.count
+            let hiddenCount = metadataEntries.filter { $0.hiddenBy == true }.count
+            let configEntityCount = metadataEntries.filter { $0.entityCategory == "config" || $0.entityCategoryIndex == 0 }.count
+            let diagnosticEntityCount = metadataEntries.filter { $0.entityCategory == "diagnostic" || $0.entityCategoryIndex == 1 }.count
+
+            return HAIntegrationManagementSummary(
+                id: platform,
+                title: Self.displayName(forIntegrationPlatform: platform),
+                platform: platform,
+                entityIDs: entityIDs.sortedByEntityDisplayName(in: entitiesByID),
+                deviceCount: deviceIDs.count,
+                unavailableEntityCount: unavailableCount,
+                hiddenEntityCount: hiddenCount,
+                configEntityCount: configEntityCount,
+                diagnosticEntityCount: diagnosticEntityCount
+            )
+        }
+        .filter { !$0.entityIDs.isEmpty }
+        .sorted { lhs, rhs in
+            lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+        }
+    }
+
+    func helperEntityIDs() -> Set<String> {
+        Set(allEntities.compactMap { entity in
+            HAHelperDomain(entityID: entity.entityID) == nil ? nil : entity.entityID
+        })
+    }
+
+    func helperManagementSummaries() -> [HAHelperManagementSummary] {
+        Dictionary(grouping: allEntities.filter { HAHelperDomain(entityID: $0.entityID) != nil }) { entity in
+            HAHelperDomain(entityID: entity.entityID) ?? .inputBoolean
+        }
+        .map { helperDomain, entities in
+            HAHelperManagementSummary(
+                domain: helperDomain,
+                entityIDs: entities.sortedByDisplayName.map(\.entityID),
+                unavailableEntityCount: entities.filter { !$0.isAvailable }.count
+            )
+        }
+        .sorted { lhs, rhs in
+            lhs.domain.displayName.localizedCaseInsensitiveCompare(rhs.domain.displayName) == .orderedAscending
+        }
+    }
+
     func entityRegistryAdminDetail(for entityID: String) -> String? {
         guard let entity = entitiesByID[entityID] else {
             return nil
@@ -1050,9 +1102,135 @@ struct HADeviceManagementSummary: Equatable, Identifiable, Sendable {
     }
 }
 
+enum HAHelperDomain: String, CaseIterable, Identifiable, Sendable {
+    case inputBoolean = "input_boolean"
+    case inputButton = "input_button"
+    case inputDatetime = "input_datetime"
+    case inputNumber = "input_number"
+    case inputSelect = "input_select"
+    case inputText = "input_text"
+    case counter
+    case timer
+    case schedule
+
+    var id: String { rawValue }
+
+    init?(entityID: String) {
+        guard let domain = entityID.split(separator: ".").first else {
+            return nil
+        }
+
+        self.init(rawValue: String(domain))
+    }
+
+    var displayName: String {
+        switch self {
+        case .inputBoolean:
+            "Toggle Helpers"
+        case .inputButton:
+            "Button Helpers"
+        case .inputDatetime:
+            "Date & Time Helpers"
+        case .inputNumber:
+            "Number Helpers"
+        case .inputSelect:
+            "Dropdown Helpers"
+        case .inputText:
+            "Text Helpers"
+        case .counter:
+            "Counters"
+        case .timer:
+            "Timers"
+        case .schedule:
+            "Schedules"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .inputBoolean:
+            "switch.2"
+        case .inputButton:
+            "button.programmable"
+        case .inputDatetime:
+            "calendar.badge.clock"
+        case .inputNumber:
+            "number"
+        case .inputSelect:
+            "filemenu.and.selection"
+        case .inputText:
+            "text.cursor"
+        case .counter:
+            "number.circle"
+        case .timer:
+            "timer"
+        case .schedule:
+            "calendar"
+        }
+    }
+}
+
+struct HAIntegrationManagementSummary: Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let platform: String
+    let entityIDs: [String]
+    let deviceCount: Int
+    let unavailableEntityCount: Int
+    let hiddenEntityCount: Int
+    let configEntityCount: Int
+    let diagnosticEntityCount: Int
+
+    var entityCount: Int { entityIDs.count }
+
+    var subtitle: String {
+        [
+            entityCount == 1 ? "1 entity" : "\(entityCount) entities",
+            deviceCount == 1 ? "1 device" : deviceCount > 1 ? "\(deviceCount) devices" : nil,
+            unavailableEntityCount > 0 ? "\(unavailableEntityCount) unavailable" : nil
+        ]
+            .compactMap { $0 }
+            .joined(separator: " • ")
+    }
+
+    func matches(query: String) -> Bool {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            return true
+        }
+
+        return [
+            title,
+            platform,
+            subtitle
+        ]
+            .joined(separator: " ")
+            .localizedCaseInsensitiveContains(trimmedQuery)
+    }
+}
+
+struct HAHelperManagementSummary: Equatable, Identifiable, Sendable {
+    let domain: HAHelperDomain
+    let entityIDs: [String]
+    let unavailableEntityCount: Int
+
+    var id: String { domain.rawValue }
+    var entityCount: Int { entityIDs.count }
+}
+
 private extension HADeviceRegistryDTO {
     var displayName: String {
         nameByUser?.nonEmptyValue ?? name?.nonEmptyValue ?? manufacturer?.nonEmptyValue ?? "Unknown Device"
+    }
+}
+
+private extension Array where Element == String {
+    func sortedByEntityDisplayName(in entitiesByID: [String: HomeEntity]) -> [String] {
+        sorted { lhs, rhs in
+            let lhsName = entitiesByID[lhs]?.displayName ?? lhs
+            let rhsName = entitiesByID[rhs]?.displayName ?? rhs
+            return lhsName.localizedCaseInsensitiveCompare(rhsName) == .orderedAscending
+        }
     }
 }
 
@@ -1092,6 +1270,24 @@ private extension String {
         }
 
         return removingDeviceNamePrefix(deviceName)
+    }
+}
+
+private extension HAStateStore {
+    static func displayName(forIntegrationPlatform platform: String) -> String {
+        let trimmedPlatform = platform.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPlatform.isEmpty, trimmedPlatform != "unknown" else {
+            return "Unknown Integration"
+        }
+
+        return trimmedPlatform
+            .replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { word in
+                let lowercased = word.lowercased()
+                return lowercased.prefix(1).uppercased() + lowercased.dropFirst()
+            }
+            .joined(separator: " ")
     }
 }
 
