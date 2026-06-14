@@ -58,6 +58,40 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1.0 (Build 12)
+
+- Release Date: 2026-06-14
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This update adds Homestead wallpaper personalization, a smoother first-run setup flow, and more polished Home Assistant summary views.
+
+What's new:
+
+- New Settings > Appearance page for choosing a local wallpaper for Homestead
+- Wallpapers appear behind Home, Areas, area details, and summary views without uploading anything to Home Assistant
+- New first-run setup experience for entering your Home Assistant server and starting sign-in
+- Security summary now includes a native activity view with recent locks, doors, cameras, people, and related events
+
+Improvements:
+
+- Dashboard cards, chips, and controls now use a more adaptive material style that works better with wallpapers, light mode, and dark mode
+- Area cards now use Home Assistant area icons when available, with better room icon fallbacks
+- Generated Home Assistant-style cards now choose better defaults across summaries, area views, and Add to Dashboard
+- Summary views better match Home Assistant grouping for floors, areas, and device categories
+
+Please test:
+
+- Choosing, changing, disabling, and removing a wallpaper in Settings > Appearance
+- Home, Areas, area detail, and summary views in both light and dark mode with a wallpaper enabled
+- Fresh install setup and Home Assistant sign-in
+- Security activity, area icons, and generated card defaults
+
+### Internal Summary
+
+Build 12 covers the June 13-14 personalization and polish pass after Build 11: global local-only wallpaper support, wallpaper-aware material card surfaces, Appearance preview polish, first-run onboarding, Security activity presentation/caching/attribution, area icon resolution, summary hierarchy alignment, and generated-card default refinements.
+
 ## Version 1.0 (Build 11)
 
 - Release Date: 2026-06-13
