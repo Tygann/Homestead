@@ -14,6 +14,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Tuned the first wallpaper pass after visual review: reduced wallpaper dimming, lightened wallpaper-aware card/chip/control fills, stopped climate cards from using the active-card highlight, and compacted the Appearance preview so the settings page stays in one screen.
 - Revised the wallpaper card direction again toward stable darker translucent surfaces with icon-first active state, removing full-card/large-control blue washes in wallpaper mode and fixing launch-time wallpaper layout so the image cannot momentarily render as a narrow strip.
 - Switched wallpaper-mode dashboard surfaces to reuse standard adaptive grouped fills with opacity instead of dark-only custom fills, improving light-mode text/icon contrast while keeping dashboard cards off live material/glass effects for now.
+- Ran the next wallpaper surface experiment with `.thinMaterial` for wallpaper-mode card and chip backgrounds, while keeping active state out of full-card fills so emphasis stays on active icon wells and feature sliders.
 
 ## 2026-06-13
 

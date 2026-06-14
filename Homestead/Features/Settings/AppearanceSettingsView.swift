@@ -152,7 +152,6 @@ private struct WallpaperPhonePreview: View {
                 .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
         }
         .aspectRatio(0.49, contentMode: .fit)
-        .shadow(color: .black.opacity(0.16), radius: 12, y: 6)
         .accessibilityLabel("Wallpaper Preview")
         .task(id: previewTaskID) {
             loadPreviewImage()
@@ -194,7 +193,7 @@ private struct WallpaperPhonePreview: View {
 
     private func previewChip(width: CGFloat) -> some View {
         Capsule()
-            .fill(Color(.secondarySystemGroupedBackground).opacity(0.66))
+            .fill(.thinMaterial)
             .frame(width: width, height: 13)
             .overlay(alignment: .leading) {
                 Circle()
@@ -206,7 +205,7 @@ private struct WallpaperPhonePreview: View {
 
     private func previewRowCard(height: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(Color(.secondarySystemGroupedBackground).opacity(0.78))
+            .fill(.thinMaterial)
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .overlay {
@@ -223,7 +222,7 @@ private struct WallpaperPhonePreview: View {
 
     private func previewSquareCard() -> some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color(.secondarySystemGroupedBackground).opacity(0.78))
+            .fill(.thinMaterial)
             .aspectRatio(1, contentMode: .fit)
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -240,7 +239,7 @@ private struct WallpaperPhonePreview: View {
     private var previewTabBar: some View {
         ZStack(alignment: .leading) {
             Capsule()
-                .fill(Color(.secondarySystemGroupedBackground).opacity(0.66))
+                .fill(.thinMaterial)
 
             Capsule()
                 .fill(Color(.tertiarySystemGroupedBackground).opacity(0.70))
