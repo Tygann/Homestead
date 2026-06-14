@@ -120,7 +120,7 @@ final class HomesteadICloudSyncService {
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
             object: NSUbiquitousKeyValueStore.default,
             queue: .main
-        ) { notification in
+        ) { [weak self, weak connectionSettings, weak dashboardConfiguration, weak actionConfirmationSettings, weak appearanceSettings] notification in
             let reason = notification.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
             let changedKeys = notification.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String]
             Task { @MainActor [weak self, weak connectionSettings, weak dashboardConfiguration, weak actionConfirmationSettings, weak appearanceSettings] in

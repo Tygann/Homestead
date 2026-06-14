@@ -5480,12 +5480,18 @@ struct HomesteadTests {
             settings: settings,
             pathOrURL: "https://cdn.example.com/person.jpg"
         ))
+        let integrationBrandRequest = try #require(await service.homeAssistantImageRequest(
+            settings: settings,
+            pathOrURL: "/api/brands/integration/hue/icon@2x.png"
+        ))
         let blankRequest = await service.homeAssistantImageRequest(settings: settings, pathOrURL: " ")
 
         #expect(relativeRequest.url?.absoluteString == "http://homeassistant.local:8123/api/image/person")
         #expect(relativeRequest.value(forHTTPHeaderField: "Authorization") == "Bearer image-access")
         #expect(absoluteRequest.url?.absoluteString == "https://cdn.example.com/person.jpg")
         #expect(absoluteRequest.value(forHTTPHeaderField: "Authorization") == "Bearer image-access")
+        #expect(integrationBrandRequest.url?.absoluteString == "http://homeassistant.local:8123/api/brands/integration/hue/icon@2x.png")
+        #expect(integrationBrandRequest.value(forHTTPHeaderField: "Authorization") == "Bearer image-access")
         #expect(blankRequest == nil)
     }
 

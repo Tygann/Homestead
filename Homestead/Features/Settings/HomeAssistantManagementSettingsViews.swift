@@ -105,11 +105,7 @@ private struct IntegrationRegistryManagementList: View {
                     NavigationLink {
                         IntegrationRegistryDetailView(summary: summary)
                     } label: {
-                        SettingsManagementOverviewRow(
-                            title: summary.title,
-                            subtitle: summary.subtitle,
-                            systemImage: "puzzlepiece.extension"
-                        )
+                        IntegrationManagementRow(summary: summary)
                     }
                 }
             }
@@ -127,6 +123,28 @@ private struct IntegrationRegistryManagementList: View {
     }
 }
 
+private struct IntegrationManagementRow: View {
+    let summary: HAIntegrationManagementSummary
+
+    var body: some View {
+        HStack(spacing: AppSpacing.medium) {
+            IntegrationBrandImageView(platform: summary.platform, size: 36)
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(summary.title)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+
+                Text(summary.subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            .padding(.vertical, AppSpacing.xSmall)
+        }
+    }
+}
+
 private struct IntegrationRegistryDetailView: View {
     @Environment(HAStateStore.self) private var stateStore
     @State private var selectedEntity: SettingsSelectedEntity?
@@ -136,7 +154,21 @@ private struct IntegrationRegistryDetailView: View {
     var body: some View {
         List {
             Section {
-                LabeledContent("Platform", value: summary.platform)
+                HStack(spacing: AppSpacing.medium) {
+                    IntegrationBrandImageView(platform: summary.platform, size: 52)
+
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        Text(summary.title)
+                            .font(.headline)
+                        Text(summary.platform)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, AppSpacing.small)
+            }
+
+            Section {
                 LabeledContent("Entities", value: "\(summary.entityCount)")
                 LabeledContent("Devices", value: "\(summary.deviceCount)")
 
@@ -181,6 +213,62 @@ private struct IntegrationRegistryDetailView: View {
         }
         .navigationTitle(summary.title)
         .toolbarTitleDisplayMode(.inline)
+    }
+}
+
+private struct IntegrationBrandImageView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var image: Image?
+
+    let platform: String
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if let image {
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .padding(size * 0.1)
+            } else {
+                Image(systemName: "puzzlepiece.extension")
+                    .font(.system(size: size * 0.46, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .frame(width: size, height: size)
+        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: min(10, size * 0.22)))
+        .task(id: taskID) {
+            await loadImage()
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var taskID: String {
+        [
+            connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            homeAssistantService.authState.title,
+            homeAssistantService.connectionStatus.title,
+            platform,
+            colorScheme == .dark ? "dark" : "light"
+        ].joined(separator: "|")
+    }
+
+    private func loadImage() async {
+        let imageName = colorScheme == .dark ? "dark_icon@2x.png" : "icon@2x.png"
+        let path = "/api/brands/integration/\(platform)/\(imageName)"
+        guard let request = await homeAssistantService.homeAssistantImageRequest(
+            settings: connectionSettings,
+            pathOrURL: path
+        ),
+        let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
+            image = nil
+            return
+        }
+
+        image = Image(uiImage: uiImage)
     }
 }
 
