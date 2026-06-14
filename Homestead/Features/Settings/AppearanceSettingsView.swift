@@ -117,10 +117,6 @@ private struct WallpaperPhonePreview: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .fill(Color.black)
-                .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
-
             GeometryReader { proxy in
                 ZStack {
                     if let previewImage {
@@ -149,11 +145,14 @@ private struct WallpaperPhonePreview: View {
 
                     previewChrome
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             }
-            .padding(8)
+
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
         }
         .aspectRatio(0.49, contentMode: .fit)
+        .shadow(color: .black.opacity(0.16), radius: 12, y: 6)
         .accessibilityLabel("Wallpaper Preview")
         .task(id: previewTaskID) {
             loadPreviewImage()
@@ -168,17 +167,18 @@ private struct WallpaperPhonePreview: View {
     }
 
     private var previewChrome: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             Text("Homestead")
                 .font(.headline.weight(.bold))
                 .foregroundStyle(.white)
 
             HStack(spacing: 4) {
-                previewChip(title: "Climate", value: "72")
-                previewChip(title: "Lights", value: "5 On")
+                previewChip(width: 38)
+                previewChip(width: 32)
+                previewChip(width: 38)
             }
 
-            previewRowCard(height: 38, isActive: true)
+            previewRowCard(height: 34)
 
             HStack(spacing: 7) {
                 previewSquareCard()
@@ -189,61 +189,54 @@ private struct WallpaperPhonePreview: View {
 
             previewTabBar
         }
-        .padding(12)
+        .padding(11)
     }
 
-    private func previewChip(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(title)
-                .font(.system(size: 7, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.72))
-            Text(value)
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.white)
-        }
-        .lineLimit(1)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(Color.black.opacity(0.34), in: Capsule())
+    private func previewChip(width: CGFloat) -> some View {
+        Capsule()
+            .fill(Color.black.opacity(0.44))
+            .frame(width: width, height: 13)
+            .overlay(alignment: .leading) {
+                Circle()
+                    .fill(Color.white.opacity(0.20))
+                    .frame(width: 7, height: 7)
+                    .padding(.leading, 5)
+            }
     }
 
-    private func previewRowCard(height: CGFloat, isActive: Bool) -> some View {
+    private func previewRowCard(height: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(
-                isActive
-                    ? Color.accentColor.opacity(0.26)
-                    : Color.black.opacity(0.46)
-            )
+            .fill(Color.black.opacity(0.62))
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .overlay(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.black.opacity(0.14))
-                    .frame(width: 24, height: 24)
-                    .padding(.leading, 10)
+                    .fill(Color.accentColor.opacity(0.28))
+                    .frame(width: 22, height: 22)
+                    .padding(.leading, 9)
             }
     }
 
     private func previewSquareCard() -> some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color.black.opacity(0.46))
+            .fill(Color.black.opacity(0.62))
             .aspectRatio(1, contentMode: .fit)
             .overlay(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.black.opacity(0.16))
-                    .frame(width: 26, height: 26)
-                    .padding(10)
+                    .fill(Color.black.opacity(0.24))
+                    .frame(width: 24, height: 24)
+                    .padding(9)
             }
     }
 
     private var previewTabBar: some View {
         ZStack(alignment: .leading) {
             Capsule()
-                .fill(Color.black.opacity(0.30))
+                .fill(Color.black.opacity(0.46))
 
             Capsule()
-                .fill(Color.black.opacity(0.22))
-                .frame(width: 48)
+                .fill(Color.black.opacity(0.28))
+                .frame(width: 42)
                 .padding(3)
 
             HStack {
@@ -253,11 +246,11 @@ private struct WallpaperPhonePreview: View {
                 Spacer()
                 Image(systemName: "magnifyingglass")
             }
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.white)
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 17)
         }
-        .frame(height: 34)
+        .frame(height: 31)
     }
 
     private func loadPreviewImage() {

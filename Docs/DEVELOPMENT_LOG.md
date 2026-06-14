@@ -12,6 +12,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Extended wallpaper support to dashboard summary views and replaced the flat settings preview with a phone-shaped preview using the same wallpaper crop/overlay behavior as daily-use surfaces.
 - Standardized wallpaper-aware dashboard surfaces around a lightweight soft-glass treatment: translucent dark fills, subtle strokes, and toned-down active control fills instead of per-card material blur.
 - Tuned the first wallpaper pass after visual review: reduced wallpaper dimming, lightened wallpaper-aware card/chip/control fills, stopped climate cards from using the active-card highlight, and compacted the Appearance preview so the settings page stays in one screen.
+- Revised the wallpaper card direction again toward stable darker translucent surfaces with icon-first active state, removing full-card/large-control blue washes in wallpaper mode and fixing launch-time wallpaper layout so the image cannot momentarily render as a narrow strip.
 
 ## 2026-06-13
 

@@ -30,6 +30,7 @@ struct HomesteadWallpaperBackground: View {
                     .ignoresSafeArea()
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: wallpaperTaskID) {
             loadWallpaperImage()
         }
@@ -64,10 +65,17 @@ private struct HomesteadWallpaperBackgroundModifier: ViewModifier {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
 
     func body(content: Content) -> some View {
-        content
-            .background {
+        ZStack {
+            if appearanceSettings.activeWallpaperURL != nil {
                 HomesteadWallpaperBackground()
+            } else {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
             }
+
+            content
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
             .environment(\.homesteadWallpaperSurfaceActive, appearanceSettings.activeWallpaperURL != nil)
     }
 }
