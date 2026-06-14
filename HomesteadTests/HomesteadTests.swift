@@ -7864,6 +7864,31 @@ struct HomesteadTests {
                     "current_position": .number(0)
                 ]
             ),
+            HAEntityDTO(
+                entityID: "fan.bedroom",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Bedroom Fan"),
+                    "percentage": .number(45),
+                    "percentage_step": .number(5)
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "fan.office",
+                state: "off",
+                attributes: [
+                    "friendly_name": .string("Office Fan"),
+                    "percentage": .number(30),
+                    "percentage_step": .number(10)
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "fan.basic",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Basic Fan")
+                ]
+            ),
             HAEntityDTO(entityID: "lock.front_door", state: "locked"),
             HAEntityDTO(
                 entityID: "select.house_mode",
@@ -7945,6 +7970,39 @@ struct HomesteadTests {
         #expect(commands.commands.map(\.action) == [.openCover, .stopCover, .closeCover])
         #expect(commands.commands.first?.isDisabled == false)
         #expect(commands.commands.last?.isDisabled == true)
+
+        let fanBox = try #require(store.entityBox(for: "fan.bedroom"))
+        let fanFeatures = DashboardCardFeatureProvider.features(
+            for: fanBox,
+            presentation: DashboardEntityPresentation(entityBox: fanBox)
+        )
+        #expect(fanFeatures.map(\.key) == [.fanSpeed])
+        #expect(DashboardCardSize.defaultGeneratedSize(entityBox: fanBox) == .square)
+        guard case .level(let fanSpeed) = try #require(fanFeatures.first?.content) else {
+            Issue.record("Expected fan speed level feature")
+            return
+        }
+        #expect(fanSpeed.value == 45)
+        #expect(fanSpeed.step == 5)
+        #expect(fanSpeed.action == .setFanPercentage)
+
+        let offFanBox = try #require(store.entityBox(for: "fan.office"))
+        let offFanFeatures = DashboardCardFeatureProvider.features(
+            for: offFanBox,
+            presentation: DashboardEntityPresentation(entityBox: offFanBox)
+        )
+        guard case .level(let offFanSpeed) = try #require(offFanFeatures.first?.content) else {
+            Issue.record("Expected off fan speed level feature")
+            return
+        }
+        #expect(offFanSpeed.value == 0)
+        #expect(offFanSpeed.step == 10)
+
+        let basicFanBox = try #require(store.entityBox(for: "fan.basic"))
+        #expect(DashboardCardFeatureProvider.features(
+            for: basicFanBox,
+            presentation: DashboardEntityPresentation(entityBox: basicFanBox)
+        ).isEmpty)
 
         let lockBox = try #require(store.entityBox(for: "lock.front_door"))
         let lockFeatures = DashboardCardFeatureProvider.features(

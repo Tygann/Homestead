@@ -415,7 +415,6 @@ private struct EntityRegistryManagementBrowser: View {
             rowAction: { entityBox in
                 selectedEntity = SettingsSelectedEntity(entityID: entityBox.entityID)
             },
-            allowsDashboardMembershipEditing: false,
             rowDetail: { entityBox in
                 stateStore.entityRegistryAdminDetail(for: entityBox.entityID)
             },

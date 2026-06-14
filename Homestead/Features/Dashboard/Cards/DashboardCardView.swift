@@ -185,6 +185,23 @@ struct DashboardCardView: View {
         }
     }
 
+    private func setFanPercentageAction(for entityBox: HAEntityState) -> ((Double) -> Void)? {
+        guard entityBox.fanEntity?.supportsPercentageControl == true,
+              homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_percentage") else {
+            return nil
+        }
+
+        return { percentage in
+            HapticFeedback.selection()
+            Task {
+                await homeAssistantService.setFanPercentage(
+                    entityID: entityBox.entityID,
+                    percentage: percentage
+                )
+            }
+        }
+    }
+
     private func setClimateTemperatureAction(for entityBox: HAEntityState) -> ((Double) -> Void)? {
         guard entityBox.climateEntity != nil,
               homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") else {
@@ -336,6 +353,7 @@ struct DashboardCardView: View {
     private func featureActions(for entityBox: HAEntityState) -> DashboardCardFeatureActions {
         DashboardCardFeatureActions(
             setLightBrightness: setLightBrightnessAction(for: entityBox),
+            setFanPercentage: setFanPercentageAction(for: entityBox),
             setClimateTemperature: setClimateTemperatureAction(for: entityBox),
             setClimateTemperatureRange: setClimateTemperatureRangeAction(for: entityBox),
             openCover: openCoverAction(for: entityBox),
@@ -407,6 +425,7 @@ struct DashboardCardView: View {
 
         return DashboardCardFeatureActions(
             setLightBrightness: entityBox.lightEntity?.supportsBrightness == true ? noopSingle : nil,
+            setFanPercentage: entityBox.fanEntity?.supportsPercentageControl == true ? noopSingle : nil,
             setClimateTemperature: entityBox.climateEntity?.targetTemperature != nil ? noopSingle : nil,
             setClimateTemperatureRange: entityBox.climateEntity?.usesTemperatureRange == true ? noopPair : nil,
             openCover: entityBox.coverEntity != nil ? noopCommand : nil,

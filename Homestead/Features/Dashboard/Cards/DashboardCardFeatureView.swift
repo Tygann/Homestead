@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DashboardCardFeatureActions {
     var setLightBrightness: ((Double) -> Void)?
+    var setFanPercentage: ((Double) -> Void)?
     var setClimateTemperature: ((Double) -> Void)?
     var setClimateTemperatureRange: ((Double, Double) -> Void)?
     var openCover: (() -> Void)?
@@ -36,6 +37,8 @@ struct DashboardCardFeatureActions {
         switch action {
         case .setLightBrightness:
             setLightBrightness
+        case .setFanPercentage:
+            setFanPercentage
         case .setCoverPosition:
             setCoverPosition
         }

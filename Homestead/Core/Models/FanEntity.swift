@@ -19,6 +19,10 @@ struct FanEntity: Identifiable, Equatable, Sendable {
         !["unknown", "unavailable"].contains(state)
     }
 
+    var supportsPercentageControl: Bool {
+        percentage != nil || percentageStep != nil
+    }
+
     var resolvedPercentageStep: Double {
         let step = percentageStep ?? 1
         return Double(max(step, 1))

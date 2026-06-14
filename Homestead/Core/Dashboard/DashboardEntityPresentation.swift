@@ -443,7 +443,6 @@ struct DashboardEntityPresentation {
     let primaryServiceIntent: DashboardEntityServiceIntent?
     let detailKind: DashboardEntityDetailKind
     let secondaryActions: [DashboardEntitySecondaryAction]
-    let supportsFavorite: Bool
     let supplementalMetrics: [DashboardEntityCardMetric]
 
     init(
@@ -468,7 +467,6 @@ struct DashboardEntityPresentation {
         primaryServiceIntent = entityBox.homeEntity.isAvailable ? capability.primaryServiceIntent : nil
         detailKind = capability.detailKind
         secondaryActions = capability.secondaryActions
-        supportsFavorite = entityBox.domain != .other
         var resolvedSupplementalMetrics: [DashboardEntityCardMetric] = []
 
         if let light = entityBox.lightEntity {

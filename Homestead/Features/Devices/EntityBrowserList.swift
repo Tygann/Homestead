@@ -21,11 +21,8 @@ struct EntityBrowserList<Accessory: View>: View {
     let allowsRefresh: Bool
     let allowedDomains: Set<EntityDomain>?
     let rowAction: (HAEntityState) -> Void
-    let allowsDashboardMembershipEditing: Bool
     let rowDetail: (HAEntityState) -> String?
     private let accessory: (HAEntityState) -> Accessory
-
-    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
     init(
         hiddenEntityIDs: Set<String>,
@@ -41,7 +38,6 @@ struct EntityBrowserList<Accessory: View>: View {
         allowedDomains: Set<EntityDomain>? = nil,
         initialGrouping: EntityBrowserGrouping = .device,
         rowAction: @escaping (HAEntityState) -> Void,
-        allowsDashboardMembershipEditing: Bool = false,
         rowDetail: @escaping (HAEntityState) -> String? = { _ in nil },
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
@@ -56,7 +52,6 @@ struct EntityBrowserList<Accessory: View>: View {
         self.allowsRefresh = allowsRefresh
         self.allowedDomains = allowedDomains
         self.rowAction = rowAction
-        self.allowsDashboardMembershipEditing = allowsDashboardMembershipEditing
         self.rowDetail = rowDetail
         self.accessory = accessory
         _includesUnavailable = State(initialValue: includesUnavailableByDefault)
@@ -146,22 +141,6 @@ struct EntityBrowserList<Accessory: View>: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        if allowsDashboardMembershipEditing {
-                            Button {
-                                dashboardConfiguration.setEntity(
-                                    entityID,
-                                    isVisible: !dashboardConfiguration.contains(entityID)
-                                )
-                            } label: {
-                                Label(
-                                    dashboardConfiguration.contains(entityID) ? "Remove from Dashboard" : "Add to Dashboard",
-                                    systemImage: dashboardConfiguration.contains(entityID) ? "star.slash" : "star"
-                                )
-                            }
-                            .tint(.yellow)
-                        }
-                    }
                 }
             }
         }

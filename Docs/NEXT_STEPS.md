@@ -12,6 +12,9 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Removed the legacy Browse/Devices star affordance and stale quick-access dashboard presentation metadata; Dashboard customization is now the only quick-access model.
+- Added fan percentage slider features to dashboard cards using the existing reusable level-slider system and Home Assistant `fan.set_percentage`, with off fans presenting at 0% and HA `percentage_step` respected.
+- Made the Settings > Account profile header user-friendly by suppressing raw transport/auth storage error strings there; detailed connection errors remain in Server/Diagnostics.
 - Added global local-only wallpaper personalization for Homestead-owned appearance: Settings > Appearance imports one optimized photo into Application Support, stores only lightweight preference/revision data in `UserDefaults`, and can enable/disable or remove the wallpaper.
 - Applied the wallpaper only behind Home, Areas, and area detail views through a shared background helper; Browse, Settings, onboarding, widgets, detail sheets, and camera card previews remain unchanged.
 - Preserved dashboard legibility and scrolling performance by keeping cards opaque/near-opaque and using only static dim/tint overlays instead of material blur or animated effects.
@@ -32,7 +35,7 @@ Recommended reasoning level: High.
 - Area cards now decode Home Assistant area registry `icon` metadata and resolve icons in source-of-truth order: mapped HA MDI icon, expanded local name inference, then a neutral `house` fallback.
 - Replaced the dashboard card/chip Change Icon submenu with a dedicated searchable SF Symbols picker sheet while preserving the existing optional `iconNameOverride` persistence path.
 - Added a curated 180-symbol smart-home catalog grouped for browsing, friendly search tags, visible selection state, domain/summary-specific recommendations, and a prominent Use Default Icon action that clears the override and returns to the Home Assistant/domain-derived icon.
-- Kept icon customization scoped to dashboard cards and chips; no Material Design Icons, custom packs, Home Assistant API changes, entity mapper rewrites, recents, or favorites were added.
+- Kept icon customization scoped to dashboard cards and chips; no Material Design Icons, custom packs, Home Assistant API changes, or entity mapper rewrites were added.
 - Aligned Climate, Lights, Security, Media, and Maintenance summary membership with the current Home Assistant frontend filter strategies using entity state plus entity/device/area registry metadata; HA does not expose direct summary-group membership.
 - Centralized summary classification, added humidifier/water-heater Climate membership, corrected Security and Maintenance device-class/category rules, matched HA chip status text, and used HA-selected area temperature sensors for the Climate range.
 - Confirmed HA includes every visible primary `camera.*` entity in Security, including snapshot-named entities; Homestead therefore does not apply a name-based snapshot exclusion.

@@ -195,7 +195,7 @@ nonisolated struct DashboardIconChoice: Identifiable, Equatable, Sendable {
         choice("Package", "shippingbox.fill", .outdoors, "delivery parcel"),
 
         // Scenes and actions
-        choice("Scene", "sparkles", .actions, "mood favorite"),
+        choice("Scene", "sparkles", .actions, "mood scene"),
         choice("Magic", "wand.and.stars", .actions, "scene automation"),
         choice("Automation", "gearshape.2.fill", .actions, "settings routine"),
         choice("Script", "play.rectangle.fill", .actions, "run action"),
@@ -208,8 +208,7 @@ nonisolated struct DashboardIconChoice: Identifiable, Equatable, Sendable {
         choice("Refresh", "arrow.clockwise", .actions, "reload update"),
         choice("Play Circle", "play.circle.fill", .actions, "run start"),
         choice("Stop", "stop.fill", .actions, "end action"),
-        choice("Favorite", "star.fill", .actions, "scene bookmark"),
-        choice("Heart", "heart.fill", .actions, "favorite"),
+        choice("Heart", "heart.fill", .actions, "heart"),
         choice("Vacuum", "robotic.vacuum.fill", .actions, "clean appliance"),
         choice("Clean", "bubbles.and.sparkles.fill", .actions, "wash vacuum"),
         choice("Notification", "bell.fill", .actions, "alert reminder"),

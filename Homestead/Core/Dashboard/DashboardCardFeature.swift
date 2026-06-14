@@ -2,6 +2,7 @@ import Foundation
 
 enum DashboardCardFeatureKey: String, Codable, Equatable, Sendable {
     case lightBrightness
+    case fanSpeed
     case climateSetpoint
     case coverControls
     case coverPosition
@@ -51,6 +52,7 @@ struct DashboardCardFeature: Equatable, Identifiable, Sendable {
 
 enum DashboardCardLevelAction: String, Equatable, Sendable {
     case setLightBrightness
+    case setFanPercentage
     case setCoverPosition
 }
 
@@ -142,6 +144,9 @@ enum DashboardCardFeatureProvider {
         case .light:
             guard let light = entityBox.lightEntity, light.supportsBrightness else { return [] }
             return [lightBrightnessFeature(light, entityBox: entityBox)]
+        case .fan:
+            guard let fan = entityBox.fanEntity, fan.supportsPercentageControl else { return [] }
+            return [fanSpeedFeature(fan, entityBox: entityBox)]
         case .climate:
             guard let climate = entityBox.climateEntity else { return [] }
             return climateSetpointFeatures(climate, entityBox: entityBox)
@@ -178,6 +183,28 @@ enum DashboardCardFeatureProvider {
                     valueLabel: "\(Int(brightnessPercentage.rounded()))%",
                     accessibilityLabel: "Brightness",
                     action: .setLightBrightness
+                )
+            )
+        )
+    }
+
+    private static func fanSpeedFeature(
+        _ fan: FanEntity,
+        entityBox: HAEntityState
+    ) -> DashboardCardFeature {
+        let percentage = effectiveFanPercentage(for: fan, entityBox: entityBox)
+
+        return DashboardCardFeature(
+            key: .fanSpeed,
+            title: "Speed",
+            content: .level(
+                DashboardCardLevelFeature(
+                    value: percentage,
+                    range: 0...100,
+                    step: fan.resolvedPercentageStep,
+                    valueLabel: "\(Int(percentage.rounded()))%",
+                    accessibilityLabel: "Fan speed",
+                    action: .setFanPercentage
                 )
             )
         )
@@ -411,6 +438,18 @@ enum DashboardCardFeatureProvider {
         return Double(light.brightnessPercentage ?? 100)
     }
 
+    private static func effectiveFanPercentage(
+        for fan: FanEntity,
+        entityBox: HAEntityState
+    ) -> Double {
+        if let pendingPercentage = entityBox.pendingCommand?.expectedAttributes["percentage"]?.doubleValue {
+            return min(max(pendingPercentage, 0), 100)
+        }
+
+        guard fan.isOn else { return 0 }
+        return Double(fan.percentage ?? 100)
+    }
+
     private static func effectiveTargetTemperature(
         for climate: ClimateEntity,
         entityBox: HAEntityState
@@ -552,7 +591,7 @@ extension DashboardCardSize {
 
     private static func defaultsToVisibleCardFeature(_ entityBox: HAEntityState) -> Bool {
         switch entityBox.domain {
-        case .light, .climate, .cover, .lock:
+        case .light, .fan, .climate, .cover, .lock:
             break
         default:
             return false

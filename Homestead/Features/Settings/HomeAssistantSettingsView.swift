@@ -130,31 +130,30 @@ struct HomeAssistantSettingsView: View {
         homeAssistantService.currentUserDisplayName ?? "Home Assistant"
     }
 
-    private var statusMessage: String {
+    private var primaryStatusMessage: String? {
         if hasServerMismatch {
             return "This server is different from the saved Home Assistant sign-in. Sign in again for this server."
         }
 
-        return SettingsHomeAssistantStatus.detailMessage(
-            authState: homeAssistantService.authState,
-            connectionStatus: homeAssistantService.connectionStatus,
-            serviceError: homeAssistantService.lastErrorMessage,
-            storageError: connectionSettings.authStorageErrorMessage
-        )
-    }
-
-    private var primaryStatusMessage: String? {
-        if hasServerMismatch || connectionSettings.authStorageErrorMessage != nil {
-            return statusMessage
+        if connectionSettings.authStorageErrorMessage != nil {
+            return "Unable to access saved sign-in."
         }
 
         switch homeAssistantService.authState {
-        case .signedOut, .signingIn, .refreshing, .refreshFailed, .accessTokenExpired:
-            return statusMessage
+        case .signedOut:
+            return "Sign in to connect Homestead to Home Assistant."
+        case .signingIn:
+            return "Waiting for Home Assistant authorization."
+        case .refreshing:
+            return "Refreshing your Home Assistant session."
+        case .refreshFailed:
+            return "Authentication failed."
+        case .accessTokenExpired:
+            return "Sign in again to continue using Home Assistant."
         case .signedIn:
             switch homeAssistantService.connectionStatus {
             case .failed, .disconnected:
-                return statusMessage
+                return "Unable to reach server."
             case .connected, .preparing, .connecting, .reconnecting:
                 return nil
             }

@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-14
 
+### UX Cleanup and Fan Controls
+
+- Removed the legacy Browse/Devices star affordance and stale quick-access presentation metadata so Dashboard customization is the only quick-access model.
+- Added fan percentage sliders as reusable dashboard card level features backed by Home Assistant `fan.set_percentage`, including off-as-0% presentation and percentage-step support.
+- Kept raw connection failure details out of the Account profile header; detailed errors remain available in server/diagnostic surfaces.
+
 ### Global Wallpaper
 
 - Added a local-only Homestead appearance setting for one optimized wallpaper image stored in Application Support, with no Home Assistant upload, API surface, or iCloud sync.
@@ -59,7 +65,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Replaced the limited nested dashboard icon menu with a dedicated searchable grid picker shared by dashboard cards and chips.
 - Expanded icon choices into a curated 180-symbol SF Symbols catalog with smart-home categories, friendly search tags, and recommendations based on entity domain or summary kind.
 - Preserved the existing optional dashboard icon override persistence; Use Default Icon clears the override so live Home Assistant/domain-derived icons remain the fallback.
-- Kept the catalog intentionally app-owned and SF Symbols-only so future recents/favorites can build on the picker without adding icon-pack or Home Assistant mapping complexity.
+- Kept the catalog intentionally app-owned and SF Symbols-only so future picker enhancements can build on it without adding icon-pack or Home Assistant mapping complexity.
 
 ### Home Assistant Summary Alignment
 

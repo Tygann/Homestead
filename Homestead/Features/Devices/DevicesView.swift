@@ -2,7 +2,6 @@ import SwiftUI
 
 struct DevicesView: View {
     @Environment(HAStateStore.self) private var stateStore
-    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var selectedEntity: SelectedEntity?
 
     var body: some View {
@@ -13,18 +12,8 @@ struct DevicesView: View {
             rowAction: { entityBox in
                 selectedEntity = SelectedEntity(entityID: entityBox.entityID)
             },
-            allowsDashboardMembershipEditing: true,
             accessory: { entityBox in
-                HStack(spacing: AppSpacing.small) {
-                    if dashboardConfiguration.contains(entityBox.entityID) {
-                        Image(systemName: "star.fill")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.yellow)
-                            .accessibilityLabel("On dashboard")
-                    }
-
-                    DeviceEntityStateAccessory(entityBox: entityBox)
-                }
+                DeviceEntityStateAccessory(entityBox: entityBox)
             }
         )
         .navigationTitle("Browse")
