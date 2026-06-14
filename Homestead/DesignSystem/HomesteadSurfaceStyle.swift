@@ -28,32 +28,20 @@ enum HomesteadSurfaceStyle {
         return .secondary
     }
 
-    static func cardBackground(
-        isWallpaperActive: Bool,
-        isActive: Bool,
-        accentColor: Color
-    ) -> AnyShapeStyle {
+    static func cardBackground(isWallpaperActive: Bool) -> AnyShapeStyle {
         if isWallpaperActive {
             return AnyShapeStyle(.thinMaterial)
-        }
-
-        if isActive {
-            return AnyShapeStyle(accentColor.opacity(0.18))
         }
 
         return AnyShapeStyle(Color(.secondarySystemGroupedBackground))
     }
 
-    static func cardBorder(
-        isWallpaperActive: Bool,
-        isActive: Bool,
-        accentColor: Color
-    ) -> Color {
+    static func cardBorder(isWallpaperActive: Bool) -> Color {
         if isWallpaperActive {
-            return isActive ? accentColor.opacity(0.18) : Color(.separator).opacity(0.18)
+            return Color(.separator).opacity(0.18)
         }
 
-        return isActive ? accentColor.opacity(0.18) : Color(.separator).opacity(0.16)
+        return Color(.separator).opacity(0.16)
     }
 
     static func chipBackground(isWallpaperActive: Bool) -> AnyShapeStyle {

@@ -3,8 +3,6 @@ import SwiftUI
 struct CardContainer<Content: View>: View {
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
 
-    var isActive = false
-    var accentColor = Color.accentColor
     var minHeight: CGFloat = 132
     var padding = AppSpacing.medium
     @ViewBuilder var content: Content
@@ -22,18 +20,10 @@ struct CardContainer<Content: View>: View {
     }
 
     private var cardBackground: some ShapeStyle {
-        HomesteadSurfaceStyle.cardBackground(
-            isWallpaperActive: isWallpaperSurfaceActive,
-            isActive: isActive,
-            accentColor: accentColor
-        )
+        HomesteadSurfaceStyle.cardBackground(isWallpaperActive: isWallpaperSurfaceActive)
     }
 
     private var cardBorder: Color {
-        HomesteadSurfaceStyle.cardBorder(
-            isWallpaperActive: isWallpaperSurfaceActive,
-            isActive: isActive,
-            accentColor: accentColor
-        )
+        HomesteadSurfaceStyle.cardBorder(isWallpaperActive: isWallpaperSurfaceActive)
     }
 }

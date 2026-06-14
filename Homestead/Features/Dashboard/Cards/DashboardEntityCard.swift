@@ -67,8 +67,6 @@ struct DashboardEntityCard: View {
 
     private func standardCard(visibleFeatures visibleFeatureSnapshot: [DashboardCardFeature]) -> some View {
         CardContainer(
-            isActive: presentation.isActive,
-            accentColor: presentation.accentColor,
             minHeight: cardContainerMinHeight,
             padding: cardContainerPadding
         ) {
@@ -610,19 +608,11 @@ struct DashboardEntityCard: View {
     }
 
     private var cameraCardBackground: some ShapeStyle {
-        HomesteadSurfaceStyle.cardBackground(
-            isWallpaperActive: isWallpaperSurfaceActive,
-            isActive: presentation.isActive,
-            accentColor: presentation.accentColor
-        )
+        HomesteadSurfaceStyle.cardBackground(isWallpaperActive: isWallpaperSurfaceActive)
     }
 
     private var cameraCardBorder: Color {
-        HomesteadSurfaceStyle.cardBorder(
-            isWallpaperActive: isWallpaperSurfaceActive,
-            isActive: presentation.isActive,
-            accentColor: presentation.accentColor
-        )
+        HomesteadSurfaceStyle.cardBorder(isWallpaperActive: isWallpaperSurfaceActive)
     }
 
     private var cardContentMinHeight: CGFloat {

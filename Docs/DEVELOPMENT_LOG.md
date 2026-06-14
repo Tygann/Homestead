@@ -36,6 +36,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Switched wallpaper-mode dashboard surfaces to reuse standard adaptive grouped fills with opacity instead of dark-only custom fills, improving light-mode text/icon contrast while keeping dashboard cards off live material/glass effects for now.
 - Ran the next wallpaper surface experiment with `.thinMaterial` for wallpaper-mode card and chip backgrounds, while keeping active state out of full-card fills so emphasis stays on active icon wells and feature sliders.
 - Polished Settings > Appearance so the phone-shaped preview remains the focal point, with a quieter Change action for existing wallpapers, a softer grouped panel, and empty-state-only helper text.
+- Unified dashboard active-state styling across wallpaper and standard backgrounds: card bodies and borders remain neutral while icon wells and meaningful feature controls carry the accent color.
 
 ## 2026-06-13
 
