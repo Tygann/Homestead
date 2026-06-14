@@ -1419,6 +1419,87 @@ struct HomesteadTests {
         #expect(rows[1].attributionName == "Tyler")
     }
 
+    @Test func activityRowsResolveCurrentUserAttributionAndHistoricalDoorIcons() throws {
+        let date = try testDate("2026-06-13T15:30:00Z")
+        let rows = HAActivityRow.makeRows(
+            from: [
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Front Door Lock",
+                    state: "locked",
+                    domain: "lock",
+                    entityID: "lock.front_door",
+                    contextUserID: "current-user-id",
+                    contextMessage: "action Lock: Lock lock"
+                ),
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Garage Entry Door Door",
+                    state: "on",
+                    domain: "binary_sensor",
+                    entityID: "binary_sensor.garage_entry_door"
+                ),
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Garage Entry Door Door",
+                    state: "off",
+                    domain: "binary_sensor",
+                    entityID: "binary_sensor.garage_entry_door"
+                )
+            ],
+            entityDisplayName: { _ in nil },
+            entityDeviceClass: { entityID in
+                entityID == "binary_sensor.garage_entry_door" ? "door" : nil
+            },
+            contextUserDisplayName: { userID in
+                userID == "current-user-id" ? "Tyler" : nil
+            }
+        )
+
+        #expect(rows[0].attributionName == "Tyler")
+        #expect(rows[1].iconSystemName == "door.left.hand.open")
+        #expect(rows[2].iconSystemName == "door.left.hand.closed")
+    }
+
+    @MainActor
+    @Test func stateStoreResolvesPersonDisplayNameForUserID() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "person.tyler",
+                state: "home",
+                attributes: [
+                    "friendly_name": .string("Tyler"),
+                    "user_id": .string("user-123")
+                ]
+            )
+        ])
+
+        #expect(store.personDisplayName(forUserID: "user-123") == "Tyler")
+        #expect(store.personDisplayName(forUserID: "missing-user") == nil)
+    }
+
+    @Test func securityActivityPresentationKeepsAllRowsByDefault() throws {
+        let baseDate = try testDate("2026-06-13T15:30:00Z")
+        let rows = (0..<55).map { index in
+            HALogbookEntryDTO(
+                when: baseDate.addingTimeInterval(TimeInterval(index)),
+                name: "Front Door Lock",
+                state: index.isMultiple(of: 2) ? "locked" : "unlocked",
+                domain: "lock",
+                entityID: "lock.front_door"
+            )
+        }
+
+        let presentation = HALogbookPresentation.makeSecurityActivity(
+            rows: HAActivityRow.makeRows(from: rows, entityDisplayName: { _ in nil }),
+            entityIDs: ["lock.front_door"],
+            calendar: Calendar(identifier: .gregorian)
+        )
+
+        #expect(presentation.visibleRowCount == 55)
+    }
+
     @Test func securityActivityCacheRetainsRowsAcrossViewLifetimes() async throws {
         let date = try testDate("2026-06-13T15:30:00Z")
         let rows = HAActivityRow.makeRows(

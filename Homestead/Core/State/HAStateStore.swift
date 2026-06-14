@@ -341,6 +341,20 @@ final class HAStateStore {
         presenceRecords().first { $0.entityID == entityID }
     }
 
+    func personDisplayName(forUserID userID: String) -> String? {
+        let trimmedUserID = userID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedUserID.isEmpty else {
+            return nil
+        }
+
+        return rawEntitiesByID.values
+            .filter { EntityDomain(entityID: $0.entityID) == .person }
+            .first { dto in
+                dto.attributes["user_id"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) == trimmedUserID
+            }
+            .map(EntityMapper.displayName(for:))
+    }
+
     func replaceDataSourceIfNeeded(_ dataSourceID: String) {
         guard self.dataSourceID != dataSourceID else {
             return

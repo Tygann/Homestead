@@ -276,7 +276,6 @@ struct DashboardSummaryView: View {
                     .sorted { lhs, rhs in
                         lhs.occurredAt > rhs.occurredAt
                     }
-                    .prefix(50)
             )
             lastSecurityActivityLoadAt = endDate
             await HASecurityActivityCache.shared.store(

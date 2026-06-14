@@ -681,6 +681,21 @@ final class HomeAssistantService {
             entityDeviceClass: { [stateStore] entityID in
                 let entityBox = stateStore.entityBox(for: entityID)
                 return entityBox?.binarySensorEntity?.deviceClass ?? entityBox?.coverEntity?.deviceClass
+            },
+            contextUserDisplayName: { [weak self] userID in
+                guard let self else {
+                    return nil
+                }
+
+                if let personName = self.stateStore.personDisplayName(forUserID: userID) {
+                    return personName
+                }
+
+                guard userID == self.currentUserID else {
+                    return nil
+                }
+
+                return self.currentUserDisplayName
             }
         )
     }

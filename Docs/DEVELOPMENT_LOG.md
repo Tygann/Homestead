@@ -14,6 +14,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added a shared session-memory Security activity cache with stale-while-refresh behavior so reopening the summary presents recent rows immediately, and removed duplicated in-content summary titles in favor of the native navigation title.
 - Removed the compact Security tab-switch hitch by isolating segmented-control state from the summary parent, resolving person records once per activity presentation, and lazily constructing activity rows instead of rebuilding summary grouping and every row on each tab selection.
 - Added Home Assistant logbook context attribution to Security activity rows, including trigger descriptions, user names when HA supplies `context_user_id`/`context_name`, and lock/unlock-specific activity icons.
+- Expanded Security activity attribution to resolve `context_user_id` through existing `person.*` / People data, switched activity icons to historical state-aware lock/door/cover symbols, and removed the local 50-row cap so the full 24-hour activity response can scroll.
 
 ### First-Run Onboarding
 

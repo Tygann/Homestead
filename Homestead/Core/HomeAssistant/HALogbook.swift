@@ -110,21 +110,7 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     let contextName: String?
     let triggerText: String?
     let attributionName: String?
-
-    var iconSystemName: String {
-        if entityDomain == .lock {
-            switch state {
-            case "unlocked", "unlocking", "open", "opening":
-                return "lock.open.fill"
-            case "locking", "locked", "jammed":
-                return "lock.fill"
-            default:
-                break
-            }
-        }
-
-        return entityDomain?.systemImage ?? "list.bullet.clipboard"
-    }
+    let iconSystemName: String
 
     var detailText: String {
         let details = [
@@ -163,14 +149,16 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     static func makeRows(
         from entries: [HALogbookEntryDTO],
         entityDisplayName: (String) -> String?,
-        entityDeviceClass: (String) -> String? = { _ in nil }
+        entityDeviceClass: (String) -> String? = { _ in nil },
+        contextUserDisplayName: (String) -> String? = { _ in nil }
     ) -> [HAActivityRow] {
         entries.enumerated().map { index, entry in
             HAActivityRow(
                 entry: entry,
                 index: index,
                 entityDisplayName: entityDisplayName,
-                entityDeviceClass: entityDeviceClass
+                entityDeviceClass: entityDeviceClass,
+                contextUserDisplayName: contextUserDisplayName
             )
         }
     }
@@ -179,17 +167,19 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         entry: HALogbookEntryDTO,
         index: Int,
         entityDisplayName: (String) -> String?,
-        entityDeviceClass: (String) -> String?
+        entityDeviceClass: (String) -> String?,
+        contextUserDisplayName: (String) -> String?
     ) {
         let entityID = entry.entityID?.nonEmptyValue
         let entityDomain = entityID.map(EntityDomain.init(entityID:))
         let state = entry.state?.nonEmptyValue
         let sourceName = entry.name?.nonEmptyValue
         let sourceDomain = entry.domain?.nonEmptyValue
+        let deviceClass = entityID.flatMap(entityDeviceClass)
         let message = entry.message?.nonEmptyValue ?? Self.stateMessage(
             state: state,
             domain: entityDomain,
-            deviceClass: entityID.flatMap(entityDeviceClass)
+            deviceClass: deviceClass
         )
         let title = entityID.flatMap(entityDisplayName) ??
             sourceName ??
@@ -216,15 +206,24 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         self.state = state
         self.sourceDomain = sourceDomain
         self.sourceName = sourceName
-        self.contextUserID = entry.contextUserID?.nonEmptyValue
-        self.contextName = entry.contextName?.nonEmptyValue
+        let contextUserID = entry.contextUserID?.nonEmptyValue
+        let contextName = entry.contextName?.nonEmptyValue
+        self.contextUserID = contextUserID
+        self.contextName = contextName
         self.triggerText = Self.triggerText(
             contextMessage: entry.contextMessage?.nonEmptyValue,
             contextSource: entry.contextSource?.nonEmptyValue,
             contextDomain: entry.contextDomain?.nonEmptyValue,
             contextService: entry.contextService?.nonEmptyValue
         )
-        self.attributionName = self.contextUserID == nil ? nil : self.contextName
+        self.attributionName = contextUserID.flatMap { userID in
+            contextName ?? contextUserDisplayName(userID)
+        }
+        self.iconSystemName = Self.iconSystemName(
+            domain: entityDomain,
+            state: state,
+            deviceClass: deviceClass
+        )
     }
 
     private static func stateMessage(
@@ -275,6 +274,59 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     private static func formattedState(_ state: String) -> String {
         let words = state.replacingOccurrences(of: "_", with: " ")
         return words == words.uppercased() ? words : words.capitalized
+    }
+
+    private static func iconSystemName(
+        domain: EntityDomain?,
+        state: String?,
+        deviceClass: String?
+    ) -> String {
+        switch domain {
+        case .lock:
+            return state == "locked" || state == "locking" || state == "jammed" ? "lock.fill" : "lock.open.fill"
+        case .binarySensor:
+            return binarySensorIconSystemName(deviceClass: deviceClass, state: state)
+        case .cover:
+            return coverIconSystemName(deviceClass: deviceClass, state: state)
+        default:
+            return domain?.systemImage ?? "list.bullet.clipboard"
+        }
+    }
+
+    private static func binarySensorIconSystemName(deviceClass: String?, state: String?) -> String {
+        let isActive = state == "on"
+
+        switch deviceClass {
+        case "door":
+            return isActive ? "door.left.hand.open" : "door.left.hand.closed"
+        case "window":
+            return isActive ? "window.vertical.open" : "window.vertical.closed"
+        case "garage_door":
+            return isActive ? "door.garage.open" : "door.garage.closed"
+        case "lock":
+            return isActive ? "lock.open.fill" : "lock.fill"
+        case "opening":
+            return isActive ? "rectangle.portrait.and.arrow.right" : "rectangle.portrait"
+        default:
+            return EntityDomain.binarySensor.systemImage
+        }
+    }
+
+    private static func coverIconSystemName(deviceClass: String?, state: String?) -> String {
+        let isOpen = state == "open" || state == "opening"
+
+        switch deviceClass {
+        case "garage":
+            return isOpen ? "door.garage.open" : "door.garage.closed"
+        case "door":
+            return isOpen ? "door.left.hand.open" : "door.left.hand.closed"
+        case "gate":
+            return isOpen ? "door.garage.open" : "door.garage.closed"
+        case "window":
+            return isOpen ? "window.vertical.open" : "window.vertical.closed"
+        default:
+            return isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
+        }
     }
 
     private static func triggerText(
@@ -374,7 +426,7 @@ nonisolated struct HALogbookPresentation: Equatable, Sendable {
     static func makeSecurityActivity(
         rows: [HAActivityRow],
         entityIDs: Set<String>,
-        limit: Int = 50,
+        limit: Int? = nil,
         calendar: Calendar = .current
     ) -> HALogbookPresentation {
         let securityRows = rows
@@ -385,8 +437,10 @@ nonisolated struct HALogbookPresentation: Equatable, Sendable {
                 lhs.occurredAt > rhs.occurredAt
             }
 
+        let limitedRows = limit.map { Array(securityRows.prefix(max(0, $0))) } ?? securityRows
+
         return make(
-            rows: Array(securityRows.prefix(max(0, limit))),
+            rows: limitedRows,
             searchText: "",
             selectedDomain: nil,
             calendar: calendar,
