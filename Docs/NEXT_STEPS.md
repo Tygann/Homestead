@@ -18,6 +18,8 @@ Recommended reasoning level: High.
 - Extended wallpaper support to dashboard summary views, including Security activity surfaces, by clearing inner grouped backgrounds and reusing the shared wallpaper helper.
 - Added shared wallpaper-aware surface tokens for cards, chips, icon wells, camera cards, and dashboard feature controls. The current direction is soft glass via translucent fills/strokes, not per-card `.ultraThinMaterial`.
 - Replaced the Appearance form preview with a phone-shaped wallpaper preview that uses the stored image crop and a small Homestead-style overlay before the picker/toggle/remove controls.
+- Tuned wallpaper contrast after Apple Home comparison: daily-use wallpaper overlays are lighter, wallpaper-mode card/chip/icon/control fills are less heavy, and climate dashboard cards no longer present as active-highlighted just because the HVAC mode is active.
+- Compacted and restyled the Appearance phone preview to avoid unnecessary scrolling and better match Homestead proportions for chips, square cards, icon wells, and the tab bar.
 - Added an app-level first-run Home Assistant setup surface for users without a complete saved server/sign-in session.
 - The setup surface writes the existing `HAConnectionSettings.baseURL`, starts the existing Home Assistant OAuth flow through `HomeAssistantService.signInWithHomeAssistant(settings:)`, and keeps normal setup focused on a single server-address row with a bottom Continue action.
 - Added an optional Settings-style Advanced Setup sheet during onboarding for internal URL, external URL, and manually entered home network metadata, reusing existing `HAConnectionSettings` routing fields without adding discovery or permission prompts.

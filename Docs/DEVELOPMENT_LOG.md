@@ -11,6 +11,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Applied the shared wallpaper background only behind Home, Areas, and area detail scroll surfaces, preserving opaque dashboard cards and avoiding material/blur effects in live scrolling grids.
 - Extended wallpaper support to dashboard summary views and replaced the flat settings preview with a phone-shaped preview using the same wallpaper crop/overlay behavior as daily-use surfaces.
 - Standardized wallpaper-aware dashboard surfaces around a lightweight soft-glass treatment: translucent dark fills, subtle strokes, and toned-down active control fills instead of per-card material blur.
+- Tuned the first wallpaper pass after visual review: reduced wallpaper dimming, lightened wallpaper-aware card/chip/control fills, stopped climate cards from using the active-card highlight, and compacted the Appearance preview so the settings page stays in one screen.
 
 ## 2026-06-13
 

@@ -22,11 +22,11 @@ struct HomesteadWallpaperBackground: View {
                 .ignoresSafeArea()
 
                 Color.black
-                    .opacity(colorScheme == .dark ? 0.36 : 0.10)
+                    .opacity(colorScheme == .dark ? 0.22 : 0.06)
                     .ignoresSafeArea()
 
                 Color(.systemGroupedBackground)
-                    .opacity(colorScheme == .dark ? 0.10 : 0.30)
+                    .opacity(colorScheme == .dark ? 0.04 : 0.18)
                     .ignoresSafeArea()
             }
         }

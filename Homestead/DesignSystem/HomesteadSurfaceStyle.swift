@@ -25,8 +25,8 @@ enum HomesteadSurfaceStyle {
             return AnyShapeStyle(
                 LinearGradient(
                     colors: [
-                        accentColor.opacity(0.36),
-                        Color.black.opacity(0.54)
+                        accentColor.opacity(0.18),
+                        Color.black.opacity(0.30)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -34,7 +34,7 @@ enum HomesteadSurfaceStyle {
             )
         }
 
-        return AnyShapeStyle(Color.black.opacity(0.72))
+        return AnyShapeStyle(Color.black.opacity(0.46))
     }
 
     static func cardBorder(
@@ -46,12 +46,12 @@ enum HomesteadSurfaceStyle {
             return isActive ? accentColor.opacity(0.18) : Color(.separator).opacity(0.16)
         }
 
-        return isActive ? accentColor.opacity(0.38) : Color.white.opacity(0.10)
+        return isActive ? accentColor.opacity(0.24) : Color.white.opacity(0.16)
     }
 
     static func chipBackground(isWallpaperActive: Bool) -> AnyShapeStyle {
         isWallpaperActive
-            ? AnyShapeStyle(Color.black.opacity(0.58))
+            ? AnyShapeStyle(Color.black.opacity(0.34))
             : AnyShapeStyle(Color(.secondarySystemGroupedBackground).opacity(0.72))
     }
 
@@ -66,21 +66,21 @@ enum HomesteadSurfaceStyle {
         accentColor: Color
     ) -> Color {
         guard isAvailable else {
-            return isWallpaperActive ? Color.white.opacity(0.08) : Color(.tertiarySystemGroupedBackground)
+            return isWallpaperActive ? Color.black.opacity(0.14) : Color(.tertiarySystemGroupedBackground)
         }
 
         if isActive {
-            return accentColor.opacity(isWallpaperActive ? 0.24 : 0.12)
+            return accentColor.opacity(isWallpaperActive ? 0.18 : 0.12)
         }
 
-        return isWallpaperActive ? Color.white.opacity(0.10) : Color(.tertiarySystemGroupedBackground)
+        return isWallpaperActive ? Color.black.opacity(0.16) : Color(.tertiarySystemGroupedBackground)
     }
 
     static func controlBackground(isWallpaperActive: Bool, isActive: Bool) -> Color {
         if isActive {
-            return Color.accentColor.opacity(isWallpaperActive ? 0.24 : 0.12)
+            return Color.accentColor.opacity(isWallpaperActive ? 0.16 : 0.12)
         }
 
-        return isWallpaperActive ? Color.white.opacity(0.10) : Color(.tertiarySystemGroupedBackground)
+        return isWallpaperActive ? Color.black.opacity(0.14) : Color(.tertiarySystemGroupedBackground)
     }
 }
