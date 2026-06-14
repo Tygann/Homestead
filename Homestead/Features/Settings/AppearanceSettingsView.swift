@@ -194,11 +194,11 @@ private struct WallpaperPhonePreview: View {
 
     private func previewChip(width: CGFloat) -> some View {
         Capsule()
-            .fill(Color.black.opacity(0.44))
+            .fill(Color(.secondarySystemGroupedBackground).opacity(0.66))
             .frame(width: width, height: 13)
             .overlay(alignment: .leading) {
                 Circle()
-                    .fill(Color.white.opacity(0.20))
+                    .fill(Color(.tertiarySystemGroupedBackground).opacity(0.70))
                     .frame(width: 7, height: 7)
                     .padding(.leading, 5)
             }
@@ -206,12 +206,16 @@ private struct WallpaperPhonePreview: View {
 
     private func previewRowCard(height: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(Color.black.opacity(0.62))
+            .fill(Color(.secondarySystemGroupedBackground).opacity(0.78))
             .frame(maxWidth: .infinity)
             .frame(height: height)
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Color(.separator).opacity(0.22), lineWidth: 0.5)
+            }
             .overlay(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.28))
+                    .fill(Color.accentColor.opacity(0.18))
                     .frame(width: 22, height: 22)
                     .padding(.leading, 9)
             }
@@ -219,11 +223,15 @@ private struct WallpaperPhonePreview: View {
 
     private func previewSquareCard() -> some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color.black.opacity(0.62))
+            .fill(Color(.secondarySystemGroupedBackground).opacity(0.78))
             .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color(.separator).opacity(0.22), lineWidth: 0.5)
+            }
             .overlay(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.black.opacity(0.24))
+                    .fill(Color(.tertiarySystemGroupedBackground).opacity(0.70))
                     .frame(width: 24, height: 24)
                     .padding(9)
             }
@@ -232,10 +240,10 @@ private struct WallpaperPhonePreview: View {
     private var previewTabBar: some View {
         ZStack(alignment: .leading) {
             Capsule()
-                .fill(Color.black.opacity(0.46))
+                .fill(Color(.secondarySystemGroupedBackground).opacity(0.66))
 
             Capsule()
-                .fill(Color.black.opacity(0.28))
+                .fill(Color(.tertiarySystemGroupedBackground).opacity(0.70))
                 .frame(width: 42)
                 .padding(3)
 

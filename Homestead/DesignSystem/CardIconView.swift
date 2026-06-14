@@ -53,11 +53,12 @@ struct CardIconView: View {
     }
 
     private var iconForeground: Color {
-        guard isAvailable else {
-            return .secondary
-        }
-
-        return isActive ? accentColor : .primary
+        HomesteadSurfaceStyle.iconForeground(
+            isWallpaperActive: isWallpaperSurfaceActive,
+            isActive: isActive,
+            isAvailable: isAvailable,
+            accentColor: accentColor
+        )
     }
 
     private var iconBackground: Color {

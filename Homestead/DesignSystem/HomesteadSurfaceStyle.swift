@@ -12,16 +12,35 @@ extension EnvironmentValues {
 }
 
 enum HomesteadSurfaceStyle {
+    static func primaryForeground(isWallpaperActive: Bool, isAvailable: Bool = true) -> Color {
+        guard isAvailable else {
+            return .secondary
+        }
+
+        return .primary
+    }
+
+    static func secondaryForeground(isWallpaperActive: Bool, isAvailable: Bool = true) -> Color {
+        guard isAvailable else {
+            return .secondary
+        }
+
+        return .secondary
+    }
+
     static func cardBackground(
         isWallpaperActive: Bool,
         isActive: Bool,
         accentColor: Color
     ) -> AnyShapeStyle {
-        guard isWallpaperActive else {
-            return AnyShapeStyle(isActive ? accentColor.opacity(0.18) : Color(.secondarySystemGroupedBackground))
+        if isActive {
+            return AnyShapeStyle(accentColor.opacity(isWallpaperActive ? 0.14 : 0.18))
         }
 
-        return AnyShapeStyle(Color.black.opacity(0.62))
+        return AnyShapeStyle(
+            Color(.secondarySystemGroupedBackground)
+                .opacity(isWallpaperActive ? 0.78 : 1)
+        )
     }
 
     static func cardBorder(
@@ -29,21 +48,31 @@ enum HomesteadSurfaceStyle {
         isActive: Bool,
         accentColor: Color
     ) -> Color {
-        guard isWallpaperActive else {
-            return isActive ? accentColor.opacity(0.18) : Color(.separator).opacity(0.16)
-        }
-
-        return isActive ? accentColor.opacity(0.20) : Color.white.opacity(0.18)
+        isActive ? accentColor.opacity(isWallpaperActive ? 0.22 : 0.18) : Color(.separator).opacity(isWallpaperActive ? 0.22 : 0.16)
     }
 
     static func chipBackground(isWallpaperActive: Bool) -> AnyShapeStyle {
-        isWallpaperActive
-            ? AnyShapeStyle(Color.black.opacity(0.44))
-            : AnyShapeStyle(Color(.secondarySystemGroupedBackground).opacity(0.72))
+        AnyShapeStyle(
+            Color(.secondarySystemGroupedBackground)
+                .opacity(isWallpaperActive ? 0.66 : 0.72)
+        )
     }
 
     static func chipBorder(isWallpaperActive: Bool) -> Color {
-        isWallpaperActive ? Color.white.opacity(0.16) : Color(.separator).opacity(0.12)
+        Color(.separator).opacity(isWallpaperActive ? 0.20 : 0.12)
+    }
+
+    static func iconForeground(
+        isWallpaperActive: Bool,
+        isActive: Bool,
+        isAvailable: Bool,
+        accentColor: Color
+    ) -> Color {
+        guard isAvailable else {
+            return .secondary
+        }
+
+        return isActive ? accentColor : .primary
     }
 
     static func iconBackground(
@@ -53,25 +82,21 @@ enum HomesteadSurfaceStyle {
         accentColor: Color
     ) -> Color {
         guard isAvailable else {
-            return isWallpaperActive ? Color.black.opacity(0.22) : Color(.tertiarySystemGroupedBackground)
+            return Color(.tertiarySystemGroupedBackground).opacity(isWallpaperActive ? 0.70 : 1)
         }
 
         if isActive {
-            return accentColor.opacity(isWallpaperActive ? 0.28 : 0.12)
+            return accentColor.opacity(isWallpaperActive ? 0.18 : 0.12)
         }
 
-        return isWallpaperActive ? Color.black.opacity(0.24) : Color(.tertiarySystemGroupedBackground)
+        return Color(.tertiarySystemGroupedBackground).opacity(isWallpaperActive ? 0.70 : 1)
     }
 
     static func controlBackground(isWallpaperActive: Bool, isActive: Bool) -> Color {
-        if isWallpaperActive {
-            return Color.black.opacity(isActive ? 0.26 : 0.20)
-        }
-
         if isActive {
-            return Color.accentColor.opacity(0.12)
+            return Color.accentColor.opacity(isWallpaperActive ? 0.14 : 0.12)
         }
 
-        return Color(.tertiarySystemGroupedBackground)
+        return Color(.tertiarySystemGroupedBackground).opacity(isWallpaperActive ? 0.72 : 1)
     }
 }
