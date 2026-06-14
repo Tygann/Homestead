@@ -549,6 +549,7 @@ enum DashboardSummaryProvider {
                 DashboardAreaContext(
                     areaID: areaName,
                     name: areaName,
+                    icon: nil,
                     floorID: nil,
                     floorName: nil,
                     floorLevel: nil,

@@ -193,6 +193,7 @@ final class HAStateStore {
         return DashboardAreaContext(
             areaID: areaID,
             name: areaName,
+            icon: areaRegistryByID[areaID]?.icon?.nonEmptyValue,
             floorID: floor?.id,
             floorName: floor?.name.nonEmptyValue,
             floorLevel: floor?.level,

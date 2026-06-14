@@ -13,6 +13,7 @@ enum DashboardAreaBuilder {
                     DashboardAreaContext(
                         areaID: $0,
                         name: $0,
+                        icon: nil,
                         floorID: nil,
                         floorName: nil,
                         floorLevel: nil,
@@ -48,6 +49,7 @@ enum DashboardAreaBuilder {
             key: AreaGroupKey(
                 areaID: areaName,
                 name: areaName,
+                icon: nil,
                 floorID: nil,
                 floorName: nil,
                 floorLevel: nil,
@@ -110,6 +112,7 @@ enum DashboardAreaBuilder {
             id: key.areaID.map { "area-\($0)" } ?? "unassigned",
             areaID: key.areaID,
             name: key.name,
+            icon: key.icon,
             floorID: key.floorID,
             floorName: key.floorName,
             floorLevel: key.floorLevel,
@@ -136,6 +139,7 @@ enum DashboardAreaBuilder {
             return AreaGroupKey(
                 areaID: nil,
                 name: "Unassigned",
+                icon: nil,
                 floorID: nil,
                 floorName: nil,
                 floorLevel: nil,
@@ -153,6 +157,7 @@ enum DashboardAreaBuilder {
         return AreaGroupKey(
             areaID: context.areaID,
             name: name,
+            icon: context.icon?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue,
             floorID: floorName == nil ? nil : context.floorID,
             floorName: floorName,
             floorLevel: floorName == nil ? nil : context.floorLevel,
@@ -202,6 +207,7 @@ enum DashboardAreaBuilder {
 private struct AreaGroupKey: Hashable {
     let areaID: String?
     let name: String
+    let icon: String?
     let floorID: String?
     let floorName: String?
     let floorLevel: Int?

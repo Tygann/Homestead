@@ -2180,6 +2180,7 @@ struct HomesteadTests {
             {
                 "area_id": "living_room",
                 "name": "Living Room",
+                "icon": "mdi:sofa",
                 "floor_id": "main_floor",
                 "temperature_entity_id": "sensor.living_room_temperature",
                 "humidity_entity_id": "sensor.living_room_humidity"
@@ -2194,6 +2195,7 @@ struct HomesteadTests {
 
         #expect(areas.first?.id == "living_room")
         #expect(areas.first?.name == "Living Room")
+        #expect(areas.first?.icon == "mdi:sofa")
         #expect(areas.first?.floorID == "main_floor")
         #expect(areas.first?.temperatureEntityID == "sensor.living_room_temperature")
         #expect(areas.first?.humidityEntityID == "sensor.living_room_humidity")
@@ -7170,6 +7172,89 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func areaBuilderPrefersHomeAssistantAreaIconMetadata() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "off", attributes: ["friendly_name": .string("Kitchen Light")])
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(entityID: "light.kitchen", deviceID: nil, areaID: "kitchen", originalName: "Kitchen Light")
+            ],
+            devices: [],
+            areas: [
+                HAAreaRegistryDTO(id: "kitchen", name: "Kitchen", icon: "mdi:sofa")
+            ]
+        )
+
+        let area = try #require(DashboardAreaBuilder.buildAreas(
+            from: store.allEntityBoxes(),
+            areaContextForEntityID: store.areaContext(for:)
+        ).first)
+
+        #expect(area.icon == "mdi:sofa")
+        #expect(area.systemImage == "sofa")
+    }
+
+    @MainActor
+    @Test func areaBuilderFallsBackToNameInferenceWhenHomeAssistantIconIsUnsupported() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.entry", state: "off", attributes: ["friendly_name": .string("Entry Light")])
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(entityID: "light.entry", deviceID: nil, areaID: "entry", originalName: "Entry Light")
+            ],
+            devices: [],
+            areas: [
+                HAAreaRegistryDTO(id: "entry", name: "Entryway", icon: "mdi:custom-room")
+            ]
+        )
+
+        let area = try #require(DashboardAreaBuilder.buildAreas(
+            from: store.allEntityBoxes(),
+            areaContextForEntityID: store.areaContext(for:)
+        ).first)
+
+        #expect(area.systemImage == "door.left.hand.closed")
+    }
+
+    @Test func areaIconResolverInfersCommonAreaNames() {
+        let expectedIconsByAreaName = [
+            "Primary Bedroom": "bed.double",
+            "Guest Bedroom": "bed.double",
+            "Office": "desktopcomputer",
+            "Garage": "door.garage.closed",
+            "Foyer": "door.left.hand.closed",
+            "Den": "sofa",
+            "Family Room": "sofa",
+            "Dining Room": "fork.knife",
+            "Pantry": "fork.knife",
+            "Laundry": "washer",
+            "Bathroom": "shower",
+            "Hallway": "door.left.hand.open",
+            "Backyard": "tree",
+            "Game Room": "gamecontroller",
+            "Media Room": "play.tv",
+            "Closet": "hanger",
+            "Nursery": "teddybear.fill"
+        ]
+
+        for (areaName, expectedIcon) in expectedIconsByAreaName {
+            #expect(
+                DashboardAreaIconResolver.systemImage(areaIcon: nil, areaName: areaName) == expectedIcon,
+                "Expected \(areaName) to resolve to \(expectedIcon)"
+            )
+        }
+    }
+
+    @Test func areaIconResolverUsesGenericHouseFallbackForUnknownAreas() {
+        #expect(DashboardAreaIconResolver.systemImage(areaIcon: nil, areaName: "Workshop") == "house")
+        #expect(DashboardAreaIconResolver.systemImage(areaIcon: "mdi:custom-room", areaName: "Workshop") == "house")
+    }
+
+    @MainActor
     @Test func areaBuilderGroupsAreasIntoFloorSectionsWhenMultipleFloorsExist() {
         let store = HAStateStore()
         store.applyInitialStates([
@@ -8494,6 +8579,7 @@ struct HomesteadTests {
             "light.kitchen": DashboardAreaContext(
                 areaID: "kitchen",
                 name: "Kitchen",
+                icon: nil,
                 floorID: "main",
                 floorName: "Main Floor",
                 floorLevel: 0,
@@ -8502,6 +8588,7 @@ struct HomesteadTests {
             "light.bedroom": DashboardAreaContext(
                 areaID: "bedroom",
                 name: "Bedroom",
+                icon: nil,
                 floorID: "upstairs",
                 floorName: "Upstairs",
                 floorLevel: 1,
@@ -8510,6 +8597,7 @@ struct HomesteadTests {
             "light.garage": DashboardAreaContext(
                 areaID: "garage",
                 name: "Garage",
+                icon: nil,
                 floorID: nil,
                 floorName: nil,
                 floorLevel: nil,

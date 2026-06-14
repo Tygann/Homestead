@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-13
 
+### Area Icons
+
+- Decoded Home Assistant area registry icon metadata from `config/area_registry/list` and carried it through area summaries so Area cards prefer HA-provided room icons when Homestead has a conservative SF Symbol equivalent.
+- Expanded local name inference for common rooms such as entryways, dining rooms, laundry, hallways, patios, media/game rooms, closets, and nurseries, with unsupported HA icons falling through to inference and then a neutral `house` fallback.
+
 ### Security Summary Activity
 
 - Added a Home Assistant-style Security activity surface backed by Homestead's existing documented REST logbook client, without introducing private frontend endpoints or a second activity model.
