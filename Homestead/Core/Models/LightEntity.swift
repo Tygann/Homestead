@@ -6,7 +6,6 @@ struct LightEntity: Identifiable, Equatable, Sendable {
     let isOn: Bool
     let brightness: Int?
     let supportsBrightness: Bool
-    let iconName: String
     let lastUpdated: Date?
 
     var id: String { entityID }

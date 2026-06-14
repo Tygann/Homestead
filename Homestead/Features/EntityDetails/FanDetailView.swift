@@ -48,7 +48,7 @@ struct FanDetailView: View {
 
     private func header(_ fan: FanEntity) -> some View {
         EntityDetailHeader(
-            iconName: entityBox.homeEntity.iconName,
+            icon: entityBox.homeEntity.resolvedIcon,
             title: fan.displayName,
             subtitle: statusSummary(fan),
             badge: fan.displaySubtitle,

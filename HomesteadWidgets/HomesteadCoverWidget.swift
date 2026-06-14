@@ -63,6 +63,11 @@ struct HomesteadCoverEntity: AppEntity, Identifiable {
     let isClosed: Bool
     let isMoving: Bool
     let isAvailable: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(displayName)", subtitle: "\(id)")
@@ -92,11 +97,12 @@ struct HomesteadCoverEntityQuery: EntityQuery {
             displayName: snapshot.displayName,
             state: snapshot.state,
             statusText: snapshot.statusText,
-            systemImage: snapshot.systemImage,
+            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
             isOpen: snapshot.isOpen,
             isClosed: snapshot.isClosed,
             isMoving: snapshot.isMoving,
-            isAvailable: snapshot.isAvailable
+            isAvailable: snapshot.isAvailable,
+            icon: snapshot.resolvedIcon
         )
     }
 }
@@ -113,6 +119,11 @@ struct HomesteadCoverEntry: TimelineEntry {
     let isMoving: Bool
     let isAvailable: Bool
     let isConfigured: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 }
 
 struct HomesteadCoverTimelineProvider: AppIntentTimelineProvider {
@@ -190,7 +201,8 @@ struct HomesteadCoverTimelineProvider: AppIntentTimelineProvider {
                 isClosed: state.isClosed,
                 isMoving: state.isMoving,
                 isAvailable: state.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: state.icon
             )
         } catch {
             return HomesteadCoverEntry(
@@ -204,7 +216,8 @@ struct HomesteadCoverTimelineProvider: AppIntentTimelineProvider {
                 isClosed: selectedCover.isClosed,
                 isMoving: selectedCover.isMoving,
                 isAvailable: selectedCover.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: selectedCover.icon
             )
         }
     }
@@ -215,11 +228,12 @@ struct HomesteadCoverTimelineProvider: AppIntentTimelineProvider {
             displayName: snapshot.displayName,
             state: snapshot.state,
             statusText: snapshot.statusText,
-            systemImage: snapshot.systemImage,
+            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
             isOpen: snapshot.isOpen,
             isClosed: snapshot.isClosed,
             isMoving: snapshot.isMoving,
-            isAvailable: snapshot.isAvailable
+            isAvailable: snapshot.isAvailable,
+            icon: snapshot.resolvedIcon
         )
     }
 }
@@ -266,7 +280,7 @@ struct HomesteadCoverWidgetView: View {
 
     private var accessoryRectangular: some View {
         HStack(spacing: 8) {
-            Image(systemName: entry.systemImage)
+            HomesteadIconView(icon: entry.resolvedIcon, pointSize: 16)
                 .foregroundStyle(iconColor)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -292,12 +306,20 @@ struct HomesteadCoverWidgetView: View {
         }
     }
 
+    @ViewBuilder
     private var coverIcon: some View {
-        Image(systemName: entry.isMoving ? "stop.fill" : entry.systemImage)
-            .font(.title2.weight(.semibold))
+        if entry.isMoving {
+            Image(systemName: "stop.fill")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(iconColor)
+                .frame(width: 44, height: 44)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        } else {
+            HomesteadIconView(icon: entry.resolvedIcon, pointSize: 22)
             .foregroundStyle(iconColor)
             .frame(width: 44, height: 44)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
     }
 
     private var nextService: String {

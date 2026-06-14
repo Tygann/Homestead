@@ -6,7 +6,6 @@ struct CoverEntity: Identifiable, Equatable, Sendable {
     let state: String
     let position: Int?
     let deviceClass: String?
-    let iconName: String
 
     var id: String { entityID }
 

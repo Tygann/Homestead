@@ -110,7 +110,9 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     let contextName: String?
     let triggerText: String?
     let attributionName: String?
-    let iconSystemName: String
+    let resolvedIcon: ResolvedIcon
+
+    var iconSystemName: String { resolvedIcon.sfSymbolName }
 
     var detailText: String {
         let details = [
@@ -219,11 +221,13 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         self.attributionName = contextUserID.flatMap { userID in
             contextName ?? contextUserDisplayName(userID)
         }
-        self.iconSystemName = Self.iconSystemName(
-            domain: entityDomain,
-            state: state,
-            deviceClass: deviceClass
-        )
+        self.resolvedIcon = entityDomain.map {
+            IconResolver.historicalEntityIcon(
+                domain: $0.rawValue,
+                deviceClass: deviceClass,
+                state: state ?? "unknown"
+            )
+        } ?? .sfSymbol("list.bullet.clipboard", provenance: .fallback)
     }
 
     private static func stateMessage(
@@ -274,59 +278,6 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     private static func formattedState(_ state: String) -> String {
         let words = state.replacingOccurrences(of: "_", with: " ")
         return words == words.uppercased() ? words : words.capitalized
-    }
-
-    private static func iconSystemName(
-        domain: EntityDomain?,
-        state: String?,
-        deviceClass: String?
-    ) -> String {
-        switch domain {
-        case .lock:
-            return state == "locked" || state == "locking" || state == "jammed" ? "lock.fill" : "lock.open.fill"
-        case .binarySensor:
-            return binarySensorIconSystemName(deviceClass: deviceClass, state: state)
-        case .cover:
-            return coverIconSystemName(deviceClass: deviceClass, state: state)
-        default:
-            return domain?.systemImage ?? "list.bullet.clipboard"
-        }
-    }
-
-    private static func binarySensorIconSystemName(deviceClass: String?, state: String?) -> String {
-        let isActive = state == "on"
-
-        switch deviceClass {
-        case "door":
-            return isActive ? "door.left.hand.open" : "door.left.hand.closed"
-        case "window":
-            return isActive ? "window.vertical.open" : "window.vertical.closed"
-        case "garage_door":
-            return isActive ? "door.garage.open" : "door.garage.closed"
-        case "lock":
-            return isActive ? "lock.open.fill" : "lock.fill"
-        case "opening":
-            return isActive ? "rectangle.portrait.and.arrow.right" : "rectangle.portrait"
-        default:
-            return EntityDomain.binarySensor.systemImage
-        }
-    }
-
-    private static func coverIconSystemName(deviceClass: String?, state: String?) -> String {
-        let isOpen = state == "open" || state == "opening"
-
-        switch deviceClass {
-        case "garage":
-            return isOpen ? "door.garage.open" : "door.garage.closed"
-        case "door":
-            return isOpen ? "door.left.hand.open" : "door.left.hand.closed"
-        case "gate":
-            return isOpen ? "door.garage.open" : "door.garage.closed"
-        case "window":
-            return isOpen ? "window.vertical.open" : "window.vertical.closed"
-        default:
-            return isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
-        }
     }
 
     private static func triggerText(

@@ -536,8 +536,7 @@ private struct SecurityActivityRowView: View {
         if let personRecord {
             PeoplePresenceAvatarView(record: personRecord, size: 32)
         } else {
-            Image(systemName: row.iconSystemName)
-                .font(.body.weight(.semibold))
+            HomesteadIconView(icon: row.resolvedIcon, pointSize: 17)
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 32, height: 32)
         }

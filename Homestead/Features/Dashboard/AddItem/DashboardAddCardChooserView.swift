@@ -75,7 +75,7 @@ struct DashboardAddCardChooserView: View {
                     .truncationMode(.middle)
             }
         } icon: {
-            CardIconView(systemName: candidate.iconName, isActive: false)
+            CardIconView(icon: candidate.icon, isActive: false)
         }
     }
 

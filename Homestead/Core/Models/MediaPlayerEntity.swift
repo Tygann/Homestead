@@ -10,7 +10,6 @@ struct MediaPlayerEntity: Identifiable, Equatable, Sendable {
     let mediaTitle: String?
     let mediaArtist: String?
     let deviceClass: String?
-    let iconName: String
 
     var id: String { entityID }
 

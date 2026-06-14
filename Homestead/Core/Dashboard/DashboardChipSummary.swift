@@ -58,7 +58,7 @@ extension DashboardSummaryKind: Identifiable {
 struct DashboardChipPresentation: Equatable, Sendable {
     let title: String
     let value: String
-    let systemImage: String
+    let icon: ResolvedIcon
     let isActive: Bool
     let isAvailable: Bool
     let iconTint: DashboardChipIconTint
@@ -77,11 +77,29 @@ struct DashboardChipPresentation: Equatable, Sendable {
     ) {
         self.title = title
         self.value = value
-        self.systemImage = systemImage
+        icon = .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
         self.isActive = isActive
         self.isAvailable = isAvailable
         self.iconTint = iconTint
     }
+
+    init(
+        title: String,
+        value: String,
+        icon: ResolvedIcon,
+        isActive: Bool,
+        isAvailable: Bool,
+        iconTint: DashboardChipIconTint = .status
+    ) {
+        self.title = title
+        self.value = value
+        self.icon = icon
+        self.isActive = isActive
+        self.isAvailable = isAvailable
+        self.iconTint = iconTint
+    }
+
+    var systemImage: String { icon.sfSymbolName }
 }
 
 nonisolated enum DashboardChipIconTint: Equatable, Sendable {
@@ -132,7 +150,7 @@ struct DashboardSummaryEntityPresentation: Identifiable, Equatable, Sendable {
     let title: String
     let subtitle: String
     let detail: String?
-    let systemImage: String
+    let icon: ResolvedIcon
     let visualStyle: DashboardSummaryEntityVisualStyle
     let isActive: Bool
     let isAvailable: Bool
@@ -141,6 +159,7 @@ struct DashboardSummaryEntityPresentation: Identifiable, Equatable, Sendable {
     let primaryAction: DashboardEntityPrimaryAction?
 
     var id: String { entityID }
+    var systemImage: String { icon.sfSymbolName }
 }
 
 @MainActor
@@ -309,7 +328,7 @@ enum DashboardSummaryProvider {
         return DashboardChipPresentation(
             title: presentation.title,
             value: presentation.headline ?? presentation.subtitle,
-            systemImage: presentation.iconName,
+            icon: presentation.icon,
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable
         )
@@ -523,7 +542,7 @@ enum DashboardSummaryProvider {
             title: presentation.title,
             subtitle: presentation.headline ?? presentation.subtitle,
             detail: detail,
-            systemImage: presentation.iconName,
+            icon: presentation.icon,
             visualStyle: entityBox.domain == .camera ? .camera : .row,
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable,

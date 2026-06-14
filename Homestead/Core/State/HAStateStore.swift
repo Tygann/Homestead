@@ -25,6 +25,9 @@ final class HAStateStore {
     @ObservationIgnored private(set) var selectEntitiesByID: [String: SelectEntity] = [:]
     private(set) var updateEntities: [HAUpdateEntity] = []
     @ObservationIgnored private var rawEntitiesByID: [String: HAEntityDTO] = [:]
+    @ObservationIgnored private var iconResolutionInputsByID: [String: EntityIconResolutionInput] = [:]
+    @ObservationIgnored private var resolvedIconsByID: [String: ResolvedIcon] = [:]
+    @ObservationIgnored private(set) var iconResolutionCount = 0
     @ObservationIgnored private var entityBoxesByID: [String: HAEntityState] = [:]
     @ObservationIgnored private var pendingCommandsByID: [String: HAEntityPendingCommand] = [:]
     @ObservationIgnored private var entityRegistryByID: [String: HAEntityRegistryDisplayDTO] = [:]
@@ -317,7 +320,8 @@ final class HAStateStore {
                 return EntityMapper.presenceRecord(
                     from: dto,
                     context: context,
-                    linkedTrackers: linkedTrackers
+                    linkedTrackers: linkedTrackers,
+                    resolvedIcon: entitiesByID[dto.entityID]?.resolvedIcon
                 )
             }
 
@@ -326,7 +330,8 @@ final class HAStateStore {
                 from: dto,
                 context: context,
                 linkedPersonEntityID: linkedPerson?.entityID,
-                linkedPersonName: linkedPerson.map { EntityMapper.displayName(for: $0) }
+                linkedPersonName: linkedPerson.map { EntityMapper.displayName(for: $0) },
+                resolvedIcon: entitiesByID[dto.entityID]?.resolvedIcon
             )
         }
         .sorted { lhs, rhs in
@@ -410,6 +415,7 @@ final class HAStateStore {
         areas: [HAAreaRegistryDTO] = [],
         floors: [HAFloorRegistryDTO] = []
     ) {
+        let previousEntityRegistryByID = entityRegistryByID
         entityRegistryByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, $0) })
         deviceRegistryByID = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
         areaRegistryByID = Dictionary(uniqueKeysWithValues: areas.map { ($0.id, $0) })
@@ -417,6 +423,7 @@ final class HAStateStore {
         floorSortOrderByID = Dictionary(uniqueKeysWithValues: floors.enumerated().map { index, floor in
             (floor.id, index)
         })
+        refreshIconsAfterRegistryUpdate(previousEntityRegistryByID: previousEntityRegistryByID)
         refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
     }
 
@@ -492,6 +499,55 @@ final class HAStateStore {
         return entity.displayName.removingDeviceNamePrefix(deviceName)
     }
 
+    private func resolvedIcon(for dto: HAEntityDTO) -> ResolvedIcon {
+        let input = EntityIconResolutionInput(
+            domain: dto.entityID.split(separator: ".").first.map(String.init) ?? "unknown",
+            deviceClass: dto.attributes["device_class"]?.stringValue,
+            state: dto.state,
+            registryIcon: entityRegistryByID[dto.entityID]?.icon,
+            explicitIcon: dto.attributes["icon"]?.stringValue
+        )
+
+        if iconResolutionInputsByID[dto.entityID] == input,
+           let cachedIcon = resolvedIconsByID[dto.entityID] {
+            return cachedIcon
+        }
+
+        let icon = IconResolver.resolveEntity(input)
+        iconResolutionCount += 1
+        iconResolutionInputsByID[dto.entityID] = input
+        resolvedIconsByID[dto.entityID] = icon
+        return icon
+    }
+
+    private func refreshIconsAfterRegistryUpdate(
+        previousEntityRegistryByID: [String: HAEntityRegistryDisplayDTO]
+    ) {
+        let entityIDs = Set(previousEntityRegistryByID.keys).union(entityRegistryByID.keys)
+        let iconChangedEntityIDs = entityIDs.filter { entityID in
+            previousEntityRegistryByID[entityID]?.icon != entityRegistryByID[entityID]?.icon
+        }
+        var needsWidgetSave = false
+
+        for entityID in iconChangedEntityIDs {
+            guard let dto = rawEntitiesByID[entityID],
+                  let previousEntity = entitiesByID[entityID] else { continue }
+
+            let icon = resolvedIcon(for: dto)
+            guard icon != previousEntity.resolvedIcon else { continue }
+
+            let updatedEntity = EntityMapper.homeEntity(from: dto, resolvedIcon: icon)
+            entitiesByID[entityID] = updatedEntity
+            entityBoxesByID[entityID]?.homeEntity = updatedEntity
+            updateCachedEntity(updatedEntity)
+            needsWidgetSave = needsWidgetSave || updatedEntity.domain.isWidgetSnapshotDomain
+        }
+
+        if needsWidgetSave {
+            saveWidgetSnapshots()
+        }
+    }
+
     private func entityIDs(for domain: EntityDomain) -> [String] {
         entitiesByID.values
             .filter { $0.domain == domain }
@@ -562,6 +618,9 @@ final class HAStateStore {
         selectEntitiesByID.removeAll()
         updateEntities.removeAll()
         rawEntitiesByID.removeAll()
+        iconResolutionInputsByID.removeAll()
+        resolvedIconsByID.removeAll()
+        iconResolutionCount = 0
         entityBoxesByID.removeAll()
         pendingCommandsByID.removeAll()
         entityRegistryByID.removeAll()
@@ -575,7 +634,10 @@ final class HAStateStore {
     }
 
     private func rebuildMappedEntities(from entities: [HAEntityDTO]) {
-        entitiesByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, EntityMapper.homeEntity(from: $0)) })
+        entitiesByID = Dictionary(uniqueKeysWithValues: entities.map { dto in
+            let icon = resolvedIcon(for: dto)
+            return (dto.entityID, EntityMapper.homeEntity(from: dto, resolvedIcon: icon))
+        })
         lightEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
             EntityMapper.lightEntity(from: dto).map { ($0.entityID, $0) }
         })
@@ -606,7 +668,7 @@ final class HAStateStore {
         refreshUpdateEntities()
         var updatedEntityBoxesByID: [String: HAEntityState] = [:]
         for dto in entities {
-            let homeEntity = EntityMapper.homeEntity(from: dto)
+            let homeEntity = EntityMapper.homeEntity(from: dto, resolvedIcon: resolvedIcon(for: dto))
 
             if let entityBox = entityBoxesByID[dto.entityID] {
                 entityBox.update(
@@ -657,7 +719,7 @@ final class HAStateStore {
     private func apply(dto: HAEntityDTO) {
         let previousCatalogSignature = entityCatalogSignature
         let previousEntity = entitiesByID[dto.entityID]
-        let homeEntity = EntityMapper.homeEntity(from: dto)
+        let homeEntity = EntityMapper.homeEntity(from: dto, resolvedIcon: resolvedIcon(for: dto))
 
         entitiesByID[dto.entityID] = homeEntity
         lightEntitiesByID[dto.entityID] = EntityMapper.lightEntity(from: dto)
@@ -719,6 +781,8 @@ final class HAStateStore {
         let removedEntity = entitiesByID.removeValue(forKey: entityID)
 
         rawEntitiesByID.removeValue(forKey: entityID)
+        iconResolutionInputsByID.removeValue(forKey: entityID)
+        resolvedIconsByID.removeValue(forKey: entityID)
         lightEntitiesByID.removeValue(forKey: entityID)
         climateEntitiesByID.removeValue(forKey: entityID)
         coverEntitiesByID.removeValue(forKey: entityID)
@@ -849,13 +913,32 @@ final class HAStateStore {
                 deviceName: self.deviceRegistryMetadata(forEntityID: entityID)?.displayName.nonEmptyValue
             )
         }
+        let iconForEntityID: (String) -> ResolvedIcon? = { entityID in
+            self.entitiesByID[entityID]?.resolvedIcon
+        }
 
-        WidgetSharedStore.saveLightSnapshots(Array(lightEntitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.saveLightSnapshots(
+            Array(lightEntitiesByID.values),
+            contextForEntityID: contextForEntityID,
+            iconForEntityID: iconForEntityID
+        )
         WidgetSharedStore.saveSwitchSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
-        WidgetSharedStore.saveCoverSnapshots(Array(coverEntitiesByID.values), contextForEntityID: contextForEntityID)
-        WidgetSharedStore.saveFanSnapshots(Array(fanEntitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.saveCoverSnapshots(
+            Array(coverEntitiesByID.values),
+            contextForEntityID: contextForEntityID,
+            iconForEntityID: iconForEntityID
+        )
+        WidgetSharedStore.saveFanSnapshots(
+            Array(fanEntitiesByID.values),
+            contextForEntityID: contextForEntityID,
+            iconForEntityID: iconForEntityID
+        )
         WidgetSharedStore.saveLockSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
-        WidgetSharedStore.saveSensorSnapshots(Array(sensorEntitiesByID.values), contextForEntityID: contextForEntityID)
+        WidgetSharedStore.saveSensorSnapshots(
+            Array(sensorEntitiesByID.values),
+            contextForEntityID: contextForEntityID,
+            iconForEntityID: iconForEntityID
+        )
         WidgetSharedStore.savePresenceSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
         WidgetSharedStore.saveActionSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
     }
@@ -883,7 +966,8 @@ final class HAStateStore {
             areaID: areaContext?.areaID,
             areaName: areaContext?.name,
             floorID: areaContext?.floorID,
-            floorName: areaContext?.floorName
+            floorName: areaContext?.floorName,
+            resolvedIcon: entitiesByID[dto.entityID]?.resolvedIcon
         )
     }
 

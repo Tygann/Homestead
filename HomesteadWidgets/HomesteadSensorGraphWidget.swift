@@ -39,6 +39,11 @@ struct HomesteadGraphSensorEntity: AppEntity, Identifiable {
     let areaName: String?
     let deviceName: String?
     let isAvailable: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -124,11 +129,12 @@ struct HomesteadGraphSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
             displayName: snapshot.displayName,
             valueText: snapshot.valueText,
             subtitle: snapshot.subtitle,
-            systemImage: snapshot.systemImage,
+            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
             unit: snapshot.unit,
             areaName: snapshot.areaName,
             deviceName: snapshot.deviceName,
-            isAvailable: snapshot.isAvailable
+            isAvailable: snapshot.isAvailable,
+            icon: snapshot.resolvedIcon
         )
     }
 }
@@ -145,6 +151,11 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
     let summaryText: String
     let isAvailable: Bool
     let isConfigured: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 }
 
 struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
@@ -232,7 +243,8 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
                 valueDomain: series.valueDomain,
                 summaryText: series.summaryText,
                 isAvailable: selectedSensor.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: selectedSensor.resolvedIcon
             )
         } catch {
             return HomesteadSensorGraphEntry(
@@ -246,7 +258,8 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
                 valueDomain: 0...1,
                 summaryText: "Needs connection",
                 isAvailable: selectedSensor.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: selectedSensor.resolvedIcon
             )
         }
     }
@@ -261,11 +274,12 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             displayName: snapshot.displayName,
             valueText: snapshot.valueText,
             subtitle: snapshot.subtitle,
-            systemImage: snapshot.systemImage,
+            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
             unit: snapshot.unit,
             areaName: snapshot.areaName,
             deviceName: snapshot.deviceName,
-            isAvailable: snapshot.isAvailable
+            isAvailable: snapshot.isAvailable,
+            icon: snapshot.resolvedIcon
         )
     }
 
@@ -382,8 +396,7 @@ struct HomesteadSensorGraphWidgetView: View {
     }
 
     private var graphIcon: some View {
-        Image(systemName: entry.systemImage)
-            .font(.caption.weight(.semibold))
+        HomesteadIconView(icon: entry.resolvedIcon, pointSize: 13)
             .foregroundStyle(entry.isAvailable ? .blue : .secondary)
             .frame(width: 24, height: 24)
             .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 7, style: .continuous))

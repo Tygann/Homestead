@@ -2252,11 +2252,11 @@ struct HomesteadTests {
         #expect(light?.brightness == 128)
         #expect(light?.supportsBrightness == true)
         #expect(light?.brightnessPercentage == 50)
-        #expect(light?.iconName == "lightbulb.fill")
+        #expect(light?.testIconName == "lightbulb.fill")
         #expect(sensor?.displayName == "Hallway")
         #expect(sensor?.formattedValue == "72°F")
         #expect(sensor?.unit == "F")
-        #expect(sensor?.iconName == "thermometer.medium")
+        #expect(sensor?.testIconName == "thermometer.medium")
     }
 
     @Test func entityMapperMapsHomeAssistantWeatherEntities() throws {
@@ -2666,7 +2666,7 @@ struct HomesteadTests {
         #expect(cover.position == 72)
         #expect(cover.positionPercentage == 72)
         #expect(cover.deviceClass == nil)
-        #expect(cover.iconName == "blinds.horizontal.open")
+        #expect(cover.testIconName == "blinds.horizontal.open")
         #expect(cover.isOpen == true)
         #expect(cover.isClosed == false)
         #expect(cover.displayState == "Open")
@@ -2692,7 +2692,7 @@ struct HomesteadTests {
         let garageHomeEntity = EntityMapper.homeEntity(from: garageDTO)
 
         #expect(garageCover.deviceClass == "garage")
-        #expect(garageCover.iconName == "door.garage.closed")
+        #expect(garageCover.testIconName == "door.garage.closed")
         #expect(garageHomeEntity.iconName == "door.garage.closed")
 
         let curtainCover = try #require(EntityMapper.coverEntity(from: HAEntityDTO(
@@ -2711,9 +2711,9 @@ struct HomesteadTests {
             attributes: ["device_class": .string("shade")]
         )))
 
-        #expect(curtainCover.iconName == "curtains.open")
-        #expect(gateCover.iconName == "pedestrian.gate.closed")
-        #expect(shadeCover.iconName == "window.shade.closed")
+        #expect(curtainCover.testIconName == "curtains.open")
+        #expect(gateCover.testIconName == "pedestrian.gate.closed")
+        #expect(shadeCover.testIconName == "window.shade.closed")
     }
 
     @Test func entityMapperMapsFanAndMediaPlayerControls() throws {
@@ -2760,7 +2760,7 @@ struct HomesteadTests {
         #expect(media.nowPlayingText == "Morning Mix - Homestead Radio")
         #expect(media.displaySubtitle == "Morning Mix - Homestead Radio")
         #expect(media.deviceClass == "speaker")
-        #expect(media.iconName == "speaker.wave.2.fill")
+        #expect(media.testIconName == "speaker.wave.2.fill")
     }
 
     @Test func entityMapperMapsExpandedBinarySensorDeviceClasses() throws {
@@ -2792,18 +2792,18 @@ struct HomesteadTests {
 
         #expect(carbonMonoxide.displayKind == .carbonMonoxide)
         #expect(carbonMonoxide.displaySubtitle == "CO Detected")
-        #expect(carbonMonoxide.iconName == "carbon.monoxide.cloud.fill")
+        #expect(carbonMonoxide.testIconName == "carbon.monoxide.cloud.fill")
         #expect(carbonMonoxide.isSecurityRelevant)
         #expect(batteryCharging.displayKind == .batteryCharging)
         #expect(batteryCharging.displaySubtitle == "Not Charging")
-        #expect(batteryCharging.iconName == "battery.100percent")
+        #expect(batteryCharging.testIconName == "battery.100percent")
         #expect(vibration.displayKind == .vibration)
         #expect(vibration.displaySubtitle == "Vibration Detected")
-        #expect(vibration.iconName == "waveform.path")
+        #expect(vibration.testIconName == "waveform.path")
         #expect(vibration.isSecurityRelevant)
         #expect(update.displayKind == .update)
         #expect(update.displaySubtitle == "Update Available")
-        #expect(update.iconName == "arrow.trianglehead.2.clockwise")
+        #expect(update.testIconName == "arrow.trianglehead.2.clockwise")
         #expect(update.isSecurityRelevant == false)
     }
 
@@ -2876,7 +2876,6 @@ struct HomesteadTests {
             value: "44.2",
             unit: "%",
             deviceClass: "humidity",
-            iconName: "humidity",
             lastUpdated: nil
         )
         let energy = SensorEntity(
@@ -2885,7 +2884,6 @@ struct HomesteadTests {
             value: "12.3456",
             unit: "kWh",
             deviceClass: "energy",
-            iconName: "bolt.fill",
             lastUpdated: nil
         )
         let unavailable = SensorEntity(
@@ -2894,7 +2892,6 @@ struct HomesteadTests {
             value: "unavailable",
             unit: nil,
             deviceClass: nil,
-            iconName: "gauge.medium",
             lastUpdated: nil
         )
         let textState = SensorEntity(
@@ -2903,7 +2900,6 @@ struct HomesteadTests {
             value: "authorized_always",
             unit: nil,
             deviceClass: nil,
-            iconName: "gauge.medium",
             lastUpdated: nil
         )
         let lowBattery = SensorEntity(
@@ -2912,7 +2908,6 @@ struct HomesteadTests {
             value: "18",
             unit: "%",
             deviceClass: "battery",
-            iconName: "battery.75percent",
             lastUpdated: nil
         )
         let waterClear = SensorEntity(
@@ -2921,7 +2916,6 @@ struct HomesteadTests {
             value: "off",
             unit: nil,
             deviceClass: "water",
-            iconName: "drop.fill",
             lastUpdated: nil
         )
         let waterDetected = SensorEntity(
@@ -2930,7 +2924,6 @@ struct HomesteadTests {
             value: "on",
             unit: nil,
             deviceClass: "water",
-            iconName: "drop.fill",
             lastUpdated: nil
         )
 
@@ -2967,7 +2960,6 @@ struct HomesteadTests {
             value: "8",
             unit: "%",
             deviceClass: "battery",
-            iconName: "battery.25percent",
             lastUpdated: nil
         )
         let batteryGauge = lowBattery.gaugePresentation
@@ -2984,7 +2976,6 @@ struct HomesteadTests {
             value: "82",
             unit: "F",
             deviceClass: "temperature",
-            iconName: "thermometer.medium",
             lastUpdated: nil
         )
         let temperatureGauge = warmTemperature.gaugePresentation
@@ -2999,7 +2990,6 @@ struct HomesteadTests {
             value: "72",
             unit: "%",
             deviceClass: nil,
-            iconName: "drop.fill",
             lastUpdated: nil,
             suggestedMinimumValue: 10,
             suggestedMaximumValue: 90
@@ -3015,7 +3005,6 @@ struct HomesteadTests {
             value: "auto",
             unit: nil,
             deviceClass: nil,
-            iconName: "gauge.medium",
             lastUpdated: nil
         )
         #expect(textSensor.gaugePresentation == nil)
@@ -3091,26 +3080,26 @@ struct HomesteadTests {
         )))
 
         #expect(carbonDioxide.displayKind == .carbonDioxide)
-        #expect(carbonDioxide.iconName == "carbon.dioxide.cloud.fill")
+        #expect(carbonDioxide.testIconName == "carbon.dioxide.cloud.fill")
         #expect(carbonDioxide.formattedValue == "842.4 ppm")
         #expect(particulateMatter.displayKind == .particulateMatter)
-        #expect(particulateMatter.iconName == "aqi.medium")
+        #expect(particulateMatter.testIconName == "aqi.medium")
         #expect(particulateMatter.formattedValue == "3.46 µg/m³")
         #expect(timestamp.displayKind == .date)
-        #expect(timestamp.iconName == "calendar")
+        #expect(timestamp.testIconName == "calendar")
         #expect(timestamp.formattedValue == "2026-06-01T12:00:00Z")
         #expect(carbonMonoxide.displayKind == .carbonMonoxide)
-        #expect(carbonMonoxide.iconName == "carbon.monoxide.cloud.fill")
+        #expect(carbonMonoxide.testIconName == "carbon.monoxide.cloud.fill")
         #expect(carbonMonoxide.isAlerting)
         #expect(carbonMonoxide.displaySubtitle == "CO Detected")
         #expect(atmosphericPressure.displayKind == .pressure)
-        #expect(atmosphericPressure.iconName == "barometer")
+        #expect(atmosphericPressure.testIconName == "barometer")
         #expect(atmosphericPressure.formattedValue == "29.9 inHg")
         #expect(reactivePower.displayKind == .reactivePower)
-        #expect(reactivePower.iconName == "bolt.fill")
+        #expect(reactivePower.testIconName == "bolt.fill")
         #expect(reactivePower.formattedValue == "1.23 var")
         #expect(windSpeed.displayKind == .speed)
-        #expect(windSpeed.iconName == "speedometer")
+        #expect(windSpeed.testIconName == "speedometer")
     }
 
     @Test func entityMapperUsesDocumentedDeviceClassesForGenericDomainIcons() {
@@ -3487,7 +3476,6 @@ struct HomesteadTests {
                 isOn: false,
                 brightness: nil,
                 supportsBrightness: false,
-                iconName: "lightbulb.fill",
                 lastUpdated: nil
             ),
             LightEntity(
@@ -3496,7 +3484,6 @@ struct HomesteadTests {
                 isOn: true,
                 brightness: 128,
                 supportsBrightness: true,
-                iconName: "lightbulb.fill",
                 lastUpdated: nil
             )
         ]
@@ -3507,7 +3494,6 @@ struct HomesteadTests {
                 value: "72.4",
                 unit: "F",
                 deviceClass: "temperature",
-                iconName: "thermometer.medium",
                 lastUpdated: nil
             ),
             SensorEntity(
@@ -3516,7 +3502,6 @@ struct HomesteadTests {
                 value: "18",
                 unit: "%",
                 deviceClass: "battery",
-                iconName: "battery.75percent",
                 lastUpdated: nil
             )
         ]
@@ -3526,16 +3511,14 @@ struct HomesteadTests {
                 displayName: "Living Room Shades",
                 state: "open",
                 position: 70,
-                deviceClass: "shade",
-                iconName: "window.shade.open"
+                deviceClass: "shade"
             ),
             CoverEntity(
                 entityID: "cover.garage_door",
                 displayName: "Garage Door",
                 state: "closed",
                 position: 0,
-                deviceClass: "garage",
-                iconName: "door.garage.closed"
+                deviceClass: "garage"
             )
         ]
         let fans = [
@@ -3649,7 +3632,8 @@ struct HomesteadTests {
                 isOn: true,
                 brightnessPercentage: 50,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("lightbulb.fill", provenance: .haSemanticMapping)
             ),
             WidgetLightSnapshot(
                 entityID: "light.z_lamp",
@@ -3657,7 +3641,8 @@ struct HomesteadTests {
                 isOn: false,
                 brightnessPercentage: nil,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("lightbulb.fill", provenance: .haSemanticMapping)
             )
         ])
 
@@ -3668,7 +3653,8 @@ struct HomesteadTests {
                 isOn: true,
                 systemImage: "lightswitch.on.fill",
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("lightswitch.on.fill", provenance: .homesteadSemanticMapping)
             ),
             WidgetSwitchSnapshot(
                 entityID: "switch.fan",
@@ -3676,7 +3662,8 @@ struct HomesteadTests {
                 isOn: false,
                 systemImage: "lightswitch.off.fill",
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("lightswitch.off.fill", provenance: .homesteadSemanticMapping)
             )
         ])
 
@@ -3692,7 +3679,8 @@ struct HomesteadTests {
                 isMoving: false,
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("door.garage.closed", provenance: .haSemanticMapping)
             ),
             WidgetCoverSnapshot(
                 entityID: "cover.living_room_shades",
@@ -3705,7 +3693,8 @@ struct HomesteadTests {
                 isMoving: false,
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("window.shade.open", provenance: .haSemanticMapping)
             )
         ])
 
@@ -3717,7 +3706,8 @@ struct HomesteadTests {
                 statusText: "On • 50%",
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("fan.fill", provenance: .haSemanticMapping)
             ),
             WidgetFanSnapshot(
                 entityID: "fan.office",
@@ -3726,7 +3716,8 @@ struct HomesteadTests {
                 statusText: "Off",
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("fan.fill", provenance: .haSemanticMapping)
             )
         ])
 
@@ -3740,7 +3731,8 @@ struct HomesteadTests {
                 isLocked: true,
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("lock.fill", provenance: .homesteadSemanticMapping)
             ),
             WidgetLockSnapshot(
                 entityID: "lock.garage_entry",
@@ -3751,7 +3743,8 @@ struct HomesteadTests {
                 isLocked: false,
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("lock.open.fill", provenance: .homesteadSemanticMapping)
             )
         ])
 
@@ -3767,7 +3760,8 @@ struct HomesteadTests {
                 isAlerting: true,
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("battery.75percent", provenance: .haSemanticMapping)
             ),
             WidgetSensorSnapshot(
                 entityID: "sensor.temperature",
@@ -3780,7 +3774,8 @@ struct HomesteadTests {
                 isAlerting: false,
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("thermometer.medium", provenance: .haSemanticMapping)
             )
         ])
 
@@ -3793,7 +3788,8 @@ struct HomesteadTests {
                 systemImage: "person",
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("person", provenance: .homesteadSemanticMapping)
             ),
             WidgetPresenceSnapshot(
                 entityID: "person.tyler",
@@ -3803,7 +3799,8 @@ struct HomesteadTests {
                 systemImage: "person.fill",
                 isAvailable: true,
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("person.fill", provenance: .homesteadSemanticMapping)
             )
         ])
 
@@ -3814,7 +3811,8 @@ struct HomesteadTests {
                 domain: "scene",
                 systemImage: "sparkles",
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("sparkles", provenance: .homesteadSemanticMapping)
             ),
             WidgetActionSnapshot(
                 entityID: "script.good_night",
@@ -3822,7 +3820,8 @@ struct HomesteadTests {
                 domain: "script",
                 systemImage: "play.circle",
                 areaName: nil,
-                deviceName: nil
+                deviceName: nil,
+                icon: .sfSymbol("play.circle", provenance: .homesteadSemanticMapping)
             )
         ])
 
@@ -5039,7 +5038,7 @@ struct HomesteadTests {
                 displayName: "Tyler",
                 status: .home,
                 rawState: "home",
-                iconSystemName: "person.fill",
+                resolvedIcon: .sfSymbol("person.fill", provenance: .homesteadSemanticMapping),
                 isAvailable: true,
                 lastChanged: nil,
                 lastUpdated: nil,
@@ -5082,7 +5081,7 @@ struct HomesteadTests {
                 displayName: "Guest",
                 status: .away,
                 rawState: "not_home",
-                iconSystemName: "person",
+                resolvedIcon: .sfSymbol("person", provenance: .homesteadSemanticMapping),
                 isAvailable: true,
                 lastChanged: nil,
                 lastUpdated: nil,
@@ -5109,7 +5108,7 @@ struct HomesteadTests {
                 displayName: "Car",
                 status: .zone("Work"),
                 rawState: "work",
-                iconSystemName: "location",
+                resolvedIcon: .sfSymbol("location", provenance: .homesteadSemanticMapping),
                 isAvailable: true,
                 lastChanged: nil,
                 lastUpdated: nil,
@@ -7243,15 +7242,19 @@ struct HomesteadTests {
 
         for (areaName, expectedIcon) in expectedIconsByAreaName {
             #expect(
-                DashboardAreaIconResolver.systemImage(areaIcon: nil, areaName: areaName) == expectedIcon,
+                IconResolver.resolveArea(AreaIconResolutionInput(name: areaName)).sfSymbolName == expectedIcon,
                 "Expected \(areaName) to resolve to \(expectedIcon)"
             )
         }
     }
 
     @Test func areaIconResolverUsesGenericHouseFallbackForUnknownAreas() {
-        #expect(DashboardAreaIconResolver.systemImage(areaIcon: nil, areaName: "Workshop") == "house")
-        #expect(DashboardAreaIconResolver.systemImage(areaIcon: "mdi:custom-room", areaName: "Workshop") == "house")
+        #expect(IconResolver.resolveArea(AreaIconResolutionInput(name: "Workshop")).sfSymbolName == "house")
+        #expect(
+            IconResolver.resolveArea(
+                AreaIconResolutionInput(name: "Workshop", registryIcon: "mdi:custom-room")
+            ).sfSymbolName == "house"
+        )
     }
 
     @MainActor
@@ -8743,6 +8746,190 @@ struct HomesteadTests {
         #expect(store.entityRegistryAdminDetail(for: "light.kitchen") == "Kitchen • Kitchen Light")
     }
 
+    @Test func iconResolverHonorsPrecedenceAndProvenance() {
+        let presentation = IconResolver.resolveEntity(EntityIconResolutionInput(
+            domain: "light",
+            state: "on",
+            registryIcon: "mdi:router-wireless",
+            explicitIcon: "mdi:piano",
+            presentationOverride: "star.fill",
+            appOverride: "heart.fill"
+        ))
+        #expect(presentation.asset == .sfSymbol("star.fill"))
+        #expect(presentation.provenance == .dashboardOverride)
+        #expect(presentation.sourceIdentifier == "star.fill")
+
+        let app = IconResolver.resolveEntity(EntityIconResolutionInput(
+            domain: "light",
+            state: "on",
+            registryIcon: "mdi:router-wireless",
+            explicitIcon: "mdi:piano",
+            appOverride: "heart.fill"
+        ))
+        #expect(app.asset == .sfSymbol("heart.fill"))
+        #expect(app.provenance == .appOverride)
+
+        let registry = IconResolver.resolveEntity(EntityIconResolutionInput(
+            domain: "light",
+            state: "on",
+            registryIcon: "mdi:router-wireless",
+            explicitIcon: "mdi:piano"
+        ))
+        #expect(registry.asset == .materialDesign("router-wireless"))
+        #expect(registry.provenance == .haRegistryIcon)
+        #expect(registry.sourceIdentifier == "mdi:router-wireless")
+    }
+
+    @Test func iconResolverUsesNativeFirstHybridRendering() throws {
+        let mapped = IconResolver.resolveEntity(EntityIconResolutionInput(
+            domain: "light",
+            state: "on",
+            explicitIcon: "mdi:lightbulb"
+        ))
+        #expect(mapped.asset == .sfSymbol("lightbulb.fill"))
+        #expect(mapped.provenance == .haExplicitIcon)
+        #expect(mapped.sourceIdentifier == "mdi:lightbulb")
+
+        let materialDesign = IconResolver.resolveEntity(EntityIconResolutionInput(
+            domain: "media_player",
+            state: "idle",
+            explicitIcon: "mdi:piano"
+        ))
+        #expect(materialDesign.asset == .materialDesign("piano"))
+        #expect(try #require(MaterialDesignIconCatalog.glyph(for: "piano")).isEmpty == false)
+
+        let unsupported = IconResolver.resolveEntity(EntityIconResolutionInput(
+            domain: "light",
+            state: "on",
+            explicitIcon: "custom:party-light"
+        ))
+        #expect(unsupported.asset == .unsupportedHomeAssistant("custom:party-light"))
+        #expect(unsupported.sfSymbolName == "lightbulb.fill")
+    }
+
+    @MainActor
+    @Test func dashboardIconOverrideRemainsPresentationScoped() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "media_player.piano",
+                state: "idle",
+                attributes: ["icon": .string("mdi:piano")]
+            )
+        ])
+
+        let entityBox = try #require(store.entityBox(for: "media_player.piano"))
+        let baseIcon = entityBox.homeEntity.resolvedIcon
+        let presentation = DashboardEntityPresentation(
+            entityBox: entityBox,
+            iconNameOverride: "star.fill"
+        )
+
+        #expect(baseIcon.asset == .materialDesign("piano"))
+        #expect(baseIcon.provenance == .haExplicitIcon)
+        #expect(presentation.icon.asset == .sfSymbol("star.fill"))
+        #expect(presentation.icon.provenance == .dashboardOverride)
+        #expect(entityBox.homeEntity.resolvedIcon == baseIcon)
+    }
+
+    @MainActor
+    @Test func stateStoreRecomputesIconsOnlyForIconRelevantChanges() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.temperature",
+                state: "70",
+                attributes: ["device_class": .string("temperature")]
+            ),
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["brightness": .number(64)]
+            ),
+            HAEntityDTO(entityID: "lock.front_door", state: "locked")
+        ])
+        #expect(store.iconResolutionCount == 3)
+
+        store.applyLiveStateUpdates([
+            HAEntityDTO(
+                entityID: "sensor.temperature",
+                state: "71",
+                attributes: ["device_class": .string("temperature")]
+            ),
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["brightness": .number(192)]
+            )
+        ])
+        #expect(store.iconResolutionCount == 3)
+
+        store.applyLiveStateUpdates([
+            HAEntityDTO(entityID: "lock.front_door", state: "unlocked")
+        ])
+        #expect(store.iconResolutionCount == 4)
+        #expect(try #require(store.entity(for: "lock.front_door")).resolvedIcon.sfSymbolName == "lock.open.fill")
+    }
+
+    @MainActor
+    @Test func registryIconUpdateTakesPrecedenceWithoutRedundantRecomputation() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "media_player.piano",
+                state: "idle",
+                attributes: ["icon": .string("mdi:piano")]
+            )
+        ])
+        #expect(store.iconResolutionCount == 1)
+
+        let registry = HAEntityRegistryDisplayDTO(
+            entityID: "media_player.piano",
+            deviceID: nil,
+            originalName: "Piano",
+            icon: "mdi:router-wireless"
+        )
+        store.applyRegistryMetadata(entities: [registry], devices: [])
+
+        let resolved = try #require(store.entity(for: "media_player.piano")).resolvedIcon
+        #expect(resolved.asset == .materialDesign("router-wireless"))
+        #expect(resolved.provenance == .haRegistryIcon)
+        #expect(store.iconResolutionCount == 2)
+
+        store.applyRegistryMetadata(entities: [registry], devices: [])
+        #expect(store.iconResolutionCount == 2)
+    }
+
+    @Test func areaRegistryIconPrecedesNameInference() {
+        let resolved = IconResolver.resolveArea(AreaIconResolutionInput(
+            name: "Bedroom",
+            registryIcon: "mdi:piano"
+        ))
+
+        #expect(resolved.asset == .materialDesign("piano"))
+        #expect(resolved.provenance == .haRegistryIcon)
+        #expect(resolved.fallbackSFSymbol == "bed.double")
+    }
+
+    @Test func entityRegistryCompactIconMetadataDecodes() throws {
+        let data = Data(#"{"ei":"light.desk","di":null,"en":"Desk","ic":"mdi:piano","pl":"hue","tk":"desk"}"#.utf8)
+        let metadata = try JSONDecoder().decode(HAEntityRegistryDisplayDTO.self, from: data)
+
+        #expect(metadata.entityID == "light.desk")
+        #expect(metadata.icon == "mdi:piano")
+        #expect(metadata.platform == "hue")
+        #expect(metadata.translationKey == "desk")
+    }
+
+    @Test func legacyWidgetSnapshotDecodesSFSymbolFallback() throws {
+        let data = Data(#"{"entityID":"switch.coffee","displayName":"Coffee","isOn":true,"systemImage":"powerplug.fill","areaName":null,"deviceName":null}"#.utf8)
+        let snapshot = try JSONDecoder().decode(WidgetSwitchSnapshot.self, from: data)
+
+        #expect(snapshot.icon == nil)
+        #expect(snapshot.resolvedIcon.asset == .sfSymbol("powerplug.fill"))
+        #expect(snapshot.resolvedIcon.provenance == .homesteadSemanticMapping)
+    }
+
     private func testCredential(
         baseURL: String = "http://homeassistant.local:8123",
         accessToken: String = "access-token",
@@ -9220,5 +9407,45 @@ final class StubNativePermissionClient: NativePermissionClient {
             localNetwork: currentStatus.localNetwork
         )
         return requestedLocationStatus
+    }
+}
+
+private extension LightEntity {
+    var testIconName: String {
+        IconResolver.resolveEntity(
+            EntityIconResolutionInput(domain: "light", state: isOn ? "on" : "off")
+        ).sfSymbolName
+    }
+}
+
+private extension SensorEntity {
+    var testIconName: String {
+        IconResolver.resolveEntity(
+            EntityIconResolutionInput(domain: "sensor", deviceClass: deviceClass, state: value)
+        ).sfSymbolName
+    }
+}
+
+private extension BinarySensorEntity {
+    var testIconName: String {
+        IconResolver.resolveEntity(
+            EntityIconResolutionInput(domain: "binary_sensor", deviceClass: deviceClass, state: state)
+        ).sfSymbolName
+    }
+}
+
+private extension CoverEntity {
+    var testIconName: String {
+        IconResolver.resolveEntity(
+            EntityIconResolutionInput(domain: "cover", deviceClass: deviceClass, state: state)
+        ).sfSymbolName
+    }
+}
+
+private extension MediaPlayerEntity {
+    var testIconName: String {
+        IconResolver.resolveEntity(
+            EntityIconResolutionInput(domain: "media_player", deviceClass: deviceClass, state: state)
+        ).sfSymbolName
     }
 }

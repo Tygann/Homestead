@@ -49,7 +49,7 @@ struct LightDetailView: View {
 
     private func header(_ light: LightEntity) -> some View {
         EntityDetailHeader(
-            iconName: light.iconName,
+            icon: entityBox.homeEntity.resolvedIcon,
             title: light.displayName,
             subtitle: lightStatusText(light),
             badge: lightBadgeText(light),

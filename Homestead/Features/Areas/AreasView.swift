@@ -146,7 +146,7 @@ private struct AreaSummaryCard: View {
         CardContainer(minHeight: cardContentMinHeight) {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
                 HStack(alignment: .top, spacing: AppSpacing.small) {
-                    CardIconView(systemName: area.systemImage)
+                    CardIconView(icon: area.resolvedIcon)
 
                     Spacer(minLength: AppSpacing.small)
                 }

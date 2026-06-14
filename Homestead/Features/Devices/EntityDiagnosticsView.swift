@@ -112,7 +112,7 @@ private struct EntitySummaryHeader: View {
 
         VStack(alignment: .leading, spacing: AppSpacing.large) {
             HStack(alignment: .top, spacing: AppSpacing.medium) {
-                CardIconView(systemName: entity.iconName, isActive: isActive)
+                CardIconView(icon: entity.resolvedIcon, isActive: isActive)
 
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                     Text(entity.displayName)
@@ -268,7 +268,6 @@ private extension String {
                 value: "72.4",
                 unit: "F",
                 deviceClass: "temperature",
-                iconName: "thermometer.medium",
                 lastUpdated: .now
             )
         )

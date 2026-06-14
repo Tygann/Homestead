@@ -36,6 +36,11 @@ struct HomesteadPresenceEntity: AppEntity, Identifiable {
     let isHome: Bool
     let systemImage: String
     let isAvailable: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(displayName)", subtitle: "\(id)")
@@ -62,8 +67,9 @@ struct HomesteadPresenceEntityQuery: EntityQuery {
                 displayName: snapshot.displayName,
                 statusText: snapshot.statusText,
                 isHome: snapshot.isHome,
-                systemImage: snapshot.systemImage,
-                isAvailable: snapshot.isAvailable
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                isAvailable: snapshot.isAvailable,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -78,6 +84,11 @@ struct HomesteadPresenceEntry: TimelineEntry {
     let systemImage: String
     let isAvailable: Bool
     let isConfigured: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 }
 
 struct HomesteadPresenceTimelineProvider: AppIntentTimelineProvider {
@@ -142,7 +153,8 @@ struct HomesteadPresenceTimelineProvider: AppIntentTimelineProvider {
                 isHome: state.isHome,
                 systemImage: state.systemImage,
                 isAvailable: state.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: state.icon
             )
         } catch {
             return HomesteadPresenceEntry(
@@ -153,7 +165,8 @@ struct HomesteadPresenceTimelineProvider: AppIntentTimelineProvider {
                 isHome: selectedPerson.isHome,
                 systemImage: selectedPerson.systemImage,
                 isAvailable: selectedPerson.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: selectedPerson.icon
             )
         }
     }
@@ -164,8 +177,9 @@ struct HomesteadPresenceTimelineProvider: AppIntentTimelineProvider {
             displayName: snapshot.displayName,
             statusText: snapshot.statusText,
             isHome: snapshot.isHome,
-            systemImage: snapshot.systemImage,
-            isAvailable: snapshot.isAvailable
+            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+            isAvailable: snapshot.isAvailable,
+            icon: snapshot.resolvedIcon
         )
     }
 }
@@ -212,7 +226,7 @@ struct HomesteadPresenceWidgetView: View {
 
     private var accessoryRectangular: some View {
         HStack(spacing: 8) {
-            Image(systemName: entry.systemImage)
+            HomesteadIconView(icon: entry.resolvedIcon, pointSize: 16)
                 .foregroundStyle(statusColor)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -227,8 +241,7 @@ struct HomesteadPresenceWidgetView: View {
     }
 
     private var presenceIcon: some View {
-        Image(systemName: entry.systemImage)
-            .font(.title2.weight(.semibold))
+        HomesteadIconView(icon: entry.resolvedIcon, pointSize: 22)
             .foregroundStyle(statusColor)
             .frame(width: 44, height: 44)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))

@@ -16,6 +16,7 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
     let isInProgress: Bool
     let progress: Double?
     let state: String
+    let resolvedIcon: ResolvedIcon
     let lastUpdated: Date?
     let context: HAUpdateContext
 
@@ -46,14 +47,7 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
         return .unknown
     }
 
-    var iconSystemName: String {
-        switch deviceClass {
-        case "firmware":
-            status == .upToDate ? "checkmark.circle" : "memorychip.fill"
-        default:
-            status == .upToDate ? "checkmark.circle" : "arrow.trianglehead.2.clockwise"
-        }
-    }
+    var iconSystemName: String { resolvedIcon.sfSymbolName }
 
     var versionSummary: String {
         switch (installedVersion, latestVersion) {
@@ -478,7 +472,8 @@ extension EntityMapper {
         areaID: String? = nil,
         areaName: String? = nil,
         floorID: String? = nil,
-        floorName: String? = nil
+        floorName: String? = nil,
+        resolvedIcon: ResolvedIcon? = nil
     ) -> HAUpdateEntity? {
         guard EntityDomain(entityID: dto.entityID) == .update else { return nil }
 
@@ -503,6 +498,7 @@ extension EntityMapper {
             isInProgress: inProgress.isInProgress,
             progress: inProgress.progress,
             state: state,
+            resolvedIcon: resolvedIcon ?? homeEntity(from: dto).resolvedIcon,
             lastUpdated: dto.lastUpdated,
             context: HAUpdateContext(
                 deviceID: deviceID?.nonEmptyUpdateValue,

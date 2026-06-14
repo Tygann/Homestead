@@ -593,7 +593,7 @@ struct DashboardAddItemView: View {
             displayName: stateStore.displayNameForDeviceGroupedEntity(entityID: entityID) ?? entity.displayName,
             state: entity.state,
             domain: entity.domain,
-            iconName: entity.iconName
+            icon: entity.resolvedIcon
         )
     }
 

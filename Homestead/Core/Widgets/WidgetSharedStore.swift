@@ -20,9 +20,14 @@ enum WidgetSharedStore {
 
     static func saveLightSnapshots(
         _ lights: [LightEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
+        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
     ) {
-        let snapshots = lightSnapshots(from: lights, contextForEntityID: contextForEntityID)
+        let snapshots = lightSnapshots(
+            from: lights,
+            contextForEntityID: contextForEntityID,
+            iconForEntityID: iconForEntityID
+        )
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -46,9 +51,14 @@ enum WidgetSharedStore {
 
     static func saveCoverSnapshots(
         _ covers: [CoverEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
+        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
     ) {
-        let snapshots = coverSnapshots(from: covers, contextForEntityID: contextForEntityID)
+        let snapshots = coverSnapshots(
+            from: covers,
+            contextForEntityID: contextForEntityID,
+            iconForEntityID: iconForEntityID
+        )
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -59,9 +69,14 @@ enum WidgetSharedStore {
 
     static func saveFanSnapshots(
         _ fans: [FanEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
+        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
     ) {
-        let snapshots = fanSnapshots(from: fans, contextForEntityID: contextForEntityID)
+        let snapshots = fanSnapshots(
+            from: fans,
+            contextForEntityID: contextForEntityID,
+            iconForEntityID: iconForEntityID
+        )
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -85,9 +100,14 @@ enum WidgetSharedStore {
 
     static func saveSensorSnapshots(
         _ sensors: [SensorEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
+        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
     ) {
-        let snapshots = sensorSnapshots(from: sensors, contextForEntityID: contextForEntityID)
+        let snapshots = sensorSnapshots(
+            from: sensors,
+            contextForEntityID: contextForEntityID,
+            iconForEntityID: iconForEntityID
+        )
 
         guard let data = try? JSONEncoder().encode(snapshots) else {
             return
@@ -124,7 +144,8 @@ enum WidgetSharedStore {
 
     static func lightSnapshots(
         from lights: [LightEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
+        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
     ) -> [WidgetLightSnapshot] {
         lights
             .sorted { lhs, rhs in
@@ -132,13 +153,17 @@ enum WidgetSharedStore {
             }
             .map { light in
                 let context = contextForEntityID(light.entityID)
+                let icon = iconForEntityID(light.entityID) ?? IconResolver.resolveEntity(
+                    EntityIconResolutionInput(domain: "light", state: light.isOn ? "on" : "off")
+                )
                 return WidgetLightSnapshot(
                     entityID: light.entityID,
                     displayName: light.displayName,
                     isOn: light.isOn,
                     brightnessPercentage: light.brightnessPercentage,
                     areaName: context.areaName,
-                    deviceName: context.deviceName
+                    deviceName: context.deviceName,
+                    icon: icon
                 )
             }
     }
@@ -160,14 +185,16 @@ enum WidgetSharedStore {
                     isOn: entity.state == "on",
                     systemImage: entity.iconName,
                     areaName: context.areaName,
-                    deviceName: context.deviceName
+                    deviceName: context.deviceName,
+                    icon: entity.resolvedIcon
                 )
             }
     }
 
     static func coverSnapshots(
         from covers: [CoverEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
+        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
     ) -> [WidgetCoverSnapshot] {
         covers
             .sorted { lhs, rhs in
@@ -175,25 +202,34 @@ enum WidgetSharedStore {
             }
             .map { cover in
                 let context = contextForEntityID(cover.entityID)
+                let icon = iconForEntityID(cover.entityID) ?? IconResolver.resolveEntity(
+                    EntityIconResolutionInput(
+                        domain: "cover",
+                        deviceClass: cover.deviceClass,
+                        state: cover.state
+                    )
+                )
                 return WidgetCoverSnapshot(
                     entityID: cover.entityID,
                     displayName: cover.displayName,
                     state: cover.state,
                     statusText: cover.displaySubtitle,
-                    systemImage: cover.iconName,
+                    systemImage: icon.sfSymbolName,
                     isOpen: cover.isOpen,
                     isClosed: cover.isClosed,
                     isMoving: cover.isMoving,
                     isAvailable: !["unknown", "unavailable"].contains(cover.state),
                     areaName: context.areaName,
-                    deviceName: context.deviceName
+                    deviceName: context.deviceName,
+                    icon: icon
                 )
             }
     }
 
     static func fanSnapshots(
         from fans: [FanEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
+        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
     ) -> [WidgetFanSnapshot] {
         fans
             .sorted { lhs, rhs in
@@ -201,6 +237,9 @@ enum WidgetSharedStore {
             }
             .map { fan in
                 let context = contextForEntityID(fan.entityID)
+                let icon = iconForEntityID(fan.entityID) ?? IconResolver.resolveEntity(
+                    EntityIconResolutionInput(domain: "fan", state: fan.state)
+                )
                 return WidgetFanSnapshot(
                     entityID: fan.entityID,
                     displayName: fan.displayName,
@@ -208,7 +247,8 @@ enum WidgetSharedStore {
                     statusText: fanStatusText(for: fan),
                     isAvailable: fan.isAvailable,
                     areaName: context.areaName,
-                    deviceName: context.deviceName
+                    deviceName: context.deviceName,
+                    icon: icon
                 )
             }
     }
@@ -229,18 +269,20 @@ enum WidgetSharedStore {
                     displayName: entity.displayName,
                     state: entity.state,
                     statusText: lockStatusText(for: entity.state),
-                    systemImage: lockSystemImage(for: entity.state),
+                    systemImage: entity.iconName,
                     isLocked: entity.state == "locked",
                     isAvailable: entity.isAvailable,
                     areaName: context.areaName,
-                    deviceName: context.deviceName
+                    deviceName: context.deviceName,
+                    icon: entity.resolvedIcon
                 )
             }
     }
 
     static func sensorSnapshots(
         from sensors: [SensorEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
+        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
+        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
     ) -> [WidgetSensorSnapshot] {
         sensors
             .sorted { lhs, rhs in
@@ -248,18 +290,26 @@ enum WidgetSharedStore {
             }
             .map { sensor in
                 let context = contextForEntityID(sensor.entityID)
+                let icon = iconForEntityID(sensor.entityID) ?? IconResolver.resolveEntity(
+                    EntityIconResolutionInput(
+                        domain: "sensor",
+                        deviceClass: sensor.deviceClass,
+                        state: sensor.value
+                    )
+                )
                 return WidgetSensorSnapshot(
                     entityID: sensor.entityID,
                     displayName: sensor.displayName,
                     valueText: sensor.formattedValue,
                     subtitle: sensor.displaySubtitle,
-                    systemImage: sensor.iconName,
+                    systemImage: icon.sfSymbolName,
                     unit: sensor.unitText,
                     isNumeric: sensor.numericValue != nil,
                     isAlerting: sensor.isAlerting,
                     isAvailable: sensor.isAvailable,
                     areaName: context.areaName,
-                    deviceName: context.deviceName
+                    deviceName: context.deviceName,
+                    icon: icon
                 )
             }
     }
@@ -283,7 +333,8 @@ enum WidgetSharedStore {
                     systemImage: entity.iconName,
                     isAvailable: entity.isAvailable,
                     areaName: context.areaName,
-                    deviceName: context.deviceName
+                    deviceName: context.deviceName,
+                    icon: entity.resolvedIcon
                 )
             }
     }
@@ -310,7 +361,8 @@ enum WidgetSharedStore {
                     domain: entity.domain.rawValue,
                     systemImage: entity.iconName,
                     areaName: context.areaName,
-                    deviceName: context.deviceName
+                    deviceName: context.deviceName,
+                    icon: entity.resolvedIcon
                 )
             }
     }
@@ -375,109 +427,4 @@ enum WidgetSharedStore {
         }
     }
 
-    private static func lockSystemImage(for state: String) -> String {
-        switch state {
-        case "locked", "locking":
-            "lock.fill"
-        case "jammed":
-            "exclamationmark.lock.fill"
-        default:
-            "lock.open.fill"
-        }
-    }
-}
-
-struct WidgetLightSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let isOn: Bool
-    let brightnessPercentage: Int?
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let isOn: Bool
-    let systemImage: String
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetCoverSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let state: String
-    let statusText: String
-    let systemImage: String
-    let isOpen: Bool
-    let isClosed: Bool
-    let isMoving: Bool
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetFanSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let isOn: Bool
-    let statusText: String
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetLockSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let state: String
-    let statusText: String
-    let systemImage: String
-    let isLocked: Bool
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let valueText: String
-    let subtitle: String
-    let systemImage: String
-    let unit: String?
-    let isNumeric: Bool
-    let isAlerting: Bool
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetPresenceSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let statusText: String
-    let isHome: Bool
-    let systemImage: String
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetActionSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let domain: String
-    let systemImage: String
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetEntityContext: Codable, Equatable, Sendable {
-    let areaName: String?
-    let deviceName: String?
-
-    static let empty = WidgetEntityContext(areaName: nil, deviceName: nil)
 }

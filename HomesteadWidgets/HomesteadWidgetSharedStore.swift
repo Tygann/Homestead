@@ -259,7 +259,9 @@ enum HomesteadWidgetSharedStore {
                 isOn: isOn,
                 brightnessPercentage: snapshot.brightnessPercentage,
                 areaName: snapshot.areaName,
-                deviceName: snapshot.deviceName
+                deviceName: snapshot.deviceName,
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                icon: snapshot.icon
             )
         }
 
@@ -280,9 +282,10 @@ enum HomesteadWidgetSharedStore {
                 entityID: snapshot.entityID,
                 displayName: snapshot.displayName,
                 isOn: isOn,
-                systemImage: switchSystemImage(isOn: isOn, fallback: snapshot.systemImage),
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
-                deviceName: snapshot.deviceName
+                deviceName: snapshot.deviceName,
+                icon: snapshot.icon
             )
         }
 
@@ -306,7 +309,9 @@ enum HomesteadWidgetSharedStore {
                 statusText: isOn ? "On" : "Off",
                 isAvailable: snapshot.isAvailable,
                 areaName: snapshot.areaName,
-                deviceName: snapshot.deviceName
+                deviceName: snapshot.deviceName,
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                icon: snapshot.icon
             )
         }
 
@@ -457,94 +462,6 @@ enum HomesteadWidgetSharedStore {
         let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._*")
         return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
-}
-
-struct WidgetLightSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let isOn: Bool
-    let brightnessPercentage: Int?
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let isOn: Bool
-    let systemImage: String
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetCoverSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let state: String
-    let statusText: String
-    let systemImage: String
-    let isOpen: Bool
-    let isClosed: Bool
-    let isMoving: Bool
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetFanSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let isOn: Bool
-    let statusText: String
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetLockSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let state: String
-    let statusText: String
-    let systemImage: String
-    let isLocked: Bool
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let valueText: String
-    let subtitle: String
-    let systemImage: String
-    let unit: String?
-    let isNumeric: Bool?
-    let isAlerting: Bool
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetPresenceSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let statusText: String
-    let isHome: Bool
-    let systemImage: String
-    let isAvailable: Bool
-    let areaName: String?
-    let deviceName: String?
-}
-
-struct WidgetActionSnapshot: Codable, Equatable, Sendable {
-    let entityID: String
-    let displayName: String
-    let domain: String
-    let systemImage: String
-    let areaName: String?
-    let deviceName: String?
 }
 
 enum HomesteadWidgetEntityPickerText {

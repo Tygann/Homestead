@@ -5,8 +5,7 @@ struct DashboardChipView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 6) {
-            Image(systemName: presentation.systemImage)
-//                .font(.caption.weight(.semibold))
+            HomesteadIconView(icon: presentation.icon, pointSize: 16)
                 .foregroundStyle(iconColor)
                 .frame(width: 22, height: 22)
 //                .background(iconBackground, in: Circle())

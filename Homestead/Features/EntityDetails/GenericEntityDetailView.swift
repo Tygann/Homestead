@@ -33,7 +33,7 @@ struct GenericEntityDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
-            iconName: presentation.iconName,
+            icon: presentation.icon,
             title: presentation.title,
             subtitle: entity.entityID,
             badge: presentation.subtitle,

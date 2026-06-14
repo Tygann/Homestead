@@ -6,7 +6,6 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
     let value: String
     let unit: String?
     let deviceClass: String?
-    let iconName: String
     let lastUpdated: Date?
     let suggestedMinimumValue: Double?
     let suggestedMaximumValue: Double?
@@ -17,7 +16,6 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         value: String,
         unit: String?,
         deviceClass: String?,
-        iconName: String,
         lastUpdated: Date?,
         suggestedMinimumValue: Double? = nil,
         suggestedMaximumValue: Double? = nil
@@ -27,7 +25,6 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         self.value = value
         self.unit = unit
         self.deviceClass = deviceClass
-        self.iconName = iconName
         self.lastUpdated = lastUpdated
         self.suggestedMinimumValue = suggestedMinimumValue
         self.suggestedMaximumValue = suggestedMaximumValue
@@ -184,7 +181,6 @@ struct BinarySensorEntity: Identifiable, Equatable, Sendable {
     let displayName: String
     let state: String
     let deviceClass: String?
-    let iconName: String
     let lastUpdated: Date?
 
     var id: String { entityID }

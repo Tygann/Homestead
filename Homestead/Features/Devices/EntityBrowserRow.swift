@@ -38,7 +38,7 @@ struct EntityBrowserRow<Accessory: View>: View {
             }
             .frame(minHeight: 48)
         } icon: {
-            Image(systemName: entity.iconName)
+            HomesteadIconView(icon: entity.resolvedIcon, pointSize: 18)
                 .foregroundStyle(entity.isAvailable ? Color.accentColor : Color.secondary)
         }
         .padding(.vertical, AppSpacing.xSmall)

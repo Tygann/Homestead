@@ -34,7 +34,7 @@ struct LockDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
-            iconName: presentation.iconName,
+            icon: presentation.icon,
             title: presentation.title,
             subtitle: statusSummary,
             badge: presentation.subtitle,

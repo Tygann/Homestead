@@ -24,7 +24,7 @@ struct DashboardAddCardRow: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } icon: {
-                    Image(systemName: candidate.iconName)
+                    HomesteadIconView(icon: candidate.icon, pointSize: 18)
                         .foregroundStyle(Color.accentColor)
                 }
             }
@@ -110,7 +110,7 @@ struct DashboardAddEntityRow: View {
             }
             .frame(minHeight: 48)
         } icon: {
-            Image(systemName: candidate.iconName)
+            HomesteadIconView(icon: candidate.icon, pointSize: 18)
                 .foregroundStyle(Color.accentColor)
         }
         .padding(.vertical, AppSpacing.xSmall)

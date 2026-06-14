@@ -41,6 +41,11 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
     let isHighlighted: Bool
     let isAlerting: Bool
     let isAvailable: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -131,6 +136,11 @@ struct HomesteadStatusEntry: TimelineEntry {
     let isAlerting: Bool
     let isAvailable: Bool
     let isConfigured: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 }
 
 struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
@@ -216,7 +226,8 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
                 isHighlighted: selectedEntity.isHighlighted,
                 isAlerting: selectedEntity.isAlerting,
                 isAvailable: selectedEntity.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: selectedEntity.resolvedIcon
             )
         }
     }
@@ -236,7 +247,8 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
                 isHighlighted: false,
                 isAlerting: state.isAlerting,
                 isAvailable: state.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "person":
             let state = try await HAWidgetActionClient().fetchPresenceState(entityID: entity.id)
@@ -251,11 +263,16 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
                 isHighlighted: state.isHome,
                 isAlerting: false,
                 isAvailable: state.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         default:
             throw HAWidgetActionError.unexpectedResponse
         }
+    }
+
+    private func preferredLiveIcon(_ liveIcon: ResolvedIcon, cached: ResolvedIcon) -> ResolvedIcon {
+        cached.provenance == .haRegistryIcon ? cached : liveIcon
     }
 }
 
@@ -276,12 +293,13 @@ private enum HomesteadStatusSnapshotBuilder {
                 displayName: snapshot.displayName,
                 valueText: snapshot.valueText,
                 subtitle: snapshot.subtitle,
-                systemImage: snapshot.systemImage,
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isHighlighted: false,
                 isAlerting: snapshot.isAlerting,
-                isAvailable: snapshot.isAvailable
+                isAvailable: snapshot.isAvailable,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -294,12 +312,13 @@ private enum HomesteadStatusSnapshotBuilder {
                 displayName: snapshot.displayName,
                 valueText: snapshot.statusText,
                 subtitle: "Presence",
-                systemImage: snapshot.systemImage,
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isHighlighted: snapshot.isHome,
                 isAlerting: false,
-                isAvailable: snapshot.isAvailable
+                isAvailable: snapshot.isAvailable,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -356,7 +375,7 @@ struct HomesteadStatusWidgetView: View {
 
     private var accessoryRectangular: some View {
         HStack(spacing: 8) {
-            Image(systemName: entry.systemImage)
+            HomesteadIconView(icon: entry.resolvedIcon, pointSize: 16)
                 .foregroundStyle(iconColor)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -372,8 +391,7 @@ struct HomesteadStatusWidgetView: View {
     }
 
     private var statusIcon: some View {
-        Image(systemName: entry.systemImage)
-            .font(.title2.weight(.semibold))
+        HomesteadIconView(icon: entry.resolvedIcon, pointSize: 22)
             .foregroundStyle(iconColor)
             .frame(width: 44, height: 44)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))

@@ -67,7 +67,7 @@ struct ClimateDetailView: View {
 
     private func header(_ climate: ClimateEntity) -> some View {
         EntityDetailHeader(
-            iconName: entityBox.homeEntity.iconName,
+            icon: entityBox.homeEntity.resolvedIcon,
             title: climate.displayName,
             subtitle: climate.displaySubtitle,
             badge: climate.displayState,

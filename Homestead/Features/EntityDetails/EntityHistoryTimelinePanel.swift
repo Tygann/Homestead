@@ -156,8 +156,7 @@ struct EntityHistoryTimelinePanel: View {
     private func timelineRow(_ entry: HAHistoryTimelineEntry, showsConnector: Bool) -> some View {
         HStack(alignment: .top, spacing: AppSpacing.medium) {
             VStack(spacing: AppSpacing.xSmall) {
-                Image(systemName: entry.systemImage)
-                    .font(.caption.weight(.bold))
+                HomesteadIconView(icon: entry.resolvedIcon, pointSize: 12, weight: .bold)
                     .foregroundStyle(timelineToneColor(entry.tone))
                     .frame(width: 28, height: 28)
                     .background(timelineToneColor(entry.tone).opacity(0.12), in: Circle())

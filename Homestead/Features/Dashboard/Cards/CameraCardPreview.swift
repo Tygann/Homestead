@@ -12,7 +12,6 @@ struct CameraCardPreview: View {
     let isAvailable: Bool
     let title: String
     let accessibilityTitle: String
-    let fallbackSystemImage: String
     let refreshGeneration: Int
     let height: CGFloat
 

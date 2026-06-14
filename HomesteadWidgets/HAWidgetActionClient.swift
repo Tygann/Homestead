@@ -28,6 +28,7 @@ struct HAWidgetLightState: Sendable {
     let state: String
     let displayName: String
     let brightnessPercentage: Int?
+    let icon: ResolvedIcon
 
     var isOn: Bool { state == "on" }
 }
@@ -36,9 +37,10 @@ struct HAWidgetSwitchState: Sendable {
     let entityID: String
     let state: String
     let displayName: String
-    let systemImage: String
+    let icon: ResolvedIcon
 
     var isOn: Bool { state == "on" }
+    var systemImage: String { icon.sfSymbolName }
 }
 
 struct HAWidgetCoverState: Sendable {
@@ -46,11 +48,13 @@ struct HAWidgetCoverState: Sendable {
     let state: String
     let displayName: String
     let statusText: String
-    let systemImage: String
+    let icon: ResolvedIcon
     let isOpen: Bool
     let isClosed: Bool
     let isMoving: Bool
     let isAvailable: Bool
+
+    var systemImage: String { icon.sfSymbolName }
 }
 
 struct HAWidgetFanState: Sendable {
@@ -59,6 +63,7 @@ struct HAWidgetFanState: Sendable {
     let displayName: String
     let statusText: String
     let isAvailable: Bool
+    let icon: ResolvedIcon
 
     var isOn: Bool { state == "on" }
 }
@@ -68,9 +73,11 @@ struct HAWidgetLockState: Sendable {
     let state: String
     let displayName: String
     let statusText: String
-    let systemImage: String
+    let icon: ResolvedIcon
     let isLocked: Bool
     let isAvailable: Bool
+
+    var systemImage: String { icon.sfSymbolName }
 }
 
 struct HAWidgetSensorState: Sendable {
@@ -78,9 +85,11 @@ struct HAWidgetSensorState: Sendable {
     let displayName: String
     let valueText: String
     let subtitle: String
-    let systemImage: String
+    let icon: ResolvedIcon
     let isAlerting: Bool
     let isAvailable: Bool
+
+    var systemImage: String { icon.sfSymbolName }
 }
 
 struct HAWidgetPresenceState: Sendable {
@@ -88,8 +97,10 @@ struct HAWidgetPresenceState: Sendable {
     let displayName: String
     let statusText: String
     let isHome: Bool
-    let systemImage: String
+    let icon: ResolvedIcon
     let isAvailable: Bool
+
+    var systemImage: String { icon.sfSymbolName }
 }
 
 struct HAWidgetHistorySample: Identifiable, Equatable, Sendable {
@@ -207,7 +218,8 @@ final class HAWidgetActionClient: Sendable {
                 entityID: entityID,
                 state: stateValue,
                 displayName: displayName,
-                brightnessPercentage: brightnessPercentage(from: attributes?["brightness"])
+                brightnessPercentage: brightnessPercentage(from: attributes?["brightness"]),
+                icon: resolvedIcon(domain: "light", state: stateValue, attributes: attributes)
             )
         }
     }
@@ -234,13 +246,12 @@ final class HAWidgetActionClient: Sendable {
 
             let attributes = state["attributes"] as? [String: Any]
             let displayName = attributes?["friendly_name"] as? String ?? entityID
-            let deviceClass = attributes?["device_class"] as? String
 
             return HAWidgetSwitchState(
                 entityID: entityID,
                 state: stateValue,
                 displayName: displayName,
-                systemImage: switchSystemImage(deviceClass: deviceClass, isOn: stateValue == "on")
+                icon: resolvedIcon(domain: "switch", state: stateValue, attributes: attributes)
             )
         }
     }
@@ -262,7 +273,6 @@ final class HAWidgetActionClient: Sendable {
 
             let attributes = state["attributes"] as? [String: Any]
             let displayName = attributes?["friendly_name"] as? String ?? entityID
-            let deviceClass = attributes?["device_class"] as? String
             let position = intValue(from: attributes?["current_position"])
             let isOpen = stateValue == "open" || stateValue == "opening"
             let isClosed = stateValue == "closed" || stateValue == "closing"
@@ -273,7 +283,7 @@ final class HAWidgetActionClient: Sendable {
                 state: stateValue,
                 displayName: displayName,
                 statusText: coverStatusText(state: stateValue, position: position),
-                systemImage: coverSystemImage(deviceClass: deviceClass, state: stateValue),
+                icon: resolvedIcon(domain: "cover", state: stateValue, attributes: attributes),
                 isOpen: isOpen,
                 isClosed: isClosed,
                 isMoving: isMoving,
@@ -307,7 +317,8 @@ final class HAWidgetActionClient: Sendable {
                 state: stateValue,
                 displayName: displayName,
                 statusText: fanStatusText(state: stateValue, percentage: percentage, presetMode: presetMode),
-                isAvailable: !["unknown", "unavailable"].contains(stateValue)
+                isAvailable: !["unknown", "unavailable"].contains(stateValue),
+                icon: resolvedIcon(domain: "fan", state: stateValue, attributes: attributes)
             )
         }
     }
@@ -335,7 +346,7 @@ final class HAWidgetActionClient: Sendable {
                 state: stateValue,
                 displayName: displayName,
                 statusText: lockStatusText(for: stateValue),
-                systemImage: lockSystemImage(for: stateValue),
+                icon: resolvedIcon(domain: "lock", state: stateValue, attributes: attributes),
                 isLocked: stateValue == "locked",
                 isAvailable: !["unknown", "unavailable"].contains(stateValue)
             )
@@ -365,7 +376,7 @@ final class HAWidgetActionClient: Sendable {
                 displayName: displayName,
                 valueText: sensorValueText(value: stateValue, unit: unit, deviceClass: deviceClass),
                 subtitle: sensorSubtitle(value: stateValue, deviceClass: deviceClass, isAlerting: isAlerting),
-                systemImage: sensorSystemImage(deviceClass: deviceClass),
+                icon: resolvedIcon(domain: "sensor", state: stateValue, attributes: attributes),
                 isAlerting: isAlerting,
                 isAvailable: isAvailable
             )
@@ -387,7 +398,7 @@ final class HAWidgetActionClient: Sendable {
                 displayName: displayName,
                 statusText: presenceStatusText(for: stateValue),
                 isHome: stateValue == "home",
-                systemImage: stateValue == "home" ? "person.fill" : "person",
+                icon: resolvedIcon(domain: "person", state: stateValue, attributes: attributes),
                 isAvailable: !["unknown", "unavailable"].contains(stateValue)
             )
         }
@@ -489,6 +500,21 @@ final class HAWidgetActionClient: Sendable {
         }
 
         return state
+    }
+
+    private func resolvedIcon(
+        domain: String,
+        state: String,
+        attributes: [String: Any]?
+    ) -> ResolvedIcon {
+        IconResolver.resolveEntity(
+            EntityIconResolutionInput(
+                domain: domain,
+                deviceClass: attributes?["device_class"] as? String,
+                state: state,
+                explicitIcon: attributes?["icon"] as? String
+            )
+        )
     }
 
     private func withConnectedSocket<T>(
@@ -621,15 +647,6 @@ final class HAWidgetActionClient: Sendable {
         return url
     }
 
-    private func switchSystemImage(deviceClass: String?, isOn: Bool) -> String {
-        switch deviceClass {
-        case "outlet":
-            "poweroutlet.type.b.fill"
-        default:
-            isOn ? "lightswitch.on.fill" : "lightswitch.off.fill"
-        }
-    }
-
     private func brightnessPercentage(from value: Any?) -> Int? {
         let brightness = intValue(from: value)
 
@@ -680,35 +697,6 @@ final class HAWidgetActionClient: Sendable {
         return "\(displayState) • \(min(max(position, 0), 100))%"
     }
 
-    private func coverSystemImage(deviceClass: String?, state: String) -> String {
-        let isOpen = state == "open" || state == "opening"
-
-        switch deviceClass {
-        case "garage":
-            return isOpen ? "door.garage.open" : "door.garage.closed"
-        case "gate":
-            return isOpen ? "pedestrian.gate.open" : "pedestrian.gate.closed"
-        case "door":
-            return isOpen ? "door.left.hand.open" : "door.left.hand.closed"
-        case "window":
-            return isOpen ? "window.vertical.open" : "window.vertical.closed"
-        case "curtain":
-            return isOpen ? "curtains.open" : "curtains.closed"
-        case "awning":
-            return isOpen ? "window.awning" : "window.awning.closed"
-        case "blind":
-            return isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
-        case "shade":
-            return isOpen ? "window.shade.open" : "window.shade.closed"
-        case "shutter":
-            return isOpen ? "blinds.vertical.open" : "blinds.vertical.closed"
-        case "damper":
-            return isOpen ? "rectangle.portrait.tophalf.inset.filled" : "rectangle.portrait.bottomhalf.inset.filled"
-        default:
-            return isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
-        }
-    }
-
     private func fanStatusText(state: String, percentage: Int?, presetMode: String?) -> String {
         switch state {
         case "on":
@@ -750,17 +738,6 @@ final class HAWidgetActionClient: Sendable {
             "Unavailable"
         default:
             state.replacingOccurrences(of: "_", with: " ").capitalized
-        }
-    }
-
-    private func lockSystemImage(for state: String) -> String {
-        switch state {
-        case "locked", "locking":
-            "lock.fill"
-        case "jammed":
-            "exclamationmark.lock.fill"
-        default:
-            "lock.open.fill"
         }
     }
 
@@ -837,35 +814,6 @@ final class HAWidgetActionClient: Sendable {
             "°C"
         default:
             unit
-        }
-    }
-
-    private func sensorSystemImage(deviceClass: String?) -> String {
-        switch deviceClass {
-        case "temperature":
-            "thermometer.medium"
-        case "humidity", "absolute_humidity":
-            "humidity.fill"
-        case "battery":
-            "battery.75percent"
-        case "power", "apparent_power", "reactive_power":
-            "bolt.fill"
-        case "energy", "reactive_energy":
-            "bolt.circle.fill"
-        case "illuminance":
-            "sun.max.fill"
-        case "pressure", "atmospheric_pressure":
-            "barometer"
-        case "signal_strength":
-            "wifi"
-        case "carbon_dioxide":
-            "carbon.dioxide.cloud.fill"
-        case "carbon_monoxide":
-            "carbon.monoxide.cloud.fill"
-        case "moisture", "water":
-            "drop.fill"
-        default:
-            "gauge.medium"
         }
     }
 

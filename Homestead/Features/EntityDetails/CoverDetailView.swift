@@ -50,7 +50,7 @@ struct CoverDetailView: View {
 
     private func header(_ cover: CoverEntity) -> some View {
         EntityDetailHeader(
-            iconName: cover.iconName,
+            icon: entityBox.homeEntity.resolvedIcon,
             title: cover.displayName,
             subtitle: cover.displaySubtitle,
             badge: statusBadgeText(for: cover),

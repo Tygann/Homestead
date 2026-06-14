@@ -1,0 +1,8 @@
+Material Design Icons
+Version: 7.4.47
+Font source commit: https://github.com/Templarian/MaterialDesign-Webfont/tree/57b567a448bd579892174cd47c47f9e187ea56c6
+Metadata source commit: https://github.com/Templarian/MaterialDesign/tree/2424e748e0cc63ab7b9c095a099b9fe239b737c0
+Font SHA-256: 61e8aba5a4e981fe22cf7c8e8bcdbea00476e75c62c37f01bf7ee33361d68428
+
+The bundled font is used only to render explicit Home Assistant mdi: icon
+identifiers that do not have a suitable SF Symbols equivalent.

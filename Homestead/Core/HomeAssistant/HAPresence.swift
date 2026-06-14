@@ -6,7 +6,7 @@ struct HAPresenceRecord: Identifiable, Equatable, Sendable {
     let displayName: String
     let status: HAPresenceStatus
     let rawState: String
-    let iconSystemName: String
+    let resolvedIcon: ResolvedIcon
     let isAvailable: Bool
     let lastChanged: Date?
     let lastUpdated: Date?
@@ -21,6 +21,7 @@ struct HAPresenceRecord: Identifiable, Equatable, Sendable {
     let context: HAPresenceContext
 
     var id: String { entityID }
+    var iconSystemName: String { resolvedIcon.sfSymbolName }
     var isPerson: Bool { domain == .person }
     var isTracker: Bool { domain == .deviceTracker }
 
@@ -236,7 +237,8 @@ extension EntityMapper {
         ),
         linkedPersonEntityID: String? = nil,
         linkedPersonName: String? = nil,
-        linkedTrackers: [HAPresenceTrackerSummary] = []
+        linkedTrackers: [HAPresenceTrackerSummary] = [],
+        resolvedIcon: ResolvedIcon? = nil
     ) -> HAPresenceRecord? {
         let domain = EntityDomain(entityID: dto.entityID)
         guard domain == .person || domain == .deviceTracker else {
@@ -244,7 +246,7 @@ extension EntityMapper {
         }
 
         let normalizedState = dto.state.trimmingCharacters(in: .whitespacesAndNewlines)
-        let homeEntity = homeEntity(from: dto)
+        let icon = resolvedIcon ?? homeEntity(from: dto).resolvedIcon
 
         return HAPresenceRecord(
             entityID: dto.entityID,
@@ -252,7 +254,7 @@ extension EntityMapper {
             displayName: displayName(for: dto),
             status: HAPresenceStatus(state: normalizedState),
             rawState: normalizedState,
-            iconSystemName: homeEntity.iconName,
+            resolvedIcon: icon,
             isAvailable: !["unavailable", "unknown"].contains(normalizedState.lowercased()),
             lastChanged: dto.lastChanged,
             lastUpdated: dto.lastUpdated,

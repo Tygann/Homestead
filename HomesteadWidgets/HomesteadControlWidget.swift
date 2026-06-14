@@ -119,6 +119,11 @@ struct HomesteadControlEntity: AppEntity, Identifiable {
     let isActive: Bool
     let isMoving: Bool
     let isAvailable: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -207,6 +212,11 @@ struct HomesteadControlEntry: TimelineEntry {
     let isMoving: Bool
     let isAvailable: Bool
     let isConfigured: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var action: String? {
         guard isConfigured, isAvailable else {
@@ -324,7 +334,8 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                     isActive: selectedEntity.isActive,
                     isMoving: selectedEntity.isMoving,
                     isAvailable: selectedEntity.isAvailable,
-                    isConfigured: true
+                    isConfigured: true,
+                    icon: selectedEntity.resolvedIcon
                 ),
                 usedOptimisticState: false
             )
@@ -355,11 +366,12 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
             domain: entity.domain,
             displayName: entity.displayName,
             statusText: isActive ? "On" : "Off",
-            systemImage: systemImage(domain: entity.domain, isActive: isActive, fallback: entity.systemImage),
+            systemImage: entity.systemImage,
             isActive: isActive,
             isMoving: false,
             isAvailable: entity.isAvailable,
-            isConfigured: true
+            isConfigured: true,
+            icon: entity.resolvedIcon
         )
     }
 
@@ -377,7 +389,8 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 isActive: state.isOn,
                 isMoving: false,
                 isAvailable: true,
-                isConfigured: true
+                isConfigured: true,
+                icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "switch":
             let state = try await HAWidgetActionClient().fetchSwitchState(entityID: entity.id)
@@ -391,7 +404,8 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 isActive: state.isOn,
                 isMoving: false,
                 isAvailable: !["unknown", "unavailable"].contains(state.state),
-                isConfigured: true
+                isConfigured: true,
+                icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "cover":
             let state = try await HAWidgetActionClient().fetchCoverState(entityID: entity.id)
@@ -405,7 +419,8 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 isActive: state.isOpen,
                 isMoving: state.isMoving,
                 isAvailable: state.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "fan":
             let state = try await HAWidgetActionClient().fetchFanState(entityID: entity.id)
@@ -419,7 +434,8 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 isActive: state.isOn,
                 isMoving: false,
                 isAvailable: state.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "lock":
             let state = try await HAWidgetActionClient().fetchLockState(entityID: entity.id)
@@ -433,7 +449,8 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 isActive: state.isLocked,
                 isMoving: false,
                 isAvailable: state.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         default:
             throw HAWidgetActionError.unexpectedResponse
@@ -467,17 +484,8 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
         }
     }
 
-    private func systemImage(domain: String, isActive: Bool, fallback: String) -> String {
-        switch domain {
-        case "light":
-            "lightbulb.fill"
-        case "fan":
-            "fan.fill"
-        case "switch" where fallback == "lightswitch.on.fill" || fallback == "lightswitch.off.fill":
-            isActive ? "lightswitch.on.fill" : "lightswitch.off.fill"
-        default:
-            fallback
-        }
+    private func preferredLiveIcon(_ liveIcon: ResolvedIcon, cached: ResolvedIcon) -> ResolvedIcon {
+        cached.provenance == .haRegistryIcon ? cached : liveIcon
     }
 
     private struct TimelineResult {
@@ -511,7 +519,8 @@ private enum HomesteadControlSnapshotBuilder {
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isOn,
                 isMoving: false,
-                isAvailable: true
+                isAvailable: true,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -523,12 +532,13 @@ private enum HomesteadControlSnapshotBuilder {
                 domain: "switch",
                 displayName: snapshot.displayName,
                 statusText: snapshot.isOn ? "On" : "Off",
-                systemImage: snapshot.systemImage,
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isOn,
                 isMoving: false,
-                isAvailable: true
+                isAvailable: true,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -545,7 +555,8 @@ private enum HomesteadControlSnapshotBuilder {
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isOn,
                 isMoving: false,
-                isAvailable: snapshot.isAvailable
+                isAvailable: snapshot.isAvailable,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -557,12 +568,13 @@ private enum HomesteadControlSnapshotBuilder {
                 domain: "cover",
                 displayName: snapshot.displayName,
                 statusText: snapshot.statusText,
-                systemImage: snapshot.systemImage,
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isOpen,
                 isMoving: snapshot.isMoving,
-                isAvailable: snapshot.isAvailable
+                isAvailable: snapshot.isAvailable,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -574,12 +586,13 @@ private enum HomesteadControlSnapshotBuilder {
                 domain: "lock",
                 displayName: snapshot.displayName,
                 statusText: snapshot.statusText,
-                systemImage: snapshot.systemImage,
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isLocked,
                 isMoving: false,
-                isAvailable: snapshot.isAvailable
+                isAvailable: snapshot.isAvailable,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -639,7 +652,7 @@ struct HomesteadControlWidgetView: View {
 
     private var accessoryRectangular: some View {
         HStack(spacing: 8) {
-            Image(systemName: iconName)
+            HomesteadIconView(icon: displayedIcon, pointSize: 16)
                 .foregroundStyle(iconColor)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -666,15 +679,16 @@ struct HomesteadControlWidgetView: View {
     }
 
     private var controlIcon: some View {
-        Image(systemName: iconName)
-            .font(.title2.weight(.semibold))
+        HomesteadIconView(icon: displayedIcon, pointSize: 22)
             .foregroundStyle(iconColor)
             .frame(width: 44, height: 44)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private var iconName: String {
-        entry.isMoving ? "stop.fill" : entry.systemImage
+    private var displayedIcon: ResolvedIcon {
+        entry.isMoving
+            ? .sfSymbol("stop.fill", provenance: .homesteadSemanticMapping)
+            : entry.resolvedIcon
     }
 
     private var iconColor: Color {

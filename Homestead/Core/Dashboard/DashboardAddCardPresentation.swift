@@ -37,12 +37,13 @@ struct DashboardAddCardCandidate: Identifiable, Equatable, Sendable {
     let displayName: String
     let state: String
     let domain: EntityDomain
-    let iconName: String
+    let icon: ResolvedIcon
     let cardStyle: DashboardEntityCardStyle
     let recommendedSize: DashboardCardSize
     let recommendedFeatureVisibility: DashboardCardFeatureVisibility
 
     var id: String { entityID }
+    var iconName: String { icon.sfSymbolName }
 }
 
 struct DashboardAddCardCategorySummary: Identifiable, Equatable, Sendable {
@@ -120,7 +121,7 @@ enum DashboardAddCardPresentation {
                     displayName: displayName,
                     state: entityBox.homeEntity.state,
                     domain: entityBox.domain,
-                    iconName: entityBox.homeEntity.iconName,
+                    icon: entityBox.homeEntity.resolvedIcon,
                     cardStyle: presentation.cardStyle,
                     recommendedSize: recommendedSize,
                     recommendedFeatureVisibility: recommendedFeatureVisibility

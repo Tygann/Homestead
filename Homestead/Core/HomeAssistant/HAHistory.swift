@@ -289,8 +289,27 @@ nonisolated struct HAHistoryTimelineEntry: Identifiable, Equatable, Sendable {
     let occurredAt: Date
     let state: String
     let title: String
-    let systemImage: String
+    let resolvedIcon: ResolvedIcon
     let tone: HAHistoryTimelineTone
+
+    var systemImage: String {
+        resolvedIcon.sfSymbolName
+    }
+
+    init(
+        occurredAt: Date,
+        state: String,
+        title: String,
+        resolvedIcon: ResolvedIcon,
+        tone: HAHistoryTimelineTone
+    ) {
+        self.id = "\(occurredAt.timeIntervalSince1970)-\(state)"
+        self.occurredAt = occurredAt
+        self.state = state
+        self.title = title
+        self.resolvedIcon = resolvedIcon
+        self.tone = tone
+    }
 
     init(
         occurredAt: Date,
@@ -299,12 +318,13 @@ nonisolated struct HAHistoryTimelineEntry: Identifiable, Equatable, Sendable {
         systemImage: String,
         tone: HAHistoryTimelineTone
     ) {
-        self.id = "\(occurredAt.timeIntervalSince1970)-\(state)"
-        self.occurredAt = occurredAt
-        self.state = state
-        self.title = title
-        self.systemImage = systemImage
-        self.tone = tone
+        self.init(
+            occurredAt: occurredAt,
+            state: state,
+            title: title,
+            resolvedIcon: .sfSymbol(systemImage, provenance: .homesteadSemanticMapping),
+            tone: tone
+        )
     }
 }
 
@@ -471,19 +491,17 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
             return onOffEntry(
                 state: state,
                 occurredAt: occurredAt,
+                domain: "switch",
                 activeTitle: "Turned On",
-                inactiveTitle: "Turned Off",
-                activeSystemImage: "lightswitch.on.fill",
-                inactiveSystemImage: "lightswitch.off.fill"
+                inactiveTitle: "Turned Off"
             )
         case .automation:
             return onOffEntry(
                 state: state,
                 occurredAt: occurredAt,
+                domain: "automation",
                 activeTitle: "Enabled",
-                inactiveTitle: "Disabled",
-                activeSystemImage: "calendar.badge.clock",
-                inactiveSystemImage: "calendar"
+                inactiveTitle: "Disabled"
             )
         case .cover(let deviceClass):
             return coverEntry(state: state, occurredAt: occurredAt, deviceClass: deviceClass)
@@ -491,15 +509,13 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
             return presenceEntry(
                 state: state,
                 occurredAt: occurredAt,
-                homeSystemImage: "person.fill",
-                awaySystemImage: "person"
+                domain: "person"
             )
         case .deviceTracker:
             return presenceEntry(
                 state: state,
                 occurredAt: occurredAt,
-                homeSystemImage: "location.fill",
-                awaySystemImage: "location"
+                domain: "device_tracker"
             )
         }
     }
@@ -515,7 +531,11 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: displayKind.activeTimelineTitle,
-                systemImage: displayKind.activeTimelineSystemImage,
+                resolvedIcon: IconResolver.historicalEntityIcon(
+                    domain: "binary_sensor",
+                    deviceClass: displayKind.haDeviceClass,
+                    state: state
+                ),
                 tone: .active
             )
         case "off":
@@ -523,7 +543,11 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: displayKind.inactiveTimelineTitle,
-                systemImage: displayKind.inactiveTimelineSystemImage,
+                resolvedIcon: IconResolver.historicalEntityIcon(
+                    domain: "binary_sensor",
+                    deviceClass: displayKind.haDeviceClass,
+                    state: state
+                ),
                 tone: .inactive
             )
         case "unknown":
@@ -550,10 +574,9 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
     private static func onOffEntry(
         state: String,
         occurredAt: Date,
+        domain: String,
         activeTitle: String,
-        inactiveTitle: String,
-        activeSystemImage: String,
-        inactiveSystemImage: String
+        inactiveTitle: String
     ) -> HAHistoryTimelineEntry? {
         switch state {
         case "on":
@@ -561,7 +584,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: activeTitle,
-                systemImage: activeSystemImage,
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: domain, deviceClass: nil, state: state),
                 tone: .active
             )
         case "off":
@@ -569,7 +592,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: inactiveTitle,
-                systemImage: inactiveSystemImage,
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: domain, deviceClass: nil, state: state),
                 tone: .inactive
             )
         case "unknown":
@@ -604,7 +627,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Opened",
-                systemImage: coverSystemImage(deviceClass: deviceClass, isOpen: true),
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: "cover", deviceClass: deviceClass, state: state),
                 tone: .active
             )
         case "closed":
@@ -612,7 +635,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Closed",
-                systemImage: coverSystemImage(deviceClass: deviceClass, isOpen: false),
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: "cover", deviceClass: deviceClass, state: state),
                 tone: .inactive
             )
         case "opening":
@@ -620,7 +643,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Opening",
-                systemImage: coverSystemImage(deviceClass: deviceClass, isOpen: true),
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: "cover", deviceClass: deviceClass, state: state),
                 tone: .active
             )
         case "closing":
@@ -628,7 +651,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Closing",
-                systemImage: coverSystemImage(deviceClass: deviceClass, isOpen: false),
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: "cover", deviceClass: deviceClass, state: state),
                 tone: .inactive
             )
         case "unknown":
@@ -655,8 +678,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
     private static func presenceEntry(
         state: String,
         occurredAt: Date,
-        homeSystemImage: String,
-        awaySystemImage: String
+        domain: String
     ) -> HAHistoryTimelineEntry? {
         switch state {
         case "home":
@@ -664,7 +686,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Home",
-                systemImage: homeSystemImage,
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: domain, deviceClass: nil, state: state),
                 tone: .active
             )
         case "not_home":
@@ -672,7 +694,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Away",
-                systemImage: awaySystemImage,
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: domain, deviceClass: nil, state: state),
                 tone: .inactive
             )
         case "unknown":
@@ -700,34 +722,9 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "At \(locationTitle)",
-                systemImage: "mappin.and.ellipse",
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: domain, deviceClass: nil, state: state),
                 tone: .active
             )
-        }
-    }
-
-    private static func coverSystemImage(deviceClass: String?, isOpen: Bool) -> String {
-        switch deviceClass {
-        case "garage":
-            isOpen ? "door.garage.open" : "door.garage.closed"
-        case "gate":
-            isOpen ? "pedestrian.gate.open" : "pedestrian.gate.closed"
-        case "door":
-            isOpen ? "door.left.hand.open" : "door.left.hand.closed"
-        case "window":
-            isOpen ? "window.vertical.open" : "window.vertical.closed"
-        case "curtain":
-            isOpen ? "curtains.open" : "curtains.closed"
-        case "awning":
-            isOpen ? "window.awning" : "window.awning.closed"
-        case "blind":
-            isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
-        case "shade":
-            isOpen ? "window.shade.open" : "window.shade.closed"
-        case "shutter":
-            isOpen ? "blinds.vertical.open" : "blinds.vertical.closed"
-        default:
-            isOpen ? "blinds.horizontal.open" : "blinds.horizontal.closed"
         }
     }
 
@@ -738,7 +735,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Locked",
-                systemImage: "lock.fill",
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: "lock", deviceClass: nil, state: state),
                 tone: .inactive
             )
         case "unlocked":
@@ -746,7 +743,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Unlocked",
-                systemImage: "lock.open.fill",
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: "lock", deviceClass: nil, state: state),
                 tone: .active
             )
         case "locking":
@@ -754,7 +751,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Locking",
-                systemImage: "lock.fill",
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: "lock", deviceClass: nil, state: state),
                 tone: .inactive
             )
         case "unlocking":
@@ -762,7 +759,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Unlocking",
-                systemImage: "lock.open.fill",
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: "lock", deviceClass: nil, state: state),
                 tone: .active
             )
         case "jammed":
@@ -770,7 +767,7 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 state: state,
                 title: "Jammed",
-                systemImage: "exclamationmark.triangle.fill",
+                resolvedIcon: IconResolver.historicalEntityIcon(domain: "lock", deviceClass: nil, state: state),
                 tone: .unavailable
             )
         case "unknown":
@@ -808,6 +805,40 @@ nonisolated private extension Array where Element == HAHistoryTimelineEntry {
 }
 
 nonisolated private extension BinarySensorDisplayKind {
+    var haDeviceClass: String? {
+        switch self {
+        case .door: "door"
+        case .window: "window"
+        case .garageDoor: "garage_door"
+        case .opening: "opening"
+        case .lock: "lock"
+        case .motion: "motion"
+        case .occupancy: "occupancy"
+        case .presence: "presence"
+        case .tamper: "tamper"
+        case .safety: "safety"
+        case .problem: "problem"
+        case .smoke: "smoke"
+        case .gas: "gas"
+        case .carbonMonoxide: "carbon_monoxide"
+        case .moisture: "moisture"
+        case .battery: "battery"
+        case .batteryCharging: "battery_charging"
+        case .cold: "cold"
+        case .heat: "heat"
+        case .moving: "moving"
+        case .running: "running"
+        case .sound: "sound"
+        case .update: "update"
+        case .vibration: "vibration"
+        case .connectivity: "connectivity"
+        case .plug: "plug"
+        case .power: "power"
+        case .light: "light"
+        case .generic: nil
+        }
+    }
+
     var activeTimelineTitle: String {
         switch self {
         case .door, .window, .garageDoor, .opening:
@@ -876,109 +907,6 @@ nonisolated private extension BinarySensorDisplayKind {
         }
     }
 
-    var activeTimelineSystemImage: String {
-        switch self {
-        case .door:
-            "door.left.hand.open"
-        case .window:
-            "window.vertical.open"
-        case .garageDoor:
-            "door.garage.open"
-        case .opening:
-            "rectangle.portrait.and.arrow.right"
-        case .lock:
-            "lock.open.fill"
-        case .motion, .occupancy, .presence:
-            "figure.motion"
-        case .tamper, .safety, .problem:
-            "exclamationmark.triangle.fill"
-        case .smoke:
-            "smoke.fill"
-        case .gas:
-            "flame.fill"
-        case .moisture:
-            "drop.fill"
-        case .battery:
-            "battery.25percent"
-        case .batteryCharging:
-            "battery.100percent.bolt"
-        case .cold:
-            "snowflake"
-        case .carbonMonoxide:
-            "carbon.monoxide.cloud.fill"
-        case .heat:
-            "heat.waves"
-        case .moving:
-            "figure.walk.motion"
-        case .running:
-            "figure.run"
-        case .sound:
-            "speaker.wave.2.fill"
-        case .update:
-            "arrow.trianglehead.2.clockwise"
-        case .vibration:
-            "waveform.path"
-        case .connectivity:
-            "wifi"
-        case .plug:
-            "powerplug.fill"
-        case .power:
-            "power.circle.fill"
-        case .light:
-            "lightbulb.fill"
-        case .generic:
-            "sensor.tag.radiowaves.forward.fill"
-        }
-    }
-
-    var inactiveTimelineSystemImage: String {
-        switch self {
-        case .door:
-            "door.left.hand.closed"
-        case .window:
-            "window.vertical.closed"
-        case .garageDoor:
-            "door.garage.closed"
-        case .opening:
-            "rectangle.portrait"
-        case .lock:
-            "lock.fill"
-        case .motion, .occupancy, .presence, .moving, .running:
-            "figure.stand"
-        case .tamper, .safety, .problem:
-            "checkmark.shield"
-        case .smoke:
-            "smoke"
-        case .gas:
-            "flame"
-        case .moisture:
-            "drop"
-        case .battery, .batteryCharging:
-            "battery.100percent"
-        case .cold:
-            "snowflake"
-        case .carbonMonoxide:
-            "carbon.monoxide.cloud"
-        case .heat:
-            "heat.waves"
-        case .sound:
-            "speaker"
-        case .update:
-            "checkmark.circle"
-        case .vibration:
-            "waveform"
-        case .connectivity:
-            "wifi.slash"
-        case .plug:
-            "powerplug"
-        case .power:
-            "power.circle"
-        case .light:
-            "lightbulb"
-        case .generic:
-            "sensor.tag.radiowaves.forward"
-        }
-    }
 }
 
 nonisolated private extension String {

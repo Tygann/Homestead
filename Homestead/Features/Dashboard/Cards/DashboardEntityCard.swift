@@ -365,7 +365,6 @@ struct DashboardEntityCard: View {
             isAvailable: entityBox.homeEntity.isAvailable,
             title: cameraPreviewTitle,
             accessibilityTitle: presentation.title,
-            fallbackSystemImage: presentation.iconName,
             refreshGeneration: cameraRefreshGeneration,
             height: renderedCardHeight
         )
@@ -530,7 +529,7 @@ struct DashboardEntityCard: View {
             .overlay(alignment: .topLeading) {
                 if toggle == nil {
                     CardIconView(
-                        systemName: presentation.iconName,
+                        icon: presentation.icon,
                         isActive: presentation.isActive,
                         isAvailable: presentation.isAvailable,
                         accentColor: presentation.accentColor
@@ -547,7 +546,7 @@ struct DashboardEntityCard: View {
                     .contentShape(Rectangle())
             } else {
                 CardIconView(
-                    systemName: presentation.iconName,
+                    icon: presentation.icon,
                     isActive: presentation.isActive,
                     isAvailable: presentation.isAvailable,
                     accentColor: presentation.accentColor
@@ -567,8 +566,7 @@ struct DashboardEntityCard: View {
     }
 
     private var miniGlyph: some View {
-        Image(systemName: presentation.iconName)
-            .font(.system(size: 16, weight: .semibold))
+        HomesteadIconView(icon: presentation.icon, pointSize: 16)
             .foregroundStyle(miniGlyphColor)
             .accessibilityHidden(true)
     }

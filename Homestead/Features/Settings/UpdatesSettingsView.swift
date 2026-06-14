@@ -194,8 +194,7 @@ private struct UpdateIconView: View {
                     .scaledToFit()
                     .padding(3)
             } else {
-                Image(systemName: update.iconSystemName)
-                    .font(.system(size: size * 0.42, weight: .semibold))
+                HomesteadIconView(icon: update.resolvedIcon, pointSize: size * 0.42)
                     .foregroundStyle(update.status.tint)
                     .frame(width: size, height: size)
                     .background(update.status.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))

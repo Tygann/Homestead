@@ -278,7 +278,7 @@ struct HAActivityRowView: View {
             }
             .padding(.vertical, AppSpacing.xSmall)
         } icon: {
-            Image(systemName: row.iconSystemName)
+            HomesteadIconView(icon: row.resolvedIcon, pointSize: 18)
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 28)
         }

@@ -99,6 +99,11 @@
 			path = HomesteadWidgets;
 			sourceTree = "<group>";
 		};
+		A20000012FC8000000000001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -138,6 +143,7 @@
 			children = (
 				2FE2DD5B2FBDFE42009A0E06 /* Homestead */,
 				A10000022FBDFE43009A0E06 /* HomesteadWidgets */,
+				A20000012FC8000000000001 /* Shared */,
 				2FE2DD6B2FBDFE43009A0E06 /* HomesteadTests */,
 				2FE2DD752FBDFE43009A0E06 /* HomesteadUITests */,
 				2FE2DD5A2FBDFE42009A0E06 /* Products */,
@@ -175,6 +181,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				2FE2DD5B2FBDFE42009A0E06 /* Homestead */,
+				A20000012FC8000000000001 /* Shared */,
 			);
 			name = Homestead;
 			packageProductDependencies = (
@@ -243,6 +250,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				A10000022FBDFE43009A0E06 /* HomesteadWidgets */,
+				A20000012FC8000000000001 /* Shared */,
 			);
 			name = HomesteadWidgets;
 			packageProductDependencies = (

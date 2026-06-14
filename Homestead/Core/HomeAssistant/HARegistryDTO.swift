@@ -41,6 +41,9 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
     let areaID: String?
     let originalName: String?
     let name: String?
+    let icon: String?
+    let platform: String?
+    let translationKey: String?
     let hiddenBy: Bool?
     let entityCategory: String?
     let entityCategoryIndex: Int?
@@ -53,6 +56,9 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
         case areaID = "ai"
         case originalName = "en"
         case name = "n"
+        case icon = "ic"
+        case platform = "pl"
+        case translationKey = "tk"
         case hiddenBy = "hb"
         case entityCategoryIndex = "ec"
         case entityCategory = "entity_category"
@@ -60,6 +66,9 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
 
     enum FullCodingKeys: String, CodingKey {
         case areaID = "area_id"
+        case icon
+        case platform
+        case translationKey = "translation_key"
         case entityCategory = "entity_category"
     }
 
@@ -69,6 +78,9 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
         areaID: String? = nil,
         originalName: String?,
         name: String? = nil,
+        icon: String? = nil,
+        platform: String? = nil,
+        translationKey: String? = nil,
         hiddenBy: Bool? = nil,
         entityCategory: String? = nil,
         entityCategoryIndex: Int? = nil
@@ -78,6 +90,9 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
         self.areaID = areaID
         self.originalName = originalName
         self.name = name
+        self.icon = icon
+        self.platform = platform
+        self.translationKey = translationKey
         self.hiddenBy = hiddenBy
         self.entityCategory = entityCategory
         self.entityCategoryIndex = entityCategoryIndex
@@ -93,6 +108,12 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
             fullContainer?.decodeIfPresent(String.self, forKey: .areaID)
         originalName = try container.decodeIfPresent(String.self, forKey: .originalName)
         name = try container.decodeIfPresent(String.self, forKey: .name)
+        icon = try container.decodeIfPresent(String.self, forKey: .icon) ??
+            fullContainer?.decodeIfPresent(String.self, forKey: .icon)
+        platform = try container.decodeIfPresent(String.self, forKey: .platform) ??
+            fullContainer?.decodeIfPresent(String.self, forKey: .platform)
+        translationKey = try container.decodeIfPresent(String.self, forKey: .translationKey) ??
+            fullContainer?.decodeIfPresent(String.self, forKey: .translationKey)
         hiddenBy = try container.decodeLossyBoolIfPresent(forKey: .hiddenBy)
         entityCategoryIndex = try container.decodeIfPresent(Int.self, forKey: .entityCategoryIndex)
         entityCategory = try container.decodeIfPresent(String.self, forKey: .entityCategory) ??
@@ -107,6 +128,9 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
         try container.encodeIfPresent(areaID, forKey: .areaID)
         try container.encodeIfPresent(originalName, forKey: .originalName)
         try container.encodeIfPresent(name, forKey: .name)
+        try container.encodeIfPresent(icon, forKey: .icon)
+        try container.encodeIfPresent(platform, forKey: .platform)
+        try container.encodeIfPresent(translationKey, forKey: .translationKey)
         try container.encodeIfPresent(hiddenBy, forKey: .hiddenBy)
         try container.encodeIfPresent(entityCategory, forKey: .entityCategory)
         try container.encodeIfPresent(entityCategoryIndex, forKey: .entityCategoryIndex)
@@ -119,6 +143,9 @@ nonisolated struct HAEntityRegistryDisplayDTO: Codable, Equatable, Identifiable,
             areaID: areaID,
             originalName: originalName,
             name: name,
+            icon: icon,
+            platform: platform,
+            translationKey: translationKey,
             hiddenBy: hiddenBy,
             entityCategory: category,
             entityCategoryIndex: entityCategoryIndex

@@ -129,7 +129,7 @@ struct HomesteadActionEntityQuery: EntityQuery, EntityStringQuery, EnumerableEnt
                 id: snapshot.entityID,
                 displayName: snapshot.displayName,
                 domain: snapshot.domain,
-                systemImage: snapshot.systemImage,
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName
             )
@@ -227,7 +227,7 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
             id: snapshot.entityID,
             displayName: snapshot.displayName,
             domain: snapshot.domain,
-            systemImage: snapshot.systemImage,
+            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
             areaName: snapshot.areaName,
             deviceName: snapshot.deviceName
         )

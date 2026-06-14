@@ -36,7 +36,7 @@ struct WeatherDetailView: View {
 
     private func header(_ weather: WeatherEntity) -> some View {
         EntityDetailHeader(
-            iconName: presentation.iconName,
+            icon: presentation.icon,
             title: presentation.title,
             subtitle: presentation.subtitle,
             badge: statusBadgeText(weather),

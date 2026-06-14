@@ -71,6 +71,11 @@ struct HomesteadSwitchEntity: AppEntity, Identifiable {
     let displayName: String
     let isOn: Bool
     let systemImage: String
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(displayName)", subtitle: "\(id)")
@@ -96,7 +101,8 @@ struct HomesteadSwitchEntityQuery: EntityQuery {
                 id: snapshot.entityID,
                 displayName: snapshot.displayName,
                 isOn: snapshot.isOn,
-                systemImage: snapshot.systemImage
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -110,6 +116,11 @@ struct HomesteadSwitchEntry: TimelineEntry {
     let statusText: String
     let systemImage: String
     let isConfigured: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 }
 
 struct HomesteadSwitchTimelineProvider: AppIntentTimelineProvider {
@@ -155,14 +166,16 @@ struct HomesteadSwitchTimelineProvider: AppIntentTimelineProvider {
                 id: snapshot.entityID,
                 displayName: snapshot.displayName,
                 isOn: snapshot.isOn,
-                systemImage: snapshot.systemImage
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                icon: snapshot.resolvedIcon
             )
         } ?? configuredSwitch ?? HomesteadWidgetSharedStore.switchSnapshots.first.map { snapshot in
             HomesteadSwitchEntity(
                 id: snapshot.entityID,
                 displayName: snapshot.displayName,
                 isOn: snapshot.isOn,
-                systemImage: snapshot.systemImage
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                icon: snapshot.resolvedIcon
             )
         }
 
@@ -190,7 +203,8 @@ struct HomesteadSwitchTimelineProvider: AppIntentTimelineProvider {
                     isOn: isOn,
                     statusText: isOn ? "On" : "Off",
                     systemImage: switchSystemImage(isOn: isOn, fallback: selectedSwitch.systemImage),
-                    isConfigured: true
+                    isConfigured: true,
+                    icon: selectedSwitch.icon
                 ),
                 usedOptimisticState: true
             )
@@ -207,7 +221,8 @@ struct HomesteadSwitchTimelineProvider: AppIntentTimelineProvider {
                     isOn: state.isOn,
                     statusText: statusText(for: state.state),
                     systemImage: state.systemImage,
-                    isConfigured: true
+                    isConfigured: true,
+                    icon: state.icon
                 ),
                 usedOptimisticState: false
             )
@@ -220,7 +235,8 @@ struct HomesteadSwitchTimelineProvider: AppIntentTimelineProvider {
                     isOn: selectedSwitch.isOn,
                     statusText: "Needs connection",
                     systemImage: selectedSwitch.systemImage,
-                    isConfigured: true
+                    isConfigured: true,
+                    icon: selectedSwitch.icon
                 ),
                 usedOptimisticState: false
             )
@@ -298,7 +314,7 @@ struct HomesteadSwitchWidgetView: View {
 
     private var accessoryRectangular: some View {
         HStack(spacing: 8) {
-            Image(systemName: entry.systemImage)
+            HomesteadIconView(icon: entry.resolvedIcon, pointSize: 16)
                 .foregroundStyle(entry.isOn ? .green : .secondary)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -325,8 +341,7 @@ struct HomesteadSwitchWidgetView: View {
     }
 
     private var switchIcon: some View {
-        Image(systemName: entry.systemImage)
-            .font(.title2.weight(.semibold))
+        HomesteadIconView(icon: entry.resolvedIcon, pointSize: 22)
             .foregroundStyle(entry.isOn ? .green : .secondary)
             .frame(width: 44, height: 44)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))

@@ -57,6 +57,11 @@ struct HomesteadLockEntity: AppEntity, Identifiable {
     let systemImage: String
     let isLocked: Bool
     let isAvailable: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(displayName)", subtitle: "\(id)")
@@ -86,9 +91,10 @@ struct HomesteadLockEntityQuery: EntityQuery {
             displayName: snapshot.displayName,
             state: snapshot.state,
             statusText: snapshot.statusText,
-            systemImage: snapshot.systemImage,
+            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
             isLocked: snapshot.isLocked,
-            isAvailable: snapshot.isAvailable
+            isAvailable: snapshot.isAvailable,
+            icon: snapshot.resolvedIcon
         )
     }
 }
@@ -103,6 +109,11 @@ struct HomesteadLockEntry: TimelineEntry {
     let isLocked: Bool
     let isAvailable: Bool
     let isConfigured: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var canLock: Bool {
         isConfigured && isAvailable && (state == "unlocked" || state == "unlocking")
@@ -178,7 +189,8 @@ struct HomesteadLockTimelineProvider: AppIntentTimelineProvider {
                 systemImage: state.systemImage,
                 isLocked: state.isLocked,
                 isAvailable: state.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: state.icon
             )
         } catch {
             return HomesteadLockEntry(
@@ -190,7 +202,8 @@ struct HomesteadLockTimelineProvider: AppIntentTimelineProvider {
                 systemImage: selectedLock.systemImage,
                 isLocked: selectedLock.isLocked,
                 isAvailable: selectedLock.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: selectedLock.icon
             )
         }
     }
@@ -201,9 +214,10 @@ struct HomesteadLockTimelineProvider: AppIntentTimelineProvider {
             displayName: snapshot.displayName,
             state: snapshot.state,
             statusText: snapshot.statusText,
-            systemImage: snapshot.systemImage,
+            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
             isLocked: snapshot.isLocked,
-            isAvailable: snapshot.isAvailable
+            isAvailable: snapshot.isAvailable,
+            icon: snapshot.resolvedIcon
         )
     }
 }
@@ -250,7 +264,7 @@ struct HomesteadLockWidgetView: View {
 
     private var accessoryRectangular: some View {
         HStack(spacing: 8) {
-            Image(systemName: entry.systemImage)
+            HomesteadIconView(icon: entry.resolvedIcon, pointSize: 16)
                 .foregroundStyle(iconColor)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -277,8 +291,7 @@ struct HomesteadLockWidgetView: View {
     }
 
     private var lockIcon: some View {
-        Image(systemName: entry.systemImage)
-            .font(.title2.weight(.semibold))
+        HomesteadIconView(icon: entry.resolvedIcon, pointSize: 22)
             .foregroundStyle(iconColor)
             .frame(width: 44, height: 44)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))

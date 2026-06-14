@@ -40,7 +40,7 @@ struct EntityUnavailableDetailView: View {
 }
 
 struct EntityDetailHeader: View {
-    let iconName: String
+    let icon: ResolvedIcon
     let title: String
     let subtitle: String
     let badge: String
@@ -48,6 +48,26 @@ struct EntityDetailHeader: View {
     let badgeColor: Color
     let iconBackground: Color
     let badgeBackground: Color
+
+    init(
+        icon: ResolvedIcon,
+        title: String,
+        subtitle: String,
+        badge: String,
+        iconColor: Color,
+        badgeColor: Color? = nil,
+        iconBackground: Color? = nil,
+        badgeBackground: Color? = nil
+    ) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.badge = badge
+        self.iconColor = iconColor
+        self.badgeColor = badgeColor ?? iconColor
+        self.iconBackground = iconBackground ?? iconColor.opacity(0.12)
+        self.badgeBackground = badgeBackground ?? iconColor.opacity(0.12)
+    }
 
     init(
         iconName: String,
@@ -59,20 +79,21 @@ struct EntityDetailHeader: View {
         iconBackground: Color? = nil,
         badgeBackground: Color? = nil
     ) {
-        self.iconName = iconName
-        self.title = title
-        self.subtitle = subtitle
-        self.badge = badge
-        self.iconColor = iconColor
-        self.badgeColor = badgeColor ?? iconColor
-        self.iconBackground = iconBackground ?? iconColor.opacity(0.12)
-        self.badgeBackground = badgeBackground ?? iconColor.opacity(0.12)
+        self.init(
+            icon: .sfSymbol(iconName, provenance: .homesteadSemanticMapping),
+            title: title,
+            subtitle: subtitle,
+            badge: badge,
+            iconColor: iconColor,
+            badgeColor: badgeColor,
+            iconBackground: iconBackground,
+            badgeBackground: badgeBackground
+        )
     }
 
     var body: some View {
         HStack(alignment: .center, spacing: AppSpacing.medium) {
-            Image(systemName: iconName)
-                .font(.system(size: 25, weight: .semibold))
+            HomesteadIconView(icon: icon, pointSize: 25)
                 .foregroundStyle(iconColor)
                 .frame(width: 52, height: 52)
                 .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))

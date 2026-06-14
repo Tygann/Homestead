@@ -39,6 +39,11 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
     let isNumeric: Bool
     let isAlerting: Bool
     let isAvailable: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(displayName)", subtitle: "\(id)")
@@ -65,11 +70,12 @@ struct HomesteadSensorEntityQuery: EntityQuery {
                 displayName: snapshot.displayName,
                 valueText: snapshot.valueText,
                 subtitle: snapshot.subtitle,
-                systemImage: snapshot.systemImage,
+                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
                 unit: snapshot.unit,
                 isNumeric: snapshot.isNumeric == true,
                 isAlerting: snapshot.isAlerting,
-                isAvailable: snapshot.isAvailable
+                isAvailable: snapshot.isAvailable,
+                icon: snapshot.resolvedIcon
             )
         }
     }
@@ -85,6 +91,11 @@ struct HomesteadSensorEntry: TimelineEntry {
     let isAlerting: Bool
     let isAvailable: Bool
     let isConfigured: Bool
+    var icon: ResolvedIcon? = nil
+
+    var resolvedIcon: ResolvedIcon {
+        icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+    }
 }
 
 struct HomesteadSensorTimelineProvider: AppIntentTimelineProvider {
@@ -152,7 +163,8 @@ struct HomesteadSensorTimelineProvider: AppIntentTimelineProvider {
                 systemImage: state.systemImage,
                 isAlerting: state.isAlerting,
                 isAvailable: state.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: state.icon
             )
         } catch {
             return HomesteadSensorEntry(
@@ -164,7 +176,8 @@ struct HomesteadSensorTimelineProvider: AppIntentTimelineProvider {
                 systemImage: selectedSensor.systemImage,
                 isAlerting: selectedSensor.isAlerting,
                 isAvailable: selectedSensor.isAvailable,
-                isConfigured: true
+                isConfigured: true,
+                icon: selectedSensor.icon
             )
         }
     }
@@ -175,11 +188,12 @@ struct HomesteadSensorTimelineProvider: AppIntentTimelineProvider {
             displayName: snapshot.displayName,
             valueText: snapshot.valueText,
             subtitle: snapshot.subtitle,
-            systemImage: snapshot.systemImage,
+            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
             unit: snapshot.unit,
             isNumeric: snapshot.isNumeric == true,
             isAlerting: snapshot.isAlerting,
-            isAvailable: snapshot.isAvailable
+            isAvailable: snapshot.isAvailable,
+            icon: snapshot.resolvedIcon
         )
     }
 }
@@ -231,7 +245,7 @@ struct HomesteadSensorWidgetView: View {
 
     private var accessoryRectangular: some View {
         HStack(spacing: 8) {
-            Image(systemName: entry.systemImage)
+            HomesteadIconView(icon: entry.resolvedIcon, pointSize: 16)
                 .foregroundStyle(iconColor)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -247,8 +261,7 @@ struct HomesteadSensorWidgetView: View {
     }
 
     private var sensorIcon: some View {
-        Image(systemName: entry.systemImage)
-            .font(.title2.weight(.semibold))
+        HomesteadIconView(icon: entry.resolvedIcon, pointSize: 22)
             .foregroundStyle(iconColor)
             .frame(width: 44, height: 44)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))

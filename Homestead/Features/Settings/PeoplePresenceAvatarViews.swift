@@ -70,8 +70,7 @@ struct PeoplePresenceAvatarView: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Image(systemName: record.iconSystemName)
-                    .font(.system(size: size * 0.48, weight: .semibold))
+                HomesteadIconView(icon: record.resolvedIcon, pointSize: size * 0.48)
                     .foregroundStyle(record.status.tint)
                     .frame(width: size, height: size)
                     .background(record.status.tint.opacity(0.12), in: Circle())

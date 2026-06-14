@@ -60,9 +60,10 @@ struct DashboardAddEntityCandidate: Identifiable, Equatable {
     let displayName: String
     let state: String
     let domain: EntityDomain
-    let iconName: String
+    let icon: ResolvedIcon
 
     var id: String { entityID }
+    var iconName: String { icon.sfSymbolName }
 }
 
 struct DashboardAddEntityCandidateGroup: Identifiable, Equatable {
