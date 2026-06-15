@@ -91,6 +91,7 @@ struct HomeAssistantSettingsView: View {
 
                 Text(accountTitle)
                     .font(.title)
+                    .bold()
 
                 Text(serverDisplayText)
                     .foregroundColor(.gray)
