@@ -16,6 +16,8 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func fetchServices() async throws -> HAServiceRegistry
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities
     func fetchSupervisorApps() async throws -> HASupervisorAppsResponseDTO
+    func fetchSupervisorInfo() async throws -> HASupervisorInfoDTO
+    func fetchOperatingSystemInfo() async throws -> HAOperatingSystemInfoDTO
     func subscribeToStateChanges() async throws
     func subscribeToRegistryChanges() async throws
     func unsubscribeFromStateChanges() async throws
@@ -250,6 +252,34 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return try result.decoded(HASupervisorAppsResponseDTO.self)
+    }
+
+    func fetchSupervisorInfo() async throws -> HASupervisorInfoDTO {
+        let id = makeRequestID()
+        let response = try await sendRequest(
+            .supervisorAPI(id: id, endpoint: "/supervisor/info", method: "get"),
+            id: id
+        )
+
+        guard let result = response.result else {
+            throw HAWebSocketError.missingResult
+        }
+
+        return try result.decoded(HASupervisorInfoDTO.self)
+    }
+
+    func fetchOperatingSystemInfo() async throws -> HAOperatingSystemInfoDTO {
+        let id = makeRequestID()
+        let response = try await sendRequest(
+            .supervisorAPI(id: id, endpoint: "/os/info", method: "get"),
+            id: id
+        )
+
+        guard let result = response.result else {
+            throw HAWebSocketError.missingResult
+        }
+
+        return try result.decoded(HAOperatingSystemInfoDTO.self)
     }
 
     func subscribeToStateChanges() async throws {

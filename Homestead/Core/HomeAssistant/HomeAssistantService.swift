@@ -22,6 +22,7 @@ final class HomeAssistantService {
     private(set) var suppressesTransientConnectionHealth = false
     private(set) var serviceRegistry: HAServiceRegistry = .empty
     private(set) var serverConfiguration: HAServerConfigurationSnapshot?
+    private(set) var serverEnvironment: HAServerEnvironmentSnapshot?
     private(set) var serverConfigurationStatus: HAServerConfigurationStatus = .unavailable
     private(set) var stateCacheMetadata: HAStateCacheMetadata?
     private(set) var activeRouteSummary: HAConnectionRouteSummary?
@@ -235,6 +236,7 @@ final class HomeAssistantService {
         if previousDataSourceID != baseConfiguration.dataSourceID {
             serviceRegistry = .empty
             serverConfiguration = nil
+            serverEnvironment = nil
             serverConfigurationStatus = .unavailable
         }
         let preferredConfiguration = baseConfiguration.routed(
@@ -333,6 +335,7 @@ final class HomeAssistantService {
         currentUserEntityPicturePath = nil
         serviceRegistry = .empty
         serverConfiguration = nil
+        serverEnvironment = nil
         serverConfigurationStatus = .unavailable
         stateCacheMetadata = nil
         dataFreshness = staleFreshness(nil)
@@ -902,6 +905,7 @@ final class HomeAssistantService {
     func refreshServerConfiguration() async {
         guard connectionStatus == .connected else {
             serverConfiguration = nil
+            serverEnvironment = nil
             serverConfigurationStatus = .unavailable
             return
         }
@@ -910,8 +914,10 @@ final class HomeAssistantService {
 
         do {
             let config = try await client.fetchConfig()
+            let environment = await serverEnvironmentSnapshot(for: config)
             let snapshot = HAServerConfigurationSnapshot(dto: config)
             serverConfiguration = snapshot
+            serverEnvironment = environment
             currentConnectionSettings?.adoptServerRoutes(from: snapshot)
             serverConfigurationStatus = .loaded(snapshot.loadedAt)
         } catch {
@@ -2141,8 +2147,14 @@ final class HomeAssistantService {
                 return
             }
 
+            let environment = await serverEnvironmentSnapshot(for: config)
+            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+                return
+            }
+
             let snapshot = HAServerConfigurationSnapshot(dto: config)
             serverConfiguration = snapshot
+            serverEnvironment = environment
             currentConnectionSettings?.adoptServerRoutes(from: snapshot)
             serverConfigurationStatus = .loaded(snapshot.loadedAt)
         } catch {
@@ -2154,6 +2166,33 @@ final class HomeAssistantService {
             #if DEBUG
             print("Home Assistant server configuration failed: \(error.localizedDescription)")
             #endif
+        }
+    }
+
+    private func serverEnvironmentSnapshot(for config: HAConfigDTO) async -> HAServerEnvironmentSnapshot {
+        async let supervisorInfo = optionalSupervisorInfo()
+        async let operatingSystemInfo = optionalOperatingSystemInfo()
+
+        return await HAServerEnvironmentSnapshot(
+            config: config,
+            supervisorInfo: supervisorInfo,
+            operatingSystemInfo: operatingSystemInfo
+        )
+    }
+
+    private func optionalSupervisorInfo() async -> HASupervisorInfoDTO? {
+        do {
+            return try await client.fetchSupervisorInfo()
+        } catch {
+            return nil
+        }
+    }
+
+    private func optionalOperatingSystemInfo() async -> HAOperatingSystemInfoDTO? {
+        do {
+            return try await client.fetchOperatingSystemInfo()
+        } catch {
+            return nil
         }
     }
 

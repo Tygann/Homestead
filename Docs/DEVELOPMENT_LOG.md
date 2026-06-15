@@ -6,9 +6,9 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Account Server UX
 
-- Moved everyday Server settings inline on Settings > Account so users can see status, Local Address, Remote Address, active route, Home Assistant version/location, and advanced session details without opening a second Server page.
-- Kept server edits staged with explicit Edit, Cancel, and Save controls inside the Account page, avoiding the awkward back-arrow-plus-cancel toolbar state while preserving reversible URL changes.
-- Split Local Address Wi-Fi rules into a separate edit-mode section so saved local networks feel like a user-facing choice instead of an implementation detail.
+- Refined Settings > Account into a more native user-facing surface: the header now shows only avatar, user name, and a friendly status chip, never raw connection error strings.
+- Reworked Server rows around icon, label, and value for Server Name, Internal URL, External URL, and Active Connection; edit mode now uses toolbar Cancel/Save and hides Home Assistant environment, actions, diagnostics, and sign-out.
+- Moved local Wi-Fi editing inside the Server edit mode, removed inline Edit Server/Save/Cancel buttons, and added read-only Home Assistant environment rows for installation method, Core, Supervisor, and OS where the official APIs provide them.
 
 ### SSID-Gated Local Routing
 

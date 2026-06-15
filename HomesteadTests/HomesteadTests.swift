@@ -1348,6 +1348,56 @@ struct HomesteadTests {
         #expect(snapshot.unitSystemSummary == "Temp F, Length mi, Mass lb, Volume gal")
     }
 
+    @Test func serverEnvironmentMapsSupervisorAndOSInfo() throws {
+        let config = HAConfigDTO(
+            version: "2026.6.0",
+            locationName: "Home",
+            timeZone: "America/Chicago",
+            internalURL: nil,
+            externalURL: nil,
+            state: nil,
+            configSource: nil,
+            unitSystem: nil
+        )
+
+        let environment = HAServerEnvironmentSnapshot(
+            config: config,
+            supervisorInfo: HASupervisorInfoDTO(version: "2026.06.1"),
+            operatingSystemInfo: HAOperatingSystemInfoDTO(version: "16.2")
+        )
+
+        #expect(environment.installationMethod == .homeAssistantOS)
+        #expect(environment.installationMethod.title == "Home Assistant OS")
+        #expect(environment.coreVersion == "2026.6.0")
+        #expect(environment.supervisorVersion == "2026.06.1")
+        #expect(environment.operatingSystemVersion == "16.2")
+    }
+
+    @Test func serverEnvironmentFallsBackToCoreWhenSupervisorInfoIsUnavailable() throws {
+        let config = HAConfigDTO(
+            version: "2026.6.0",
+            locationName: "Home",
+            timeZone: "America/Chicago",
+            internalURL: nil,
+            externalURL: nil,
+            state: nil,
+            configSource: nil,
+            unitSystem: nil
+        )
+
+        let environment = HAServerEnvironmentSnapshot(
+            config: config,
+            supervisorInfo: nil,
+            operatingSystemInfo: nil
+        )
+
+        #expect(environment.installationMethod == .core)
+        #expect(environment.installationMethod.title == "Core")
+        #expect(environment.coreVersion == "2026.6.0")
+        #expect(environment.supervisorVersion == nil)
+        #expect(environment.operatingSystemVersion == nil)
+    }
+
     @Test func dataFreshnessRefreshingPreservesLastKnownUpdateDate() {
         let lastUpdated = Date(timeIntervalSince1970: 1_800_000_000)
         let freshness = HADataFreshness.refreshing(lastUpdated: lastUpdated)
@@ -4794,6 +4844,8 @@ struct HomesteadTests {
             configSource: "storage",
             unitSystem: nil
         )
+        webSocketClient.supervisorInfo = HASupervisorInfoDTO(version: "2026.06.1")
+        webSocketClient.operatingSystemInfo = HAOperatingSystemInfoDTO(version: "16.2")
         let service = HomeAssistantService(
             stateStore: HAStateStore(),
             client: webSocketClient,
@@ -4808,6 +4860,10 @@ struct HomesteadTests {
         #expect(service.serverConfiguration?.homeAssistantVersion == "2026.6.0")
         #expect(service.serverConfiguration?.internalURL == "http://homeassistant.local:8123")
         #expect(service.serverConfiguration?.externalURL == "https://home.example.com")
+        #expect(service.serverEnvironment?.installationMethod == .homeAssistantOS)
+        #expect(service.serverEnvironment?.coreVersion == "2026.6.0")
+        #expect(service.serverEnvironment?.supervisorVersion == "2026.06.1")
+        #expect(service.serverEnvironment?.operatingSystemVersion == "16.2")
         if case .loaded = service.serverConfigurationStatus {
             // Expected loaded server config status.
         } else {
@@ -9654,11 +9710,17 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     )
     var serviceRegistry: HAServiceRegistry = .empty
     var supervisorAppsResponse = HASupervisorAppsResponseDTO(addons: [])
+    var supervisorInfo = HASupervisorInfoDTO(version: nil)
+    var operatingSystemInfo = HAOperatingSystemInfoDTO(version: nil)
     var fetchServicesDelay: Duration?
     var fetchServicesError: Error?
     var supervisorAppsError: Error?
+    var supervisorInfoError: Error?
+    var operatingSystemInfoError: Error?
     var connectErrorsByBaseURL: [String: Error] = [:]
     private(set) var fetchSupervisorAppsCount = 0
+    private(set) var fetchSupervisorInfoCount = 0
+    private(set) var fetchOperatingSystemInfoCount = 0
 
     init(currentUser: HACurrentUserDTO? = nil, states: [HAEntityDTO] = []) {
         self.currentUser = currentUser
@@ -9745,6 +9807,26 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return supervisorAppsResponse
+    }
+
+    func fetchSupervisorInfo() async throws -> HASupervisorInfoDTO {
+        fetchSupervisorInfoCount += 1
+
+        if let supervisorInfoError {
+            throw supervisorInfoError
+        }
+
+        return supervisorInfo
+    }
+
+    func fetchOperatingSystemInfo() async throws -> HAOperatingSystemInfoDTO {
+        fetchOperatingSystemInfoCount += 1
+
+        if let operatingSystemInfoError {
+            throw operatingSystemInfoError
+        }
+
+        return operatingSystemInfo
     }
 
     func subscribeToStateChanges() async throws {}

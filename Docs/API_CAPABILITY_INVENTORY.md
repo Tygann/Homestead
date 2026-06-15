@@ -29,7 +29,7 @@ Official references:
 | Live state updates | WebSocket `subscribe_events` for `state_changed` | Mapped | Batched before touching SwiftUI-observed state. |
 | Service calls | WebSocket `call_service` | Mapped | Domain-specific helpers live on `HomeAssistantService`. |
 | Service catalog | WebSocket `get_services` | Mapped | Used to hide unsupported optional controls where practical. |
-| Server config snapshot | WebSocket `get_config` | Mapped | Used by Settings > Account > Server for HA version/status/location/unit and official URL values returned by Home Assistant. |
+| Server config snapshot | WebSocket `get_config` plus read-only Supervisor bridge info when available | Mapped | Used by Settings > Account for Home Assistant instance name, Core version, official internal/external URL values, and optional Supervisor/OS versions returned through Core's `supervisor/api` bridge. |
 | Current user | WebSocket `auth/current_user` | Mapped | Used for account display and matching person entity imagery. |
 | Entity registry display | WebSocket registry command | Mapped | Used for Browse, Settings management, summaries, and filtering. Registry update events trigger a debounced metadata refresh. |
 | Device registry | WebSocket registry command | Mapped | Used for device grouping and Settings management. Registry update events trigger a debounced metadata refresh. |
@@ -67,8 +67,8 @@ These are the next API slices to map when the matching feature is implemented. D
 
 ### Server And Connection Routing
 
-- Typed WebSocket `get_config` support exists for the dedicated `Settings > Account > Server` page.
-- Home Assistant version, location/time-unit basics, status/config source, and internal/external URL metadata are displayed only if returned by the official config shape.
+- Typed WebSocket `get_config` support exists for the inline `Settings > Account` Server and Home Assistant sections.
+- Home Assistant instance name, Core version, and internal/external URL metadata are displayed only if returned by the official config shape. Supervisor and OS versions are fetched opportunistically through Core's documented `supervisor/api` bridge and gracefully show unavailable on non-Supervisor installs.
 - Connection settings store a sign-in identity plus Homestead-owned local and remote route candidates. Optional saved Wi-Fi names gate Local Address preference when a Remote Address exists. The legacy single home-network field migrates to that list.
 - Automatic internal/external URL switching now lives in `HomeAssistantService` connection lifecycle code. SwiftUI displays the active route but does not choose URLs.
 - Route fallback tries the next saved URL for transport-style failures while preserving OAuth/token refresh behavior and cache/mobile-app server identity.

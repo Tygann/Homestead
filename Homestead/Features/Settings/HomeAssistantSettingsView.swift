@@ -7,6 +7,7 @@ struct HomeAssistantSettingsView: View {
     @Environment(NativePermissionService.self) private var nativePermissionService
     @FocusState private var focusedField: Field?
     @State private var isConfirmingSignOut = false
+    @State private var isConfirmingDiscard = false
     @State private var isEditingServer = false
     @State private var draftLocalAddress = ""
     @State private var draftRemoteAddress = ""
@@ -20,43 +21,69 @@ struct HomeAssistantSettingsView: View {
 
             serverSection
 
-            if isEditingServer {
-                localNetworksSection
-            }
+            if !isEditingServer {
+                homeAssistantSection
 
-            homeAssistantSection
+                advancedSection
 
-            advancedSection
+                serverActionsSection
 
-            serverActionsSection
-
-            if shouldShowSupport {
-                Section {
-                    NavigationLink {
-                        HomeAssistantDiagnosticsView()
-                    } label: {
-                        Label("Diagnostics", systemImage: "stethoscope")
+                if shouldShowSupport {
+                    Section {
+                        NavigationLink {
+                            HomeAssistantDiagnosticsView()
+                        } label: {
+                            Label("Diagnostics", systemImage: "stethoscope")
+                        }
+                    } footer: {
+                        Text("Support details are available if something is not working as expected.")
                     }
-                } footer: {
-                    Text("Support details are available if something is not working as expected.")
                 }
-            }
 
-            if canSignOut {
-                Section {
-                    Button(role: .destructive) {
-                        isConfirmingSignOut = true
-                    } label: {
-                        Text("Sign Out")
+                if canSignOut {
+                    Section {
+                        Button(role: .destructive) {
+                            isConfirmingSignOut = true
+                        } label: {
+                            Text("Sign Out")
+                        }
+                        .disabled(!canSignOut)
+                        .frame(maxWidth: .infinity)
                     }
-                    .disabled(!canSignOut)
-                    .frame(maxWidth: .infinity)
                 }
             }
         }
         .navigationTitle("Account")
         .toolbarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(isEditingServer)
         .padding(.top, -30)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                if isEditingServer {
+                    Button("Cancel") {
+                        requestCancelServerEditing()
+                    }
+                }
+            }
+
+            ToolbarItem(placement: .principal) {
+                Text("Account")
+                    .font(.headline)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                if isEditingServer {
+                    Button("Save") {
+                        saveServerEditing()
+                    }
+                    .disabled(!canSaveServerEdits)
+                } else {
+                    Button("Edit") {
+                        beginServerEditing()
+                    }
+                }
+            }
+        }
         .task(id: serverRefreshTaskID) {
             await homeAssistantService.refreshAuthState()
             await homeAssistantService.refreshServerConfiguration()
@@ -81,6 +108,18 @@ struct HomeAssistantSettingsView: View {
         } message: {
             Text("This removes saved Home Assistant credentials and mobile app registration from this device.")
         }
+        .confirmationDialog(
+            "Discard server changes?",
+            isPresented: $isConfirmingDiscard,
+            titleVisibility: .visible
+        ) {
+            Button("Discard Changes", role: .destructive) {
+                cancelServerEditing()
+            }
+            Button("Keep Editing", role: .cancel) {}
+        } message: {
+            Text("Your edited server settings will be lost.")
+        }
     }
 
     private var accountSection: some View {
@@ -93,157 +132,98 @@ struct HomeAssistantSettingsView: View {
                     .font(.title)
                     .bold()
 
-                Text(serverDisplayText)
-                    .foregroundColor(.gray)
-                    .fontDesign(.rounded)
+                statusChip
             }
             .padding(.vertical, 2)
             .frame(maxWidth: .infinity)
-
-            if let primaryStatusMessage {
-                Text(primaryStatusMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            if hasServerMismatch, let signedInServerDisplayText {
-                LabeledContent("Signed-In Server") {
-                    Text(signedInServerDisplayText)
-                        .foregroundStyle(.orange)
-                }
-            }
         }
         .listRowBackground(Color.clear)
     }
 
+    private var statusChip: some View {
+        Text(headerStatusTitle)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(headerStatusTint)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(headerStatusTint.opacity(0.12), in: Capsule())
+            .accessibilityLabel("Connection status, \(headerStatusTitle)")
+    }
+
     private var serverSection: some View {
         Section {
-            serverStatusRow
+            SettingsServerAddressRow(
+                title: "Server Name",
+                value: serverName,
+                systemImage: "house"
+            )
 
             if isEditingServer {
                 addressEditorRow(
-                    title: "Local Address",
+                    title: "Internal URL",
+                    systemImage: "network",
                     placeholder: "homeassistant.local:8123",
                     text: $draftLocalAddress,
                     focus: .localURL
                 )
                 addressEditorRow(
-                    title: "Remote Address",
+                    title: "External URL",
+                    systemImage: "globe",
                     placeholder: "https://example.ui.nabu.casa",
                     text: $draftRemoteAddress,
                     focus: .remoteURL
                 )
+                localNetworkEditorRows
             } else {
                 SettingsServerAddressRow(
-                    title: "Local Address",
+                    title: "Internal URL",
                     value: configuredValue(connectionSettings.internalURL),
-                    systemImage: "house"
-                )
-                SettingsServerAddressRow(
-                    title: "Remote Address",
-                    value: configuredValue(displayedRemoteAddress),
                     systemImage: "network"
                 )
-                if !connectionSettings.internalNetworkSSIDs.isEmpty {
-                    SettingsServerAddressRow(
-                        title: "Local Networks",
-                        value: localNetworksSummary(connectionSettings.internalNetworkSSIDs),
-                        systemImage: "wifi"
-                    )
-                }
+                SettingsServerAddressRow(
+                    title: "External URL",
+                    value: configuredValue(displayedRemoteAddress),
+                    systemImage: "globe"
+                )
             }
 
             SettingsServerAddressRow(
-                title: "Currently Using",
-                value: activeRouteTitle,
-                detail: activeRouteAddress,
+                title: "Active Connection",
+                value: activeConnectionValue,
                 systemImage: "arrow.triangle.branch"
             )
-
-            if isEditingServer {
-                HStack {
-                    Button("Cancel") {
-                        cancelServerEditing()
-                    }
-                    .buttonStyle(.borderless)
-
-                    Spacer()
-
-                    Button("Save") {
-                        saveServerEditing()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canSaveServerEdits)
-                }
-                .padding(.vertical, AppSpacing.xSmall)
-            } else {
-                Button {
-                    beginServerEditing()
-                } label: {
-                    Label("Edit Server", systemImage: "pencil")
-                }
-            }
         } header: {
             Text("Server")
-        } footer: {
-            if isEditingServer {
-                Text("Remote Address is used away from home. Local Address is used only on saved Wi-Fi networks.")
-            }
         }
     }
 
-    private var serverStatusRow: some View {
-        HStack(alignment: .center, spacing: AppSpacing.medium) {
-            Image(systemName: statusSystemImage)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(accountStatusTint)
-                .frame(width: 30)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(serverDisplayText)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text(serverStatusMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: AppSpacing.small)
-        }
-        .padding(.vertical, AppSpacing.xSmall)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var localNetworksSection: some View {
-        Section {
-            if draftInternalNetworkSSIDs.isEmpty {
-                Text("No Wi-Fi networks added.")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(draftInternalNetworkSSIDs, id: \.self) { ssid in
-                    HStack {
-                        Text(ssid)
-                            .lineLimit(1)
-                        Spacer()
-                        Button {
-                            removeSSID(ssid)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove \(ssid)")
+    @ViewBuilder
+    private var localNetworkEditorRows: some View {
+        if !draftInternalNetworkSSIDs.isEmpty {
+            ForEach(draftInternalNetworkSSIDs, id: \.self) { ssid in
+                editableValueRow(title: "Local Wi-Fi", systemImage: "wifi") {
+                    Text(ssid)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Button {
+                        removeSSID(ssid)
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundStyle(.red)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove \(ssid)")
                 }
             }
+        }
 
+        editableValueRow(title: draftInternalNetworkSSIDs.isEmpty ? "Local Wi-Fi" : "Add Wi-Fi", systemImage: "wifi") {
             HStack {
-                TextField("Wi-Fi Name", text: $draftSSID)
+                TextField("Wi-Fi Name", text: $draftSSID, axis: .horizontal)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .focused($focusedField, equals: .ssid)
+                    .multilineTextAlignment(.trailing)
 
                 Button("Add") {
                     addSSID(draftSSID)
@@ -251,25 +231,40 @@ struct HomeAssistantSettingsView: View {
                 }
                 .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+        }
 
+        editableValueRow(title: "Current Wi-Fi", systemImage: "location") {
             Button {
                 Task { await addCurrentWiFiSSID() }
             } label: {
-                Label("Use Current Wi-Fi", systemImage: "wifi")
+                Text(nativePermissionService.isRequestingLocationAccess ? "Checking" : "Use")
             }
             .disabled(nativePermissionService.isRequestingLocationAccess)
-        } header: {
-            Text("Use Local Address On")
-        } footer: {
-            Text("Reading the current Wi-Fi name requires Location permission.")
         }
     }
 
     private var homeAssistantSection: some View {
         Section("Home Assistant") {
-            SettingsServerAddressRow(title: "Version", value: configValue(homeAssistantService.serverConfiguration?.homeAssistantVersion), systemImage: "number")
-            SettingsServerAddressRow(title: "Location", value: configValue(homeAssistantService.serverConfiguration?.locationName), systemImage: "mappin.and.ellipse")
-            SettingsServerAddressRow(title: "Time Zone", value: configValue(homeAssistantService.serverConfiguration?.timeZone), systemImage: "clock")
+            SettingsServerAddressRow(
+                title: "Installation Method",
+                value: homeAssistantService.serverEnvironment?.installationMethod.title ?? "Not available",
+                systemImage: "shippingbox"
+            )
+            SettingsServerAddressRow(
+                title: "Core",
+                value: configValue(homeAssistantService.serverEnvironment?.coreVersion),
+                systemImage: "cube"
+            )
+            SettingsServerAddressRow(
+                title: "Supervisor",
+                value: configValue(homeAssistantService.serverEnvironment?.supervisorVersion),
+                systemImage: "gearshape"
+            )
+            SettingsServerAddressRow(
+                title: "OS",
+                value: configValue(homeAssistantService.serverEnvironment?.operatingSystemVersion),
+                systemImage: "desktopcomputer"
+            )
         }
     }
 
@@ -350,97 +345,72 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
-    private var serverDisplayText: String {
-        SettingsHomeAssistantStatus.serverDisplayText(connectionSettings.baseURL)
+    private var serverName: String {
+        homeAssistantService.serverConfiguration?.locationName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue ?? "Home"
     }
 
     private var accountTitle: String {
         homeAssistantService.currentUserDisplayName ?? "Home Assistant"
     }
 
-    private var primaryStatusMessage: String? {
-        if hasServerMismatch {
-            return "This server is different from the saved Home Assistant sign-in. Sign in again for this server."
-        }
-
-        if connectionSettings.authStorageErrorMessage != nil {
-            return "Unable to access saved sign-in."
+    private var headerStatusTitle: String {
+        if hasServerMismatch || connectionSettings.authStorageErrorMessage != nil {
+            return "Error"
         }
 
         switch homeAssistantService.authState {
-        case .signedOut:
-            return "Sign in to connect Homestead to Home Assistant."
-        case .signingIn:
-            return "Waiting for Home Assistant authorization."
-        case .refreshing:
-            return "Refreshing your Home Assistant session."
+        case .signedOut, .accessTokenExpired:
+            return "Disconnected"
+        case .signingIn, .refreshing:
+            return "Connecting"
         case .refreshFailed:
-            return "Authentication failed."
-        case .accessTokenExpired:
-            return "Sign in again to continue using Home Assistant."
+            return "Error"
         case .signedIn:
             switch homeAssistantService.connectionStatus {
-            case .failed, .disconnected:
-                return "Unable to reach server."
-            case .connected, .preparing, .connecting, .reconnecting:
-                return nil
+            case .connected:
+                return "Connected"
+            case .preparing, .connecting, .reconnecting:
+                return "Connecting"
+            case .failed:
+                return "Error"
+            case .disconnected:
+                return "Disconnected"
             }
         }
     }
 
-    private var accountStatusText: String {
-        SettingsHomeAssistantStatus.summaryStatusText(
-            authState: homeAssistantService.authState,
-            connectionStatus: homeAssistantService.connectionStatus
-        )
-    }
-
-    private var accountStatusTint: Color {
-        SettingsHomeAssistantStatus.tint(
-            authState: homeAssistantService.authState,
-            connectionStatus: homeAssistantService.connectionStatus
-        )
-    }
-
-    private var statusSystemImage: String {
-        if hasServerMismatch { return "exclamationmark.triangle.fill" }
-
-        switch homeAssistantService.connectionStatus {
-        case .connected:
-            return "checkmark.circle.fill"
-        case .connecting, .preparing, .reconnecting:
-            return "arrow.triangle.2.circlepath"
-        case .failed:
-            return "exclamationmark.triangle.fill"
-        case .disconnected:
-            return "server.rack"
+    private var headerStatusTint: Color {
+        switch headerStatusTitle {
+        case "Connected":
+            return .green
+        case "Connecting":
+            return .orange
+        case "Error":
+            return .red
+        default:
+            return .secondary
         }
     }
 
-    private var serverStatusMessage: String {
-        if hasServerMismatch {
-            return "This server is different from the saved Home Assistant sign-in."
-        }
-
-        return SettingsHomeAssistantStatus.detailMessage(
-            authState: homeAssistantService.authState,
-            connectionStatus: homeAssistantService.connectionStatus,
-            serviceError: homeAssistantService.lastErrorMessage,
-            storageError: connectionSettings.authStorageErrorMessage
-        )
-    }
-
-    private var activeRouteTitle: String {
+    private var activeConnectionValue: String {
         guard let route = homeAssistantService.activeRouteSummary else {
             return "Not selected"
         }
 
-        return route.title
-    }
-
-    private var activeRouteAddress: String? {
-        guard let route = homeAssistantService.activeRouteSummary else { return nil }
-        return configuredValue(route.baseURLString)
+        switch route.route {
+        case .internalURL:
+            return "Internal"
+        case .externalURL:
+            return "External"
+        case .current:
+            if normalizedURL(route.baseURLString) == normalizedURL(connectionSettings.internalURL) {
+                return "Internal"
+            }
+            if normalizedURL(route.baseURLString) == normalizedURL(displayedRemoteAddress) {
+                return "External"
+            }
+            return "Saved Address"
+        }
     }
 
     private var canSignOut: Bool {
@@ -582,6 +552,13 @@ struct HomeAssistantSettingsView: View {
             !draftRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var hasUnsavedServerEdits: Bool {
+        draftLocalAddress.trimmingCharacters(in: .whitespacesAndNewlines) != connectionSettings.internalURL.trimmingCharacters(in: .whitespacesAndNewlines) ||
+            draftRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines) != displayedRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines) ||
+            HAConnectionSettings.normalizedSSIDs(draftInternalNetworkSSIDs) != HAConnectionSettings.normalizedSSIDs(connectionSettings.internalNetworkSSIDs) ||
+            !draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var authRefreshTaskID: String {
         [
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -603,7 +580,7 @@ struct HomeAssistantSettingsView: View {
 
     private func configValue(_ value: String?) -> String {
         guard let value else {
-            return "Not returned"
+            return "Not available"
         }
 
         return value
@@ -611,22 +588,43 @@ struct HomeAssistantSettingsView: View {
 
     private func addressEditorRow(
         title: String,
+        systemImage: String,
         placeholder: String,
         text: Binding<String>,
         focus: Field
     ) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-            Text(title)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            TextField(placeholder, text: text)
+        editableValueRow(title: title, systemImage: systemImage) {
+            TextField(placeholder, text: text, axis: .horizontal)
                 .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
                 .textContentType(.URL)
                 .autocorrectionDisabled()
                 .focused($focusedField, equals: focus)
+                .multilineTextAlignment(.trailing)
         }
-        .padding(.vertical, AppSpacing.xSmall)
+    }
+
+    private func editableValueRow<Content: View>(
+        title: String,
+        systemImage: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Label {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: AppSpacing.medium)
+
+                content()
+            }
+            .padding(.vertical, AppSpacing.xSmall)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
+        }
     }
 
     private func beginServerEditing() {
@@ -638,8 +636,18 @@ struct HomeAssistantSettingsView: View {
         isEditingServer = true
     }
 
+    private func requestCancelServerEditing() {
+        if hasUnsavedServerEdits {
+            isConfirmingDiscard = true
+        } else {
+            cancelServerEditing()
+        }
+    }
+
     private func cancelServerEditing() {
         focusedField = nil
+        draftSSID = ""
+        currentWiFiErrorMessage = nil
         isEditingServer = false
     }
 
@@ -649,15 +657,17 @@ struct HomeAssistantSettingsView: View {
         let oldRemote = displayedRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         let newLocal = draftLocalAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         let newRemote = draftRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newSSIDs = HAConnectionSettings.normalizedSSIDs(draftInternalNetworkSSIDs + [draftSSID])
 
         connectionSettings.internalURL = newLocal
         connectionSettings.externalURL = newRemote
-        connectionSettings.internalNetworkSSIDs = HAConnectionSettings.normalizedSSIDs(draftInternalNetworkSSIDs)
+        connectionSettings.internalNetworkSSIDs = newSSIDs
         if newRemote != oldRemote {
             connectionSettings.baseURL = newRemote.isEmpty ? newLocal : newRemote
         } else if newLocal != oldLocal, oldRemote.isEmpty {
             connectionSettings.baseURL = newLocal
         }
+        draftSSID = ""
         isEditingServer = false
     }
 
@@ -679,11 +689,10 @@ struct HomeAssistantSettingsView: View {
         addSSID(ssid)
     }
 
-    private func localNetworksSummary(_ ssids: [String]) -> String {
-        let normalized = HAConnectionSettings.normalizedSSIDs(ssids)
-        if normalized.isEmpty { return "Not set" }
-        if normalized.count == 1 { return normalized[0] }
-        return "\(normalized.count) networks"
+    private func normalizedURL(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .lowercased()
     }
 
     private var displayedRemoteAddress: String {
@@ -697,6 +706,13 @@ struct HomeAssistantSettingsView: View {
         case localURL
         case remoteURL
         case ssid
+    }
+}
+
+private extension String {
+    var nonEmptyValue: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

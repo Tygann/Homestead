@@ -93,6 +93,64 @@ nonisolated enum HAServerConfigurationStatus: Equatable, Sendable {
     }
 }
 
+nonisolated struct HASupervisorInfoDTO: Decodable, Equatable, Sendable {
+    let version: String?
+
+    enum CodingKeys: String, CodingKey {
+        case version
+    }
+}
+
+nonisolated struct HAOperatingSystemInfoDTO: Decodable, Equatable, Sendable {
+    let version: String?
+
+    enum CodingKeys: String, CodingKey {
+        case version
+    }
+}
+
+nonisolated struct HAServerEnvironmentSnapshot: Equatable, Sendable {
+    let installationMethod: HAServerInstallationMethod
+    let coreVersion: String?
+    let supervisorVersion: String?
+    let operatingSystemVersion: String?
+
+    init(
+        config: HAConfigDTO,
+        supervisorInfo: HASupervisorInfoDTO?,
+        operatingSystemInfo: HAOperatingSystemInfoDTO?
+    ) {
+        coreVersion = config.version?.nonEmptyTrimmed
+        supervisorVersion = supervisorInfo?.version?.nonEmptyTrimmed
+        operatingSystemVersion = operatingSystemInfo?.version?.nonEmptyTrimmed
+
+        if operatingSystemVersion != nil {
+            installationMethod = .homeAssistantOS
+        } else if supervisorVersion != nil {
+            installationMethod = .supervised
+        } else {
+            installationMethod = .core
+        }
+    }
+}
+
+nonisolated enum HAServerInstallationMethod: Equatable, Sendable {
+    case homeAssistantOS
+    case supervised
+    case core
+
+    var title: String {
+        switch self {
+        case .homeAssistantOS:
+            "Home Assistant OS"
+        case .supervised:
+            "Supervised"
+        case .core:
+            "Core"
+        }
+    }
+}
+
 private extension HAConfigUnitSystemDTO {
     nonisolated var summary: String? {
         [

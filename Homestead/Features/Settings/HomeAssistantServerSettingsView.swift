@@ -3,23 +3,14 @@ import SwiftUI
 struct SettingsServerAddressRow: View {
     let title: String
     let value: String
-    var detail: String?
     let systemImage: String
 
     var body: some View {
         Label {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .foregroundStyle(.primary)
-                    if let detail {
-                        Text(detail)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                }
+                Text(title)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
                 Spacer(minLength: AppSpacing.medium)
 

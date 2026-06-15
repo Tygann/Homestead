@@ -17,8 +17,8 @@ Recommended reasoning level: High.
 - Kept credentials device-local, removed Home Network/SSID from first-run setup, and made WebSocket `get_config` fill only missing local/remote routes.
 - Added optional saved Wi-Fi names in Settings > Account > Server so the Local Address is preferred only on known home networks when a Remote Address exists. Homestead falls back to the Remote Address when the current Wi-Fi name is unavailable, permission is denied, or the connected network is not saved.
 - Upgraded iCloud preferences to section-timestamped v2 records with v1 migration, source-device identity, remote-apply suppression, automatic debounced sync, two-way Sync Now, and explicit enable conflicts.
-- Reworked Settings > Account > Server around Home Assistant's Local Address and Remote Address plus Homestead's Active Route, optional local-network names, and staged Cancel/Save toolbar editing. The internal OAuth identity anchor is no longer exposed as a confusing third URL.
-- Moved everyday Server details inline on Settings > Account to reduce one-off navigation. Diagnostics remains the nested support surface, while server URL edits stay staged inline with Edit, Cancel, and Save.
+- Reworked Settings > Account around Home Assistant's Internal URL and External URL plus Homestead's Active Connection, optional local Wi-Fi names, and toolbar-driven inline Edit/Cancel/Save. The internal OAuth identity anchor is no longer exposed as a confusing third URL.
+- Moved everyday Server details inline on Settings > Account to reduce one-off navigation. Edit mode now hides Home Assistant environment, actions, diagnostics, and sign-out so server editing stays focused.
 - Added `NSBonjourServices` for Home Assistant discovery without adding multicast entitlements or changing signing, bundle identifiers, widgets, or capabilities.
 - Stopped live Home Assistant Xcode previews from automatically registering Homestead as a Home Assistant Mobile App device while preserving live state loading in the canvas.
 - Added a Keychain-backed stable mobile-app `device_id` for normal app registration so repeated app launches or registration metadata refreshes do not create new cloned HA Mobile App devices.
@@ -198,14 +198,14 @@ Recommended reasoning level: High.
 
 ## Acceptance Notes
 
-- Settings should keep the top-level account card and the large Account header unless a later design decision explicitly replaces them.
-- The profile card is the only root entry for Account setup. Everyday server status, addresses, route, and Home Assistant config belong inline on Account; Diagnostics can remain a nested support destination.
+- Settings should keep the top-level account card and the simplified Account header unless a later design decision explicitly replaces them.
+- The profile card is the only root entry for Account setup. Everyday server name, internal/external addresses, active connection, and Home Assistant environment info belong inline on Account; Diagnostics can remain a nested support destination outside edit mode.
 - Browse remains the daily-use entity discovery/control surface.
 - Settings remains the admin, registry, diagnostics, and companion-app configuration surface.
 - Use official Home Assistant API surfaces only. Do not add private frontend endpoints for server/admin details.
 - Do not use private frontend endpoints for repairs, users, system health, or admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
-- Settings > Account distinguishes Home Assistant's Local Address, Remote Address, and the active route inline. Edit mode uses in-page Edit/Cancel/Save controls and can save Wi-Fi names where the Local Address should be used. Reading the current Wi-Fi name requires Location permission plus the Wi-Fi Information entitlement; when no saved Wi-Fi matches or the current name is unavailable, Homestead should prefer the Remote Address if one exists. Legacy single home-network metadata migrates to the saved Wi-Fi list.
+- Settings > Account distinguishes Home Assistant's Internal URL, External URL, and Active Connection inline. Edit mode uses toolbar Cancel/Save, hides unrelated sections, and can save Wi-Fi names where the Internal URL should be used. Reading the current Wi-Fi name requires Location permission plus the Wi-Fi Information entitlement; when no saved Wi-Fi matches or the current name is unavailable, Homestead should prefer the External URL if one exists. Legacy single home-network metadata migrates to the saved Wi-Fi list.
 - Established sessions must stay out of onboarding during transient auth/route failures. If a local route such as `homeassistant.local:8123` times out while off-home, Homestead should remain in the main app and fall back through connection routing instead of prompting first-run setup or OAuth against the local URL.
 - Settings > Permissions has native iOS status rows for Notifications, Local Network, Location, and Camera. Keep future native permission work in app-owned platform services rather than Home Assistant API code.
 - User-facing service-call and reconnect recovery feedback belongs in `HomeAssistantService` and app chrome, not scattered card/detail views.
