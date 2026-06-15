@@ -4189,6 +4189,7 @@ struct HomesteadTests {
     @MainActor
     @Test func serviceRegisterMobileAppPersistsRegistrationAndUpdatesState() async throws {
         let store = InMemoryHAMobileAppRegistrationStore()
+        let deviceIDStore = InMemoryHAMobileAppDeviceIDStore(deviceID: "stable-device-id")
         let client = StubHAMobileAppClient(
             registrationResponse: HAMobileAppRegistrationResponseDTO(
                 cloudhookURL: nil,
@@ -4201,6 +4202,7 @@ struct HomesteadTests {
             stateStore: HAStateStore(),
             mobileAppClient: client,
             mobileAppRegistrationStore: store,
+            mobileAppDeviceIDStore: deviceIDStore,
             authManager: HAOAuthManager(
                 tokenStore: InMemoryHAOAuthTokenStore(
                     credential: testCredential(accessToken: "token-a")
@@ -4216,6 +4218,8 @@ struct HomesteadTests {
         await service.registerMobileApp(settings: settings)
 
         let savedRegistration = try #require(try store.readRegistration())
+        #expect(savedRegistration.deviceID == "stable-device-id")
+        #expect(client.lastRegistrationRequest?.deviceID == "stable-device-id")
         #expect(savedRegistration.webhookID == "webhook-created")
         #expect(savedRegistration.serverIdentifier == HAConnectionConfiguration(
             baseURLString: settings.baseURL,
@@ -4227,6 +4231,33 @@ struct HomesteadTests {
             return
         }
         #expect(summary.deviceName == savedRegistration.deviceName)
+    }
+
+    @MainActor
+    @Test func serviceConnectionCanSkipAutomaticMobileAppRegistration() async throws {
+        let store = InMemoryHAMobileAppRegistrationStore()
+        let mobileAppClient = StubHAMobileAppClient()
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: mobileAppClient,
+            mobileAppRegistrationStore: store,
+            mobileAppDeviceIDStore: InMemoryHAMobileAppDeviceIDStore(deviceID: "preview-device-id"),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(
+                    credential: testCredential(accessToken: "token-a")
+                )
+            ),
+            automaticallyRegistersMobileApp: false
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+
+        #expect(try store.readRegistration() == nil)
+        #expect(mobileAppClient.lastRegistrationRequest == nil)
+        #expect(webSocketClient.mobileAppPushNotificationSubscription == nil)
+        #expect(service.connectionStatus == .connected)
     }
 
     @MainActor

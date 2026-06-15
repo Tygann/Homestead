@@ -7,6 +7,10 @@ nonisolated protocol HAMobileAppRegistrationStore {
     func deleteRegistration() throws
 }
 
+nonisolated protocol HAMobileAppDeviceIDStore {
+    func readOrCreateDeviceID() throws -> String
+}
+
 enum HAMobileAppRegistrationStoreError: LocalizedError {
     case unreadableRegistration
     case keychainFailure(OSStatus)
@@ -115,6 +119,95 @@ nonisolated struct KeychainHAMobileAppRegistrationStore: HAMobileAppRegistration
     }
 }
 
+nonisolated struct KeychainHAMobileAppDeviceIDStore: HAMobileAppDeviceIDStore {
+    private let service: String
+    private let account: String
+    private let accessGroup: String?
+
+    init(
+        service: String = "com.tyler.Homestead.homeAssistant",
+        account: String = "mobileAppDeviceID",
+        accessGroup: String? = WidgetSharedStore.keychainAccessGroup
+    ) {
+        self.service = service
+        self.account = account
+        self.accessGroup = accessGroup
+    }
+
+    func readOrCreateDeviceID() throws -> String {
+        if let existingDeviceID = try readDeviceID() {
+            return existingDeviceID
+        }
+
+        let deviceID = UUID().uuidString
+        try saveDeviceID(deviceID)
+        return deviceID
+    }
+
+    private func readDeviceID() throws -> String? {
+        var query = baseQuery
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecItemNotFound {
+            return nil
+        }
+
+        guard status == errSecSuccess else {
+            throw HAMobileAppRegistrationStoreError.keychainFailure(status)
+        }
+
+        guard let data = result as? Data,
+              let deviceID = String(data: data, encoding: .utf8),
+              !deviceID.isEmpty else {
+            throw HAMobileAppRegistrationStoreError.unreadableRegistration
+        }
+
+        return deviceID
+    }
+
+    private func saveDeviceID(_ deviceID: String) throws {
+        let data = Data(deviceID.utf8)
+        var query = baseQuery
+        let attributes = [kSecValueData as String: data]
+
+        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+
+        if updateStatus == errSecSuccess {
+            return
+        }
+
+        guard updateStatus == errSecItemNotFound else {
+            throw HAMobileAppRegistrationStoreError.keychainFailure(updateStatus)
+        }
+
+        query[kSecValueData as String] = data
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+
+        let addStatus = SecItemAdd(query as CFDictionary, nil)
+        guard addStatus == errSecSuccess else {
+            throw HAMobileAppRegistrationStoreError.keychainFailure(addStatus)
+        }
+    }
+
+    private var baseQuery: [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+
+        if let accessGroup {
+            query[kSecAttrAccessGroup as String] = accessGroup
+        }
+
+        return query
+    }
+}
+
 nonisolated final class InMemoryHAMobileAppRegistrationStore: HAMobileAppRegistrationStore {
     private var registration: HAMobileAppRegistrationInfo?
 
@@ -132,5 +225,17 @@ nonisolated final class InMemoryHAMobileAppRegistrationStore: HAMobileAppRegistr
 
     func deleteRegistration() throws {
         registration = nil
+    }
+}
+
+nonisolated final class InMemoryHAMobileAppDeviceIDStore: HAMobileAppDeviceIDStore {
+    private let deviceID: String
+
+    init(deviceID: String = "preview-mobile-app-device-id") {
+        self.deviceID = deviceID
+    }
+
+    func readOrCreateDeviceID() throws -> String {
+        deviceID
     }
 }

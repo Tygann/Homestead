@@ -87,8 +87,10 @@ struct PreviewDependencies {
                 stateStore: stateStore,
                 authState: .signedIn(HAAuthSessionSummary(credential: credential)),
                 mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+                mobileAppDeviceIDStore: InMemoryHAMobileAppDeviceIDStore(),
                 nativeNotificationService: nativeNotificationService,
-                authManager: HAOAuthManager(tokenStore: tokenStore)
+                authManager: HAOAuthManager(tokenStore: tokenStore),
+                automaticallyRegistersMobileApp: false
             )
 
             return PreviewDependencies(
@@ -119,7 +121,9 @@ struct PreviewDependencies {
         let service = HomeAssistantService(
             stateStore: stateStore,
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
-            nativeNotificationService: nativeNotificationService
+            mobileAppDeviceIDStore: InMemoryHAMobileAppDeviceIDStore(),
+            nativeNotificationService: nativeNotificationService,
+            automaticallyRegistersMobileApp: false
         )
 
         return PreviewDependencies(

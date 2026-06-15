@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-14
 
+### Mobile App Registration Safeguards
+
+- Stopped live Home Assistant Xcode previews from automatically registering Homestead as a Home Assistant Mobile App device; previews can still connect and render live HA state without mutating the Mobile App integration.
+- Added a Keychain-backed stable mobile-app `device_id` for normal app registration so losing or refreshing local registration metadata does not create repeated cloned devices with the same simulator/device name.
+- Preserved explicit in-app mobile-app registration and connected-session WebSocket notification registration for normal app runs.
+
 ### Unified Setup, Discovery, and iCloud Restore
 
 - Gated startup behind a read-only iCloud bootstrap so a clean device cannot seed or upload defaults over an existing dashboard.

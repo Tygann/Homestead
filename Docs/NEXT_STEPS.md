@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Unified setup, Bonjour discovery, and safe iCloud restore are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification of this flow, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
+Unified setup, Bonjour discovery, safe iCloud restore, and Mobile App registration safeguards are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification of this flow, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
 
 Recommended reasoning level: High.
 
@@ -18,6 +18,8 @@ Recommended reasoning level: High.
 - Upgraded iCloud preferences to section-timestamped v2 records with v1 migration, source-device identity, remote-apply suppression, automatic debounced sync, two-way Sync Now, and explicit enable conflicts.
 - Reworked Settings > Account > Server around Home Assistant's Local Address and Remote Address plus Homestead's Active Route, with staged Cancel/Save toolbar editing. The internal OAuth identity anchor is no longer exposed as a confusing third URL.
 - Added `NSBonjourServices` for Home Assistant discovery without adding multicast entitlements or changing signing, bundle identifiers, widgets, or capabilities.
+- Stopped live Home Assistant Xcode previews from automatically registering Homestead as a Home Assistant Mobile App device while preserving live state loading in the canvas.
+- Added a Keychain-backed stable mobile-app `device_id` for normal app registration so repeated app launches or registration metadata refreshes do not create new cloned HA Mobile App devices.
 
 - Confirmed the app and widget targets support iPhone and iPad, and that Xcode exposes and builds the app for Apple silicon Mac using Designed for iPad while Mac Catalyst remains intentionally disabled.
 - Kept the existing adaptive SwiftUI structure for iPad/Mac: dashboard and area grids add tracks at wider widths, Security retains its regular-width activity sidebar, and Browse/Settings continue using native List/Form adaptation without duplicated platform views.

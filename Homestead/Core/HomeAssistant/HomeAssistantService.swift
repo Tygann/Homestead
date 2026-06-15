@@ -33,6 +33,7 @@ final class HomeAssistantService {
     @ObservationIgnored private let httpClient: any HAHTTPClientProtocol
     @ObservationIgnored private let mobileAppClient: any HAMobileAppClientProtocol
     @ObservationIgnored private let mobileAppRegistrationStore: any HAMobileAppRegistrationStore
+    @ObservationIgnored private let mobileAppDeviceIDStore: any HAMobileAppDeviceIDStore
     @ObservationIgnored private let nativeNotificationService: NativeNotificationService
     @ObservationIgnored private let authManager: HAOAuthManager
     @ObservationIgnored private let oauthAuthorizer: any HAOAuthAuthorizing
@@ -59,6 +60,7 @@ final class HomeAssistantService {
     @ObservationIgnored private let pendingCommandTimeout: Duration = .seconds(3)
     @ObservationIgnored private let resumeRefreshInterval: TimeInterval = 5
     @ObservationIgnored private let foregroundConnectionHealthGrace: Duration = .seconds(2)
+    @ObservationIgnored private let automaticallyRegistersMobileApp: Bool
 
     init(
         stateStore: HAStateStore,
@@ -69,21 +71,25 @@ final class HomeAssistantService {
         httpClient: (any HAHTTPClientProtocol)? = nil,
         mobileAppClient: (any HAMobileAppClientProtocol)? = nil,
         mobileAppRegistrationStore: (any HAMobileAppRegistrationStore)? = nil,
+        mobileAppDeviceIDStore: (any HAMobileAppDeviceIDStore)? = nil,
         nativeNotificationService: NativeNotificationService? = nil,
         authManager: HAOAuthManager? = nil,
         oauthAuthorizer: (any HAOAuthAuthorizing)? = nil,
-        networkContext: HAConnectionNetworkContext = .availableExternal
+        networkContext: HAConnectionNetworkContext = .availableExternal,
+        automaticallyRegistersMobileApp: Bool = true
     ) {
         self.stateStore = stateStore
         self.client = client
         self.httpClient = httpClient ?? HAHTTPClient()
         self.mobileAppClient = mobileAppClient ?? HAMobileAppClient()
         self.mobileAppRegistrationStore = mobileAppRegistrationStore ?? KeychainHAMobileAppRegistrationStore()
+        self.mobileAppDeviceIDStore = mobileAppDeviceIDStore ?? KeychainHAMobileAppDeviceIDStore()
         self.nativeNotificationService = nativeNotificationService ?? NativeNotificationService()
         self.authManager = authManager ?? HAOAuthManager()
         self.oauthAuthorizer = oauthAuthorizer ?? HAWebAuthenticationSession()
         self.stateCache = stateCache
         self.networkContext = networkContext
+        self.automaticallyRegistersMobileApp = automaticallyRegistersMobileApp
         self.connectionStatus = connectionStatus
         self.authState = authState
         refreshMobileAppRegistrationState()
@@ -246,8 +252,10 @@ final class HomeAssistantService {
                 connectionStatus = .connected
                 dataFreshness = .refreshing(lastUpdated: dataFreshness.lastKnownUpdateDate)
                 startStateSync(configuration: connectedConfiguration)
-                await registerMobileAppIfNeeded(configuration: connectedConfiguration)
-                await startMobileAppPushNotificationChannel(configuration: connectedConfiguration)
+                if automaticallyRegistersMobileApp {
+                    await registerMobileAppIfNeeded(configuration: connectedConfiguration)
+                    await startMobileAppPushNotificationChannel(configuration: connectedConfiguration)
+                }
                 return
             } catch {
                 lastConnectionError = error
@@ -998,7 +1006,8 @@ final class HomeAssistantService {
         mobileAppRegistrationState = .registering
 
         do {
-            let request = HAMobileAppRegistrationRequestFactory.makeRequest()
+            let deviceID = try mobileAppDeviceIDStore.readOrCreateDeviceID()
+            let request = HAMobileAppRegistrationRequestFactory.makeRequest(deviceID: deviceID)
             let response = try await mobileAppClient.register(
                 configuration: configuration,
                 request: request
