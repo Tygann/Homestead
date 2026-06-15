@@ -489,29 +489,25 @@ private struct InternalURLSettingsView: View {
             }
 
             Section {
-                if draftSSIDs.isEmpty {
-                    Text("No trusted home networks")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(draftSSIDs, id: \.self) { ssid in
-                        Text(ssid)
+                ForEach(draftSSIDs, id: \.self) { ssid in
+                    Text(ssid)
+                }
+                .onDelete(perform: removeSSIDs)
+
+                HStack {
+                    TextField("Network Name", text: $draftSSID, axis: .horizontal)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($focusedField, equals: .ssid)
+                        .submitLabel(.done)
+                        .onSubmit(addManualSSID)
+
+                    Button("Add") {
+                        addManualSSID()
                     }
-                    .onDelete(perform: removeSSIDs)
+                    .buttonStyle(.borderless)
+                    .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-
-                TextField("Network Name", text: $draftSSID, axis: .horizontal)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focusedField, equals: .ssid)
-                    .submitLabel(.done)
-                    .onSubmit(addManualSSID)
-
-                Button {
-                    addManualSSID()
-                } label: {
-                    Label("Add Network", systemImage: "plus")
-                }
-                .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 Button {
                     Task { await addCurrentWiFiSSID() }
