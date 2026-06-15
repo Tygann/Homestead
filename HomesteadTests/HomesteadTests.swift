@@ -9133,7 +9133,7 @@ struct HomesteadTests {
             registryIcon: "mdi:router-wireless",
             explicitIcon: "mdi:piano"
         ))
-        #expect(registry.asset == .materialDesign("router-wireless"))
+        #expect(registry.asset == .sfSymbol("wifi.router.fill"))
         #expect(registry.provenance == .haRegistryIcon)
         #expect(registry.sourceIdentifier == "mdi:router-wireless")
     }
@@ -9163,6 +9163,55 @@ struct HomesteadTests {
         ))
         #expect(unsupported.asset == .unsupportedHomeAssistant("custom:party-light"))
         #expect(unsupported.sfSymbolName == "lightbulb.fill")
+    }
+
+    @Test func iconResolverMapsCuratedMDIIconsToNativeSymbols() {
+        let expectations: [(String, String, String)] = [
+            ("light", "mdi:chandelier", "chandelier.fill"),
+            ("light", "mdi:lamp", "lamp.table.fill"),
+            ("light", "mdi:desk-lamp", "lamp.desk.fill"),
+            ("light", "mdi:floor-lamp", "lamp.floor.fill"),
+            ("light", "mdi:ceiling-light", "light.recessed.3.fill"),
+            ("switch", "mdi:power-plug", "powerplug.fill"),
+            ("switch", "mdi:power-socket-united-states", "poweroutlet.type.b.fill"),
+            ("sensor", "mdi:dishwasher", "dishwasher.fill"),
+            ("sensor", "mdi:tumble-dryer", "dryer.fill"),
+            ("sensor", "mdi:oven", "oven.fill"),
+            ("sensor", "mdi:microwave", "microwave.fill"),
+            ("sensor", "mdi:router-wireless", "wifi.router.fill"),
+            ("sensor", "mdi:server", "server.rack"),
+            ("sensor", "mdi:printer", "printer.fill"),
+            ("media_player", "mdi:projector", "videoprojector.fill"),
+            ("media_player", "mdi:speaker", "speaker.wave.2.fill"),
+            ("cover", "mdi:blinds-open", "blinds.horizontal.open"),
+            ("cover", "mdi:curtains-closed", "curtains.closed"),
+            ("cover", "mdi:garage-open", "door.garage.open"),
+            ("binary_sensor", "mdi:motion-sensor", "figure.motion"),
+            ("binary_sensor", "mdi:smoke-detector", "smoke.fill"),
+            ("sensor", "mdi:humidity", "humidity.fill")
+        ]
+
+        for (domain, mdiIcon, sfSymbol) in expectations {
+            let resolved = IconResolver.resolveEntity(EntityIconResolutionInput(
+                domain: domain,
+                state: "on",
+                explicitIcon: mdiIcon
+            ))
+            #expect(resolved.asset == .sfSymbol(sfSymbol), "Expected \(mdiIcon) to map to \(sfSymbol)")
+            #expect(resolved.provenance == .haExplicitIcon)
+            #expect(resolved.sourceIdentifier == mdiIcon)
+        }
+    }
+
+    @Test func iconResolverKeepsAmbiguousMDIIconsAsMaterialDesign() {
+        let resolved = IconResolver.resolveEntity(EntityIconResolutionInput(
+            domain: "light",
+            state: "on",
+            explicitIcon: "mdi:lava-lamp"
+        ))
+
+        #expect(resolved.asset == .materialDesign("lava-lamp"))
+        #expect(resolved.sfSymbolName == "lightbulb.fill")
     }
 
     @MainActor
@@ -9250,7 +9299,7 @@ struct HomesteadTests {
         store.applyRegistryMetadata(entities: [registry], devices: [])
 
         let resolved = try #require(store.entity(for: "media_player.piano")).resolvedIcon
-        #expect(resolved.asset == .materialDesign("router-wireless"))
+        #expect(resolved.asset == .sfSymbol("wifi.router.fill"))
         #expect(resolved.provenance == .haRegistryIcon)
         #expect(store.iconResolutionCount == 2)
 
