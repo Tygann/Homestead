@@ -54,8 +54,6 @@ struct HomeAssistantServerSettingsView: View {
             } footer: {
                 if isEditingConnection {
                     Text("Use the Local and Remote URLs from Home Assistant. Homestead signs in through the remote address when available, otherwise the local address.")
-                } else {
-                    Text("Homestead does not identify a specific Wi-Fi network. On Wi-Fi or Ethernet, it may briefly try the local address, then uses the remote address if the local address is unavailable.")
                 }
             }
 
@@ -139,6 +137,7 @@ struct HomeAssistantServerSettingsView: View {
         }
         .navigationTitle("Server")
         .toolbarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(isEditingConnection)
         .toolbar {
             if isEditingConnection {
                 ToolbarItem(placement: .cancellationAction) {

@@ -201,7 +201,7 @@ Recommended reasoning level: High.
 - Use official Home Assistant API surfaces only. Do not add private frontend endpoints for server/admin details.
 - Do not use private frontend endpoints for repairs, users, system health, or admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
-- Settings > Account > Server distinguishes Home Assistant's local/remote addresses and the active route. Homestead does not identify a specific SSID; on Wi-Fi/Ethernet it may briefly try the local address, then falls back to remote. Legacy home-network metadata no longer affects routing.
+- Settings > Account > Server distinguishes Home Assistant's local/remote addresses and the active route. Edit mode hides the back button in favor of Cancel/Save and explains that Homestead may briefly try local on Wi-Fi/Ethernet before falling back to remote. Legacy home-network metadata no longer affects routing.
 - Settings > Permissions has native iOS status rows for Notifications, Local Network, Location, and Camera. Keep future native permission work in app-owned platform services rather than Home Assistant API code.
 - User-facing service-call and reconnect recovery feedback belongs in `HomeAssistantService` and app chrome, not scattered card/detail views.
 - Numeric sensor history already has documented REST history plumbing, authenticated service handoff, app-facing chart models, fixed detail ranges, and lightweight dashboard chart cards; binary sensors, locks, switches, automations, covers, people, and device trackers now have app-facing detail timeline models and a shared Recent Activity panel. Reuse those shapes where they fit.
