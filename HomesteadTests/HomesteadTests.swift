@@ -722,6 +722,15 @@ struct HomesteadTests {
 
         let hostOnlyURL = try HomeAssistantEndpointBuilder.webSocketURL(from: "homeassistant.local:8123")
         #expect(hostOnlyURL.absoluteString == "ws://homeassistant.local:8123/api/websocket")
+
+        let hostOnlyExternalURL = try HomeAssistantEndpointBuilder.webSocketURL(from: "ha.keegan.me")
+        #expect(hostOnlyExternalURL.absoluteString == "wss://ha.keegan.me/api/websocket")
+
+        let hostOnlyExternalPathURL = try HomeAssistantEndpointBuilder.webSocketURL(from: "example.com/ha")
+        #expect(hostOnlyExternalPathURL.absoluteString == "wss://example.com/ha/api/websocket")
+
+        let cleartextExternalURL = try HomeAssistantEndpointBuilder.webSocketURL(from: "http://ha.keegan.me")
+        #expect(cleartextExternalURL.absoluteString == "wss://ha.keegan.me/api/websocket")
     }
 
     @Test func cameraSnapshotEndpointUsesHTTPBasePathAndProxyRoute() throws {
@@ -736,7 +745,17 @@ struct HomesteadTests {
             from: "https://example.com/ha",
             entityID: "camera.front_door"
         )
+        let hostOnlyExternalURL = try HomeAssistantEndpointBuilder.cameraSnapshotURL(
+            from: "ha.keegan.me",
+            entityID: "camera.porch"
+        )
+        let cleartextExternalURL = try HomeAssistantEndpointBuilder.cameraSnapshotURL(
+            from: "http://ha.keegan.me",
+            entityID: "camera.garage"
+        )
         #expect(nestedURL.absoluteString == "https://example.com/ha/api/camera_proxy/camera.front_door")
+        #expect(hostOnlyExternalURL.absoluteString == "https://ha.keegan.me/api/camera_proxy/camera.porch")
+        #expect(cleartextExternalURL.absoluteString == "https://ha.keegan.me/api/camera_proxy/camera.garage")
     }
 
     @Test func mobileAppEndpointsUseOfficialHTTPPaths() throws {

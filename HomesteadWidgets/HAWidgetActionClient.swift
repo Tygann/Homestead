@@ -575,15 +575,16 @@ final class HAWidgetActionClient: Sendable {
     }
 
     private func webSocketURL(from baseURLString: String) throws -> URL {
-        let normalizedString = baseURLString.contains("://") ? baseURLString : "http://\(baseURLString)"
+        let trimmedString = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedString = trimmedString.contains("://") ? trimmedString : "\(defaultScheme(forHostOnlyBaseURL: trimmedString))://\(trimmedString)"
 
         guard var components = URLComponents(string: normalizedString),
               let scheme = components.scheme,
-              components.host != nil else {
+              let host = components.host?.lowercased() else {
             throw HAWidgetActionError.invalidURL
         }
 
-        switch scheme.lowercased() {
+        switch normalizedScheme(scheme, host: host) {
         case "http", "ws":
             components.scheme = "ws"
         case "https", "wss":
@@ -611,16 +612,17 @@ final class HAWidgetActionClient: Sendable {
         startDate: Date,
         endDate: Date
     ) throws -> URL {
-        let normalizedString = baseURLString.contains("://") ? baseURLString : "http://\(baseURLString)"
+        let trimmedString = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedString = trimmedString.contains("://") ? trimmedString : "\(defaultScheme(forHostOnlyBaseURL: trimmedString))://\(trimmedString)"
 
         guard var components = URLComponents(string: normalizedString),
               let scheme = components.scheme,
-              components.host != nil,
+              let host = components.host?.lowercased(),
               !entityID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw HAWidgetActionError.invalidURL
         }
 
-        switch scheme.lowercased() {
+        switch normalizedScheme(scheme, host: host) {
         case "http", "ws":
             components.scheme = "http"
         case "https", "wss":
@@ -645,6 +647,58 @@ final class HAWidgetActionClient: Sendable {
         }
 
         return url
+    }
+
+    private func normalizedScheme(_ scheme: String, host: String) -> String {
+        let lowercasedScheme = scheme.lowercased()
+        guard !isLocalHost(host) else {
+            return lowercasedScheme
+        }
+
+        switch lowercasedScheme {
+        case "http":
+            return "https"
+        case "ws":
+            return "wss"
+        default:
+            return lowercasedScheme
+        }
+    }
+
+    private func defaultScheme(forHostOnlyBaseURL baseURLString: String) -> String {
+        guard let host = URLComponents(string: "https://\(baseURLString)")?.host?.lowercased() else {
+            return "https"
+        }
+
+        return isLocalHost(host) ? "http" : "https"
+    }
+
+    private func isLocalHost(_ host: String) -> Bool {
+        if host == "localhost" || host.hasSuffix(".local") || host == "::1" {
+            return true
+        }
+
+        if host.hasPrefix("fe80:") || host.hasPrefix("fc") || host.hasPrefix("fd") {
+            return true
+        }
+
+        let parts = host.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 4 else {
+            return false
+        }
+
+        switch parts[0] {
+        case 10, 127:
+            return true
+        case 172:
+            return (16...31).contains(parts[1])
+        case 192:
+            return parts[1] == 168
+        case 169:
+            return parts[1] == 254
+        default:
+            return false
+        }
     }
 
     private func brightnessPercentage(from value: Any?) -> Int? {

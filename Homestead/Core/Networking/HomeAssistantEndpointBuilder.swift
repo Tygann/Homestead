@@ -226,15 +226,63 @@ enum HomeAssistantEndpointBuilder {
     }
 
     private nonisolated static func baseComponents(from baseURLString: String) throws -> URLComponents {
-        let normalizedString = baseURLString.contains("://") ? baseURLString : "http://\(baseURLString)"
+        let trimmedString = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedString = trimmedString.contains("://") ? trimmedString : "\(defaultScheme(forHostOnlyBaseURL: trimmedString))://\(trimmedString)"
 
-        guard let components = URLComponents(string: normalizedString),
+        guard var components = URLComponents(string: normalizedString),
               components.scheme != nil,
-              components.host != nil else {
+              let host = components.host?.lowercased() else {
             throw HAWebSocketError.invalidURL
         }
 
+        if !isLocalHost(host) {
+            switch components.scheme?.lowercased() {
+            case "http":
+                components.scheme = "https"
+            case "ws":
+                components.scheme = "wss"
+            default:
+                break
+            }
+        }
+
         return components
+    }
+
+    private nonisolated static func defaultScheme(forHostOnlyBaseURL baseURLString: String) -> String {
+        guard let host = URLComponents(string: "https://\(baseURLString)")?.host?.lowercased() else {
+            return "https"
+        }
+
+        return isLocalHost(host) ? "http" : "https"
+    }
+
+    private nonisolated static func isLocalHost(_ host: String) -> Bool {
+        if host == "localhost" || host.hasSuffix(".local") || host == "::1" {
+            return true
+        }
+
+        if host.hasPrefix("fe80:") || host.hasPrefix("fc") || host.hasPrefix("fd") {
+            return true
+        }
+
+        let parts = host.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 4 else {
+            return false
+        }
+
+        switch parts[0] {
+        case 10, 127:
+            return true
+        case 172:
+            return (16...31).contains(parts[1])
+        case 192:
+            return parts[1] == 168
+        case 169:
+            return parts[1] == 254
+        default:
+            return false
+        }
     }
 
     private nonisolated static func webSocketScheme(from scheme: String?) throws -> String {
