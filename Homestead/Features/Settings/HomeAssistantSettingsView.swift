@@ -13,6 +13,8 @@ struct HomeAssistantSettingsView: View {
     @State private var draftRemoteAddress = ""
     @State private var draftInternalNetworkSSIDs: [String] = []
     @State private var draftSSID = ""
+    @State private var isShowingManualNetworkEntry = false
+    @State private var isReplacingHomeNetwork = false
     @State private var currentWiFiErrorMessage: String?
 
     var body: some View {
@@ -160,11 +162,12 @@ struct HomeAssistantSettingsView: View {
             if isEditingServer {
                 addressEditorRow(
                     title: "Internal URL",
-                    systemImage: "house.and.flag",
+                    systemImage: "network",
                     placeholder: "homeassistant.local:8123",
                     text: $draftLocalAddress,
                     focus: .localURL
                 )
+                localNetworkEditorRows
                 addressEditorRow(
                     title: "External URL",
                     systemImage: "globe",
@@ -172,12 +175,16 @@ struct HomeAssistantSettingsView: View {
                     text: $draftRemoteAddress,
                     focus: .remoteURL
                 )
-                localNetworkEditorRows
             } else {
                 SettingsServerAddressRow(
                     title: "Internal URL",
                     value: configuredValue(connectionSettings.internalURL),
-                    systemImage: "house.and.flag"
+                    systemImage: "network"
+                )
+                SettingsServerAddressRow(
+                    title: "Home Network",
+                    value: homeNetworkValue(connectionSettings.internalNetworkSSIDs),
+                    systemImage: "wifi"
                 )
                 SettingsServerAddressRow(
                     title: "External URL",
@@ -198,61 +205,7 @@ struct HomeAssistantSettingsView: View {
 
     @ViewBuilder
     private var localNetworkEditorRows: some View {
-        if draftInternalNetworkSSIDs.isEmpty {
-            SettingsServerAddressRow(
-                title: "Home Networks",
-                value: "No home networks added.",
-                systemImage: "wifi"
-            )
-        } else {
-            ForEach(draftInternalNetworkSSIDs, id: \.self) { ssid in
-                editableValueRow(title: "Home Network", systemImage: "wifi") {
-                    Text(ssid)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Button {
-                        removeSSID(ssid)
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Remove \(ssid)")
-                }
-            }
-        }
-
-        editableValueRow(title: "Add Network", systemImage: "plus.circle") {
-            HStack {
-                TextField("Wi-Fi Name", text: $draftSSID, axis: .horizontal)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focusedField, equals: .ssid)
-                    .multilineTextAlignment(.trailing)
-
-                Button("Add") {
-                    addSSID(draftSSID)
-                    draftSSID = ""
-                }
-                .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-
-        Button {
-            Task { await addCurrentWiFiSSID() }
-        } label: {
-            Label {
-                HStack {
-                    Text("Use Current Wi-Fi")
-                    Spacer()
-                }
-                .padding(.vertical, AppSpacing.xSmall)
-            } icon: {
-                Image(systemName: "location")
-                    .frame(width: 28)
-            }
-        }
-        .disabled(nativePermissionService.isRequestingLocationAccess)
+        homeNetworkEditorRow
     }
 
     private var homeAssistantSection: some View {
@@ -265,7 +218,7 @@ struct HomeAssistantSettingsView: View {
             SettingsServerAddressRow(
                 title: "Core",
                 value: configValue(homeAssistantService.serverEnvironment?.coreVersion),
-                systemImage: "cube"
+                systemImage: "cpu"
             )
             SettingsServerAddressRow(
                 title: "Supervisor",
@@ -639,11 +592,105 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
+    private var homeNetworkEditorRow: some View {
+        Label {
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Home Network")
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    Spacer(minLength: AppSpacing.medium)
+
+                    Text(homeNetworkValue(draftInternalNetworkSSIDs))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                if isShowingManualNetworkEntry {
+                    HStack(spacing: AppSpacing.small) {
+                        TextField("Wi-Fi Name", text: $draftSSID, axis: .horizontal)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .focused($focusedField, equals: .ssid)
+                            .textFieldStyle(.roundedBorder)
+
+                        Button(isReplacingHomeNetwork ? "Save" : "Add") {
+                            saveManualHomeNetwork()
+                            draftSSID = ""
+                            isShowingManualNetworkEntry = false
+                            isReplacingHomeNetwork = false
+                            focusedField = nil
+                        }
+                        .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+
+                HStack(spacing: AppSpacing.small) {
+                    if draftInternalNetworkSSIDs.isEmpty {
+                        compactNetworkButton("Use Current Wi-Fi", systemImage: "location") {
+                            Task { await addCurrentWiFiSSID() }
+                        }
+                        .disabled(nativePermissionService.isRequestingLocationAccess)
+
+                        compactNetworkButton("Add Manually", systemImage: "plus") {
+                            draftSSID = ""
+                            isShowingManualNetworkEntry = true
+                            isReplacingHomeNetwork = false
+                            focusedField = .ssid
+                        }
+                    } else {
+                        compactNetworkButton("Change", systemImage: "pencil") {
+                            draftSSID = draftInternalNetworkSSIDs.first ?? ""
+                            isShowingManualNetworkEntry = true
+                            isReplacingHomeNetwork = true
+                            focusedField = .ssid
+                        }
+
+                        compactNetworkButton("Remove", systemImage: "trash", role: .destructive) {
+                            draftInternalNetworkSSIDs.removeAll()
+                            isShowingManualNetworkEntry = false
+                            isReplacingHomeNetwork = false
+                            draftSSID = ""
+                        }
+
+                        compactNetworkButton("Use Current Wi-Fi", systemImage: "location") {
+                            Task { await addCurrentWiFiSSID() }
+                        }
+                        .disabled(nativePermissionService.isRequestingLocationAccess)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .padding(.vertical, AppSpacing.xSmall)
+        } icon: {
+            Image(systemName: "wifi")
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
+        }
+    }
+
+    private func compactNetworkButton(
+        _ title: String,
+        systemImage: String,
+        role: ButtonRole? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(role: role, action: action) {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.titleAndIcon)
+        }
+    }
+
     private func beginServerEditing() {
         draftLocalAddress = connectionSettings.internalURL
         draftRemoteAddress = displayedRemoteAddress
         draftInternalNetworkSSIDs = connectionSettings.internalNetworkSSIDs
         draftSSID = ""
+        isShowingManualNetworkEntry = false
+        isReplacingHomeNetwork = false
         currentWiFiErrorMessage = nil
         isEditingServer = true
     }
@@ -659,6 +706,8 @@ struct HomeAssistantSettingsView: View {
     private func cancelServerEditing() {
         focusedField = nil
         draftSSID = ""
+        isShowingManualNetworkEntry = false
+        isReplacingHomeNetwork = false
         currentWiFiErrorMessage = nil
         isEditingServer = false
     }
@@ -680,6 +729,8 @@ struct HomeAssistantSettingsView: View {
             connectionSettings.baseURL = newLocal
         }
         draftSSID = ""
+        isShowingManualNetworkEntry = false
+        isReplacingHomeNetwork = false
         isEditingServer = false
     }
 
@@ -687,8 +738,17 @@ struct HomeAssistantSettingsView: View {
         draftInternalNetworkSSIDs = HAConnectionSettings.normalizedSSIDs(draftInternalNetworkSSIDs + [ssid])
     }
 
-    private func removeSSID(_ ssid: String) {
-        draftInternalNetworkSSIDs.removeAll { $0.caseInsensitiveCompare(ssid) == .orderedSame }
+    private func saveManualHomeNetwork() {
+        if isReplacingHomeNetwork {
+            draftInternalNetworkSSIDs = HAConnectionSettings.normalizedSSIDs([draftSSID])
+        } else {
+            addSSID(draftSSID)
+        }
+    }
+
+    private func homeNetworkValue(_ ssids: [String]) -> String {
+        let normalized = HAConnectionSettings.normalizedSSIDs(ssids)
+        return normalized.isEmpty ? "Not Set" : normalized.joined(separator: ", ")
     }
 
     private func addCurrentWiFiSSID() async {
