@@ -490,7 +490,7 @@ private struct InternalURLSettingsView: View {
 
             Section {
                 if draftSSIDs.isEmpty {
-                    Text("No trusted networks")
+                    Text("No trusted home networks")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(draftSSIDs, id: \.self) { ssid in
@@ -499,30 +499,30 @@ private struct InternalURLSettingsView: View {
                     .onDelete(perform: removeSSIDs)
                 }
 
-                HStack {
-                    TextField("Wi-Fi Name", text: $draftSSID, axis: .horizontal)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .focused($focusedField, equals: .ssid)
-                        .submitLabel(.done)
-                        .onSubmit(addManualSSID)
+                TextField("Network Name", text: $draftSSID, axis: .horizontal)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: .ssid)
+                    .submitLabel(.done)
+                    .onSubmit(addManualSSID)
 
-                    Button("Add") {
-                        addManualSSID()
-                    }
-                    .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button {
+                    addManualSSID()
+                } label: {
+                    Label("Add Network", systemImage: "plus")
                 }
+                .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 Button {
                     Task { await addCurrentWiFiSSID() }
                 } label: {
-                    Label("Use Current Wi-Fi", systemImage: "location")
+                    Label("Add Current Network", systemImage: "location")
                 }
                 .disabled(nativePermissionService.isRequestingLocationAccess)
             } header: {
                 Text("Home Networks")
             } footer: {
-                Text("Homestead uses the Internal URL when connected to one of these Wi-Fi networks.")
+                Text("Homestead uses the Internal URL when connected to one of these trusted home networks.")
             }
         }
         .navigationTitle("Internal URL")
@@ -549,13 +549,13 @@ private struct InternalURLSettingsView: View {
             draftInternalURL = connectionSettings.internalURL
             draftSSIDs = HAConnectionSettings.normalizedSSIDs(connectionSettings.internalNetworkSSIDs)
         }
-        .alert("Wi-Fi Name Unavailable", isPresented: Binding(
+        .alert("Network Name Unavailable", isPresented: Binding(
             get: { currentWiFiErrorMessage != nil },
             set: { if !$0 { currentWiFiErrorMessage = nil } }
         )) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(currentWiFiErrorMessage ?? "Homestead could not read the current Wi-Fi name.")
+            Text(currentWiFiErrorMessage ?? "Homestead could not read the current network name.")
         }
     }
 
@@ -579,7 +579,7 @@ private struct InternalURLSettingsView: View {
     private func addCurrentWiFiSSID() async {
         await nativePermissionService.requestLocationAccess()
         guard let ssid = await homeAssistantService.refreshCurrentWiFiSSID() else {
-            currentWiFiErrorMessage = "Homestead could not read the current Wi-Fi name. Check Location permission, the Wi-Fi Information capability, and that this device is connected to Wi-Fi."
+            currentWiFiErrorMessage = "Homestead could not read the current network name. Check Location permission and that this device is connected to a supported network."
             return
         }
 
@@ -614,13 +614,17 @@ private struct ExternalURLSettingsView: View {
 
     var body: some View {
         Form {
-            Section("External URL") {
+            Section {
                 TextField("https://example.ui.nabu.casa", text: $draftExternalURL, axis: .horizontal)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
                     .textContentType(.URL)
                     .autocorrectionDisabled()
                     .focused($isFocused)
+            } header: {
+                Text("External URL")
+            } footer: {
+                Text("Homestead uses the External URL when you're away from home or not connected to a trusted home network.")
             }
         }
         .navigationTitle("External URL")
