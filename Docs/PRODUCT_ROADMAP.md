@@ -29,7 +29,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
 - Settings sheet opened from account/avatar buttons on daily-use tabs.
 - Settings hub with Home Assistant and Homestead sections, native management overviews for Devices & Services and Automations & Scenes, registry/admin-oriented devices/entities/integration-platform/helper browsers, and no production placeholder rows for unsupported categories.
-- Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a user-facing Server page for Home Assistant's local/remote addresses, optional local-network names, and Homestead's active route, with staged toolbar editing.
+- Profile-card Account destination for Home Assistant identity/session details, inline server status and Home Assistant local/remote addresses, optional local-network names, Homestead's active route, diagnostics, and sign-out, with staged in-page server editing.
 - Native Settings > Updates page backed by Home Assistant `.update` entities, with grouped/filterable/searchable presentation, release/version/status/context details, and official `update.install`, `update.skip`, and `update.clear_skipped` service actions.
 - Native Settings > Apps page backed by Home Assistant Core's Supervisor WebSocket bridge to `/addons`, showing installed Supervisor apps/add-ons, version, update availability, and Running/Stopped/Unknown status where Supervisor is available.
 - Read-only Settings > Logbook page backed by Home Assistant's documented REST logbook API, with date range, entity/domain filtering, search, and app-facing activity row models.

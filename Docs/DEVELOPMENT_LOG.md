@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-15
 
+### Account Server UX
+
+- Moved everyday Server settings inline on Settings > Account so users can see status, Local Address, Remote Address, active route, Home Assistant version/location, and advanced session details without opening a second Server page.
+- Kept server edits staged with explicit Edit, Cancel, and Save controls inside the Account page, avoiding the awkward back-arrow-plus-cancel toolbar state while preserving reversible URL changes.
+- Split Local Address Wi-Fi rules into a separate edit-mode section so saved local networks feel like a user-facing choice instead of an implementation detail.
+
 ### SSID-Gated Local Routing
 
 - Added optional saved Wi-Fi names in Settings > Account > Server so Homestead uses the Local Address only on known local networks when a Remote Address is available.
