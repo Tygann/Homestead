@@ -79,6 +79,8 @@ struct HomeAssistantSettingsView: View {
                     Button("Save") {
                         saveServerEditing()
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.accentColor)
                     .fontWeight(.semibold)
                     .disabled(!canSaveServerEdits)
                 }
@@ -205,7 +207,41 @@ struct HomeAssistantSettingsView: View {
 
     @ViewBuilder
     private var localNetworkEditorRows: some View {
-        homeNetworkEditorRow
+        SettingsServerAddressRow(
+            title: "Home Network",
+            value: homeNetworkValue(draftInternalNetworkSSIDs),
+            systemImage: "wifi"
+        )
+
+        if isShowingManualNetworkEntry {
+            manualHomeNetworkEntryRow
+            networkActionRow("Cancel", systemImage: "xmark") {
+                cancelManualHomeNetworkEntry()
+            }
+        } else if draftInternalNetworkSSIDs.isEmpty {
+            networkActionRow("Use Current Wi-Fi", systemImage: "location") {
+                Task { await addCurrentWiFiSSID() }
+            }
+            .disabled(nativePermissionService.isRequestingLocationAccess)
+
+            networkActionRow("Add Manually", systemImage: "plus") {
+                beginManualHomeNetworkEntry(replacing: false)
+            }
+        } else {
+            networkActionRow("Change", systemImage: "pencil") {
+                beginManualHomeNetworkEntry(replacing: true)
+            }
+
+            networkActionRow("Remove", systemImage: "trash", role: .destructive) {
+                draftInternalNetworkSSIDs.removeAll()
+                cancelManualHomeNetworkEntry()
+            }
+
+            networkActionRow("Use Current Wi-Fi", systemImage: "location") {
+                Task { await addCurrentWiFiSSID() }
+            }
+            .disabled(nativePermissionService.isRequestingLocationAccess)
+        }
     }
 
     private var homeAssistantSection: some View {
@@ -592,95 +628,48 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
-    private var homeNetworkEditorRow: some View {
+    private var manualHomeNetworkEntryRow: some View {
         Label {
-            VStack(alignment: .leading, spacing: AppSpacing.small) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Home Network")
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    Spacer(minLength: AppSpacing.medium)
-
-                    Text(homeNetworkValue(draftInternalNetworkSSIDs))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-
-                if isShowingManualNetworkEntry {
-                    HStack(spacing: AppSpacing.small) {
-                        TextField("Wi-Fi Name", text: $draftSSID, axis: .horizontal)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .focused($focusedField, equals: .ssid)
-                            .textFieldStyle(.roundedBorder)
-
-                        Button(isReplacingHomeNetwork ? "Save" : "Add") {
-                            saveManualHomeNetwork()
-                            draftSSID = ""
-                            isShowingManualNetworkEntry = false
-                            isReplacingHomeNetwork = false
-                            focusedField = nil
-                        }
-                        .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
+                TextField("Wi-Fi Name", text: $draftSSID, axis: .horizontal)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: .ssid)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        saveManualHomeNetworkIfPossible()
                     }
+
+                Button(isReplacingHomeNetwork ? "Save" : "Add") {
+                    saveManualHomeNetworkIfPossible()
                 }
-
-                HStack(spacing: AppSpacing.small) {
-                    if draftInternalNetworkSSIDs.isEmpty {
-                        compactNetworkButton("Use Current Wi-Fi", systemImage: "location") {
-                            Task { await addCurrentWiFiSSID() }
-                        }
-                        .disabled(nativePermissionService.isRequestingLocationAccess)
-
-                        compactNetworkButton("Add Manually", systemImage: "plus") {
-                            draftSSID = ""
-                            isShowingManualNetworkEntry = true
-                            isReplacingHomeNetwork = false
-                            focusedField = .ssid
-                        }
-                    } else {
-                        compactNetworkButton("Change", systemImage: "pencil") {
-                            draftSSID = draftInternalNetworkSSIDs.first ?? ""
-                            isShowingManualNetworkEntry = true
-                            isReplacingHomeNetwork = true
-                            focusedField = .ssid
-                        }
-
-                        compactNetworkButton("Remove", systemImage: "trash", role: .destructive) {
-                            draftInternalNetworkSSIDs.removeAll()
-                            isShowingManualNetworkEntry = false
-                            isReplacingHomeNetwork = false
-                            draftSSID = ""
-                        }
-
-                        compactNetworkButton("Use Current Wi-Fi", systemImage: "location") {
-                            Task { await addCurrentWiFiSSID() }
-                        }
-                        .disabled(nativePermissionService.isRequestingLocationAccess)
-                    }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(.vertical, AppSpacing.xSmall)
         } icon: {
-            Image(systemName: "wifi")
+            Image(systemName: "text.cursor")
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 28)
         }
     }
 
-    private func compactNetworkButton(
+    private func networkActionRow(
         _ title: String,
         systemImage: String,
         role: ButtonRole? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(role: role, action: action) {
-            Label(title, systemImage: systemImage)
-                .labelStyle(.titleAndIcon)
+            Label {
+                HStack {
+                    Text(title)
+                    Spacer()
+                }
+                .padding(.vertical, AppSpacing.xSmall)
+            } icon: {
+                Image(systemName: systemImage)
+                    .frame(width: 28)
+            }
         }
     }
 
@@ -744,6 +733,29 @@ struct HomeAssistantSettingsView: View {
         } else {
             addSSID(draftSSID)
         }
+    }
+
+    private func beginManualHomeNetworkEntry(replacing: Bool) {
+        draftSSID = replacing ? draftInternalNetworkSSIDs.first ?? "" : ""
+        isShowingManualNetworkEntry = true
+        isReplacingHomeNetwork = replacing
+        focusedField = .ssid
+    }
+
+    private func cancelManualHomeNetworkEntry() {
+        draftSSID = ""
+        isShowingManualNetworkEntry = false
+        isReplacingHomeNetwork = false
+        focusedField = nil
+    }
+
+    private func saveManualHomeNetworkIfPossible() {
+        guard !draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return
+        }
+
+        saveManualHomeNetwork()
+        cancelManualHomeNetworkEntry()
     }
 
     private func homeNetworkValue(_ ssids: [String]) -> String {
