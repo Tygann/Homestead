@@ -56,9 +56,10 @@ struct HomeAssistantSettingsView: View {
         .navigationTitle("Account")
         .toolbarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isEditingServer)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .padding(.top, -30)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .cancellationAction) {
                 if isEditingServer {
                     Button("Cancel") {
                         requestCancelServerEditing()
@@ -71,13 +72,16 @@ struct HomeAssistantSettingsView: View {
                     .font(.headline)
             }
 
-            ToolbarItem(placement: .topBarTrailing) {
-                if isEditingServer {
+            if isEditingServer {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         saveServerEditing()
                     }
+                    .fontWeight(.semibold)
                     .disabled(!canSaveServerEdits)
-                } else {
+                }
+            } else {
+                ToolbarItem(placement: .primaryAction) {
                     Button("Edit") {
                         beginServerEditing()
                     }
@@ -141,12 +145,7 @@ struct HomeAssistantSettingsView: View {
     }
 
     private var statusChip: some View {
-        Text(headerStatusTitle)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(headerStatusTint)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(headerStatusTint.opacity(0.12), in: Capsule())
+        SettingsStatusChip(title: headerStatusTitle, tint: headerStatusTint)
             .accessibilityLabel("Connection status, \(headerStatusTitle)")
     }
 
@@ -161,7 +160,7 @@ struct HomeAssistantSettingsView: View {
             if isEditingServer {
                 addressEditorRow(
                     title: "Internal URL",
-                    systemImage: "network",
+                    systemImage: "house.and.flag",
                     placeholder: "homeassistant.local:8123",
                     text: $draftLocalAddress,
                     focus: .localURL
@@ -178,7 +177,7 @@ struct HomeAssistantSettingsView: View {
                 SettingsServerAddressRow(
                     title: "Internal URL",
                     value: configuredValue(connectionSettings.internalURL),
-                    systemImage: "network"
+                    systemImage: "house.and.flag"
                 )
                 SettingsServerAddressRow(
                     title: "External URL",
@@ -199,9 +198,15 @@ struct HomeAssistantSettingsView: View {
 
     @ViewBuilder
     private var localNetworkEditorRows: some View {
-        if !draftInternalNetworkSSIDs.isEmpty {
+        if draftInternalNetworkSSIDs.isEmpty {
+            SettingsServerAddressRow(
+                title: "Home Networks",
+                value: "No home networks added.",
+                systemImage: "wifi"
+            )
+        } else {
             ForEach(draftInternalNetworkSSIDs, id: \.self) { ssid in
-                editableValueRow(title: "Local Wi-Fi", systemImage: "wifi") {
+                editableValueRow(title: "Home Network", systemImage: "wifi") {
                     Text(ssid)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -217,7 +222,7 @@ struct HomeAssistantSettingsView: View {
             }
         }
 
-        editableValueRow(title: draftInternalNetworkSSIDs.isEmpty ? "Local Wi-Fi" : "Add Wi-Fi", systemImage: "wifi") {
+        editableValueRow(title: "Add Network", systemImage: "plus.circle") {
             HStack {
                 TextField("Wi-Fi Name", text: $draftSSID, axis: .horizontal)
                     .textInputAutocapitalization(.never)
@@ -233,14 +238,21 @@ struct HomeAssistantSettingsView: View {
             }
         }
 
-        editableValueRow(title: "Current Wi-Fi", systemImage: "location") {
-            Button {
-                Task { await addCurrentWiFiSSID() }
-            } label: {
-                Text(nativePermissionService.isRequestingLocationAccess ? "Checking" : "Use")
+        Button {
+            Task { await addCurrentWiFiSSID() }
+        } label: {
+            Label {
+                HStack {
+                    Text("Use Current Wi-Fi")
+                    Spacer()
+                }
+                .padding(.vertical, AppSpacing.xSmall)
+            } icon: {
+                Image(systemName: "location")
+                    .frame(width: 28)
             }
-            .disabled(nativePermissionService.isRequestingLocationAccess)
         }
+        .disabled(nativePermissionService.isRequestingLocationAccess)
     }
 
     private var homeAssistantSection: some View {
@@ -706,6 +718,34 @@ struct HomeAssistantSettingsView: View {
         case localURL
         case remoteURL
         case ssid
+    }
+}
+
+private struct SettingsServerAddressRow: View {
+    let title: String
+    let value: String
+    let systemImage: String
+
+    var body: some View {
+        Label {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: AppSpacing.medium)
+
+                Text(value)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(.vertical, AppSpacing.xSmall)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
+        }
     }
 }
 

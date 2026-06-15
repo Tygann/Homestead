@@ -49,6 +49,21 @@ struct HomeAssistantAvatarView: View {
     }
 }
 
+// MARK: - Settings Status Chip
+struct SettingsStatusChip: View {
+    let title: String
+    let tint: Color
+
+    var body: some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(tint.opacity(0.12), in: Capsule())
+    }
+}
+
 // MARK: - Settings Home Assistant Status
 enum SettingsHomeAssistantStatus {
     static func serverDisplayText(_ baseURL: String) -> String {

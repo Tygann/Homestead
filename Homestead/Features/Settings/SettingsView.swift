@@ -180,12 +180,7 @@ private struct HomeAssistantSettingsRow: View {
 
             Spacer()
 
-            Text(status)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(tint)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(tint.opacity(0.12), in: Capsule())
+            SettingsStatusChip(title: status, tint: tint)
         }
     }
 }
