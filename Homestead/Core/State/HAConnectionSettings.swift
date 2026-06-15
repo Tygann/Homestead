@@ -142,6 +142,39 @@ final class HAConnectionSettings {
         }
     }
 
+    func saveInternalURLSettings(internalURL newInternalURL: String, internalNetworkSSIDs newInternalNetworkSSIDs: [String]) {
+        let oldInternalURL = internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedInternalURL = newInternalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedExternalURL = externalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        internalURL = trimmedInternalURL
+        internalNetworkSSIDs = Self.normalizedSSIDs(newInternalNetworkSSIDs)
+
+        if trimmedInternalURL != oldInternalURL, trimmedExternalURL.isEmpty {
+            baseURL = trimmedInternalURL
+        }
+    }
+
+    func saveExternalURL(_ newExternalURL: String) {
+        let oldDisplayedExternalURL = displayedExternalURL
+        let trimmedExternalURL = newExternalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedInternalURL = internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        externalURL = trimmedExternalURL
+
+        if trimmedExternalURL != oldDisplayedExternalURL {
+            baseURL = trimmedExternalURL.isEmpty ? trimmedInternalURL : trimmedExternalURL
+        }
+    }
+
+    var displayedExternalURL: String {
+        let trimmedExternalURL = externalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedExternalURL.isEmpty { return trimmedExternalURL }
+
+        let trimmedInternalURL = internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedInternalURL.isEmpty ? baseURL : ""
+    }
+
     private enum Keys {
         static let baseURL = "homeAssistantBaseURL"
         static let internalURL = "homeAssistantInternalURL"

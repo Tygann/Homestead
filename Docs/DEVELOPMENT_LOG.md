@@ -7,8 +7,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### Account Server UX
 
 - Refined Settings > Account into a more native user-facing surface: the header now shows only avatar, user name, and a friendly status chip, never raw connection error strings.
-- Reworked Server rows around icon, label, and value for Server Name, Internal URL, External URL, and Active Connection; edit mode now uses toolbar Cancel/Save and hides Home Assistant environment, actions, diagnostics, and sign-out.
-- Moved Home Network editing inside the Server edit mode, removed inline Edit Server/Save/Cancel buttons, and added read-only Home Assistant environment rows for installation method, Core, Supervisor, and OS where the official APIs provide them.
+- Reworked Server rows around icon, label, and value for Server Name, Internal URL, External URL, and Active Connection, with Internal URL and External URL opening focused native editors instead of an Account-wide edit mode.
+- Moved trusted Wi-Fi network management under the Internal URL editor, removed inline Account editing state, and kept read-only Home Assistant environment rows for installation method, Core, Supervisor, and OS where the official APIs provide them.
 
 ### SSID-Gated Local Routing
 

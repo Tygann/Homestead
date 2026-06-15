@@ -4,18 +4,7 @@ import SwiftUI
 struct HomeAssistantSettingsView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @Environment(NativePermissionService.self) private var nativePermissionService
-    @FocusState private var focusedField: Field?
     @State private var isConfirmingSignOut = false
-    @State private var isConfirmingDiscard = false
-    @State private var isEditingServer = false
-    @State private var draftLocalAddress = ""
-    @State private var draftRemoteAddress = ""
-    @State private var draftInternalNetworkSSIDs: [String] = []
-    @State private var draftSSID = ""
-    @State private var isShowingManualNetworkEntry = false
-    @State private var isReplacingHomeNetwork = false
-    @State private var currentWiFiErrorMessage: String?
 
     var body: some View {
         Form {
@@ -23,86 +12,49 @@ struct HomeAssistantSettingsView: View {
 
             serverSection
 
-            if !isEditingServer {
-                homeAssistantSection
+            homeAssistantSection
 
-                advancedSection
+            advancedSection
 
-                serverActionsSection
+            serverActionsSection
 
-                if shouldShowSupport {
-                    Section {
-                        NavigationLink {
-                            HomeAssistantDiagnosticsView()
-                        } label: {
-                            Label("Diagnostics", systemImage: "stethoscope")
-                        }
-                    } footer: {
-                        Text("Support details are available if something is not working as expected.")
+            if shouldShowSupport {
+                Section {
+                    NavigationLink {
+                        HomeAssistantDiagnosticsView()
+                    } label: {
+                        Label("Diagnostics", systemImage: "stethoscope")
                     }
+                } footer: {
+                    Text("Support details are available if something is not working as expected.")
                 }
+            }
 
-                if canSignOut {
-                    Section {
-                        Button(role: .destructive) {
-                            isConfirmingSignOut = true
-                        } label: {
-                            Text("Sign Out")
-                        }
-                        .disabled(!canSignOut)
-                        .frame(maxWidth: .infinity)
+            if canSignOut {
+                Section {
+                    Button(role: .destructive) {
+                        isConfirmingSignOut = true
+                    } label: {
+                        Text("Sign Out")
                     }
+                    .disabled(!canSignOut)
+                    .frame(maxWidth: .infinity)
                 }
             }
         }
         .navigationTitle("Account")
         .toolbarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(isEditingServer)
         .toolbarBackground(.hidden, for: .navigationBar)
         .padding(.top, -30)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                if isEditingServer {
-                    Button("Cancel") {
-                        requestCancelServerEditing()
-                    }
-                }
-            }
-
             ToolbarItem(placement: .principal) {
                 Text("Account")
                     .font(.headline)
-            }
-
-            if isEditingServer {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveServerEditing()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.accentColor)
-                    .fontWeight(.semibold)
-                    .disabled(!canSaveServerEdits)
-                }
-            } else {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Edit") {
-                        beginServerEditing()
-                    }
-                }
             }
         }
         .task(id: serverRefreshTaskID) {
             await homeAssistantService.refreshAuthState()
             await homeAssistantService.refreshServerConfiguration()
-        }
-        .alert("Wi-Fi Name Unavailable", isPresented: Binding(
-            get: { currentWiFiErrorMessage != nil },
-            set: { if !$0 { currentWiFiErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(currentWiFiErrorMessage ?? "Homestead could not read the current Wi-Fi name.")
         }
         .confirmationDialog(
             "Sign out of Home Assistant?",
@@ -115,18 +67,6 @@ struct HomeAssistantSettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes saved Home Assistant credentials and mobile app registration from this device.")
-        }
-        .confirmationDialog(
-            "Discard server changes?",
-            isPresented: $isConfirmingDiscard,
-            titleVisibility: .visible
-        ) {
-            Button("Discard Changes", role: .destructive) {
-                cancelServerEditing()
-            }
-            Button("Keep Editing", role: .cancel) {}
-        } message: {
-            Text("Your edited server settings will be lost.")
         }
     }
 
@@ -161,36 +101,22 @@ struct HomeAssistantSettingsView: View {
                 systemImage: "house"
             )
 
-            if isEditingServer {
-                addressEditorRow(
-                    title: "Internal URL",
-                    systemImage: "network",
-                    placeholder: "homeassistant.local:8123",
-                    text: $draftLocalAddress,
-                    focus: .localURL
-                )
-                localNetworkEditorRows
-                addressEditorRow(
-                    title: "External URL",
-                    systemImage: "globe",
-                    placeholder: "https://example.ui.nabu.casa",
-                    text: $draftRemoteAddress,
-                    focus: .remoteURL
-                )
-            } else {
+            NavigationLink {
+                InternalURLSettingsView()
+            } label: {
                 SettingsServerAddressRow(
                     title: "Internal URL",
                     value: configuredValue(connectionSettings.internalURL),
                     systemImage: "network"
                 )
-                SettingsServerAddressRow(
-                    title: "Home Network",
-                    value: homeNetworkValue(connectionSettings.internalNetworkSSIDs),
-                    systemImage: "wifi"
-                )
+            }
+
+            NavigationLink {
+                ExternalURLSettingsView()
+            } label: {
                 SettingsServerAddressRow(
                     title: "External URL",
-                    value: configuredValue(displayedRemoteAddress),
+                    value: configuredValue(connectionSettings.displayedExternalURL),
                     systemImage: "globe"
                 )
             }
@@ -202,45 +128,6 @@ struct HomeAssistantSettingsView: View {
             )
         } header: {
             Text("Server")
-        }
-    }
-
-    @ViewBuilder
-    private var localNetworkEditorRows: some View {
-        SettingsServerAddressRow(
-            title: "Home Network",
-            value: homeNetworkValue(draftInternalNetworkSSIDs),
-            systemImage: "wifi"
-        )
-
-        if isShowingManualNetworkEntry {
-            manualHomeNetworkEntryRow
-            networkActionRow("Cancel", systemImage: "xmark") {
-                cancelManualHomeNetworkEntry()
-            }
-        } else if draftInternalNetworkSSIDs.isEmpty {
-            networkActionRow("Use Current Wi-Fi", systemImage: "location") {
-                Task { await addCurrentWiFiSSID() }
-            }
-            .disabled(nativePermissionService.isRequestingLocationAccess)
-
-            networkActionRow("Add Manually", systemImage: "plus") {
-                beginManualHomeNetworkEntry(replacing: false)
-            }
-        } else {
-            networkActionRow("Change", systemImage: "pencil") {
-                beginManualHomeNetworkEntry(replacing: true)
-            }
-
-            networkActionRow("Remove", systemImage: "trash", role: .destructive) {
-                draftInternalNetworkSSIDs.removeAll()
-                cancelManualHomeNetworkEntry()
-            }
-
-            networkActionRow("Use Current Wi-Fi", systemImage: "location") {
-                Task { await addCurrentWiFiSSID() }
-            }
-            .disabled(nativePermissionService.isRequestingLocationAccess)
         }
     }
 
@@ -295,7 +182,6 @@ struct HomeAssistantSettingsView: View {
             Section {
                 if shouldShowSignIn {
                     Button {
-                        focusedField = nil
                         Task {
                             await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
                         }
@@ -308,7 +194,6 @@ struct HomeAssistantSettingsView: View {
 
                 if canRetryConnection {
                     Button {
-                        focusedField = nil
                         Task {
                             await homeAssistantService.connect(settings: connectionSettings)
                         }
@@ -323,7 +208,6 @@ struct HomeAssistantSettingsView: View {
 
                 if shouldShowRegistrationAction {
                     Button {
-                        focusedField = nil
                         Task {
                             await homeAssistantService.registerMobileApp(settings: connectionSettings)
                         }
@@ -407,7 +291,7 @@ struct HomeAssistantSettingsView: View {
             if normalizedURL(route.baseURLString) == normalizedURL(connectionSettings.internalURL) {
                 return "Internal"
             }
-            if normalizedURL(route.baseURLString) == normalizedURL(displayedRemoteAddress) {
+            if normalizedURL(route.baseURLString) == normalizedURL(connectionSettings.displayedExternalURL) {
                 return "External"
             }
             return "Saved Address"
@@ -548,18 +432,6 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
-    private var canSaveServerEdits: Bool {
-        !draftLocalAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-            !draftRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var hasUnsavedServerEdits: Bool {
-        draftLocalAddress.trimmingCharacters(in: .whitespacesAndNewlines) != connectionSettings.internalURL.trimmingCharacters(in: .whitespacesAndNewlines) ||
-            draftRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines) != displayedRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines) ||
-            HAConnectionSettings.normalizedSSIDs(draftInternalNetworkSSIDs) != HAConnectionSettings.normalizedSSIDs(connectionSettings.internalNetworkSSIDs) ||
-            !draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
     private var authRefreshTaskID: String {
         [
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -587,180 +459,121 @@ struct HomeAssistantSettingsView: View {
         return value
     }
 
-    private func addressEditorRow(
-        title: String,
-        systemImage: String,
-        placeholder: String,
-        text: Binding<String>,
-        focus: Field
-    ) -> some View {
-        editableValueRow(title: title, systemImage: systemImage) {
-            TextField(placeholder, text: text, axis: .horizontal)
-                .textInputAutocapitalization(.never)
-                .keyboardType(.URL)
-                .textContentType(.URL)
-                .autocorrectionDisabled()
-                .focused($focusedField, equals: focus)
-                .multilineTextAlignment(.trailing)
-        }
+    private func normalizedURL(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .lowercased()
     }
+}
 
-    private func editableValueRow<Content: View>(
-        title: String,
-        systemImage: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        Label {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+private struct InternalURLSettingsView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(NativePermissionService.self) private var nativePermissionService
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focusedField: Field?
+    @State private var draftInternalURL = ""
+    @State private var draftSSIDs: [String] = []
+    @State private var draftSSID = ""
+    @State private var currentWiFiErrorMessage: String?
 
-                Spacer(minLength: AppSpacing.medium)
-
-                content()
-            }
-            .padding(.vertical, AppSpacing.xSmall)
-        } icon: {
-            Image(systemName: systemImage)
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 28)
-        }
-    }
-
-    private var manualHomeNetworkEntryRow: some View {
-        Label {
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                TextField("Wi-Fi Name", text: $draftSSID, axis: .horizontal)
+    var body: some View {
+        Form {
+            Section("Internal URL") {
+                TextField("homeassistant.local:8123", text: $draftInternalURL, axis: .horizontal)
                     .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .textContentType(.URL)
                     .autocorrectionDisabled()
-                    .focused($focusedField, equals: .ssid)
-                    .submitLabel(.done)
-                    .onSubmit {
-                        saveManualHomeNetworkIfPossible()
+                    .focused($focusedField, equals: .internalURL)
+            }
+
+            Section {
+                if draftSSIDs.isEmpty {
+                    Text("No trusted networks")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(draftSSIDs, id: \.self) { ssid in
+                        Text(ssid)
                     }
-
-                Button(isReplacingHomeNetwork ? "Save" : "Add") {
-                    saveManualHomeNetworkIfPossible()
+                    .onDelete(perform: removeSSIDs)
                 }
-                .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-            .padding(.vertical, AppSpacing.xSmall)
-        } icon: {
-            Image(systemName: "text.cursor")
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 28)
-        }
-    }
 
-    private func networkActionRow(
-        _ title: String,
-        systemImage: String,
-        role: ButtonRole? = nil,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(role: role, action: action) {
-            Label {
                 HStack {
-                    Text(title)
-                    Spacer()
+                    TextField("Wi-Fi Name", text: $draftSSID, axis: .horizontal)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($focusedField, equals: .ssid)
+                        .submitLabel(.done)
+                        .onSubmit(addManualSSID)
+
+                    Button("Add") {
+                        addManualSSID()
+                    }
+                    .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .padding(.vertical, AppSpacing.xSmall)
-            } icon: {
-                Image(systemName: systemImage)
-                    .frame(width: 28)
+
+                Button {
+                    Task { await addCurrentWiFiSSID() }
+                } label: {
+                    Label("Use Current Wi-Fi", systemImage: "location")
+                }
+                .disabled(nativePermissionService.isRequestingLocationAccess)
+            } header: {
+                Text("Home Networks")
+            } footer: {
+                Text("Homestead uses the Internal URL when connected to one of these Wi-Fi networks.")
             }
         }
-    }
+        .navigationTitle("Internal URL")
+        .toolbarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
 
-    private func beginServerEditing() {
-        draftLocalAddress = connectionSettings.internalURL
-        draftRemoteAddress = displayedRemoteAddress
-        draftInternalNetworkSSIDs = connectionSettings.internalNetworkSSIDs
-        draftSSID = ""
-        isShowingManualNetworkEntry = false
-        isReplacingHomeNetwork = false
-        currentWiFiErrorMessage = nil
-        isEditingServer = true
-    }
-
-    private func requestCancelServerEditing() {
-        if hasUnsavedServerEdits {
-            isConfirmingDiscard = true
-        } else {
-            cancelServerEditing()
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    save()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.accentColor)
+                .fontWeight(.semibold)
+                .disabled(!canSave)
+            }
+        }
+        .onAppear {
+            draftInternalURL = connectionSettings.internalURL
+            draftSSIDs = HAConnectionSettings.normalizedSSIDs(connectionSettings.internalNetworkSSIDs)
+        }
+        .alert("Wi-Fi Name Unavailable", isPresented: Binding(
+            get: { currentWiFiErrorMessage != nil },
+            set: { if !$0 { currentWiFiErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(currentWiFiErrorMessage ?? "Homestead could not read the current Wi-Fi name.")
         }
     }
 
-    private func cancelServerEditing() {
-        focusedField = nil
-        draftSSID = ""
-        isShowingManualNetworkEntry = false
-        isReplacingHomeNetwork = false
-        currentWiFiErrorMessage = nil
-        isEditingServer = false
+    private var canSave: Bool {
+        !draftInternalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !connectionSettings.displayedExternalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private func saveServerEditing() {
-        focusedField = nil
-        let oldLocal = connectionSettings.internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let oldRemote = displayedRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-        let newLocal = draftLocalAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-        let newRemote = draftRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-        let newSSIDs = HAConnectionSettings.normalizedSSIDs(draftInternalNetworkSSIDs + [draftSSID])
-
-        connectionSettings.internalURL = newLocal
-        connectionSettings.externalURL = newRemote
-        connectionSettings.internalNetworkSSIDs = newSSIDs
-        if newRemote != oldRemote {
-            connectionSettings.baseURL = newRemote.isEmpty ? newLocal : newRemote
-        } else if newLocal != oldLocal, oldRemote.isEmpty {
-            connectionSettings.baseURL = newLocal
-        }
-        draftSSID = ""
-        isShowingManualNetworkEntry = false
-        isReplacingHomeNetwork = false
-        isEditingServer = false
-    }
-
-    private func addSSID(_ ssid: String) {
-        draftInternalNetworkSSIDs = HAConnectionSettings.normalizedSSIDs(draftInternalNetworkSSIDs + [ssid])
-    }
-
-    private func saveManualHomeNetwork() {
-        if isReplacingHomeNetwork {
-            draftInternalNetworkSSIDs = HAConnectionSettings.normalizedSSIDs([draftSSID])
-        } else {
-            addSSID(draftSSID)
-        }
-    }
-
-    private func beginManualHomeNetworkEntry(replacing: Bool) {
-        draftSSID = replacing ? draftInternalNetworkSSIDs.first ?? "" : ""
-        isShowingManualNetworkEntry = true
-        isReplacingHomeNetwork = replacing
-        focusedField = .ssid
-    }
-
-    private func cancelManualHomeNetworkEntry() {
-        draftSSID = ""
-        isShowingManualNetworkEntry = false
-        isReplacingHomeNetwork = false
-        focusedField = nil
-    }
-
-    private func saveManualHomeNetworkIfPossible() {
-        guard !draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    private func addManualSSID() {
+        let normalized = HAConnectionSettings.normalizedSSIDs(draftSSIDs + [draftSSID])
+        guard normalized != draftSSIDs else {
+            draftSSID = ""
             return
         }
 
-        saveManualHomeNetwork()
-        cancelManualHomeNetworkEntry()
-    }
-
-    private func homeNetworkValue(_ ssids: [String]) -> String {
-        let normalized = HAConnectionSettings.normalizedSSIDs(ssids)
-        return normalized.isEmpty ? "Not Set" : normalized.joined(separator: ", ")
+        draftSSIDs = normalized
+        draftSSID = ""
+        focusedField = nil
     }
 
     private func addCurrentWiFiSSID() async {
@@ -770,26 +583,80 @@ struct HomeAssistantSettingsView: View {
             return
         }
 
-        addSSID(ssid)
+        draftSSIDs = HAConnectionSettings.normalizedSSIDs(draftSSIDs + [ssid])
     }
 
-    private func normalizedURL(_ value: String) -> String {
-        value.trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            .lowercased()
+    private func removeSSIDs(at offsets: IndexSet) {
+        draftSSIDs.remove(atOffsets: offsets)
+        draftSSIDs = HAConnectionSettings.normalizedSSIDs(draftSSIDs)
     }
 
-    private var displayedRemoteAddress: String {
-        let remote = connectionSettings.externalURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !remote.isEmpty { return remote }
-        let local = connectionSettings.internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        return local.isEmpty ? connectionSettings.baseURL : ""
+    private func save() {
+        focusedField = nil
+        connectionSettings.saveInternalURLSettings(
+            internalURL: draftInternalURL,
+            internalNetworkSSIDs: HAConnectionSettings.normalizedSSIDs(draftSSIDs + [draftSSID])
+        )
+        dismiss()
     }
 
     private enum Field {
-        case localURL
-        case remoteURL
+        case internalURL
         case ssid
+    }
+}
+
+private struct ExternalURLSettingsView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var isFocused: Bool
+    @State private var draftExternalURL = ""
+
+    var body: some View {
+        Form {
+            Section("External URL") {
+                TextField("https://example.ui.nabu.casa", text: $draftExternalURL, axis: .horizontal)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .textContentType(.URL)
+                    .autocorrectionDisabled()
+                    .focused($isFocused)
+            }
+        }
+        .navigationTitle("External URL")
+        .toolbarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    save()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.accentColor)
+                .fontWeight(.semibold)
+                .disabled(!canSave)
+            }
+        }
+        .onAppear {
+            draftExternalURL = connectionSettings.displayedExternalURL
+        }
+    }
+
+    private var canSave: Bool {
+        !draftExternalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !connectionSettings.internalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func save() {
+        isFocused = false
+        connectionSettings.saveExternalURL(draftExternalURL)
+        dismiss()
     }
 }
 

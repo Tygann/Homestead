@@ -4093,6 +4093,83 @@ struct HomesteadTests {
         #expect(restoredSettings.internalNetworkSSIDs == ["Home Wi-Fi"])
     }
 
+    @Test func connectionSettingsNormalizesMultipleInternalNetworkSSIDs() {
+        let normalized = HAConnectionSettings.normalizedSSIDs([
+            " Home Wi-Fi ",
+            "",
+            "home wi-fi",
+            "Cabin",
+            "  CABIN  ",
+            "Guest"
+        ])
+
+        #expect(normalized == ["Home Wi-Fi", "Cabin", "Guest"])
+    }
+
+    @MainActor
+    @Test func connectionSettingsInternalURLSaveUpdatesIdentityOnlyWithoutExternalURL() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "http://old.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: InMemoryHAOAuthTokenStore()
+        )
+        settings.internalURL = "http://old.local:8123"
+        settings.externalURL = ""
+
+        settings.saveInternalURLSettings(
+            internalURL: " http://new.local:8123 ",
+            internalNetworkSSIDs: [" Home Wi-Fi ", "home wi-fi", "Cabin"]
+        )
+
+        #expect(settings.baseURL == "http://new.local:8123")
+        #expect(settings.internalURL == "http://new.local:8123")
+        #expect(settings.externalURL == "")
+        #expect(settings.internalNetworkSSIDs == ["Home Wi-Fi", "Cabin"])
+    }
+
+    @MainActor
+    @Test func connectionSettingsInternalURLSavePreservesIdentityWhenExternalURLExists() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "https://remote.example.com",
+            defaults: try isolatedDefaults(),
+            tokenStore: InMemoryHAOAuthTokenStore()
+        )
+        settings.internalURL = "http://old.local:8123"
+        settings.externalURL = "https://remote.example.com"
+
+        settings.saveInternalURLSettings(
+            internalURL: "http://new.local:8123",
+            internalNetworkSSIDs: ["Home Wi-Fi"]
+        )
+
+        #expect(settings.baseURL == "https://remote.example.com")
+        #expect(settings.internalURL == "http://new.local:8123")
+        #expect(settings.externalURL == "https://remote.example.com")
+        #expect(settings.internalNetworkSSIDs == ["Home Wi-Fi"])
+    }
+
+    @MainActor
+    @Test func connectionSettingsExternalURLSaveKeepsBaseURLAlignedWithExternalRoute() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: InMemoryHAOAuthTokenStore()
+        )
+        settings.internalURL = "http://homeassistant.local:8123"
+        settings.externalURL = ""
+
+        settings.saveExternalURL(" https://remote.example.com ")
+
+        #expect(settings.baseURL == "https://remote.example.com")
+        #expect(settings.internalURL == "http://homeassistant.local:8123")
+        #expect(settings.externalURL == "https://remote.example.com")
+
+        settings.saveExternalURL(" ")
+
+        #expect(settings.baseURL == "http://homeassistant.local:8123")
+        #expect(settings.externalURL == "")
+    }
+
     @Test func connectionRouteResolverPrefersInternalRouteOnHomeNetwork() {
         let settings = HAConnectionRoutingSettingsSnapshot(
             baseURLString: "https://home.example.com",
