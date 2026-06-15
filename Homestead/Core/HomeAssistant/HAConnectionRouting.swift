@@ -9,11 +9,11 @@ nonisolated enum HAConnectionRoute: String, Equatable, Sendable {
     var title: String {
         switch self {
         case .current:
-            "Current URL"
+            "Saved Address"
         case .internalURL:
-            "Internal URL"
+            "Local Address"
         case .externalURL:
-            "External URL"
+            "Remote Address"
         }
     }
 }

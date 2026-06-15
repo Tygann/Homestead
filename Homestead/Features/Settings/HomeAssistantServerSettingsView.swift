@@ -13,80 +13,74 @@ struct HomeAssistantServerSettingsView: View {
         @Bindable var connectionSettings = connectionSettings
 
         Form {
-            Section("Status") {
-                Label {
-                    HStack(spacing: AppSpacing.medium) {
-                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                            Text(serverDisplayText)
-                                .font(.headline)
-
-                            Text(statusMessage)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                        }
-
-                        Spacer()
-
-                        Circle()
-                            .fill(statusTint)
-                            .frame(width: 12, height: 12)
-                            .accessibilityHidden(true)
-                    }
-                    .padding(.vertical, AppSpacing.xSmall)
-                } icon: {
-                    Image(systemName: "server.rack")
-                        .foregroundStyle(Color.accentColor)
-                }
+            Section {
+                serverStatusCard
             }
 
             Section {
                 if isEditingConnection {
-                    TextField("Local Address", text: $draftLocalAddress)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
-                        .focused($focusedField, equals: .localURL)
-                    TextField("Remote Address", text: $draftRemoteAddress)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
+                    addressEditorRow(
+                        title: "Local Address",
+                        placeholder: "homeassistant.local:8123",
+                        text: $draftLocalAddress,
+                        focus: .localURL
+                    )
+                    addressEditorRow(
+                        title: "Remote Address",
+                        placeholder: "https://example.ui.nabu.casa",
+                        text: $draftRemoteAddress,
+                        focus: .remoteURL
+                    )
                 } else {
-                    LabeledContent("Local Address", value: configuredValue(connectionSettings.internalURL))
-                    LabeledContent("Remote Address", value: configuredValue(displayedRemoteAddress))
+                    SettingsServerAddressRow(
+                        title: "Local Address",
+                        value: configuredValue(connectionSettings.internalURL),
+                        systemImage: "house"
+                    )
+                    SettingsServerAddressRow(
+                        title: "Remote Address",
+                        value: configuredValue(displayedRemoteAddress),
+                        systemImage: "network"
+                    )
                 }
-                LabeledContent("Active Route", value: activeRouteText)
+                SettingsServerAddressRow(
+                    title: "Currently Using",
+                    value: activeRouteTitle,
+                    detail: activeRouteAddress,
+                    systemImage: "arrow.triangle.branch"
+                )
             } header: {
-                Text("Connection")
+                Text("Addresses")
             } footer: {
                 if isEditingConnection {
-                    Text("Use the addresses configured in Home Assistant. Homestead signs in through the remote address when available, otherwise the local address.")
+                    Text("Use the Local and Remote URLs from Home Assistant. Homestead signs in through the remote address when available, otherwise the local address.")
                 } else {
-                    Text("Active Route shows the address Homestead is using right now.")
+                    Text("Homestead prefers the local address on Wi-Fi or Ethernet and falls back to the remote address.")
                 }
             }
 
-            Section("Session") {
-                LabeledContent("Display Name", value: serverDisplayText)
-                LabeledContent("Authentication", value: homeAssistantService.authState.diagnosticTitle)
-                LabeledContent("WebSocket", value: homeAssistantService.connectionStatus.title)
-                LabeledContent("Mobile App", value: mobileAppStatusTitle)
-
-                if let signedInServerDisplayText {
-                    LabeledContent("Signed-In Server", value: signedInServerDisplayText)
-                }
-
-                if let mobileAppStatusMessage {
-                    Text(mobileAppStatusMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+            Section("Home Assistant") {
+                SettingsServerAddressRow(title: "Version", value: configValue(homeAssistantService.serverConfiguration?.homeAssistantVersion), systemImage: "number")
+                SettingsServerAddressRow(title: "Location", value: configValue(homeAssistantService.serverConfiguration?.locationName), systemImage: "mappin.and.ellipse")
+                SettingsServerAddressRow(title: "Time Zone", value: configValue(homeAssistantService.serverConfiguration?.timeZone), systemImage: "clock")
             }
 
-            Section("Server Information") {
-                LabeledContent("Version", value: configValue(homeAssistantService.serverConfiguration?.homeAssistantVersion))
-                LabeledContent("Location", value: configValue(homeAssistantService.serverConfiguration?.locationName))
-                LabeledContent("Time Zone", value: configValue(homeAssistantService.serverConfiguration?.timeZone))
+            Section {
+                DisclosureGroup("Advanced") {
+                    LabeledContent("Authentication", value: homeAssistantService.authState.diagnosticTitle)
+                    LabeledContent("Connection", value: homeAssistantService.connectionStatus.title)
+                    LabeledContent("Mobile App", value: mobileAppStatusTitle)
+
+                    if let signedInServerDisplayText {
+                        LabeledContent("Signed-In Server", value: signedInServerDisplayText)
+                    }
+
+                    if let mobileAppStatusMessage {
+                        Text(mobileAppStatusMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             if shouldShowSignIn || canRetryConnection || shouldShowRegistrationAction {
@@ -170,12 +164,56 @@ struct HomeAssistantServerSettingsView: View {
         SettingsHomeAssistantStatus.serverDisplayText(connectionSettings.baseURL)
     }
 
-    private var activeRouteText: String {
+    private var serverStatusCard: some View {
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            Image(systemName: statusSystemImage)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(statusTint)
+                .frame(width: 30)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(serverDisplayText)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text(statusMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: AppSpacing.small)
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var activeRouteTitle: String {
         guard let route = homeAssistantService.activeRouteSummary else {
             return "Not selected"
         }
 
-        return "\(route.title) - \(configuredValue(route.baseURLString))"
+        return route.title
+    }
+
+    private var activeRouteAddress: String? {
+        guard let route = homeAssistantService.activeRouteSummary else { return nil }
+        return configuredValue(route.baseURLString)
+    }
+
+    private var statusSystemImage: String {
+        if hasServerMismatch { return "exclamationmark.triangle.fill" }
+
+        switch homeAssistantService.connectionStatus {
+        case .connected:
+            return "checkmark.circle.fill"
+        case .connecting, .preparing, .reconnecting:
+            return "arrow.triangle.2.circlepath"
+        case .failed:
+            return "exclamationmark.triangle.fill"
+        case .disconnected:
+            return "server.rack"
+        }
     }
 
     private var statusMessage: String {
@@ -343,6 +381,26 @@ struct HomeAssistantServerSettingsView: View {
         return value
     }
 
+    private func addressEditorRow(
+        title: String,
+        placeholder: String,
+        text: Binding<String>,
+        focus: Field
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            TextField(placeholder, text: text)
+                .textInputAutocapitalization(.never)
+                .keyboardType(.URL)
+                .textContentType(.URL)
+                .autocorrectionDisabled()
+                .focused($focusedField, equals: focus)
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+    }
+
     private func beginConnectionEditing() {
         draftLocalAddress = connectionSettings.internalURL
         draftRemoteAddress = displayedRemoteAddress
@@ -380,5 +438,43 @@ struct HomeAssistantServerSettingsView: View {
 
     private enum Field {
         case localURL
+        case remoteURL
+    }
+}
+
+private struct SettingsServerAddressRow: View {
+    let title: String
+    let value: String
+    var detail: String?
+    let systemImage: String
+
+    var body: some View {
+        Label {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .foregroundStyle(.primary)
+                    if let detail {
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+
+                Spacer(minLength: AppSpacing.medium)
+
+                Text(value)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(.vertical, AppSpacing.xSmall)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
+        }
     }
 }
