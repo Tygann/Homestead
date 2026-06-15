@@ -4040,6 +4040,7 @@ struct HomesteadTests {
         #expect(restoredSettings.internalURL == "http://homeassistant.local:8123")
         #expect(restoredSettings.externalURL == "https://home.example.com")
         #expect(restoredSettings.homeNetworkName == "Home Wi-Fi")
+        #expect(restoredSettings.internalNetworkSSIDs == ["Home Wi-Fi"])
     }
 
     @Test func connectionRouteResolverPrefersInternalRouteOnHomeNetwork() {
@@ -4047,12 +4048,17 @@ struct HomesteadTests {
             baseURLString: "https://home.example.com",
             internalURLString: "http://homeassistant.local:8123",
             externalURLString: "https://remote.example.com",
-            homeNetworkName: "Home Wi-Fi"
+            homeNetworkName: "",
+            internalNetworkSSIDs: ["Home Wi-Fi"]
         )
 
         let selection = HAConnectionRouteResolver.resolve(
             settings: settings,
-            networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: true)
+            networkContext: HAConnectionNetworkContext(
+                isNetworkAvailable: true,
+                isLikelyHomeNetwork: true,
+                currentWiFiSSID: "Home Wi-Fi"
+            )
         )
 
         #expect(selection.authenticationBaseURLString == "https://home.example.com")
@@ -4064,12 +4070,79 @@ struct HomesteadTests {
         ])
     }
 
+    @Test func connectionRouteResolverUsesExternalRouteOnUnlistedWifi() {
+        let settings = HAConnectionRoutingSettingsSnapshot(
+            baseURLString: "https://home.example.com",
+            internalURLString: "http://homeassistant.local:8123",
+            externalURLString: "https://remote.example.com",
+            homeNetworkName: "",
+            internalNetworkSSIDs: ["Home Wi-Fi"]
+        )
+
+        let selection = HAConnectionRouteResolver.resolve(
+            settings: settings,
+            networkContext: HAConnectionNetworkContext(
+                isNetworkAvailable: true,
+                isLikelyHomeNetwork: true,
+                currentWiFiSSID: "Work Wi-Fi"
+            )
+        )
+
+        #expect(selection.candidates.map(\.route) == [.externalURL, .current])
+        #expect(selection.candidates.map(\.baseURLString) == [
+            "https://remote.example.com",
+            "https://home.example.com"
+        ])
+    }
+
+    @Test func connectionRouteResolverUsesExternalRouteWhenNoLocalNetworkIsSaved() {
+        let settings = HAConnectionRoutingSettingsSnapshot(
+            baseURLString: "https://home.example.com",
+            internalURLString: "http://homeassistant.local:8123",
+            externalURLString: "https://remote.example.com",
+            homeNetworkName: ""
+        )
+
+        let selection = HAConnectionRouteResolver.resolve(
+            settings: settings,
+            networkContext: HAConnectionNetworkContext(
+                isNetworkAvailable: true,
+                isLikelyHomeNetwork: true,
+                currentWiFiSSID: "Home Wi-Fi"
+            )
+        )
+
+        #expect(selection.candidates.map(\.route) == [.externalURL, .current])
+        #expect(selection.candidates.map(\.baseURLString) == [
+            "https://remote.example.com",
+            "https://home.example.com"
+        ])
+    }
+
+    @Test func connectionRouteResolverUsesInternalRouteWhenNoExternalRouteExists() {
+        let settings = HAConnectionRoutingSettingsSnapshot(
+            baseURLString: "http://homeassistant.local:8123",
+            internalURLString: "http://homeassistant.local:8123",
+            externalURLString: "",
+            homeNetworkName: ""
+        )
+
+        let selection = HAConnectionRouteResolver.resolve(
+            settings: settings,
+            networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: true)
+        )
+
+        #expect(selection.candidates.map(\.route) == [.internalURL])
+        #expect(selection.candidates.map(\.baseURLString) == ["http://homeassistant.local:8123"])
+    }
+
     @Test func connectionRouteResolverUsesExternalRouteAwayFromHomeAndFallsBackToCurrentURL() {
         let settings = HAConnectionRoutingSettingsSnapshot(
             baseURLString: "https://home.example.com",
             internalURLString: "http://homeassistant.local:8123",
             externalURLString: "https://remote.example.com",
-            homeNetworkName: "Home Wi-Fi"
+            homeNetworkName: "",
+            internalNetworkSSIDs: ["Home Wi-Fi"]
         )
 
         let selection = HAConnectionRouteResolver.resolve(
@@ -4606,6 +4679,7 @@ struct HomesteadTests {
             mobileAppClient: StubHAMobileAppClient(),
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
             authManager: HAOAuthManager(tokenStore: tokenStore),
+            currentWiFiNetworkProvider: StubCurrentWiFiNetworkProvider(ssid: "Home Wi-Fi"),
             networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: true)
         )
         let settings = HAConnectionSettings(
@@ -4615,6 +4689,7 @@ struct HomesteadTests {
         )
         settings.internalURL = internalURLString
         settings.externalURL = "https://remote.example.com"
+        settings.internalNetworkSSIDs = ["Home Wi-Fi"]
 
         await service.refreshAuthState()
         await service.connect(settings: settings)
@@ -4646,6 +4721,7 @@ struct HomesteadTests {
             mobileAppClient: StubHAMobileAppClient(),
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
             authManager: HAOAuthManager(tokenStore: tokenStore),
+            currentWiFiNetworkProvider: StubCurrentWiFiNetworkProvider(ssid: "Home Wi-Fi"),
             networkContext: HAConnectionNetworkContext(isNetworkAvailable: true, isLikelyHomeNetwork: true)
         )
         let settings = HAConnectionSettings(
@@ -4655,6 +4731,7 @@ struct HomesteadTests {
         )
         settings.internalURL = internalURLString
         settings.externalURL = externalURLString
+        settings.internalNetworkSSIDs = ["Home Wi-Fi"]
 
         await service.refreshAuthState()
         await service.connect(settings: settings)
@@ -9479,6 +9556,14 @@ private struct WidgetOAuthCredentialMirror: Decodable {
     let refreshToken: String
     let accessToken: String
     let tokenType: String
+}
+
+private struct StubCurrentWiFiNetworkProvider: CurrentWiFiNetworkProviding {
+    var ssid: String?
+
+    func currentSSID() async -> String? {
+        ssid
+    }
 }
 
 final class StubHAOAuthClient: HAOAuthClientProtocol {

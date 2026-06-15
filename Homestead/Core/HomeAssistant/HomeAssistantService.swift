@@ -38,6 +38,7 @@ final class HomeAssistantService {
     @ObservationIgnored private let nativeNotificationService: NativeNotificationService
     @ObservationIgnored private let authManager: HAOAuthManager
     @ObservationIgnored private let oauthAuthorizer: any HAOAuthAuthorizing
+    @ObservationIgnored private let currentWiFiNetworkProvider: any CurrentWiFiNetworkProviding
     @ObservationIgnored private let stateStore: HAStateStore
     @ObservationIgnored private let stateCache: HAStateCache
     @ObservationIgnored private let stateEventBatcher = HAStateEventBatcher()
@@ -76,6 +77,7 @@ final class HomeAssistantService {
         nativeNotificationService: NativeNotificationService? = nil,
         authManager: HAOAuthManager? = nil,
         oauthAuthorizer: (any HAOAuthAuthorizing)? = nil,
+        currentWiFiNetworkProvider: (any CurrentWiFiNetworkProviding)? = nil,
         networkContext: HAConnectionNetworkContext = .availableExternal,
         automaticallyRegistersMobileApp: Bool = true
     ) {
@@ -88,6 +90,7 @@ final class HomeAssistantService {
         self.nativeNotificationService = nativeNotificationService ?? NativeNotificationService()
         self.authManager = authManager ?? HAOAuthManager()
         self.oauthAuthorizer = oauthAuthorizer ?? HAWebAuthenticationSession()
+        self.currentWiFiNetworkProvider = currentWiFiNetworkProvider ?? SystemCurrentWiFiNetworkProvider()
         self.stateCache = stateCache
         self.networkContext = networkContext
         self.automaticallyRegistersMobileApp = automaticallyRegistersMobileApp
@@ -150,6 +153,7 @@ final class HomeAssistantService {
         currentConnectionSettings = settings
         let configuration: HAConnectionConfiguration?
         do {
+            await refreshCurrentWiFiSSIDIfNeeded(settings: settings)
             let selection = routeSelection(for: settings)
             configuration = try await authManager
                 .storedConfiguration(baseURLString: selection.authenticationBaseURLString)?
@@ -184,7 +188,14 @@ final class HomeAssistantService {
 
     func connect(settings: HAConnectionSettings) async {
         currentConnectionSettings = settings
+        await refreshCurrentWiFiSSIDIfNeeded(settings: settings)
         await connect(routeSelection: routeSelection(for: settings))
+    }
+
+    func refreshCurrentWiFiSSID() async -> String? {
+        let ssid = await currentWiFiNetworkProvider.currentSSID()
+        networkContext = networkContext.withCurrentWiFiSSID(ssid)
+        return ssid
     }
 
     private func connect(routeSelection: HAConnectionRouteSelection) async {
@@ -1752,7 +1763,11 @@ final class HomeAssistantService {
         currentConnectionSettings = settings
         let previousSelection = routeSelection(for: settings).preferredCandidate
         let previousNetworkAvailability = isNetworkAvailable
-        let nextNetworkContext = HAConnectionNetworkContext(path: path)
+        var nextNetworkContext = HAConnectionNetworkContext(path: path)
+        if settings.routingSnapshot.hasInternalNetworkSSIDs {
+            let ssid = await currentWiFiNetworkProvider.currentSSID()
+            nextNetworkContext = nextNetworkContext.withCurrentWiFiSSID(ssid)
+        }
         let networkIsAvailable = nextNetworkContext.isNetworkAvailable
         networkContext = nextNetworkContext
         let nextSelection = routeSelection(for: settings).preferredCandidate
@@ -1847,6 +1862,7 @@ final class HomeAssistantService {
     }
 
     private func preferredConfiguration(for settings: HAConnectionSettings) async throws -> HAConnectionConfiguration {
+        await refreshCurrentWiFiSSIDIfNeeded(settings: settings)
         let selection = routeSelection(for: settings)
         let configuration = try await validConfiguration(baseURLString: selection.authenticationBaseURLString)
         return configuration.routed(
@@ -1859,6 +1875,17 @@ final class HomeAssistantService {
             settings: settings.routingSnapshot,
             networkContext: networkContext
         )
+    }
+
+    private func refreshCurrentWiFiSSIDIfNeeded(settings: HAConnectionSettings) async {
+        guard settings.routingSnapshot.hasInternalNetworkSSIDs else {
+            if networkContext.currentWiFiSSID != nil {
+                networkContext = networkContext.withCurrentWiFiSSID(nil)
+            }
+            return
+        }
+
+        _ = await refreshCurrentWiFiSSID()
     }
 
     private func shouldTryFallbackRoute(after error: Error) -> Bool {
@@ -2403,6 +2430,7 @@ final class HomeAssistantService {
             return [(nil, configuration)]
         }
 
+        await refreshCurrentWiFiSSIDIfNeeded(settings: settings)
         let selection = routeSelection(for: settings)
         let baseConfiguration = try await validConfiguration(baseURLString: selection.authenticationBaseURLString)
         let candidates = selection.candidates.isEmpty

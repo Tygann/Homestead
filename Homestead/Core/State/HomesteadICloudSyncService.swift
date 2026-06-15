@@ -74,6 +74,7 @@ struct HomesteadConnectionSyncSnapshot: Codable, Equatable {
     var baseURL: String
     var internalURL: String
     var externalURL: String
+    var internalNetworkSSIDs: [String]? = nil
 }
 
 struct HomesteadICloudSyncPayload: Codable, Equatable {
@@ -458,7 +459,8 @@ final class HomesteadICloudSyncService {
                         externalURL: connectionSettings.externalURL
                     ),
                     internalURL: connectionSettings.internalURL,
-                    externalURL: connectionSettings.externalURL
+                    externalURL: connectionSettings.externalURL,
+                    internalNetworkSSIDs: connectionSettings.internalNetworkSSIDs
                 )
             ),
             dashboard: HomesteadSyncRecord(updatedAt: dates[.dashboard] ?? .distantPast, value: dashboardConfiguration.syncSnapshot),
@@ -561,7 +563,8 @@ final class HomesteadICloudSyncService {
                 value: HomesteadConnectionSyncSnapshot(
                     baseURL: legacy.connection.baseURL,
                     internalURL: legacy.connection.internalURL,
-                    externalURL: legacy.connection.externalURL
+                    externalURL: legacy.connection.externalURL,
+                    internalNetworkSSIDs: legacy.connection.homeNetworkName.map { [$0] }
                 )
             ),
             dashboard: HomesteadSyncRecord(updatedAt: legacy.updatedAt, value: legacy.dashboard),

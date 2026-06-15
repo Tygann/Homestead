@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Unified setup, Bonjour discovery, safe iCloud restore, and Mobile App registration safeguards are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification of this flow, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
+Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, and Mobile App registration safeguards are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification of this flow, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
 
 Recommended reasoning level: High.
 
@@ -14,9 +14,10 @@ Recommended reasoning level: High.
 
 - Added a startup coordinator that performs read-only iCloud bootstrap before auth refresh, cache loading, connection, dashboard seeding, or uploads.
 - Replaced URL-first onboarding with explicit iCloud restore, user-triggered `_home-assistant._tcp` Bonjour discovery, discovered-home cards, and manual Sign-in Address fallback.
-- Kept credentials device-local, removed Home Network/SSID from setup and routing, and made WebSocket `get_config` fill only missing local/remote routes.
+- Kept credentials device-local, removed Home Network/SSID from first-run setup, and made WebSocket `get_config` fill only missing local/remote routes.
+- Added optional saved Wi-Fi names in Settings > Account > Server so the Local Address is preferred only on known home networks when a Remote Address exists. Homestead falls back to the Remote Address when the current Wi-Fi name is unavailable, permission is denied, or the connected network is not saved.
 - Upgraded iCloud preferences to section-timestamped v2 records with v1 migration, source-device identity, remote-apply suppression, automatic debounced sync, two-way Sync Now, and explicit enable conflicts.
-- Reworked Settings > Account > Server around Home Assistant's Local Address and Remote Address plus Homestead's Active Route, with staged Cancel/Save toolbar editing. The internal OAuth identity anchor is no longer exposed as a confusing third URL.
+- Reworked Settings > Account > Server around Home Assistant's Local Address and Remote Address plus Homestead's Active Route, optional local-network names, and staged Cancel/Save toolbar editing. The internal OAuth identity anchor is no longer exposed as a confusing third URL.
 - Added `NSBonjourServices` for Home Assistant discovery without adding multicast entitlements or changing signing, bundle identifiers, widgets, or capabilities.
 - Stopped live Home Assistant Xcode previews from automatically registering Homestead as a Home Assistant Mobile App device while preserving live state loading in the canvas.
 - Added a Keychain-backed stable mobile-app `device_id` for normal app registration so repeated app launches or registration metadata refreshes do not create new cloned HA Mobile App devices.
@@ -45,7 +46,7 @@ Recommended reasoning level: High.
 - Added opt-in Settings > iCloud Sync backed by Apple iCloud key-value storage for small Homestead-owned preferences: server routing metadata, dashboard layout/display preferences, action confirmations, and small appearance flags. Credentials, tokens, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, and wallpaper images remain local.
 - Added an app-level first-run Home Assistant setup surface for users without a complete saved server/sign-in session.
 - The setup surface writes the existing `HAConnectionSettings.baseURL`, starts the existing Home Assistant OAuth flow through `HomeAssistantService.signInWithHomeAssistant(settings:)`, and keeps normal setup focused on a single server-address row with a bottom Continue action.
-- Replaced the former Advanced Setup sheet and unused home-network metadata with contextual discovery and server route management.
+- Replaced the former Advanced Setup sheet with contextual discovery and server route management. Legacy single home-network metadata migrates to the optional local-network list.
 - Removed the passive signed-out dashboard setup card path so fresh users no longer land on a non-actionable dashboard message.
 - Suppressed the post-registration notification setup prompt while onboarding is visible, so permission prompts remain after sign-in instead of interrupting setup.
 - Area cards now decode Home Assistant area registry `icon` metadata and resolve icons in source-of-truth order: mapped HA MDI icon, expanded local name inference, then a neutral `house` fallback.
@@ -203,7 +204,7 @@ Recommended reasoning level: High.
 - Use official Home Assistant API surfaces only. Do not add private frontend endpoints for server/admin details.
 - Do not use private frontend endpoints for repairs, users, system health, or admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
-- Settings > Account > Server distinguishes Home Assistant's local/remote addresses and the active route. Edit mode hides the back button in favor of Cancel/Save and explains that Homestead may briefly try local on Wi-Fi/Ethernet before falling back to remote. Legacy home-network metadata no longer affects routing.
+- Settings > Account > Server distinguishes Home Assistant's Local Address, Remote Address, and the active route. Edit mode hides the back button in favor of Cancel/Save and can save Wi-Fi names where the Local Address should be used. Reading the current Wi-Fi name requires Location permission plus the Wi-Fi Information entitlement; when no saved Wi-Fi matches or the current name is unavailable, Homestead should prefer the Remote Address if one exists. Legacy single home-network metadata migrates to the saved Wi-Fi list.
 - Established sessions must stay out of onboarding during transient auth/route failures. If a local route such as `homeassistant.local:8123` times out while off-home, Homestead should remain in the main app and fall back through connection routing instead of prompting first-run setup or OAuth against the local URL.
 - Settings > Permissions has native iOS status rows for Notifications, Local Network, Location, and Camera. Keep future native permission work in app-owned platform services rather than Home Assistant API code.
 - User-facing service-call and reconnect recovery feedback belongs in `HomeAssistantService` and app chrome, not scattered card/detail views.
@@ -214,6 +215,7 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Focused routing/service tests passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SSIDRoutingTests` after adding SSID-gated local routing.
 - Generic iOS Simulator, iPad Air 11-inch (M4) iOS 26.5, and Apple silicon Mac Designed-for-iPad builds passed after unified setup/discovery/iCloud restore. Full `HomesteadTests` passed on iPhone 17 iOS 26.5, including the clean-device no-default-upload regression.
 - Generic iOS Simulator, iPad Air 11-inch (M4) iOS 26.5, and Apple silicon Mac Designed-for-iPad builds passed with isolated derived-data paths after the platform-support review.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5`; a signed iPad simulator launch also confirmed the first-run surface is centered and unclipped in portrait.

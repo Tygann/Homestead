@@ -2,6 +2,15 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-15
+
+### SSID-Gated Local Routing
+
+- Added optional saved Wi-Fi names in Settings > Account > Server so Homestead uses the Local Address only on known local networks when a Remote Address is available.
+- Added current Wi-Fi name lookup through `NEHotspotNetwork`, the Wi-Fi Information entitlement, and an in-context Location permission request from the server editor's Use Current Wi-Fi action.
+- Migrated the legacy single home-network preference into the saved local-network list and included the list in iCloud connection sync without restoring credentials or tokens.
+- Updated route selection and focused tests so unknown, denied, or unlisted Wi-Fi starts with the Remote Address instead of timing out on `homeassistant.local`.
+
 ## 2026-06-14
 
 ### Mobile App Registration Safeguards
@@ -15,7 +24,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Gated startup behind a read-only iCloud bootstrap so a clean device cannot seed or upload defaults over an existing dashboard.
 - Added explicit restore/new-home choices, user-triggered Home Assistant Bonjour discovery, manual sign-in fallback, and device-local OAuth after restore.
 - Upgraded preference sync to section-level v2 records with v1 migration, automatic debounced uploads, two-way refresh, and explicit conflict resolution.
-- Removed SSID metadata from setup/routing and redesigned Server settings around sign-in, local, remote, and active addresses.
+- Removed SSID metadata from first-run setup and redesigned Server settings around sign-in, local, remote, and active addresses. Local route SSID gating was later restored as an explicit Server setting.
 - Recorded the durable architecture in `Docs/ADR/001-unified-setup-discovery-and-icloud-bootstrap.md`.
 
 ### iPad and Apple Silicon Mac Support

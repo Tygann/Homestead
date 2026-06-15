@@ -8,6 +8,8 @@
 	</array>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
 	<string>$(TeamIdentifierPrefix)com.tyler.Homestead</string>
+	<key>com.apple.developer.networking.wifi-info</key>
+	<true/>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)com.tyler.Homestead.shared</string>

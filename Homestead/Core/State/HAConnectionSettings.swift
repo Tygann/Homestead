@@ -29,6 +29,12 @@ final class HAConnectionSettings {
         }
     }
 
+    var internalNetworkSSIDs: [String] {
+        didSet {
+            defaults.set(Self.normalizedSSIDs(internalNetworkSSIDs), forKey: Keys.internalNetworkSSIDs)
+        }
+    }
+
     private(set) var authStorageErrorMessage: String?
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -43,7 +49,8 @@ final class HAConnectionSettings {
             baseURLString: baseURL,
             internalURLString: internalURL,
             externalURLString: externalURL,
-            homeNetworkName: homeNetworkName
+            homeNetworkName: homeNetworkName,
+            internalNetworkSSIDs: internalNetworkSSIDs
         )
     }
 
@@ -51,7 +58,8 @@ final class HAConnectionSettings {
         HAConnectionSettingsSyncSnapshot(
             baseURL: baseURL,
             internalURL: internalURL,
-            externalURL: externalURL
+            externalURL: externalURL,
+            internalNetworkSSIDs: internalNetworkSSIDs
         )
     }
 
@@ -83,7 +91,12 @@ final class HAConnectionSettings {
             ""
         internalURL = defaults.string(forKey: Keys.internalURL) ?? ""
         externalURL = defaults.string(forKey: Keys.externalURL) ?? ""
-        homeNetworkName = defaults.string(forKey: Keys.homeNetworkName) ?? ""
+        let storedHomeNetworkName = defaults.string(forKey: Keys.homeNetworkName) ?? ""
+        let storedSSIDs = defaults.stringArray(forKey: Keys.internalNetworkSSIDs) ?? []
+        homeNetworkName = storedHomeNetworkName
+        internalNetworkSSIDs = Self.normalizedSSIDs(
+            storedSSIDs.isEmpty && !storedHomeNetworkName.isEmpty ? [storedHomeNetworkName] : storedSSIDs
+        )
 
         WidgetSharedStore.saveBaseURL(self.baseURL)
     }
@@ -92,6 +105,7 @@ final class HAConnectionSettings {
         baseURL = snapshot.baseURL
         internalURL = snapshot.internalURL
         externalURL = snapshot.externalURL
+        internalNetworkSSIDs = Self.normalizedSSIDs(snapshot.internalNetworkSSIDs)
     }
 
     func applySyncSnapshot(_ snapshot: HomesteadConnectionSyncSnapshot) {
@@ -102,6 +116,7 @@ final class HAConnectionSettings {
         )
         internalURL = snapshot.internalURL
         externalURL = snapshot.externalURL
+        internalNetworkSSIDs = Self.normalizedSSIDs(snapshot.internalNetworkSSIDs ?? [])
     }
 
     func applyRoutingSyncSnapshot(_ snapshot: HomesteadConnectionSyncSnapshot) {
@@ -110,6 +125,9 @@ final class HAConnectionSettings {
         }
         if externalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             externalURL = snapshot.externalURL
+        }
+        if internalNetworkSSIDs.isEmpty {
+            internalNetworkSSIDs = Self.normalizedSSIDs(snapshot.internalNetworkSSIDs ?? [])
         }
     }
 
@@ -129,6 +147,7 @@ final class HAConnectionSettings {
         static let internalURL = "homeAssistantInternalURL"
         static let externalURL = "homeAssistantExternalURL"
         static let homeNetworkName = "homeAssistantHomeNetworkName"
+        static let internalNetworkSSIDs = "homeAssistantInternalNetworkSSIDs"
     }
 
     nonisolated private static func preferredIdentityBaseURL(
@@ -144,10 +163,22 @@ final class HAConnectionSettings {
 
         return internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    nonisolated static func normalizedSSIDs(_ ssids: [String]) -> [String] {
+        var seen = Set<String>()
+        return ssids.compactMap { ssid in
+            let trimmed = ssid.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            let key = trimmed.lowercased()
+            guard seen.insert(key).inserted else { return nil }
+            return trimmed
+        }
+    }
 }
 
 struct HAConnectionSettingsSyncSnapshot: Codable, Equatable, Sendable {
     var baseURL: String
     var internalURL: String
     var externalURL: String
+    var internalNetworkSSIDs: [String]
 }

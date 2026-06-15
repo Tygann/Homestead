@@ -24,7 +24,7 @@ Official references:
 | --- | --- | --- | --- |
 | OAuth sign-in and token refresh | HTTP auth | Mapped | Native app OAuth flow with Keychain-backed refresh tokens. |
 | WebSocket connect/auth/reconnect | WebSocket | Mapped | `HAWebSocketClient` owns transport and request routing. |
-| Discovery and internal/external URL routing | Bonjour `_home-assistant._tcp`, WebSocket `get_config`, and platform network state | Mapped | Setup browses only after the user selects Find Home Assistant, parses advertised server identity and route metadata, and keeps manual entry as fallback. `HomeAssistantService` prefers local routes on Wi-Fi/Ethernet with remote/sign-in fallback while OAuth, cache, and registration identity remain anchored to the sign-in address. |
+| Discovery and internal/external URL routing | Bonjour `_home-assistant._tcp`, WebSocket `get_config`, platform network state, and optional current Wi-Fi SSID via `NEHotspotNetwork` | Mapped | Setup browses only after the user selects Find Home Assistant, parses advertised server identity and route metadata, and keeps manual entry as fallback. `HomeAssistantService` prefers the Local Address only on saved Wi-Fi names when a Remote Address exists; otherwise it uses the Remote Address/current sign-in address first. OAuth, cache, and registration identity remain anchored to the sign-in address. Reading the current Wi-Fi name requires Location permission and the Wi-Fi Information entitlement. |
 | Entity state snapshot | WebSocket `get_states` | Mapped | Stored in `HAStateStore` and mapped through `EntityMapper`. |
 | Live state updates | WebSocket `subscribe_events` for `state_changed` | Mapped | Batched before touching SwiftUI-observed state. |
 | Service calls | WebSocket `call_service` | Mapped | Domain-specific helpers live on `HomeAssistantService`. |
@@ -69,7 +69,7 @@ These are the next API slices to map when the matching feature is implemented. D
 
 - Typed WebSocket `get_config` support exists for the dedicated `Settings > Account > Server` page.
 - Home Assistant version, location/time-unit basics, status/config source, and internal/external URL metadata are displayed only if returned by the official config shape.
-- Connection settings store a sign-in identity plus Homestead-owned local and remote route candidates. The legacy home-network field is decode-only and no longer affects routing.
+- Connection settings store a sign-in identity plus Homestead-owned local and remote route candidates. Optional saved Wi-Fi names gate Local Address preference when a Remote Address exists. The legacy single home-network field migrates to that list.
 - Automatic internal/external URL switching now lives in `HomeAssistantService` connection lifecycle code. SwiftUI displays the active route but does not choose URLs.
 - Route fallback tries the next saved URL for transport-style failures while preserving OAuth/token refresh behavior and cache/mobile-app server identity.
 

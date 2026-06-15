@@ -4,10 +4,14 @@ import SwiftUI
 struct HomeAssistantServerSettingsView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(NativePermissionService.self) private var nativePermissionService
     @FocusState private var focusedField: Field?
     @State private var isEditingConnection = false
     @State private var draftLocalAddress = ""
     @State private var draftRemoteAddress = ""
+    @State private var draftInternalNetworkSSIDs: [String] = []
+    @State private var draftSSID = ""
+    @State private var currentWiFiErrorMessage: String?
 
     var body: some View {
         @Bindable var connectionSettings = connectionSettings
@@ -31,6 +35,7 @@ struct HomeAssistantServerSettingsView: View {
                         text: $draftRemoteAddress,
                         focus: .remoteURL
                     )
+                    localNetworkEditor
                 } else {
                     SettingsServerAddressRow(
                         title: "Local Address",
@@ -42,6 +47,13 @@ struct HomeAssistantServerSettingsView: View {
                         value: configuredValue(displayedRemoteAddress),
                         systemImage: "network"
                     )
+                    if !connectionSettings.internalNetworkSSIDs.isEmpty {
+                        SettingsServerAddressRow(
+                            title: "Local Networks",
+                            value: localNetworksSummary(connectionSettings.internalNetworkSSIDs),
+                            systemImage: "wifi"
+                        )
+                    }
                 }
                 SettingsServerAddressRow(
                     title: "Currently Using",
@@ -53,7 +65,7 @@ struct HomeAssistantServerSettingsView: View {
                 Text("Addresses")
             } footer: {
                 if isEditingConnection {
-                    Text("Use the Local and Remote URLs from Home Assistant. Homestead signs in through the remote address when available, otherwise the local address.")
+                    Text("Homestead uses the Local Address only on saved Wi-Fi networks. Reading the current Wi-Fi name requires Location permission.")
                 }
             }
 
@@ -138,6 +150,14 @@ struct HomeAssistantServerSettingsView: View {
         .navigationTitle("Server")
         .toolbarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isEditingConnection)
+        .alert("Wi-Fi Name Unavailable", isPresented: Binding(
+            get: { currentWiFiErrorMessage != nil },
+            set: { if !$0 { currentWiFiErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(currentWiFiErrorMessage ?? "Homestead could not read the current Wi-Fi name.")
+        }
         .toolbar {
             if isEditingConnection {
                 ToolbarItem(placement: .cancellationAction) {
@@ -400,9 +420,65 @@ struct HomeAssistantServerSettingsView: View {
         .padding(.vertical, AppSpacing.xSmall)
     }
 
+    private var localNetworkEditor: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text("Use Local Address On")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                if draftInternalNetworkSSIDs.isEmpty {
+                    Text("No Wi-Fi networks added.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(draftInternalNetworkSSIDs, id: \.self) { ssid in
+                        HStack {
+                            Text(ssid)
+                                .lineLimit(1)
+                            Spacer()
+                            Button {
+                                removeSSID(ssid)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Remove \(ssid)")
+                        }
+                    }
+                }
+            }
+
+            HStack {
+                TextField("Wi-Fi Name", text: $draftSSID)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: .ssid)
+
+                Button("Add") {
+                    addSSID(draftSSID)
+                    draftSSID = ""
+                }
+                .disabled(draftSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            Button {
+                Task { await addCurrentWiFiSSID() }
+            } label: {
+                Label("Use Current Wi-Fi", systemImage: "wifi")
+            }
+            .disabled(nativePermissionService.isRequestingLocationAccess)
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+    }
+
     private func beginConnectionEditing() {
         draftLocalAddress = connectionSettings.internalURL
         draftRemoteAddress = displayedRemoteAddress
+        draftInternalNetworkSSIDs = connectionSettings.internalNetworkSSIDs
+        draftSSID = ""
+        currentWiFiErrorMessage = nil
         isEditingConnection = true
     }
 
@@ -420,12 +496,38 @@ struct HomeAssistantServerSettingsView: View {
 
         connectionSettings.internalURL = newLocal
         connectionSettings.externalURL = newRemote
+        connectionSettings.internalNetworkSSIDs = HAConnectionSettings.normalizedSSIDs(draftInternalNetworkSSIDs)
         if newRemote != oldRemote {
             connectionSettings.baseURL = newRemote.isEmpty ? newLocal : newRemote
         } else if newLocal != oldLocal, oldRemote.isEmpty {
             connectionSettings.baseURL = newLocal
         }
         isEditingConnection = false
+    }
+
+    private func addSSID(_ ssid: String) {
+        draftInternalNetworkSSIDs = HAConnectionSettings.normalizedSSIDs(draftInternalNetworkSSIDs + [ssid])
+    }
+
+    private func removeSSID(_ ssid: String) {
+        draftInternalNetworkSSIDs.removeAll { $0.caseInsensitiveCompare(ssid) == .orderedSame }
+    }
+
+    private func addCurrentWiFiSSID() async {
+        await nativePermissionService.requestLocationAccess()
+        guard let ssid = await homeAssistantService.refreshCurrentWiFiSSID() else {
+            currentWiFiErrorMessage = "Homestead could not read the current Wi-Fi name. Check Location permission, the Wi-Fi Information capability, and that this device is connected to Wi-Fi."
+            return
+        }
+
+        addSSID(ssid)
+    }
+
+    private func localNetworksSummary(_ ssids: [String]) -> String {
+        let normalized = HAConnectionSettings.normalizedSSIDs(ssids)
+        if normalized.isEmpty { return "Not set" }
+        if normalized.count == 1 { return normalized[0] }
+        return "\(normalized.count) networks"
     }
 
     private var displayedRemoteAddress: String {
@@ -438,6 +540,7 @@ struct HomeAssistantServerSettingsView: View {
     private enum Field {
         case localURL
         case remoteURL
+        case ssid
     }
 }
 

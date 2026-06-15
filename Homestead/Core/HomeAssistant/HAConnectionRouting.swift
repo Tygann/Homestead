@@ -21,21 +21,33 @@ nonisolated enum HAConnectionRoute: String, Equatable, Sendable {
 nonisolated struct HAConnectionNetworkContext: Equatable, Sendable {
     var isNetworkAvailable: Bool
     var isLikelyHomeNetwork: Bool
+    var currentWiFiSSID: String?
 
     static let availableExternal = HAConnectionNetworkContext(
         isNetworkAvailable: true,
-        isLikelyHomeNetwork: false
+        isLikelyHomeNetwork: false,
+        currentWiFiSSID: nil
     )
 
-    init(isNetworkAvailable: Bool, isLikelyHomeNetwork: Bool) {
+    init(isNetworkAvailable: Bool, isLikelyHomeNetwork: Bool, currentWiFiSSID: String? = nil) {
         self.isNetworkAvailable = isNetworkAvailable
         self.isLikelyHomeNetwork = isLikelyHomeNetwork
+        self.currentWiFiSSID = currentWiFiSSID
     }
 
     init(path: NWPath) {
         isNetworkAvailable = path.status == .satisfied
         isLikelyHomeNetwork = path.status == .satisfied &&
             (path.usesInterfaceType(.wifi) || path.usesInterfaceType(.wiredEthernet))
+        currentWiFiSSID = nil
+    }
+
+    func withCurrentWiFiSSID(_ ssid: String?) -> HAConnectionNetworkContext {
+        HAConnectionNetworkContext(
+            isNetworkAvailable: isNetworkAvailable,
+            isLikelyHomeNetwork: isLikelyHomeNetwork,
+            currentWiFiSSID: ssid
+        )
     }
 }
 
@@ -44,6 +56,7 @@ nonisolated struct HAConnectionRoutingSettingsSnapshot: Equatable, Sendable {
     var internalURLString: String
     var externalURLString: String
     var homeNetworkName: String
+    var internalNetworkSSIDs: [String] = []
 
     var hasServerURL: Bool {
         !baseURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -52,6 +65,10 @@ nonisolated struct HAConnectionRoutingSettingsSnapshot: Equatable, Sendable {
     var hasAutomaticRouteCandidates: Bool {
         !internalURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
             !externalURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var hasInternalNetworkSSIDs: Bool {
+        internalNetworkSSIDs.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 }
 
@@ -86,12 +103,16 @@ nonisolated enum HAConnectionRouteResolver {
         let baseURLString = trimmed(settings.baseURLString)
         let internalURLString = trimmed(settings.internalURLString)
         let externalURLString = trimmed(settings.externalURLString)
+        let canUseInternalRoute = canUseInternalRoute(
+            settings: settings,
+            networkContext: networkContext,
+            internalURLString: internalURLString,
+            externalURLString: externalURLString
+        )
 
         var candidates: [HAConnectionRouteCandidate] = []
 
-        if networkContext.isNetworkAvailable,
-           networkContext.isLikelyHomeNetwork,
-           !internalURLString.isEmpty {
+        if canUseInternalRoute {
             candidates.append(HAConnectionRouteCandidate(route: .internalURL, baseURLString: internalURLString))
             appendIfUnique(
                 HAConnectionRouteCandidate(route: .externalURL, baseURLString: externalURLString),
@@ -150,5 +171,33 @@ nonisolated enum HAConnectionRouteResolver {
 
     private static func normalized(_ value: String) -> String {
         trimmed(value).lowercased()
+    }
+
+    private static func canUseInternalRoute(
+        settings: HAConnectionRoutingSettingsSnapshot,
+        networkContext: HAConnectionNetworkContext,
+        internalURLString: String,
+        externalURLString: String
+    ) -> Bool {
+        guard networkContext.isNetworkAvailable,
+              networkContext.isLikelyHomeNetwork,
+              !internalURLString.isEmpty else {
+            return false
+        }
+
+        guard !externalURLString.isEmpty else {
+            return true
+        }
+
+        let savedSSIDs = settings.internalNetworkSSIDs
+            .map(trimmed)
+            .filter { !$0.isEmpty }
+        guard !savedSSIDs.isEmpty,
+              let currentSSID = networkContext.currentWiFiSSID.map(trimmed),
+              !currentSSID.isEmpty else {
+            return false
+        }
+
+        return savedSSIDs.contains { $0.caseInsensitiveCompare(currentSSID) == .orderedSame }
     }
 }
