@@ -400,6 +400,7 @@ struct HomesteadTests {
     @Test func onboardingPresentationShowsRetryStateAfterAuthFailure() {
         let presentation = HomeAssistantOnboardingPresentation.make(
             hasServerURL: true,
+            hasKnownSession: false,
             authState: .refreshFailed("Home Assistant rejected the sign-in."),
             connectionStatus: .failed("Unauthorized"),
             serviceError: nil,
@@ -412,6 +413,20 @@ struct HomesteadTests {
         #expect(presentation.buttonTitle == "Continue")
         #expect(presentation.isButtonEnabled)
         #expect(presentation.showsStatusRow)
+    }
+
+    @Test func onboardingPresentationDoesNotInterruptKnownSessionAfterRefreshFailure() {
+        let presentation = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: true,
+            hasKnownSession: true,
+            authState: .refreshFailed("The request timed out."),
+            connectionStatus: .failed("The request timed out."),
+            serviceError: nil,
+            storageError: nil
+        )
+
+        #expect(!presentation.shouldShow)
+        #expect(presentation.statusTitle == "Sign-In Failed")
     }
 
     @Test func onboardingPresentationSuppressesSetupAfterSignIn() {
@@ -3968,6 +3983,36 @@ struct HomesteadTests {
 
         #expect(settings.baseURL == "http://homeassistant.local:8123")
         #expect(settings.hasServerURL)
+    }
+
+    @MainActor
+    @Test func connectionSettingsPrefersExistingCredentialOverStaleSavedBaseURL() throws {
+        let suiteName = "com.tyler.Homestead.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set("http://homeassistant.local:8123", forKey: "homeAssistantBaseURL")
+
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: "https://home.example.com")
+        )
+        let settings = HAConnectionSettings(defaults: defaults, tokenStore: tokenStore)
+
+        #expect(settings.baseURL == "https://home.example.com")
+    }
+
+    @MainActor
+    @Test func connectionSettingsUsesRemoteURLAsSyncedIdentityWhenAvailable() throws {
+        let settings = HAConnectionSettings(baseURL: "https://old.example.com", defaults: try isolatedDefaults(), tokenStore: InMemoryHAOAuthTokenStore())
+
+        settings.applySyncSnapshot(HomesteadConnectionSyncSnapshot(
+            baseURL: "http://homeassistant.local:8123",
+            internalURL: "http://homeassistant.local:8123",
+            externalURL: "https://home.example.com"
+        ))
+
+        #expect(settings.baseURL == "https://home.example.com")
+        #expect(settings.internalURL == "http://homeassistant.local:8123")
+        #expect(settings.externalURL == "https://home.example.com")
     }
 
     @MainActor

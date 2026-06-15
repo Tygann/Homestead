@@ -77,8 +77,8 @@ final class HAConnectionSettings {
         }
 
         self.baseURL = baseURL ??
-            defaults.string(forKey: Keys.baseURL) ??
             storedCredentialBaseURL ??
+            defaults.string(forKey: Keys.baseURL) ??
             UserDefaults(suiteName: WidgetSharedStore.appGroupID)?.string(forKey: Keys.baseURL) ??
             ""
         internalURL = defaults.string(forKey: Keys.internalURL) ?? ""
@@ -95,7 +95,11 @@ final class HAConnectionSettings {
     }
 
     func applySyncSnapshot(_ snapshot: HomesteadConnectionSyncSnapshot) {
-        baseURL = snapshot.baseURL
+        baseURL = Self.preferredIdentityBaseURL(
+            baseURL: snapshot.baseURL,
+            internalURL: snapshot.internalURL,
+            externalURL: snapshot.externalURL
+        )
         internalURL = snapshot.internalURL
         externalURL = snapshot.externalURL
     }
@@ -125,6 +129,20 @@ final class HAConnectionSettings {
         static let internalURL = "homeAssistantInternalURL"
         static let externalURL = "homeAssistantExternalURL"
         static let homeNetworkName = "homeAssistantHomeNetworkName"
+    }
+
+    nonisolated private static func preferredIdentityBaseURL(
+        baseURL: String,
+        internalURL: String,
+        externalURL: String
+    ) -> String {
+        let externalURL = externalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !externalURL.isEmpty { return externalURL }
+
+        let baseURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !baseURL.isEmpty { return baseURL }
+
+        return internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

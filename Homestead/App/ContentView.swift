@@ -26,6 +26,7 @@ struct ContentView: View {
         )
         let onboarding = HomeAssistantOnboardingPresentation.make(
             hasServerURL: connectionSettings.hasServerURL,
+            hasKnownSession: homeAssistantService.hasKnownSession || homeAssistantService.hasCompletedInitialCacheLoad,
             authState: homeAssistantService.authState,
             connectionStatus: homeAssistantService.connectionStatus,
             serviceError: homeAssistantService.lastErrorMessage,

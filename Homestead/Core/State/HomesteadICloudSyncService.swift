@@ -452,7 +452,11 @@ final class HomesteadICloudSyncService {
             connection: HomesteadSyncRecord(
                 updatedAt: dates[.connection] ?? .distantPast,
                 value: HomesteadConnectionSyncSnapshot(
-                    baseURL: connectionSettings.baseURL,
+                    baseURL: Self.preferredIdentityBaseURL(
+                        baseURL: connectionSettings.baseURL,
+                        internalURL: connectionSettings.internalURL,
+                        externalURL: connectionSettings.externalURL
+                    ),
                     internalURL: connectionSettings.internalURL,
                     externalURL: connectionSettings.externalURL
                 )
@@ -579,7 +583,11 @@ final class HomesteadICloudSyncService {
 
         if remote.connection.updatedAt > localDate(.connection) {
             let localServer = connectionSettings.baseURL.trimmedForSync
-            let remoteServer = remote.connection.value.baseURL.trimmedForSync
+            let remoteServer = Self.preferredIdentityBaseURL(
+                baseURL: remote.connection.value.baseURL,
+                internalURL: remote.connection.value.internalURL,
+                externalURL: remote.connection.value.externalURL
+            )
             if allowServerReplacement || localServer.isEmpty || normalized(localServer) == normalized(remoteServer) {
                 connectionSettings.applySyncSnapshot(remote.connection.value)
                 recordRemoteDate(remote.connection.updatedAt, section: .connection)
@@ -684,6 +692,20 @@ final class HomesteadICloudSyncService {
 
     private func normalized(_ value: String) -> String {
         value.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
+    }
+
+    private static func preferredIdentityBaseURL(
+        baseURL: String,
+        internalURL: String,
+        externalURL: String
+    ) -> String {
+        let externalURL = externalURL.trimmedForSync
+        if !externalURL.isEmpty { return externalURL }
+
+        let baseURL = baseURL.trimmedForSync
+        if !baseURL.isEmpty { return baseURL }
+
+        return internalURL.trimmedForSync
     }
 
     private enum Keys {

@@ -12,6 +12,7 @@ final class HomeAssistantService {
     private(set) var serviceFeedback: HAServiceFeedback?
     private(set) var isLoadingCachedStates = false
     private(set) var hasCompletedInitialCacheLoad = false
+    private(set) var hasKnownSession = false
     private(set) var mobileAppRegistrationState: HAMobileAppRegistrationState = .unregistered
     private(set) var mobileAppPushNotificationState: HAMobileAppPushNotificationState = .unavailable
     private(set) var authState: HAAuthState = .signedOut
@@ -92,6 +93,7 @@ final class HomeAssistantService {
         self.automaticallyRegistersMobileApp = automaticallyRegistersMobileApp
         self.connectionStatus = connectionStatus
         self.authState = authState
+        self.hasKnownSession = authState.isSignedIn
         refreshMobileAppRegistrationState()
     }
 
@@ -329,6 +331,7 @@ final class HomeAssistantService {
     func refreshAuthState() async {
         let refreshedAuthState = await authManager.status()
         if refreshedAuthState.isSignedIn {
+            hasKnownSession = true
             if connectionStatus == .disconnected,
                activeConfiguration == nil {
                 connectionStatus = .preparing
@@ -368,6 +371,7 @@ final class HomeAssistantService {
                 authorizationCode: authorizationCode
             )
 
+            hasKnownSession = true
             authState = await authManager.status()
             lastErrorMessage = nil
             await connect(settings: settings)
@@ -382,6 +386,7 @@ final class HomeAssistantService {
             try await authManager.signOut()
             try mobileAppRegistrationStore.deleteRegistration()
             await disconnect()
+            hasKnownSession = false
             authState = .signedOut
             mobileAppRegistrationState = .unregistered
             lastErrorMessage = nil

@@ -15,12 +15,13 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
 
     static func make(
         hasServerURL: Bool,
+        hasKnownSession: Bool = false,
         authState: HAAuthState,
         connectionStatus: HAConnectionStatus,
         serviceError: String?,
         storageError: String?
     ) -> HomeAssistantOnboardingPresentation {
-        let shouldShow = !hasServerURL || !authState.isSignedIn
+        let shouldShow = !hasServerURL || (!hasKnownSession && shouldShowForAuthState(authState))
         let isBusy = authState == .signingIn || isRefreshing(authState)
 
         return HomeAssistantOnboardingPresentation(
@@ -54,6 +55,15 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
         }
 
         return false
+    }
+
+    private static func shouldShowForAuthState(_ authState: HAAuthState) -> Bool {
+        switch authState {
+        case .signedOut, .signingIn, .refreshFailed:
+            true
+        case .refreshing, .signedIn, .accessTokenExpired:
+            false
+        }
     }
 
     private static func statusTitle(
