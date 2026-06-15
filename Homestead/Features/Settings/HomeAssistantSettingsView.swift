@@ -258,7 +258,7 @@ struct HomeAssistantSettingsView: View {
     private var homeAssistantSection: some View {
         Section("Home Assistant") {
             SettingsServerAddressRow(
-                title: "Installation Method",
+                title: "Installation",
                 value: homeAssistantService.serverEnvironment?.installationMethod.title ?? "Not available",
                 systemImage: "shippingbox"
             )
