@@ -5,6 +5,9 @@ struct HomeAssistantServerSettingsView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @FocusState private var focusedField: Field?
+    @State private var isEditingConnection = false
+    @State private var draftLocalAddress = ""
+    @State private var draftRemoteAddress = ""
 
     var body: some View {
         @Bindable var connectionSettings = connectionSettings
@@ -38,28 +41,29 @@ struct HomeAssistantServerSettingsView: View {
             }
 
             Section {
-                LabeledContent("Current URL", value: configuredValue(connectionSettings.baseURL))
-
-                TextField("Internal URL", text: $connectionSettings.internalURL)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .autocorrectionDisabled()
-
-                TextField("External URL", text: $connectionSettings.externalURL)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .autocorrectionDisabled()
-
-                TextField("Home Network", text: $connectionSettings.homeNetworkName)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-
+                if isEditingConnection {
+                    TextField("Local Address", text: $draftLocalAddress)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .focused($focusedField, equals: .localURL)
+                    TextField("Remote Address", text: $draftRemoteAddress)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                } else {
+                    LabeledContent("Local Address", value: configuredValue(connectionSettings.internalURL))
+                    LabeledContent("Remote Address", value: configuredValue(displayedRemoteAddress))
+                }
                 LabeledContent("Active Route", value: activeRouteText)
-                LabeledContent("Automatic Switching", value: automaticSwitchingText)
             } header: {
-                Text("Connection Routing")
+                Text("Connection")
             } footer: {
-                Text("Homestead chooses between saved internal and external URLs in the connection lifecycle when route metadata is available.")
+                if isEditingConnection {
+                    Text("Use the addresses configured in Home Assistant. Homestead signs in through the remote address when available, otherwise the local address.")
+                } else {
+                    Text("Active Route shows the address Homestead is using right now.")
+                }
             }
 
             Section("Session") {
@@ -79,52 +83,10 @@ struct HomeAssistantServerSettingsView: View {
                 }
             }
 
-            Section {
-                LabeledContent("Config", value: homeAssistantService.serverConfigurationStatus.title)
+            Section("Server Information") {
                 LabeledContent("Version", value: configValue(homeAssistantService.serverConfiguration?.homeAssistantVersion))
-                LabeledContent("Status", value: configValue(homeAssistantService.serverConfiguration?.state))
                 LabeledContent("Location", value: configValue(homeAssistantService.serverConfiguration?.locationName))
                 LabeledContent("Time Zone", value: configValue(homeAssistantService.serverConfiguration?.timeZone))
-                LabeledContent("Internal URL", value: configValue(homeAssistantService.serverConfiguration?.internalURL))
-                LabeledContent("External URL", value: configValue(homeAssistantService.serverConfiguration?.externalURL))
-
-                if let unitSystemSummary = homeAssistantService.serverConfiguration?.unitSystemSummary {
-                    LabeledContent("Units", value: unitSystemSummary)
-                }
-
-                if let configSource = homeAssistantService.serverConfiguration?.configSource {
-                    LabeledContent("Config Source", value: configSource)
-                }
-
-                if let message = homeAssistantService.serverConfigurationStatus.message {
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text("Home Assistant Config")
-            } footer: {
-                Text("These values come from Home Assistant's official WebSocket get_config command when connected.")
-            }
-
-            Section {
-                if connectionSettings.hasServerURL {
-                    DisclosureGroup("Change Server") {
-                        TextField("Base URL", text: $connectionSettings.baseURL)
-                            .textInputAutocapitalization(.never)
-                            .keyboardType(.URL)
-                            .autocorrectionDisabled()
-                            .focused($focusedField, equals: .baseURL)
-                    }
-                } else {
-                    TextField("Base URL", text: $connectionSettings.baseURL)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
-                        .focused($focusedField, equals: .baseURL)
-                }
-            } footer: {
-                Text("Use the address you normally use to open Home Assistant.")
             }
 
             if shouldShowSignIn || canRetryConnection || shouldShowRegistrationAction {
@@ -183,6 +145,21 @@ struct HomeAssistantServerSettingsView: View {
         }
         .navigationTitle("Server")
         .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            if isEditingConnection {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { cancelConnectionEditing() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { saveConnectionEditing() }
+                        .disabled(draftLocalAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && draftRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            } else {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Edit") { beginConnectionEditing() }
+                }
+            }
+        }
         .task(id: serverRefreshTaskID) {
             await homeAssistantService.refreshAuthState()
             await homeAssistantService.refreshServerConfiguration()
@@ -199,10 +176,6 @@ struct HomeAssistantServerSettingsView: View {
         }
 
         return "\(route.title) - \(configuredValue(route.baseURLString))"
-    }
-
-    private var automaticSwitchingText: String {
-        connectionSettings.hasAutomaticRouteCandidates ? "Enabled" : "Add routes"
     }
 
     private var statusMessage: String {
@@ -370,7 +343,42 @@ struct HomeAssistantServerSettingsView: View {
         return value
     }
 
+    private func beginConnectionEditing() {
+        draftLocalAddress = connectionSettings.internalURL
+        draftRemoteAddress = displayedRemoteAddress
+        isEditingConnection = true
+    }
+
+    private func cancelConnectionEditing() {
+        focusedField = nil
+        isEditingConnection = false
+    }
+
+    private func saveConnectionEditing() {
+        focusedField = nil
+        let oldLocal = connectionSettings.internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oldRemote = displayedRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newLocal = draftLocalAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newRemote = draftRemoteAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        connectionSettings.internalURL = newLocal
+        connectionSettings.externalURL = newRemote
+        if newRemote != oldRemote {
+            connectionSettings.baseURL = newRemote.isEmpty ? newLocal : newRemote
+        } else if newLocal != oldLocal, oldRemote.isEmpty {
+            connectionSettings.baseURL = newLocal
+        }
+        isEditingConnection = false
+    }
+
+    private var displayedRemoteAddress: String {
+        let remote = connectionSettings.externalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !remote.isEmpty { return remote }
+        let local = connectionSettings.internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        return local.isEmpty ? connectionSettings.baseURL : ""
+    }
+
     private enum Field {
-        case baseURL
+        case localURL
     }
 }

@@ -6,20 +6,23 @@ struct ICloudSyncSettingsView: View {
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(HomesteadICloudSyncService.self) private var iCloudSyncService
+    @State private var conflictSummary: HomesteadICloudRestoreSummary?
+    @State private var errorMessage: String?
 
     var body: some View {
-        @Bindable var iCloudSyncService = iCloudSyncService
-
         Form {
             Section {
-                Toggle("Sync with iCloud", isOn: $iCloudSyncService.isEnabled)
+                Toggle("Sync with iCloud", isOn: Binding(
+                    get: { iCloudSyncService.isEnabled },
+                    set: { setSyncEnabled($0) }
+                ))
 
                 LabeledContent("Status", value: iCloudSyncService.status.title)
                 if let lastSyncDate = iCloudSyncService.lastSyncDate {
-                    LabeledContent("Last Upload", value: lastSyncDate.formatted(date: .abbreviated, time: .shortened))
+                    LabeledContent("Last Sync", value: lastSyncDate.formatted(date: .abbreviated, time: .shortened))
                 }
                 if let lastRemoteChangeDate = iCloudSyncService.lastRemoteChangeDate {
-                    LabeledContent("Last Download", value: lastRemoteChangeDate.formatted(date: .abbreviated, time: .shortened))
+                    LabeledContent("Latest iCloud Change", value: lastRemoteChangeDate.formatted(date: .abbreviated, time: .shortened))
                 }
 
                 Button {
@@ -29,7 +32,7 @@ struct ICloudSyncSettingsView: View {
                 }
                 .disabled(!iCloudSyncService.isEnabled)
             } footer: {
-                Text(iCloudSyncService.status.detail)
+                Text("Changes sync automatically when enabled. Sync Now checks both this device and iCloud immediately. \(iCloudSyncService.status.detail)")
             }
 
             Section {
@@ -61,6 +64,22 @@ struct ICloudSyncSettingsView: View {
         }
         .navigationTitle("iCloud Sync")
         .toolbarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            "Choose Which Setup to Keep",
+            isPresented: Binding(get: { conflictSummary != nil }, set: { if !$0 { conflictSummary = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Use iCloud") { resolveConflict(.useICloud) }
+            Button("Keep This Device") { resolveConflict(.keepThisDevice) }
+            Button("Cancel", role: .cancel) { resolveConflict(.cancel) }
+        } message: {
+            Text("iCloud and this device have different Homestead preferences. Your Home Assistant credentials always remain on this device.")
+        }
+        .alert("iCloud Sync Unavailable", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "Please try again later.")
+        }
     }
 
     private var serverSyncDetail: String {
@@ -87,6 +106,37 @@ struct ICloudSyncSettingsView: View {
             actionConfirmationSettings: actionConfirmationSettings,
             appearanceSettings: appearanceSettings
         )
+    }
+
+    private func setSyncEnabled(_ enabled: Bool) {
+        guard enabled else {
+            iCloudSyncService.disable()
+            return
+        }
+        switch iCloudSyncService.requestEnable(
+            connectionSettings: connectionSettings,
+            dashboardConfiguration: dashboardConfiguration,
+            actionConfirmationSettings: actionConfirmationSettings,
+            appearanceSettings: appearanceSettings
+        ) {
+        case .enabled:
+            break
+        case .conflict(let summary):
+            conflictSummary = summary
+        case .unavailable(let message):
+            errorMessage = message
+        }
+    }
+
+    private func resolveConflict(_ resolution: HomesteadICloudConflictResolution) {
+        iCloudSyncService.resolveEnableConflict(
+            resolution,
+            connectionSettings: connectionSettings,
+            dashboardConfiguration: dashboardConfiguration,
+            actionConfirmationSettings: actionConfirmationSettings,
+            appearanceSettings: appearanceSettings
+        )
+        conflictSummary = nil
     }
 }
 

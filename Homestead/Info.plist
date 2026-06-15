@@ -35,6 +35,10 @@
 	<string>Homestead uses the camera for native setup and scanning features you choose to use.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Homestead connects to Home Assistant servers on your local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_home-assistant._tcp</string>
+	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Homestead uses this device's location for native presence features you choose to enable.</string>
 	<key>UIApplicationSceneManifest</key>

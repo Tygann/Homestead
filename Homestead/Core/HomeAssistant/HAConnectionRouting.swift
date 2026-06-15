@@ -49,10 +49,6 @@ nonisolated struct HAConnectionRoutingSettingsSnapshot: Equatable, Sendable {
         !baseURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    var hasHomeNetworkMetadata: Bool {
-        !homeNetworkName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
     var hasAutomaticRouteCandidates: Bool {
         !internalURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
             !externalURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -95,7 +91,6 @@ nonisolated enum HAConnectionRouteResolver {
 
         if networkContext.isNetworkAvailable,
            networkContext.isLikelyHomeNetwork,
-           settings.hasHomeNetworkMetadata,
            !internalURLString.isEmpty {
             candidates.append(HAConnectionRouteCandidate(route: .internalURL, baseURLString: internalURLString))
             appendIfUnique(

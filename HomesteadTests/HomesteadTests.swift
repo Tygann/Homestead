@@ -4539,7 +4539,6 @@ struct HomesteadTests {
         )
         settings.internalURL = internalURLString
         settings.externalURL = "https://remote.example.com"
-        settings.homeNetworkName = "Home Wi-Fi"
 
         await service.refreshAuthState()
         await service.connect(settings: settings)
@@ -4580,7 +4579,6 @@ struct HomesteadTests {
         )
         settings.internalURL = internalURLString
         settings.externalURL = externalURLString
-        settings.homeNetworkName = "Home Wi-Fi"
 
         await service.refreshAuthState()
         await service.connect(settings: settings)
@@ -9021,51 +9019,61 @@ struct HomesteadTests {
         let encodedPayload = try syncService.encodedPayload(payload)
         let encodedText = String(decoding: encodedPayload, as: UTF8.self)
 
-        #expect(payload.connection.baseURL == "https://home.example")
-        #expect(payload.connection.homeNetworkName == "Home Wi-Fi")
-        #expect(payload.dashboard.items.first?.entityID == "light.kitchen")
-        #expect(payload.dashboard.entityDisplayNameOverrides == ["light.kitchen": "Kitchen"])
-        #expect(payload.actionConfirmations.mode == .all)
+        #expect(payload.connection.value.baseURL == "https://home.example")
+        #expect(payload.connection.value.internalURL == "http://homeassistant.local:8123")
+        #expect(payload.dashboard.value.items.first?.entityID == "light.kitchen")
+        #expect(payload.dashboard.value.entityDisplayNameOverrides == ["light.kitchen": "Kitchen"])
+        #expect(payload.actionConfirmations.value.mode == .all)
+        #expect(!encodedText.contains("Home Wi-Fi"))
         #expect(!encodedText.localizedCaseInsensitiveContains("token"))
         #expect(!encodedText.localizedCaseInsensitiveContains("refresh"))
         #expect(!encodedText.localizedCaseInsensitiveContains("wallpaper.jpg"))
     }
 
-    @Test @MainActor func iCloudSyncAppliesNewerRemotePreferences() throws {
+    @Test @MainActor func iCloudBootstrapOffersAndAppliesRemotePreferencesWithoutUploadingDefaults() throws {
         let defaults = testUserDefaults()
         let store = FakeICloudKeyValueStore()
         let syncService = HomesteadICloudSyncService(defaults: defaults, store: store)
-        syncService.isEnabled = true
-        let connectionSettings = HAConnectionSettings(baseURL: "https://old.example", defaults: defaults, tokenStore: InMemoryHAOAuthTokenStore())
+        let connectionSettings = HAConnectionSettings(baseURL: "", defaults: defaults, tokenStore: InMemoryHAOAuthTokenStore())
         let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
         let actionSettings = ActionConfirmationSettings(defaults: defaults)
         let appearanceSettings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: try temporaryTestDirectory())
+        let updatedAt = try testDate("2026-06-14T12:00:00Z")
         let payload = HomesteadICloudSyncPayload(
             version: HomesteadICloudSyncPayload.currentVersion,
-            updatedAt: try testDate("2026-06-14T12:00:00Z"),
-            connection: HAConnectionSettingsSyncSnapshot(
-                baseURL: "https://new.example",
-                internalURL: "http://new.local:8123",
-                externalURL: "https://new.example",
-                homeNetworkName: "New Wi-Fi"
-            ),
-            dashboard: DashboardConfigurationSyncSnapshot(
+            sourceDeviceID: "iphone",
+            connection: HomesteadSyncRecord(updatedAt: updatedAt, value: HomesteadConnectionSyncSnapshot(
+                baseURL: "https://new.example", internalURL: "http://new.local:8123", externalURL: "https://new.example"
+            )),
+            dashboard: HomesteadSyncRecord(updatedAt: updatedAt, value: DashboardConfigurationSyncSnapshot(
                 items: [.entity(entityID: "switch.outlet", size: .wide)],
                 entityDisplayNameOverrides: ["switch.outlet": "Outlet"]
-            ),
-            actionConfirmations: ActionConfirmationSettingsSyncSnapshot(
+            )),
+            actionConfirmations: HomesteadSyncRecord(updatedAt: updatedAt, value: ActionConfirmationSettingsSyncSnapshot(
                 mode: .off,
                 confirmsLockUnlocks: false,
                 confirmsSecurityCoverOpens: false,
                 confirmsScenes: false,
                 confirmsScripts: false,
                 confirmsOtherImpactfulActions: false
-            ),
-            appearance: HomesteadAppearanceSettingsSyncSnapshot(isWallpaperEnabled: true)
+            )),
+            appearance: HomesteadSyncRecord(updatedAt: updatedAt, value: HomesteadAppearanceSettingsSyncSnapshot(isWallpaperEnabled: true))
         )
-        store.set(try JSONEncoder().encode(payload), forKey: "homestead.preferences.v1")
+        let originalData = try JSONEncoder().encode(payload)
+        store.set(originalData, forKey: "homestead.preferences.v2")
 
-        syncService.applyRemoteIfNewer(
+        syncService.bootstrap(
+            connectionSettings: connectionSettings,
+            dashboardConfiguration: dashboardConfiguration,
+            actionConfirmationSettings: actionSettings,
+            appearanceSettings: appearanceSettings
+        )
+        #expect(syncService.bootstrapState == .restoreAvailable(HomesteadICloudRestoreSummary(
+            serverDisplayName: "https://new.example", dashboardItemCount: 1, updatedAt: updatedAt
+        )))
+        #expect(store.data(forKey: "homestead.preferences.v2") == originalData)
+
+        syncService.acceptBootstrapRestore(
             connectionSettings: connectionSettings,
             dashboardConfiguration: dashboardConfiguration,
             actionConfirmationSettings: actionSettings,
@@ -9073,12 +9081,27 @@ struct HomesteadTests {
         )
 
         #expect(connectionSettings.baseURL == "https://new.example")
-        #expect(connectionSettings.homeNetworkName == "New Wi-Fi")
         #expect(dashboardConfiguration.items.first?.entityID == "switch.outlet")
         #expect(dashboardConfiguration.entityDisplayNameOverride(for: "switch.outlet") == "Outlet")
         #expect(actionSettings.mode == .off)
         #expect(!appearanceSettings.isWallpaperEnabled)
-        #expect(syncService.lastRemoteChangeDate == payload.updatedAt)
+        #expect(syncService.lastRemoteChangeDate == updatedAt)
+        #expect(syncService.isEnabled)
+    }
+
+    @Test func discoveryParsesAdvertisedHomeAndPrefersExternalSignInAddress() {
+        let instance = HomeAssistantDiscoveryService.instance(serviceName: "Home Assistant", txt: [
+            "uuid": "ABC-123",
+            "location_name": "Our Home",
+            "internal_url": "http://homeassistant.local:8123",
+            "external_url": "https://home.example",
+            "version": "2026.6"
+        ])
+
+        #expect(instance?.id == "abc-123")
+        #expect(instance?.name == "Our Home")
+        #expect(instance?.signInURL == "https://home.example")
+        #expect(instance?.internalURL == "http://homeassistant.local:8123")
     }
 
     @Test func iconResolverHonorsPrecedenceAndProvenance() {

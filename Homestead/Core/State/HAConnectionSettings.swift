@@ -51,8 +51,7 @@ final class HAConnectionSettings {
         HAConnectionSettingsSyncSnapshot(
             baseURL: baseURL,
             internalURL: internalURL,
-            externalURL: externalURL,
-            homeNetworkName: homeNetworkName
+            externalURL: externalURL
         )
     }
 
@@ -93,7 +92,32 @@ final class HAConnectionSettings {
         baseURL = snapshot.baseURL
         internalURL = snapshot.internalURL
         externalURL = snapshot.externalURL
-        homeNetworkName = snapshot.homeNetworkName
+    }
+
+    func applySyncSnapshot(_ snapshot: HomesteadConnectionSyncSnapshot) {
+        baseURL = snapshot.baseURL
+        internalURL = snapshot.internalURL
+        externalURL = snapshot.externalURL
+    }
+
+    func applyRoutingSyncSnapshot(_ snapshot: HomesteadConnectionSyncSnapshot) {
+        if internalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            internalURL = snapshot.internalURL
+        }
+        if externalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            externalURL = snapshot.externalURL
+        }
+    }
+
+    func adoptServerRoutes(from configuration: HAServerConfigurationSnapshot) {
+        if internalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let internalURL = configuration.internalURL {
+            self.internalURL = internalURL
+        }
+        if externalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let externalURL = configuration.externalURL {
+            self.externalURL = externalURL
+        }
     }
 
     private enum Keys {
@@ -108,5 +132,4 @@ struct HAConnectionSettingsSyncSnapshot: Codable, Equatable, Sendable {
     var baseURL: String
     var internalURL: String
     var externalURL: String
-    var homeNetworkName: String
 }

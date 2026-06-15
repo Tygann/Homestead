@@ -24,7 +24,7 @@ Official references:
 | --- | --- | --- | --- |
 | OAuth sign-in and token refresh | HTTP auth | Mapped | Native app OAuth flow with Keychain-backed refresh tokens. |
 | WebSocket connect/auth/reconnect | WebSocket | Mapped | `HAWebSocketClient` owns transport and request routing. |
-| Internal/external URL routing | Native app setup guidance plus iOS network state | Mapped | Settings stores Homestead-owned internal URL, external URL, and home network metadata. `HomeAssistantService` resolves the active route for WebSocket, documented HTTP clients, and mobile-app registration while keeping OAuth refresh, cache scope, and registration identity anchored to the signed-in server. |
+| Discovery and internal/external URL routing | Bonjour `_home-assistant._tcp`, WebSocket `get_config`, and platform network state | Mapped | Setup browses only after the user selects Find Home Assistant, parses advertised server identity and route metadata, and keeps manual entry as fallback. `HomeAssistantService` prefers local routes on Wi-Fi/Ethernet with remote/sign-in fallback while OAuth, cache, and registration identity remain anchored to the sign-in address. |
 | Entity state snapshot | WebSocket `get_states` | Mapped | Stored in `HAStateStore` and mapped through `EntityMapper`. |
 | Live state updates | WebSocket `subscribe_events` for `state_changed` | Mapped | Batched before touching SwiftUI-observed state. |
 | Service calls | WebSocket `call_service` | Mapped | Domain-specific helpers live on `HomeAssistantService`. |
@@ -53,7 +53,7 @@ Official references:
 | Native iOS permissions | iOS UserNotifications, AVFoundation, CoreLocation, iOS Settings | Mapped | Settings > Permissions shows Notifications, Local Network, Location, and Camera. Camera/location use public authorization APIs. Local Network is represented as iOS-managed because there is no direct read-only status API. |
 | Mobile app WebSocket notifications | Native app WebSocket push notification channel | Mapped | Registers `push_websocket_channel`, subscribes with `mobile_app/push_notification_channel`, accepts documented root-level events and nested payload variants, presents local iOS notifications, and confirms HA delivery when requested. Delivery requires an active Home Assistant WebSocket connection; Homestead does not currently register an APNs token or operate a `push_url` forwarding service. |
 | Home Screen widgets | Widget/App Intents plus HA WebSocket/OAuth/history | Mapped | The gallery is organized by experience: Control covers light/switch/fan toggles, cover open/close/stop, and lock-only lock actions; Status covers sensor/person state; Graph covers numeric sensor history; Action covers scene/script runs. Widgets use shared credentials, compact app-group snapshots, WebSocket state refresh, documented REST history for graphs, and official WebSocket service calls where actions are available. |
-| Homestead iCloud sync | Apple iCloud key-value storage | Mapped | Settings > iCloud Sync stores one compact versioned Homestead preferences payload for server routing metadata, dashboard layout/display preferences, action confirmations, and small appearance flags. It intentionally excludes OAuth credentials, tokens, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, wallpaper image files, and generated user data. |
+| Homestead iCloud sync | Apple iCloud key-value storage | Mapped | Startup performs a read-only bootstrap before auth/cache/connection/default seeding. Payload v2 independently timestamps connection, dashboard, action-confirmation, and appearance records, migrates v1, suppresses remote-apply uploads, and presents explicit restore/enable conflicts. Enabled sync is automatic; Sync Now performs a two-way merge. Credentials and generated/device data are excluded. |
 
 ## Near-Term API Targets
 
@@ -69,7 +69,7 @@ These are the next API slices to map when the matching feature is implemented. D
 
 - Typed WebSocket `get_config` support exists for the dedicated `Settings > Account > Server` page.
 - Home Assistant version, location/time-unit basics, status/config source, and internal/external URL metadata are displayed only if returned by the official config shape.
-- Connection settings now store Homestead-owned internal URL, external URL, and selected home network metadata.
+- Connection settings store a sign-in identity plus Homestead-owned local and remote route candidates. The legacy home-network field is decode-only and no longer affects routing.
 - Automatic internal/external URL switching now lives in `HomeAssistantService` connection lifecycle code. SwiftUI displays the active route but does not choose URLs.
 - Route fallback tries the next saved URL for transport-style failures while preserving OAuth/token refresh behavior and cache/mobile-app server identity.
 

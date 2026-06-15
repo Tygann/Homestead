@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-14
 
+### Unified Setup, Discovery, and iCloud Restore
+
+- Gated startup behind a read-only iCloud bootstrap so a clean device cannot seed or upload defaults over an existing dashboard.
+- Added explicit restore/new-home choices, user-triggered Home Assistant Bonjour discovery, manual sign-in fallback, and device-local OAuth after restore.
+- Upgraded preference sync to section-level v2 records with v1 migration, automatic debounced uploads, two-way refresh, and explicit conflict resolution.
+- Removed SSID metadata from setup/routing and redesigned Server settings around sign-in, local, remote, and active addresses.
+- Recorded the durable architecture in `Docs/ADR/001-unified-setup-discovery-and-icloud-bootstrap.md`.
+
 ### iPad and Apple Silicon Mac Support
 
 - Confirmed both app and widget targets support iPhone and iPad and that the existing adaptive card grid, regular-width Security sidebar, and native List/Form surfaces provide the shared iPad layout without a navigation rewrite.

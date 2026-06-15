@@ -200,8 +200,10 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
 
 struct HomeAssistantOnboardingView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantDiscoveryService.self) private var discoveryService
+    @Environment(HomesteadSetupCoordinator.self) private var setupCoordinator
     @FocusState private var isURLFieldFocused: Bool
-    @State private var isShowingAdvancedSetup = false
+    @State private var isEnteringAddress = false
 
     let authState: HAAuthState
     let connectionStatus: HAConnectionStatus
@@ -241,19 +243,6 @@ struct HomeAssistantOnboardingView: View {
                 actionBar(presentation: presentation)
                     .background(Color(.systemGroupedBackground))
             }
-            .sheet(isPresented: $isShowingAdvancedSetup) {
-                NavigationStack {
-                    HomeAssistantAdvancedOnboardingSettingsView()
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button("Done") {
-                                    isShowingAdvancedSetup = false
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                }
-            }
         }
     }
 
@@ -288,49 +277,116 @@ struct HomeAssistantOnboardingView: View {
         presentation: HomeAssistantOnboardingPresentation
     ) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
-            VStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text("Home Assistant Address")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+            if connectionSettings.hasServerURL {
+                selectedServerCard(presentation: presentation)
+            } else {
+                VStack(spacing: AppSpacing.medium) {
+                    Button {
+                        isURLFieldFocused = false
+                        isEnteringAddress = false
+                        discoveryService.start()
+                    } label: {
+                        Label("Find Home Assistant", systemImage: "dot.radiowaves.left.and.right")
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                    }
+                    .buttonStyle(.borderedProminent)
 
-                    TextField("homeassistant.local:8123", text: baseURL)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .textContentType(.URL)
-                        .autocorrectionDisabled()
-                        .font(.body)
-                        .multilineTextAlignment(.leading)
-                        .focused($isURLFieldFocused)
-                        .submitLabel(.go)
-                        .onSubmit {
-                            attemptSignIn(presentation: presentation)
+                    discoveryResults
+
+                    Button("Enter Address Manually") {
+                        discoveryService.stop()
+                        isEnteringAddress = true
+                        isURLFieldFocused = true
+                    }
+                    .buttonStyle(.plain)
+
+                    if isEnteringAddress {
+                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                            Text("Home Assistant Address")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            TextField("homeassistant.local:8123", text: baseURL)
+                                .textInputAutocapitalization(.never)
+                                .keyboardType(.URL)
+                                .textContentType(.URL)
+                                .autocorrectionDisabled()
+                                .focused($isURLFieldFocused)
+                                .submitLabel(.go)
+                                .onSubmit { attemptSignIn(presentation: presentation) }
                         }
-                }
-                .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-                .padding(.horizontal, AppSpacing.medium)
-                .padding(.vertical, AppSpacing.small)
-
-                if presentation.showsStatusRow {
-                    Divider()
-                        .padding(.leading, AppSpacing.medium)
-
-                    statusRow(presentation: presentation)
-                        .padding(.horizontal, AppSpacing.medium)
-                        .padding(.vertical, AppSpacing.medium)
+                        .padding(AppSpacing.medium)
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card))
+                    }
                 }
             }
-            .background(
-                Color(.secondarySystemGroupedBackground),
-                in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-            )
-
-            Text(presentation.footerMessage)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, AppSpacing.large)
         }
+    }
+
+    @ViewBuilder
+    private var discoveryResults: some View {
+        switch discoveryService.state {
+        case .idle:
+            EmptyView()
+        case .browsing:
+            if discoveryService.instances.isEmpty {
+                HStack { ProgressView(); Text("Looking on your local network...") }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(discoveryService.instances) { instance in
+                    Button {
+                        setupCoordinator.select(instance, settings: connectionSettings)
+                    } label: {
+                        HStack {
+                            Image(systemName: "house.fill")
+                            VStack(alignment: .leading) {
+                                Text(instance.name).fontWeight(.semibold)
+                                Text(instance.signInURL).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                        }
+                        .padding(AppSpacing.medium)
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        case .failed:
+            ContentUnavailableView(
+                "Home Assistant Not Found",
+                systemImage: "wifi.exclamationmark",
+                description: Text("Check Local Network access, or enter the address manually.")
+            )
+        }
+    }
+
+    private func selectedServerCard(presentation: HomeAssistantOnboardingPresentation) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "house.fill").foregroundStyle(Color.accentColor)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Home Assistant").font(.headline)
+                    Text(connectionSettings.baseURL).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer()
+                if authState == .signedOut {
+                    Button("Change") {
+                        connectionSettings.baseURL = ""
+                        connectionSettings.internalURL = ""
+                        connectionSettings.externalURL = ""
+                    }
+                    .font(.subheadline)
+                }
+            }
+            .padding(AppSpacing.medium)
+
+            if presentation.showsStatusRow {
+                Divider().padding(.leading, AppSpacing.medium)
+                statusRow(presentation: presentation).padding(AppSpacing.medium)
+            }
+        }
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card))
     }
 
     private func actionBar(presentation: HomeAssistantOnboardingPresentation) -> some View {
@@ -354,16 +410,6 @@ struct HomeAssistantOnboardingView: View {
             .buttonBorderShape(.roundedRectangle(radius: AppRadius.control))
             .disabled(!presentation.isButtonEnabled)
 
-            Button {
-                isURLFieldFocused = false
-                isShowingAdvancedSetup = true
-            } label: {
-                Text("Configure Advanced Settings")
-                    .font(.body)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.accentColor)
         }
         .padding(.horizontal, AppSpacing.large)
         .padding(.top, AppSpacing.medium)
@@ -415,43 +461,38 @@ struct HomeAssistantOnboardingView: View {
     }
 }
 
-private struct HomeAssistantAdvancedOnboardingSettingsView: View {
-    @Environment(HAConnectionSettings.self) private var connectionSettings
+struct ICloudSetupRestoreView: View {
+    let summary: HomesteadICloudRestoreSummary
+    let restore: () -> Void
+    let setUpAnotherHome: () -> Void
 
     var body: some View {
-        @Bindable var connectionSettings = connectionSettings
-
-        Form {
-            Section {
-                TextField("Internal URL", text: $connectionSettings.internalURL)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .textContentType(.URL)
-                    .autocorrectionDisabled()
-
-                TextField("External URL", text: $connectionSettings.externalURL)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .textContentType(.URL)
-                    .autocorrectionDisabled()
-            } header: {
-                Text("Addresses")
-            } footer: {
-                Text("Homestead can switch between internal and external addresses after sign-in.")
+        VStack(spacing: 28) {
+            Spacer()
+            Image(systemName: "icloud.and.arrow.down.fill")
+                .font(.system(size: 54))
+                .foregroundStyle(Color.accentColor)
+            VStack(spacing: AppSpacing.small) {
+                Text("Continue Your Homestead Setup").font(.largeTitle.bold()).multilineTextAlignment(.center)
+                Text("A saved setup was found in iCloud.").foregroundStyle(.secondary)
             }
-
-            Section {
-                TextField("Wi-Fi Network Name", text: $connectionSettings.homeNetworkName)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            } header: {
-                Text("Home Network")
-            } footer: {
-                Text("Enter the Wi-Fi network Homestead should treat as home.")
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                LabeledContent("Home Assistant", value: summary.serverDisplayName)
+                LabeledContent("Dashboard", value: summary.dashboardItemCount == 1 ? "1 item" : "\(summary.dashboardItemCount) items")
             }
+            .padding(AppSpacing.large)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card))
+            .frame(maxWidth: 460)
+            Spacer()
+            Button("Continue") { restore() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .frame(maxWidth: 460)
+            Button("Set Up Another Home") { setUpAnotherHome() }
+                .buttonStyle(.plain)
         }
-        .navigationTitle("Advanced Setup")
-        .toolbarTitleDisplayMode(.inline)
+        .padding(AppSpacing.large)
+        .background(Color(.systemGroupedBackground))
     }
 }
 

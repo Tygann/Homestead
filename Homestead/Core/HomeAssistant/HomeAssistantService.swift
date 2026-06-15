@@ -233,7 +233,8 @@ final class HomeAssistantService {
 
             do {
                 let connectedConfiguration = try await establishTransportConnectionWithAuthRecovery(
-                    configuration: routeConfiguration
+                    configuration: routeConfiguration,
+                    timeout: candidate.route == .internalURL ? .seconds(4) : nil
                 )
                 activeConfiguration = connectedConfiguration
                 activeRouteSummary = HAConnectionRouteSummary(
@@ -887,6 +888,7 @@ final class HomeAssistantService {
             let config = try await client.fetchConfig()
             let snapshot = HAServerConfigurationSnapshot(dto: config)
             serverConfiguration = snapshot
+            currentConnectionSettings?.adoptServerRoutes(from: snapshot)
             serverConfigurationStatus = .loaded(snapshot.loadedAt)
         } catch {
             serverConfigurationStatus = .failed(error.localizedDescription)
@@ -1793,6 +1795,28 @@ final class HomeAssistantService {
     }
 
     private func establishTransportConnectionWithAuthRecovery(
+        configuration: HAConnectionConfiguration,
+        timeout: Duration? = nil
+    ) async throws -> HAConnectionConfiguration {
+        guard let timeout else {
+            return try await establishTransportConnectionWithAuthRecoveryWithoutTimeout(configuration: configuration)
+        }
+
+        return try await withThrowingTaskGroup(of: HAConnectionConfiguration.self) { group in
+            group.addTask { [weak self] in
+                guard let self else { throw CancellationError() }
+                return try await self.establishTransportConnectionWithAuthRecoveryWithoutTimeout(configuration: configuration)
+            }
+            group.addTask {
+                try await Task.sleep(for: timeout)
+                throw HAWebSocketError.requestTimedOut
+            }
+            defer { group.cancelAll() }
+            return try await group.next() ?? configuration
+        }
+    }
+
+    private func establishTransportConnectionWithAuthRecoveryWithoutTimeout(
         configuration: HAConnectionConfiguration
     ) async throws -> HAConnectionConfiguration {
         do {
@@ -2078,6 +2102,7 @@ final class HomeAssistantService {
 
             let snapshot = HAServerConfigurationSnapshot(dto: config)
             serverConfiguration = snapshot
+            currentConnectionSettings?.adoptServerRoutes(from: snapshot)
             serverConfigurationStatus = .loaded(snapshot.loadedAt)
         } catch {
             guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {

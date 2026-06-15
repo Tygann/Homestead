@@ -14,6 +14,7 @@ struct HomesteadApp: App {
     @State private var actionConfirmationSettings: ActionConfirmationSettings
     @State private var appearanceSettings: HomesteadAppearanceSettings
     @State private var iCloudSyncService: HomesteadICloudSyncService
+    @State private var setupCoordinator: HomesteadSetupCoordinator
 
     init() {
         let stateStore = HAStateStore()
@@ -24,6 +25,7 @@ struct HomesteadApp: App {
         let appearanceSettings = HomesteadAppearanceSettings()
         let dashboardConfiguration = DashboardConfiguration()
         let iCloudSyncService = HomesteadICloudSyncService()
+        let setupCoordinator = HomesteadSetupCoordinator()
         let homeAssistantService = HomeAssistantService(
             stateStore: stateStore,
             nativeNotificationService: nativeNotificationService
@@ -38,19 +40,7 @@ struct HomesteadApp: App {
         _actionConfirmationSettings = State(initialValue: actionConfirmationSettings)
         _appearanceSettings = State(initialValue: appearanceSettings)
         _iCloudSyncService = State(initialValue: iCloudSyncService)
-
-        guard !RuntimeEnvironment.isRunningForPreviews else {
-            return
-        }
-
-        homeAssistantService.startNetworkMonitoring(settings: connectionSettings)
-
-        Task { @MainActor in
-            await homeAssistantService.refreshAuthState()
-            homeAssistantService.refreshMobileAppRegistrationState(settings: connectionSettings)
-            await homeAssistantService.loadCachedStatesIfPossible(settings: connectionSettings)
-            await homeAssistantService.connectIfPossible(settings: connectionSettings)
-        }
+        _setupCoordinator = State(initialValue: setupCoordinator)
     }
 
     var body: some Scene {
@@ -65,37 +55,37 @@ struct HomesteadApp: App {
                 .environment(actionConfirmationSettings)
                 .environment(appearanceSettings)
                 .environment(iCloudSyncService)
+                .environment(setupCoordinator)
+                .environment(setupCoordinator.discoveryService)
                 .task {
-                    iCloudSyncService.startObserving(
+                    guard !RuntimeEnvironment.isRunningForPreviews else { return }
+                    await setupCoordinator.start(
+                        iCloud: iCloudSyncService,
                         connectionSettings: connectionSettings,
                         dashboardConfiguration: dashboardConfiguration,
                         actionConfirmationSettings: actionConfirmationSettings,
-                        appearanceSettings: appearanceSettings
-                    )
-                    iCloudSyncService.applyRemoteIfNewer(
-                        connectionSettings: connectionSettings,
-                        dashboardConfiguration: dashboardConfiguration,
-                        actionConfirmationSettings: actionConfirmationSettings,
-                        appearanceSettings: appearanceSettings
+                        appearanceSettings: appearanceSettings,
+                        homeAssistantService: homeAssistantService
                     )
                 }
                 .onChange(of: connectionSettings.syncSnapshot) { _, _ in
-                    syncPreferencesToICloud()
+                    syncPreferencesToICloud(.connection)
                 }
                 .onChange(of: dashboardConfiguration.syncSnapshot) { _, _ in
-                    syncPreferencesToICloud()
+                    syncPreferencesToICloud(.dashboard)
                 }
                 .onChange(of: actionConfirmationSettings.syncSnapshot) { _, _ in
-                    syncPreferencesToICloud()
+                    syncPreferencesToICloud(.actionConfirmations)
                 }
                 .onChange(of: appearanceSettings.syncSnapshot) { _, _ in
-                    syncPreferencesToICloud()
+                    syncPreferencesToICloud(.appearance)
                 }
         }
     }
 
-    private func syncPreferencesToICloud() {
-        iCloudSyncService.syncNow(
+    private func syncPreferencesToICloud(_ section: HomesteadSyncSection) {
+        iCloudSyncService.noteLocalChange(
+            section,
             connectionSettings: connectionSettings,
             dashboardConfiguration: dashboardConfiguration,
             actionConfirmationSettings: actionConfirmationSettings,

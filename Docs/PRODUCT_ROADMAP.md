@@ -29,7 +29,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
 - Settings sheet opened from account/avatar buttons on daily-use tabs.
 - Settings hub with Home Assistant and Homestead sections, native management overviews for Devices & Services and Automations & Scenes, registry/admin-oriented devices/entities/integration-platform/helper browsers, and no production placeholder rows for unsupported categories.
-- Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a nested Server page for connection status, recovery actions, automatic route status, saved internal/external URL and home network metadata, and Home Assistant `get_config` details.
+- Profile-card Account destination for Home Assistant identity/session details, diagnostics, sign-out, and a user-facing Server page for Home Assistant's local/remote addresses and Homestead's active route, with staged toolbar editing.
 - Native Settings > Updates page backed by Home Assistant `.update` entities, with grouped/filterable/searchable presentation, release/version/status/context details, and official `update.install`, `update.skip`, and `update.clear_skipped` service actions.
 - Native Settings > Apps page backed by Home Assistant Core's Supervisor WebSocket bridge to `/addons`, showing installed Supervisor apps/add-ons, version, update availability, and Running/Stopped/Unknown status where Supervisor is available.
 - Read-only Settings > Logbook page backed by Home Assistant's documented REST logbook API, with date range, entity/domain filtering, search, and app-facing activity row models.
@@ -43,7 +43,8 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - User-facing service-call and reconnect recovery feedback through `HomeAssistantService` and app chrome, including tappable reconnecting state and clearer action-failure copy.
 - Authenticated camera snapshot support.
 - Experience-first Home Screen widgets: Control for lights, switches, covers, fans, and lock-only lock actions; Status for sensors and people; Graph for numeric sensors; and Action for scenes/scripts. They use shared OAuth credentials, app-group state, WebSocket state refresh, documented REST history for graphs, and official WebSocket service calls where actions are available.
-- Opt-in iCloud key-value sync for small Homestead-owned preferences, including server routing metadata, dashboard layout/display preferences, action confirmation preferences, and small appearance settings. OAuth credentials, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, and wallpaper image files stay local.
+- Cloud-first setup bootstrap and opt-in automatic iCloud key-value sync for small Homestead-owned preferences. Clean devices can explicitly restore server metadata and dashboard preferences before OAuth; section-level conflict resolution prevents unrelated or default changes from replacing newer data. Credentials and generated/device data stay local.
+- User-initiated local Home Assistant discovery through the advertised `_home-assistant._tcp` Bonjour service, with manual sign-in address entry as fallback.
 - App-facing model mapping through `EntityMapper`, with SwiftUI avoiding direct Home Assistant DTO use.
 
 ## Near-Term Priorities

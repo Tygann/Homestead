@@ -6,11 +6,18 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Focused first-run onboarding and global wallpaper personalization are completed. Next recommended focus is the existing dashboard mini tile and WidgetKit/App Intents polish priorities from the roadmap.
+Unified setup, Bonjour discovery, and safe iCloud restore are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification of this flow, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
 
 Recommended reasoning level: High.
 
 ## Completed Chunk
+
+- Added a startup coordinator that performs read-only iCloud bootstrap before auth refresh, cache loading, connection, dashboard seeding, or uploads.
+- Replaced URL-first onboarding with explicit iCloud restore, user-triggered `_home-assistant._tcp` Bonjour discovery, discovered-home cards, and manual Sign-in Address fallback.
+- Kept credentials device-local, removed Home Network/SSID from setup and routing, and made WebSocket `get_config` fill only missing local/remote routes.
+- Upgraded iCloud preferences to section-timestamped v2 records with v1 migration, source-device identity, remote-apply suppression, automatic debounced sync, two-way Sync Now, and explicit enable conflicts.
+- Reworked Settings > Account > Server around Home Assistant's Local Address and Remote Address plus Homestead's Active Route, with staged Cancel/Save toolbar editing. The internal OAuth identity anchor is no longer exposed as a confusing third URL.
+- Added `NSBonjourServices` for Home Assistant discovery without adding multicast entitlements or changing signing, bundle identifiers, widgets, or capabilities.
 
 - Confirmed the app and widget targets support iPhone and iPad, and that Xcode exposes and builds the app for Apple silicon Mac using Designed for iPad while Mac Catalyst remains intentionally disabled.
 - Kept the existing adaptive SwiftUI structure for iPad/Mac: dashboard and area grids add tracks at wider widths, Security retains its regular-width activity sidebar, and Browse/Settings continue using native List/Form adaptation without duplicated platform views.
@@ -36,7 +43,7 @@ Recommended reasoning level: High.
 - Added opt-in Settings > iCloud Sync backed by Apple iCloud key-value storage for small Homestead-owned preferences: server routing metadata, dashboard layout/display preferences, action confirmations, and small appearance flags. Credentials, tokens, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, and wallpaper images remain local.
 - Added an app-level first-run Home Assistant setup surface for users without a complete saved server/sign-in session.
 - The setup surface writes the existing `HAConnectionSettings.baseURL`, starts the existing Home Assistant OAuth flow through `HomeAssistantService.signInWithHomeAssistant(settings:)`, and keeps normal setup focused on a single server-address row with a bottom Continue action.
-- Added an optional Settings-style Advanced Setup sheet during onboarding for internal URL, external URL, and manually entered home network metadata, reusing existing `HAConnectionSettings` routing fields without adding discovery or permission prompts.
+- Replaced the former Advanced Setup sheet and unused home-network metadata with contextual discovery and server route management.
 - Removed the passive signed-out dashboard setup card path so fresh users no longer land on a non-actionable dashboard message.
 - Suppressed the post-registration notification setup prompt while onboarding is visible, so permission prompts remain after sign-in instead of interrupting setup.
 - Area cards now decode Home Assistant area registry `icon` metadata and resolve icons in source-of-truth order: mapped HA MDI icon, expanded local name inference, then a neutral `house` fallback.
@@ -194,7 +201,7 @@ Recommended reasoning level: High.
 - Use official Home Assistant API surfaces only. Do not add private frontend endpoints for server/admin details.
 - Do not use private frontend endpoints for repairs, users, system health, or admin details.
 - Keep URL switching in connection lifecycle code, not directly in SwiftUI views.
-- Settings > Account > Server has saved internal/external URL, home network metadata, active route/status, and WebSocket `get_config` display. Automatic route selection is implemented in `HomeAssistantService`.
+- Settings > Account > Server distinguishes sign-in, local, remote, and active addresses. Automatic route selection and short local-route fallback are implemented in `HomeAssistantService`; legacy home-network metadata no longer affects routing.
 - Settings > Permissions has native iOS status rows for Notifications, Local Network, Location, and Camera. Keep future native permission work in app-owned platform services rather than Home Assistant API code.
 - User-facing service-call and reconnect recovery feedback belongs in `HomeAssistantService` and app chrome, not scattered card/detail views.
 - Numeric sensor history already has documented REST history plumbing, authenticated service handoff, app-facing chart models, fixed detail ranges, and lightweight dashboard chart cards; binary sensors, locks, switches, automations, covers, people, and device trackers now have app-facing detail timeline models and a shared Recent Activity panel. Reuse those shapes where they fit.
@@ -204,6 +211,7 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator, iPad Air 11-inch (M4) iOS 26.5, and Apple silicon Mac Designed-for-iPad builds passed after unified setup/discovery/iCloud restore. Full `HomesteadTests` passed on iPhone 17 iOS 26.5, including the clean-device no-default-upload regression.
 - Generic iOS Simulator, iPad Air 11-inch (M4) iOS 26.5, and Apple silicon Mac Designed-for-iPad builds passed with isolated derived-data paths after the platform-support review.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5`; a signed iPad simulator launch also confirmed the first-run surface is centered and unclipped in portrait.
 - Authenticated dashboard/Areas/Browse/Settings behavior in iPad landscape and multitasking widths, plus Mac pointer/window behavior and Mac widget-gallery availability, still require manual testing with a real Home Assistant session.

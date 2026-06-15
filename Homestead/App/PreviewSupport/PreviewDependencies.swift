@@ -144,7 +144,8 @@ extension View {
 
     @MainActor
     func withPreviewEnvironment(_ dependencies: PreviewDependencies) -> some View {
-        environment(dependencies.stateStore)
+        let setupCoordinator = HomesteadSetupCoordinator(initialPhase: .ready)
+        return environment(dependencies.stateStore)
             .environment(dependencies.connectionSettings)
             .environment(dependencies.homeAssistantService)
             .environment(dependencies.nativeNotificationService)
@@ -153,6 +154,8 @@ extension View {
             .environment(dependencies.actionConfirmationSettings)
             .environment(dependencies.appearanceSettings)
             .environment(dependencies.iCloudSyncService)
+            .environment(setupCoordinator)
+            .environment(setupCoordinator.discoveryService)
     }
 }
 

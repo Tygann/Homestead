@@ -3,6 +3,11 @@ import SwiftUI
 struct ContentView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(HomesteadICloudSyncService.self) private var iCloudSyncService
+    @Environment(HomesteadSetupCoordinator.self) private var setupCoordinator
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(NativeNotificationService.self) private var nativeNotificationService
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -28,7 +33,15 @@ struct ContentView: View {
         )
 
         Group {
-            if onboarding.shouldShow {
+            if case .restoreAvailable(let summary) = iCloudSyncService.bootstrapState {
+                ICloudSetupRestoreView(
+                    summary: summary,
+                    restore: restoreFromICloud,
+                    setUpAnotherHome: setUpAnotherHome
+                )
+            } else if setupCoordinator.phase == .checkingICloud {
+                ProgressView("Checking iCloud")
+            } else if onboarding.shouldShow {
                 HomeAssistantOnboardingView(
                     authState: homeAssistantService.authState,
                     connectionStatus: homeAssistantService.connectionStatus,
@@ -75,6 +88,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
+                guard setupCoordinator.phase != .checkingICloud else { return }
                 homeAssistantService.applicationWillEnterForeground()
                 Task { await homeAssistantService.resume(settings: connectionSettings) }
             case .background:
@@ -104,6 +118,29 @@ struct ContentView: View {
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: chrome.statusAccessoryState)
         .tabBarMinimizeBehavior(.onScrollDown)
+    }
+
+    private func restoreFromICloud() {
+        Task {
+            await setupCoordinator.restoreAndSignIn(
+                iCloud: iCloudSyncService,
+                connectionSettings: connectionSettings,
+                dashboardConfiguration: dashboardConfiguration,
+                actionConfirmationSettings: actionConfirmationSettings,
+                appearanceSettings: appearanceSettings,
+                homeAssistantService: homeAssistantService
+            )
+        }
+    }
+
+    private func setUpAnotherHome() {
+        Task {
+            await setupCoordinator.setUpAnotherHome(
+                iCloud: iCloudSyncService,
+                connectionSettings: connectionSettings,
+                homeAssistantService: homeAssistantService
+            )
+        }
     }
 
     private func mainTabs(chrome: AppChromePresentation) -> some View {
