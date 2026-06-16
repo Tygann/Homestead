@@ -58,6 +58,43 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1.0 (Build 13)
+
+- Release Date: 2026-06-15
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This update improves setup, restore, account settings, and multi-device support, with safer Home Assistant routing when you use both local and remote addresses.
+
+What's new:
+
+- New setup flow with explicit iCloud restore or new-home choices before sign-in
+- User-initiated Home Assistant discovery for local servers, with manual address entry still available
+- Opt-in iCloud Sync for small Homestead preferences such as dashboard layout, appearance settings, and server routing metadata
+- iPad support and Apple silicon Mac availability through Designed for iPad
+
+Improvements:
+
+- Settings > Account now has a cleaner Server overview with focused Internal URL and External URL editors
+- Local Address routing can be limited to saved Wi-Fi networks, so Homestead uses the Remote Address away from home
+- Settings > Devices & Services now includes read-only Integrations and Helpers surfaces instead of placeholder rows
+- Mobile App registration is more stable and avoids creating repeated cloned devices during preview/development sessions
+- Dashboard active-state styling and fan percentage controls have been polished
+- More Home Assistant icons now map to native SF Symbols where there is a clear match
+
+Please test:
+
+- Fresh setup, iCloud restore, Home Assistant discovery, and manual sign-in
+- Account > Server editing for Internal URL, External URL, and saved Wi-Fi networks
+- Connecting both on a saved home Wi-Fi network and away from it
+- Settings > Devices & Services > Integrations and Helpers
+- iPad and Apple silicon Mac layouts if available
+
+### Internal Summary
+
+Build 13 covers the June 14-15 setup/account/support pass after Build 12: unified setup and iCloud bootstrap, user-triggered Bonjour discovery, opt-in iCloud preference sync, SSID-gated local routing, Account Server editor polish, iPad and Designed for iPad Mac support clarification, Settings placeholder completion, preview-safe Mobile App registration identity, fan slider/dashboard active-state polish, and expanded curated MDI-to-SF icon mappings.
+
 ## Version 1.0 (Build 12)
 
 - Release Date: 2026-06-14
