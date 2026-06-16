@@ -49,7 +49,7 @@ nonisolated enum IconResolver {
 
     static func resolveArea(_ input: AreaIconResolutionInput) -> ResolvedIcon {
         let inferred = inferredAreaSFSymbol(for: input.name)
-        let fallback = inferred ?? "house"
+        let fallback = inferred ?? "laptopcomputer.and.iphone"
 
         if let presentationOverride = input.presentationOverride {
             return resolveLocalOverride(
@@ -83,7 +83,7 @@ nonisolated enum IconResolver {
             )
         }
 
-        return .sfSymbol("house", provenance: .fallback)
+        return .sfSymbol("laptopcomputer.and.iphone", provenance: .fallback)
     }
 
     static func applyingDashboardOverride(
@@ -517,15 +517,15 @@ nonisolated enum IconResolver {
         "mdi:alarm-light": "light.beacon.max.fill",
         "mdi:bathtub": "bathtub.fill",
         "mdi:bathtub-outline": "bathtub.fill",
-        "mdi:bed": "bed.double",
-        "mdi:bed-double": "bed.double",
-        "mdi:bed-double-outline": "bed.double",
-        "mdi:bed-king": "bed.double",
-        "mdi:bed-king-outline": "bed.double",
-        "mdi:bed-queen": "bed.double",
-        "mdi:bed-queen-outline": "bed.double",
-        "mdi:bed-single": "bed.double",
-        "mdi:bed-single-outline": "bed.double",
+        "mdi:bed": "bed.double.fill",
+        "mdi:bed-double": "bed.double.fill",
+        "mdi:bed-double-outline": "bed.double.fill",
+        "mdi:bed-king": "bed.double.fill",
+        "mdi:bed-king-outline": "bed.double.fill",
+        "mdi:bed-queen": "bed.double.fill",
+        "mdi:bed-queen-outline": "bed.double.fill",
+        "mdi:bed-single": "bed.double.fill",
+        "mdi:bed-single-outline": "bed.double.fill",
         "mdi:bell": "bell.fill",
         "mdi:blinds": "blinds.horizontal.closed",
         "mdi:blinds-closed": "blinds.horizontal.closed",
@@ -587,17 +587,17 @@ nonisolated enum IconResolver {
         "mdi:floor-light-torchiere-variant": "lamp.floor.fill",
         "mdi:floor-light-torchiere-variant-outline": "lamp.floor.fill",
         "mdi:food-fork-drink": "fork.knife",
-        "mdi:fridge": "refrigerator",
+        "mdi:fridge": "refrigerator.fill",
         "mdi:fridge-alert": "refrigerator.fill",
         "mdi:fridge-bottom": "refrigerator.fill",
         "mdi:fridge-filled": "refrigerator.fill",
         "mdi:fridge-filled-bottom": "refrigerator.fill",
         "mdi:fridge-filled-top": "refrigerator.fill",
-        "mdi:fridge-off": "refrigerator",
-        "mdi:fridge-outline": "refrigerator",
+        "mdi:fridge-off": "refrigerator.fill",
+        "mdi:fridge-outline": "refrigerator.fill",
         "mdi:fridge-top": "refrigerator.fill",
         "mdi:fridge-variant": "refrigerator.fill",
-        "mdi:fridge-variant-off": "refrigerator",
+        "mdi:fridge-variant-off": "refrigerator.fill",
         "mdi:gamepad-variant": "gamecontroller",
         "mdi:garage": "door.garage.closed",
         "mdi:garage-open": "door.garage.open",
@@ -614,7 +614,7 @@ nonisolated enum IconResolver {
         "mdi:lamp-outline": "lamp.table",
         "mdi:lamps": "lamp.table.fill",
         "mdi:lamps-outline": "lamp.table",
-        "mdi:light-recessed": "light.recessed.3.fill",
+        "mdi:light-recessed": "light.recessed.fill",
         "mdi:lightbulb-group": "lightbulb.fill",
         "mdi:lightbulb-group-outline": "lightbulb.fill",
         "mdi:lightbulb": "lightbulb.fill",
@@ -671,14 +671,15 @@ nonisolated enum IconResolver {
         "mdi:smoke-detector": "smoke.fill",
         "mdi:smoke-detector-alert": "smoke.fill",
         "mdi:smoke-detector-outline": "smoke",
-        "mdi:sofa": "sofa",
-        "mdi:sofa-outline": "sofa",
+        "mdi:sofa": "sofa.fill",
+        "mdi:sofa-outline": "sofa.fill",
         "mdi:sofa-single": "sofa.fill",
-        "mdi:sofa-single-outline": "sofa",
+        "mdi:sofa-single-outline": "sofa.fill",
         "mdi:speaker": "speaker.wave.2.fill",
         "mdi:speaker-multiple": "hifispeaker.2.fill",
         "mdi:speaker-off": "speaker.slash.fill",
         "mdi:speaker-wireless": "hifispeaker.fill",
+        "mdi:stairs": "stairs",
         "mdi:stove": "frying.pan.fill",
         "mdi:stove-burner": "frying.pan.fill",
         "mdi:television": "tv",
@@ -700,7 +701,7 @@ nonisolated enum IconResolver {
         "mdi:water-alert": "drop.fill",
         "mdi:water-percent": "humidity.fill",
         "mdi:water-thermometer": "thermometer.medium",
-        "mdi:washing-machine": "washer",
+        "mdi:washing-machine": "washer.fill",
         "mdi:washing-machine-alert": "washer.fill",
         "mdi:washing-machine-off": "washer.fill",
         "mdi:weather-cloudy": "cloud.fill",

@@ -309,9 +309,35 @@ enum WidgetSharedStore {
                     isAvailable: sensor.isAvailable,
                     areaName: context.areaName,
                     deviceName: context.deviceName,
-                    icon: icon
+                    icon: icon,
+                    gauge: sensor.gaugePresentation.flatMap(Self.widgetGaugePresentation)
                 )
             }
+    }
+
+    nonisolated private static func widgetGaugePresentation(from gauge: GaugePresentation) -> WidgetGaugePresentation? {
+        guard gauge.isDashboardFeatureEligible else {
+            return nil
+        }
+
+        return WidgetGaugePresentation(
+            value: gauge.value,
+            lowerBound: gauge.range.lowerBound,
+            upperBound: gauge.range.upperBound,
+            valueText: gauge.valueText,
+            unitText: gauge.unitText,
+            status: widgetGaugeStatus(from: gauge.status),
+            statusDisplayText: gauge.statusDisplayText,
+            sections: gauge.sections.map { section in
+                WidgetGaugeSection(
+                    lowerBound: section.range.lowerBound,
+                    upperBound: section.range.upperBound,
+                    status: widgetGaugeStatus(from: section.status)
+                )
+            },
+            accessibilityLabel: gauge.accessibilityLabel,
+            accessibilityValue: gauge.accessibilityValue
+        )
     }
 
     static func presenceSnapshots(
@@ -424,6 +450,21 @@ enum WidgetSharedStore {
             "Unavailable"
         default:
             state.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    nonisolated private static func widgetGaugeStatus(from status: GaugePresentationStatus) -> WidgetGaugeStatus {
+        switch status {
+        case .nominal:
+            .nominal
+        case .low:
+            .low
+        case .high:
+            .high
+        case .warning:
+            .warning
+        case .critical:
+            .critical
         }
     }
 

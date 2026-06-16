@@ -88,6 +88,7 @@ struct HAWidgetSensorState: Sendable {
     let icon: ResolvedIcon
     let isAlerting: Bool
     let isAvailable: Bool
+    let numericValue: Double?
 
     var systemImage: String { icon.sfSymbolName }
 }
@@ -378,7 +379,8 @@ final class HAWidgetActionClient: Sendable {
                 subtitle: sensorSubtitle(value: stateValue, deviceClass: deviceClass, isAlerting: isAlerting),
                 icon: resolvedIcon(domain: "sensor", state: stateValue, attributes: attributes),
                 isAlerting: isAlerting,
-                isAvailable: isAvailable
+                isAvailable: isAvailable,
+                numericValue: Double(stateValue)
             )
         }
     }

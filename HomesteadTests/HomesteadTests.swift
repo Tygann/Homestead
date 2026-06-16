@@ -3961,7 +3961,23 @@ struct HomesteadTests {
                 isAvailable: true,
                 areaName: nil,
                 deviceName: nil,
-                icon: .sfSymbol("battery.75percent", provenance: .haSemanticMapping)
+                icon: .sfSymbol("battery.75percent", provenance: .haSemanticMapping),
+                gauge: WidgetGaugePresentation(
+                    value: 18,
+                    lowerBound: 0,
+                    upperBound: 100,
+                    valueText: "18",
+                    unitText: "%",
+                    status: .warning,
+                    statusDisplayText: "Warning",
+                    sections: [
+                        WidgetGaugeSection(lowerBound: 0, upperBound: 10, status: .critical),
+                        WidgetGaugeSection(lowerBound: 10, upperBound: 20, status: .warning),
+                        WidgetGaugeSection(lowerBound: 20, upperBound: 100, status: .nominal)
+                    ],
+                    accessibilityLabel: "Battery gauge",
+                    accessibilityValue: "18%, warning"
+                )
             ),
             WidgetSensorSnapshot(
                 entityID: "sensor.temperature",
@@ -7792,7 +7808,7 @@ struct HomesteadTests {
         )
         let sections = DashboardAreaBuilder.buildSections(from: areas)
 
-        #expect(sections.map(\.title) == ["Main Floor", "Upstairs", "Other Areas"])
+        #expect(sections.map(\.title) == ["Main Floor", "Upstairs", "Unassigned"])
         #expect(sections[0].areas.map(\.name) == ["Kitchen"])
         #expect(sections[1].areas.map(\.name) == ["Bedroom"])
         #expect(sections[2].areas.map(\.name) == ["Garage", "Unassigned"])

@@ -98,7 +98,7 @@ enum DashboardAreaBuilder {
         return floorSections + [
             DashboardAreaSection(
                 id: "other",
-                title: "Other Areas",
+                title: "Unassigned",
                 areas: otherAreas
             )
         ]
@@ -138,7 +138,7 @@ enum DashboardAreaBuilder {
         guard let context else {
             return AreaGroupKey(
                 areaID: nil,
-                name: "Unassigned",
+                name: "Devices",
                 icon: nil,
                 floorID: nil,
                 floorName: nil,
@@ -149,7 +149,7 @@ enum DashboardAreaBuilder {
 
         let name = context.name
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmptyValue ?? "Unassigned"
+            .nonEmptyValue ?? "Devices"
         let floorName = context.floorName?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue

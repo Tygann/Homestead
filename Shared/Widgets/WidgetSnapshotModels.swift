@@ -94,9 +94,96 @@ nonisolated struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     let areaName: String?
     let deviceName: String?
     var icon: ResolvedIcon? = nil
+    var gauge: WidgetGaugePresentation? = nil
 
     var resolvedIcon: ResolvedIcon {
         icon ?? legacyIcon(fallback: "gauge.medium")
+    }
+}
+
+nonisolated enum WidgetGaugeStatus: String, Codable, Equatable, Sendable {
+    case nominal
+    case low
+    case high
+    case warning
+    case critical
+}
+
+nonisolated struct WidgetGaugeSection: Codable, Equatable, Sendable {
+    let lowerBound: Double
+    let upperBound: Double
+    let status: WidgetGaugeStatus
+}
+
+nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
+    let value: Double
+    let lowerBound: Double
+    let upperBound: Double
+    let valueText: String
+    let unitText: String?
+    let status: WidgetGaugeStatus
+    let statusDisplayText: String
+    let sections: [WidgetGaugeSection]
+    let accessibilityLabel: String
+    let accessibilityValue: String
+
+    var normalizedValue: Double {
+        guard upperBound > lowerBound else { return 0 }
+        let normalized = (value - lowerBound) / (upperBound - lowerBound)
+        return min(max(normalized, 0), 1)
+    }
+
+    func updating(value newValue: Double, valueText newValueText: String) -> WidgetGaugePresentation {
+        let newStatus = status(for: newValue)
+        let newStatusDisplayText = newStatus == status ? statusDisplayText : Self.statusDisplayText(for: newStatus)
+        return WidgetGaugePresentation(
+            value: newValue,
+            lowerBound: lowerBound,
+            upperBound: upperBound,
+            valueText: newValueText,
+            unitText: unitText,
+            status: newStatus,
+            statusDisplayText: newStatusDisplayText,
+            sections: sections,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityValue: Self.accessibilityValue(valueText: newValueText, status: newStatus)
+        )
+    }
+
+    private func status(for value: Double) -> WidgetGaugeStatus {
+        sections.first { section in
+            value >= section.lowerBound && value <= section.upperBound
+        }?.status ?? status
+    }
+
+    private static func statusDisplayText(for status: WidgetGaugeStatus) -> String {
+        switch status {
+        case .nominal:
+            "Normal"
+        case .low:
+            "Low"
+        case .high:
+            "High"
+        case .warning:
+            "Warning"
+        case .critical:
+            "Critical"
+        }
+    }
+
+    private static func accessibilityValue(valueText: String, status: WidgetGaugeStatus) -> String {
+        switch status {
+        case .nominal:
+            valueText
+        case .low:
+            "\(valueText), low"
+        case .high:
+            "\(valueText), high"
+        case .warning:
+            "\(valueText), warning"
+        case .critical:
+            "\(valueText), critical"
+        }
     }
 }
 
