@@ -2,9 +2,13 @@ import SwiftUI
 
 // MARK: - Home Assistant Settings View
 struct HomeAssistantSettingsView: View {
+    // MARK: - Properties
+
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var isConfirmingSignOut = false
+
+    // MARK: - Body
 
     var body: some View {
         Form {
@@ -57,6 +61,8 @@ struct HomeAssistantSettingsView: View {
             Text("This removes saved Home Assistant credentials and mobile app registration from this device.")
         }
     }
+
+    // MARK: - Sections
 
     private var accountSection: some View {
         Section {
@@ -189,6 +195,8 @@ struct HomeAssistantSettingsView: View {
             }
         }
     }
+
+    // MARK: - Helpers
 
     private var serverName: String {
         homeAssistantService.serverConfiguration?.locationName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue ?? "Home"
@@ -423,7 +431,11 @@ struct HomeAssistantSettingsView: View {
     }
 }
 
+// MARK: - Internal URL Settings View
+
 private struct InternalURLSettingsView: View {
+    // MARK: - Properties
+
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(NativePermissionService.self) private var nativePermissionService
@@ -433,6 +445,8 @@ private struct InternalURLSettingsView: View {
     @State private var draftSSIDs: [String] = []
     @State private var draftSSID = ""
     @State private var currentWiFiErrorMessage: String?
+
+    // MARK: - Body
 
     var body: some View {
         Form {
@@ -512,10 +526,14 @@ private struct InternalURLSettingsView: View {
         }
     }
 
+    // MARK: - Helpers
+
     private var canSave: Bool {
         !draftInternalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
             !connectionSettings.displayedExternalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+
+    // MARK: - Actions
 
     private func addManualSSID() {
         let normalized = HAConnectionSettings.normalizedSSIDs(draftSSIDs + [draftSSID])
@@ -559,11 +577,17 @@ private struct InternalURLSettingsView: View {
     }
 }
 
+// MARK: - External URL Settings View
+
 private struct ExternalURLSettingsView: View {
+    // MARK: - Properties
+
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(\.dismiss) private var dismiss
     @FocusState private var isFocused: Bool
     @State private var draftExternalURL = ""
+
+    // MARK: - Body
 
     var body: some View {
         Form {
@@ -605,10 +629,14 @@ private struct ExternalURLSettingsView: View {
         }
     }
 
+    // MARK: - Helpers
+
     private var canSave: Bool {
         !draftExternalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
             !connectionSettings.internalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+
+    // MARK: - Actions
 
     private func save() {
         isFocused = false
@@ -616,6 +644,8 @@ private struct ExternalURLSettingsView: View {
         dismiss()
     }
 }
+
+// MARK: - Settings Server Address Row
 
 private struct SettingsServerAddressRow: View {
     let title: String

@@ -96,6 +96,8 @@ nonisolated struct HAConnectionRouteSummary: Equatable, Sendable {
 }
 
 nonisolated enum HAConnectionRouteResolver {
+    // MARK: - Public API
+
     static func resolve(
         settings: HAConnectionRoutingSettingsSnapshot,
         networkContext: HAConnectionNetworkContext
@@ -153,6 +155,8 @@ nonisolated enum HAConnectionRouteResolver {
         )
     }
 
+    // MARK: - Helpers
+
     private static func appendIfUnique(
         _ candidate: HAConnectionRouteCandidate,
         to candidates: inout [HAConnectionRouteCandidate]
@@ -189,6 +193,8 @@ nonisolated enum HAConnectionRouteResolver {
             return true
         }
 
+        // Trusted home networks are stored locally because Home Assistant does not
+        // expose an official shared SSID/Internal URL settings API for third-party clients.
         let savedSSIDs = settings.internalNetworkSSIDs
             .map(trimmed)
             .filter { !$0.isEmpty }

@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct EntityBrowserList<Accessory: View>: View {
+    // MARK: - Properties
+
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
@@ -24,6 +26,8 @@ struct EntityBrowserList<Accessory: View>: View {
     let rowAction: (HAEntityState) -> Void
     let rowDetail: (HAEntityState) -> String?
     private let accessory: (HAEntityState) -> Accessory
+
+    // MARK: - Initialization
 
     init(
         hiddenEntityIDs: Set<String>,
@@ -60,6 +64,8 @@ struct EntityBrowserList<Accessory: View>: View {
         _includesUnavailable = State(initialValue: includesUnavailableByDefault)
         _grouping = State(initialValue: initialGrouping)
     }
+
+    // MARK: - Body
 
     var body: some View {
         let presentation = entityBrowserPresentation
@@ -127,6 +133,8 @@ struct EntityBrowserList<Accessory: View>: View {
         }
         .modifier(EntityBrowserSearchModifier(searchText: searchTextBinding, isEnabled: showsSearchField))
     }
+
+    // MARK: - Sections
 
     @ViewBuilder
     private func groupRows(_ group: EntityBrowserGroup) -> some View {
@@ -260,6 +268,8 @@ struct EntityBrowserList<Accessory: View>: View {
         }
     }
 
+    // MARK: - Actions
+
     private func toggleSection(_ groupID: String) {
         if collapsedGroups.contains(groupID) {
             collapsedGroups.remove(groupID)
@@ -267,6 +277,8 @@ struct EntityBrowserList<Accessory: View>: View {
             collapsedGroups.insert(groupID)
         }
     }
+
+    // MARK: - Helpers
 
     private func showsHeader(for group: EntityBrowserGroup, in presentation: EntityBrowserPresentation) -> Bool {
         showsSingleGroupHeaders || presentation.groups.count > 1 || collapsedGroups.contains(group.id)
@@ -421,6 +433,8 @@ struct EntityBrowserList<Accessory: View>: View {
     }
 }
 
+// MARK: - Refresh Support
+
 private struct EntityBrowserRefreshModifier: ViewModifier {
     let isEnabled: Bool
     let refresh: () async -> Void
@@ -436,6 +450,8 @@ private struct EntityBrowserRefreshModifier: ViewModifier {
     }
 }
 
+// MARK: - Search Support
+
 private struct EntityBrowserSearchModifier: ViewModifier {
     @Binding var searchText: String
     let isEnabled: Bool
@@ -448,6 +464,8 @@ private struct EntityBrowserSearchModifier: ViewModifier {
         }
     }
 }
+
+// MARK: - Grouping Models
 
 enum EntityBrowserGrouping: CaseIterable {
     case device

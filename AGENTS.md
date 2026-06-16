@@ -23,6 +23,18 @@ For tactical handoff, definition of done, token budget guidance, fresh-chat hand
 - Live Home Assistant updates are batched before touching SwiftUI state. Preserve that unless profiling proves it is unnecessary.
 - Use documented Home Assistant APIs in their intended roles: WebSocket for the main data/control plane, HTTP for documented media or auth surfaces, and native-app/mobile-app registration only for companion-app capabilities that require it.
 
+## Swift Code Organization
+
+Use comments for structure and intent, not noise.
+
+Prefer `// MARK:` sections in non-trivial Swift files to make navigation easier in Xcode and future reviews. Exact section names can vary by file, but keep them clear and consistent.
+
+- SwiftUI views usually follow `// MARK: - Properties`, `// MARK: - Body`, `// MARK: - Sections`, `// MARK: - Actions`, then `// MARK: - Helpers`.
+- Services and managers usually follow `// MARK: - Properties`, `// MARK: - Lifecycle`, `// MARK: - Public API`, `// MARK: - State / Routing`, then `// MARK: - Private Helpers`.
+- Models, mappers, and resolvers usually follow `// MARK: - Initialization`, `// MARK: - Public API`, `// MARK: - Mapping`, then `// MARK: - Helpers`.
+
+Add brief comments only for non-obvious architecture decisions, important product/UX behavior, platform/API limitations, intentional tradeoffs, or migration/backward-compatibility logic. Avoid comments that simply restate obvious code.
+
 ## UI Direction
 
 Aim for a polished native iOS feel inspired by Apple Home:

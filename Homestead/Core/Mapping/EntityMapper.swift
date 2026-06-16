@@ -1,6 +1,8 @@
 import Foundation
 
 enum EntityMapper {
+    // MARK: - Public API
+
     static func homeEntity(
         from dto: HAEntityDTO,
         resolvedIcon: ResolvedIcon? = nil
@@ -180,6 +182,8 @@ enum EntityMapper {
 
         return name.capitalized.isEmpty ? dto.entityID : name.capitalized
     }
+
+    // MARK: - Helpers
 
     private static func supportsLightBrightness(_ dto: HAEntityDTO) -> Bool {
         if dto.attributes["brightness"]?.intValue != nil {

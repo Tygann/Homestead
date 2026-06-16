@@ -1,6 +1,8 @@
 import Foundation
 
 nonisolated enum IconResolver {
+    // MARK: - Public API
+
     static func resolveEntity(_ input: EntityIconResolutionInput) -> ResolvedIcon {
         let semanticFallback = semanticSFSymbol(
             domain: input.domain,
@@ -135,6 +137,8 @@ nonisolated enum IconResolver {
         }
     }
 
+    // MARK: - Home Assistant Identifier Resolution
+
     private static func resolveLocalOverride(
         _ identifier: String,
         fallback: String,
@@ -170,6 +174,8 @@ nonisolated enum IconResolver {
             )
         }
 
+        // Keep the Home Assistant bridge curated: obvious MDI icons can become
+        // native SF Symbols, while ambiguous or missing icons keep MDI rendering.
         if let mapped = mdiToSFSymbol[normalizedIdentifier] {
             return ResolvedIcon(
                 asset: .sfSymbol(mapped),
@@ -209,6 +215,8 @@ nonisolated enum IconResolver {
         let trimmed = identifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
     }
+
+    // MARK: - Entity Semantic Mapping
 
     private static func semanticSFSymbol(
         domain: String,
@@ -482,6 +490,8 @@ nonisolated enum IconResolver {
         }
     }
 
+    // MARK: - Area Semantic Mapping
+
     private static func inferredAreaSFSymbol(for name: String) -> String? {
         let separators = CharacterSet.alphanumerics.inverted
         let words = name.lowercased().components(separatedBy: separators).filter { !$0.isEmpty }
@@ -507,6 +517,8 @@ nonisolated enum IconResolver {
         (["media room", "theater", "theatre", "cinema"], "play.tv"),
         (["closet", "wardrobe"], "hanger")
     ]
+
+    // MARK: - Curated MDI Mapping
 
     private static let mdiToSFSymbol: [String: String] = [
         "mdi:air-conditioner": "air.conditioner.horizontal.fill",

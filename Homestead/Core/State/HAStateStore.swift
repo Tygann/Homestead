@@ -4,6 +4,8 @@ import Observation
 @MainActor
 @Observable
 final class HAStateStore {
+    // MARK: - Properties
+
     @ObservationIgnored private(set) var entitiesByID: [String: HomeEntity] = [:]
     private(set) var allEntities: [HomeEntity] = []
     private(set) var entitiesByDomain: [(domain: EntityDomain, entities: [HomeEntity])] = []
@@ -37,6 +39,8 @@ final class HAStateStore {
     @ObservationIgnored private var floorSortOrderByID: [String: Int] = [:]
     @ObservationIgnored private var isApplyingSnapshotBatch = false
     @ObservationIgnored private var snapshotBatchNeedsWidgetSave = false
+
+    // MARK: - Public API
 
     var lightEntityIDs: [String] {
         entityIDs(for: .light)
@@ -413,6 +417,8 @@ final class HAStateStore {
             .map(EntityMapper.displayName(for:))
     }
 
+    // MARK: - State Updates
+
     func replaceDataSourceIfNeeded(_ dataSourceID: String) {
         guard self.dataSourceID != dataSourceID else {
             return
@@ -531,6 +537,8 @@ final class HAStateStore {
         entityBoxesByID[entityID]?.pendingCommand = nil
     }
 
+    // MARK: - Presentation Helpers
+
     func displayNameForDeviceGroupedEntity(entityID: String) -> String? {
         guard let entity = entitiesByID[entityID],
               let registry = entityRegistryByID[entityID] else {
@@ -550,6 +558,8 @@ final class HAStateStore {
 
         return entity.displayName.removingDeviceNamePrefix(deviceName)
     }
+
+    // MARK: - Icon Resolution
 
     private func resolvedIcon(for dto: HAEntityDTO) -> ResolvedIcon {
         let input = EntityIconResolutionInput(
@@ -648,6 +658,8 @@ final class HAStateStore {
             context: presenceContext(for: tracker.entityID)
         ).map { [$0] } ?? []
     }
+
+    // MARK: - Private State Mutation
 
     private func clearAllEntities() {
         entitiesByID.removeAll()
@@ -756,6 +768,8 @@ final class HAStateStore {
         entityBoxesByID = updatedEntityBoxesByID
         refreshEntityIndexes()
     }
+
+    // MARK: - Incremental Updates
 
     @discardableResult
     private func applyConfirmedDTO(_ dto: HAEntityDTO) -> Bool {
@@ -1061,6 +1075,8 @@ final class HAStateStore {
     }
 }
 
+// MARK: - Entity Group Models
+
 struct EntityDomainGroup: Equatable, Sendable {
     let domain: EntityDomain
     let entityIDs: [String]
@@ -1071,6 +1087,8 @@ struct EntityDeviceGroup: Equatable, Identifiable, Sendable {
     let title: String
     let entityIDs: [String]
 }
+
+// MARK: - Management Summaries
 
 struct HADeviceManagementSummary: Equatable, Identifiable, Sendable {
     let id: String
