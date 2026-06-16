@@ -98,7 +98,7 @@ struct HomeAssistantSettingsView: View {
             SettingsServerAddressRow(
                 title: "Server Name",
                 value: serverName,
-                systemImage: "house"
+                systemImage: "server.rack"
             )
 
             NavigationLink {
@@ -107,7 +107,7 @@ struct HomeAssistantSettingsView: View {
                 SettingsServerAddressRow(
                     title: "Internal URL",
                     value: configuredValue(connectionSettings.internalURL),
-                    systemImage: "network"
+                    systemImage: "wifi.router"
                 )
             }
 
