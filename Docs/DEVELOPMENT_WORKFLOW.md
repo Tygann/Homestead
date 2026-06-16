@@ -79,6 +79,26 @@ xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'platform
 - If the named simulator is unavailable, inspect local simulators and choose an installed iPhone runtime.
 - Docs-only changes do not require a build.
 
+## Xcode Storage Hygiene
+
+- Prefer focused tests over broad simulator test suites unless broad coverage is needed for the change.
+- After running `xcodebuild test`, check the size of Xcode/XCTest storage:
+
+```sh
+du -sh ~/Library/Developer/XCTestDevices
+du -sh ~/Library/Developer/Xcode/DerivedData
+du -sh ~/Library/Developer/CoreSimulator
+```
+
+- If `~/Library/Developer/XCTestDevices` has grown unusually large, mention it in the summary and recommend cleanup.
+- It is safe to clear `~/Library/Developer/XCTestDevices/*` only when Xcode or `xcodebuild` is not actively running tests.
+- Do not automatically delete user data or broad cache folders without explicit user approval. Suggest cleanup commands clearly instead of running them silently.
+- Suggested cleanup command:
+
+```sh
+rm -rf ~/Library/Developer/XCTestDevices/*
+```
+
 ## UI Verification
 
 - Use previews, sample data, simulator runs, or screenshots when touching visible app structure, navigation, dashboard cards, Settings, or reusable chrome.
