@@ -27,7 +27,7 @@ final class HAWebAuthenticationSession: NSObject, HAOAuthAuthorizing, ASWebAuthe
                 self?.activeSession = nil
 
                 if let error {
-                    continuation.resume(throwing: error)
+                    continuation.resume(throwing: Self.authorizationError(from: error))
                     return
                 }
 
@@ -75,6 +75,16 @@ final class HAWebAuthenticationSession: NSObject, HAOAuthAuthorizing, ASWebAuthe
         #else
         ASPresentationAnchor()
         #endif
+    }
+
+    private static func authorizationError(from error: Error) -> Error {
+        let nsError = error as NSError
+        if nsError.domain == ASWebAuthenticationSessionError.errorDomain,
+           ASWebAuthenticationSessionError.Code(rawValue: nsError.code) == .canceledLogin {
+            return HAOAuthError.signInCancelled
+        }
+
+        return error
     }
 }
 #else

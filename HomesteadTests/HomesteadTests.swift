@@ -854,6 +854,7 @@ struct HomesteadTests {
         #expect(components.scheme == "https")
         #expect(components.host == "example.com")
         #expect(components.path == "/ha/auth/authorize")
+        #expect(queryItems["response_type"] == "code")
         #expect(queryItems["client_id"] == "https://homestead.keegan.pro")
         #expect(queryItems["redirect_uri"] == "homestead://auth")
         #expect(queryItems["state"] == "state-123")
@@ -5709,6 +5710,83 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func oauthSignInUsesExternalRouteWhenCurrentWiFiIsNotTrusted() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore()
+        let oauthClient = StubHAOAuthClient(
+            exchangeResponse: HAOAuthTokenResponseDTO(
+                accessToken: "oauth-access",
+                expiresIn: 1200,
+                refreshToken: "oauth-refresh",
+                tokenType: "Bearer"
+            )
+        )
+        let authorizer = StubHAOAuthAuthorizer(authorizationCode: "auth-code")
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                client: oauthClient,
+                tokenStore: tokenStore
+            ),
+            oauthAuthorizer: authorizer,
+            currentWiFiNetworkProvider: StubCurrentWiFiNetworkProvider(ssid: "Coffee Shop"),
+            networkContext: HAConnectionNetworkContext(
+                isNetworkAvailable: true,
+                isLikelyHomeNetwork: true,
+                currentWiFiSSID: nil
+            ),
+            automaticallyRegistersMobileApp: false
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        settings.internalURL = "http://homeassistant.local:8123"
+        settings.externalURL = "https://remote.example.com"
+        settings.internalNetworkSSIDs = ["Home Wi-Fi"]
+
+        await service.signInWithHomeAssistant(settings: settings)
+
+        #expect(authorizer.lastAuthorizationURL?.host == "remote.example.com")
+        #expect(oauthClient.lastExchangeBaseURLString == "https://remote.example.com")
+        #expect(settings.baseURL == "https://remote.example.com")
+        #expect(try tokenStore.readCredential()?.baseURLString == "https://remote.example.com")
+        #expect(webSocketClient.lastConnectConfiguration?.baseURLString == "https://remote.example.com")
+    }
+
+    @MainActor
+    @Test func oauthSignInShowsFriendlyMessageAndStoresRawFailure() async throws {
+        let rawError = NSError(
+            domain: "com.apple.AuthenticationServices.WebAuthenticationSession",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "The operation couldn’t be completed. (com.apple.AuthenticationServices.WebAuthenticationSession error 1.)"]
+        )
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: InMemoryHAOAuthTokenStore()),
+            oauthAuthorizer: StubHAOAuthAuthorizer(error: rawError),
+            automaticallyRegistersMobileApp: false
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "https://remote.example.com",
+            defaults: try isolatedDefaults(),
+            tokenStore: InMemoryHAOAuthTokenStore()
+        )
+
+        await service.signInWithHomeAssistant(settings: settings)
+
+        #expect(service.authState == .refreshFailed("Couldn’t complete sign-in with Home Assistant. Check that Home Assistant is reachable and try again."))
+        #expect(service.lastErrorMessage == "Couldn’t complete sign-in with Home Assistant. Check that Home Assistant is reachable and try again.")
+        #expect(service.lastAuthenticationErrorMessage == "The operation couldn’t be completed. (com.apple.AuthenticationServices.WebAuthenticationSession error 1.)")
+    }
+
+    @MainActor
     @Test func profileImageRequestUsesOnlyPersonEntityLinkedToCurrentUser() async throws {
         let tokenStore = InMemoryHAOAuthTokenStore(
             credential: testCredential(accessToken: "profile-access")
@@ -9721,7 +9799,9 @@ private struct StubCurrentWiFiNetworkProvider: CurrentWiFiNetworkProviding {
 final class StubHAOAuthClient: HAOAuthClientProtocol {
     var exchangeResponse: HAOAuthTokenResponseDTO
     var refreshResponse: HAOAuthTokenResponseDTO
+    private(set) var lastExchangeBaseURLString: String?
     private(set) var lastExchangeCode: String?
+    private(set) var lastRefreshBaseURLString: String?
     private(set) var lastRefreshToken: String?
 
     init(
@@ -9747,6 +9827,7 @@ final class StubHAOAuthClient: HAOAuthClientProtocol {
         code: String,
         clientID: String
     ) async throws -> HAOAuthTokenResponseDTO {
+        lastExchangeBaseURLString = baseURLString
         lastExchangeCode = code
         return exchangeResponse
     }
@@ -9756,6 +9837,7 @@ final class StubHAOAuthClient: HAOAuthClientProtocol {
         refreshToken: String,
         clientID: String
     ) async throws -> HAOAuthTokenResponseDTO {
+        lastRefreshBaseURLString = baseURLString
         lastRefreshToken = refreshToken
         return refreshResponse
     }
@@ -9764,14 +9846,20 @@ final class StubHAOAuthClient: HAOAuthClientProtocol {
 @MainActor
 final class StubHAOAuthAuthorizer: HAOAuthAuthorizing {
     let authorizationCode: String
+    let error: Error?
     private(set) var lastAuthorizationURL: URL?
 
-    init(authorizationCode: String) {
+    init(authorizationCode: String = "auth-code", error: Error? = nil) {
         self.authorizationCode = authorizationCode
+        self.error = error
     }
 
     func authorize(authorizationURL: URL, callbackScheme: String) async throws -> URL {
         lastAuthorizationURL = authorizationURL
+        if let error {
+            throw error
+        }
+
         let components = URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false)
         let state = components?.queryItems?.first { $0.name == "state" }?.value ?? ""
         return try #require(URL(string: "\(callbackScheme)://auth?code=\(authorizationCode)&state=\(state)"))

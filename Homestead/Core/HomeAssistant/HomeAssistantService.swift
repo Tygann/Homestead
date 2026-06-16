@@ -26,6 +26,7 @@ final class HomeAssistantService {
     private(set) var serverConfigurationStatus: HAServerConfigurationStatus = .unavailable
     private(set) var stateCacheMetadata: HAStateCacheMetadata?
     private(set) var activeRouteSummary: HAConnectionRouteSummary?
+    private(set) var lastAuthenticationErrorMessage: String?
 
     var activityCacheUserIdentifier: String {
         currentUserID ?? currentUserDisplayName ?? "current-user"
@@ -361,7 +362,10 @@ final class HomeAssistantService {
 
     func signInWithHomeAssistant(settings: HAConnectionSettings) async {
         currentConnectionSettings = settings
-        let baseURLString = settings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        await refreshCurrentWiFiSSIDIfNeeded(settings: settings)
+        let routeSelection = routeSelection(for: settings)
+        let baseURLString = routeSelection.preferredCandidate?.baseURLString.trimmingCharacters(in: .whitespacesAndNewlines) ??
+            routeSelection.authenticationBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !baseURLString.isEmpty else {
             authState = .refreshFailed(HAWebSocketError.invalidURL.localizedDescription)
             return
@@ -384,14 +388,20 @@ final class HomeAssistantService {
                 baseURLString: baseURLString,
                 authorizationCode: authorizationCode
             )
+            settings.baseURL = baseURLString
 
             hasKnownSession = true
             authState = await authManager.status()
             lastErrorMessage = nil
+            lastAuthenticationErrorMessage = nil
             await connect(settings: settings)
         } catch {
-            authState = .refreshFailed(error.localizedDescription)
-            lastErrorMessage = error.localizedDescription
+            let message = signInFailureMessage(for: error)
+            let rawMessage = error.localizedDescription
+            print("Home Assistant sign-in failed: \(rawMessage)")
+            authState = .refreshFailed(message)
+            lastErrorMessage = message
+            lastAuthenticationErrorMessage = rawMessage
         }
     }
 
@@ -404,6 +414,7 @@ final class HomeAssistantService {
             authState = .signedOut
             mobileAppRegistrationState = .unregistered
             lastErrorMessage = nil
+            lastAuthenticationErrorMessage = nil
         } catch {
             authState = .refreshFailed(error.localizedDescription)
             lastErrorMessage = error.localizedDescription
@@ -1964,6 +1975,45 @@ final class HomeAssistantService {
         }
 
         return code
+    }
+
+    private func signInFailureMessage(for error: Error) -> String {
+        if let oauthError = error as? HAOAuthError {
+            switch oauthError {
+            case .signInCancelled, .missingAuthorizationCode, .stateMismatch:
+                return oauthError.localizedDescription
+            case .signedOut, .noRefreshTokenForServer, .invalidTokenResponse:
+                return genericSignInFailureMessage
+            }
+        }
+
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost:
+                return "Check your internet connection and try again."
+            case .cannotFindHost, .cannotConnectToHost, .timedOut, .secureConnectionFailed:
+                return "Couldn’t reach Home Assistant. Check the address and try again."
+            default:
+                return genericSignInFailureMessage
+            }
+        }
+
+        if let webSocketError = error as? HAWebSocketError {
+            switch webSocketError {
+            case .invalidURL:
+                return "Check the Home Assistant address and try again."
+            case .requestTimedOut, .transportFailure, .notConnected:
+                return "Couldn’t reach Home Assistant. Check the address and try again."
+            case .authenticationFailed, .unexpectedMessage, .requestFailed, .missingResult:
+                return genericSignInFailureMessage
+            }
+        }
+
+        return genericSignInFailureMessage
+    }
+
+    private var genericSignInFailureMessage: String {
+        "Couldn’t complete sign-in with Home Assistant. Check that Home Assistant is reachable and try again."
     }
 
     private func startStateSync(configuration: HAConnectionConfiguration) {

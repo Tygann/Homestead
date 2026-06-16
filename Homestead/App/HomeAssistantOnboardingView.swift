@@ -214,6 +214,7 @@ struct HomeAssistantOnboardingView: View {
     @Environment(HomesteadSetupCoordinator.self) private var setupCoordinator
     @FocusState private var isURLFieldFocused: Bool
     @State private var isEnteringAddress = false
+    @State private var draftBaseURL = ""
 
     let authState: HAAuthState
     let connectionStatus: HAConnectionStatus
@@ -223,8 +224,10 @@ struct HomeAssistantOnboardingView: View {
 
     var body: some View {
         @Bindable var connectionSettings = connectionSettings
+        let hasDraftServerURL = isEnteringAddress &&
+            !draftBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let presentation = HomeAssistantOnboardingPresentation.make(
-            hasServerURL: connectionSettings.hasServerURL,
+            hasServerURL: connectionSettings.hasServerURL || hasDraftServerURL,
             authState: authState,
             connectionStatus: connectionStatus,
             serviceError: serviceError,
@@ -237,7 +240,6 @@ struct HomeAssistantOnboardingView: View {
                     header
 
                     setupGroup(
-                        baseURL: $connectionSettings.baseURL,
                         presentation: presentation
                     )
                     .frame(maxWidth: 420)
@@ -283,7 +285,6 @@ struct HomeAssistantOnboardingView: View {
     }
 
     private func setupGroup(
-        baseURL: Binding<String>,
         presentation: HomeAssistantOnboardingPresentation
     ) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
@@ -305,6 +306,7 @@ struct HomeAssistantOnboardingView: View {
 
                     Button("Enter Address Manually") {
                         discoveryService.stop()
+                        draftBaseURL = connectionSettings.baseURL
                         isEnteringAddress = true
                         isURLFieldFocused = true
                     }
@@ -315,7 +317,7 @@ struct HomeAssistantOnboardingView: View {
                             Text("Home Assistant Address")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                            TextField("homeassistant.local:8123", text: baseURL)
+                            TextField("homeassistant.local:8123", text: $draftBaseURL)
                                 .textInputAutocapitalization(.never)
                                 .keyboardType(.URL)
                                 .textContentType(.URL)
@@ -380,8 +382,11 @@ struct HomeAssistantOnboardingView: View {
                     Text(connectionSettings.baseURL).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer()
-                if authState == .signedOut {
+                if canChangeSelectedServer {
                     Button("Change") {
+                        draftBaseURL = connectionSettings.baseURL
+                        isEnteringAddress = true
+                        isURLFieldFocused = true
                         connectionSettings.baseURL = ""
                         connectionSettings.internalURL = ""
                         connectionSettings.externalURL = ""
@@ -467,7 +472,31 @@ struct HomeAssistantOnboardingView: View {
         }
 
         isURLFieldFocused = false
+        commitDraftBaseURLIfNeeded()
         signIn()
+    }
+
+    private func commitDraftBaseURLIfNeeded() {
+        guard isEnteringAddress else {
+            return
+        }
+
+        let trimmedBaseURL = draftBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedBaseURL.isEmpty else {
+            return
+        }
+
+        connectionSettings.baseURL = trimmedBaseURL
+        isEnteringAddress = false
+    }
+
+    private var canChangeSelectedServer: Bool {
+        switch authState {
+        case .signedOut, .refreshFailed:
+            return true
+        case .signingIn, .refreshing, .signedIn, .accessTokenExpired:
+            return false
+        }
     }
 }
 

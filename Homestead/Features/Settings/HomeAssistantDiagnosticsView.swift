@@ -219,6 +219,7 @@ private struct HomeAssistantDiagnosticsSnapshot: Equatable {
     let network: String
     let mobileApp: String
     let cache: String
+    let authFailure: String
     let app: String
     let device: String
 
@@ -239,6 +240,7 @@ private struct HomeAssistantDiagnosticsSnapshot: Equatable {
         network = homeAssistantService.isNetworkAvailable ? "Available" : "Unavailable"
         mobileApp = homeAssistantService.mobileAppRegistrationState.diagnosticTitle
         cache = Self.cacheDescription(homeAssistantService.stateCacheMetadata)
+        authFailure = homeAssistantService.lastAuthenticationErrorMessage ?? "None"
         app = "\(Bundle.main.settingsDisplayName) \(Bundle.main.settingsShortVersionString) (\(Bundle.main.settingsBuildVersionString))"
         device = Self.deviceDescription()
     }
@@ -257,7 +259,8 @@ private struct HomeAssistantDiagnosticsSnapshot: Equatable {
             "Last Update: \(lastUpdate)",
             "Network: \(network)",
             "Mobile App: \(mobileApp)",
-            "Cache: \(cache)"
+            "Cache: \(cache)",
+            "Last Auth Failure: \(authFailure)"
         ].joined(separator: "\n")
     }
 

@@ -93,6 +93,7 @@ nonisolated enum HAAuthState: Equatable, Sendable {
 nonisolated enum HAOAuthError: LocalizedError, Equatable, Sendable {
     case missingAuthorizationCode
     case stateMismatch
+    case signInCancelled
     case signedOut
     case noRefreshTokenForServer
     case invalidTokenResponse
@@ -100,9 +101,11 @@ nonisolated enum HAOAuthError: LocalizedError, Equatable, Sendable {
     var errorDescription: String? {
         switch self {
         case .missingAuthorizationCode:
-            "Home Assistant did not return an authorization code."
+            "Home Assistant did not finish sign-in. Try again."
         case .stateMismatch:
-            "Home Assistant sign-in returned an unexpected state value."
+            "Home Assistant returned an unexpected sign-in response. Try again."
+        case .signInCancelled:
+            "Sign-in was canceled."
         case .signedOut:
             "Sign in with Home Assistant before connecting."
         case .noRefreshTokenForServer:

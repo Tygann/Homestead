@@ -14,6 +14,7 @@ enum HomeAssistantEndpointBuilder {
         let pathParts = [basePath, "auth", "authorize"].filter { !$0.isEmpty }
         components.path = "/" + pathParts.joined(separator: "/")
         components.queryItems = [
+            URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "client_id", value: clientID),
             URLQueryItem(name: "redirect_uri", value: redirectURI)
         ]

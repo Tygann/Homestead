@@ -16,8 +16,6 @@ struct HomeAssistantSettingsView: View {
 
             advancedSection
 
-            serverActionsSection
-
             if shouldShowSupport {
                 Section {
                     NavigationLink {
@@ -30,17 +28,7 @@ struct HomeAssistantSettingsView: View {
                 }
             }
 
-            if canSignOut {
-                Section {
-                    Button(role: .destructive) {
-                        isConfirmingSignOut = true
-                    } label: {
-                        Text("Sign Out")
-                    }
-                    .disabled(!canSignOut)
-                    .frame(maxWidth: .infinity)
-                }
-            }
+            bottomAuthActionSection
         }
         .navigationTitle("Account")
         .toolbarTitleDisplayMode(.inline)
@@ -176,56 +164,28 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
-    @ViewBuilder
-    private var serverActionsSection: some View {
-        if shouldShowSignIn || canRetryConnection || shouldShowRegistrationAction {
-            Section {
-                if shouldShowSignIn {
-                    Button {
-                        Task {
-                            await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
-                        }
-                    } label: {
-                        Text(signInButtonTitle)
+    private var bottomAuthActionSection: some View {
+        Section {
+            if canSignOut {
+                Button(role: .destructive) {
+                    isConfirmingSignOut = true
+                } label: {
+                    Text("Sign Out")
+                }
+                .disabled(!canSignOut)
+                .frame(maxWidth: .infinity)
+            } else {
+                Button {
+                    Task {
+                        await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
                     }
-                    .disabled(!connectionSettings.hasServerURL || homeAssistantService.authState == .signingIn)
-                    .frame(maxWidth: .infinity)
+                } label: {
+                    Text(signInButtonTitle)
                 }
-
-                if canRetryConnection {
-                    Button {
-                        Task {
-                            await homeAssistantService.connect(settings: connectionSettings)
-                        }
-                    } label: {
-                        Text("Retry Connection")
-                    }
-                    .disabled(homeAssistantService.connectionStatus == .preparing ||
-                              homeAssistantService.connectionStatus == .connecting ||
-                              homeAssistantService.connectionStatus == .reconnecting)
-                    .frame(maxWidth: .infinity)
-                }
-
-                if shouldShowRegistrationAction {
-                    Button {
-                        Task {
-                            await homeAssistantService.registerMobileApp(settings: connectionSettings)
-                        }
-                    } label: {
-                        Text(mobileAppButtonTitle)
-                    }
-                    .disabled(!connectionSettings.hasServerURL ||
-                              hasServerMismatch ||
-                              !homeAssistantService.authState.isSignedIn ||
-                              homeAssistantService.mobileAppRegistrationState.isRegistering)
-                    .frame(maxWidth: .infinity)
-                }
-            } header: {
-                Text("Actions")
-            } footer: {
-                if shouldShowRegistrationAction {
-                    Text("Homestead normally handles mobile app registration automatically after sign-in.")
-                }
+                .disabled(!shouldShowSignIn ||
+                          !connectionSettings.hasServerURL ||
+                          homeAssistantService.authState == .signingIn)
+                .frame(maxWidth: .infinity)
             }
         }
     }
@@ -299,15 +259,12 @@ struct HomeAssistantSettingsView: View {
     }
 
     private var canSignOut: Bool {
-        if homeAssistantService.authState.isSignedIn {
+        switch homeAssistantService.authState {
+        case .signedIn, .refreshing:
             return true
+        case .signedOut, .signingIn, .accessTokenExpired, .refreshFailed:
+            return false
         }
-
-        if case .refreshFailed = homeAssistantService.authState {
-            return true
-        }
-
-        return false
     }
 
     private var signedInServerDisplayText: String? {
