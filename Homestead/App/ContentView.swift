@@ -8,6 +8,7 @@ struct ContentView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
+    @Environment(HomesteadTabSettings.self) private var tabSettings
     @Environment(NativeNotificationService.self) private var nativeNotificationService
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -146,21 +147,43 @@ struct ContentView: View {
 
     private func mainTabs(chrome: AppChromePresentation) -> some View {
         TabView {
-            Tab("Home", systemImage: "house.fill") {
-                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
-                    DashboardView()
+            if tabSettings.primaryTab == .home {
+                Tab("Home", systemImage: "house.fill") {
+                    tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                        DashboardView()
+                    }
+                }
+
+                Tab("Areas", systemImage: "square.split.bottomrightquarter") {
+                    tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                        AreasView()
+                    }
+                }
+            } else {
+                Tab("Areas", systemImage: "square.split.bottomrightquarter") {
+                    tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                        AreasView()
+                    }
+                }
+
+                Tab("Home", systemImage: "house.fill") {
+                    tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                        DashboardView()
+                    }
                 }
             }
 
-            Tab("Areas", systemImage: "square.split.bottomrightquarter") {
-                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
-                    AreasView()
+            if #available(iOS 27.0, *) {
+                Tab("Browse", systemImage: "magnifyingglass", role: .prominent) {
+                    tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                        DevicesView()
+                    }
                 }
-            }
-
-            Tab("Browse", systemImage: "magnifyingglass", role: .search) {
-                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
-                    DevicesView()
+            } else {
+                Tab("Browse", systemImage: "magnifyingglass", role: .search) {
+                    tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                        DevicesView()
+                    }
                 }
             }
         }

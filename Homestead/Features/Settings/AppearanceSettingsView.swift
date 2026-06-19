@@ -13,44 +13,9 @@ struct AppearanceSettingsView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                Text("Wallpaper")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, AppSpacing.large)
+                appearanceMode
 
-                VStack(spacing: AppSpacing.large) {
-                    WallpaperPhonePreview()
-                        .frame(width: 162)
-                        .frame(maxWidth: .infinity)
-
-                    wallpaperPicker
-
-                    Divider()
-
-                    Toggle("Use Wallpaper", isOn: $appearanceSettings.isWallpaperEnabled)
-                        .disabled(!appearanceSettings.hasWallpaper)
-
-                    if appearanceSettings.hasWallpaper {
-                        Divider()
-
-                        Button(role: .destructive) {
-                            appearanceSettings.removeWallpaper()
-                        } label: {
-                            Label("Remove Wallpaper", systemImage: "trash")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
-                .padding(AppSpacing.large)
-                .background(
-                    Color(.secondarySystemGroupedBackground).opacity(0.76),
-                    in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                        .strokeBorder(Color(.separator).opacity(0.10), lineWidth: 0.5)
-                }
-                .padding(.horizontal, AppSpacing.large)
+                wallpaperSection
 
                 if !appearanceSettings.hasWallpaper {
                     Text("Shown behind Home and Areas.")
@@ -74,6 +39,62 @@ struct AppearanceSettingsView: View {
         }
     }
 
+    // MARK: - Appearance Mode
+    private var appearanceMode: some View {
+        @Bindable var appearanceSettings = appearanceSettings
+
+        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            sectionTitle("Mode", systemImage: "circle.lefthalf.filled")
+
+            Picker("Mode", selection: $appearanceSettings.appearanceMode) {
+                ForEach(HomesteadAppearanceMode.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+        .appearancePanel()
+    }
+
+    // MARK: - Wallpaper
+    private var wallpaperSection: some View {
+        @Bindable var appearanceSettings = appearanceSettings
+
+        return VStack(alignment: .leading, spacing: AppSpacing.large) {
+            sectionTitle("Wallpaper", systemImage: "photo")
+
+            WallpaperPhonePreview()
+                .frame(width: 162)
+                .frame(maxWidth: .infinity)
+
+            wallpaperPicker
+                .frame(width: 162)
+                .frame(maxWidth: .infinity)
+
+            Divider()
+
+            Toggle("Use Wallpaper", isOn: $appearanceSettings.isWallpaperEnabled)
+                .disabled(!appearanceSettings.hasWallpaper)
+
+            if appearanceSettings.hasWallpaper {
+                Divider()
+
+                Button(role: .destructive) {
+                    appearanceSettings.removeWallpaper()
+                } label: {
+                    Label("Remove Wallpaper", systemImage: "trash")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .appearancePanel()
+    }
+
+    private func sectionTitle(_ title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.headline)
+    }
+
     @ViewBuilder
     private var wallpaperPicker: some View {
         if appearanceSettings.hasWallpaper {
@@ -82,8 +103,7 @@ struct AppearanceSettingsView: View {
                 matching: .images,
                 photoLibrary: .shared()
             ) {
-                Label("Change Wallpaper", systemImage: "photo")
-                    .font(.subheadline.weight(.semibold))
+                wallpaperPickerLabel("Change Wallpaper", font: .subheadline.weight(.semibold))
             }
             .buttonStyle(.bordered)
             .disabled(isImportingWallpaper)
@@ -93,12 +113,25 @@ struct AppearanceSettingsView: View {
                 matching: .images,
                 photoLibrary: .shared()
             ) {
-                Label("Choose Wallpaper", systemImage: "photo")
-                    .font(.headline)
+                wallpaperPickerLabel("Choose Wallpaper", font: .headline)
             }
             .buttonStyle(.borderedProminent)
             .disabled(isImportingWallpaper)
         }
+    }
+
+    private func wallpaperPickerLabel(
+        _ title: String,
+        font: Font
+    ) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+        } icon: {
+            Image(systemName: "photo")
+        }
+        .font(font)
     }
 
     private var importErrorBinding: Binding<Bool> {
@@ -132,6 +165,22 @@ struct AppearanceSettingsView: View {
         } catch {
             importErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+}
+
+private extension View {
+    func appearancePanel() -> some View {
+        self
+        .padding(AppSpacing.large)
+        .background(
+            Color(.secondarySystemGroupedBackground).opacity(0.76),
+            in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                .strokeBorder(Color(.separator).opacity(0.10), lineWidth: 0.5)
+        }
+        .padding(.horizontal, AppSpacing.large)
     }
 }
 

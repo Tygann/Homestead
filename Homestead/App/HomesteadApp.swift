@@ -13,6 +13,7 @@ struct HomesteadApp: App {
     @State private var dashboardConfiguration: DashboardConfiguration
     @State private var actionConfirmationSettings: ActionConfirmationSettings
     @State private var appearanceSettings: HomesteadAppearanceSettings
+    @State private var tabSettings: HomesteadTabSettings
     @State private var iCloudSyncService: HomesteadICloudSyncService
     @State private var setupCoordinator: HomesteadSetupCoordinator
 
@@ -23,6 +24,7 @@ struct HomesteadApp: App {
         let nativePermissionService = NativePermissionService()
         let actionConfirmationSettings = ActionConfirmationSettings()
         let appearanceSettings = HomesteadAppearanceSettings()
+        let tabSettings = HomesteadTabSettings()
         let dashboardConfiguration = DashboardConfiguration()
         let iCloudSyncService = HomesteadICloudSyncService()
         let setupCoordinator = HomesteadSetupCoordinator()
@@ -39,6 +41,7 @@ struct HomesteadApp: App {
         _dashboardConfiguration = State(initialValue: dashboardConfiguration)
         _actionConfirmationSettings = State(initialValue: actionConfirmationSettings)
         _appearanceSettings = State(initialValue: appearanceSettings)
+        _tabSettings = State(initialValue: tabSettings)
         _iCloudSyncService = State(initialValue: iCloudSyncService)
         _setupCoordinator = State(initialValue: setupCoordinator)
     }
@@ -54,9 +57,11 @@ struct HomesteadApp: App {
                 .environment(dashboardConfiguration)
                 .environment(actionConfirmationSettings)
                 .environment(appearanceSettings)
+                .environment(tabSettings)
                 .environment(iCloudSyncService)
                 .environment(setupCoordinator)
                 .environment(setupCoordinator.discoveryService)
+                .preferredColorScheme(appearanceSettings.appearanceMode.colorScheme)
                 .task {
                     guard !RuntimeEnvironment.isRunningForPreviews else { return }
                     await setupCoordinator.start(
@@ -91,6 +96,19 @@ struct HomesteadApp: App {
             actionConfirmationSettings: actionConfirmationSettings,
             appearanceSettings: appearanceSettings
         )
+    }
+}
+
+private extension HomesteadAppearanceMode {
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system:
+            nil
+        case .light:
+            .light
+        case .dark:
+            .dark
+        }
     }
 }
 

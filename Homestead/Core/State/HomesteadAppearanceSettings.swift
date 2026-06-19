@@ -2,6 +2,26 @@ import Foundation
 import Observation
 import UIKit
 
+enum HomesteadAppearanceMode: String, CaseIterable, Codable, Identifiable, Sendable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .system:
+            "System"
+        case .light:
+            "Light"
+        case .dark:
+            "Dark"
+        }
+    }
+
+}
+
 enum HomesteadAppearanceSettingsError: LocalizedError {
     case invalidImage
     case unableToEncodeImage
@@ -22,6 +42,10 @@ enum HomesteadAppearanceSettingsError: LocalizedError {
 @MainActor
 @Observable
 final class HomesteadAppearanceSettings {
+    var appearanceMode: HomesteadAppearanceMode {
+        didSet { defaults.set(appearanceMode.rawValue, forKey: Keys.appearanceMode) }
+    }
+
     var isWallpaperEnabled: Bool {
         didSet { defaults.set(isWallpaperEnabled, forKey: Keys.isWallpaperEnabled) }
     }
@@ -44,6 +68,7 @@ final class HomesteadAppearanceSettings {
         self.defaults = defaults
         self.fileManager = fileManager
         self.storageDirectory = storageDirectory ?? Self.defaultStorageDirectory(fileManager: fileManager)
+        appearanceMode = defaults.string(forKey: Keys.appearanceMode).flatMap(HomesteadAppearanceMode.init(rawValue:)) ?? .system
         isWallpaperEnabled = defaults.object(forKey: Keys.isWallpaperEnabled) == nil
             ? false
             : defaults.bool(forKey: Keys.isWallpaperEnabled)
@@ -67,7 +92,10 @@ final class HomesteadAppearanceSettings {
     }
 
     var syncSnapshot: HomesteadAppearanceSettingsSyncSnapshot {
-        HomesteadAppearanceSettingsSyncSnapshot(isWallpaperEnabled: isWallpaperEnabled)
+        HomesteadAppearanceSettingsSyncSnapshot(
+            appearanceMode: appearanceMode,
+            isWallpaperEnabled: isWallpaperEnabled
+        )
     }
 
     func importWallpaper(from imageData: Data) async throws {
@@ -106,6 +134,7 @@ final class HomesteadAppearanceSettings {
     }
 
     func applySyncSnapshot(_ snapshot: HomesteadAppearanceSettingsSyncSnapshot) {
+        appearanceMode = snapshot.appearanceMode
         isWallpaperEnabled = snapshot.isWallpaperEnabled && hasWallpaper
     }
 
@@ -145,11 +174,27 @@ final class HomesteadAppearanceSettings {
     }
 
     private enum Keys {
+        static let appearanceMode = "homestead.appearance.mode"
         static let isWallpaperEnabled = "homestead.appearance.isWallpaperEnabled"
         static let wallpaperRevision = "homestead.appearance.wallpaperRevision"
     }
 }
 
 struct HomesteadAppearanceSettingsSyncSnapshot: Codable, Equatable, Sendable {
+    var appearanceMode: HomesteadAppearanceMode
     var isWallpaperEnabled: Bool
+
+    init(
+        appearanceMode: HomesteadAppearanceMode = .system,
+        isWallpaperEnabled: Bool
+    ) {
+        self.appearanceMode = appearanceMode
+        self.isWallpaperEnabled = isWallpaperEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        appearanceMode = try container.decodeIfPresent(HomesteadAppearanceMode.self, forKey: .appearanceMode) ?? .system
+        isWallpaperEnabled = try container.decode(Bool.self, forKey: .isWallpaperEnabled)
+    }
 }

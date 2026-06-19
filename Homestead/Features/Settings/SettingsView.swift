@@ -72,6 +72,12 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
+                    TabsSettingsView()
+                } label: {
+                    Label("Tabs", systemImage: "square.split.bottomrightquarter")
+                }
+
+                NavigationLink {
                     NativeNotificationSettingsView()
                 } label: {
                     Label("Notifications", systemImage: "bell.badge")
