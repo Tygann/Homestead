@@ -338,7 +338,7 @@ private struct InlineLevelSliderControl: View {
 
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                    .fill(isWallpaperSurfaceActive ? Color(.tertiarySystemGroupedBackground).opacity(0.72) : trackColor)
+                    .fill(trackColor)
 
                 RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
                     .fill(fillColor.opacity(isWallpaperSurfaceActive ? 0.34 : 1))
