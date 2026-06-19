@@ -7166,6 +7166,45 @@ struct HomesteadTests {
         #expect(restoredConfiguration.items[4].resolvedTitle == "Downstairs")
     }
 
+    @Test func cameraSnapshotStoreKeepsRecentFallbackAndExpiresOldSnapshots() async throws {
+        let store = CameraSnapshotStore()
+        let entityID = "camera.driveway"
+        let capturedAt = Date(timeIntervalSince1970: 1_000)
+        let data = Data([0x01, 0x02, 0x03])
+
+        await store.store(data, for: entityID, now: capturedAt)
+
+        let freshSnapshot = try #require(
+            await store.snapshot(for: entityID, now: capturedAt.addingTimeInterval(10))
+        )
+        #expect(freshSnapshot.data == data)
+        #expect(
+            freshSnapshot.isFresh(
+                now: capturedAt.addingTimeInterval(10),
+                freshnessInterval: CameraSnapshotStore.freshnessInterval
+            )
+        )
+
+        let staleSnapshot = try #require(
+            await store.snapshot(
+                for: entityID,
+                now: capturedAt.addingTimeInterval(CameraSnapshotStore.freshnessInterval + 1)
+            )
+        )
+        #expect(
+            !staleSnapshot.isFresh(
+                now: capturedAt.addingTimeInterval(CameraSnapshotStore.freshnessInterval + 1),
+                freshnessInterval: CameraSnapshotStore.freshnessInterval
+            )
+        )
+
+        let expiredSnapshot = await store.snapshot(
+            for: entityID,
+            now: capturedAt.addingTimeInterval(CameraSnapshotStore.maximumFallbackAge + 1)
+        )
+        #expect(expiredSnapshot == nil)
+    }
+
     @MainActor
     @Test func dashboardConfigurationMovesVisibleGridItemsAndPreservesChipSlots() throws {
         let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"

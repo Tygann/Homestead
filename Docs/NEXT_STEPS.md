@@ -22,6 +22,7 @@ Recommended reasoning level: High.
 - Added `NSBonjourServices` for Home Assistant discovery without adding multicast entitlements or changing signing, bundle identifiers, widgets, or capabilities.
 - Stopped live Home Assistant Xcode previews from automatically registering Homestead as a Home Assistant Mobile App device while preserving live state loading in the canvas.
 - Added a Keychain-backed stable mobile-app `device_id` for normal app registration so repeated app launches or registration metadata refreshes do not create new cloned HA Mobile App devices.
+- Hardened camera card previews with shared stale-while-revalidate snapshots, bounded concurrent requests, quick jittered retries, private failure diagnostics, and detail-view cache contribution while keeping live HLS off the dashboard.
 
 - Confirmed the app and widget targets support iPhone and iPad, and that Xcode exposes and builds the app for Apple silicon Mac using Designed for iPad while Mac Catalyst remains intentionally disabled.
 - Kept the existing adaptive SwiftUI structure for iPad/Mac: dashboard and area grids add tracks at wider widths, Security retains its regular-width activity sidebar, and Browse/Settings continue using native List/Form adaptation without duplicated platform views.

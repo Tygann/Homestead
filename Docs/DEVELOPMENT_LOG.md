@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-19
+
+### Camera Snapshot Reliability
+
+- Reworked dashboard camera previews around a shared session-memory snapshot store: recent stills render immediately, stale stills remain visible for up to 30 minutes with a clear Last view badge, and successful detail-view snapshots feed the same cache.
+- Added bounded dashboard snapshot concurrency plus jittered 2/6/15-second retries before the normal refresh cadence, preventing a transient Home Assistant snapshot failure from leaving a card blank for nearly a minute.
+- Kept live HLS frame capture out of the dashboard path so camera cards do not start background streams or persist sensitive camera imagery; snapshot failures now produce private diagnostic logs for troubleshooting.
+
 ## 2026-06-15
 
 ### Account Server UX

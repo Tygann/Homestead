@@ -1,7 +1,13 @@
 import SwiftUI
+import os
 #if canImport(UIKit)
 import UIKit
 #endif
+
+private let cameraPreviewLogger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "Homestead",
+    category: "CameraPreview"
+)
 
 struct CameraCardPreview: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
@@ -46,6 +52,21 @@ struct CameraCardPreview: View {
                     EmptyView()
                         .frame(width: proxy.size.width, alignment: .bottomLeading)
                 }
+
+                if snapshotPhase.isStale {
+                    Text("Last view")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, AppSpacing.small)
+                        .padding(.vertical, AppSpacing.xSmall)
+                        .background(Color.black.opacity(0.56), in: Capsule())
+                        .frame(
+                            maxWidth: .infinity,
+                            maxHeight: .infinity,
+                            alignment: .topTrailing
+                        )
+                        .padding(AppSpacing.small)
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -65,7 +86,7 @@ struct CameraCardPreview: View {
         case .idle, .loading:
             cameraPlaceholder(status: placeholderStatus)
                 .frame(width: width, height: height)
-        case .loaded(let data):
+        case .loaded(let data, _):
             #if canImport(UIKit)
             if let image = UIImage(data: data) {
                 Image(uiImage: image)
@@ -95,8 +116,8 @@ struct CameraCardPreview: View {
         switch snapshotPhase {
         case .idle, .loading:
             return "Loading preview"
-        case .loaded:
-            return ""
+        case .loaded(_, let isStale):
+            return isStale ? "Showing last view" : ""
         case .failed:
             return "Preview unavailable"
         }
@@ -155,7 +176,7 @@ struct CameraCardPreview: View {
             return
         }
 
-        await loadSnapshot(useCache: refreshGeneration == 0)
+        await loadSnapshotWithRetry()
 
         while !Task.isCancelled {
             do {
@@ -164,38 +185,77 @@ struct CameraCardPreview: View {
                 return
             }
 
-            await loadSnapshot(useCache: false)
+            await loadSnapshotWithRetry()
         }
     }
 
     @MainActor
-    private func loadSnapshot(useCache: Bool) async {
-        if useCache,
-           let cachedSnapshot = await CameraCardSnapshotCache.shared.snapshot(for: entityID) {
-            snapshotPhase = .loaded(cachedSnapshot)
-            return
+    private func loadSnapshotWithRetry() async {
+        if let cachedSnapshot = await CameraSnapshotStore.shared.snapshot(for: entityID) {
+            snapshotPhase = .loaded(
+                cachedSnapshot.data,
+                isStale: !cachedSnapshot.isFresh(
+                    freshnessInterval: CameraSnapshotStore.freshnessInterval
+                )
+            )
         }
 
+        for delay in retryDelays {
+            guard !Task.isCancelled else { return }
+
+            if delay > .zero {
+                do {
+                    try await Task.sleep(for: delay + retryJitter)
+                } catch {
+                    return
+                }
+            }
+
+            if await loadSnapshot() {
+                return
+            }
+        }
+    }
+
+    @MainActor
+    private func loadSnapshot() async -> Bool {
         let shouldShowLoadingState = !snapshotPhase.hasLoadedSnapshot
         if shouldShowLoadingState {
             snapshotPhase = .loading
         }
 
         do {
-            let snapshot = try await homeAssistantService.fetchCameraSnapshot(entityID: entityID)
-            await CameraCardSnapshotCache.shared.store(snapshot, for: entityID)
-            guard !Task.isCancelled else { return }
-            snapshotPhase = .loaded(snapshot)
+            let snapshot = try await CameraSnapshotRequestGate.shared.perform {
+                try await homeAssistantService.fetchCameraSnapshot(entityID: entityID)
+            }
+            await CameraSnapshotStore.shared.store(snapshot, for: entityID)
+            guard !Task.isCancelled else { return false }
+            snapshotPhase = .loaded(snapshot, isStale: false)
+            return true
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return false }
+            cameraPreviewLogger.debug(
+                "Snapshot refresh failed for \(entityID, privacy: .private(mask: .hash)): \(String(describing: error), privacy: .private)"
+            )
             if shouldShowLoadingState {
                 snapshotPhase = .failed
+            } else if case .loaded(let data, _) = snapshotPhase {
+                snapshotPhase = .loaded(data, isStale: true)
             }
+            return false
         }
     }
 
+    private var retryDelays: [Duration] {
+        [.zero, .seconds(2), .seconds(6), .seconds(15)]
+    }
+
+    private var retryJitter: Duration {
+        .milliseconds(Int64(entityID.hashValue.magnitude % 750))
+    }
+
     private var refreshIntervalNanoseconds: UInt64 {
-        CameraCardSnapshotCache.baseRefreshIntervalNanoseconds + refreshJitterNanoseconds
+        45_000_000_000 + refreshJitterNanoseconds
     }
 
     private var refreshJitterNanoseconds: UInt64 {
@@ -206,7 +266,7 @@ struct CameraCardPreview: View {
 private enum CameraCardSnapshotPhase: Equatable {
     case idle
     case loading
-    case loaded(Data)
+    case loaded(Data, isStale: Bool)
     case failed
 
     var hasLoadedSnapshot: Bool {
@@ -214,6 +274,13 @@ private enum CameraCardSnapshotPhase: Equatable {
             return true
         }
 
+        return false
+    }
+
+    var isStale: Bool {
+        if case .loaded(_, let isStale) = self {
+            return isStale
+        }
         return false
     }
 }
@@ -241,35 +308,5 @@ private enum CameraCardPlaceholderStatus {
         case .unavailable, .failed:
             return "photo.badge.exclamationmark"
         }
-    }
-}
-
-private actor CameraCardSnapshotCache {
-    static let shared = CameraCardSnapshotCache()
-    nonisolated static let baseRefreshIntervalNanoseconds: UInt64 = 45_000_000_000
-
-    private struct Entry {
-        let data: Data
-        let date: Date
-    }
-
-    private var entriesByEntityID: [String: Entry] = [:]
-    private let timeToLive: TimeInterval = 45
-
-    func snapshot(for entityID: String, now: Date = Date()) -> Data? {
-        guard let entry = entriesByEntityID[entityID] else {
-            return nil
-        }
-
-        guard now.timeIntervalSince(entry.date) <= timeToLive else {
-            entriesByEntityID[entityID] = nil
-            return nil
-        }
-
-        return entry.data
-    }
-
-    func store(_ data: Data, for entityID: String, now: Date = Date()) {
-        entriesByEntityID[entityID] = Entry(data: data, date: now)
     }
 }

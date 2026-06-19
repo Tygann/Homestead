@@ -322,7 +322,11 @@ struct CameraDetailView: View {
         player?.pause()
         player = nil
         livePhase = .idle
-        snapshotPhase = .idle
+        if let cachedSnapshot = await CameraSnapshotStore.shared.snapshot(for: entity.entityID) {
+            snapshotPhase = .loaded(cachedSnapshot.data)
+        } else {
+            snapshotPhase = .idle
+        }
 
         guard entity.isAvailable else {
             capabilitiesPhase = .failed
@@ -331,13 +335,14 @@ struct CameraDetailView: View {
             return
         }
 
+        async let snapshotLoad: Void = loadSnapshot()
         let capabilities = await loadCapabilities()
+        let loadedLiveStream = await loadLiveStreamIfPossible(capabilities: capabilities)
+        await snapshotLoad
 
-        if await loadLiveStreamIfPossible(capabilities: capabilities) {
+        if loadedLiveStream {
             return
         }
-
-        await loadSnapshot()
     }
 
     private func loadSnapshot() async {
@@ -346,11 +351,22 @@ struct CameraDetailView: View {
             return
         }
 
-        snapshotPhase = .loading
+        let hasCachedSnapshot: Bool
+        if case .loaded = snapshotPhase {
+            hasCachedSnapshot = true
+        } else {
+            hasCachedSnapshot = false
+            snapshotPhase = .loading
+        }
+
         do {
-            snapshotPhase = .loaded(try await homeAssistantService.fetchCameraSnapshot(entityID: entity.entityID))
+            let snapshot = try await homeAssistantService.fetchCameraSnapshot(entityID: entity.entityID)
+            await CameraSnapshotStore.shared.store(snapshot, for: entity.entityID)
+            snapshotPhase = .loaded(snapshot)
         } catch {
-            snapshotPhase = .failed
+            if !hasCachedSnapshot {
+                snapshotPhase = .failed
+            }
         }
     }
 
