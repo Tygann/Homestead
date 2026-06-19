@@ -73,10 +73,11 @@ struct AreasView: View {
                     .buttonStyle(.plain)
                 }
             }
+            .padding(.horizontal, AppSpacing.large)
             .padding(.vertical, 1)
         }
         .scrollIndicators(.hidden)
-        .contentMargins(.horizontal, 1, for: .scrollContent)
+        .padding(.horizontal, -AppSpacing.large)
         .accessibilityElement(children: .contain)
     }
 
