@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-19
 
+### Automated XCTest Storage Hygiene
+
+- Added a repository helper that reports XCTestDevices, DerivedData, and CoreSimulator sizes after tests, then automatically clears only XCTestDevices when it exceeds 5 GB and no Xcode test process is active.
+- Updated the durable agent workflow to run the helper after every `xcodebuild test`; DerivedData and normal Simulator storage remain report-only and require explicit approval for cleanup.
+
 ### Camera Snapshot Reliability
 
 - Reworked dashboard camera previews around a shared session-memory snapshot store: recent stills render immediately, stale stills remain visible for up to 30 minutes with a clear Last view badge, and successful detail-view snapshots feed the same cache.

@@ -63,7 +63,7 @@ xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'platform
 
 If the named simulator is unavailable, inspect local simulators and choose an installed iPhone runtime.
 
-Prefer focused tests over broad simulator test suites unless the change truly needs a broad run. After any `xcodebuild test`, check Xcode storage growth with the commands in `Docs/DEVELOPMENT_WORKFLOW.md`, mention unusual `~/Library/Developer/XCTestDevices` growth in the summary, and recommend cleanup instead of deleting caches silently.
+Prefer focused tests over broad simulator test suites unless the change truly needs a broad run. After any `xcodebuild test`, run `Scripts/xcode_storage_hygiene.sh`. It reports Xcode storage and, with the user's standing approval, automatically clears only `~/Library/Developer/XCTestDevices/*` when it exceeds 5 GB and no test process is active. Report any cleanup in the summary. Never automatically clear DerivedData or normal Simulator data.
 
 For repeatable physical-device performance profiling, use `Docs/PERFORMANCE_PROFILING.md`.
 

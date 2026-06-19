@@ -82,18 +82,18 @@ xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'platform
 ## Xcode Storage Hygiene
 
 - Prefer focused tests over broad simulator test suites unless broad coverage is needed for the change.
-- After running `xcodebuild test`, check the size of Xcode/XCTest storage:
+- After running `xcodebuild test`, run the repository hygiene helper:
 
 ```sh
-du -sh ~/Library/Developer/XCTestDevices
-du -sh ~/Library/Developer/Xcode/DerivedData
-du -sh ~/Library/Developer/CoreSimulator
+Scripts/xcode_storage_hygiene.sh
 ```
 
-- If `~/Library/Developer/XCTestDevices` has grown unusually large, mention it in the summary and recommend cleanup.
-- It is safe to clear `~/Library/Developer/XCTestDevices/*` only when Xcode or `xcodebuild` is not actively running tests.
-- Do not automatically delete user data or broad cache folders without explicit user approval. Suggest cleanup commands clearly instead of running them silently.
-- Suggested cleanup command:
+- The helper reports `XCTestDevices`, DerivedData, and CoreSimulator sizes.
+- With the user's standing approval, it automatically clears only `~/Library/Developer/XCTestDevices/*` when that directory exceeds 5 GB and no `xcodebuild` or XCTest process is active.
+- The threshold can be overridden with `XCTEST_DEVICES_CLEANUP_THRESHOLD_GB`. Use `--check-only` to report without deleting anything.
+- Report whether cleanup occurred and the resulting size in the completion summary.
+- Never automatically delete DerivedData, normal Simulator data, or other user/cache folders. Those still require explicit approval.
+- Manual equivalent, only when Xcode tests are idle:
 
 ```sh
 rm -rf ~/Library/Developer/XCTestDevices/*
