@@ -500,6 +500,7 @@ struct DashboardView: View {
                     dashboardChip(chipItem)
                 }
             }
+            .padding(.horizontal, AppSpacing.large)
             .coordinateSpace(name: DashboardChipCoordinateSpace.name)
             .overlay(alignment: .topLeading) {
                 if let draggedChipItem = draggedChipItem(from: items) {
@@ -513,7 +514,7 @@ struct DashboardView: View {
             .padding(.vertical, 1)
         }
         .scrollIndicators(.hidden)
-        .contentMargins(.horizontal, 1, for: .scrollContent)
+        .padding(.horizontal, -AppSpacing.large)
         .accessibilityElement(children: .contain)
     }
 
