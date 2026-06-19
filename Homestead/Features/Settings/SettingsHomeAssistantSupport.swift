@@ -1,14 +1,16 @@
 import SwiftUI
-import UIKit
-
 // MARK: - Home Assistant Avatar View
 struct HomeAssistantAvatarView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var image: Image?
 
     var body: some View {
-        Group {
+        HomeAssistantAsyncImage(
+            id: taskID,
+            request: {
+                await homeAssistantService.homeAssistantProfileImageRequest(settings: connectionSettings)
+            }
+        ) { image in
             if let image {
                 image
                     .resizable()
@@ -21,9 +23,6 @@ struct HomeAssistantAvatarView: View {
             }
         }
         .clipShape(Circle())
-        .task(id: taskID) {
-            await loadImage()
-        }
     }
 
     private var taskID: String {
@@ -34,19 +33,6 @@ struct HomeAssistantAvatarView: View {
         ].joined(separator: "|")
     }
 
-    private func loadImage() async {
-        guard let request = await homeAssistantService.homeAssistantProfileImageRequest(settings: connectionSettings) else {
-            image = nil
-            return
-        }
-
-        guard let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
-            image = nil
-            return
-        }
-
-        image = Image(uiImage: uiImage)
-    }
 }
 
 // MARK: - Settings Status Chip

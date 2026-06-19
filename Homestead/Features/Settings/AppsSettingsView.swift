@@ -260,14 +260,25 @@ private struct SupervisorAppDetailView: View {
 private struct SupervisorAppIconView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var image: Image?
 
     let app: HASupervisorApp
     let size: CGFloat
     var prefersLogo = false
 
     var body: some View {
-        Group {
+        HomeAssistantAsyncImage(
+            id: taskID,
+            request: {
+                guard let imagePath else {
+                    return nil
+                }
+
+                return await homeAssistantService.homeAssistantImageRequest(
+                    settings: connectionSettings,
+                    pathOrURL: imagePath
+                )
+            }
+        ) { image in
             if let image {
                 image
                     .resizable()
@@ -282,9 +293,6 @@ private struct SupervisorAppIconView: View {
             }
         }
         .frame(width: size, height: size)
-        .task(id: taskID) {
-            await loadImage()
-        }
         .accessibilityHidden(true)
     }
 
@@ -309,23 +317,6 @@ private struct SupervisorAppIconView: View {
         max(10, size * 0.22)
     }
 
-    private func loadImage() async {
-        guard let imagePath,
-              let request = await homeAssistantService.homeAssistantImageRequest(
-                settings: connectionSettings,
-                pathOrURL: imagePath
-              ) else {
-            image = nil
-            return
-        }
-
-        guard let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
-            image = nil
-            return
-        }
-
-        image = Image(uiImage: uiImage)
-    }
 }
 
 private extension HASupervisorAppStatus {

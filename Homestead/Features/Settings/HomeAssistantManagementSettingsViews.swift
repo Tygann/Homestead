@@ -220,13 +220,22 @@ private struct IntegrationBrandImageView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(\.colorScheme) private var colorScheme
-    @State private var image: Image?
 
     let platform: String
     let size: CGFloat
 
     var body: some View {
-        Group {
+        HomeAssistantAsyncImage(
+            id: taskID,
+            request: {
+                let imageName = colorScheme == .dark ? "dark_icon@2x.png" : "icon@2x.png"
+                let path = "/api/brands/integration/\(platform)/\(imageName)"
+                return await homeAssistantService.homeAssistantImageRequest(
+                    settings: connectionSettings,
+                    pathOrURL: path
+                )
+            }
+        ) { image in
             if let image {
                 image
                     .resizable()
@@ -244,9 +253,6 @@ private struct IntegrationBrandImageView: View {
             }
         }
         .frame(width: size, height: size)
-        .task(id: taskID) {
-            await loadImage()
-        }
         .accessibilityHidden(true)
     }
 
@@ -260,20 +266,6 @@ private struct IntegrationBrandImageView: View {
         ].joined(separator: "|")
     }
 
-    private func loadImage() async {
-        let imageName = colorScheme == .dark ? "dark_icon@2x.png" : "icon@2x.png"
-        let path = "/api/brands/integration/\(platform)/\(imageName)"
-        guard let request = await homeAssistantService.homeAssistantImageRequest(
-            settings: connectionSettings,
-            pathOrURL: path
-        ),
-        let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
-            image = nil
-            return
-        }
-
-        image = Image(uiImage: uiImage)
-    }
 }
 
 private struct HelperRegistryManagementList: View {

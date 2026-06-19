@@ -181,13 +181,24 @@ private struct UpdateRowContent: View {
 private struct UpdateIconView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var image: Image?
 
     let update: HAUpdateEntity
     let size: CGFloat
 
     var body: some View {
-        Group {
+        HomeAssistantAsyncImage(
+            id: taskID,
+            request: {
+                guard let entityPicturePath = update.entityPicturePath else {
+                    return nil
+                }
+
+                return await homeAssistantService.homeAssistantImageRequest(
+                    settings: connectionSettings,
+                    pathOrURL: entityPicturePath
+                )
+            }
+        ) { image in
             if let image {
                 image
                     .resizable()
@@ -202,9 +213,6 @@ private struct UpdateIconView: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .task(id: taskID) {
-            await loadImage()
-        }
         .accessibilityHidden(true)
     }
 
@@ -217,23 +225,6 @@ private struct UpdateIconView: View {
         ].joined(separator: "|")
     }
 
-    private func loadImage() async {
-        guard let entityPicturePath = update.entityPicturePath,
-              let request = await homeAssistantService.homeAssistantImageRequest(
-                settings: connectionSettings,
-                pathOrURL: entityPicturePath
-              ) else {
-            image = nil
-            return
-        }
-
-        guard let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
-            image = nil
-            return
-        }
-
-        image = Image(uiImage: uiImage)
-    }
 }
 
 private struct UpdateRowAction: View {

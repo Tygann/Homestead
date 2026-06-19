@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct PeoplePresenceAvatarStackView: View {
     let records: [HAPresenceRecord]
@@ -58,13 +57,24 @@ struct PeoplePresenceAvatarStackView: View {
 struct PeoplePresenceAvatarView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var image: Image?
 
     let record: HAPresenceRecord
     let size: CGFloat
 
     var body: some View {
-        Group {
+        HomeAssistantAsyncImage(
+            id: taskID,
+            request: {
+                guard let entityPicturePath = record.entityPicturePath else {
+                    return nil
+                }
+
+                return await homeAssistantService.homeAssistantImageRequest(
+                    settings: connectionSettings,
+                    pathOrURL: entityPicturePath
+                )
+            }
+        ) { image in
             if let image {
                 image
                     .resizable()
@@ -78,9 +88,6 @@ struct PeoplePresenceAvatarView: View {
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
-        .task(id: taskID) {
-            await loadImage()
-        }
         .accessibilityHidden(true)
     }
 
@@ -93,23 +100,6 @@ struct PeoplePresenceAvatarView: View {
         ].joined(separator: "|")
     }
 
-    private func loadImage() async {
-        guard let entityPicturePath = record.entityPicturePath,
-              let request = await homeAssistantService.homeAssistantImageRequest(
-                settings: connectionSettings,
-                pathOrURL: entityPicturePath
-              ) else {
-            image = nil
-            return
-        }
-
-        guard let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
-            image = nil
-            return
-        }
-
-        image = Image(uiImage: uiImage)
-    }
 }
 
 extension HAPresenceStatus {
