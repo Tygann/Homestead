@@ -396,9 +396,16 @@ final class HomeAssistantService {
             lastAuthenticationErrorMessage = nil
             await connect(settings: settings)
         } catch {
-            let message = signInFailureMessage(for: error)
             let rawMessage = error.localizedDescription
             print("Home Assistant sign-in failed: \(rawMessage)")
+            if isUserCancelledSignIn(error) {
+                authState = .signedOut
+                lastErrorMessage = nil
+                lastAuthenticationErrorMessage = rawMessage
+                return
+            }
+
+            let message = signInFailureMessage(for: error)
             authState = .refreshFailed(message)
             lastErrorMessage = message
             lastAuthenticationErrorMessage = rawMessage
@@ -1980,7 +1987,9 @@ final class HomeAssistantService {
     private func signInFailureMessage(for error: Error) -> String {
         if let oauthError = error as? HAOAuthError {
             switch oauthError {
-            case .signInCancelled, .missingAuthorizationCode, .stateMismatch:
+            case .signInCancelled:
+                return "Sign-in was canceled."
+            case .missingAuthorizationCode, .stateMismatch:
                 return oauthError.localizedDescription
             case .signedOut, .noRefreshTokenForServer, .invalidTokenResponse:
                 return genericSignInFailureMessage
@@ -2010,6 +2019,16 @@ final class HomeAssistantService {
         }
 
         return genericSignInFailureMessage
+    }
+
+    private func isUserCancelledSignIn(_ error: Error) -> Bool {
+        if error as? HAOAuthError == .signInCancelled {
+            return true
+        }
+
+        let nsError = error as NSError
+        return nsError.domain == "com.apple.AuthenticationServices.WebAuthenticationSession" &&
+            nsError.code == 1
     }
 
     private var genericSignInFailureMessage: String {

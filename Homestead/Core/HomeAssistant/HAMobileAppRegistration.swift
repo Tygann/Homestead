@@ -170,6 +170,7 @@ nonisolated struct HAMobileAppRegistrationSummary: Equatable, Sendable {
 enum HAMobileAppRegistrationRequestFactory {
     nonisolated static let appID = "com.tyler.Homestead"
     nonisolated static let appName = "Homestead"
+    nonisolated static let deviceNamePrefix = "Homestead • "
 
     static func makeRequest(
         deviceID: String = UUID().uuidString,
@@ -185,7 +186,7 @@ enum HAMobileAppRegistrationRequestFactory {
             appID: appID,
             appName: appName,
             appVersion: appVersion,
-            deviceName: deviceName,
+            deviceName: visibleDeviceName(for: deviceName),
             manufacturer: manufacturer,
             model: model,
             osName: osName,
@@ -193,6 +194,19 @@ enum HAMobileAppRegistrationRequestFactory {
             supportsEncryption: false,
             appData: ["push_websocket_channel": .bool(true)]
         )
+    }
+
+    nonisolated static func visibleDeviceName(for deviceName: String) -> String {
+        let trimmedName = deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            return "\(deviceNamePrefix)Device"
+        }
+
+        guard !trimmedName.hasPrefix(deviceNamePrefix) else {
+            return trimmedName
+        }
+
+        return "\(deviceNamePrefix)\(trimmedName)"
     }
 }
 

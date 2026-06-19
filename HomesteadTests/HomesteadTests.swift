@@ -381,6 +381,24 @@ struct HomesteadTests {
         #expect(!presentation.showsStatusRow)
     }
 
+    @Test func onboardingPresentationKeepsInitialRefreshVisuallyStable() {
+        let presentation = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: true,
+            hasKnownSession: false,
+            authState: .refreshing(nil),
+            connectionStatus: .preparing,
+            serviceError: nil,
+            storageError: nil
+        )
+
+        #expect(presentation.shouldShow)
+        #expect(presentation.statusTitle == "Ready to Sign In")
+        #expect(presentation.buttonTitle == "Continue")
+        #expect(presentation.isButtonEnabled)
+        #expect(!presentation.isBusy)
+        #expect(!presentation.showsStatusRow)
+    }
+
     @Test func onboardingPresentationDisablesSignInWhileSigningIn() {
         let presentation = HomeAssistantOnboardingPresentation.make(
             hasServerURL: true,
@@ -1459,7 +1477,7 @@ struct HomesteadTests {
         #expect(object["app_id"] as? String == "com.tyler.Homestead")
         #expect(object["app_name"] as? String == "Homestead")
         #expect(object["app_version"] as? String == "1.2.3")
-        #expect(object["device_name"] as? String == "Test Phone")
+        #expect(object["device_name"] as? String == "Homestead • Test Phone")
         #expect(object["manufacturer"] as? String == "Apple, Inc.")
         #expect(object["model"] as? String == "iPhone")
         #expect(object["os_name"] as? String == "iOS")
@@ -5775,7 +5793,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func oauthSignInShowsFriendlyMessageAndStoresRawFailure() async throws {
+    @Test func oauthSignInCancellationReturnsToReadyStateAndStoresRawFailure() async throws {
         let rawError = NSError(
             domain: "com.apple.AuthenticationServices.WebAuthenticationSession",
             code: 1,
@@ -5797,9 +5815,37 @@ struct HomesteadTests {
 
         await service.signInWithHomeAssistant(settings: settings)
 
+        #expect(service.authState == .signedOut)
+        #expect(service.lastErrorMessage == nil)
+        #expect(service.lastAuthenticationErrorMessage == "The operation couldn’t be completed. (com.apple.AuthenticationServices.WebAuthenticationSession error 1.)")
+    }
+
+    @MainActor
+    @Test func oauthSignInShowsFriendlyMessageAndStoresRawFailure() async throws {
+        let rawError = NSError(
+            domain: "com.apple.AuthenticationServices.WebAuthenticationSession",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "The operation couldn’t be completed. (com.apple.AuthenticationServices.WebAuthenticationSession error 2.)"]
+        )
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: InMemoryHAOAuthTokenStore()),
+            oauthAuthorizer: StubHAOAuthAuthorizer(error: rawError),
+            automaticallyRegistersMobileApp: false
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "https://remote.example.com",
+            defaults: try isolatedDefaults(),
+            tokenStore: InMemoryHAOAuthTokenStore()
+        )
+
+        await service.signInWithHomeAssistant(settings: settings)
+
         #expect(service.authState == .refreshFailed("Couldn’t complete sign-in with Home Assistant. Check that Home Assistant is reachable and try again."))
         #expect(service.lastErrorMessage == "Couldn’t complete sign-in with Home Assistant. Check that Home Assistant is reachable and try again.")
-        #expect(service.lastAuthenticationErrorMessage == "The operation couldn’t be completed. (com.apple.AuthenticationServices.WebAuthenticationSession error 1.)")
+        #expect(service.lastAuthenticationErrorMessage == "The operation couldn’t be completed. (com.apple.AuthenticationServices.WebAuthenticationSession error 2.)")
     }
 
     @MainActor

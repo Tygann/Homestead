@@ -21,8 +21,9 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
         serviceError: String?,
         storageError: String?
     ) -> HomeAssistantOnboardingPresentation {
-        let shouldShow = !hasServerURL || (!hasKnownSession && shouldShowForAuthState(authState))
-        let isBusy = authState == .signingIn || isRefreshing(authState)
+        let displayAuthState = displayAuthState(authState, hasKnownSession: hasKnownSession)
+        let shouldShow = !hasServerURL || (!hasKnownSession && shouldShowForAuthState(displayAuthState))
+        let isBusy = displayAuthState == .signingIn || isRefreshing(displayAuthState)
 
         return HomeAssistantOnboardingPresentation(
             shouldShow: shouldShow,
@@ -30,23 +31,31 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
             message: "Enter the address you use to open Home Assistant, then sign in.",
             statusTitle: statusTitle(
                 hasServerURL: hasServerURL,
-                authState: authState,
+                authState: displayAuthState,
                 connectionStatus: connectionStatus
             ),
             statusMessage: statusMessage(
                 hasServerURL: hasServerURL,
-                authState: authState,
+                authState: displayAuthState,
                 connectionStatus: connectionStatus,
                 serviceError: serviceError,
                 storageError: storageError
             ),
-            buttonTitle: buttonTitle(authState: authState),
+            buttonTitle: buttonTitle(authState: displayAuthState),
             isButtonEnabled: hasServerURL && !isBusy,
             isBusy: isBusy,
-            statusSystemImage: statusSystemImage(authState: authState, connectionStatus: connectionStatus),
-            showsStatusRow: showsStatusRow(authState: authState, storageError: storageError),
-            footerMessage: footerMessage(hasServerURL: hasServerURL, authState: authState)
+            statusSystemImage: statusSystemImage(authState: displayAuthState, connectionStatus: connectionStatus),
+            showsStatusRow: showsStatusRow(authState: displayAuthState, storageError: storageError),
+            footerMessage: footerMessage(hasServerURL: hasServerURL, authState: displayAuthState)
         )
+    }
+
+    private static func displayAuthState(_ authState: HAAuthState, hasKnownSession: Bool) -> HAAuthState {
+        if case .refreshing = authState, !hasKnownSession {
+            return .signedOut
+        }
+
+        return authState
     }
 
     private static func isRefreshing(_ authState: HAAuthState) -> Bool {
