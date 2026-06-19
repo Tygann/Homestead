@@ -224,11 +224,13 @@ struct EntityDetailLevelSlider: View {
     let step: Double
     let fillColor: Color
     let trackColor: Color
+    let showsFilledTrack: Bool
     let isDisabled: Bool
     let accessibilityLabel: String
     let accessibilityValue: String
     let onEditingChanged: (Bool) -> Void
     let onCommit: (Double) -> Void
+    @State private var dragAxis: DetailSliderDragAxis = .undecided
 
     init(
         value: Binding<Double>,
@@ -242,11 +244,40 @@ struct EntityDetailLevelSlider: View {
         onEditingChanged: @escaping (Bool) -> Void = { _ in },
         onCommit: @escaping (Double) -> Void
     ) {
+        self.init(
+            value: value,
+            range: range,
+            step: step,
+            fillColor: fillColor,
+            trackColor: trackColor,
+            showsFilledTrack: true,
+            isDisabled: isDisabled,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityValue: accessibilityValue,
+            onEditingChanged: onEditingChanged,
+            onCommit: onCommit
+        )
+    }
+
+    init(
+        value: Binding<Double>,
+        range: ClosedRange<Double> = 0...100,
+        step: Double = 1,
+        fillColor: Color = .accentColor,
+        trackColor: Color = Color(.tertiarySystemGroupedBackground),
+        showsFilledTrack: Bool,
+        isDisabled: Bool,
+        accessibilityLabel: String,
+        accessibilityValue: String,
+        onEditingChanged: @escaping (Bool) -> Void = { _ in },
+        onCommit: @escaping (Double) -> Void
+    ) {
         _value = value
         self.range = range
         self.step = step
         self.fillColor = fillColor
         self.trackColor = trackColor
+        self.showsFilledTrack = showsFilledTrack
         self.isDisabled = isDisabled
         self.accessibilityLabel = accessibilityLabel
         self.accessibilityValue = accessibilityValue
@@ -262,21 +293,42 @@ struct EntityDetailLevelSlider: View {
                 RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
                     .fill(trackColor)
 
-                RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                    .fill(fillColor)
-                    .frame(width: fillWidth)
+                if showsFilledTrack {
+                    RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                        .fill(fillColor)
+                        .frame(width: fillWidth)
+                } else {
+                    Capsule()
+                        .fill(fillColor)
+                        .frame(width: 22, height: 22)
+                        .shadow(color: fillColor.opacity(0.24), radius: 4, y: 1)
+                        .offset(x: min(max(fillWidth - 11, 0), max(proxy.size.width - 22, 0)))
+                }
             }
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-            .gesture(
-                DragGesture(minimumDistance: 0)
+            .simultaneousGesture(
+                SpatialTapGesture()
+                    .onEnded { tapValue in
+                        let finalValue = steppedValue(sliderValue(at: tapValue.location.x, width: proxy.size.width))
+                        value = finalValue
+                        onCommit(finalValue)
+                    }
+            )
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8)
                     .onChanged { dragValue in
+                        guard resolveAxis(for: dragValue.translation) == .horizontal else { return }
                         onEditingChanged(true)
                         value = steppedValue(sliderValue(at: dragValue.location.x, width: proxy.size.width))
                     }
                     .onEnded { dragValue in
+                        defer {
+                            dragAxis = .undecided
+                            onEditingChanged(false)
+                        }
+                        guard dragAxis == .horizontal else { return }
                         let finalValue = steppedValue(sliderValue(at: dragValue.location.x, width: proxy.size.width))
                         value = finalValue
-                        onEditingChanged(false)
                         onCommit(finalValue)
                     }
             )
@@ -331,6 +383,27 @@ struct EntityDetailLevelSlider: View {
         value = updatedValue
         onCommit(updatedValue)
     }
+
+    private func resolveAxis(for translation: CGSize) -> DetailSliderDragAxis {
+        if dragAxis != .undecided {
+            return dragAxis
+        }
+
+        let horizontalDistance = abs(translation.width)
+        let verticalDistance = abs(translation.height)
+        guard max(horizontalDistance, verticalDistance) >= 8 else {
+            return .undecided
+        }
+
+        dragAxis = horizontalDistance > verticalDistance + 4 ? .horizontal : .vertical
+        return dragAxis
+    }
+}
+
+private enum DetailSliderDragAxis {
+    case undecided
+    case horizontal
+    case vertical
 }
 
 struct EntityDetailPillButton: View {

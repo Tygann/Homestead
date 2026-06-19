@@ -209,7 +209,6 @@ struct DashboardCardView: View {
         }
 
         return { temperature in
-            HapticFeedback.selection()
             Task {
                 await homeAssistantService.setClimateTemperature(
                     entityID: entityBox.entityID,
@@ -226,7 +225,6 @@ struct DashboardCardView: View {
         }
 
         return { lowTemperature, highTemperature in
-            HapticFeedback.selection()
             Task {
                 await homeAssistantService.setClimateTemperatureRange(
                     entityID: entityBox.entityID,

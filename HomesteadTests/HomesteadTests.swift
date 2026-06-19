@@ -3087,6 +3087,47 @@ struct HomesteadTests {
         #expect(autoClimate.displaySubtitle == "Auto, 66°F-76°F")
     }
 
+    @Test func climateSetpointAdjustmentClampsAndRoundsSingleTemperature() {
+        let adjustment = ClimateSetpointAdjustment(
+            minimumTemperature: 50,
+            maximumTemperature: 90,
+            step: 0.5
+        )
+
+        #expect(adjustment.clampedSingleTemperature(72.24) == 72)
+        #expect(adjustment.clampedSingleTemperature(72.26) == 72.5)
+        #expect(adjustment.clampedSingleTemperature(42) == 50)
+        #expect(adjustment.clampedSingleTemperature(96) == 90)
+    }
+
+    @Test func climateSetpointAdjustmentPreservesValidHeatCoolRange() {
+        let adjustment = ClimateSetpointAdjustment(
+            minimumTemperature: 50,
+            maximumTemperature: 90,
+            step: 1
+        )
+
+        let raisedLow = adjustment.adjustedLowTemperature(
+            currentLowTemperature: 72,
+            currentHighTemperature: 74,
+            delta: 5
+        )
+        #expect(raisedLow.lowTemperature == 74)
+        #expect(raisedLow.highTemperature == 74)
+
+        let loweredHigh = adjustment.adjustedHighTemperature(
+            currentLowTemperature: 68,
+            currentHighTemperature: 70,
+            delta: -5
+        )
+        #expect(loweredHigh.lowTemperature == 68)
+        #expect(loweredHigh.highTemperature == 68)
+
+        let clampedRange = adjustment.clampedRange(lowTemperature: 95, highTemperature: 80)
+        #expect(clampedRange.lowTemperature == 90)
+        #expect(clampedRange.highTemperature == 90)
+    }
+
     @Test func sensorFormattingHandlesUnitsAndUnavailableStates() {
         let humidity = SensorEntity(
             entityID: "sensor.humidity",

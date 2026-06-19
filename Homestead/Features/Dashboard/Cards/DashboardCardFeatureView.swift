@@ -62,6 +62,8 @@ struct DashboardCardFeatureActions {
 
 struct DashboardCardFeatureView: View {
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+    @State private var localSetpointValues: [DashboardCardSetpointRole: Double] = [:]
+    @State private var pendingSetpointTask: Task<Void, Never>?
 
     let feature: DashboardCardFeature
     let isPending: Bool
@@ -88,6 +90,11 @@ struct DashboardCardFeatureView: View {
             }
         }
         .allowsHitTesting(isInteractionEnabled)
+        .onChange(of: feature) { _, _ in
+            localSetpointValues = [:]
+            pendingSetpointTask?.cancel()
+            pendingSetpointTask = nil
+        }
     }
 
     private func levelControl(_ level: DashboardCardLevelFeature) -> some View {
@@ -109,23 +116,25 @@ struct DashboardCardFeatureView: View {
     private func setpointControl(_ setpoint: DashboardCardSetpointFeature) -> some View {
         HStack(spacing: AppSpacing.small) {
             ForEach(setpoint.values) { value in
+                let effectiveValue = localSetpointValue(for: value)
+                let bounds = localSetpointBounds(for: value, in: setpoint)
                 InlineStepperControl(
-                    value: value.displayValue,
+                    value: displayValue(for: effectiveValue),
                     isActive: isActive,
                     decrementAccessibilityLabel: value.decrementAccessibilityLabel,
                     incrementAccessibilityLabel: value.incrementAccessibilityLabel,
-                    isDecrementDisabled: isPending || value.value <= value.minimumValue,
-                    isIncrementDisabled: isPending || value.value >= value.maximumValue,
+                    isDecrementDisabled: effectiveValue <= bounds.lowerBound,
+                    isIncrementDisabled: effectiveValue >= bounds.upperBound,
                     decrement: {
-                        perform(setpoint, changing: value, to: value.value - value.step)
+                        perform(setpoint, changing: value, to: effectiveValue - value.step)
                     },
                     increment: {
-                        perform(setpoint, changing: value, to: value.value + value.step)
+                        perform(setpoint, changing: value, to: effectiveValue + value.step)
                     }
                 )
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(value.accessibilityLabel)
-                .accessibilityValue(value.formattedValue)
+                .accessibilityValue(displayValue(for: effectiveValue))
             }
         }
     }
@@ -209,15 +218,90 @@ struct DashboardCardFeatureView: View {
         changing value: DashboardCardSetpointValue,
         to updatedValue: Double
     ) {
+        let helper = setpointAdjustment(for: setpoint)
+
         switch setpoint.action {
         case .setClimateTemperature:
-            actions.setClimateTemperature?(updatedValue)
+            let targetValue = helper.clampedSingleTemperature(updatedValue)
+            localSetpointValues[.target] = targetValue
+            scheduleSetpointSend {
+                actions.setClimateTemperature?(targetValue)
+            }
         case .setClimateTemperatureRange:
-            let lowValue = setpoint.value(for: .low, changing: value, to: updatedValue)
-            let highValue = setpoint.value(for: .high, changing: value, to: updatedValue)
-            actions.setClimateTemperatureRange?(lowValue, highValue)
+            let currentLow = localSetpointValues[.low] ?? setpoint.value(for: .low, changing: value, to: updatedValue)
+            let currentHigh = localSetpointValues[.high] ?? setpoint.value(for: .high, changing: value, to: updatedValue)
+            let range: ClimateSetpointRange
+
+            switch value.role {
+            case .low:
+                range = helper.clampedRange(lowTemperature: updatedValue, highTemperature: currentHigh)
+            case .high:
+                range = helper.clampedRange(lowTemperature: currentLow, highTemperature: updatedValue)
+            case .target:
+                range = helper.clampedRange(lowTemperature: updatedValue, highTemperature: currentHigh)
+            }
+
+            localSetpointValues[.low] = range.lowTemperature
+            localSetpointValues[.high] = range.highTemperature
+            scheduleSetpointSend {
+                actions.setClimateTemperatureRange?(range.lowTemperature, range.highTemperature)
+            }
         }
     }
+
+    private func localSetpointValue(for value: DashboardCardSetpointValue) -> Double {
+        localSetpointValues[value.role] ?? value.value
+    }
+
+    private func localSetpointBounds(
+        for value: DashboardCardSetpointValue,
+        in setpoint: DashboardCardSetpointFeature
+    ) -> ClosedRange<Double> {
+        switch value.role {
+        case .low:
+            return value.minimumValue...(localSetpointValues[.high] ?? value.maximumValue)
+        case .high:
+            return (localSetpointValues[.low] ?? value.minimumValue)...value.maximumValue
+        case .target:
+            return value.minimumValue...value.maximumValue
+        }
+    }
+
+    private func setpointAdjustment(for setpoint: DashboardCardSetpointFeature) -> ClimateSetpointAdjustment {
+        let values = setpoint.values
+        let minimum = values.map(\.minimumValue).min() ?? 0
+        let maximum = values.map(\.maximumValue).max() ?? 100
+        let step = values.first?.step ?? 1
+
+        return ClimateSetpointAdjustment(
+            minimumTemperature: minimum,
+            maximumTemperature: maximum,
+            step: step
+        )
+    }
+
+    private func scheduleSetpointSend(_ send: @escaping @MainActor () -> Void) {
+        HapticFeedback.selection()
+        pendingSetpointTask?.cancel()
+        pendingSetpointTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(280))
+            guard !Task.isCancelled else { return }
+            send()
+            pendingSetpointTask = nil
+        }
+    }
+
+    private func displayValue(for value: Double) -> String {
+        Self.setpointFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
+    private static let setpointFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 1
+        formatter.minimumFractionDigits = 0
+        return formatter
+    }()
 
     private var controlBackground: Color {
         HomesteadSurfaceStyle.controlBackground(
@@ -254,36 +338,50 @@ private struct InlineStepperControl: View {
     let increment: () -> Void
 
     var body: some View {
-        HStack(spacing: 1) {
-            Button(action: decrement) {
+        ZStack {
+            HStack(spacing: 0) {
+                Button(action: decrement) {
+                    Color.clear
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(isDecrementDisabled)
+                .accessibilityLabel(decrementAccessibilityLabel)
+
+                Button(action: increment) {
+                    Color.clear
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(isIncrementDisabled)
+                .accessibilityLabel(incrementAccessibilityLabel)
+            }
+
+            HStack(spacing: AppSpacing.xSmall) {
                 Image(systemName: "minus")
                     .font(.caption.weight(.bold))
-                    .frame(width: 18, height: 30)
-            }
-            .buttonStyle(.plain)
-            .disabled(isDecrementDisabled)
-            .accessibilityLabel(decrementAccessibilityLabel)
+                    .foregroundStyle(isDecrementDisabled ? .tertiary : .secondary)
+                    .frame(width: 16)
 
-            Text(value)
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .frame(minWidth: 18, maxWidth: .infinity)
+                Text(value)
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(minWidth: 24, maxWidth: .infinity)
 
-            Button(action: increment) {
                 Image(systemName: "plus")
                     .font(.caption.weight(.bold))
-                    .frame(width: 18, height: 30)
+                    .foregroundStyle(isIncrementDisabled ? .tertiary : .secondary)
+                    .frame(width: 16)
             }
-            .buttonStyle(.plain)
-            .disabled(isIncrementDisabled)
-            .accessibilityLabel(incrementAccessibilityLabel)
+            .padding(.horizontal, AppSpacing.xSmall)
+            .allowsHitTesting(false)
         }
         .foregroundStyle(.primary)
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 2)
         .frame(height: 44)
         .background(controlBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
     }
 
     private var controlBackground: Color {
@@ -308,6 +406,7 @@ private struct InlineLevelSliderControl: View {
     let setValue: (Double) -> Void
     @State private var currentValue: Double
     @State private var isEditing = false
+    @State private var dragAxis: SliderDragAxis = .undecided
 
     init(
         value: Double,
@@ -345,16 +444,29 @@ private struct InlineLevelSliderControl: View {
                     .frame(width: fillWidth)
             }
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-            .gesture(
-                DragGesture(minimumDistance: 0)
+            .simultaneousGesture(
+                SpatialTapGesture()
+                    .onEnded { value in
+                        let finalValue = steppedValue(sliderValue(at: value.location.x, width: proxy.size.width))
+                        currentValue = finalValue
+                        setValue(finalValue)
+                    }
+            )
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8)
                     .onChanged { value in
+                        guard resolveAxis(for: value.translation) == .horizontal else { return }
                         isEditing = true
                         currentValue = steppedValue(sliderValue(at: value.location.x, width: proxy.size.width))
                     }
                     .onEnded { value in
+                        defer {
+                            dragAxis = .undecided
+                            isEditing = false
+                        }
+                        guard dragAxis == .horizontal else { return }
                         let finalValue = steppedValue(sliderValue(at: value.location.x, width: proxy.size.width))
                         currentValue = finalValue
-                        isEditing = false
                         setValue(finalValue)
                     }
             )
@@ -413,4 +525,25 @@ private struct InlineLevelSliderControl: View {
         currentValue = updatedValue
         setValue(updatedValue)
     }
+
+    private func resolveAxis(for translation: CGSize) -> SliderDragAxis {
+        if dragAxis != .undecided {
+            return dragAxis
+        }
+
+        let horizontalDistance = abs(translation.width)
+        let verticalDistance = abs(translation.height)
+        guard max(horizontalDistance, verticalDistance) >= 8 else {
+            return .undecided
+        }
+
+        dragAxis = horizontalDistance > verticalDistance + 4 ? .horizontal : .vertical
+        return dragAxis
+    }
+}
+
+private enum SliderDragAxis {
+    case undecided
+    case horizontal
+    case vertical
 }

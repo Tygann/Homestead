@@ -148,11 +148,10 @@ struct DashboardEntityCard: View {
             Spacer(minLength: 0)
 
             Text(miniTitleText)
-//                .font(.system(size: 12.25, weight: .semibold))
-                .font(.system(size: 12.25))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(miniTitleColor)
                 .lineLimit(2)
-                .minimumScaleFactor(0.78)
+                .minimumScaleFactor(0.82)
                 .truncationMode(.tail)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -166,16 +165,17 @@ struct DashboardEntityCard: View {
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(presentation.title)
-//                    .font(.subheadline.weight(.semibold))
-                    .font(.subheadline)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.86)
                     .truncationMode(.tail)
 
                 Text(presentation.subtitle)
-                    .font(.caption.weight(.medium))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(presentation.subtitleColor)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.86)
                     .truncationMode(.tail)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -199,15 +199,17 @@ struct DashboardEntityCard: View {
 
                     VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                         Text(presentation.title)
-                            .font(.headline)
+                            .font(.headline.weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.86)
                             .truncationMode(.tail)
 
                         Text(presentation.subtitle)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(presentation.subtitleColor)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.86)
                             .truncationMode(.tail)
                     }
                 }
@@ -480,17 +482,17 @@ struct DashboardEntityCard: View {
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(presentation.title)
-//                    .font(.headline)
-                    .font(.subheadline)
+                    .font(size == .row ? .subheadline.weight(.semibold) : .headline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.84)
                     .truncationMode(.tail)
 
                 Text(subtitle)
                     .font(subtitleFont)
                     .foregroundStyle(presentation.subtitleColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.82)
             }
         }
     }

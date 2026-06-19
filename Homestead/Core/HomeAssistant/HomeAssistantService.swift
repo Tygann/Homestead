@@ -1303,12 +1303,8 @@ final class HomeAssistantService {
             return
         }
 
-        let step = climate.resolvedTemperatureStep
-        let roundedTemperature = (temperature / step).rounded() * step
-        let clampedTemperature = min(
-            max(roundedTemperature, climate.resolvedMinimumTemperature),
-            climate.resolvedMaximumTemperature
-        )
+        let clampedTemperature = ClimateSetpointAdjustment(climate: climate)
+            .clampedSingleTemperature(temperature)
         let serviceData = ["temperature": JSONValue.number(clampedTemperature)]
         let pendingCommand = setPendingCommand(
             entityID: entityID,
@@ -1334,20 +1330,11 @@ final class HomeAssistantService {
             return
         }
 
-        let step = climate.resolvedTemperatureStep
-        let roundedLowTemperature = (lowTemperature / step).rounded() * step
-        let roundedHighTemperature = (highTemperature / step).rounded() * step
-        let clampedLowTemperature = min(
-            max(roundedLowTemperature, climate.resolvedMinimumTemperature),
-            climate.resolvedMaximumTemperature
-        )
-        let clampedHighTemperature = min(
-            max(roundedHighTemperature, clampedLowTemperature),
-            climate.resolvedMaximumTemperature
-        )
+        let range = ClimateSetpointAdjustment(climate: climate)
+            .clampedRange(lowTemperature: lowTemperature, highTemperature: highTemperature)
         let serviceData = [
-            "target_temp_low": JSONValue.number(clampedLowTemperature),
-            "target_temp_high": JSONValue.number(clampedHighTemperature)
+            "target_temp_low": JSONValue.number(range.lowTemperature),
+            "target_temp_high": JSONValue.number(range.highTemperature)
         ]
         let pendingCommand = setPendingCommand(
             entityID: entityID,

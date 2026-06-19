@@ -7,6 +7,10 @@ struct ClimateDetailView: View {
     @State private var targetHighTemperature = 76.0
     @State private var isEditingTemperature = false
     @State private var isEditingTemperatureRange = false
+    @State private var pendingTemperatureTask: Task<Void, Never>?
+    @State private var pendingTemperatureRangeTask: Task<Void, Never>?
+    @State private var isOptimisticTemperature = false
+    @State private var isOptimisticTemperatureRange = false
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -45,15 +49,15 @@ struct ClimateDetailView: View {
                 syncTargetTemperatureRange(with: climate)
             }
             .onChange(of: climate.targetTemperature) { _, _ in
-                guard !isEditingTemperature else { return }
+                guard !isEditingTemperature, !isOptimisticTemperature else { return }
                 syncTargetTemperature(with: climate)
             }
             .onChange(of: climate.targetTemperatureLow) { _, _ in
-                guard !isEditingTemperatureRange else { return }
+                guard !isEditingTemperatureRange, !isOptimisticTemperatureRange else { return }
                 syncTargetTemperatureRange(with: climate)
             }
             .onChange(of: climate.targetTemperatureHigh) { _, _ in
-                guard !isEditingTemperatureRange else { return }
+                guard !isEditingTemperatureRange, !isOptimisticTemperatureRange else { return }
                 syncTargetTemperatureRange(with: climate)
             }
         } else {
@@ -105,7 +109,7 @@ struct ClimateDetailView: View {
                 EntityDetailIconButton(
                     systemImage: "minus",
                     accessibilityLabel: "Decrease temperature",
-                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || targetTemperature <= climate.resolvedMinimumTemperature
+                    isDisabled: !isClimateAvailable(climate) || targetTemperature <= climate.resolvedMinimumTemperature
                 ) {
                     adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
                 }
@@ -114,29 +118,25 @@ struct ClimateDetailView: View {
                     value: $targetTemperature,
                     range: climate.resolvedMinimumTemperature...climate.resolvedMaximumTemperature,
                     step: climate.resolvedTemperatureStep,
-                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate),
+                    isDisabled: !isClimateAvailable(climate),
                     accessibilityLabel: "Target temperature",
                     accessibilityValue: climate.formatTemperature(targetTemperature),
                     onEditingChanged: { editing in
                         isEditingTemperature = editing
                     },
                     onCommit: { value in
-                        setTargetTemperature(value)
+                        setTargetTemperature(value, climate: climate)
                     }
                 )
 
                 EntityDetailIconButton(
                     systemImage: "plus",
                     accessibilityLabel: "Increase temperature",
-                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || targetTemperature >= climate.resolvedMaximumTemperature
+                    isDisabled: !isClimateAvailable(climate) || targetTemperature >= climate.resolvedMaximumTemperature
                 ) {
                     adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate)
                 }
             }
-
-            Text("Temperature changes are sent to Home Assistant and confirmed from live state.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
@@ -161,6 +161,7 @@ struct ClimateDetailView: View {
                 value: $targetLowTemperature,
                 range: climate.resolvedMinimumTemperature...targetHighTemperature,
                 climate: climate,
+                fillColor: .orange,
                 decreaseAction: {
                     adjustLowTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
                 },
@@ -175,6 +176,7 @@ struct ClimateDetailView: View {
                 value: $targetHighTemperature,
                 range: targetLowTemperature...climate.resolvedMaximumTemperature,
                 climate: climate,
+                fillColor: .cyan,
                 decreaseAction: {
                     adjustHighTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
                 },
@@ -182,10 +184,6 @@ struct ClimateDetailView: View {
                     adjustHighTemperature(by: climate.resolvedTemperatureStep, climate: climate)
                 }
             )
-
-            Text("Auto mode uses Home Assistant's heating and cooling setpoints.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
@@ -197,6 +195,7 @@ struct ClimateDetailView: View {
         value: Binding<Double>,
         range: ClosedRange<Double>,
         climate: ClimateEntity,
+        fillColor: Color,
         decreaseAction: @escaping () -> Void,
         increaseAction: @escaping () -> Void
     ) -> some View {
@@ -216,7 +215,7 @@ struct ClimateDetailView: View {
                 EntityDetailIconButton(
                     systemImage: "minus",
                     accessibilityLabel: "Decrease \(title.lowercased())",
-                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || value.wrappedValue <= range.lowerBound,
+                    isDisabled: !isClimateAvailable(climate) || value.wrappedValue <= range.lowerBound,
                     action: decreaseAction
                 )
 
@@ -224,21 +223,23 @@ struct ClimateDetailView: View {
                     value: value,
                     range: range,
                     step: climate.resolvedTemperatureStep,
-                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate),
+                    fillColor: fillColor,
+                    showsFilledTrack: false,
+                    isDisabled: !isClimateAvailable(climate),
                     accessibilityLabel: title,
                     accessibilityValue: climate.formatTemperature(value.wrappedValue),
                     onEditingChanged: { editing in
                         isEditingTemperatureRange = editing
                     },
                     onCommit: { _ in
-                        setTargetTemperatureRange()
+                        setTargetTemperatureRange(climate: climate)
                     }
                 )
 
                 EntityDetailIconButton(
                     systemImage: "plus",
                     accessibilityLabel: "Increase \(title.lowercased())",
-                    isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || value.wrappedValue >= range.upperBound,
+                    isDisabled: !isClimateAvailable(climate) || value.wrappedValue >= range.upperBound,
                     action: increaseAction
                 )
             }
@@ -356,49 +357,75 @@ struct ClimateDetailView: View {
     }
 
     private func adjustTemperature(by delta: Double, climate: ClimateEntity) {
-        targetTemperature = min(
-            max(targetTemperature + delta, climate.resolvedMinimumTemperature),
-            climate.resolvedMaximumTemperature
-        )
-        setTargetTemperature()
+        targetTemperature = ClimateSetpointAdjustment(climate: climate)
+            .clampedSingleTemperature(targetTemperature + delta)
+        setTargetTemperature(climate: climate)
     }
 
     private func adjustLowTemperature(by delta: Double, climate: ClimateEntity) {
-        targetLowTemperature = min(
-            max(targetLowTemperature + delta, climate.resolvedMinimumTemperature),
-            targetHighTemperature
+        let range = ClimateSetpointAdjustment(climate: climate).adjustedLowTemperature(
+            currentLowTemperature: targetLowTemperature,
+            currentHighTemperature: targetHighTemperature,
+            delta: delta
         )
-        setTargetTemperatureRange()
+        targetLowTemperature = range.lowTemperature
+        targetHighTemperature = range.highTemperature
+        setTargetTemperatureRange(climate: climate)
     }
 
     private func adjustHighTemperature(by delta: Double, climate: ClimateEntity) {
-        targetHighTemperature = min(
-            max(targetHighTemperature + delta, targetLowTemperature),
-            climate.resolvedMaximumTemperature
+        let range = ClimateSetpointAdjustment(climate: climate).adjustedHighTemperature(
+            currentLowTemperature: targetLowTemperature,
+            currentHighTemperature: targetHighTemperature,
+            delta: delta
         )
-        setTargetTemperatureRange()
+        targetLowTemperature = range.lowTemperature
+        targetHighTemperature = range.highTemperature
+        setTargetTemperatureRange(climate: climate)
     }
 
-    private func setTargetTemperature(_ updatedTemperature: Double? = nil) {
+    private func setTargetTemperature(_ updatedTemperature: Double? = nil, climate: ClimateEntity) {
         if let updatedTemperature {
-            targetTemperature = updatedTemperature
+            targetTemperature = ClimateSetpointAdjustment(climate: climate)
+                .clampedSingleTemperature(updatedTemperature)
         }
 
-        Task {
+        isOptimisticTemperature = true
+        pendingTemperatureTask?.cancel()
+        pendingTemperatureTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(280))
+            guard !Task.isCancelled else { return }
             await homeAssistantService.setClimateTemperature(
                 entityID: entityBox.entityID,
                 temperature: targetTemperature
             )
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            isOptimisticTemperature = false
+            pendingTemperatureTask = nil
         }
     }
 
-    private func setTargetTemperatureRange() {
-        Task {
+    private func setTargetTemperatureRange(climate: ClimateEntity) {
+        let range = ClimateSetpointAdjustment(climate: climate)
+            .clampedRange(lowTemperature: targetLowTemperature, highTemperature: targetHighTemperature)
+        targetLowTemperature = range.lowTemperature
+        targetHighTemperature = range.highTemperature
+
+        isOptimisticTemperatureRange = true
+        pendingTemperatureRangeTask?.cancel()
+        pendingTemperatureRangeTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(280))
+            guard !Task.isCancelled else { return }
             await homeAssistantService.setClimateTemperatureRange(
                 entityID: entityBox.entityID,
                 lowTemperature: targetLowTemperature,
                 highTemperature: targetHighTemperature
             )
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            isOptimisticTemperatureRange = false
+            pendingTemperatureRangeTask = nil
         }
     }
 
