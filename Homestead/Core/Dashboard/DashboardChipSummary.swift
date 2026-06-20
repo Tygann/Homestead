@@ -585,7 +585,7 @@ enum DashboardSummaryProvider {
         var groups = assignedAreas.isEmpty ? [] : DashboardAreaBuilder.buildSections(from: assignedAreas).map { areaSection in
             DashboardSummaryGroupPresentation(
                 id: "\(idPrefix)-\(areaSection.id)",
-                title: areaSection.title ?? "Areas",
+                title: summaryAreaGroupTitle(for: areaSection),
                 systemImage: nil,
                 sections: areaSection.areas.map { area in
                     DashboardSummarySectionPresentation(
@@ -604,7 +604,7 @@ enum DashboardSummaryProvider {
             groups.append(
                 DashboardSummaryGroupPresentation(
                     id: "\(idPrefix)-unassigned",
-                    title: groups.isEmpty ? "Devices" : "Other Devices",
+                    title: DashboardAreaBuilder.unassignedAreaName,
                     systemImage: "square.grid.2x2",
                     sections: [
                         DashboardSummarySectionPresentation(
@@ -621,6 +621,14 @@ enum DashboardSummaryProvider {
         }
 
         return groups
+    }
+
+    private static func summaryAreaGroupTitle(for areaSection: DashboardAreaSection) -> String {
+        if areaSection.id == "other", areaSection.areas.allSatisfy({ $0.areaID != nil }) {
+            return "Other Areas"
+        }
+
+        return areaSection.title ?? "Areas"
     }
 
     private static func sortedItems(_ items: [DashboardSummaryEntityPresentation]) -> [DashboardSummaryEntityPresentation] {

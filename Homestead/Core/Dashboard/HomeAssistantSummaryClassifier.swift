@@ -4,6 +4,7 @@ nonisolated struct DashboardSummaryEntityMetadata: Equatable, Sendable {
     let isHidden: Bool
     let entityCategory: String?
     let deviceID: String?
+    let deviceName: String?
 }
 
 nonisolated struct DashboardSummaryMembershipContext: Equatable, Sendable {

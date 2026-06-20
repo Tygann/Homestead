@@ -66,53 +66,25 @@ private struct AreaDetailPresentation {
         let entityBoxes = area.entityIDs.compactMap { stateStore.entityBox(for: $0) }
         let boxesByID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
         let membershipContext = stateStore.dashboardSummaryMembershipContext()
-        var categorizedEntityIDs = Set<String>()
 
-        let summarySections = DashboardSummaryKind.areaSectionOrder.compactMap { kind -> AreaEntitySection? in
-            guard let detail = DashboardSummaryProvider.makeDetail(
-                kind: kind,
-                entityBoxes: entityBoxes,
-                membershipContext: membershipContext
-            ) else {
-                return nil
-            }
-
-            let sectionEntityIDs = detail.sections.flatMap { section in
-                section.items.map(\.entityID)
-            }
-            guard !sectionEntityIDs.isEmpty else {
-                return nil
-            }
-
-            let sectionBoxes = sectionEntityIDs.compactMap { boxesByID[$0] }
+        let sections = DashboardAreaDetailSectionProvider.makeSections(
+            from: entityBoxes,
+            membershipContext: membershipContext
+        ).compactMap { section -> AreaEntitySection? in
+            let sectionBoxes = section.entityIDs.compactMap { boxesByID[$0] }
             guard !sectionBoxes.isEmpty else {
                 return nil
             }
 
-            categorizedEntityIDs.formUnion(sectionEntityIDs)
             return makeSection(
-                id: "summary-\(kind.rawValue)",
-                title: kind.areaSectionTitle,
-                systemImage: kind.systemImage,
+                id: "area-\(section.id)",
+                title: section.title,
+                systemImage: section.systemImage,
                 entityBoxes: sectionBoxes
             )
         }
 
-        let remainingEntityBoxes = entityBoxes.filter { !categorizedEntityIDs.contains($0.entityID) }
-        let domainSections = Dictionary(grouping: remainingEntityBoxes, by: \.domain)
-            .map { domain, entityBoxes in
-                makeSection(
-                    id: "domain-\(domain.rawValue)",
-                    title: domain.displayName,
-                    systemImage: domain.systemImage,
-                    entityBoxes: entityBoxes
-                )
-            }
-            .sorted { lhs, rhs in
-                lhs.sortPriority < rhs.sortPriority
-            }
-
-        return AreaDetailPresentation(sections: summarySections + domainSections)
+        return AreaDetailPresentation(sections: sections)
     }
 
     @MainActor
@@ -182,17 +154,6 @@ private struct AreaSectionHeader: View {
             }
 
             Spacer(minLength: AppSpacing.medium)
-        }
-    }
-}
-
-private extension DashboardSummaryKind {
-    var areaSectionTitle: String {
-        switch self {
-        case .media:
-            "Media Players"
-        default:
-            title
         }
     }
 }

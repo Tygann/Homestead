@@ -457,7 +457,7 @@ private struct DeviceManagementPresentation {
             return DeviceManagementPresentation(
                 groups: groupedDevices(
                     matchingDevices,
-                    key: { $0.areaName ?? "No Area" },
+                    key: { $0.areaName ?? DashboardAreaBuilder.unassignedAreaName },
                     fallbackID: "no-area"
                 )
             )
@@ -480,7 +480,7 @@ private struct DeviceManagementPresentation {
         Dictionary(grouping: devices, by: key)
             .map { title, devices in
                 Group(
-                    id: title == "No Area" || title == "Unknown Manufacturer" ? fallbackID : title,
+                    id: title == DashboardAreaBuilder.unassignedAreaName || title == "Unknown Manufacturer" ? fallbackID : title,
                     title: title,
                     devices: devices.sortedByDeviceTitle
                 )

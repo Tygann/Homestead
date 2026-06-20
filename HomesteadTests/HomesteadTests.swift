@@ -7832,6 +7832,291 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func areaResolutionPrefersEntityAreaThenDeviceAreaThenUnassigned() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.entity_override", state: "off"),
+            HAEntityDTO(entityID: "light.device_area", state: "off"),
+            HAEntityDTO(entityID: "light.no_device", state: "off"),
+            HAEntityDTO(entityID: "light.missing_area", state: "off")
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.entity_override",
+                    deviceID: "living-device",
+                    areaID: "kitchen",
+                    originalName: "Entity Override"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.device_area",
+                    deviceID: "bedroom-device",
+                    originalName: "Device Area"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.no_device",
+                    deviceID: nil,
+                    originalName: "No Device"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.missing_area",
+                    deviceID: nil,
+                    areaID: "missing",
+                    originalName: "Missing Area"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "living-device", name: "Living Device", areaID: "living"),
+                HADeviceRegistryDTO(id: "bedroom-device", name: "Bedroom Device", areaID: "bedroom")
+            ],
+            areas: [
+                HAAreaRegistryDTO(id: "kitchen", name: "Kitchen"),
+                HAAreaRegistryDTO(id: "living", name: "Living Room"),
+                HAAreaRegistryDTO(id: "bedroom", name: "Bedroom")
+            ]
+        )
+
+        #expect(store.areaName(for: "light.entity_override") == "Kitchen")
+        #expect(store.areaName(for: "light.device_area") == "Bedroom")
+        #expect(store.areaName(for: "light.no_device") == nil)
+        #expect(store.areaName(for: "light.missing_area") == nil)
+
+        let areas = DashboardAreaBuilder.buildAreas(
+            from: store.allEntityBoxes(),
+            areaContextForEntityID: store.areaContext(for:)
+        )
+
+        #expect(areas.map(\.name) == ["Bedroom", "Kitchen", "Unassigned"])
+        #expect(try #require(areas.first { $0.name == "Unassigned" }).entityIDs == [
+            "light.missing_area",
+            "light.no_device"
+        ])
+    }
+
+    @MainActor
+    @Test func areaDetailSectioningMatchesHomeAssistantAreaStrategy() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.table", state: "on", attributes: ["friendly_name": .string("Table")]),
+            HAEntityDTO(
+                entityID: "cover.window_shade",
+                state: "open",
+                attributes: ["friendly_name": .string("Window Shade"), "device_class": .string("shade")]
+            ),
+            HAEntityDTO(
+                entityID: "binary_sensor.window",
+                state: "on",
+                attributes: ["friendly_name": .string("Window"), "device_class": .string("window")]
+            ),
+            HAEntityDTO(entityID: "fan.ceiling", state: "off", attributes: ["friendly_name": .string("Ceiling Fan")]),
+            HAEntityDTO(entityID: "water_heater.tank", state: "heat_pump", attributes: ["friendly_name": .string("Tank")]),
+            HAEntityDTO(entityID: "media_player.speaker", state: "playing", attributes: ["friendly_name": .string("Speaker")]),
+            HAEntityDTO(entityID: "camera.patio", state: "idle", attributes: ["friendly_name": .string("Patio Camera")]),
+            HAEntityDTO(entityID: "lock.front", state: "locked", attributes: ["friendly_name": .string("Front Lock")]),
+            HAEntityDTO(entityID: "scene.movie", state: "scening", attributes: ["friendly_name": .string("Movie")]),
+            HAEntityDTO(entityID: "automation.night", state: "on", attributes: ["friendly_name": .string("Night")]),
+            HAEntityDTO(entityID: "switch.outlet", state: "off", attributes: ["friendly_name": .string("Outlet")]),
+            HAEntityDTO(entityID: "input_boolean.guest_mode", state: "off", attributes: ["friendly_name": .string("Guest Mode")])
+        ])
+        store.applyRegistryMetadata(
+            entities: store.allEntityBoxes().map { entityBox in
+                HAEntityRegistryDisplayDTO(
+                    entityID: entityBox.entityID,
+                    deviceID: nil,
+                    areaID: "living",
+                    originalName: entityBox.homeEntity.displayName
+                )
+            },
+            devices: [],
+            areas: [
+                HAAreaRegistryDTO(id: "living", name: "Living Room")
+            ]
+        )
+
+        let sections = DashboardAreaDetailSectionProvider.makeSections(
+            from: store.allEntityBoxes(),
+            membershipContext: store.dashboardSummaryMembershipContext()
+        )
+
+        #expect(sections.compactMap(\.kind) == [
+            .lights,
+            .covers,
+            .climate,
+            .mediaPlayers,
+            .security,
+            .actions,
+            .others
+        ])
+        #expect(sections.first { $0.kind == .covers }?.entityIDs == [
+            "binary_sensor.window",
+            "cover.window_shade"
+        ])
+        #expect(sections.first { $0.kind == .climate }?.entityIDs == [
+            "fan.ceiling",
+            "water_heater.tank"
+        ])
+        #expect(sections.first { $0.kind == .security }?.entityIDs == [
+            "lock.front",
+            "camera.patio"
+        ])
+        #expect(sections.first { $0.kind == .actions }?.entityIDs == [
+            "scene.movie",
+            "automation.night"
+        ])
+        #expect(sections.first { $0.kind == .others }?.entityIDs == [
+            "input_boolean.guest_mode",
+            "switch.outlet"
+        ])
+    }
+
+    @MainActor
+    @Test func areaDetailSectioningExcludesHiddenConfigAndDiagnosticEntities() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.visible", state: "on", attributes: ["friendly_name": .string("Visible")]),
+            HAEntityDTO(entityID: "light.hidden", state: "on", attributes: ["friendly_name": .string("Hidden")]),
+            HAEntityDTO(entityID: "switch.config", state: "off", attributes: ["friendly_name": .string("Config")]),
+            HAEntityDTO(entityID: "sensor.diagnostic", state: "1", attributes: ["friendly_name": .string("Diagnostic")])
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.visible",
+                    deviceID: nil,
+                    areaID: "office",
+                    originalName: "Visible"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.hidden",
+                    deviceID: nil,
+                    areaID: "office",
+                    originalName: "Hidden",
+                    hiddenBy: true
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "switch.config",
+                    deviceID: nil,
+                    areaID: "office",
+                    originalName: "Config",
+                    entityCategory: "config"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.diagnostic",
+                    deviceID: nil,
+                    areaID: "office",
+                    originalName: "Diagnostic",
+                    entityCategory: "diagnostic"
+                )
+            ],
+            devices: [],
+            areas: [
+                HAAreaRegistryDTO(id: "office", name: "Office")
+            ]
+        )
+
+        let sections = DashboardAreaDetailSectionProvider.makeSections(
+            from: store.allEntityBoxes(),
+            membershipContext: store.dashboardSummaryMembershipContext()
+        )
+
+        #expect(sections.compactMap(\.kind) == [.lights])
+        #expect(sections.first?.entityIDs == ["light.visible"])
+    }
+
+    @MainActor
+    @Test func areaDetailSectioningGroupsVisibleDeviceLeftoversByDevice() {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "media_player.bedroom_tv", state: "on", attributes: ["friendly_name": .string("TV")]),
+            HAEntityDTO(entityID: "select.bedroom_tv_channel", state: "unavailable", attributes: ["friendly_name": .string("TV Channel")]),
+            HAEntityDTO(entityID: "button.bedroom_tv_remote", state: "2026-04-11T08:00:00", attributes: ["friendly_name": .string("TV Remote")]),
+            HAEntityDTO(entityID: "sensor.bedroom_tv_last_seen", state: "2026-04-11T08:00:00", attributes: ["friendly_name": .string("TV Last Seen")]),
+            HAEntityDTO(
+                entityID: "binary_sensor.primary_bath_leak",
+                state: "off",
+                attributes: [
+                    "friendly_name": .string("Primary Bath Leak"),
+                    "device_class": .string("moisture")
+                ]
+            ),
+            HAEntityDTO(entityID: "switch.standalone", state: "off", attributes: ["friendly_name": .string("Standalone Switch")])
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "media_player.bedroom_tv",
+                    deviceID: "bedroom-tv",
+                    areaID: "primary-bedroom",
+                    originalName: "TV"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "select.bedroom_tv_channel",
+                    deviceID: "bedroom-tv",
+                    areaID: "primary-bedroom",
+                    originalName: "TV Channel"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "button.bedroom_tv_remote",
+                    deviceID: "bedroom-tv",
+                    areaID: "primary-bedroom",
+                    originalName: "TV Remote"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.bedroom_tv_last_seen",
+                    deviceID: "bedroom-tv",
+                    areaID: "primary-bedroom",
+                    originalName: "TV Last Seen"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "binary_sensor.primary_bath_leak",
+                    deviceID: "bath-leak-sensor",
+                    areaID: "primary-bedroom",
+                    originalName: "Primary Bath Leak"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "switch.standalone",
+                    deviceID: nil,
+                    areaID: "primary-bedroom",
+                    originalName: "Standalone Switch"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "bedroom-tv", name: "Primary Bedroom TV", areaID: "primary-bedroom"),
+                HADeviceRegistryDTO(id: "bath-leak-sensor", name: "Primary Bath Leak Sensor", areaID: "primary-bedroom")
+            ],
+            areas: [
+                HAAreaRegistryDTO(id: "primary-bedroom", name: "Primary Bedroom")
+            ]
+        )
+
+        let sections = DashboardAreaDetailSectionProvider.makeSections(
+            from: store.allEntityBoxes(),
+            membershipContext: store.dashboardSummaryMembershipContext()
+        )
+
+        #expect(sections.map(\.title) == [
+            "Media Players",
+            "Security",
+            "Primary Bedroom TV",
+            "Others"
+        ])
+        #expect(sections.first { $0.kind == .security }?.entityIDs == [
+            "binary_sensor.primary_bath_leak"
+        ])
+        #expect(sections.first { $0.kind == .mediaPlayers }?.entityIDs == [
+            "media_player.bedroom_tv"
+        ])
+        #expect(sections.first { $0.title == "Primary Bedroom TV" }?.entityIDs == [
+            "sensor.bedroom_tv_last_seen",
+            "select.bedroom_tv_channel",
+            "button.bedroom_tv_remote"
+        ])
+        #expect(sections.first { $0.kind == .others }?.entityIDs == [
+            "switch.standalone"
+        ])
+    }
+
+    @MainActor
     @Test func areaBuilderPrefersHomeAssistantAreaIconMetadata() throws {
         let store = HAStateStore()
         store.applyInitialStates([
@@ -9337,7 +9622,7 @@ struct HomesteadTests {
             "Main Floor",
             "Upstairs",
             "Other Areas",
-            "Other Devices"
+            "Unassigned"
         ])
         #expect(detail.groups.prefix(3).allSatisfy { $0.systemImage == nil })
         #expect(detail.groups.last?.systemImage == "square.grid.2x2")

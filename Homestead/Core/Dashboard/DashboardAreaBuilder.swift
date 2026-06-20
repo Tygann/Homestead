@@ -2,6 +2,8 @@ import Foundation
 
 @MainActor
 enum DashboardAreaBuilder {
+    nonisolated static let unassignedAreaName = "Unassigned"
+
     static func buildAreas(
         from entityBoxes: [HAEntityState],
         areaNameForEntityID: (String) -> String? = { _ in nil }
@@ -136,32 +138,42 @@ enum DashboardAreaBuilder {
 
     private static func areaGroupKey(for context: DashboardAreaContext?) -> AreaGroupKey {
         guard let context else {
-            return AreaGroupKey(
-                areaID: nil,
-                name: "Devices",
-                icon: nil,
-                floorID: nil,
-                floorName: nil,
-                floorLevel: nil,
-                floorSortOrder: nil
-            )
+            return unassignedAreaGroupKey()
         }
 
-        let name = context.name
+        guard let areaID = context.areaID
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmptyValue ?? "Devices"
+            .nonEmptyValue,
+              let name = context.name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue else {
+            return unassignedAreaGroupKey()
+        }
+
         let floorName = context.floorName?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue
 
         return AreaGroupKey(
-            areaID: context.areaID,
+            areaID: areaID,
             name: name,
             icon: context.icon?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue,
             floorID: floorName == nil ? nil : context.floorID,
             floorName: floorName,
             floorLevel: floorName == nil ? nil : context.floorLevel,
             floorSortOrder: floorName == nil ? nil : context.floorSortOrder
+        )
+    }
+
+    private static func unassignedAreaGroupKey() -> AreaGroupKey {
+        AreaGroupKey(
+            areaID: nil,
+            name: unassignedAreaName,
+            icon: nil,
+            floorID: nil,
+            floorName: nil,
+            floorLevel: nil,
+            floorSortOrder: nil
         )
     }
 

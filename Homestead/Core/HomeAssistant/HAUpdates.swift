@@ -327,7 +327,7 @@ struct HAUpdatePresentation: Equatable, Sendable {
             sections = groupedSections(
                 matchingUpdates,
                 fallbackID: "no-area",
-                fallbackTitle: "No Area",
+                fallbackTitle: DashboardAreaBuilder.unassignedAreaName,
                 title: { $0.context.areaName }
             )
         case .device:

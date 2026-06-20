@@ -281,10 +281,13 @@ final class HAStateStore {
 
     func dashboardSummaryMembershipContext() -> DashboardSummaryMembershipContext {
         let metadataByID = entityRegistryByID.mapValues { metadata in
-            DashboardSummaryEntityMetadata(
+            let deviceID = metadata.deviceID?.nonEmptyValue
+            let device = deviceID.flatMap { deviceRegistryByID[$0] }
+            return DashboardSummaryEntityMetadata(
                 isHidden: metadata.hiddenBy == true,
                 entityCategory: metadata.entityCategory?.nonEmptyValue,
-                deviceID: metadata.deviceID?.nonEmptyValue
+                deviceID: deviceID,
+                deviceName: device?.registryDisplayName
             )
         }
         let chargingDeviceIDs = Set(entityRegistryByID.values.compactMap { metadata -> String? in
@@ -1237,8 +1240,12 @@ struct HAHelperManagementSummary: Equatable, Identifiable, Sendable {
 }
 
 private extension HADeviceRegistryDTO {
-    var displayName: String {
+    var registryDisplayName: String {
         nameByUser?.nonEmptyValue ?? name?.nonEmptyValue ?? manufacturer?.nonEmptyValue ?? "Unknown Device"
+    }
+
+    var displayName: String {
+        registryDisplayName
     }
 }
 
