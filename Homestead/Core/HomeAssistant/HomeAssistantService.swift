@@ -1047,7 +1047,10 @@ final class HomeAssistantService {
 
         do {
             let deviceID = try mobileAppDeviceIDStore.readOrCreateDeviceID()
-            let request = HAMobileAppRegistrationRequestFactory.makeRequest(deviceID: deviceID)
+            let request = HAMobileAppRegistrationRequestFactory.makeRequest(
+                deviceID: deviceID,
+                userDisplayName: currentUserDisplayName
+            )
             let response = try await mobileAppClient.register(
                 configuration: configuration,
                 request: request

@@ -1487,6 +1487,23 @@ struct HomesteadTests {
         #expect(appData["push_websocket_channel"] as? Bool == true)
     }
 
+    @Test func mobileAppRegistrationNameUsesHomeAssistantUserForGenericAppleDeviceNames() {
+        #expect(HAMobileAppRegistrationRequestFactory.visibleDeviceName(
+            for: "iPhone",
+            userDisplayName: "Tyler"
+        ) == "Homestead • Tyler • iPhone")
+
+        #expect(HAMobileAppRegistrationRequestFactory.visibleDeviceName(
+            for: "Tyler-iPhone",
+            userDisplayName: "Tyler"
+        ) == "Homestead • Tyler-iPhone")
+
+        #expect(HAMobileAppRegistrationRequestFactory.visibleDeviceName(
+            for: "iPad",
+            userDisplayName: "  "
+        ) == "Homestead • iPad")
+    }
+
     @Test func mobileAppRegistrationResponseDecodesHomeAssistantShape() throws {
         let payload = """
         {

@@ -176,6 +176,7 @@ enum HAMobileAppRegistrationRequestFactory {
         deviceID: String = UUID().uuidString,
         appVersion: String = Bundle.main.shortVersionString,
         deviceName: String = CurrentDeviceInfo.name,
+        userDisplayName: String? = nil,
         manufacturer: String = CurrentDeviceInfo.manufacturer,
         model: String = CurrentDeviceInfo.model,
         osName: String = CurrentDeviceInfo.osName,
@@ -186,7 +187,7 @@ enum HAMobileAppRegistrationRequestFactory {
             appID: appID,
             appName: appName,
             appVersion: appVersion,
-            deviceName: visibleDeviceName(for: deviceName),
+            deviceName: visibleDeviceName(for: deviceName, userDisplayName: userDisplayName),
             manufacturer: manufacturer,
             model: model,
             osName: osName,
@@ -196,7 +197,10 @@ enum HAMobileAppRegistrationRequestFactory {
         )
     }
 
-    nonisolated static func visibleDeviceName(for deviceName: String) -> String {
+    nonisolated static func visibleDeviceName(
+        for deviceName: String,
+        userDisplayName: String? = nil
+    ) -> String {
         let trimmedName = deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
             return "\(deviceNamePrefix)Device"
@@ -206,7 +210,23 @@ enum HAMobileAppRegistrationRequestFactory {
             return trimmedName
         }
 
+        let trimmedUserName = userDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isGenericAppleDeviceName(trimmedName),
+           let trimmedUserName,
+           !trimmedUserName.isEmpty {
+            return "\(deviceNamePrefix)\(trimmedUserName) • \(trimmedName)"
+        }
+
         return "\(deviceNamePrefix)\(trimmedName)"
+    }
+
+    private nonisolated static func isGenericAppleDeviceName(_ deviceName: String) -> Bool {
+        switch deviceName.lowercased() {
+        case "iphone", "ipad", "ipod touch", "apple watch", "mac":
+            return true
+        default:
+            return false
+        }
     }
 }
 
