@@ -434,16 +434,19 @@ private struct InlineLevelSliderControl: View {
     var body: some View {
         GeometryReader { proxy in
             let fillWidth = fillWidth(in: proxy.size.width)
+            let sliderShape = RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
 
             ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                sliderShape
                     .fill(trackColor)
 
-                RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                Rectangle()
                     .fill(fillColor.opacity(isWallpaperSurfaceActive ? 0.34 : 1))
                     .frame(width: fillWidth)
+                    .frame(maxHeight: .infinity)
             }
-            .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+            .clipShape(sliderShape)
+            .contentShape(sliderShape)
             .simultaneousGesture(
                 SpatialTapGesture()
                     .onEnded { value in
