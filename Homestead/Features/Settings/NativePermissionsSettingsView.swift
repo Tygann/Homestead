@@ -43,7 +43,7 @@ struct NativePermissionsSettingsView: View {
                 )
 
                 if let message = nativePermissionService.lastErrorMessage {
-                    Text(message)
+                    Text(UserFacingErrorPresentation.message(forRawMessage: message))
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }

@@ -1004,34 +1004,15 @@ final class HAStateStore {
                 deviceName: self.deviceRegistryMetadata(forEntityID: entityID)?.displayName.nonEmptyValue
             )
         }
-        let iconForEntityID: (String) -> ResolvedIcon? = { entityID in
-            self.entitiesByID[entityID]?.resolvedIcon
-        }
 
-        WidgetSharedStore.saveLightSnapshots(
-            Array(lightEntitiesByID.values),
+        WidgetSnapshotPersistence.save(
+            entitiesByID: entitiesByID,
+            lightEntitiesByID: lightEntitiesByID,
+            coverEntitiesByID: coverEntitiesByID,
+            fanEntitiesByID: fanEntitiesByID,
+            sensorEntitiesByID: sensorEntitiesByID,
             contextForEntityID: contextForEntityID,
-            iconForEntityID: iconForEntityID
         )
-        WidgetSharedStore.saveSwitchSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
-        WidgetSharedStore.saveCoverSnapshots(
-            Array(coverEntitiesByID.values),
-            contextForEntityID: contextForEntityID,
-            iconForEntityID: iconForEntityID
-        )
-        WidgetSharedStore.saveFanSnapshots(
-            Array(fanEntitiesByID.values),
-            contextForEntityID: contextForEntityID,
-            iconForEntityID: iconForEntityID
-        )
-        WidgetSharedStore.saveLockSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
-        WidgetSharedStore.saveSensorSnapshots(
-            Array(sensorEntitiesByID.values),
-            contextForEntityID: contextForEntityID,
-            iconForEntityID: iconForEntityID
-        )
-        WidgetSharedStore.savePresenceSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
-        WidgetSharedStore.saveActionSnapshots(Array(entitiesByID.values), contextForEntityID: contextForEntityID)
     }
 
     private func refreshUpdateEntities() {

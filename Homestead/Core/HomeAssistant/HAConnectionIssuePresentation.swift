@@ -1,6 +1,6 @@
 import Foundation
 
-enum HAConnectionIssuePresentation {
+nonisolated enum HAConnectionIssuePresentation {
     static func message(for error: Error) -> String {
         if let webSocketError = error as? HAWebSocketError {
             return message(for: webSocketError)

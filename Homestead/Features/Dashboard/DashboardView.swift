@@ -18,21 +18,9 @@ struct DashboardView: View {
     @State private var cameraRefreshGeneration = 0
     @State private var highlightedDashboardItemID: UUID?
     @State private var pendingScrollDashboardItemID: UUID?
-    @State private var gridItemFrames: [UUID: CGRect] = [:]
-    @State private var draggingGridItemID: UUID?
-    @State private var activeDragTranslation = CGSize.zero
-    @State private var previewGridItemIDs: [UUID]?
-    @State private var dragStartGridItemIDs: [UUID] = []
-    @State private var dragStartFrame: CGRect?
-    @State private var gridDragPhase: DashboardDragPhase = .idle
+    @State private var gridDragState = DashboardEditDragState()
     @State private var gridDragCleanupTask: Task<Void, Never>?
-    @State private var chipItemFrames: [UUID: CGRect] = [:]
-    @State private var draggingChipItemID: UUID?
-    @State private var activeChipDragTranslation = CGSize.zero
-    @State private var previewChipItemIDs: [UUID]?
-    @State private var dragStartChipItemIDs: [UUID] = []
-    @State private var dragStartChipFrame: CGRect?
-    @State private var chipDragPhase: DashboardDragPhase = .idle
+    @State private var chipDragState = DashboardEditDragState()
     @State private var chipDragCleanupTask: Task<Void, Never>?
     @Namespace private var cardTransitionNamespace
     @Namespace private var summaryTransitionNamespace
@@ -241,7 +229,7 @@ struct DashboardView: View {
     }
 
     private var activeDashboardGridItemIDs: [UUID] {
-        previewGridItemIDs ?? visibleDashboardGridItemIDs
+        gridDragState.previewItemIDs ?? visibleDashboardGridItemIDs
     }
 
     private var visibleDashboardChipItemIDs: [UUID] {
@@ -251,7 +239,7 @@ struct DashboardView: View {
     }
 
     private var activeDashboardChipItemIDs: [UUID] {
-        previewChipItemIDs ?? visibleDashboardChipItemIDs
+        chipDragState.previewItemIDs ?? visibleDashboardChipItemIDs
     }
 
     private func reconcileDashboardConfigurationIfReady() {
@@ -442,7 +430,7 @@ struct DashboardView: View {
                         }
                     }
                     .onPreferenceChange(DashboardGridItemFramePreferenceKey.self) { frames in
-                        gridItemFrames = frames
+                        gridDragState.itemFrames = frames
                     }
                     .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: activeDashboardGridItemIDs)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -452,7 +440,7 @@ struct DashboardView: View {
     }
 
     private func orderedGridItems(_ gridItems: [DashboardLayoutItem]) -> [DashboardLayoutItem] {
-        guard let previewGridItemIDs else {
+        guard let previewGridItemIDs = gridDragState.previewItemIDs else {
             return gridItems
         }
 
@@ -464,7 +452,7 @@ struct DashboardView: View {
     }
 
     private func orderedChipItems(_ chipItems: [DashboardChipItem]) -> [DashboardChipItem] {
-        guard let previewChipItemIDs else {
+        guard let previewChipItemIDs = chipDragState.previewItemIDs else {
             return chipItems
         }
 
@@ -476,7 +464,7 @@ struct DashboardView: View {
     }
 
     private func draggedGridItem(from gridItems: [DashboardLayoutItem]) -> DashboardLayoutItem? {
-        guard let draggingGridItemID else {
+        guard let draggingGridItemID = gridDragState.draggingItemID else {
             return nil
         }
 
@@ -484,7 +472,7 @@ struct DashboardView: View {
     }
 
     private func draggedChipItem(from chipItems: [DashboardChipItem]) -> DashboardChipItem? {
-        guard let draggingChipItemID else {
+        guard let draggingChipItemID = chipDragState.draggingItemID else {
             return nil
         }
 
@@ -509,7 +497,7 @@ struct DashboardView: View {
                 }
             }
             .onPreferenceChange(DashboardChipItemFramePreferenceKey.self) { frames in
-                chipItemFrames = frames
+                chipDragState.itemFrames = frames
             }
             .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: activeDashboardChipItemIDs)
             .padding(.vertical, 1)
@@ -592,14 +580,14 @@ struct DashboardView: View {
         @ViewBuilder content: () -> Content,
         @ViewBuilder editMenuContent: @escaping () -> MenuContent
     ) -> some View {
-        let isDragging = draggingGridItemID == itemID
+        let isDragging = gridDragState.draggingItemID == itemID
         return content()
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             .dashboardGridItemFrame(id: itemID)
             .dashboardHighlightBorder(isHighlighted: highlightedDashboardItemID == itemID)
             .opacity(isDragging ? 0 : 1)
             .dashboardLongPressDragSurface(
-                isEnabled: draggingGridItemID.map { $0 == itemID } ?? true,
+                isEnabled: gridDragState.draggingItemID.map { $0 == itemID } ?? true,
                 autoScrollAxes: .vertical,
                 onChanged: { translation in
                     updateDashboardGridDrag(itemID: itemID, translation: translation)
@@ -623,13 +611,13 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func dashboardGridDragPreview(_ item: DashboardLayoutItem) -> some View {
-        if let dragStartFrame {
+        if let dragStartFrame = gridDragState.dragStartFrame {
             dashboardGridPreviewContent(for: item)
                 .frame(width: dragStartFrame.width, height: dragStartFrame.height)
                 .scaleEffect(gridDragScale)
                 .offset(
-                    x: dragStartFrame.minX + activeDragTranslation.width,
-                    y: dragStartFrame.minY + activeDragTranslation.height
+                    x: dragStartFrame.minX + gridDragState.activeTranslation.width,
+                    y: dragStartFrame.minY + gridDragState.activeTranslation.height
                 )
                 .shadow(
                     color: Color.black.opacity(gridDragShadowOpacity),
@@ -638,7 +626,7 @@ struct DashboardView: View {
                     y: reduceMotion ? 0 : 8
                 )
                 .allowsHitTesting(false)
-                .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: gridDragPhase)
+                .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: gridDragState.phase)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 .zIndex(20)
         }
@@ -646,12 +634,12 @@ struct DashboardView: View {
 
     private var gridDragScale: CGFloat {
         guard !reduceMotion else { return 1 }
-        return gridDragPhase == .dragging ? 1.035 : 1
+        return gridDragState.phase == .dragging ? 1.035 : 1
     }
 
     private var gridDragShadowOpacity: Double {
         guard !reduceMotion else { return 0 }
-        return gridDragPhase == .dragging ? 0.18 : 0.04
+        return gridDragState.phase == .dragging ? 0.18 : 0.04
     }
 
     @ViewBuilder
@@ -689,41 +677,41 @@ struct DashboardView: View {
     }
 
     private func updateDashboardGridDrag(itemID: UUID, translation: CGSize) {
-        if draggingGridItemID != itemID {
+        if gridDragState.draggingItemID != itemID {
             gridDragCleanupTask?.cancel()
-            draggingGridItemID = itemID
-            dragStartGridItemIDs = visibleDashboardGridItemIDs
-            previewGridItemIDs = visibleDashboardGridItemIDs
-            dragStartFrame = gridItemFrames[itemID]
             withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
-                gridDragPhase = .dragging
+                gridDragState.beginDragging(
+                    itemID: itemID,
+                    itemIDs: visibleDashboardGridItemIDs,
+                    frame: gridDragState.itemFrames[itemID]
+                )
             }
             HapticFeedback.impact(.light)
         }
 
         withTransaction(Transaction(animation: nil)) {
-            activeDragTranslation = translation
+            gridDragState.activeTranslation = translation
         }
 
         let targetItemID = dashboardGridInsertionTargetID(
             for: itemID,
             translation: translation,
-            sourceFrame: dragStartFrame
+            sourceFrame: gridDragState.dragStartFrame
         )
 
-        let baseItemIDs = dragStartGridItemIDs.isEmpty ? visibleDashboardGridItemIDs : dragStartGridItemIDs
+        let baseItemIDs = gridDragState.dragStartItemIDs.isEmpty ? visibleDashboardGridItemIDs : gridDragState.dragStartItemIDs
         let updatedPreviewItemIDs = reorderedGridItemIDs(
             moving: itemID,
             before: targetItemID,
             in: baseItemIDs
         )
 
-        guard updatedPreviewItemIDs != previewGridItemIDs else {
+        guard updatedPreviewItemIDs != gridDragState.previewItemIDs else {
             return
         }
 
         withAnimation(.snappy(duration: 0.18)) {
-            previewGridItemIDs = updatedPreviewItemIDs
+            gridDragState.previewItemIDs = updatedPreviewItemIDs
         }
     }
 
@@ -732,7 +720,7 @@ struct DashboardView: View {
         translation: CGSize,
         sourceFrame: CGRect?
     ) -> UUID? {
-        guard let movingFrame = sourceFrame ?? gridItemFrames[movingItemID] else {
+        guard let movingFrame = sourceFrame ?? gridDragState.itemFrames[movingItemID] else {
             return nil
         }
 
@@ -742,7 +730,7 @@ struct DashboardView: View {
         )
         let candidates = activeDashboardGridItemIDs.compactMap { itemID -> (id: UUID, frame: CGRect)? in
             guard itemID != movingItemID,
-                  let frame = gridItemFrames[itemID] else {
+                  let frame = gridDragState.itemFrames[itemID] else {
                 return nil
             }
 
@@ -794,9 +782,9 @@ struct DashboardView: View {
         let targetItemID = dashboardGridInsertionTargetID(
             for: itemID,
             translation: translation,
-            sourceFrame: dragStartFrame
+            sourceFrame: gridDragState.dragStartFrame
         )
-        let visibleItemIDs = dragStartGridItemIDs.isEmpty ? visibleDashboardGridItemIDs : dragStartGridItemIDs
+        let visibleItemIDs = gridDragState.dragStartItemIDs.isEmpty ? visibleDashboardGridItemIDs : gridDragState.dragStartItemIDs
 
         let dropTranslation = dashboardGridDropTranslation(
             for: itemID,
@@ -804,8 +792,8 @@ struct DashboardView: View {
         )
 
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.22)) {
-            activeDragTranslation = dropTranslation
-            gridDragPhase = .dropping
+            gridDragState.activeTranslation = dropTranslation
+            gridDragState.phase = .dropping
             dashboardConfiguration.moveVisibleGridItem(
                 id: itemID,
                 before: targetItemID,
@@ -820,12 +808,7 @@ struct DashboardView: View {
     private func endDashboardGridDrag() {
         gridDragCleanupTask?.cancel()
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
-            draggingGridItemID = nil
-            activeDragTranslation = .zero
-            previewGridItemIDs = nil
-            dragStartGridItemIDs = []
-            dragStartFrame = nil
-            gridDragPhase = .idle
+            gridDragState.reset()
         }
     }
 
@@ -833,8 +816,8 @@ struct DashboardView: View {
         for itemID: UUID,
         fallback translation: CGSize
     ) -> CGSize {
-        guard let dragStartFrame,
-              let targetFrame = gridItemFrames[itemID] else {
+        guard let dragStartFrame = gridDragState.dragStartFrame,
+              let targetFrame = gridDragState.itemFrames[itemID] else {
             return translation
         }
 
@@ -853,12 +836,7 @@ struct DashboardView: View {
                     : DashboardDragTiming.cleanupDelay
             )
             guard !Task.isCancelled else { return }
-            draggingGridItemID = nil
-            activeDragTranslation = .zero
-            previewGridItemIDs = nil
-            dragStartGridItemIDs = []
-            dragStartFrame = nil
-            gridDragPhase = .idle
+            gridDragState.reset()
         }
     }
 
@@ -866,14 +844,14 @@ struct DashboardView: View {
     private func dashboardChipDragPreview(_ item: DashboardChipItem) -> some View {
         let summaryWorkspace = stateStore.dashboardSummaryWorkspace()
 
-        if let dragStartChipFrame,
+        if let dragStartChipFrame = chipDragState.dragStartFrame,
            let presentation = chipPresentation(for: item, summaryWorkspace: summaryWorkspace) {
             DashboardChipView(presentation: presentation)
                 .background(Color(.secondarySystemGroupedBackground), in: Capsule())
                 .frame(width: dragStartChipFrame.width, height: dragStartChipFrame.height)
                 .scaleEffect(chipDragScale)
                 .offset(
-                    x: dragStartChipFrame.minX + activeChipDragTranslation.width,
+                    x: dragStartChipFrame.minX + chipDragState.activeTranslation.width,
                     y: dragStartChipFrame.minY
                 )
                 .shadow(
@@ -883,7 +861,7 @@ struct DashboardView: View {
                     y: reduceMotion ? 0 : 5
                 )
                 .allowsHitTesting(false)
-                .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: chipDragPhase)
+                .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: chipDragState.phase)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 .zIndex(20)
         }
@@ -891,50 +869,50 @@ struct DashboardView: View {
 
     private var chipDragScale: CGFloat {
         guard !reduceMotion else { return 1 }
-        return chipDragPhase == .dragging ? 1.04 : 1
+        return chipDragState.phase == .dragging ? 1.04 : 1
     }
 
     private var chipDragShadowOpacity: Double {
         guard !reduceMotion else { return 0 }
-        return chipDragPhase == .dragging ? 0.14 : 0.03
+        return chipDragState.phase == .dragging ? 0.14 : 0.03
     }
 
     private func updateDashboardChipDrag(itemID: UUID, translation: CGSize) {
-        if draggingChipItemID != itemID {
+        if chipDragState.draggingItemID != itemID {
             chipDragCleanupTask?.cancel()
-            draggingChipItemID = itemID
-            dragStartChipItemIDs = visibleDashboardChipItemIDs
-            previewChipItemIDs = visibleDashboardChipItemIDs
-            dragStartChipFrame = chipItemFrames[itemID]
             withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
-                chipDragPhase = .dragging
+                chipDragState.beginDragging(
+                    itemID: itemID,
+                    itemIDs: visibleDashboardChipItemIDs,
+                    frame: chipDragState.itemFrames[itemID]
+                )
             }
             HapticFeedback.impact(.light)
         }
 
         withTransaction(Transaction(animation: nil)) {
-            activeChipDragTranslation = CGSize(width: translation.width, height: 0)
+            chipDragState.activeTranslation = CGSize(width: translation.width, height: 0)
         }
 
         let targetItemID = dashboardChipInsertionTargetID(
             for: itemID,
-            translation: activeChipDragTranslation,
-            sourceFrame: dragStartChipFrame
+            translation: chipDragState.activeTranslation,
+            sourceFrame: chipDragState.dragStartFrame
         )
 
-        let baseItemIDs = dragStartChipItemIDs.isEmpty ? visibleDashboardChipItemIDs : dragStartChipItemIDs
+        let baseItemIDs = chipDragState.dragStartItemIDs.isEmpty ? visibleDashboardChipItemIDs : chipDragState.dragStartItemIDs
         let updatedPreviewItemIDs = reorderedGridItemIDs(
             moving: itemID,
             before: targetItemID,
             in: baseItemIDs
         )
 
-        guard updatedPreviewItemIDs != previewChipItemIDs else {
+        guard updatedPreviewItemIDs != chipDragState.previewItemIDs else {
             return
         }
 
         withAnimation(.snappy(duration: 0.18)) {
-            previewChipItemIDs = updatedPreviewItemIDs
+            chipDragState.previewItemIDs = updatedPreviewItemIDs
         }
     }
 
@@ -943,14 +921,14 @@ struct DashboardView: View {
         translation: CGSize,
         sourceFrame: CGRect?
     ) -> UUID? {
-        guard let movingFrame = sourceFrame ?? chipItemFrames[movingItemID] else {
+        guard let movingFrame = sourceFrame ?? chipDragState.itemFrames[movingItemID] else {
             return nil
         }
 
         let dragCenterX = movingFrame.midX + translation.width
         let candidates = activeDashboardChipItemIDs.compactMap { itemID -> (id: UUID, frame: CGRect)? in
             guard itemID != movingItemID,
-                  let frame = chipItemFrames[itemID] else {
+                  let frame = chipDragState.itemFrames[itemID] else {
                 return nil
             }
 
@@ -972,9 +950,9 @@ struct DashboardView: View {
         let targetItemID = dashboardChipInsertionTargetID(
             for: itemID,
             translation: horizontalTranslation,
-            sourceFrame: dragStartChipFrame
+            sourceFrame: chipDragState.dragStartFrame
         )
-        let visibleItemIDs = dragStartChipItemIDs.isEmpty ? visibleDashboardChipItemIDs : dragStartChipItemIDs
+        let visibleItemIDs = chipDragState.dragStartItemIDs.isEmpty ? visibleDashboardChipItemIDs : chipDragState.dragStartItemIDs
 
         let dropTranslation = dashboardChipDropTranslation(
             for: itemID,
@@ -982,8 +960,8 @@ struct DashboardView: View {
         )
 
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.22)) {
-            activeChipDragTranslation = dropTranslation
-            chipDragPhase = .dropping
+            chipDragState.activeTranslation = dropTranslation
+            chipDragState.phase = .dropping
             dashboardConfiguration.moveVisibleChipItem(
                 id: itemID,
                 before: targetItemID,
@@ -998,12 +976,7 @@ struct DashboardView: View {
     private func endDashboardChipDrag() {
         chipDragCleanupTask?.cancel()
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
-            draggingChipItemID = nil
-            activeChipDragTranslation = .zero
-            previewChipItemIDs = nil
-            dragStartChipItemIDs = []
-            dragStartChipFrame = nil
-            chipDragPhase = .idle
+            chipDragState.reset()
         }
     }
 
@@ -1011,8 +984,8 @@ struct DashboardView: View {
         for itemID: UUID,
         fallback translation: CGSize
     ) -> CGSize {
-        guard let dragStartChipFrame,
-              let targetFrame = chipItemFrames[itemID] else {
+        guard let dragStartChipFrame = chipDragState.dragStartFrame,
+              let targetFrame = chipDragState.itemFrames[itemID] else {
             return translation
         }
 
@@ -1028,12 +1001,7 @@ struct DashboardView: View {
                     : DashboardDragTiming.cleanupDelay
             )
             guard !Task.isCancelled else { return }
-            draggingChipItemID = nil
-            activeChipDragTranslation = .zero
-            previewChipItemIDs = nil
-            dragStartChipItemIDs = []
-            dragStartChipFrame = nil
-            chipDragPhase = .idle
+            chipDragState.reset()
         }
     }
 
@@ -1081,13 +1049,13 @@ struct DashboardView: View {
         item: DashboardChipItem,
         presentation: DashboardChipPresentation
     ) -> some View {
-        let isDragging = draggingChipItemID == item.id
+        let isDragging = chipDragState.draggingItemID == item.id
         return DashboardChipView(presentation: presentation)
             .contentShape(Capsule())
             .dashboardChipItemFrame(id: item.id)
             .opacity(isDragging ? 0 : 1)
             .dashboardLongPressDragSurface(
-                isEnabled: draggingChipItemID.map { $0 == item.id } ?? true,
+                isEnabled: chipDragState.draggingItemID.map { $0 == item.id } ?? true,
                 autoScrollAxes: .horizontal,
                 onChanged: { translation in
                     updateDashboardChipDrag(itemID: item.id, translation: translation)

@@ -14,7 +14,7 @@ struct NativeNotificationSettingsView: View {
                 notificationStatusHeader
 
                 if let message = nativeNotificationService.lastErrorMessage {
-                    Text(message)
+                    Text(UserFacingErrorPresentation.message(forRawMessage: message))
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }

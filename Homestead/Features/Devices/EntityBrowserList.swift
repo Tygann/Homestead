@@ -173,7 +173,8 @@ struct EntityBrowserList<Accessory: View>: View {
     private var entityLoadingMessage: String {
         switch homeAssistantService.connectionStatus {
         case .failed:
-            homeAssistantService.lastErrorMessage ?? "Check your connection settings and try again."
+            homeAssistantService.lastErrorMessage.map(HAConnectionIssuePresentation.fallbackMessage(forRawMessage:)) ??
+                "Check your connection settings and try again."
         case .disconnected:
             "Preparing to fetch your latest entity state."
         case .reconnecting:

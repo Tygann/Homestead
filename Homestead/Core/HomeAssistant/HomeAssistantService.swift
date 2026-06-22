@@ -1144,13 +1144,10 @@ final class HomeAssistantService {
                 return nil
             }
 
-            let url = try HomeAssistantEndpointBuilder.httpURL(
-                from: configuration.baseURLString,
+            return try HomeAssistantImageRequestBuilder.request(
+                configuration: configuration,
                 pathOrURL: trimmedPathOrURL
             )
-            var request = URLRequest(url: url)
-            request.setValue("Bearer \(configuration.accessToken)", forHTTPHeaderField: "Authorization")
-            return request
         } catch {
             return nil
         }
@@ -2695,59 +2692,5 @@ final class HomeAssistantService {
 
     private func toggleServiceName(for entityID: String) -> String {
         stateStore.entity(for: entityID)?.state == "on" ? "turn_off" : "turn_on"
-    }
-}
-
-actor HAStateEventBatcher {
-    private let flushInterval: Duration
-    private var pendingUpdatesByID: [String: HAStateChangedEventDTO] = [:]
-    private var flushTask: Task<Void, Never>?
-    private var flushHandler: (@MainActor @Sendable ([HAStateChangedEventDTO]) -> Void)?
-
-    init(flushInterval: Duration = .milliseconds(200)) {
-        self.flushInterval = flushInterval
-    }
-
-    func setFlushHandler(_ handler: (@MainActor @Sendable ([HAStateChangedEventDTO]) -> Void)?) {
-        flushHandler = handler
-    }
-
-    func enqueue(_ update: HAStateChangedEventDTO) {
-        pendingUpdatesByID[update.entityID] = update
-        scheduleFlushIfNeeded()
-    }
-
-    private func scheduleFlushIfNeeded() {
-        guard flushTask == nil else {
-            return
-        }
-
-        flushTask = Task {
-            do {
-                try await Task.sleep(for: flushInterval)
-            } catch {
-                return
-            }
-
-            await flush()
-        }
-    }
-
-    private func flush() async {
-        let updates = Array(pendingUpdatesByID.values)
-        pendingUpdatesByID.removeAll()
-        flushTask = nil
-
-        guard !updates.isEmpty, let flushHandler else {
-            return
-        }
-
-        await flushHandler(updates)
-    }
-
-    func discardPendingUpdates() {
-        flushTask?.cancel()
-        flushTask = nil
-        pendingUpdatesByID.removeAll()
     }
 }

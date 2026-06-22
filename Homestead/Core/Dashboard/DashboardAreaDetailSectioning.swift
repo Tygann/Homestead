@@ -96,7 +96,7 @@ enum DashboardAreaDetailSectionProvider {
                 title: title,
                 systemImage: "rectangle.connected.to.line.below",
                 entityIDs: boxes
-                    .sorted(by: displayNameAscending)
+                    .sorted(by: deviceSectionEntityAscending)
                     .map(\.entityID)
             )
         }
@@ -112,6 +112,31 @@ enum DashboardAreaDetailSectionProvider {
         }
 
         return lhs.entityID.localizedCaseInsensitiveCompare(rhs.entityID) == .orderedAscending
+    }
+
+    private static func deviceSectionEntityAscending(_ lhs: HAEntityState, _ rhs: HAEntityState) -> Bool {
+        let lhsGroup = deviceSectionEntitySortGroup(for: lhs.domain)
+        let rhsGroup = deviceSectionEntitySortGroup(for: rhs.domain)
+        if lhsGroup != rhsGroup {
+            return lhsGroup < rhsGroup
+        }
+
+        return displayNameAscending(lhs, rhs)
+    }
+
+    private static func deviceSectionEntitySortGroup(for domain: EntityDomain) -> Int {
+        switch domain {
+        case .sensor, .binarySensor:
+            0
+        case .select, .number, .text, .date, .time, .datetime:
+            1
+        case .button:
+            2
+        case .switch:
+            3
+        default:
+            domain.dashboardPriority + 10
+        }
     }
 }
 

@@ -721,6 +721,10 @@ enum DashboardSummaryProvider {
                 return lhs.sortGroup < rhs.sortGroup
             }
 
+            if lhs.sortPriority != rhs.sortPriority {
+                return lhs.sortPriority < rhs.sortPriority
+            }
+
             let titleComparison = lhs.title.localizedCaseInsensitiveCompare(rhs.title)
             if titleComparison != .orderedSame {
                 return titleComparison == .orderedAscending

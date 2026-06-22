@@ -22,6 +22,37 @@ enum DashboardDragTiming {
     static let reducedMotionCleanupDelay: Duration = .milliseconds(80)
 }
 
+struct DashboardEditDragState {
+    var itemFrames: [UUID: CGRect] = [:]
+    var draggingItemID: UUID?
+    var activeTranslation = CGSize.zero
+    var previewItemIDs: [UUID]?
+    var dragStartItemIDs: [UUID] = []
+    var dragStartFrame: CGRect?
+    var phase: DashboardDragPhase = .idle
+
+    mutating func beginDragging(
+        itemID: UUID,
+        itemIDs: [UUID],
+        frame: CGRect?
+    ) {
+        draggingItemID = itemID
+        dragStartItemIDs = itemIDs
+        previewItemIDs = itemIDs
+        dragStartFrame = frame
+        phase = .dragging
+    }
+
+    mutating func reset() {
+        draggingItemID = nil
+        activeTranslation = .zero
+        previewItemIDs = nil
+        dragStartItemIDs = []
+        dragStartFrame = nil
+        phase = .idle
+    }
+}
+
 private enum DashboardDragAutoScroll {
     static let edgeLength: CGFloat = 88
     static let maximumPointsPerSecond: CGFloat = 380

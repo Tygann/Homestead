@@ -221,7 +221,7 @@ struct LogbookSettingsView: View {
             )
             lastLoadedAt = Date()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = HAConnectionIssuePresentation.message(for: error)
         }
     }
 

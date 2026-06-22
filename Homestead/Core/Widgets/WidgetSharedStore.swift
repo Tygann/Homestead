@@ -36,6 +36,10 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: lightSnapshotsKey)
     }
 
+    static func saveLightSnapshotPayload(_ snapshots: [WidgetLightSnapshot]) {
+        save(snapshots, forKey: lightSnapshotsKey)
+    }
+
     static func saveSwitchSnapshots(
         _ entities: [HomeEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
@@ -47,6 +51,10 @@ enum WidgetSharedStore {
         }
 
         sharedDefaults?.set(data, forKey: switchSnapshotsKey)
+    }
+
+    static func saveSwitchSnapshotPayload(_ snapshots: [WidgetSwitchSnapshot]) {
+        save(snapshots, forKey: switchSnapshotsKey)
     }
 
     static func saveCoverSnapshots(
@@ -67,6 +75,10 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: coverSnapshotsKey)
     }
 
+    static func saveCoverSnapshotPayload(_ snapshots: [WidgetCoverSnapshot]) {
+        save(snapshots, forKey: coverSnapshotsKey)
+    }
+
     static func saveFanSnapshots(
         _ fans: [FanEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
@@ -85,6 +97,10 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: fanSnapshotsKey)
     }
 
+    static func saveFanSnapshotPayload(_ snapshots: [WidgetFanSnapshot]) {
+        save(snapshots, forKey: fanSnapshotsKey)
+    }
+
     static func saveLockSnapshots(
         _ entities: [HomeEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
@@ -96,6 +112,10 @@ enum WidgetSharedStore {
         }
 
         sharedDefaults?.set(data, forKey: lockSnapshotsKey)
+    }
+
+    static func saveLockSnapshotPayload(_ snapshots: [WidgetLockSnapshot]) {
+        save(snapshots, forKey: lockSnapshotsKey)
     }
 
     static func saveSensorSnapshots(
@@ -116,6 +136,10 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: sensorSnapshotsKey)
     }
 
+    static func saveSensorSnapshotPayload(_ snapshots: [WidgetSensorSnapshot]) {
+        save(snapshots, forKey: sensorSnapshotsKey)
+    }
+
     static func savePresenceSnapshots(
         _ entities: [HomeEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
@@ -129,6 +153,10 @@ enum WidgetSharedStore {
         sharedDefaults?.set(data, forKey: presenceSnapshotsKey)
     }
 
+    static func savePresenceSnapshotPayload(_ snapshots: [WidgetPresenceSnapshot]) {
+        save(snapshots, forKey: presenceSnapshotsKey)
+    }
+
     static func saveActionSnapshots(
         _ entities: [HomeEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
@@ -140,6 +168,10 @@ enum WidgetSharedStore {
         }
 
         sharedDefaults?.set(data, forKey: actionSnapshotsKey)
+    }
+
+    static func saveActionSnapshotPayload(_ snapshots: [WidgetActionSnapshot]) {
+        save(snapshots, forKey: actionSnapshotsKey)
     }
 
     static func lightSnapshots(
@@ -395,6 +427,14 @@ enum WidgetSharedStore {
 
     private static var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
+    }
+
+    private static func save<T: Encodable>(_ value: T, forKey key: String) {
+        guard let data = try? JSONEncoder().encode(value) else {
+            return
+        }
+
+        sharedDefaults?.set(data, forKey: key)
     }
 
     private static func presenceStatusText(for state: String) -> String {

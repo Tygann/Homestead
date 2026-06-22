@@ -51,7 +51,7 @@ nonisolated enum IconResolver {
 
     static func resolveArea(_ input: AreaIconResolutionInput) -> ResolvedIcon {
         let inferred = inferredAreaSFSymbol(for: input.name)
-        let fallback = inferred ?? "laptopcomputer.and.iphone"
+        let fallback = inferred ?? "house"
 
         if let presentationOverride = input.presentationOverride {
             return resolveLocalOverride(
@@ -85,7 +85,7 @@ nonisolated enum IconResolver {
             )
         }
 
-        return .sfSymbol("laptopcomputer.and.iphone", provenance: .fallback)
+        return .sfSymbol("house", provenance: .fallback)
     }
 
     static func applyingDashboardOverride(
@@ -683,10 +683,10 @@ nonisolated enum IconResolver {
         "mdi:smoke-detector": "smoke.fill",
         "mdi:smoke-detector-alert": "smoke.fill",
         "mdi:smoke-detector-outline": "smoke",
-        "mdi:sofa": "sofa.fill",
-        "mdi:sofa-outline": "sofa.fill",
-        "mdi:sofa-single": "sofa.fill",
-        "mdi:sofa-single-outline": "sofa.fill",
+        "mdi:sofa": "sofa",
+        "mdi:sofa-outline": "sofa",
+        "mdi:sofa-single": "sofa",
+        "mdi:sofa-single-outline": "sofa",
         "mdi:speaker": "speaker.wave.2.fill",
         "mdi:speaker-multiple": "hifispeaker.2.fill",
         "mdi:speaker-off": "speaker.slash.fill",

@@ -48,7 +48,7 @@ struct DashboardInitialSyncView: View {
         switch connectionStatus {
         case .failed:
             DashboardInitialSyncFailureCard(
-                errorMessage: errorMessage,
+                errorMessage: errorMessage.map(HAConnectionIssuePresentation.fallbackMessage(forRawMessage:)),
                 reconnect: reconnect
             )
         case .disconnected, .preparing, .connecting, .connected, .reconnecting:
