@@ -246,6 +246,9 @@ struct DashboardEntityCard: View {
             }
 
             dashboardHistoryBody
+                .transaction { transaction in
+                    transaction.animation = nil
+                }
 
             dashboardHistoryFooter
         }
@@ -325,12 +328,7 @@ struct DashboardEntityCard: View {
     }
 
     private var dashboardHistoryLoadingPlaceholder: some View {
-        ZStack {
-            dashboardHistoryEmptyPlaceholder(title: "Loading trend")
-
-            ProgressView()
-                .controlSize(.small)
-        }
+        dashboardHistoryEmptyPlaceholder(title: "Loading recent trend")
         .frame(height: dashboardHistoryChartHeight)
     }
 

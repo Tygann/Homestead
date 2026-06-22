@@ -173,7 +173,7 @@ enum SettingsHomeAssistantStatus {
         case .accessTokenExpired:
             return "Sign in again to continue using Home Assistant."
         case .refreshFailed(let message):
-            return message
+            return HAConnectionIssuePresentation.fallbackMessage(forRawMessage: message)
         case .signedIn:
             switch connectionStatus {
             case .connected:
@@ -183,9 +183,12 @@ enum SettingsHomeAssistantStatus {
             case .reconnecting:
                 return "Homestead is restoring the connection."
             case .failed(let message):
-                return serviceError ?? message
+                return HAConnectionIssuePresentation.fallbackMessage(forRawMessage: serviceError ?? message)
             case .disconnected:
-                return serviceError ?? "Homestead is signed in but not currently connected."
+                if let serviceError {
+                    return HAConnectionIssuePresentation.fallbackMessage(forRawMessage: serviceError)
+                }
+                return "Homestead is signed in but not currently connected."
             }
         }
     }

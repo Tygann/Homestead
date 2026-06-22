@@ -57,7 +57,7 @@ struct DashboardView: View {
                         }
                     } else if !stateStore.hasEntities {
                         EmptyDashboardCard()
-                    } else if visibleDashboardItems.isEmpty {
+                    } else if visibleItemsSnapshot.isEmpty {
                         EmptyConfiguredDashboardCard(
                             isEditing: isEditingDashboard,
                             addCards: {
@@ -313,7 +313,7 @@ struct DashboardView: View {
 
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
-            withAnimation(.snappy(duration: 0.32)) {
+            withAnimation(reduceMotion ? nil : .snappy(duration: 0.32)) {
                 scrollProxy.scrollTo(dashboardScrollID(for: itemID), anchor: .center)
             }
             pendingScrollDashboardItemID = nil
@@ -444,7 +444,7 @@ struct DashboardView: View {
                     .onPreferenceChange(DashboardGridItemFramePreferenceKey.self) { frames in
                         gridItemFrames = frames
                     }
-                    .animation(.snappy(duration: 0.18), value: activeDashboardGridItemIDs)
+                    .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: activeDashboardGridItemIDs)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -510,7 +510,7 @@ struct DashboardView: View {
             .onPreferenceChange(DashboardChipItemFramePreferenceKey.self) { frames in
                 chipItemFrames = frames
             }
-            .animation(.snappy(duration: 0.18), value: activeDashboardChipItemIDs)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: activeDashboardChipItemIDs)
             .padding(.vertical, 1)
         }
         .scrollIndicators(.hidden)

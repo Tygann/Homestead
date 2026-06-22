@@ -177,14 +177,14 @@ nonisolated struct AppStatusAccessoryState: Equatable {
     )
 
     static func failed(message: String) -> AppStatusAccessoryState {
-        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+        let recoveryMessage = HAConnectionIssuePresentation.fallbackMessage(forRawMessage: message)
+        guard !recoveryMessage.isEmpty else {
             return failed
         }
 
         return AppStatusAccessoryState(
             title: "Connection failed",
-            message: "Tap to retry. \(trimmed)",
+            message: "Tap to retry. \(recoveryMessage)",
             systemImage: "exclamationmark.triangle.fill",
             style: .failure,
             canRetry: true

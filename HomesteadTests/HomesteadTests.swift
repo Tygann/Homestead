@@ -251,7 +251,8 @@ struct HomesteadTests {
         )
         #expect(failedState?.title == "Connection failed")
         #expect(failedState?.message.contains("Tap to retry") == true)
-        #expect(failedState?.message.contains("No route to host") == true)
+        #expect(failedState?.message.contains("Check your network") == true)
+        #expect(failedState?.message.contains("No route to host") == false)
 
         #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
@@ -265,6 +266,19 @@ struct HomesteadTests {
             connectionStatus: .disconnected,
             dataFreshness: .empty
         ) == .disconnected)
+    }
+
+    @Test func settingsConnectionStatusUsesRecoveryCopyForRawFailures() {
+        let message = SettingsHomeAssistantStatus.detailMessage(
+            authState: .signedIn(HAAuthSessionSummary(credential: testCredential())),
+            connectionStatus: .failed("NSURLErrorDomain -1001"),
+            serviceError: "No route to host",
+            storageError: nil
+        )
+
+        #expect(message.contains("Check your network") == true)
+        #expect(message.contains("No route to host") == false)
+        #expect(message.contains("NSURLErrorDomain") == false)
     }
 
     @Test func appChromePresentationMapsSessionStateAndFeedbackSpacing() {
@@ -5716,6 +5730,28 @@ struct HomesteadTests {
 
         #expect(webSocketClient.lastConnectConfiguration?.accessToken == "retry-access")
         #expect(service.connectionStatus == .connected)
+    }
+
+    @MainActor
+    @Test func connectionFailureUsesFriendlyStatusAndKeepsRawDiagnosticMessage() async throws {
+        let rawError = HAWebSocketError.transportFailure("No route to host")
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "friendly-failure-access"))
+        let credential = try tokenStore.readCredential()!
+        let webSocketClient = StubHAWebSocketClient()
+        webSocketClient.connectErrorsByBaseURL["http://homeassistant.local:8123"] = rawError
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+
+        await service.connect(baseURLString: "http://homeassistant.local:8123")
+
+        #expect(service.connectionStatus == .failed("Check your network or Home Assistant address, then try again."))
+        #expect(service.lastErrorMessage == rawError.localizedDescription)
     }
 
     @MainActor

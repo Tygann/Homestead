@@ -229,11 +229,7 @@ final class HomeAssistantService {
                 baseURLString: routeSelection.authenticationBaseURLString
             )
         } catch {
-            shouldReconnect = false
-            lastErrorMessage = error.localizedDescription
-            authState = authFailureState(for: error)
-            dataFreshness = staleFreshness(error.localizedDescription)
-            connectionStatus = .failed(error.localizedDescription)
+            failConnection(with: error)
             return
         }
 
@@ -290,11 +286,7 @@ final class HomeAssistantService {
         }
 
         if let error = lastConnectionError {
-            shouldReconnect = false
-            lastErrorMessage = error.localizedDescription
-            authState = authFailureState(for: error)
-            dataFreshness = staleFreshness(error.localizedDescription)
-            connectionStatus = .failed(error.localizedDescription)
+            failConnection(with: error)
         }
     }
 
@@ -1803,6 +1795,15 @@ final class HomeAssistantService {
         return .stale(errorMessage, lastUpdated: lastUpdated ?? dataFreshness.lastKnownUpdateDate)
     }
 
+    private func failConnection(with error: Error) {
+        shouldReconnect = false
+        let rawMessage = error.localizedDescription
+        lastErrorMessage = rawMessage
+        authState = authFailureState(for: error)
+        dataFreshness = staleFreshness(rawMessage)
+        connectionStatus = .failed(HAConnectionIssuePresentation.message(for: error))
+    }
+
     private func handleNetworkPathUpdate(
         _ path: NWPath,
         settings: HAConnectionSettings
@@ -2515,8 +2516,15 @@ final class HomeAssistantService {
             } catch is CancellationError {
                 break
             } catch {
-                lastErrorMessage = error.localizedDescription
-                dataFreshness = staleFreshness(error.localizedDescription)
+                let rawMessage = error.localizedDescription
+                lastErrorMessage = rawMessage
+                dataFreshness = staleFreshness(rawMessage)
+                guard error.shouldReconnectHomeAssistantSocket else {
+                    shouldReconnect = false
+                    authState = authFailureState(for: error)
+                    connectionStatus = .failed(HAConnectionIssuePresentation.message(for: error))
+                    break
+                }
                 connectionStatus = .reconnecting
                 attempt += 1
             }
@@ -2683,11 +2691,11 @@ final class HomeAssistantService {
             case .authenticationFailed:
                 return "Sign in again from Settings > Account."
             case .invalidURL, .unexpectedMessage, .requestFailed, .missingResult:
-                return webSocketError.localizedDescription
+                return HAConnectionIssuePresentation.message(for: webSocketError)
             }
         }
 
-        return error.localizedDescription
+        return HAConnectionIssuePresentation.message(for: error)
     }
 
     private func readableServiceName(_ service: String) -> String {
