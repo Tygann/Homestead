@@ -138,6 +138,8 @@ private struct AreaEntityItem: Identifiable {
 }
 
 private struct AreaSectionHeader: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let section: AreaEntitySection
 
     var body: some View {
@@ -146,7 +148,7 @@ private struct AreaSectionHeader: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+                .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(section.title)
@@ -155,5 +157,9 @@ private struct AreaSectionHeader: View {
 
             Spacer(minLength: AppSpacing.medium)
         }
+    }
+
+    private var iconBackground: some ShapeStyle {
+        HomesteadSurfaceStyle.cardBackground(isWallpaperActive: isWallpaperSurfaceActive)
     }
 }
