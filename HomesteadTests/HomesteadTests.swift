@@ -9136,6 +9136,55 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func summaryDetailItemOrderDoesNotChangeWithStatus() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "light.kitchen_island",
+                state: "on",
+                attributes: ["friendly_name": .string("Kitchen Island Light")]
+            ),
+            HAEntityDTO(
+                entityID: "light.kitchen_breakfast",
+                state: "off",
+                attributes: ["friendly_name": .string("Kitchen Breakfast Chandelier")]
+            ),
+            HAEntityDTO(
+                entityID: "light.kitchen_lights",
+                state: "off",
+                attributes: ["friendly_name": .string("Kitchen Lights")]
+            )
+        ])
+
+        let initialDetail = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .lights,
+            entityBoxes: store.allEntityBoxes(),
+            areaNameForEntityID: { _ in "Kitchen" }
+        ))
+
+        store.applyLiveStateUpdates([
+            HAEntityDTO(
+                entityID: "light.kitchen_island",
+                state: "off",
+                attributes: ["friendly_name": .string("Kitchen Island Light")]
+            ),
+            HAEntityDTO(
+                entityID: "light.kitchen_breakfast",
+                state: "on",
+                attributes: ["friendly_name": .string("Kitchen Breakfast Chandelier")]
+            )
+        ])
+
+        let updatedDetail = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .lights,
+            entityBoxes: store.allEntityBoxes(),
+            areaNameForEntityID: { _ in "Kitchen" }
+        ))
+
+        #expect(updatedDetail.sections.first?.items.map(\.entityID) == initialDetail.sections.first?.items.map(\.entityID))
+    }
+
+    @MainActor
     @Test func summariesFilterNonPrimaryEntitiesLikeHomeAssistantStrategies() throws {
         let store = HAStateStore()
         store.applyInitialStates([

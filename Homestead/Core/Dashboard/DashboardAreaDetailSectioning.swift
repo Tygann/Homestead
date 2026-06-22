@@ -106,7 +106,12 @@ enum DashboardAreaDetailSectionProvider {
     }
 
     private static func displayNameAscending(_ lhs: HAEntityState, _ rhs: HAEntityState) -> Bool {
-        lhs.homeEntity.displayName.localizedCaseInsensitiveCompare(rhs.homeEntity.displayName) == .orderedAscending
+        let nameComparison = lhs.homeEntity.displayName.localizedCaseInsensitiveCompare(rhs.homeEntity.displayName)
+        if nameComparison != .orderedSame {
+            return nameComparison == .orderedAscending
+        }
+
+        return lhs.entityID.localizedCaseInsensitiveCompare(rhs.entityID) == .orderedAscending
     }
 }
 

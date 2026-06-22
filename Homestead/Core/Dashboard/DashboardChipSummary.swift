@@ -633,15 +633,16 @@ enum DashboardSummaryProvider {
 
     private static func sortedItems(_ items: [DashboardSummaryEntityPresentation]) -> [DashboardSummaryEntityPresentation] {
         items.sorted { lhs, rhs in
-            if lhs.sortPriority != rhs.sortPriority {
-                return lhs.sortPriority < rhs.sortPriority
-            }
-
             if lhs.sortGroup != rhs.sortGroup {
                 return lhs.sortGroup < rhs.sortGroup
             }
 
-            return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+            let titleComparison = lhs.title.localizedCaseInsensitiveCompare(rhs.title)
+            if titleComparison != .orderedSame {
+                return titleComparison == .orderedAscending
+            }
+
+            return lhs.entityID.localizedCaseInsensitiveCompare(rhs.entityID) == .orderedAscending
         }
     }
 
