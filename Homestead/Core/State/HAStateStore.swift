@@ -37,6 +37,7 @@ final class HAStateStore {
     @ObservationIgnored private var areaRegistryByID: [String: HAAreaRegistryDTO] = [:]
     @ObservationIgnored private var floorRegistryByID: [String: HAFloorRegistryDTO] = [:]
     @ObservationIgnored private var floorSortOrderByID: [String: Int] = [:]
+    @ObservationIgnored private var cachedDashboardSummaryMembershipContext: DashboardSummaryMembershipContext?
     @ObservationIgnored private var isApplyingSnapshotBatch = false
     @ObservationIgnored private var snapshotBatchNeedsWidgetSave = false
 
@@ -280,6 +281,10 @@ final class HAStateStore {
     }
 
     func dashboardSummaryMembershipContext() -> DashboardSummaryMembershipContext {
+        if let cachedDashboardSummaryMembershipContext {
+            return cachedDashboardSummaryMembershipContext
+        }
+
         let metadataByID = entityRegistryByID.mapValues { metadata in
             let deviceID = metadata.deviceID?.nonEmptyValue
             let device = deviceID.flatMap { deviceRegistryByID[$0] }
@@ -300,10 +305,19 @@ final class HAStateStore {
             return deviceID
         })
 
-        return DashboardSummaryMembershipContext(
+        let context = DashboardSummaryMembershipContext(
             entityMetadataByID: metadataByID,
             preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs(),
             chargingDeviceIDs: chargingDeviceIDs
+        )
+        cachedDashboardSummaryMembershipContext = context
+        return context
+    }
+
+    func dashboardSummaryWorkspace() -> DashboardSummaryWorkspace {
+        DashboardSummaryWorkspace(
+            entityBoxes: allEntityBoxes(),
+            membershipContext: dashboardSummaryMembershipContext()
         )
     }
 
@@ -484,6 +498,7 @@ final class HAStateStore {
         floorSortOrderByID = Dictionary(uniqueKeysWithValues: floors.enumerated().map { index, floor in
             (floor.id, index)
         })
+        invalidateDashboardSummaryMembershipContext()
         refreshIconsAfterRegistryUpdate(previousEntityRegistryByID: previousEntityRegistryByID)
         refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
     }
@@ -695,6 +710,7 @@ final class HAStateStore {
         areaRegistryByID.removeAll()
         floorRegistryByID.removeAll()
         floorSortOrderByID.removeAll()
+        invalidateDashboardSummaryMembershipContext()
         isApplyingSnapshotBatch = false
         snapshotBatchNeedsWidgetSave = false
         saveWidgetSnapshots()
@@ -780,6 +796,7 @@ final class HAStateStore {
             return false
         }
 
+        invalidateDashboardSummaryMembershipContext()
         rawEntitiesByID[dto.entityID] = dto
         apply(dto: dto)
         return true
@@ -850,6 +867,7 @@ final class HAStateStore {
         let removedEntity = entitiesByID.removeValue(forKey: entityID)
 
         rawEntitiesByID.removeValue(forKey: entityID)
+        invalidateDashboardSummaryMembershipContext()
         iconResolutionInputsByID.removeValue(forKey: entityID)
         resolvedIconsByID.removeValue(forKey: entityID)
         lightEntitiesByID.removeValue(forKey: entityID)
@@ -928,6 +946,10 @@ final class HAStateStore {
         }
 
         entitiesByDomain[groupIndex].entities[groupedEntityIndex] = entity
+    }
+
+    private func invalidateDashboardSummaryMembershipContext() {
+        cachedDashboardSummaryMembershipContext = nil
     }
 
     private func updateEntityBox(

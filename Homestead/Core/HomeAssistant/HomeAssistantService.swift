@@ -61,7 +61,7 @@ final class HomeAssistantService {
     @ObservationIgnored private var networkContext: HAConnectionNetworkContext
     @ObservationIgnored private var reachabilityMonitor: NWPathMonitor?
     @ObservationIgnored private let reachabilityQueue = DispatchQueue(label: "com.tyler.Homestead.homeAssistantReachability")
-    @ObservationIgnored private let reconnectDelaySeconds = [1, 2, 5, 10, 30]
+    @ObservationIgnored private let reconnectDelaySeconds = HAConnectionRecoveryPolicy.defaultReconnectDelaySeconds
     @ObservationIgnored private let pendingCommandTimeout: Duration = .seconds(3)
     @ObservationIgnored private let resumeRefreshInterval: TimeInterval = 5
     @ObservationIgnored private let foregroundConnectionHealthGrace: Duration = .seconds(2)
@@ -275,7 +275,7 @@ final class HomeAssistantService {
                 return
             } catch {
                 lastConnectionError = error
-                guard shouldTryFallbackRoute(after: error) else {
+                guard HAConnectionRecoveryPolicy.shouldTryFallbackRoute(after: error) else {
                     break
                 }
             }
@@ -1936,19 +1936,6 @@ final class HomeAssistantService {
         _ = await refreshCurrentWiFiSSID()
     }
 
-    private func shouldTryFallbackRoute(after error: Error) -> Bool {
-        guard let webSocketError = error as? HAWebSocketError else {
-            return false
-        }
-
-        switch webSocketError {
-        case .invalidURL, .notConnected, .requestTimedOut, .transportFailure:
-            return true
-        case .unexpectedMessage, .authenticationFailed, .requestFailed, .missingResult:
-            return false
-        }
-    }
-
     private func validConfiguration(baseURLString: String) async throws -> HAConnectionConfiguration {
         do {
             let configuration = try await authManager.validConfiguration(baseURLString: baseURLString)
@@ -2434,7 +2421,7 @@ final class HomeAssistantService {
         guard shouldReconnect,
               reconnectTask == nil,
               let activeConfiguration,
-              error.shouldReconnectHomeAssistantSocket else {
+              HAConnectionRecoveryPolicy.shouldReconnectSocket(after: error) else {
             return false
         }
 
@@ -2468,7 +2455,10 @@ final class HomeAssistantService {
         var attempt = 0
 
         while shouldReconnect, !Task.isCancelled {
-            let delay = reconnectDelaySeconds[min(attempt, reconnectDelaySeconds.count - 1)]
+            let delay = HAConnectionRecoveryPolicy.reconnectDelaySeconds(
+                forAttempt: attempt,
+                delays: reconnectDelaySeconds
+            )
 
             do {
                 try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
@@ -2491,7 +2481,7 @@ final class HomeAssistantService {
                         break
                     } catch {
                         routeError = error
-                        guard shouldTryFallbackRoute(after: error) else {
+                        guard HAConnectionRecoveryPolicy.shouldTryFallbackRoute(after: error) else {
                             break
                         }
                     }
@@ -2519,7 +2509,7 @@ final class HomeAssistantService {
                 let rawMessage = error.localizedDescription
                 lastErrorMessage = rawMessage
                 dataFreshness = staleFreshness(rawMessage)
-                guard error.shouldReconnectHomeAssistantSocket else {
+                guard HAConnectionRecoveryPolicy.shouldReconnectSocket(after: error) else {
                     shouldReconnect = false
                     authState = authFailureState(for: error)
                     connectionStatus = .failed(HAConnectionIssuePresentation.message(for: error))
@@ -2582,11 +2572,10 @@ final class HomeAssistantService {
     }
 
     private var shouldRefreshAfterResume: Bool {
-        guard let lastSuspendedAt else {
-            return false
-        }
-
-        return Date().timeIntervalSince(lastSuspendedAt) >= resumeRefreshInterval
+        HAConnectionRecoveryPolicy.shouldRefreshAfterResume(
+            lastSuspendedAt: lastSuspendedAt,
+            interval: resumeRefreshInterval
+        )
     }
 
     private func setPendingCommand(
@@ -2760,20 +2749,5 @@ actor HAStateEventBatcher {
         flushTask?.cancel()
         flushTask = nil
         pendingUpdatesByID.removeAll()
-    }
-}
-
-private extension Error {
-    var shouldReconnectHomeAssistantSocket: Bool {
-        guard let webSocketError = self as? HAWebSocketError else {
-            return false
-        }
-
-        switch webSocketError {
-        case .notConnected, .requestTimedOut, .transportFailure:
-            return true
-        case .invalidURL, .unexpectedMessage, .authenticationFailed, .requestFailed, .missingResult:
-            return false
-        }
     }
 }

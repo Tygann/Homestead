@@ -163,6 +163,57 @@ struct DashboardSummaryEntityPresentation: Identifiable, Equatable, Sendable {
 }
 
 @MainActor
+struct DashboardSummaryWorkspace {
+    let entityBoxes: [HAEntityState]
+    let membershipContext: DashboardSummaryMembershipContext
+    private let entityBoxesByKind: [DashboardSummaryKind: [HAEntityState]]
+    private let securityContextsByEntityID: [String: SecurityContext]
+
+    init(
+        entityBoxes: [HAEntityState],
+        membershipContext: DashboardSummaryMembershipContext = .empty
+    ) {
+        self.entityBoxes = entityBoxes
+        self.membershipContext = membershipContext
+
+        var entityBoxesByKind: [DashboardSummaryKind: [HAEntityState]] = [:]
+        var securityContextsByEntityID: [String: SecurityContext] = [:]
+
+        for entityBox in entityBoxes {
+            for kind in DashboardSummaryKind.allCases where HomeAssistantSummaryClassifier.contains(
+                entityBox,
+                in: kind,
+                context: membershipContext
+            ) {
+                entityBoxesByKind[kind, default: []].append(entityBox)
+            }
+
+            if let securityContext = DashboardSummaryProvider.securityContext(
+                for: entityBox,
+                membershipContext: membershipContext
+            ) {
+                securityContextsByEntityID[entityBox.entityID] = securityContext
+            }
+        }
+
+        self.entityBoxesByKind = entityBoxesByKind
+        self.securityContextsByEntityID = securityContextsByEntityID
+    }
+
+    func entityBoxes(in kind: DashboardSummaryKind) -> [HAEntityState] {
+        entityBoxesByKind[kind, default: []]
+    }
+
+    fileprivate func securityContexts() -> [SecurityContext] {
+        entityBoxes.compactMap { securityContextsByEntityID[$0.entityID] }
+    }
+
+    fileprivate func securityContext(for entityID: String) -> SecurityContext? {
+        securityContextsByEntityID[entityID]
+    }
+}
+
+@MainActor
 enum DashboardSummaryProvider {
     static func makeSummary(
         kind: DashboardSummaryKind,
@@ -171,12 +222,29 @@ enum DashboardSummaryProvider {
         iconNameOverride: String? = nil,
         membershipContext: DashboardSummaryMembershipContext = .empty
     ) -> DashboardChipPresentation? {
+        makeSummary(
+            kind: kind,
+            workspace: DashboardSummaryWorkspace(
+                entityBoxes: entityBoxes,
+                membershipContext: membershipContext
+            ),
+            titleOverride: titleOverride,
+            iconNameOverride: iconNameOverride
+        )
+    }
+
+    static func makeSummary(
+        kind: DashboardSummaryKind,
+        workspace: DashboardSummaryWorkspace,
+        titleOverride: String? = nil,
+        iconNameOverride: String? = nil
+    ) -> DashboardChipPresentation? {
         let title = normalizedOverride(titleOverride) ?? kind.title
         let defaultSystemImage = normalizedOverride(iconNameOverride) ?? kind.systemImage
 
         switch kind {
         case .lights:
-            let lights = entities(in: .lights, from: entityBoxes, context: membershipContext)
+            let lights = workspace.entityBoxes(in: .lights)
             guard !lights.isEmpty else { return nil }
             let activeCount = lights.filter { $0.homeEntity.state == "on" }.count
             return DashboardChipPresentation(
@@ -188,12 +256,7 @@ enum DashboardSummaryProvider {
                 iconTint: .lights
             )
         case .security:
-            let securityItems = entityBoxes.compactMap {
-                securityContext(
-                    for: $0,
-                    membershipContext: membershipContext
-                )
-            }
+            let securityItems = workspace.securityContexts()
             guard !securityItems.isEmpty else { return nil }
             let securityStatus = securitySummaryStatus(for: securityItems)
             return DashboardChipPresentation(
@@ -205,14 +268,14 @@ enum DashboardSummaryProvider {
                 iconTint: .security
             )
         case .climate:
-            let climateItems = entities(in: .climate, from: entityBoxes, context: membershipContext)
+            let climateItems = workspace.entityBoxes(in: .climate)
             guard !climateItems.isEmpty else { return nil }
             let activeCount = climateItems.filter(isClimateActive).count
             return DashboardChipPresentation(
                 title: title,
                 value: climateTemperatureRangeText(
                     from: climateItems,
-                    preferredEntityIDs: membershipContext.preferredClimateReadingEntityIDs
+                    preferredEntityIDs: workspace.membershipContext.preferredClimateReadingEntityIDs
                 ),
                 systemImage: defaultSystemImage,
                 isActive: activeCount > 0,
@@ -220,10 +283,10 @@ enum DashboardSummaryProvider {
                 iconTint: .climate
             )
         case .maintenance:
-            let maintenanceItems = entities(in: .maintenance, from: entityBoxes, context: membershipContext)
+            let maintenanceItems = workspace.entityBoxes(in: .maintenance)
             guard !maintenanceItems.isEmpty else { return nil }
             let lowBatteryCount = maintenanceItems.filter {
-                isLowBatteryIssue($0, membershipContext: membershipContext)
+                isLowBatteryIssue($0, membershipContext: workspace.membershipContext)
             }.count
             let unavailableCount = maintenanceItems.filter { !$0.homeEntity.isAvailable }.count
             return DashboardChipPresentation(
@@ -235,7 +298,7 @@ enum DashboardSummaryProvider {
                 iconTint: .maintenance
             )
         case .media:
-            let players = entities(in: .media, from: entityBoxes, context: membershipContext)
+            let players = workspace.entityBoxes(in: .media)
             guard !players.isEmpty else { return nil }
             let playingCount = players.filter { $0.mediaPlayerEntity?.isPlaying == true }.count
             return DashboardChipPresentation(
@@ -258,12 +321,32 @@ enum DashboardSummaryProvider {
         areaNameForEntityID: (String) -> String? = { _ in nil },
         areaContextForEntityID: ((String) -> DashboardAreaContext?)? = nil
     ) -> DashboardSummaryDetailPresentation? {
-        guard let summary = makeSummary(
+        makeDetail(
             kind: kind,
-            entityBoxes: entityBoxes,
+            workspace: DashboardSummaryWorkspace(
+                entityBoxes: entityBoxes,
+                membershipContext: membershipContext
+            ),
             titleOverride: titleOverride,
             iconNameOverride: iconNameOverride,
-            membershipContext: membershipContext
+            areaNameForEntityID: areaNameForEntityID,
+            areaContextForEntityID: areaContextForEntityID
+        )
+    }
+
+    static func makeDetail(
+        kind: DashboardSummaryKind,
+        workspace: DashboardSummaryWorkspace,
+        titleOverride: String? = nil,
+        iconNameOverride: String? = nil,
+        areaNameForEntityID: (String) -> String? = { _ in nil },
+        areaContextForEntityID: ((String) -> DashboardAreaContext?)? = nil
+    ) -> DashboardSummaryDetailPresentation? {
+        guard let summary = makeSummary(
+            kind: kind,
+            workspace: workspace,
+            titleOverride: titleOverride,
+            iconNameOverride: iconNameOverride
         ) else {
             return nil
         }
@@ -272,36 +355,31 @@ enum DashboardSummaryProvider {
         switch kind {
         case .lights:
             groups = lightSections(
-                from: entityBoxes,
-                membershipContext: membershipContext,
+                workspace: workspace,
                 areaNameForEntityID: areaNameForEntityID,
                 areaContextForEntityID: areaContextForEntityID
             )
         case .security:
             groups = securitySections(
-                from: entityBoxes,
-                membershipContext: membershipContext,
+                workspace: workspace,
                 areaNameForEntityID: areaNameForEntityID,
                 areaContextForEntityID: areaContextForEntityID
             )
         case .climate:
             groups = climateSections(
-                from: entityBoxes,
-                membershipContext: membershipContext,
+                workspace: workspace,
                 areaNameForEntityID: areaNameForEntityID,
                 areaContextForEntityID: areaContextForEntityID
             )
         case .maintenance:
             groups = maintenanceSections(
-                from: entityBoxes,
-                membershipContext: membershipContext,
+                workspace: workspace,
                 areaNameForEntityID: areaNameForEntityID,
                 areaContextForEntityID: areaContextForEntityID
             )
         case .media:
             groups = mediaSections(
-                from: entityBoxes,
-                membershipContext: membershipContext,
+                workspace: workspace,
                 areaNameForEntityID: areaNameForEntityID,
                 areaContextForEntityID: areaContextForEntityID
             )
@@ -311,6 +389,22 @@ enum DashboardSummaryProvider {
             kind: kind,
             summary: summary,
             groups: groups
+        )
+    }
+
+    static func makeSummaries(
+        kinds: [DashboardSummaryKind],
+        entityBoxes: [HAEntityState],
+        membershipContext: DashboardSummaryMembershipContext = .empty
+    ) -> [DashboardSummaryKind: DashboardChipPresentation] {
+        let workspace = DashboardSummaryWorkspace(
+            entityBoxes: entityBoxes,
+            membershipContext: membershipContext
+        )
+        return Dictionary(
+            uniqueKeysWithValues: kinds.compactMap { kind in
+                makeSummary(kind: kind, workspace: workspace).map { (kind, $0) }
+            }
         )
     }
 
@@ -344,14 +438,13 @@ enum DashboardSummaryProvider {
     }
 
     private static func lightSections(
-        from entityBoxes: [HAEntityState],
-        membershipContext: DashboardSummaryMembershipContext,
+        workspace: DashboardSummaryWorkspace,
         areaNameForEntityID: (String) -> String?,
         areaContextForEntityID: ((String) -> DashboardAreaContext?)?
     ) -> [DashboardSummaryGroupPresentation] {
         areaSections(
             idPrefix: "lights",
-            entityBoxes: entities(in: .lights, from: entityBoxes, context: membershipContext),
+            entityBoxes: workspace.entityBoxes(in: .lights),
             areaNameForEntityID: areaNameForEntityID,
             areaContextForEntityID: areaContextForEntityID,
             makeItem: lightItem
@@ -378,25 +471,19 @@ enum DashboardSummaryProvider {
     }
 
     private static func securitySections(
-        from entityBoxes: [HAEntityState],
-        membershipContext: DashboardSummaryMembershipContext,
+        workspace: DashboardSummaryWorkspace,
         areaNameForEntityID: (String) -> String?,
         areaContextForEntityID: ((String) -> DashboardAreaContext?)?
     ) -> [DashboardSummaryGroupPresentation] {
-        let contextsByEntityID = Dictionary(uniqueKeysWithValues: entityBoxes.compactMap { entityBox in
-            securityContext(
-                for: entityBox,
-                membershipContext: membershipContext
-            ).map { (entityBox.entityID, $0) }
-        })
+        let securityBoxes = workspace.securityContexts().map(\.entityBox)
 
         return areaSections(
             idPrefix: "security",
-            entityBoxes: entityBoxes.filter { contextsByEntityID[$0.entityID] != nil },
+            entityBoxes: securityBoxes,
             areaNameForEntityID: areaNameForEntityID,
             areaContextForEntityID: areaContextForEntityID,
             makeItem: { entityBox in
-                securityItem(for: contextsByEntityID[entityBox.entityID]!)
+                securityItem(for: workspace.securityContext(for: entityBox.entityID)!)
             }
         )
     }
@@ -421,14 +508,13 @@ enum DashboardSummaryProvider {
     }
 
     private static func climateSections(
-        from entityBoxes: [HAEntityState],
-        membershipContext: DashboardSummaryMembershipContext,
+        workspace: DashboardSummaryWorkspace,
         areaNameForEntityID: (String) -> String?,
         areaContextForEntityID: ((String) -> DashboardAreaContext?)?
     ) -> [DashboardSummaryGroupPresentation] {
         areaSections(
             idPrefix: "climate",
-            entityBoxes: entities(in: .climate, from: entityBoxes, context: membershipContext),
+            entityBoxes: workspace.entityBoxes(in: .climate),
             areaNameForEntityID: areaNameForEntityID,
             areaContextForEntityID: areaContextForEntityID,
             makeItem: climateItem
@@ -455,18 +541,17 @@ enum DashboardSummaryProvider {
     }
 
     private static func maintenanceSections(
-        from entityBoxes: [HAEntityState],
-        membershipContext: DashboardSummaryMembershipContext,
+        workspace: DashboardSummaryWorkspace,
         areaNameForEntityID: (String) -> String?,
         areaContextForEntityID: ((String) -> DashboardAreaContext?)?
     ) -> [DashboardSummaryGroupPresentation] {
-        let maintenanceBoxes = entities(in: .maintenance, from: entityBoxes, context: membershipContext)
+        let maintenanceBoxes = workspace.entityBoxes(in: .maintenance)
         return areaSections(
             idPrefix: "maintenance",
             entityBoxes: maintenanceBoxes,
             areaNameForEntityID: areaNameForEntityID,
             areaContextForEntityID: areaContextForEntityID,
-            makeItem: { maintenanceItem(for: $0, membershipContext: membershipContext) }
+            makeItem: { maintenanceItem(for: $0, membershipContext: workspace.membershipContext) }
         )
     }
 
@@ -495,12 +580,11 @@ enum DashboardSummaryProvider {
     }
 
     private static func mediaSections(
-        from entityBoxes: [HAEntityState],
-        membershipContext: DashboardSummaryMembershipContext,
+        workspace: DashboardSummaryWorkspace,
         areaNameForEntityID: (String) -> String?,
         areaContextForEntityID: ((String) -> DashboardAreaContext?)?
     ) -> [DashboardSummaryGroupPresentation] {
-        let playerBoxes = entities(in: .media, from: entityBoxes, context: membershipContext)
+        let playerBoxes = workspace.entityBoxes(in: .media)
         return areaSections(
             idPrefix: "media",
             entityBoxes: playerBoxes,
@@ -671,14 +755,6 @@ enum DashboardSummaryProvider {
         }
     }
 
-    private static func entities(
-        in kind: DashboardSummaryKind,
-        from entityBoxes: [HAEntityState],
-        context: DashboardSummaryMembershipContext
-    ) -> [HAEntityState] {
-        entityBoxes.filter { HomeAssistantSummaryClassifier.contains($0, in: kind, context: context) }
-    }
-
     private static func securitySummaryStatus(for contexts: [SecurityContext]) -> SecuritySummaryStatus {
         let unlockedLockCount = contexts.filter { context in
             context.entityBox.domain == .lock &&
@@ -698,7 +774,7 @@ enum DashboardSummaryProvider {
         return SecuritySummaryStatus(value: "All Secure", isActive: false)
     }
 
-    private static func securityContext(
+    fileprivate static func securityContext(
         for entityBox: HAEntityState,
         membershipContext: DashboardSummaryMembershipContext
     ) -> SecurityContext? {
@@ -860,7 +936,7 @@ enum DashboardSummaryProvider {
 
 }
 
-private struct SecurityContext {
+fileprivate struct SecurityContext {
     let entityBox: HAEntityState
     let isIssue: Bool
     let issueKind: SecurityIssueKind
@@ -872,7 +948,7 @@ private struct SecuritySummaryStatus {
     let isActive: Bool
 }
 
-private enum SecurityIssueKind {
+fileprivate enum SecurityIssueKind {
     case open
     case unlocked
     case detected

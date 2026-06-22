@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, and Mobile App registration safeguards are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification of this flow, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
+Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, camera snapshot hardening, and the first service/dashboard performance cleanup are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
 
 Recommended reasoning level: High.
 
@@ -23,6 +23,7 @@ Recommended reasoning level: High.
 - Stopped live Home Assistant Xcode previews from automatically registering Homestead as a Home Assistant Mobile App device while preserving live state loading in the canvas.
 - Added a Keychain-backed stable mobile-app `device_id` for normal app registration so repeated app launches or registration metadata refreshes do not create new cloned HA Mobile App devices.
 - Hardened camera card previews with shared stale-while-revalidate snapshots, bounded concurrent requests, quick jittered retries, private failure diagnostics, and detail-view cache contribution while keeping live HLS off the dashboard.
+- Extracted Home Assistant reconnect/fallback policy out of `HomeAssistantService`, added a reusable dashboard summary workspace, cached summary membership context in `HAStateStore`, and reduced repeated area/entity presentation recomputation for large-home dashboard and Areas views.
 
 - Confirmed the app and widget targets support iPhone and iPad, and that Xcode exposes and builds the app for Apple silicon Mac using Designed for iPad while Mac Catalyst remains intentionally disabled.
 - Kept the existing adaptive SwiftUI structure for iPad/Mac: dashboard and area grids add tracks at wider widths, Security retains its regular-width activity sidebar, and Browse/Settings continue using native List/Form adaptation without duplicated platform views.

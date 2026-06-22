@@ -105,6 +105,11 @@ private struct AreasOverviewPresentation {
     static func make(from stateStore: HAStateStore) -> AreasOverviewPresentation {
         let entityBoxes = stateStore.allEntityBoxes()
         let membershipContext = stateStore.dashboardSummaryMembershipContext()
+        let summaryPresentations = DashboardSummaryProvider.makeSummaries(
+            kinds: DashboardSummaryKind.areasOverviewOrder,
+            entityBoxes: entityBoxes,
+            membershipContext: membershipContext
+        )
 
         let areas = DashboardAreaBuilder.buildAreas(
             from: entityBoxes,
@@ -114,11 +119,7 @@ private struct AreasOverviewPresentation {
         return AreasOverviewPresentation(
             sections: DashboardAreaBuilder.buildSections(from: areas),
             summaryChips: DashboardSummaryKind.areasOverviewOrder.compactMap { kind in
-                DashboardSummaryProvider.makeSummary(
-                    kind: kind,
-                    entityBoxes: entityBoxes,
-                    membershipContext: membershipContext
-                ).map { SummaryChipItem(kind: kind, presentation: $0) }
+                summaryPresentations[kind].map { SummaryChipItem(kind: kind, presentation: $0) }
             }
         )
     }

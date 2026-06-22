@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-22
+
+### Connection Policy And Dashboard Summary Reuse
+
+- Extracted Home Assistant reconnect/fallback timing and classification into a small recovery policy so the UI-facing service no longer owns pure retry rules inline.
+- Added a reusable dashboard summary workspace plus cached summary membership context in `HAStateStore`, reducing repeated registry metadata mapping and summary classification across dashboard chips, Areas, Add Item, and summary detail views.
+- Reduced area summary recomputation by creating entity presentations once per area when calculating active totals and domain chips.
+
 ## 2026-06-19
 
 ### Automated XCTest Storage Hygiene

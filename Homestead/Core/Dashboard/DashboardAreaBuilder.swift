@@ -110,7 +110,9 @@ enum DashboardAreaBuilder {
         key: AreaGroupKey,
         from entityBoxes: [HAEntityState]
     ) -> DashboardAreaSummary {
-        DashboardAreaSummary(
+        let presentations = entityBoxes.map { DashboardEntityPresentation(entityBox: $0) }
+
+        return DashboardAreaSummary(
             id: key.areaID.map { "area-\($0)" } ?? "unassigned",
             areaID: key.areaID,
             name: key.name,
@@ -124,14 +126,13 @@ enum DashboardAreaBuilder {
                     lhs.homeEntity.displayName.localizedCaseInsensitiveCompare(rhs.homeEntity.displayName) == .orderedAscending
                 }
                 .map(\.entityID),
-            activeCount: entityBoxes
-                .map { DashboardEntityPresentation(entityBox: $0) }
+            activeCount: presentations
                 .filter(\.isActive)
                 .count,
             unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count,
             domainCounts: Dictionary(grouping: entityBoxes, by: \.domain)
                 .mapValues(\.count),
-            activeDomainCounts: Dictionary(grouping: entityBoxes.filter { DashboardEntityPresentation(entityBox: $0).isActive }, by: \.domain)
+            activeDomainCounts: Dictionary(grouping: presentations.filter(\.isActive), by: \.capability.domain)
                 .mapValues(\.count)
         )
     }

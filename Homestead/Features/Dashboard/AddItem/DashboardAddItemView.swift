@@ -545,14 +545,15 @@ struct DashboardAddItemView: View {
     private func rebuildAddCandidates() {
         let entityBoxes = stateStore.allEntityBoxes()
         let configuredKinds = configuredSummaryKinds
+        let summaryPresentations = DashboardSummaryProvider.makeSummaries(
+            kinds: DashboardSummaryKind.allCases,
+            entityBoxes: entityBoxes,
+            membershipContext: stateStore.dashboardSummaryMembershipContext()
+        )
 
         summaryCandidates = DashboardSummaryKind.allCases.compactMap { kind in
             guard !configuredKinds.contains(kind),
-                  let presentation = DashboardSummaryProvider.makeSummary(
-                    kind: kind,
-                    entityBoxes: entityBoxes,
-                    membershipContext: stateStore.dashboardSummaryMembershipContext()
-                  ) else {
+                  let presentation = summaryPresentations[kind] else {
                 return nil
             }
 

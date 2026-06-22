@@ -5001,6 +5001,45 @@ struct HomesteadTests {
         #expect(service.connectionStatus == .connected)
     }
 
+    @Test func connectionRecoveryPolicyClassifiesFallbackAndReconnectErrors() {
+        #expect(HAConnectionRecoveryPolicy.shouldTryFallbackRoute(after: HAWebSocketError.invalidURL))
+        #expect(HAConnectionRecoveryPolicy.shouldTryFallbackRoute(after: HAWebSocketError.notConnected))
+        #expect(HAConnectionRecoveryPolicy.shouldTryFallbackRoute(after: HAWebSocketError.requestTimedOut))
+        #expect(HAConnectionRecoveryPolicy.shouldTryFallbackRoute(after: HAWebSocketError.transportFailure("Offline")))
+        #expect(!HAConnectionRecoveryPolicy.shouldTryFallbackRoute(after: HAWebSocketError.authenticationFailed(nil)))
+        #expect(!HAConnectionRecoveryPolicy.shouldTryFallbackRoute(after: URLError(.notConnectedToInternet)))
+
+        #expect(HAConnectionRecoveryPolicy.shouldReconnectSocket(after: HAWebSocketError.notConnected))
+        #expect(HAConnectionRecoveryPolicy.shouldReconnectSocket(after: HAWebSocketError.requestTimedOut))
+        #expect(HAConnectionRecoveryPolicy.shouldReconnectSocket(after: HAWebSocketError.transportFailure("Dropped")))
+        #expect(!HAConnectionRecoveryPolicy.shouldReconnectSocket(after: HAWebSocketError.invalidURL))
+        #expect(!HAConnectionRecoveryPolicy.shouldReconnectSocket(after: HAWebSocketError.authenticationFailed(nil)))
+    }
+
+    @Test func connectionRecoveryPolicyClampsReconnectDelayAndResumeRefresh() {
+        #expect(HAConnectionRecoveryPolicy.reconnectDelaySeconds(forAttempt: -1, delays: [1, 2, 5]) == 1)
+        #expect(HAConnectionRecoveryPolicy.reconnectDelaySeconds(forAttempt: 1, delays: [1, 2, 5]) == 2)
+        #expect(HAConnectionRecoveryPolicy.reconnectDelaySeconds(forAttempt: 7, delays: [1, 2, 5]) == 5)
+        #expect(HAConnectionRecoveryPolicy.reconnectDelaySeconds(forAttempt: 0, delays: []) == 0)
+
+        let now = Date(timeIntervalSince1970: 100)
+        #expect(!HAConnectionRecoveryPolicy.shouldRefreshAfterResume(
+            lastSuspendedAt: nil,
+            now: now,
+            interval: 5
+        ))
+        #expect(!HAConnectionRecoveryPolicy.shouldRefreshAfterResume(
+            lastSuspendedAt: Date(timeIntervalSince1970: 96),
+            now: now,
+            interval: 5
+        ))
+        #expect(HAConnectionRecoveryPolicy.shouldRefreshAfterResume(
+            lastSuspendedAt: Date(timeIntervalSince1970: 95),
+            now: now,
+            interval: 5
+        ))
+    }
+
     @MainActor
     @Test func serviceRefreshLoadsHomeAssistantServiceRegistry() async throws {
         let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "service-catalog-access"))
@@ -9585,6 +9624,59 @@ struct HomesteadTests {
         ))
 
         #expect(climate.value == "68.0 - 72.0°")
+        #expect(maintenance.value == "All Good")
+        #expect(!maintenance.isActive)
+    }
+
+    @MainActor
+    @Test func dashboardSummaryMembershipContextInvalidatesWhenStateChanges() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.remote_battery",
+                state: "10",
+                attributes: ["device_class": .string("battery")]
+            ),
+            HAEntityDTO(
+                entityID: "binary_sensor.remote_charging",
+                state: "off",
+                attributes: ["device_class": .string("battery_charging")]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "sensor.remote_battery",
+                    deviceID: "remote",
+                    originalName: "Battery"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "binary_sensor.remote_charging",
+                    deviceID: "remote",
+                    originalName: "Charging"
+                )
+            ],
+            devices: [HADeviceRegistryDTO(id: "remote", name: "Remote")]
+        )
+
+        let initialContext = store.dashboardSummaryMembershipContext()
+        #expect(initialContext.chargingDeviceIDs.isEmpty)
+
+        store.applyLiveStateUpdates([
+            HAEntityDTO(
+                entityID: "binary_sensor.remote_charging",
+                state: "on",
+                attributes: ["device_class": .string("battery_charging")]
+            )
+        ])
+
+        let updatedContext = store.dashboardSummaryMembershipContext()
+        #expect(updatedContext.chargingDeviceIDs == ["remote"])
+
+        let maintenance = try #require(DashboardSummaryProvider.makeSummary(
+            kind: .maintenance,
+            workspace: store.dashboardSummaryWorkspace()
+        ))
         #expect(maintenance.value == "All Good")
         #expect(!maintenance.isActive)
     }

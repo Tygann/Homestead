@@ -28,12 +28,12 @@ struct DashboardSummaryView: View {
     }
 
     var body: some View {
+        let workspace = stateStore.dashboardSummaryWorkspace()
         let detail = DashboardSummaryProvider.makeDetail(
             kind: kind,
-            entityBoxes: stateStore.allEntityBoxes(),
+            workspace: workspace,
             titleOverride: titleOverride,
             iconNameOverride: iconNameOverride,
-            membershipContext: stateStore.dashboardSummaryMembershipContext(),
             areaNameForEntityID: stateStore.areaName(for:),
             areaContextForEntityID: stateStore.areaContext(for:)
         )

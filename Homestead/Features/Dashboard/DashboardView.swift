@@ -493,11 +493,12 @@ struct DashboardView: View {
 
     private func dashboardChipSummaryRow(items: [DashboardChipItem]) -> some View {
         let renderedChipItems = orderedChipItems(items)
+        let summaryWorkspace = stateStore.dashboardSummaryWorkspace()
 
         return ScrollView(.horizontal) {
             HStack(alignment: .center, spacing: AppSpacing.small) {
                 ForEach(renderedChipItems) { chipItem in
-                    dashboardChip(chipItem)
+                    dashboardChip(chipItem, summaryWorkspace: summaryWorkspace)
                 }
             }
             .padding(.horizontal, AppSpacing.large)
@@ -863,7 +864,10 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func dashboardChipDragPreview(_ item: DashboardChipItem) -> some View {
-        if let dragStartChipFrame, let presentation = chipPresentation(for: item) {
+        let summaryWorkspace = stateStore.dashboardSummaryWorkspace()
+
+        if let dragStartChipFrame,
+           let presentation = chipPresentation(for: item, summaryWorkspace: summaryWorkspace) {
             DashboardChipView(presentation: presentation)
                 .background(Color(.secondarySystemGroupedBackground), in: Capsule())
                 .frame(width: dragStartChipFrame.width, height: dragStartChipFrame.height)
@@ -1034,8 +1038,11 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func dashboardChip(_ item: DashboardChipItem) -> some View {
-        let presentation = chipPresentation(for: item)
+    private func dashboardChip(
+        _ item: DashboardChipItem,
+        summaryWorkspace: DashboardSummaryWorkspace
+    ) -> some View {
+        let presentation = chipPresentation(for: item, summaryWorkspace: summaryWorkspace)
 
         if let presentation {
             if isEditingDashboard {
@@ -1265,16 +1272,18 @@ struct DashboardView: View {
         return !DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation).isEmpty
     }
 
-    private func chipPresentation(for item: DashboardChipItem) -> DashboardChipPresentation? {
+    private func chipPresentation(
+        for item: DashboardChipItem,
+        summaryWorkspace: DashboardSummaryWorkspace
+    ) -> DashboardChipPresentation? {
         switch item.chipKind {
         case .summary:
             guard let summaryKind = item.summaryKind else { return nil }
             return DashboardSummaryProvider.makeSummary(
                 kind: summaryKind,
-                entityBoxes: stateStore.allEntityBoxes(),
+                workspace: summaryWorkspace,
                 titleOverride: item.displayNameOverride,
-                iconNameOverride: item.iconNameOverride,
-                membershipContext: stateStore.dashboardSummaryMembershipContext()
+                iconNameOverride: item.iconNameOverride
             )
         case .entity:
             guard let entityID = item.entityID,
