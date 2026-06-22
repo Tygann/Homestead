@@ -6513,6 +6513,118 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func serviceReusesFreshDashboardHistoryRequest() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "dashboard-history-cache-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "sensor.kitchen_temperature",
+                state: "71.2",
+                attributes: [
+                    "friendly_name": .string("Kitchen Temperature"),
+                    "unit_of_measurement": .string("F")
+                ]
+            )
+        ])
+        let httpClient = StubHAHTTPClient(
+            historyResponse: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(
+                        entityID: "sensor.kitchen_temperature",
+                        state: "70",
+                        lastChanged: try testDate("2026-06-05T15:30:00Z")
+                    )
+                ]
+            ])
+        )
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            dashboardHistoryCache: DashboardHistoryCache(freshnessInterval: 60)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+
+        let firstSeries = try await service.fetchDashboardHistory(
+            settings: settings,
+            entityID: "sensor.kitchen_temperature",
+            endingAt: endDate
+        )
+        let secondSeries = try await service.fetchDashboardHistory(
+            settings: settings,
+            entityID: "sensor.kitchen_temperature",
+            endingAt: endDate
+        )
+
+        #expect(httpClient.historyFetchCount == 1)
+        #expect(secondSeries == firstSeries)
+    }
+
+    @MainActor
+    @Test func serviceCoalescesConcurrentDashboardHistoryRequests() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(accessToken: "dashboard-history-coalesced-access")
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(
+                entityID: "sensor.kitchen_temperature",
+                state: "71.2",
+                attributes: [
+                    "friendly_name": .string("Kitchen Temperature"),
+                    "unit_of_measurement": .string("F")
+                ]
+            )
+        ])
+        let httpClient = StubHAHTTPClient(
+            historyResponse: HAHistoryResponseDTO(series: [
+                [
+                    HAHistoryStateDTO(
+                        entityID: "sensor.kitchen_temperature",
+                        state: "70",
+                        lastChanged: try testDate("2026-06-05T15:30:00Z")
+                    )
+                ]
+            ])
+        )
+        httpClient.historyDelay = .milliseconds(100)
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            httpClient: httpClient,
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            dashboardHistoryCache: DashboardHistoryCache(freshnessInterval: 60)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "http://homeassistant.local:8123",
+            defaults: try isolatedDefaults(),
+            tokenStore: tokenStore
+        )
+        let endDate = try testDate("2026-06-05T16:00:00Z")
+
+        async let firstSeries = service.fetchDashboardHistory(
+            settings: settings,
+            entityID: "sensor.kitchen_temperature",
+            endingAt: endDate
+        )
+        async let secondSeries = service.fetchDashboardHistory(
+            settings: settings,
+            entityID: "sensor.kitchen_temperature",
+            endingAt: endDate
+        )
+        let (first, second) = try await (firstSeries, secondSeries)
+
+        #expect(httpClient.historyFetchCount == 1)
+        #expect(second == first)
+    }
+
+    @MainActor
     @Test func profileImageRequestDoesNotUseUnrelatedFirstPersonEntity() async throws {
         let tokenStore = InMemoryHAOAuthTokenStore(
             credential: testCredential(accessToken: "profile-access")
@@ -10549,10 +10661,12 @@ final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
     var historyResponse: HAHistoryResponseDTO
     var logbookError: Error?
     var historyError: Error?
+    var historyDelay: Duration?
     private(set) var lastLogbookConfiguration: HAConnectionConfiguration?
     private(set) var lastLogbookRequest: HALogbookRequest?
     private(set) var lastHistoryConfiguration: HAConnectionConfiguration?
     private(set) var lastHistoryRequest: HAHistoryRequest?
+    private(set) var historyFetchCount = 0
 
     init(
         logbookEntries: [HALogbookEntryDTO] = [],
@@ -10578,8 +10692,13 @@ final class StubHAHTTPClient: HAHTTPClientProtocol, @unchecked Sendable {
     }
 
     func fetchHistory(configuration: HAConnectionConfiguration, request: HAHistoryRequest) async throws -> HAHistoryResponseDTO {
+        historyFetchCount += 1
         lastHistoryConfiguration = configuration
         lastHistoryRequest = request
+
+        if let historyDelay {
+            try await Task.sleep(for: historyDelay)
+        }
 
         if let historyError {
             throw historyError

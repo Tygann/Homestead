@@ -43,6 +43,7 @@ final class HomeAssistantService {
     @ObservationIgnored private let currentWiFiNetworkProvider: any CurrentWiFiNetworkProviding
     @ObservationIgnored private let stateStore: HAStateStore
     @ObservationIgnored private let stateCache: HAStateCache
+    @ObservationIgnored private let dashboardHistoryCache: DashboardHistoryCache
     @ObservationIgnored private let stateEventBatcher = HAStateEventBatcher()
     @ObservationIgnored private var activeConfiguration: HAConnectionConfiguration?
     @ObservationIgnored private var currentUserID: String?
@@ -80,6 +81,7 @@ final class HomeAssistantService {
         authManager: HAOAuthManager? = nil,
         oauthAuthorizer: (any HAOAuthAuthorizing)? = nil,
         currentWiFiNetworkProvider: (any CurrentWiFiNetworkProviding)? = nil,
+        dashboardHistoryCache: DashboardHistoryCache = DashboardHistoryCache(),
         networkContext: HAConnectionNetworkContext = .availableExternal,
         automaticallyRegistersMobileApp: Bool = true
     ) {
@@ -93,6 +95,7 @@ final class HomeAssistantService {
         self.authManager = authManager ?? HAOAuthManager()
         self.oauthAuthorizer = oauthAuthorizer ?? HAWebAuthenticationSession()
         self.currentWiFiNetworkProvider = currentWiFiNetworkProvider ?? SystemCurrentWiFiNetworkProvider()
+        self.dashboardHistoryCache = dashboardHistoryCache
         self.stateCache = stateCache
         self.networkContext = networkContext
         self.automaticallyRegistersMobileApp = automaticallyRegistersMobileApp
@@ -239,6 +242,7 @@ final class HomeAssistantService {
             serverConfiguration = nil
             serverEnvironment = nil
             serverConfigurationStatus = .unavailable
+            await dashboardHistoryCache.removeAll()
         }
         let preferredConfiguration = baseConfiguration.routed(
             to: routeSelection.preferredCandidate?.baseURLString ?? baseConfiguration.baseURLString
@@ -328,6 +332,7 @@ final class HomeAssistantService {
         await stateEventBatcher.discardPendingUpdates()
         cancelPendingCommandTasks()
         await client.disconnect()
+        await dashboardHistoryCache.removeAll()
         activeConfiguration = nil
         activeRouteSummary = nil
         mobileAppPushNotificationState = .unavailable
@@ -901,14 +906,42 @@ final class HomeAssistantService {
         range: HAHistoryRangePreset = .sixHours,
         endingAt endDate: Date = Date()
     ) async throws -> HAHistoryChartSeries {
-        let interval = range.interval(endingAt: endDate)
-        let request = HAHistoryRequest(
-            startDate: interval.start,
-            endDate: interval.end,
-            entityID: entityID
-        )
+        currentConnectionSettings = settings
+        guard settings.hasServerURL, !entityID.isEmpty else {
+            throw HAWebSocketError.invalidURL
+        }
 
-        return try await fetchHistory(settings: settings, request: request, range: range)
+        let configuration = try await preferredConfiguration(for: settings)
+        activeConfiguration = configuration
+        let sensor = stateStore.entityBox(for: entityID)?.sensorEntity
+        let entity = stateStore.entity(for: entityID)
+        let displayName = sensor?.displayName ?? entity?.displayName ?? entityID
+        let unit = sensor?.unitText
+        let key = DashboardHistoryCache.Key(
+            dataSourceID: configuration.dataSourceID,
+            entityID: entityID,
+            range: range,
+            endDateMinuteBucket: Int(endDate.timeIntervalSince1970 / 60)
+        )
+        let httpClient = httpClient
+
+        return try await dashboardHistoryCache.series(for: key) {
+            let interval = range.interval(endingAt: endDate)
+            let request = HAHistoryRequest(
+                startDate: interval.start,
+                endDate: interval.end,
+                entityID: entityID
+            )
+            let response = try await httpClient.fetchHistory(configuration: configuration, request: request)
+
+            return HAHistoryChartSeries.make(
+                response: response,
+                request: request,
+                displayName: displayName,
+                unit: unit,
+                range: range
+            )
+        }
     }
 
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
