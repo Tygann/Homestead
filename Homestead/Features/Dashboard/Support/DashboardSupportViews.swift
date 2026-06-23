@@ -57,6 +57,49 @@ struct DashboardInitialSyncView: View {
     }
 }
 
+struct DashboardRestoringSnapshotView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPulsing = false
+
+    var body: some View {
+        VStack(spacing: AppSpacing.medium) {
+            DashboardSkeletonCard(size: .wide)
+
+            CardGrid {
+                DashboardSkeletonCard(size: .square)
+                    .cardGridSpan(DashboardCardSize.square.layoutMetadata)
+                DashboardSkeletonCard(size: .compact)
+                    .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+                DashboardSkeletonCard(size: .compact)
+                    .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+                DashboardSkeletonCard(size: .square)
+                    .cardGridSpan(DashboardCardSize.square.layoutMetadata)
+                DashboardSkeletonCard(size: .compact)
+                    .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+                DashboardSkeletonCard(size: .square)
+                    .cardGridSpan(DashboardCardSize.square.layoutMetadata)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .opacity(skeletonOpacity)
+        .allowsHitTesting(false)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isPulsing)
+        .task {
+            guard !reduceMotion else {
+                isPulsing = false
+                return
+            }
+
+            isPulsing = true
+        }
+        .accessibilityLabel("Restoring dashboard")
+    }
+
+    private var skeletonOpacity: Double {
+        reduceMotion ? 0.72 : (isPulsing ? 0.46 : 0.72)
+    }
+}
+
 private struct DashboardLoadingPlaceholderView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 

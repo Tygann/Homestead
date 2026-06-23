@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AreasView: View {
     @Environment(HAStateStore.self) private var stateStore
+    @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Namespace private var areaTransitionNamespace
     @Namespace private var summaryTransitionNamespace
@@ -12,30 +13,14 @@ struct AreasView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.large) {
-                if !presentation.summaryChips.isEmpty {
-                    areaSummaryChipRow(items: presentation.summaryChips)
-                }
-
-                ForEach(presentation.sections) { section in
-                    VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                        if section.title != nil {
-                            AreaGroupHeader(section: section)
-                        }
-
-                        CardGrid {
-                            ForEach(section.areas) { area in
-                                NavigationLink {
-                                    AreaDetailView(area: area)
-                                        .navigationTransition(.zoom(sourceID: areaTransitionID(for: area), in: areaTransitionNamespace))
-                                } label: {
-                                    AreaSummaryCard(area: area)
-                                        .matchedTransitionSource(id: areaTransitionID(for: area), in: areaTransitionNamespace)
-                                }
-                                .buttonStyle(.plain)
-                                .cardGridSpan(areaCardSize.layoutMetadata)
-                            }
-                        }
+                if !stateStore.hasLoadedInitialSnapshot {
+                    AreasRestoringSnapshotView()
+                } else {
+                    if !presentation.summaryChips.isEmpty {
+                        areaSummaryChipRow(items: presentation.summaryChips)
                     }
+
+                    areaSections(presentation.sections)
                 }
             }
             .padding(.horizontal, AppSpacing.large)
@@ -46,7 +31,18 @@ struct AreasView: View {
         }
         .homesteadWallpaperBackground()
         .overlay {
-            if !stateStore.hasEntities {
+            if showsInitialSnapshotFailure {
+                ContentUnavailableView {
+                    Label("Unable to Load Areas", systemImage: homeAssistantService.connectionStatus.systemImage)
+                } description: {
+                    Text(homeAssistantService.lastErrorMessage.map(HAConnectionIssuePresentation.fallbackMessage(forRawMessage:)) ?? "Check your connection settings and try again.")
+                } actions: {
+                    Button("Reconnect", systemImage: "arrow.triangle.2.circlepath") {
+                        Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            } else if stateStore.hasLoadedInitialSnapshot && !stateStore.hasEntities {
                 ContentUnavailableView("No Areas", systemImage: "square.grid.3x3")
             }
         }
@@ -55,6 +51,41 @@ struct AreasView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 SettingsAccountButton()
+            }
+        }
+    }
+
+    private var showsInitialSnapshotFailure: Bool {
+        guard !stateStore.hasLoadedInitialSnapshot,
+              homeAssistantService.hasCompletedInitialCacheLoad,
+              !homeAssistantService.isLoadingCachedStates,
+              case .failed = homeAssistantService.connectionStatus else {
+            return false
+        }
+
+        return true
+    }
+
+    private func areaSections(_ sections: [DashboardAreaSection]) -> some View {
+        ForEach(sections) { section in
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                if section.title != nil {
+                    AreaGroupHeader(section: section)
+                }
+
+                CardGrid {
+                    ForEach(section.areas) { area in
+                        NavigationLink {
+                            AreaDetailView(area: area)
+                                .navigationTransition(.zoom(sourceID: areaTransitionID(for: area), in: areaTransitionNamespace))
+                        } label: {
+                            AreaSummaryCard(area: area)
+                                .matchedTransitionSource(id: areaTransitionID(for: area), in: areaTransitionNamespace)
+                        }
+                        .buttonStyle(.plain)
+                        .cardGridSpan(areaCardSize.layoutMetadata)
+                    }
+                }
             }
         }
     }
@@ -132,6 +163,101 @@ private struct AreaGroupHeader: View {
         Text(section.title ?? "")
             .font(.title3.weight(.semibold))
         .accessibilityElement(children: .combine)
+    }
+}
+
+private struct AreasRestoringSnapshotView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPulsing = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            HStack(spacing: AppSpacing.small) {
+                ForEach(0..<4, id: \.self) { index in
+                    AreasSkeletonChip(width: chipWidth(at: index))
+                }
+            }
+            .accessibilityHidden(true)
+
+            CardGrid {
+                ForEach(0..<6, id: \.self) { _ in
+                    AreaSkeletonCard()
+                        .cardGridSpan(DashboardCardSize.square.layoutMetadata)
+                }
+            }
+        }
+        .opacity(skeletonOpacity)
+        .allowsHitTesting(false)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isPulsing)
+        .task {
+            guard !reduceMotion else {
+                isPulsing = false
+                return
+            }
+
+            isPulsing = true
+        }
+        .accessibilityLabel("Restoring areas")
+    }
+
+    private var skeletonOpacity: Double {
+        reduceMotion ? 0.72 : (isPulsing ? 0.46 : 0.72)
+    }
+
+    private func chipWidth(at index: Int) -> CGFloat {
+        [92, 104, 86, 112][index % 4]
+    }
+}
+
+private struct AreasSkeletonChip: View {
+    let width: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(Color(.tertiarySystemGroupedBackground))
+            .frame(width: width, height: 36)
+    }
+}
+
+private struct AreaSkeletonCard: View {
+    var body: some View {
+        CardContainer(minHeight: cardContentMinHeight) {
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
+                RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                    .fill(Color(.tertiarySystemGroupedBackground))
+                    .frame(width: 44, height: 44)
+
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    skeletonLine(width: 104, height: 14)
+                    skeletonLine(width: 72, height: 12)
+                }
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: AppSpacing.xSmall) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        Circle()
+                            .fill(Color(.tertiarySystemGroupedBackground))
+                            .frame(width: 24, height: 24)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var cardContentMinHeight: CGFloat {
+        DashboardCardSize.square.contentMinHeight(
+            rowSpacing: AppSpacing.medium,
+            cardPadding: AppSpacing.medium
+        )
+    }
+
+    private func skeletonLine(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+            .fill(Color(.tertiarySystemGroupedBackground))
+            .frame(width: width, height: height)
     }
 }
 

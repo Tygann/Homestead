@@ -14,7 +14,6 @@ struct DashboardView: View {
     @State private var renamingDisplayItemID: UUID?
     @State private var headerTitleDraft = ""
     @State private var displayTitleDraft = ""
-    @State private var showsInitialSyncPlaceholder = false
     @State private var cameraRefreshGeneration = 0
     @State private var highlightedDashboardItemID: UUID?
     @State private var pendingScrollDashboardItemID: UUID?
@@ -34,7 +33,7 @@ struct DashboardView: View {
                     if !hasHomeAssistantSession {
                         EmptyView()
                     } else if !stateStore.hasLoadedInitialSnapshot {
-                        if showsInitialSyncPlaceholder {
+                        if showsInitialSnapshotFailure {
                             DashboardInitialSyncView(
                                 connectionStatus: homeAssistantService.connectionStatus,
                                 errorMessage: homeAssistantService.lastErrorMessage,
@@ -42,6 +41,8 @@ struct DashboardView: View {
                                     Task { await homeAssistantService.connectIfPossible(settings: connectionSettings) }
                                 }
                             )
+                        } else {
+                            DashboardRestoringSnapshotView()
                         }
                     } else if !stateStore.hasEntities {
                         EmptyDashboardCard()
@@ -145,9 +146,6 @@ struct DashboardView: View {
             .onAppear {
                 reconcileDashboardConfigurationIfReady()
             }
-            .task(id: initialSyncPlaceholderKey) {
-                await updateInitialSyncPlaceholderVisibility()
-            }
             .onChange(of: stateStore.entityCatalogSignature) { _, _ in
                 reconcileDashboardConfigurationIfReady()
             }
@@ -163,47 +161,17 @@ struct DashboardView: View {
         }
     }
 
-    private var initialSyncPlaceholderKey: String {
-        [
-            hasHomeAssistantSession.description,
-            stateStore.hasLoadedInitialSnapshot.description,
-            homeAssistantService.isLoadingCachedStates.description,
-            homeAssistantService.hasCompletedInitialCacheLoad.description
-        ]
-        .joined(separator: "-")
-    }
-
     private var hasHomeAssistantSession: Bool {
         connectionSettings.hasServerURL && homeAssistantService.authState.isSignedIn
     }
 
-    @MainActor
-    private func updateInitialSyncPlaceholderVisibility() async {
-        guard hasHomeAssistantSession,
-              !stateStore.hasLoadedInitialSnapshot,
-              homeAssistantService.hasCompletedInitialCacheLoad,
-              !homeAssistantService.isLoadingCachedStates else {
-            showsInitialSyncPlaceholder = false
-            return
+    private var showsInitialSnapshotFailure: Bool {
+        guard case .failed = homeAssistantService.connectionStatus else {
+            return false
         }
 
-        showsInitialSyncPlaceholder = false
-
-        do {
-            try await Task.sleep(for: .milliseconds(220))
-        } catch {
-            return
-        }
-
-        guard !Task.isCancelled,
-              hasHomeAssistantSession,
-              !stateStore.hasLoadedInitialSnapshot,
-              homeAssistantService.hasCompletedInitialCacheLoad,
-              !homeAssistantService.isLoadingCachedStates else {
-            return
-        }
-
-        showsInitialSyncPlaceholder = true
+        return homeAssistantService.hasCompletedInitialCacheLoad
+            && !homeAssistantService.isLoadingCachedStates
     }
     
     private var visibleDashboardItems: [DashboardItemConfiguration] {
