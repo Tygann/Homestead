@@ -99,7 +99,9 @@ final class HomeAssistantService {
         self.stateCache = stateCache
         self.networkContext = networkContext
         self.automaticallyRegistersMobileApp = automaticallyRegistersMobileApp
-        self.connectionStatus = connectionStatus
+        self.connectionStatus = connectionStatus == .disconnected && authState.isSignedIn
+            ? .preparing
+            : connectionStatus
         self.authState = authState
         self.hasKnownSession = authState.isSignedIn
         refreshMobileAppRegistrationState()
@@ -158,7 +160,6 @@ final class HomeAssistantService {
         currentConnectionSettings = settings
         let configuration: HAConnectionConfiguration?
         do {
-            await refreshCurrentWiFiSSIDIfNeeded(settings: settings)
             let selection = routeSelection(for: settings)
             configuration = try await authManager
                 .storedConfiguration(baseURLString: selection.authenticationBaseURLString)?

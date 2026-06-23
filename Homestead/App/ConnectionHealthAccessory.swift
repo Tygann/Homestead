@@ -13,6 +13,7 @@ nonisolated struct AppStatusAccessoryState: Equatable {
     let systemImage: String
     let style: Style
     let canRetry: Bool
+    private static let freshCacheAccessoryGrace: TimeInterval = 120
 
     init(
         title: String,
@@ -118,6 +119,9 @@ nonisolated struct AppStatusAccessoryState: Equatable {
             guard !suppressCached else {
                 return nil
             }
+            guard shouldShowCachedAccessory(lastUpdated: date) else {
+                return nil
+            }
 
             return cached(lastUpdated: date)
         case .stale(_, let lastUpdated):
@@ -125,6 +129,14 @@ nonisolated struct AppStatusAccessoryState: Equatable {
         case .empty, .refreshing, .live:
             return nil
         }
+    }
+
+    private static func shouldShowCachedAccessory(lastUpdated: Date?) -> Bool {
+        guard let lastUpdated else {
+            return true
+        }
+
+        return Date().timeIntervalSince(lastUpdated) >= freshCacheAccessoryGrace
     }
 
     static func cached(lastUpdated: Date?) -> AppStatusAccessoryState {

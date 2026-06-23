@@ -34,10 +34,16 @@ struct ConnectionPresentationTests {
             dataFreshness: .cached(Date(timeIntervalSinceNow: -60))
         ) == nil)
 
-        let cachedState = AppStatusAccessoryState.make(
+        #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .connected,
             dataFreshness: .cached(Date(timeIntervalSinceNow: -60))
+        ) == nil)
+
+        let cachedState = AppStatusAccessoryState.make(
+            hasHomeAssistantSession: true,
+            connectionStatus: .connected,
+            dataFreshness: .cached(Date(timeIntervalSinceNow: -180))
         )
         #expect(cachedState?.title == "Showing cached state")
         #expect(cachedState?.message.contains("Last updated") == true)

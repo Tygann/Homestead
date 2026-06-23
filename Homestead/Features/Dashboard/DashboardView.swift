@@ -180,9 +180,7 @@ struct DashboardView: View {
     @MainActor
     private func updateInitialSyncPlaceholderVisibility() async {
         guard hasHomeAssistantSession,
-              !stateStore.hasLoadedInitialSnapshot,
-              homeAssistantService.hasCompletedInitialCacheLoad,
-              !homeAssistantService.isLoadingCachedStates else {
+              !stateStore.hasLoadedInitialSnapshot else {
             showsInitialSyncPlaceholder = false
             return
         }
@@ -190,16 +188,14 @@ struct DashboardView: View {
         showsInitialSyncPlaceholder = false
 
         do {
-            try await Task.sleep(for: .milliseconds(220))
+            try await Task.sleep(for: .milliseconds(80))
         } catch {
             return
         }
 
         guard !Task.isCancelled,
               hasHomeAssistantSession,
-              !stateStore.hasLoadedInitialSnapshot,
-              homeAssistantService.hasCompletedInitialCacheLoad,
-              !homeAssistantService.isLoadingCachedStates else {
+              !stateStore.hasLoadedInitialSnapshot else {
             return
         }
 
