@@ -11,6 +11,7 @@ struct DashboardSummaryView: View {
     @State private var isLoadingSecurityActivity = false
     @State private var securityActivityErrorMessage: String?
     @State private var lastSecurityActivityLoadAt: Date?
+    @State private var visibleOrder = DashboardSummaryVisibleOrder()
     @Namespace private var cardTransitionNamespace
 
     let kind: DashboardSummaryKind
@@ -48,6 +49,16 @@ struct DashboardSummaryView: View {
         .homesteadWallpaperBackground()
         .navigationTitle(detail?.summary.title ?? kind.title)
         .toolbarTitleDisplayMode(.inline)
+        .onAppear {
+            reconcileVisibleOrder(with: detail)
+        }
+        .onChange(of: kind) { _, _ in
+            visibleOrder.reset()
+            reconcileVisibleOrder(with: detail)
+        }
+        .onChange(of: detail) { _, newDetail in
+            reconcileVisibleOrder(with: newDetail)
+        }
         .navigationDestination(item: $selectedEntityDetailRoute) { route in
             if let entityBox = stateStore.entityBox(for: route.entityID) {
                 EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
@@ -158,8 +169,10 @@ struct DashboardSummaryView: View {
                                     )
                                 }
 
+                                let sectionItems = visibleOrder.items(in: section)
+
                                 CardGrid {
-                                    ForEach(section.items) { item in
+                                    ForEach(sectionItems) { item in
                                         let entityBox = stateStore.entityBox(for: item.entityID)
                                         let size = cardSize(for: entityBox)
 
@@ -220,6 +233,15 @@ struct DashboardSummaryView: View {
             from: stateStore.allEntityBoxes(),
             context: stateStore.dashboardSummaryMembershipContext()
         )
+    }
+
+    private func reconcileVisibleOrder(with detail: DashboardSummaryDetailPresentation?) {
+        guard let detail else {
+            visibleOrder.reset()
+            return
+        }
+
+        visibleOrder.reconcile(with: detail)
     }
 
     private func securityActivityTaskID(for detail: DashboardSummaryDetailPresentation?) -> String {

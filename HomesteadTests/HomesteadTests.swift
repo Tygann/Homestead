@@ -9160,52 +9160,104 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func summaryDetailItemOrderDoesNotChangeWithStatus() throws {
+    @Test func summaryVisibleOrderKeepsItemsStableAcrossStatusChanges() throws {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(
-                entityID: "light.kitchen_island",
+                entityID: "light.same_name_zeta",
+                state: "off",
+                attributes: ["friendly_name": .string("Shared Name")]
+            ),
+            HAEntityDTO(
+                entityID: "light.alpha",
                 state: "on",
-                attributes: ["friendly_name": .string("Kitchen Island Light")]
+                attributes: ["friendly_name": .string("Alpha")]
             ),
             HAEntityDTO(
-                entityID: "light.kitchen_breakfast",
-                state: "off",
-                attributes: ["friendly_name": .string("Kitchen Breakfast Chandelier")]
+                entityID: "light.gamma",
+                state: "on",
+                attributes: ["friendly_name": .string("Gamma")]
             ),
             HAEntityDTO(
-                entityID: "light.kitchen_lights",
+                entityID: "light.same_name_beta",
                 state: "off",
-                attributes: ["friendly_name": .string("Kitchen Lights")]
+                attributes: ["friendly_name": .string("Shared Name")]
             )
         ])
+        let suiteName = "com.tyler.Homestead.summary.order.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
+        dashboardConfiguration.add("light.same_name_zeta")
+        dashboardConfiguration.add("light.gamma")
+        dashboardConfiguration.add("light.same_name_beta")
+        dashboardConfiguration.add("light.alpha")
 
         let initialDetail = try #require(DashboardSummaryProvider.makeDetail(
             kind: .lights,
             entityBoxes: store.allEntityBoxes(),
             areaNameForEntityID: { _ in "Kitchen" }
         ))
+        var visibleOrder = DashboardSummaryVisibleOrder()
+        visibleOrder.reconcile(with: initialDetail)
+        let initialSection = try #require(initialDetail.sections.first)
+        let initialEntityIDs = visibleOrder.items(in: initialSection).map(\.entityID)
+
+        #expect(initialEntityIDs == [
+            "light.alpha",
+            "light.gamma",
+            "light.same_name_beta",
+            "light.same_name_zeta"
+        ])
 
         store.applyLiveStateUpdates([
             HAEntityDTO(
-                entityID: "light.kitchen_island",
-                state: "off",
-                attributes: ["friendly_name": .string("Kitchen Island Light")]
+                entityID: "light.same_name_zeta",
+                state: "on",
+                attributes: ["friendly_name": .string("Shared Name")]
             ),
             HAEntityDTO(
-                entityID: "light.kitchen_breakfast",
-                state: "on",
-                attributes: ["friendly_name": .string("Kitchen Breakfast Chandelier")]
+                entityID: "light.alpha",
+                state: "off",
+                attributes: ["friendly_name": .string("Alpha")]
+            ),
+            HAEntityDTO(
+                entityID: "light.gamma",
+                state: "unavailable",
+                attributes: ["friendly_name": .string("Gamma")]
+            ),
+            HAEntityDTO(
+                entityID: "light.same_name_beta",
+                state: "off",
+                attributes: ["friendly_name": .string("Shared Name")]
             )
         ])
+        dashboardConfiguration.remove("light.gamma")
+        dashboardConfiguration.add("light.gamma")
+        dashboardConfiguration.move(from: IndexSet(integer: 0), to: dashboardConfiguration.items.count)
 
         let updatedDetail = try #require(DashboardSummaryProvider.makeDetail(
             kind: .lights,
             entityBoxes: store.allEntityBoxes(),
             areaNameForEntityID: { _ in "Kitchen" }
         ))
+        let reopenedDetail = try #require(DashboardSummaryProvider.makeDetail(
+            kind: .lights,
+            entityBoxes: store.allEntityBoxes(),
+            areaNameForEntityID: { _ in "Kitchen" }
+        ))
 
-        #expect(updatedDetail.sections.first?.items.map(\.entityID) == initialDetail.sections.first?.items.map(\.entityID))
+        visibleOrder.reconcile(with: updatedDetail)
+        let updatedSection = try #require(updatedDetail.sections.first)
+        let visibleItems = visibleOrder.items(in: updatedSection)
+
+        #expect(visibleItems.map(\.entityID) == initialEntityIDs)
+        #expect(reopenedDetail.sections.first?.items.map(\.entityID) == initialEntityIDs)
+        #expect(visibleItems.first { $0.entityID == "light.same_name_zeta" }?.isActive == true)
+        #expect(visibleItems.first { $0.entityID == "light.alpha" }?.isActive == false)
+        #expect(visibleItems.first { $0.entityID == "light.gamma" }?.isAvailable == false)
+        #expect(updatedDetail.summary.value == "1 On")
     }
 
     @MainActor

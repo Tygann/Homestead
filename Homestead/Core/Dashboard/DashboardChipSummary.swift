@@ -154,12 +154,48 @@ struct DashboardSummaryEntityPresentation: Identifiable, Equatable, Sendable {
     let visualStyle: DashboardSummaryEntityVisualStyle
     let isActive: Bool
     let isAvailable: Bool
-    let sortPriority: Int
-    let sortGroup: Int
     let primaryAction: DashboardEntityPrimaryAction?
 
     var id: String { entityID }
     var systemImage: String { icon.sfSymbolName }
+}
+
+struct DashboardSummaryVisibleOrder: Equatable, Sendable {
+    private var entityIDsBySectionID: [String: [String]] = [:]
+
+    mutating func reset() {
+        entityIDsBySectionID = [:]
+    }
+
+    mutating func reconcile(with detail: DashboardSummaryDetailPresentation) {
+        let currentSectionIDs = Set(detail.sections.map(\.id))
+
+        entityIDsBySectionID = entityIDsBySectionID.filter { currentSectionIDs.contains($0.key) }
+
+        for section in detail.sections {
+            let currentEntityIDs = section.items.map(\.entityID)
+            let currentEntityIDSet = Set(currentEntityIDs)
+            var orderedEntityIDs = entityIDsBySectionID[section.id, default: currentEntityIDs]
+                .filter { currentEntityIDSet.contains($0) }
+
+            for entityID in currentEntityIDs where !orderedEntityIDs.contains(entityID) {
+                orderedEntityIDs.append(entityID)
+            }
+
+            entityIDsBySectionID[section.id] = orderedEntityIDs
+        }
+    }
+
+    func items(
+        in section: DashboardSummarySectionPresentation
+    ) -> [DashboardSummaryEntityPresentation] {
+        guard let entityIDs = entityIDsBySectionID[section.id] else {
+            return section.items
+        }
+
+        let itemsByEntityID = Dictionary(uniqueKeysWithValues: section.items.map { ($0.entityID, $0) })
+        return entityIDs.compactMap { itemsByEntityID[$0] }
+    }
 }
 
 @MainActor
@@ -453,20 +489,11 @@ enum DashboardSummaryProvider {
 
     private static func lightItem(for entityBox: HAEntityState) -> DashboardSummaryEntityPresentation {
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
-        let sortPriority: Int
-        if presentation.isActive {
-            sortPriority = 0
-        } else if !presentation.isAvailable {
-            sortPriority = 1
-        } else {
-            sortPriority = 2
-        }
 
         return summaryItem(
             entityBox: entityBox,
             presentation: presentation,
-            detail: entityBox.lightEntity?.brightnessPercentage.map { "\($0)% brightness" },
-            sortPriority: sortPriority
+            detail: entityBox.lightEntity?.brightnessPercentage.map { "\($0)% brightness" }
         )
     }
 
@@ -490,20 +517,11 @@ enum DashboardSummaryProvider {
 
     private static func securityItem(for context: SecurityContext) -> DashboardSummaryEntityPresentation {
         let presentation = DashboardEntityPresentation(entityBox: context.entityBox)
-        let sortPriority: Int
-        if context.isIssue {
-            sortPriority = context.issueKind.sortPriority
-        } else if !context.entityBox.homeEntity.isAvailable {
-            sortPriority = 10
-        } else {
-            sortPriority = 20
-        }
 
         return summaryItem(
             entityBox: context.entityBox,
             presentation: presentation,
-            detail: context.detail,
-            sortPriority: sortPriority
+            detail: context.detail
         )
     }
 
@@ -523,20 +541,11 @@ enum DashboardSummaryProvider {
 
     private static func climateItem(for entityBox: HAEntityState) -> DashboardSummaryEntityPresentation {
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
-        let sortPriority: Int
-        if isClimateActive(entityBox) {
-            sortPriority = 0
-        } else if !presentation.isAvailable {
-            sortPriority = 1
-        } else {
-            sortPriority = 2
-        }
 
         return summaryItem(
             entityBox: entityBox,
             presentation: presentation,
-            detail: climateDetail(for: entityBox),
-            sortPriority: sortPriority
+            detail: climateDetail(for: entityBox)
         )
     }
 
@@ -562,20 +571,11 @@ enum DashboardSummaryProvider {
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
         let sensor = entityBox.sensorEntity
         let binarySensor = entityBox.binarySensorEntity
-        let sortPriority: Int
-        if isMaintenanceIssue(entityBox, membershipContext: membershipContext) {
-            sortPriority = 0
-        } else if !entityBox.homeEntity.isAvailable {
-            sortPriority = 1
-        } else {
-            sortPriority = 2
-        }
 
         return summaryItem(
             entityBox: entityBox,
             presentation: presentation,
-            detail: sensor?.formattedValue ?? binarySensor?.displaySubtitle,
-            sortPriority: sortPriority
+            detail: sensor?.formattedValue ?? binarySensor?.displaySubtitle
         )
     }
 
@@ -597,28 +597,18 @@ enum DashboardSummaryProvider {
     private static func mediaItem(for entityBox: HAEntityState) -> DashboardSummaryEntityPresentation {
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
         let mediaPlayer = entityBox.mediaPlayerEntity
-        let sortPriority: Int
-        if mediaPlayer?.isPlaying == true {
-            sortPriority = 0
-        } else if mediaPlayer?.isAvailable == false {
-            sortPriority = 1
-        } else {
-            sortPriority = 2
-        }
 
         return summaryItem(
             entityBox: entityBox,
             presentation: presentation,
-            detail: mediaPlayer?.source ?? mediaPlayer?.volumePercentage.map { "\($0)% volume" },
-            sortPriority: sortPriority
+            detail: mediaPlayer?.source ?? mediaPlayer?.volumePercentage.map { "\($0)% volume" }
         )
     }
 
     private static func summaryItem(
         entityBox: HAEntityState,
         presentation: DashboardEntityPresentation,
-        detail: String?,
-        sortPriority: Int
+        detail: String?
     ) -> DashboardSummaryEntityPresentation {
         DashboardSummaryEntityPresentation(
             entityID: entityBox.entityID,
@@ -630,8 +620,6 @@ enum DashboardSummaryProvider {
             visualStyle: entityBox.domain == .camera ? .camera : .row,
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable,
-            sortPriority: sortPriority,
-            sortGroup: summarySortGroup(for: entityBox.domain),
             primaryAction: presentation.primaryAction
         )
     }
@@ -717,45 +705,12 @@ enum DashboardSummaryProvider {
 
     private static func sortedItems(_ items: [DashboardSummaryEntityPresentation]) -> [DashboardSummaryEntityPresentation] {
         items.sorted { lhs, rhs in
-            if lhs.sortGroup != rhs.sortGroup {
-                return lhs.sortGroup < rhs.sortGroup
-            }
-
-            if lhs.sortPriority != rhs.sortPriority {
-                return lhs.sortPriority < rhs.sortPriority
-            }
-
             let titleComparison = lhs.title.localizedCaseInsensitiveCompare(rhs.title)
             if titleComparison != .orderedSame {
                 return titleComparison == .orderedAscending
             }
 
             return lhs.entityID.localizedCaseInsensitiveCompare(rhs.entityID) == .orderedAscending
-        }
-    }
-
-    private static func summarySortGroup(for domain: EntityDomain) -> Int {
-        switch domain {
-        case .binarySensor, .cover:
-            0
-        case .lock:
-            1
-        case .alarmControlPanel, .siren:
-            2
-        case .climate:
-            3
-        case .fan:
-            4
-        case .light:
-            5
-        case .mediaPlayer:
-            6
-        case .camera, .image:
-            7
-        case .sensor:
-            8
-        default:
-            20
         }
     }
 
@@ -980,10 +935,6 @@ fileprivate enum SecurityIssueKind {
         case .alarm:
             "alert"
         }
-    }
-
-    var sortPriority: Int {
-        Self.summaryPriority.firstIndex(of: self) ?? Self.summaryPriority.count
     }
 }
 
