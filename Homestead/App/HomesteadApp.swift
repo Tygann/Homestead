@@ -18,8 +18,9 @@ struct HomesteadApp: App {
     @State private var setupCoordinator: HomesteadSetupCoordinator
 
     init() {
+        let tokenStore = KeychainHAOAuthTokenStore()
         let stateStore = HAStateStore()
-        let connectionSettings = HAConnectionSettings()
+        let connectionSettings = HAConnectionSettings(tokenStore: tokenStore)
         let nativeNotificationService = NativeNotificationService()
         let nativePermissionService = NativePermissionService()
         let actionConfirmationSettings = ActionConfirmationSettings()
@@ -30,7 +31,9 @@ struct HomesteadApp: App {
         let setupCoordinator = HomesteadSetupCoordinator()
         let homeAssistantService = HomeAssistantService(
             stateStore: stateStore,
-            nativeNotificationService: nativeNotificationService
+            authState: HAOAuthManager.status(tokenStore: tokenStore),
+            nativeNotificationService: nativeNotificationService,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
         )
 
         _stateStore = State(initialValue: stateStore)

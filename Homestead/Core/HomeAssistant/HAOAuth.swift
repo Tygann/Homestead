@@ -275,6 +275,13 @@ actor HAOAuthManager {
     }
 
     func status() -> HAAuthState {
+        Self.status(tokenStore: tokenStore, now: now)
+    }
+
+    nonisolated static func status(
+        tokenStore: any HAOAuthTokenStore,
+        now: @escaping @Sendable () -> Date = Date.init
+    ) -> HAAuthState {
         do {
             guard let credential = try tokenStore.readCredential() else {
                 return .signedOut

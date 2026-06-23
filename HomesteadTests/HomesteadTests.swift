@@ -126,6 +126,32 @@ struct HomesteadTests {
         #expect(presentation.statusTitle == "Connecting")
     }
 
+    @Test func onboardingPresentationSuppressesSetupFromStoredLaunchSession() {
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: HAOAuthCredential(
+                baseURLString: "http://homeassistant.local:8123",
+                clientID: HAOAuthClientMetadata.clientID,
+                refreshToken: "refresh-token",
+                accessToken: "access-token",
+                accessTokenExpiresAt: .distantFuture,
+                tokenType: "Bearer",
+                updatedAt: .now
+            )
+        )
+        let authState = HAOAuthManager.status(tokenStore: tokenStore)
+        let presentation = HomeAssistantOnboardingPresentation.make(
+            hasServerURL: true,
+            hasKnownSession: authState.isSignedIn,
+            authState: authState,
+            connectionStatus: .disconnected,
+            serviceError: nil,
+            storageError: nil
+        )
+
+        #expect(authState.isSignedIn)
+        #expect(!presentation.shouldShow)
+    }
+
     @Test func serviceFeedbackDurationMatchesOutcomeSeverity() {
         let successFeedback = HAServiceFeedback(title: "Done", message: nil, style: .success)
         let failureFeedback = HAServiceFeedback(title: "Failed", message: nil, style: .failure)
