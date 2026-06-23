@@ -113,8 +113,7 @@ final class HomeAssistantService {
               authState.isSignedIn,
               connectionStatus != .connected,
               connectionStatus != .connecting,
-              connectionStatus != .reconnecting,
-              !isLoadingCachedStates else {
+              connectionStatus != .reconnecting else {
             return
         }
 
@@ -1757,6 +1756,9 @@ final class HomeAssistantService {
         guard let snapshot = await stateCache.load(for: configuration), !snapshot.entities.isEmpty else {
             stateCacheMetadata = nil
             dataFreshness = .empty
+            return
+        }
+        guard !stateStore.hasLoadedInitialSnapshot else {
             return
         }
 

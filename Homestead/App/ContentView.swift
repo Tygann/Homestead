@@ -33,15 +33,24 @@ struct ContentView: View {
             serviceError: homeAssistantService.lastErrorMessage,
             storageError: connectionSettings.authStorageErrorMessage
         )
+        let hasSignedInSession = connectionSettings.hasServerURL && homeAssistantService.hasKnownSession
+        let shouldShowICloudRestore: Bool = {
+            guard case .restoreAvailable = iCloudSyncService.bootstrapState else {
+                return false
+            }
+
+            return !hasSignedInSession
+        }()
 
         Group {
-            if case .restoreAvailable(let summary) = iCloudSyncService.bootstrapState {
+            if shouldShowICloudRestore,
+               case .restoreAvailable(let summary) = iCloudSyncService.bootstrapState {
                 ICloudSetupRestoreView(
                     summary: summary,
                     restore: restoreFromICloud,
                     setUpAnotherHome: setUpAnotherHome
                 )
-            } else if setupCoordinator.phase != .ready {
+            } else if setupCoordinator.phase != .ready, !hasSignedInSession {
                 LaunchContinuityView()
             } else if onboarding.shouldShow {
                 HomeAssistantOnboardingView(
@@ -90,7 +99,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
-                guard setupCoordinator.phase == .ready else { return }
+                guard setupCoordinator.phase == .ready || hasSignedInSession else { return }
                 homeAssistantService.applicationWillEnterForeground()
                 Task { await homeAssistantService.resume(settings: connectionSettings) }
             case .background:
@@ -347,7 +356,7 @@ struct SettingsAccountButton: View {
 
 private struct LaunchContinuityView: View {
     var body: some View {
-        Color(.systemGroupedBackground)
+        Color("LaunchBackground")
             .ignoresSafeArea()
     }
 }

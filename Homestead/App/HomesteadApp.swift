@@ -35,6 +35,11 @@ struct HomesteadApp: App {
             nativeNotificationService: nativeNotificationService,
             authManager: HAOAuthManager(tokenStore: tokenStore)
         )
+        if connectionSettings.hasServerURL, homeAssistantService.hasKnownSession {
+            Task { @MainActor in
+                await homeAssistantService.loadCachedStatesIfPossible(settings: connectionSettings)
+            }
+        }
 
         _stateStore = State(initialValue: stateStore)
         _connectionSettings = State(initialValue: connectionSettings)
