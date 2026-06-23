@@ -58,6 +58,43 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1.0 (Build 14)
+
+- Release Date: 2026-06-23
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This update focuses on faster, calmer startup and reconnect behavior, with more stable dashboard summaries and extra polish across widgets, cameras, wallpapers, and setup.
+
+What's new:
+
+- Cached Home Assistant state now appears sooner at launch, so the app can show your dashboard while it reconnects
+- Homestead now retries cold-launch connection setup automatically when the first attempt hits a transient failure
+- Dashboard summary chips and summary views now keep a more stable Home Assistant-style order
+- Sensor gauge widgets now support the same glanceable gauge presentation used in the app
+
+Improvements:
+
+- Reduced startup flicker, including unnecessary onboarding flashes and transient reconnect banners
+- Improved dashboard summary performance and reduced repeated summary recalculation
+- Camera previews and authenticated Home Assistant images are more resilient during temporary snapshot or network failures
+- Areas and area details better match Home Assistant's floor, area, and device organization
+- Wallpaper card controls, area chips, climate controls, sliders, and widget snapshots received visual and reliability polish
+- OAuth sign-in, mobile app registration naming, and visible error wording are more consistent
+
+Please test:
+
+- Launching the app from a signed-in cold start, especially after force quit or poor network conditions
+- Cached dashboard behavior while Home Assistant reconnects
+- Dashboard summary chip ordering, summary detail views, and Areas organization
+- Camera cards, image-heavy views, and sensor gauge widgets
+- Setup/sign-in retry behavior and Account connection status wording
+
+### Internal Summary
+
+Build 14 covers the June 16-23 reliability, startup, dashboard, widget, image, and area-organization pass after Build 13: cached launch hydration before the first signed-in frame, automatic cold-launch retry, suppressed transient reconnect chrome, fallback/error presentation cleanup, dashboard summary workspace reuse and stable ordering, dashboard history caching, camera snapshot hardening, Home Assistant image caching, iOS 27 AsyncImage adoption where available, sensor gauge widgets, Home Assistant-style area sectioning, OAuth sign-in correction, mobile-app registration naming refinements, and targeted wallpaper/dashboard visual polish.
+
 ## Version 1.0 (Build 13)
 
 - Release Date: 2026-06-15
