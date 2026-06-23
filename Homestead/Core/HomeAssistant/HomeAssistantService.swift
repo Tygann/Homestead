@@ -187,6 +187,26 @@ final class HomeAssistantService {
         await applyCachedStatesIfAvailable(for: configuration)
     }
 
+    func restoreCachedStatesSynchronouslyIfPossible(
+        settings: HAConnectionSettings,
+        tokenStore: any HAOAuthTokenStore,
+        cacheDirectoryURL: URL? = nil
+    ) {
+        currentConnectionSettings = settings
+        authState = HAOAuthManager.status(tokenStore: tokenStore)
+
+        guard settings.hasServerURL,
+              !stateStore.hasLoadedInitialSnapshot,
+              let configuration = cachedConfiguration(settings: settings, tokenStore: tokenStore),
+              let snapshot = HAStateCache.loadSynchronously(for: configuration, directoryURL: cacheDirectoryURL),
+              !snapshot.entities.isEmpty else {
+            return
+        }
+
+        applyCachedSnapshot(snapshot, configuration: configuration)
+        hasCompletedInitialCacheLoad = true
+    }
+
     func connect(baseURLString: String) async {
         await connect(routeSelection: HAConnectionRouteResolver.explicit(baseURLString: baseURLString))
     }
@@ -1765,16 +1785,27 @@ final class HomeAssistantService {
         #if DEBUG
         let startDate = Date()
         #endif
-        stateStore.applySnapshot(snapshot.entities, dataSourceID: configuration.dataSourceID)
-        applyCachedCurrentUser(snapshot.currentUser)
-        if let registryMetadata = snapshot.registryMetadata {
-            stateStore.applyRegistryMetadata(registryMetadata)
-        }
+        applyCachedSnapshot(snapshot, configuration: configuration)
         #if DEBUG
         print(
             "Home Assistant cached snapshot applied: \(snapshot.entities.count) entities in \(String(format: "%.3f", Date().timeIntervalSince(startDate)))s"
         )
         #endif
+    }
+
+    private func applyCachedSnapshot(
+        _ snapshot: HAStateCacheSnapshot,
+        configuration: HAConnectionConfiguration
+    ) {
+        if stateStore.dataSourceID != configuration.dataSourceID {
+            stateStore.replaceDataSourceIfNeeded(configuration.dataSourceID)
+            stateCacheMetadata = nil
+        }
+        if let registryMetadata = snapshot.registryMetadata {
+            stateStore.applyRegistryMetadata(registryMetadata)
+        }
+        stateStore.applySnapshot(snapshot.entities)
+        applyCachedCurrentUser(snapshot.currentUser)
         stateCacheMetadata = HAStateCacheMetadata(
             scopeIdentifier: HAStateCache.cacheScopeIdentifier(for: configuration),
             savedAt: snapshot.savedAt,
@@ -1785,6 +1816,32 @@ final class HomeAssistantService {
             floorRegistryCount: snapshot.registryMetadata?.floors.count
         )
         dataFreshness = .cached(snapshot.savedAt)
+    }
+
+    private func cachedConfiguration(
+        settings: HAConnectionSettings,
+        tokenStore: any HAOAuthTokenStore
+    ) -> HAConnectionConfiguration? {
+        guard let credential = try? tokenStore.readCredential() else {
+            return nil
+        }
+
+        let selection = routeSelection(for: settings)
+        let authenticationConfiguration = HAConnectionConfiguration(
+            baseURLString: credential.baseURLString,
+            accessToken: credential.accessToken
+        )
+        let selectedAuthenticationConfiguration = HAConnectionConfiguration(
+            baseURLString: selection.authenticationBaseURLString,
+            accessToken: credential.accessToken
+        )
+        guard authenticationConfiguration.dataSourceID == selectedAuthenticationConfiguration.dataSourceID else {
+            return nil
+        }
+
+        return authenticationConfiguration.routed(
+            to: selection.preferredCandidate?.baseURLString ?? selection.authenticationBaseURLString
+        )
     }
 
     private func staleFreshness(_ errorMessage: String?, lastUpdated: Date? = nil) -> HADataFreshness {

@@ -42,6 +42,26 @@ actor HAStateCache {
         }
     }
 
+    nonisolated static func loadSynchronously(
+        for configuration: HAConnectionConfiguration,
+        directoryURL: URL? = nil
+    ) -> HAStateCacheSnapshot? {
+        do {
+            let url = try cacheURL(for: configuration, directoryURL: directoryURL)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                return nil
+            }
+
+            let data = try Data(contentsOf: url)
+            return try makeDecoder().decode(HAStateCacheSnapshot.self, from: data)
+        } catch {
+            #if DEBUG
+            print("Home Assistant state cache synchronous load failed: \(error.localizedDescription)")
+            #endif
+            return nil
+        }
+    }
+
     func metadata(for configuration: HAConnectionConfiguration) async -> HAStateCacheMetadata? {
         do {
             let url = try cacheURL(for: configuration)
@@ -115,6 +135,35 @@ actor HAStateCache {
         )
         .appendingPathComponent("Homestead", isDirectory: true)
         .appendingPathComponent("HomeAssistantStateCache", isDirectory: true)
+    }
+
+    private nonisolated static func cacheURL(
+        for configuration: HAConnectionConfiguration,
+        directoryURL: URL?
+    ) throws -> URL {
+        try cacheDirectoryURL(directoryURL: directoryURL)
+            .appendingPathComponent(cacheFileName(for: configuration), isDirectory: false)
+    }
+
+    private nonisolated static func cacheDirectoryURL(directoryURL: URL?) throws -> URL {
+        if let directoryURL {
+            return directoryURL
+        }
+
+        return try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        .appendingPathComponent("Homestead", isDirectory: true)
+        .appendingPathComponent("HomeAssistantStateCache", isDirectory: true)
+    }
+
+    private nonisolated static func makeDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
     }
 
     static func cacheFileName(for configuration: HAConnectionConfiguration) -> String {

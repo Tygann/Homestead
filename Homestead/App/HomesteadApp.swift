@@ -36,8 +36,14 @@ struct HomesteadApp: App {
             authManager: HAOAuthManager(tokenStore: tokenStore)
         )
         if connectionSettings.hasServerURL, homeAssistantService.hasKnownSession {
-            Task { @MainActor in
-                await homeAssistantService.loadCachedStatesIfPossible(settings: connectionSettings)
+            homeAssistantService.restoreCachedStatesSynchronouslyIfPossible(
+                settings: connectionSettings,
+                tokenStore: tokenStore
+            )
+            if !stateStore.hasLoadedInitialSnapshot {
+                Task { @MainActor in
+                    await homeAssistantService.loadCachedStatesIfPossible(settings: connectionSettings)
+                }
             }
         }
 

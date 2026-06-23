@@ -7453,6 +7453,74 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func homeAssistantServiceCanRestoreCachedStatesSynchronouslyForLaunch() async throws {
+        let cacheDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HomesteadSynchronousLaunchCacheTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+        let cache = HAStateCache(directoryURL: cacheDirectory)
+        let configuration = HAConnectionConfiguration(
+            baseURLString: "http://homeassistant.local:8123",
+            accessToken: "token-a"
+        )
+        let entities = [
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["friendly_name": .string("Kitchen")]
+            )
+        ]
+        let registryMetadata = HARegistryMetadataSnapshot(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "light.kitchen",
+                    deviceID: "kitchen-device",
+                    originalName: "Kitchen"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "kitchen-device", name: "Kitchen Lamp", areaID: "kitchen")
+            ],
+            areas: [
+                HAAreaRegistryDTO(id: "kitchen", name: "Kitchen")
+            ]
+        )
+
+        await cache.save(entities, registryMetadata: registryMetadata, for: configuration)
+
+        let store = HAStateStore()
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: "homeassistant.local:8123", accessToken: "token-a")
+        )
+        let service = HomeAssistantService(
+            stateStore: store,
+            stateCache: cache,
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "homeassistant.local:8123",
+            tokenStore: tokenStore
+        )
+
+        service.restoreCachedStatesSynchronouslyIfPossible(
+            settings: settings,
+            tokenStore: tokenStore,
+            cacheDirectoryURL: cacheDirectory
+        )
+
+        #expect(store.hasLoadedInitialSnapshot == true)
+        #expect(store.entity(for: "light.kitchen")?.state == "on")
+        #expect(store.areaName(for: "light.kitchen") == "Kitchen")
+        #expect(service.stateCacheMetadata?.entityCount == 1)
+        #expect(service.hasCompletedInitialCacheLoad == true)
+        if case .cached = service.dataFreshness {
+            // Expected cached-first launch state before SwiftUI renders.
+        } else {
+            Issue.record("Expected synchronous cached data freshness before launch rendering.")
+        }
+    }
+
+    @MainActor
     @Test func homeAssistantServiceCanApplyCachedStatesBeforeConnecting() async throws {
         let cacheDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("HomesteadServiceCacheTests-\(UUID().uuidString)", isDirectory: true)
