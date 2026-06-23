@@ -7649,6 +7649,60 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func cachedColdLaunchReconnectSuppressesTransientConnectionHealth() async throws {
+        let cacheDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HomesteadCachedReconnectGraceTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+        let cache = HAStateCache(directoryURL: cacheDirectory)
+        let configuration = HAConnectionConfiguration(
+            baseURLString: "http://homeassistant.local:8123",
+            accessToken: "token-a"
+        )
+        let cachedLight = HAEntityDTO(
+            entityID: "light.kitchen",
+            state: "on",
+            attributes: ["friendly_name": .string("Kitchen")]
+        )
+        await cache.save([cachedLight], for: configuration)
+
+        let store = HAStateStore()
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: "homeassistant.local:8123", accessToken: "token-a")
+        )
+        let client = StubHAWebSocketClient(states: [cachedLight])
+        client.connectResults = [
+            .failure(HAWebSocketError.transportFailure("Network route is still warming up.")),
+            .success(())
+        ]
+        let service = HomeAssistantService(
+            stateStore: store,
+            client: client,
+            stateCache: cache,
+            authState: HAOAuthManager.status(tokenStore: tokenStore),
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            automaticallyRegistersMobileApp: false
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "homeassistant.local:8123",
+            tokenStore: tokenStore
+        )
+
+        await service.connectIfPossible(settings: settings)
+
+        #expect(store.entity(for: "light.kitchen")?.state == "on")
+        #expect(service.connectionStatus == .reconnecting)
+        #expect(service.suppressesTransientConnectionHealth == true)
+
+        try await waitUntil(timeout: .seconds(2)) {
+            service.connectionStatus == .connected
+        }
+
+        #expect(service.suppressesTransientConnectionHealth == false)
+        #expect(client.connectConfigurations.count == 2)
+    }
+
+    @MainActor
     @Test func stateStoreScopesSnapshotsByConnectionDataSource() throws {
         let store = HAStateStore()
         let firstConfiguration = HAConnectionConfiguration(

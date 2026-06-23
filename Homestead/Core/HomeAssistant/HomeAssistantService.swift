@@ -285,6 +285,7 @@ final class HomeAssistantService {
                 )
                 refreshMobileAppRegistrationState(for: connectedConfiguration)
                 lastErrorMessage = nil
+                endConnectionHealthGrace()
                 connectionStatus = .connected
                 dataFreshness = .refreshing(lastUpdated: dataFreshness.lastKnownUpdateDate)
                 startStateSync(configuration: connectedConfiguration)
@@ -1854,6 +1855,7 @@ final class HomeAssistantService {
 
     private func failConnection(with error: Error) {
         shouldReconnect = false
+        endConnectionHealthGrace()
         let rawMessage = error.localizedDescription
         lastErrorMessage = rawMessage
         authState = authFailureState(for: error)
@@ -2535,6 +2537,7 @@ final class HomeAssistantService {
         Task {
             await stateEventBatcher.discardPendingUpdates()
         }
+        beginConnectionHealthGraceIfCachedContentVisible()
         connectionStatus = .reconnecting
         reconnectTask = Task { [weak self] in
             await self?.runReconnectLoop(configuration: configuration)
@@ -2588,6 +2591,7 @@ final class HomeAssistantService {
                 } ?? activeRouteSummary
                 refreshMobileAppRegistrationState(for: connectedConfiguration)
                 lastErrorMessage = nil
+                endConnectionHealthGrace()
                 connectionStatus = .connected
                 reconnectTask = nil
                 dataFreshness = .refreshing(lastUpdated: dataFreshness.lastKnownUpdateDate)
@@ -2602,6 +2606,7 @@ final class HomeAssistantService {
                 guard HAConnectionRecoveryPolicy.shouldReconnectSocket(after: error) else {
                     shouldReconnect = false
                     authState = authFailureState(for: error)
+                    endConnectionHealthGrace()
                     connectionStatus = .failed(HAConnectionIssuePresentation.message(for: error))
                     break
                 }
@@ -2634,6 +2639,14 @@ final class HomeAssistantService {
             self?.suppressesTransientConnectionHealth = false
             self?.connectionHealthGraceTask = nil
         }
+    }
+
+    private func beginConnectionHealthGraceIfCachedContentVisible() {
+        guard dataFreshness.isUsable else {
+            return
+        }
+
+        beginConnectionHealthGrace()
     }
 
     private func endConnectionHealthGrace() {
