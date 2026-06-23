@@ -126,6 +126,29 @@ struct ConnectionPresentationTests {
         #expect(message.contains("NSURLErrorDomain") == false)
     }
 
+    @Test func settingsAccountStatusSoftensConnectionFailureWhenCacheIsUsable() {
+        let credential = testCredential()
+        let authState = HAAuthState.signedIn(HAAuthSessionSummary(credential: credential))
+
+        #expect(SettingsHomeAssistantStatus.summaryStatusText(
+            authState: authState,
+            connectionStatus: .failed("No route to host"),
+            dataFreshness: .cached(Date(timeIntervalSinceNow: -30))
+        ) == "Using Cache")
+
+        #expect(SettingsHomeAssistantStatus.summaryStatusText(
+            authState: authState,
+            connectionStatus: .reconnecting,
+            dataFreshness: .cached(Date(timeIntervalSinceNow: -30))
+        ) == "Updating")
+
+        #expect(SettingsHomeAssistantStatus.summaryStatusText(
+            authState: .refreshFailed("Token expired"),
+            connectionStatus: .failed("No route to host"),
+            dataFreshness: .cached(Date(timeIntervalSinceNow: -30))
+        ) == "Error")
+    }
+
     @Test func appChromePresentationMapsSessionStateAndFeedbackSpacing() {
         let signedOutChrome = AppChromePresentation.make(
             hasServerURL: true,

@@ -2031,7 +2031,23 @@ final class HomeAssistantService {
         if error as? HAOAuthError == .signedOut {
             return .signedOut
         }
-        return .refreshFailed(error.localizedDescription)
+
+        if let oauthError = error as? HAOAuthError {
+            switch oauthError {
+            case .noRefreshTokenForServer, .invalidTokenResponse, .missingAuthorizationCode, .stateMismatch:
+                return .refreshFailed(oauthError.localizedDescription)
+            case .signInCancelled:
+                return authState
+            case .signedOut:
+                return .signedOut
+            }
+        }
+
+        if case .authenticationFailed = error as? HAWebSocketError {
+            return .refreshFailed(error.localizedDescription)
+        }
+
+        return authState
     }
 
     private func authorizationCode(from callbackURL: URL, expectedState: String) throws -> String {

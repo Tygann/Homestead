@@ -74,7 +74,8 @@ enum SettingsHomeAssistantStatus {
 
     static func summaryStatusText(
         authState: HAAuthState,
-        connectionStatus: HAConnectionStatus
+        connectionStatus: HAConnectionStatus,
+        dataFreshness: HADataFreshness = .empty
     ) -> String {
         switch authState {
         case .signedOut:
@@ -92,24 +93,30 @@ enum SettingsHomeAssistantStatus {
             case .connected:
                 "Connected"
             case .preparing, .connecting:
-                "Connecting"
+                dataFreshness.isUsable ? "Updating" : "Connecting"
             case .reconnecting:
-                "Reconnecting"
+                dataFreshness.isUsable ? "Updating" : "Reconnecting"
             case .failed:
-                "Error"
+                dataFreshness.isUsable ? "Using Cache" : "Error"
             case .disconnected:
-                "Signed In"
+                dataFreshness.isUsable ? "Using Cache" : "Signed In"
             }
         }
     }
 
     static func tint(
         authState: HAAuthState,
-        connectionStatus: HAConnectionStatus
+        connectionStatus: HAConnectionStatus,
+        dataFreshness: HADataFreshness = .empty
     ) -> Color {
         if case .signedIn = authState,
            connectionStatus == .connected {
             return .green
+        }
+
+        if case .signedIn = authState,
+           dataFreshness.isUsable {
+            return .orange
         }
 
         switch authState {

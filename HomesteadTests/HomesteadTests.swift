@@ -5459,6 +5459,11 @@ struct HomesteadTests {
 
         #expect(service.connectionStatus == .failed("Check your network or Home Assistant address, then try again."))
         #expect(service.lastErrorMessage == rawError.localizedDescription)
+        if case .signedIn = service.authState {
+            // Expected: transport failure should not turn a valid session into an account error.
+        } else {
+            Issue.record("Expected transport failure to preserve signed-in auth state.")
+        }
     }
 
     @MainActor

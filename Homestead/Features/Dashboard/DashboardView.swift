@@ -15,6 +15,7 @@ struct DashboardView: View {
     @State private var headerTitleDraft = ""
     @State private var displayTitleDraft = ""
     @State private var cameraRefreshGeneration = 0
+    @State private var dashboardReconciliationGeneration = 0
     @State private var highlightedDashboardItemID: UUID?
     @State private var pendingScrollDashboardItemID: UUID?
     @State private var gridDragState = DashboardEditDragState()
@@ -25,6 +26,7 @@ struct DashboardView: View {
     @Namespace private var summaryTransitionNamespace
     
     var body: some View {
+        let _ = dashboardReconciliationGeneration
         let visibleItemsSnapshot = visibleDashboardItems
 
         ScrollViewReader { scrollProxy in
@@ -149,6 +151,12 @@ struct DashboardView: View {
             .onChange(of: stateStore.entityCatalogSignature) { _, _ in
                 reconcileDashboardConfigurationIfReady()
             }
+            .onChange(of: stateStore.hasLoadedInitialSnapshot) { _, _ in
+                reconcileDashboardConfigurationIfReady()
+            }
+            .onChange(of: stateStore.hasEntities) { _, _ in
+                reconcileDashboardConfigurationIfReady()
+            }
             .onChange(of: isEditingDashboard) { _, isEditing in
                 if !isEditing {
                     endDashboardGridDrag()
@@ -216,6 +224,7 @@ struct DashboardView: View {
         }
         
         dashboardConfiguration.reconcile(with: stateStore.allEntities)
+        dashboardReconciliationGeneration &+= 1
     }
 
     private var isRenamingHeader: Binding<Bool> {

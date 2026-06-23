@@ -126,14 +126,16 @@ struct SettingsView: View {
     private var accountStatusText: String {
         SettingsHomeAssistantStatus.summaryStatusText(
             authState: homeAssistantService.authState,
-            connectionStatus: homeAssistantService.connectionStatus
+            connectionStatus: homeAssistantService.connectionStatus,
+            dataFreshness: homeAssistantService.dataFreshness
         )
     }
 
     private var accountStatusTint: Color {
         SettingsHomeAssistantStatus.tint(
             authState: homeAssistantService.authState,
-            connectionStatus: homeAssistantService.connectionStatus
+            connectionStatus: homeAssistantService.connectionStatus,
+            dataFreshness: homeAssistantService.dataFreshness
         )
     }
 
