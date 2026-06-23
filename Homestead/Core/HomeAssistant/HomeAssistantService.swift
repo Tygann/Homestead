@@ -306,7 +306,7 @@ final class HomeAssistantService {
         }
 
         if let error = lastConnectionError {
-            failConnection(with: error)
+            handleConnectFailure(error, fallbackConfiguration: preferredConfiguration)
         }
     }
 
@@ -1859,6 +1859,23 @@ final class HomeAssistantService {
         authState = authFailureState(for: error)
         dataFreshness = staleFreshness(rawMessage)
         connectionStatus = .failed(HAConnectionIssuePresentation.message(for: error))
+    }
+
+    private func handleConnectFailure(
+        _ error: Error,
+        fallbackConfiguration: HAConnectionConfiguration
+    ) {
+        guard shouldReconnect,
+              HAConnectionRecoveryPolicy.shouldReconnectSocket(after: error) else {
+            failConnection(with: error)
+            return
+        }
+
+        let rawMessage = error.localizedDescription
+        lastErrorMessage = rawMessage
+        authState = authFailureState(for: error)
+        dataFreshness = staleFreshness(rawMessage)
+        scheduleReconnect(configuration: fallbackConfiguration)
     }
 
     private func handleNetworkPathUpdate(

@@ -5441,7 +5441,7 @@ struct HomesteadTests {
 
     @MainActor
     @Test func connectionFailureUsesFriendlyStatusAndKeepsRawDiagnosticMessage() async throws {
-        let rawError = HAWebSocketError.transportFailure("No route to host")
+        let rawError = HAWebSocketError.requestFailed("Unexpected response from Home Assistant")
         let tokenStore = InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "friendly-failure-access"))
         let credential = try tokenStore.readCredential()!
         let webSocketClient = StubHAWebSocketClient()
@@ -5457,12 +5457,12 @@ struct HomesteadTests {
 
         await service.connect(baseURLString: "http://homeassistant.local:8123")
 
-        #expect(service.connectionStatus == .failed("Check your network or Home Assistant address, then try again."))
+        #expect(service.connectionStatus == .failed("Home Assistant returned an unexpected response. Try again in a moment."))
         #expect(service.lastErrorMessage == rawError.localizedDescription)
         if case .signedIn = service.authState {
-            // Expected: transport failure should not turn a valid session into an account error.
+            // Expected: WebSocket failures should not turn a valid session into an account error.
         } else {
-            Issue.record("Expected transport failure to preserve signed-in auth state.")
+            Issue.record("Expected WebSocket failure to preserve signed-in auth state.")
         }
     }
 
@@ -7603,6 +7603,48 @@ struct HomesteadTests {
             // Expected cached-first launch state.
         } else {
             Issue.record("Expected cached data freshness after applying the saved snapshot.")
+        }
+    }
+
+    @MainActor
+    @Test func homeAssistantServiceAutomaticallyRetriesRecoverableColdLaunchConnectionFailure() async throws {
+        let store = HAStateStore()
+        let tokenStore = InMemoryHAOAuthTokenStore(
+            credential: testCredential(baseURL: "homeassistant.local:8123", accessToken: "token-a")
+        )
+        let client = StubHAWebSocketClient(states: [
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+        client.connectResults = [
+            .failure(HAWebSocketError.transportFailure("Network route is still warming up.")),
+            .success(())
+        ]
+        let service = HomeAssistantService(
+            stateStore: store,
+            client: client,
+            authState: HAOAuthManager.status(tokenStore: tokenStore),
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            automaticallyRegistersMobileApp: false
+        )
+        let settings = HAConnectionSettings(
+            baseURL: "homeassistant.local:8123",
+            tokenStore: tokenStore
+        )
+
+        await service.connectIfPossible(settings: settings)
+
+        #expect(service.connectionStatus == .reconnecting)
+        #expect(client.connectConfigurations.count == 1)
+
+        try await waitUntil(timeout: .seconds(2)) {
+            service.connectionStatus == .connected
+        }
+
+        #expect(client.connectConfigurations.count == 2)
+        if case .signedIn = service.authState {
+            // Expected: a recoverable transport retry should preserve the known session.
+        } else {
+            Issue.record("Expected automatic reconnect to preserve the signed-in session.")
         }
     }
 
@@ -10375,6 +10417,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var supervisorAppsError: Error?
     var supervisorInfoError: Error?
     var operatingSystemInfoError: Error?
+    var connectResults: [Result<Void, Error>] = []
     var connectErrorsByBaseURL: [String: Error] = [:]
     private(set) var fetchSupervisorAppsCount = 0
     private(set) var fetchSupervisorInfoCount = 0
@@ -10398,6 +10441,16 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     func connect(configuration: HAConnectionConfiguration) async throws {
         lastConnectConfiguration = configuration
         connectConfigurations.append(configuration)
+
+        if !connectResults.isEmpty {
+            let result = connectResults.removeFirst()
+            switch result {
+            case .success:
+                return
+            case .failure(let error):
+                throw error
+            }
+        }
 
         if let error = connectErrorsByBaseURL[configuration.baseURLString] {
             throw error
