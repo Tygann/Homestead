@@ -41,8 +41,8 @@ struct ContentView: View {
                     restore: restoreFromICloud,
                     setUpAnotherHome: setUpAnotherHome
                 )
-            } else if setupCoordinator.phase == .checkingICloud {
-                ProgressView("Checking iCloud")
+            } else if setupCoordinator.phase != .ready {
+                LaunchContinuityView()
             } else if onboarding.shouldShow {
                 HomeAssistantOnboardingView(
                     authState: homeAssistantService.authState,
@@ -90,7 +90,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
-                guard setupCoordinator.phase != .checkingICloud else { return }
+                guard setupCoordinator.phase == .ready else { return }
                 homeAssistantService.applicationWillEnterForeground()
                 Task { await homeAssistantService.resume(settings: connectionSettings) }
             case .background:
@@ -342,6 +342,13 @@ struct SettingsAccountButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Settings")
+    }
+}
+
+private struct LaunchContinuityView: View {
+    var body: some View {
+        Color(.systemGroupedBackground)
+            .ignoresSafeArea()
     }
 }
 

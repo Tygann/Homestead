@@ -89,7 +89,9 @@ final class HomesteadSetupCoordinator {
         await service.refreshAuthState()
         service.refreshMobileAppRegistrationState(settings: settings)
         await service.loadCachedStatesIfPossible(settings: settings)
-        await service.connectIfPossible(settings: settings)
         phase = .ready
+        Task {
+            await service.connectIfPossible(settings: settings)
+        }
     }
 }
