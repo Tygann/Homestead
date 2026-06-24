@@ -551,7 +551,15 @@ final class DashboardConfiguration {
 
     @discardableResult
     func duplicateSelectedDashboard() -> UUID {
-        let source = selectedDashboard
+        let dashboardID = duplicateDashboard(id: selectedDashboardID)
+        selectedDashboardID = dashboardID
+        return dashboardID
+    }
+
+    @discardableResult
+    func duplicateDashboard(id: UUID) -> UUID {
+        let source = dashboards.first(where: { $0.id == id }) ?? selectedDashboard
+
         let copiedItems = source.items.map { item in
             var copy = item
             copy.id = UUID()
@@ -564,8 +572,14 @@ final class DashboardConfiguration {
             entityDisplayNameOverrides: source.entityDisplayNameOverrides
         )
         dashboards.append(dashboard)
-        selectedDashboardID = dashboard.id
         return dashboard.id
+    }
+
+    @discardableResult
+    func duplicateDashboard(id: UUID, named name: String) -> UUID {
+        let dashboardID = duplicateDashboard(id: id)
+        renameDashboard(id: dashboardID, name: name)
+        return dashboardID
     }
 
     func renameDashboard(id: UUID, name: String) {

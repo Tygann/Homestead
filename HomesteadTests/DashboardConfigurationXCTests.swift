@@ -95,6 +95,22 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(configuration.items.first?.entityID, "light.kitchen")
     }
 
+    func testDuplicatingSpecificDashboardDoesNotChangeLocalSelection() {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let originalID = configuration.selectedDashboardID
+        configuration.add("light.kitchen", size: .square)
+        let officeID = configuration.createDashboard(named: "Office")
+
+        XCTAssertEqual(configuration.selectedDashboardID, officeID)
+
+        let duplicateID = configuration.duplicateDashboard(id: originalID, named: "Phone Copy")
+
+        XCTAssertEqual(configuration.selectedDashboardID, officeID)
+        XCTAssertEqual(configuration.dashboards.first(where: { $0.id == duplicateID })?.resolvedName, "Phone Copy")
+        XCTAssertEqual(configuration.dashboards.first(where: { $0.id == duplicateID })?.items.first?.entityID, "light.kitchen")
+    }
+
     func testDeletingLastDashboardRestoresEmptyDefault() {
         let defaults = makeDefaults()
         let configuration = DashboardConfiguration(defaults: defaults)
