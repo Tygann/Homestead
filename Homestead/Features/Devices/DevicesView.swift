@@ -9,6 +9,8 @@ struct DevicesView: View {
             hiddenEntityIDs: [],
             emptyTitle: "No Devices",
             emptySystemImage: "square.grid.2x2",
+            groupingPersistenceKey: "homestead.browse.grouping",
+            initialGrouping: .name,
             rowAction: { entityBox in
                 selectedEntity = SelectedEntity(entityID: entityBox.entityID)
             },

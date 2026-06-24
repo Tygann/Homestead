@@ -35,7 +35,8 @@ struct DevicesAndServicesManagementView: View {
             EntityRegistryManagementBrowser(
                 title: section.title,
                 emptyTitle: "No Entities",
-                emptySystemImage: section.systemImage
+                emptySystemImage: section.systemImage,
+                groupingPersistenceKey: "homestead.management.entities.grouping"
             )
         case .helpers:
             HelperRegistryManagementList()
@@ -272,6 +273,7 @@ private struct HelperRegistryManagementList: View {
             emptyTitle: "No Helpers",
             emptySystemImage: "wrench.and.screwdriver",
             includesUnavailableByDefault: true,
+            groupingPersistenceKey: "homestead.management.helpers.grouping",
             allowedGroupings: [.name, .type],
             showsGroupingMenu: true,
             showsSingleGroupHeaders: summaries.count > 1,
@@ -317,10 +319,11 @@ private struct HelperRegistryManagementList: View {
 
 private struct DeviceRegistryManagementList: View {
     @Environment(HAStateStore.self) private var stateStore
+    @AppStorage("homestead.management.devices.grouping") private var groupingRawValue = DeviceManagementGrouping.name.rawValue
     @State private var searchText = ""
-    @State private var grouping: DeviceManagementGrouping = .name
 
     var body: some View {
+        let grouping = currentGrouping
         let devices = stateStore.deviceManagementSummaries()
         let presentation = DeviceManagementPresentation.make(
             devices: devices,
@@ -390,9 +393,9 @@ private struct DeviceRegistryManagementList: View {
         Menu {
             ForEach(DeviceManagementGrouping.allCases) { option in
                 Button {
-                    grouping = option
+                    groupingRawValue = option.rawValue
                 } label: {
-                    Label(option.title, systemImage: grouping == option ? "checkmark" : option.systemImage)
+                    Label(option.title, systemImage: currentGrouping == option ? "checkmark" : option.systemImage)
                 }
             }
         } label: {
@@ -401,6 +404,9 @@ private struct DeviceRegistryManagementList: View {
         .accessibilityLabel("Group devices")
     }
 
+    private var currentGrouping: DeviceManagementGrouping {
+        DeviceManagementGrouping(rawValue: groupingRawValue) ?? .name
+    }
 }
 
 private struct DeviceManagementIconView: View {
@@ -493,7 +499,7 @@ private struct DeviceRegistryDetailView: View {
     }
 }
 
-private enum DeviceManagementGrouping: CaseIterable, Identifiable {
+private enum DeviceManagementGrouping: String, CaseIterable, Identifiable {
     case name
     case area
     case manufacturer
@@ -622,21 +628,24 @@ struct AutomationsAndScenesManagementView: View {
                 title: section.title,
                 emptyTitle: "No Automations",
                 emptySystemImage: section.systemImage,
-                allowedDomains: [.automation]
+                allowedDomains: [.automation],
+                groupingPersistenceKey: "homestead.management.automations.grouping"
             )
         case .scenes:
             EntityRegistryManagementBrowser(
                 title: section.title,
                 emptyTitle: "No Scenes",
                 emptySystemImage: section.systemImage,
-                allowedDomains: [.scene]
+                allowedDomains: [.scene],
+                groupingPersistenceKey: "homestead.management.scenes.grouping"
             )
         case .scripts:
             EntityRegistryManagementBrowser(
                 title: section.title,
                 emptyTitle: "No Scripts",
                 emptySystemImage: section.systemImage,
-                allowedDomains: [.script]
+                allowedDomains: [.script],
+                groupingPersistenceKey: "homestead.management.scripts.grouping"
             )
         }
     }
@@ -690,6 +699,7 @@ private struct EntityRegistryManagementBrowser: View {
     let emptyTitle: String
     let emptySystemImage: String
     var allowedDomains: Set<EntityDomain>?
+    var groupingPersistenceKey: String?
 
     var body: some View {
         EntityBrowserList(
@@ -697,6 +707,7 @@ private struct EntityRegistryManagementBrowser: View {
             emptyTitle: emptyTitle,
             emptySystemImage: emptySystemImage,
             includesUnavailableByDefault: true,
+            groupingPersistenceKey: groupingPersistenceKey,
             allowedGroupings: allowedDomains == nil ? EntityBrowserGrouping.allCases : [.name],
             showsGroupingMenu: allowedDomains == nil,
             showsSingleGroupHeaders: false,

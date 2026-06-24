@@ -7,12 +7,13 @@ struct EntityBrowserList<Accessory: View>: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var localSearchText = ""
-    @State private var grouping: EntityBrowserGrouping = .device
+    @State private var grouping: EntityBrowserGrouping
     @State private var collapsedGroups: Set<String> = []
     @State private var selectedDomain: EntityDomain?
     @State private var includesUnavailable: Bool
 
     private let externalSearchText: Binding<String>?
+    private let groupingPersistenceKey: String?
     let hiddenEntityIDs: Set<String>
     let emptyTitle: String
     let emptySystemImage: String
@@ -39,6 +40,7 @@ struct EntityBrowserList<Accessory: View>: View {
         showsFilters: Bool = false,
         includesUnavailableByDefault: Bool = true,
         searchText: Binding<String>? = nil,
+        groupingPersistenceKey: String? = nil,
         showsSearchField: Bool = true,
         allowedGroupings: [EntityBrowserGrouping] = EntityBrowserGrouping.allCases,
         showsGroupingMenu: Bool = true,
@@ -54,6 +56,7 @@ struct EntityBrowserList<Accessory: View>: View {
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
         self.externalSearchText = searchText
+        self.groupingPersistenceKey = groupingPersistenceKey
         self.hiddenEntityIDs = hiddenEntityIDs
         self.emptyTitle = emptyTitle
         self.emptySystemImage = emptySystemImage
@@ -71,7 +74,11 @@ struct EntityBrowserList<Accessory: View>: View {
         self.rowDestination = rowDestination
         self.accessory = accessory
         _includesUnavailable = State(initialValue: includesUnavailableByDefault)
-        _grouping = State(initialValue: initialGrouping)
+        _grouping = State(initialValue: Self.resolvedInitialGrouping(
+            key: groupingPersistenceKey,
+            fallback: initialGrouping,
+            allowedGroupings: allowedGroupings
+        ))
     }
 
     // MARK: - Body
@@ -133,6 +140,9 @@ struct EntityBrowserList<Accessory: View>: View {
         .modifier(EntityBrowserRefreshModifier(isEnabled: allowsRefresh) {
             await homeAssistantService.refreshStates()
         })
+        .onChange(of: grouping) { _, newValue in
+            persistGrouping(newValue)
+        }
         .toolbar {
             if showsGroupingMenu {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -490,6 +500,26 @@ struct EntityBrowserList<Accessory: View>: View {
 
         return true
     }
+
+    private func persistGrouping(_ grouping: EntityBrowserGrouping) {
+        guard let groupingPersistenceKey else { return }
+        UserDefaults.standard.set(grouping.rawValue, forKey: groupingPersistenceKey)
+    }
+
+    private static func resolvedInitialGrouping(
+        key: String?,
+        fallback: EntityBrowserGrouping,
+        allowedGroupings: [EntityBrowserGrouping]
+    ) -> EntityBrowserGrouping {
+        guard let key,
+              let storedValue = UserDefaults.standard.string(forKey: key),
+              let storedGrouping = EntityBrowserGrouping(rawValue: storedValue),
+              allowedGroupings.contains(storedGrouping) else {
+            return fallback
+        }
+
+        return storedGrouping
+    }
 }
 
 // MARK: - Refresh Support
@@ -526,7 +556,7 @@ private struct EntityBrowserSearchModifier: ViewModifier {
 
 // MARK: - Grouping Models
 
-enum EntityBrowserGrouping: CaseIterable {
+enum EntityBrowserGrouping: String, CaseIterable {
     case name
     case device
     case type
