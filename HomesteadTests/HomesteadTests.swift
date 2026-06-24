@@ -544,7 +544,7 @@ struct HomesteadTests {
     @Test func authAuthorizeURLUsesHomeAssistantOAuthShape() throws {
         let url = try HomeAssistantEndpointBuilder.authAuthorizeURL(
             from: "https://example.com/ha",
-            clientID: "https://homestead.keegan.pro",
+            clientID: "https://connect.homesteadcontrol.com",
             redirectURI: "homestead://auth",
             state: "state-123"
         )
@@ -555,7 +555,7 @@ struct HomesteadTests {
         #expect(components.host == "example.com")
         #expect(components.path == "/ha/auth/authorize")
         #expect(queryItems["response_type"] == "code")
-        #expect(queryItems["client_id"] == "https://homestead.keegan.pro")
+        #expect(queryItems["client_id"] == "https://connect.homesteadcontrol.com")
         #expect(queryItems["redirect_uri"] == "homestead://auth")
         #expect(queryItems["state"] == "state-123")
     }
@@ -569,25 +569,25 @@ struct HomesteadTests {
     @Test func tokenExchangeRequestEncodesFormBody() throws {
         let request = HAOAuthTokenRequest(
             grant: .authorizationCode("code with space"),
-            clientID: "https://homestead.keegan.pro"
+            clientID: "https://connect.homesteadcontrol.com"
         )
         let body = String(decoding: request.formEncodedBody(), as: UTF8.self)
 
         #expect(body.contains("grant_type=authorization_code"))
         #expect(body.contains("code=code%20with%20space"))
-        #expect(body.contains("client_id=https%3A%2F%2Fhomestead.keegan.pro"))
+        #expect(body.contains("client_id=https%3A%2F%2Fconnect.homesteadcontrol.com"))
     }
 
     @Test func refreshTokenRequestEncodesFormBody() throws {
         let request = HAOAuthTokenRequest(
             grant: .refreshToken("refresh-token"),
-            clientID: "https://homestead.keegan.pro"
+            clientID: "https://connect.homesteadcontrol.com"
         )
         let body = String(decoding: request.formEncodedBody(), as: UTF8.self)
 
         #expect(body.contains("grant_type=refresh_token"))
         #expect(body.contains("refresh_token=refresh-token"))
-        #expect(body.contains("client_id=https%3A%2F%2Fhomestead.keegan.pro"))
+        #expect(body.contains("client_id=https%3A%2F%2Fconnect.homesteadcontrol.com"))
     }
 
     @Test func tokenResponsesDecodeHomeAssistantShape() throws {

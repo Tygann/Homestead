@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated enum HAOAuthClientMetadata {
-    static let clientID = "https://homestead.keegan.pro"
+    static let clientID = "https://connect.homesteadcontrol.com"
     static let redirectURI = "homestead://auth"
     static let callbackScheme = "homestead"
     static let refreshLeeway: TimeInterval = 60

@@ -20,7 +20,7 @@ enum HomesteadWidgetSharedStore {
     private static let optimisticFanStatesKey = "widgetOptimisticFanStates"
     private static let tokenService = "com.tyler.Homestead.homeAssistant"
     private static let oauthCredentialAccount = "oauthCredential"
-    private static let oauthClientID = "https://homestead.keegan.pro"
+    private static let oauthClientID = "https://connect.homesteadcontrol.com"
     private static let tokenRefreshLeeway: TimeInterval = 60
 
     static var baseURL: String? {
