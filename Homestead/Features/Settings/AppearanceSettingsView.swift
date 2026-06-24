@@ -19,13 +19,6 @@ struct AppearanceSettingsView: View {
                 wallpaperSection
 
                 navigationSection
-
-                if !appearanceSettings.hasWallpaper {
-                    Text("Shown behind Home and Areas.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, AppSpacing.xLarge)
-                }
             }
             .padding(.vertical, AppSpacing.xLarge)
         }
@@ -76,7 +69,6 @@ struct AppearanceSettingsView: View {
                 .frame(maxWidth: .infinity)
 
             wallpaperPicker
-                .frame(width: 162)
                 .frame(maxWidth: .infinity)
 
             Divider()
@@ -94,6 +86,12 @@ struct AppearanceSettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+
+            if !appearanceSettings.hasWallpaper {
+                Text("Shown behind Home and Areas.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .appearancePanel()
     }
@@ -102,22 +100,44 @@ struct AppearanceSettingsView: View {
     private var navigationSection: some View {
         @Bindable var tabSettings = tabSettings
 
-        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            sectionTitle("Navigation", systemImage: "square.split.bottomrightquarter")
+        return VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text("Navigation")
+                .font(.headline)
+                .padding(.horizontal, AppSpacing.xLarge)
 
-            Picker("Start Page", selection: $tabSettings.primaryTab) {
-                ForEach(HomesteadPrimaryTab.allCases) { tab in
-                    Label(tab.displayName, systemImage: tab.systemImage)
-                        .tag(tab)
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                HStack {
+                    Text("Start Page")
+                        .foregroundStyle(.primary)
+
+                    Spacer()
+
+                    Picker("Start Page", selection: $tabSettings.primaryTab) {
+                        ForEach(HomesteadPrimaryTab.allCases) { tab in
+                            Label(tab.displayName, systemImage: tab.systemImage)
+                                .tag(tab)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
+                .padding(.vertical, AppSpacing.xSmall)
             }
-            .pickerStyle(.menu)
+            .padding(.horizontal, AppSpacing.large)
+            .padding(.vertical, AppSpacing.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                Color(.secondarySystemGroupedBackground).opacity(0.76),
+                in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+            )
+            .padding(.horizontal, AppSpacing.large)
 
             Text("Browse stays separate.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .padding(.horizontal, AppSpacing.xLarge)
         }
-        .appearancePanel()
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func sectionTitle(_ title: String, systemImage: String) -> some View {
@@ -154,14 +174,9 @@ struct AppearanceSettingsView: View {
         _ title: String,
         font: Font
     ) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-        } icon: {
-            Image(systemName: "photo")
-        }
-        .font(font)
+        Text(title)
+            .lineLimit(1)
+            .font(font)
     }
 
     private var importErrorBinding: Binding<Bool> {
