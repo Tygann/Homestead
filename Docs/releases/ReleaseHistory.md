@@ -58,6 +58,41 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1.0 (Build 15)
+
+- Release Date: 2026-06-24
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This update adds multiple saved dashboards and refines Settings so dashboard management, Appearance, and Home Assistant administration feel clearer and more native.
+
+What's new:
+
+- Create and manage multiple saved dashboards from Settings
+- Choose the active dashboard and edit dashboard names, grouping, and visibility with a more visual preview
+- Dashboard grouping preferences now persist across launches and iCloud Sync
+
+Improvements:
+
+- Settings has a cleaner organization for Dashboard, Appearance, permissions, sync, and Home Assistant management
+- Home Assistant management lists now show more useful metadata and more consistent grouping
+- Appearance settings have been simplified with clearer wallpaper, tab, and navigation controls
+- User-facing connection, notification, sync, and support wording is less technical
+- Home Assistant OAuth now uses the updated Homestead client domain
+
+Please test:
+
+- Creating, renaming, switching, and removing saved dashboards in Settings
+- Dashboard grouping and visibility choices after relaunching the app
+- Settings > Appearance, including wallpaper, tab, and navigation preferences
+- Settings > Devices & Services management lists and metadata
+- Home Assistant sign-in and reconnect behavior
+
+### Internal Summary
+
+Build 15 covers the June 23-24 settings and dashboard-management pass after Build 14: multiple saved `DashboardConfiguration` records, active-dashboard selection, saved dashboard persistence through iCloud Sync, dashboard settings preview extraction and polish, management list metadata/grouping improvements, persisted grouping preferences for entity and management lists, Settings information-architecture cleanup, Appearance settings simplification, less technical user-facing copy, and the updated Home Assistant OAuth client domain.
+
 ## Version 1.0 (Build 14)
 
 - Release Date: 2026-06-23
