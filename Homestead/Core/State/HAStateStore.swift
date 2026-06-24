@@ -115,22 +115,25 @@ final class HAStateStore {
     }
 
     func deviceManagementSummaries() -> [HADeviceManagementSummary] {
-        let entityCountsByDeviceID = Dictionary(
-            grouping: entityRegistryByID.values.compactMap { metadata -> String? in
-                guard let deviceID = metadata.deviceID?.nonEmptyValue else {
-                    return nil
-                }
-
-                return deviceID
+        let entityMetadataByDeviceID = Dictionary(
+            grouping: entityRegistryByID.values.compactMap { metadata -> (String, HAEntityRegistryDisplayDTO)? in
+                guard let deviceID = metadata.deviceID?.nonEmptyValue else { return nil }
+                return (deviceID, metadata)
             },
-            by: { $0 }
-        ).mapValues(\.count)
+            by: { $0.0 }
+        ).mapValues { entries in entries.map { $0.1 } }
 
         return deviceRegistryByID.values
             .map { device in
                 let areaName = device.areaID?.nonEmptyValue.flatMap { areaRegistryByID[$0]?.name.nonEmptyValue }
                 let manufacturer = device.manufacturer?.nonEmptyValue
                 let model = device.model?.nonEmptyValue
+                let metadataEntries = entityMetadataByDeviceID[device.id, default: []]
+                let entityIDs = metadataEntries
+                    .map(\.entityID)
+                    .filter { entitiesByID[$0] != nil }
+                    .sortedByEntityDisplayName(in: entitiesByID)
+                let platform = primaryPlatform(from: metadataEntries)
 
                 return HADeviceManagementSummary(
                     id: device.id,
@@ -143,7 +146,9 @@ final class HAStateStore {
                     areaName: areaName,
                     manufacturer: manufacturer,
                     model: model,
-                    entityCount: entityCountsByDeviceID[device.id, default: 0]
+                    platform: platform,
+                    entityIDs: entityIDs,
+                    unavailableEntityCount: entityIDs.filter { entitiesByID[$0]?.isAvailable == false }.count
                 )
             }
             .sorted { lhs, rhs in
@@ -646,6 +651,18 @@ final class HAStateStore {
         return parts.isEmpty ? "No additional details" : parts.joined(separator: " • ")
     }
 
+    private func primaryPlatform(from metadataEntries: [HAEntityRegistryDisplayDTO]) -> String? {
+        Dictionary(grouping: metadataEntries.compactMap { $0.platform?.nonEmptyValue }, by: { $0 })
+            .max { lhs, rhs in
+                if lhs.value.count == rhs.value.count {
+                    return lhs.key.localizedCaseInsensitiveCompare(rhs.key) == .orderedDescending
+                }
+
+                return lhs.value.count < rhs.value.count
+            }?
+            .key
+    }
+
     private func presenceContext(for entityID: String) -> HAPresenceContext {
         let registry = entityRegistryByID[entityID]
         let deviceID = registry?.deviceID?.nonEmptyValue
@@ -1103,7 +1120,11 @@ struct HADeviceManagementSummary: Equatable, Identifiable, Sendable {
     let areaName: String?
     let manufacturer: String?
     let model: String?
-    let entityCount: Int
+    let platform: String?
+    let entityIDs: [String]
+    let unavailableEntityCount: Int
+
+    var entityCount: Int { entityIDs.count }
 
     func matches(query: String) -> Bool {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1117,12 +1138,30 @@ struct HADeviceManagementSummary: Equatable, Identifiable, Sendable {
             subtitle,
             areaName,
             manufacturer,
-            model
+            model,
+            platform,
+            entityCountText
         ]
             .compactMap { $0 }
             .joined(separator: " ")
 
         return searchableText.localizedCaseInsensitiveContains(trimmedQuery)
+    }
+
+    var rowSubtitle: String {
+        let detail = subtitle == "No additional details" ? nil : subtitle
+
+        return [
+            detail,
+            entityCountText,
+            unavailableEntityCount > 0 ? "\(unavailableEntityCount) unavailable" : nil
+        ]
+            .compactMap { $0 }
+            .joined(separator: " • ")
+    }
+
+    var entityCountText: String {
+        entityCount == 1 ? "1 entity" : "\(entityCount) entities"
     }
 }
 

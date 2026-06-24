@@ -25,6 +25,7 @@ struct EntityBrowserList<Accessory: View>: View {
     let allowedEntityIDs: Set<String>?
     let rowAction: (HAEntityState) -> Void
     let rowDetail: (HAEntityState) -> String?
+    private let rowDestination: ((HAEntityState) -> AnyView)?
     private let accessory: (HAEntityState) -> Accessory
 
     // MARK: - Initialization
@@ -45,6 +46,7 @@ struct EntityBrowserList<Accessory: View>: View {
         initialGrouping: EntityBrowserGrouping = .device,
         rowAction: @escaping (HAEntityState) -> Void,
         rowDetail: @escaping (HAEntityState) -> String? = { _ in nil },
+        rowDestination: ((HAEntityState) -> AnyView)? = nil,
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
         self.externalSearchText = searchText
@@ -60,6 +62,7 @@ struct EntityBrowserList<Accessory: View>: View {
         self.allowedEntityIDs = allowedEntityIDs
         self.rowAction = rowAction
         self.rowDetail = rowDetail
+        self.rowDestination = rowDestination
         self.accessory = accessory
         _includesUnavailable = State(initialValue: includesUnavailableByDefault)
         _grouping = State(initialValue: initialGrouping)
@@ -141,20 +144,32 @@ struct EntityBrowserList<Accessory: View>: View {
         if !collapsedGroups.contains(group.id) {
             ForEach(group.entityIDs, id: \.self) { entityID in
                 if let entityBox = stateStore.entityBox(for: entityID) {
-                    Button {
-                        rowAction(entityBox)
-                    } label: {
-                        EntityBrowserRow(
-                            entityBox: entityBox,
-                            displayNameOverride: displayNameOverride(for: entityID),
-                            detailText: rowDetail(entityBox),
-                            accessory: accessory(entityBox)
-                        )
+                    if let rowDestination {
+                        NavigationLink {
+                            rowDestination(entityBox)
+                        } label: {
+                            entityRow(entityBox, entityID: entityID)
+                        }
+                    } else {
+                        Button {
+                            rowAction(entityBox)
+                        } label: {
+                            entityRow(entityBox, entityID: entityID)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
+    }
+
+    private func entityRow(_ entityBox: HAEntityState, entityID: String) -> some View {
+        EntityBrowserRow(
+            entityBox: entityBox,
+            displayNameOverride: displayNameOverride(for: entityID),
+            detailText: rowDetail(entityBox),
+            accessory: accessory(entityBox)
+        )
     }
 
     private var entityLoadingTitle: String {

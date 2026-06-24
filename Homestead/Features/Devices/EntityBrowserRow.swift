@@ -16,19 +16,12 @@ struct EntityBrowserRow<Accessory: View>: View {
                         .font(.headline)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                    Text(entity.entityID)
+
+                    Text(detailText ?? entity.entityID)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .truncationMode(.middle)
-
-                    if let detailText {
-                        Text(detailText)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
+                        .truncationMode(detailText == nil ? .middle : .tail)
                 }
                 .layoutPriority(1)
 

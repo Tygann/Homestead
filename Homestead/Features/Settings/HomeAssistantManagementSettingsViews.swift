@@ -128,7 +128,7 @@ private struct IntegrationManagementRow: View {
 
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
-            IntegrationBrandImageView(platform: summary.platform, size: 36)
+            IntegrationBrandImageView(platform: summary.platform, size: 36, fallbackSystemImage: "puzzlepiece.extension")
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(summary.title)
@@ -147,7 +147,6 @@ private struct IntegrationManagementRow: View {
 
 private struct IntegrationRegistryDetailView: View {
     @Environment(HAStateStore.self) private var stateStore
-    @State private var selectedEntity: SettingsSelectedEntity?
 
     let summary: HAIntegrationManagementSummary
 
@@ -155,7 +154,7 @@ private struct IntegrationRegistryDetailView: View {
         List {
             Section {
                 HStack(spacing: AppSpacing.medium) {
-                    IntegrationBrandImageView(platform: summary.platform, size: 52)
+                    IntegrationBrandImageView(platform: summary.platform, size: 52, fallbackSystemImage: "puzzlepiece.extension")
 
                     VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                         Text(summary.title)
@@ -189,8 +188,8 @@ private struct IntegrationRegistryDetailView: View {
             Section("Entities") {
                 ForEach(summary.entityIDs, id: \.self) { entityID in
                     if let entityBox = stateStore.entityBox(for: entityID) {
-                        Button {
-                            selectedEntity = SettingsSelectedEntity(entityID: entityID)
+                        NavigationLink {
+                            EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation)
                         } label: {
                             EntityBrowserRow(
                                 entityBox: entityBox,
@@ -199,15 +198,7 @@ private struct IntegrationRegistryDetailView: View {
                                 accessory: EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: true)
                             )
                         }
-                        .buttonStyle(.plain)
                     }
-                }
-            }
-        }
-        .sheet(item: $selectedEntity) { selectedEntity in
-            if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
-                NavigationStack {
-                    EntityDiagnosticsView(entityBox: entityBox)
                 }
             }
         }
@@ -223,6 +214,7 @@ private struct IntegrationBrandImageView: View {
 
     let platform: String
     let size: CGFloat
+    var fallbackSystemImage = "puzzlepiece.extension"
 
     var body: some View {
         HomeAssistantAsyncImage(
@@ -242,7 +234,7 @@ private struct IntegrationBrandImageView: View {
                     .scaledToFit()
                     .padding(size * 0.06)
             } else {
-                Image(systemName: "puzzlepiece.extension")
+                Image(systemName: fallbackSystemImage)
                     .font(.system(size: size * 0.46, weight: .medium))
                     .foregroundStyle(Color.accentColor)
                     .frame(width: size, height: size)
@@ -270,7 +262,6 @@ private struct IntegrationBrandImageView: View {
 
 private struct HelperRegistryManagementList: View {
     @Environment(HAStateStore.self) private var stateStore
-    @State private var selectedEntity: SettingsSelectedEntity?
 
     var body: some View {
         let summaries = stateStore.helperManagementSummaries()
@@ -286,22 +277,18 @@ private struct HelperRegistryManagementList: View {
             allowedEntityIDs: helperEntityIDs,
             initialGrouping: .type,
             rowAction: { entityBox in
-                selectedEntity = SettingsSelectedEntity(entityID: entityBox.entityID)
+                _ = entityBox
             },
             rowDetail: { entityBox in
                 stateStore.entityRegistryAdminDetail(for: entityBox.entityID) ?? helperDetail(for: entityBox.entityID)
+            },
+            rowDestination: { entityBox in
+                AnyView(EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation))
             },
             accessory: { entityBox in
                 EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: false)
             }
         )
-        .sheet(item: $selectedEntity) { selectedEntity in
-            if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
-                NavigationStack {
-                    EntityDiagnosticsView(entityBox: entityBox)
-                }
-            }
-        }
         .navigationTitle("Helpers")
         .toolbarTitleDisplayMode(.inline)
     }
@@ -359,25 +346,25 @@ private struct DeviceRegistryManagementList: View {
     @ViewBuilder
     private func deviceRows(_ devices: [HADeviceManagementSummary]) -> some View {
         ForEach(devices) { device in
-            Label {
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(device.title)
-                        .font(.headline)
-                        .lineLimit(1)
+            NavigationLink {
+                DeviceRegistryDetailView(device: device)
+            } label: {
+                HStack(spacing: AppSpacing.medium) {
+                    DeviceManagementIconView(device: device, size: 36)
 
-                    Text(device.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        Text(device.title)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
 
-                    Text(entityCountText(for: device.entityCount))
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        Text(device.rowSubtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    .padding(.vertical, AppSpacing.xSmall)
                 }
-                .padding(.vertical, AppSpacing.xSmall)
-            } icon: {
-                Image(systemName: "laptopcomputer.and.iphone")
-                    .foregroundStyle(Color.accentColor)
             }
         }
     }
@@ -397,8 +384,95 @@ private struct DeviceRegistryManagementList: View {
         .accessibilityLabel("Group devices")
     }
 
-    private func entityCountText(for count: Int) -> String {
-        count == 1 ? "1 entity" : "\(count) entities"
+}
+
+private struct DeviceManagementIconView: View {
+    let device: HADeviceManagementSummary
+    let size: CGFloat
+
+    var body: some View {
+        if let platform = device.platform {
+            IntegrationBrandImageView(platform: platform, size: size, fallbackSystemImage: "laptopcomputer.and.iphone")
+        } else {
+            Image(systemName: "laptopcomputer.and.iphone")
+                .font(.system(size: size * 0.42, weight: .medium))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: size, height: size)
+                .background(
+                    Color.accentColor.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: min(10, size * 0.22), style: .continuous)
+                )
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+private struct DeviceRegistryDetailView: View {
+    @Environment(HAStateStore.self) private var stateStore
+
+    let device: HADeviceManagementSummary
+
+    var body: some View {
+        List {
+            Section {
+                HStack(spacing: AppSpacing.medium) {
+                    DeviceManagementIconView(device: device, size: 52)
+
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        Text(device.title)
+                            .font(.headline)
+                            .lineLimit(2)
+
+                        Text(device.rowSubtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+                .padding(.vertical, AppSpacing.small)
+            }
+
+            Section {
+                LabeledContent("Entities", value: device.entityCountText)
+
+                if let areaName = device.areaName {
+                    LabeledContent("Area", value: areaName)
+                }
+
+                if let manufacturer = device.manufacturer {
+                    LabeledContent("Manufacturer", value: manufacturer)
+                }
+
+                if let model = device.model {
+                    LabeledContent("Model", value: model)
+                }
+
+                if device.unavailableEntityCount > 0 {
+                    LabeledContent("Unavailable", value: "\(device.unavailableEntityCount)")
+                }
+            }
+
+            if !device.entityIDs.isEmpty {
+                Section("Entities") {
+                    ForEach(device.entityIDs, id: \.self) { entityID in
+                        if let entityBox = stateStore.entityBox(for: entityID) {
+                            NavigationLink {
+                                EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation)
+                            } label: {
+                                EntityBrowserRow(
+                                    entityBox: entityBox,
+                                    displayNameOverride: nil,
+                                    detailText: stateStore.entityRegistryAdminDetail(for: entityID),
+                                    accessory: EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: true)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(device.title)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 
@@ -594,7 +668,6 @@ private enum AutomationsAndScenesSection: CaseIterable, Identifiable {
 
 private struct EntityRegistryManagementBrowser: View {
     @Environment(HAStateStore.self) private var stateStore
-    @State private var selectedEntity: SettingsSelectedEntity?
 
     let title: String
     let emptyTitle: String
@@ -612,22 +685,18 @@ private struct EntityRegistryManagementBrowser: View {
             allowedDomains: allowedDomains,
             initialGrouping: allowedDomains == nil ? .device : .type,
             rowAction: { entityBox in
-                selectedEntity = SettingsSelectedEntity(entityID: entityBox.entityID)
+                _ = entityBox
             },
             rowDetail: { entityBox in
                 stateStore.entityRegistryAdminDetail(for: entityBox.entityID)
+            },
+            rowDestination: { entityBox in
+                AnyView(EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation))
             },
             accessory: { entityBox in
                 EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: allowedDomains == nil)
             }
         )
-        .sheet(item: $selectedEntity) { selectedEntity in
-            if let entityBox = stateStore.entityBox(for: selectedEntity.entityID) {
-                NavigationStack {
-                    EntityDiagnosticsView(entityBox: entityBox)
-                }
-            }
-        }
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
     }
@@ -638,26 +707,16 @@ private struct EntityRegistryStatusAccessory: View {
     var showsDomain = true
 
     var body: some View {
-        if !entityBox.homeEntity.isAvailable || showsDomain {
-            Text(statusText)
+        if !entityBox.homeEntity.isAvailable {
+            Image(systemName: "exclamationmark.circle.fill")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(entityBox.homeEntity.isAvailable ? .secondary : Color.red)
-                .lineLimit(1)
-                .frame(width: 88, alignment: .trailing)
+                .foregroundStyle(Color.red)
+                .accessibilityLabel("Unavailable")
+        } else if showsDomain {
+            Image(systemName: entityBox.homeEntity.domain.systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(entityBox.homeEntity.domain.displayName)
         }
     }
-
-    private var statusText: String {
-        guard entityBox.homeEntity.isAvailable else {
-            return "Unavailable"
-        }
-
-        return entityBox.homeEntity.domain.displayName
-    }
-}
-
-private struct SettingsSelectedEntity: Identifiable {
-    let entityID: String
-
-    var id: String { entityID }
 }

@@ -9894,13 +9894,15 @@ struct HomesteadTests {
                     deviceID: "router",
                     areaID: nil,
                     originalName: "Router Status",
+                    platform: "unifi",
                     entityCategory: "diagnostic"
                 ),
                 HAEntityRegistryDisplayDTO(
                     entityID: "light.kitchen",
                     deviceID: "kitchen-light",
                     areaID: "kitchen",
-                    originalName: "Kitchen Light"
+                    originalName: "Kitchen Light",
+                    platform: "hue"
                 )
             ],
             devices: [
@@ -9920,7 +9922,9 @@ struct HomesteadTests {
         #expect(summaries.last?.areaName == "Closet")
         #expect(summaries.last?.manufacturer == "Ubiquiti")
         #expect(summaries.last?.model == "Dream Machine")
+        #expect(summaries.last?.platform == "unifi")
         #expect(summaries.last?.entityCount == 1)
+        #expect(summaries.last?.rowSubtitle == "Ubiquiti • Dream Machine • Closet • 1 entity • 1 unavailable")
         #expect(summaries.last?.matches(query: "closet") == true)
         #expect(summaries.last?.matches(query: "dream") == true)
         #expect(summaries.last?.matches(query: "kitchen") == false)
