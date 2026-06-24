@@ -16,7 +16,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         let configuration = DashboardConfiguration(defaults: defaults)
 
         XCTAssertEqual(configuration.dashboards.count, 1)
-        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "My Dashboard")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Dashboard")
         XCTAssertEqual(configuration.items.map(\.entityID), ["light.kitchen", nil])
         XCTAssertEqual(configuration.items.first?.resolvedCardSize, .square)
         XCTAssertEqual(configuration.entityDisplayNameOverride(for: "light.kitchen"), "Kitchen")
@@ -103,7 +103,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         configuration.deleteDashboard(id: onlyDashboardID)
 
         XCTAssertEqual(configuration.dashboards.count, 1)
-        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "My Dashboard")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Dashboard")
         XCTAssertTrue(configuration.items.isEmpty)
     }
 
@@ -115,8 +115,25 @@ final class DashboardConfigurationXCTests: XCTestCase {
         configuration.applySyncSnapshot(DashboardConfigurationSyncSnapshot(dashboards: []))
 
         XCTAssertEqual(configuration.dashboards.count, 1)
-        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "My Dashboard")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Dashboard")
         XCTAssertTrue(configuration.items.isEmpty)
+    }
+
+    func testDashboardReorderingSyncsDefinitionOrderWithoutChangingLocalSelection() {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let phoneID = configuration.selectedDashboardID
+        configuration.renameDashboard(id: phoneID, name: "Phone")
+        let officeID = configuration.createDashboard(named: "Office")
+        let iPadID = configuration.createDashboard(named: "iPad")
+
+        XCTAssertEqual(configuration.selectedDashboardID, iPadID)
+
+        configuration.moveDashboards(from: IndexSet(integer: 2), to: 0)
+
+        XCTAssertEqual(configuration.dashboards.map(\.resolvedName), ["iPad", "Phone", "Office"])
+        XCTAssertEqual(configuration.syncSnapshot.dashboards.map(\.id), [iPadID, phoneID, officeID])
+        XCTAssertEqual(configuration.selectedDashboardID, iPadID)
     }
 
     private func makeDefaults() -> UserDefaults {

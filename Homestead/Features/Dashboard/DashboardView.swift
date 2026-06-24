@@ -73,7 +73,7 @@ struct DashboardView: View {
                 cameraRefreshGeneration += 1
             }
             .homesteadWallpaperBackground()
-            .navigationTitle("Homestead")
+            .navigationTitle(dashboardConfiguration.selectedDashboard.resolvedName)
             //        .navigationSubtitle(connectionSettings.baseURL)
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {

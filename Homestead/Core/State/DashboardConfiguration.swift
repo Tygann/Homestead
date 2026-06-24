@@ -588,6 +588,20 @@ final class DashboardConfiguration {
         ensureSelectedDashboardExists()
     }
 
+    func moveDashboards(from source: IndexSet, to destination: Int) {
+        let movingDashboards = source.sorted().map { dashboards[$0] }
+        var updatedDashboards = dashboards
+
+        for index in source.sorted(by: >) {
+            updatedDashboards.remove(at: index)
+        }
+
+        let adjustedDestination = destination - source.filter { $0 < destination }.count
+        updatedDashboards.insert(contentsOf: movingDashboards, at: adjustedDestination)
+        dashboards = updatedDashboards
+        ensureSelectedDashboardExists()
+    }
+
     func cardSize(forItemID itemID: UUID) -> DashboardCardSize {
         items.first { $0.id == itemID }?.resolvedCardSize ?? .compact
     }
@@ -729,7 +743,7 @@ final class DashboardConfiguration {
         return [
             SavedDashboardConfiguration(
                 id: UUID(),
-                name: "My Dashboard",
+                name: defaultDashboardName,
                 items: legacyItems,
                 entityDisplayNameOverrides: legacyOverrides
             )
@@ -803,11 +817,13 @@ final class DashboardConfiguration {
     private static func defaultDashboard() -> SavedDashboardConfiguration {
         SavedDashboardConfiguration(
             id: UUID(),
-            name: "My Dashboard",
+            name: defaultDashboardName,
             items: [],
             entityDisplayNameOverrides: [:]
         )
     }
+
+    private static let defaultDashboardName = "Dashboard"
 }
 
 struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
@@ -832,7 +848,7 @@ struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
         dashboards = [
             SavedDashboardConfiguration(
                 id: UUID(),
-                name: "My Dashboard",
+                name: Self.defaultDashboardName,
                 items: items,
                 entityDisplayNameOverrides: entityDisplayNameOverrides
             )
@@ -843,7 +859,7 @@ struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
         dashboards.isEmpty ? [
             SavedDashboardConfiguration(
                 id: UUID(),
-                name: "My Dashboard",
+                name: Self.defaultDashboardName,
                 items: [],
                 entityDisplayNameOverrides: [:]
             )
@@ -872,6 +888,8 @@ struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
         case items
         case entityDisplayNameOverrides
     }
+
+    private static let defaultDashboardName = "Dashboard"
 }
 
 private extension DashboardReorderGroup {

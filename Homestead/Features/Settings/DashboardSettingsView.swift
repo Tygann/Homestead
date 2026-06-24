@@ -6,6 +6,7 @@ struct DashboardSettingsView: View {
     @State private var namingAction: DashboardNamingAction?
     @State private var dashboardNameDraft = ""
     @State private var deletingDashboard: SavedDashboardConfiguration?
+    @State private var previewingDashboardID: UUID?
 
     var body: some View {
         Form {
@@ -37,6 +38,9 @@ struct DashboardSettingsView: View {
                         rename: {
                             beginRenaming(dashboard)
                         },
+                        preview: {
+                            previewingDashboardID = dashboard.id
+                        },
                         delete: {
                             deletingDashboard = dashboard
                         }
@@ -59,6 +63,12 @@ struct DashboardSettingsView: View {
                         }
 
                         Button {
+                            previewingDashboardID = dashboard.id
+                        } label: {
+                            Label("Preview", systemImage: "rectangle.inset.filled")
+                        }
+
+                        Button {
                             beginRenaming(dashboard)
                         } label: {
                             Label("Rename", systemImage: "pencil")
@@ -71,17 +81,29 @@ struct DashboardSettingsView: View {
                         }
                     }
                 }
+                .onMove { source, destination in
+                    dashboardConfiguration.moveDashboards(from: source, to: destination)
+                }
             }
         }
         .navigationTitle("Dashboards")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                EditButton()
+
                 Button {
                     createDashboard()
                 } label: {
                     Label("New Dashboard", systemImage: "plus")
                 }
+            }
+        }
+        .navigationDestination(item: $previewingDashboardID) { dashboardID in
+            if let dashboard = dashboardConfiguration.dashboards.first(where: { $0.id == dashboardID }) {
+                DashboardPreviewDetailView(dashboard: dashboard)
+            } else {
+                ContentUnavailableView("Dashboard Unavailable", systemImage: "rectangle.dashed")
             }
         }
         .alert(namingDialogTitle, isPresented: isNamingDashboard) {
@@ -210,36 +232,30 @@ private struct DashboardSettingsRow: View {
     let isSelected: Bool
     let select: () -> Void
     let rename: () -> Void
+    let preview: () -> Void
     let delete: () -> Void
 
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
             Button(action: select) {
-                Label {
-                    HStack(spacing: AppSpacing.medium) {
-                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                            Text(dashboard.resolvedName)
-                                .foregroundStyle(.primary)
+                HStack(spacing: AppSpacing.medium) {
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.clear)
+                        .frame(width: 24)
 
-                            Text(itemCountText)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        Text(dashboard.resolvedName)
+                            .foregroundStyle(.primary)
 
-                        Spacer()
-
-                        if isSelected {
-                            Image(systemName: "checkmark")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(Color.accentColor)
-                        }
+                        Text(itemCountText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, AppSpacing.xSmall)
-                } icon: {
-                    Image(systemName: "rectangle.grid.2x2")
-                        .foregroundStyle(Color.accentColor)
-                        .frame(width: 28)
+
+                    Spacer()
                 }
+                .padding(.vertical, AppSpacing.xSmall)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .buttonStyle(.plain)
@@ -247,6 +263,10 @@ private struct DashboardSettingsRow: View {
             Menu {
                 Button(action: select) {
                     Label("Make Current", systemImage: "checkmark.circle")
+                }
+
+                Button(action: preview) {
+                    Label("Preview", systemImage: "rectangle.inset.filled")
                 }
 
                 Button(action: rename) {
@@ -269,6 +289,104 @@ private struct DashboardSettingsRow: View {
     private var itemCountText: String {
         let count = dashboard.items.count
         return count == 1 ? "1 item" : "\(count) items"
+    }
+}
+
+private struct DashboardPreviewDetailView: View {
+    let dashboard: SavedDashboardConfiguration
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.large) {
+                DashboardLayoutPreview(dashboard: dashboard)
+                    .padding(AppSpacing.large)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    Text(dashboard.resolvedName)
+                        .font(.headline)
+
+                    Text(itemCountText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, AppSpacing.large)
+            }
+            .padding(AppSpacing.large)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Preview")
+        .toolbarTitleDisplayMode(.inline)
+    }
+
+    private var itemCountText: String {
+        let count = dashboard.items.count
+        return count == 1 ? "1 item" : "\(count) items"
+    }
+}
+
+private struct DashboardLayoutPreview: View {
+    let dashboard: SavedDashboardConfiguration
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
+
+    var body: some View {
+        if dashboard.items.isEmpty {
+            ContentUnavailableView("No Cards", systemImage: "rectangle.dashed")
+                .frame(minHeight: 180)
+        } else {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 6) {
+                ForEach(dashboard.items) { item in
+                    DashboardLayoutPreviewTile(item: item)
+                        .gridCellColumns(item.layoutMetadata.columnSpan)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Dashboard layout preview")
+        }
+    }
+}
+
+private struct DashboardLayoutPreviewTile: View {
+    let item: DashboardItemConfiguration
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(fillStyle)
+            .overlay(alignment: .leading) {
+                if item.type == .header {
+                    Capsule()
+                        .fill(.secondary.opacity(0.45))
+                        .frame(width: 70, height: 6)
+                        .padding(.horizontal, AppSpacing.small)
+                }
+            }
+            .frame(height: height)
+    }
+
+    private var fillStyle: Color {
+        switch item.type {
+        case .entity:
+            Color.secondary.opacity(0.22)
+        case .header:
+            Color.clear
+        case .chip:
+            Color.accentColor.opacity(0.18)
+        }
+    }
+
+    private var height: CGFloat {
+        switch item.type {
+        case .entity:
+            CGFloat(item.layoutMetadata.rowSpan) * 32
+        case .header, .chip:
+            24
+        }
+    }
+
+    private var cornerRadius: CGFloat {
+        item.type == .chip ? 12 : 8
     }
 }
 
