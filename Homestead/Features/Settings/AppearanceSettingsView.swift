@@ -35,13 +35,11 @@ struct AppearanceSettingsView: View {
         }
     }
 
-    // MARK: - Appearance Mode
+    // MARK: - Display
     private var appearanceMode: some View {
         @Bindable var appearanceSettings = appearanceSettings
 
-        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            sectionTitle("Mode", systemImage: "circle.lefthalf.filled")
-
+        return settingsSection("Display") {
             Picker("Mode", selection: $appearanceSettings.appearanceMode) {
                 ForEach(HomesteadAppearanceMode.allCases) { mode in
                     Text(mode.displayName).tag(mode)
@@ -49,16 +47,16 @@ struct AppearanceSettingsView: View {
             }
             .pickerStyle(.segmented)
         }
-        .appearancePanel()
     }
 
     // MARK: - Wallpaper
     private var wallpaperSection: some View {
         @Bindable var appearanceSettings = appearanceSettings
 
-        return VStack(alignment: .leading, spacing: AppSpacing.large) {
-            sectionTitle("Wallpaper", systemImage: "photo")
-
+        return settingsSection(
+            "Wallpaper",
+            footer: "Shown behind Home and Areas."
+        ) {
             SettingsDashboardPhonePreview(
                 items: dashboardConfiguration.selectedDashboard.items,
                 wallpaperURL: appearanceSettings.storedWallpaperURL,
@@ -86,63 +84,66 @@ struct AppearanceSettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-
-            if !appearanceSettings.hasWallpaper {
-                Text("Shown behind Home and Areas.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
         }
-        .appearancePanel()
     }
 
     // MARK: - Navigation
     private var navigationSection: some View {
         @Bindable var tabSettings = tabSettings
 
-        return VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-            Text("Navigation")
+        return settingsSection("Navigation", footer: "Browse stays separate.") {
+            HStack {
+                Text("Start Page")
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Picker("Start Page", selection: $tabSettings.primaryTab) {
+                    ForEach(HomesteadPrimaryTab.allCases) { tab in
+                        Label(tab.displayName, systemImage: tab.systemImage)
+                            .tag(tab)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+            }
+            .padding(.vertical, AppSpacing.xSmall)
+        }
+    }
+
+    private func settingsSection<Content: View>(
+        _ title: String,
+        footer: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text(title)
                 .font(.headline)
                 .padding(.horizontal, AppSpacing.xLarge)
 
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                HStack {
-                    Text("Start Page")
-                        .foregroundStyle(.primary)
-
-                    Spacer()
-
-                    Picker("Start Page", selection: $tabSettings.primaryTab) {
-                        ForEach(HomesteadPrimaryTab.allCases) { tab in
-                            Label(tab.displayName, systemImage: tab.systemImage)
-                                .tag(tab)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                }
-                .padding(.vertical, AppSpacing.xSmall)
+            VStack(alignment: .leading, spacing: AppSpacing.large) {
+                content()
             }
-            .padding(.horizontal, AppSpacing.large)
-            .padding(.vertical, AppSpacing.small)
+            .padding(AppSpacing.large)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 Color(.secondarySystemGroupedBackground).opacity(0.76),
                 in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                    .strokeBorder(Color(.separator).opacity(0.10), lineWidth: 0.5)
+            }
             .padding(.horizontal, AppSpacing.large)
 
-            Text("Browse stays separate.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, AppSpacing.xLarge)
+            if let footer {
+                Text(footer)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, AppSpacing.xLarge)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func sectionTitle(_ title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.headline)
     }
 
     @ViewBuilder
@@ -163,7 +164,7 @@ struct AppearanceSettingsView: View {
                 matching: .images,
                 photoLibrary: .shared()
             ) {
-                wallpaperPickerLabel("Choose Wallpaper", font: .headline)
+                wallpaperPickerLabel("Choose Wallpaper", font: .body.weight(.semibold))
             }
             .buttonStyle(.borderedProminent)
             .disabled(isImportingWallpaper)
@@ -210,22 +211,6 @@ struct AppearanceSettingsView: View {
         } catch {
             importErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
-    }
-}
-
-private extension View {
-    func appearancePanel() -> some View {
-        self
-        .padding(AppSpacing.large)
-        .background(
-            Color(.secondarySystemGroupedBackground).opacity(0.76),
-            in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                .strokeBorder(Color(.separator).opacity(0.10), lineWidth: 0.5)
-        }
-        .padding(.horizontal, AppSpacing.large)
     }
 }
 
