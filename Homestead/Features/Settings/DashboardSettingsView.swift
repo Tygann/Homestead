@@ -231,9 +231,11 @@ private struct DashboardSettingsRow: View {
                     Spacer()
                 }
                 .padding(.vertical, AppSpacing.xSmall)
+                .contentShape(Rectangle())
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .buttonStyle(.plain)
+            .accessibilityHint("Opens dashboard settings")
 
             DashboardActionsMenu(
                 isSelected: isSelected,
@@ -260,27 +262,35 @@ private struct DashboardActionsMenu: View {
     var body: some View {
         Menu {
             if !isSelected {
-                Button(action: useOnThisDevice) {
-                    Label("Use on This Device", systemImage: "checkmark.circle")
+                Section {
+                    Button(action: useOnThisDevice) {
+                        Label("Use on This Device", systemImage: "checkmark.circle")
+                    }
                 }
             }
 
-            Button(action: rename) {
-                Label("Rename", systemImage: "pencil")
-            }
+            Section {
+                Button(action: rename) {
+                    Label("Rename", systemImage: "pencil")
+                }
 
-            Button(action: duplicate) {
-                Label("Duplicate", systemImage: "square.on.square")
+                Button(action: duplicate) {
+                    Label("Duplicate", systemImage: "square.on.square")
+                }
             }
 
             if showsReorder {
-                Button(action: reorder) {
-                    Label("Reorder Dashboards", systemImage: "line.3.horizontal")
+                Section {
+                    Button(action: reorder) {
+                        Label("Reorder Dashboards", systemImage: "line.3.horizontal")
+                    }
                 }
             }
 
-            Button(role: .destructive, action: delete) {
-                Label("Delete", systemImage: "trash")
+            Section {
+                Button(role: .destructive, action: delete) {
+                    Label("Delete", systemImage: "trash")
+                }
             }
         } label: {
             Image(systemName: "ellipsis.circle")
@@ -303,8 +313,13 @@ private struct DashboardDetailSettingsView: View {
     var body: some View {
         List {
             Section {
-                DashboardPhonePreview(dashboard: dashboard)
+                SettingsDashboardPhonePreview(
+                    items: dashboard.items,
+                    accessibilityLabel: "\(dashboard.resolvedName) Preview"
+                )
+                    .frame(width: 178)
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppSpacing.large)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
             }
@@ -378,115 +393,6 @@ private struct DashboardReorderSettingsView: View {
                 .fontWeight(.semibold)
             }
         }
-    }
-}
-
-private struct DashboardPhonePreview: View {
-    let dashboard: SavedDashboardConfiguration
-
-    var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: AppSpacing.small) {
-                Capsule()
-                    .fill(.secondary.opacity(0.28))
-                    .frame(width: 40, height: 5)
-                    .padding(.top, AppSpacing.medium)
-
-                HStack {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(.primary.opacity(0.18))
-                        .frame(width: 70, height: 8)
-
-                    Spacer()
-                }
-                .padding(.horizontal, AppSpacing.medium)
-
-                DashboardLayoutPreview(dashboard: dashboard)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.bottom, AppSpacing.large)
-            }
-            .frame(width: 176)
-            .frame(minHeight: 276, alignment: .top)
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.08), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.08), radius: 14, y: 8)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, AppSpacing.large)
-    }
-}
-
-private struct DashboardLayoutPreview: View {
-    let dashboard: SavedDashboardConfiguration
-
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 5), count: 4)
-
-    var body: some View {
-        if dashboard.items.isEmpty {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(.secondary.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                .frame(height: 150)
-                .overlay {
-                    Text("No Cards")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-        } else {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 5) {
-                ForEach(dashboard.items.prefix(18)) { item in
-                    DashboardLayoutPreviewTile(item: item)
-                        .gridCellColumns(item.layoutMetadata.columnSpan)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Dashboard layout preview")
-        }
-    }
-}
-
-private struct DashboardLayoutPreviewTile: View {
-    let item: DashboardItemConfiguration
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(fillStyle)
-            .overlay(alignment: .leading) {
-                if item.type == .header {
-                    Capsule()
-                        .fill(.secondary.opacity(0.4))
-                        .frame(width: 42, height: 5)
-                        .padding(.horizontal, 5)
-                }
-            }
-            .frame(height: height)
-    }
-
-    private var fillStyle: Color {
-        switch item.type {
-        case .entity:
-            Color.secondary.opacity(0.2)
-        case .header:
-            Color.clear
-        case .chip:
-            Color.accentColor.opacity(0.16)
-        }
-    }
-
-    private var height: CGFloat {
-        switch item.type {
-        case .entity:
-            CGFloat(item.layoutMetadata.rowSpan) * 24
-        case .header, .chip:
-            18
-        }
-    }
-
-    private var cornerRadius: CGFloat {
-        item.type == .chip ? 9 : 7
     }
 }
 
