@@ -107,6 +107,18 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertTrue(configuration.items.isEmpty)
     }
 
+    func testEmptySyncedDashboardListRestoresDefaultDashboard() {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        configuration.createDashboard(named: "Office")
+
+        configuration.applySyncSnapshot(DashboardConfigurationSyncSnapshot(dashboards: []))
+
+        XCTAssertEqual(configuration.dashboards.count, 1)
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "My Dashboard")
+        XCTAssertTrue(configuration.items.isEmpty)
+    }
+
     private func makeDefaults() -> UserDefaults {
         let suiteName = "com.tyler.Homestead.dashboard.xctests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard

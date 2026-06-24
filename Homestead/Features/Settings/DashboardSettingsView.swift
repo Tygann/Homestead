@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - Dashboard Settings View
 struct DashboardSettingsView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @State private var renamingDashboardID: UUID?
+    @State private var namingAction: DashboardNamingAction?
     @State private var dashboardNameDraft = ""
     @State private var deletingDashboard: SavedDashboardConfiguration?
 
@@ -20,20 +20,27 @@ struct DashboardSettingsView: View {
                 Button {
                     duplicateCurrentDashboard()
                 } label: {
-                    Label("Duplicate Current Dashboard", systemImage: "square.on.square")
+                    Label("Duplicate Dashboard", systemImage: "square.on.square")
                 }
+            } footer: {
+                Text("Dashboards sync with iCloud. This device keeps its own current dashboard.")
             }
 
             Section("Saved Dashboards") {
                 ForEach(dashboardConfiguration.dashboards) { dashboard in
                     DashboardSettingsRow(
                         dashboard: dashboard,
-                        isSelected: dashboard.id == dashboardConfiguration.selectedDashboardID
+                        isSelected: dashboard.id == dashboardConfiguration.selectedDashboardID,
+                        select: {
+                            dashboardConfiguration.selectDashboard(id: dashboard.id)
+                        },
+                        rename: {
+                            beginRenaming(dashboard)
+                        },
+                        delete: {
+                            deletingDashboard = dashboard
+                        }
                     )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        dashboardConfiguration.selectDashboard(id: dashboard.id)
-                    }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button("Delete", role: .destructive) {
                             deletingDashboard = dashboard
@@ -77,16 +84,15 @@ struct DashboardSettingsView: View {
                 }
             }
         }
-        .alert("Dashboard Name", isPresented: isRenamingDashboard) {
+        .alert(namingDialogTitle, isPresented: isNamingDashboard) {
             TextField("Name", text: $dashboardNameDraft)
 
             Button("Cancel", role: .cancel) {
-                renamingDashboardID = nil
-                dashboardNameDraft = ""
+                resetNamingState()
             }
 
-            Button("Save", role: .confirm) {
-                saveDashboardName()
+            Button(namingDialogPrimaryActionTitle, role: .confirm) {
+                commitDashboardName()
             }
         }
         .confirmationDialog(
@@ -117,16 +123,39 @@ struct DashboardSettingsView: View {
         )
     }
 
-    private var isRenamingDashboard: Binding<Bool> {
+    private var isNamingDashboard: Binding<Bool> {
         Binding(
-            get: { renamingDashboardID != nil },
+            get: { namingAction != nil },
             set: { isPresented in
                 if !isPresented {
-                    renamingDashboardID = nil
-                    dashboardNameDraft = ""
+                    resetNamingState()
                 }
             }
         )
+    }
+
+    private var namingDialogTitle: String {
+        switch namingAction {
+        case .create:
+            return "New Dashboard"
+        case .duplicate:
+            return "Duplicate Dashboard"
+        case .rename:
+            return "Rename Dashboard"
+        case nil:
+            return "Dashboard Name"
+        }
+    }
+
+    private var namingDialogPrimaryActionTitle: String {
+        switch namingAction {
+        case .create, .duplicate:
+            return "Create"
+        case .rename:
+            return "Save"
+        case nil:
+            return "Save"
+        }
     }
 
     private var deleteDialogTitle: String {
@@ -138,31 +167,40 @@ struct DashboardSettingsView: View {
     }
 
     private func createDashboard() {
-        let dashboardID = dashboardConfiguration.createDashboard()
-        renamingDashboardID = dashboardID
         dashboardNameDraft = "New Dashboard"
+        namingAction = .create
     }
 
     private func duplicateCurrentDashboard() {
-        let dashboardID = dashboardConfiguration.duplicateSelectedDashboard()
-        if let dashboard = dashboardConfiguration.dashboards.first(where: { $0.id == dashboardID }) {
-            dashboardNameDraft = dashboard.resolvedName
-        }
-        renamingDashboardID = dashboardID
+        dashboardNameDraft = "Copy of \(dashboardConfiguration.selectedDashboard.resolvedName)"
+        namingAction = .duplicate
     }
 
     private func beginRenaming(_ dashboard: SavedDashboardConfiguration) {
-        renamingDashboardID = dashboard.id
         dashboardNameDraft = dashboard.resolvedName
+        namingAction = .rename(dashboard.id)
     }
 
-    private func saveDashboardName() {
-        guard let renamingDashboardID else {
+    private func commitDashboardName() {
+        guard let namingAction else {
             return
         }
 
-        dashboardConfiguration.renameDashboard(id: renamingDashboardID, name: dashboardNameDraft)
-        self.renamingDashboardID = nil
+        switch namingAction {
+        case .create:
+            dashboardConfiguration.createDashboard(named: dashboardNameDraft)
+        case .duplicate:
+            let dashboardID = dashboardConfiguration.duplicateSelectedDashboard()
+            dashboardConfiguration.renameDashboard(id: dashboardID, name: dashboardNameDraft)
+        case .rename(let dashboardID):
+            dashboardConfiguration.renameDashboard(id: dashboardID, name: dashboardNameDraft)
+        }
+
+        resetNamingState()
+    }
+
+    private func resetNamingState() {
+        namingAction = nil
         dashboardNameDraft = ""
     }
 }
@@ -170,32 +208,61 @@ struct DashboardSettingsView: View {
 private struct DashboardSettingsRow: View {
     let dashboard: SavedDashboardConfiguration
     let isSelected: Bool
+    let select: () -> Void
+    let rename: () -> Void
+    let delete: () -> Void
 
     var body: some View {
-        Label {
-            HStack(spacing: AppSpacing.medium) {
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(dashboard.resolvedName)
-                        .foregroundStyle(.primary)
+        HStack(spacing: AppSpacing.medium) {
+            Button(action: select) {
+                Label {
+                    HStack(spacing: AppSpacing.medium) {
+                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                            Text(dashboard.resolvedName)
+                                .foregroundStyle(.primary)
 
-                    Text(itemCountText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                            Text(itemCountText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
 
-                Spacer()
+                        Spacer()
 
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.body.weight(.semibold))
+                        if isSelected {
+                            Image(systemName: "checkmark")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    .padding(.vertical, AppSpacing.xSmall)
+                } icon: {
+                    Image(systemName: "rectangle.grid.2x2")
                         .foregroundStyle(Color.accentColor)
+                        .frame(width: 28)
                 }
             }
-            .padding(.vertical, AppSpacing.xSmall)
-        } icon: {
-            Image(systemName: "rectangle.grid.2x2")
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 28)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .buttonStyle(.plain)
+
+            Menu {
+                Button(action: select) {
+                    Label("Make Current", systemImage: "checkmark.circle")
+                }
+
+                Button(action: rename) {
+                    Label("Rename", systemImage: "pencil")
+                }
+
+                Button(role: .destructive, action: delete) {
+                    Label("Delete", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
+            }
+            .accessibilityLabel("Dashboard Options")
         }
     }
 
@@ -203,6 +270,12 @@ private struct DashboardSettingsRow: View {
         let count = dashboard.items.count
         return count == 1 ? "1 item" : "\(count) items"
     }
+}
+
+private enum DashboardNamingAction: Equatable {
+    case create
+    case duplicate
+    case rename(UUID)
 }
 
 #if DEBUG
