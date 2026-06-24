@@ -1149,6 +1149,10 @@ struct HADeviceManagementSummary: Equatable, Identifiable, Sendable {
     }
 
     var rowSubtitle: String {
+        entityCountText
+    }
+
+    var detailSubtitle: String {
         let detail = subtitle == "No additional details" ? nil : subtitle
 
         return [
@@ -1247,6 +1251,14 @@ struct HAIntegrationManagementSummary: Equatable, Identifiable, Sendable {
     var entityCount: Int { entityIDs.count }
 
     var subtitle: String {
+        if deviceCount > 0 {
+            return deviceCount == 1 ? "1 device" : "\(deviceCount) devices"
+        }
+
+        return entityCount == 1 ? "1 entity" : "\(entityCount) entities"
+    }
+
+    var detailSubtitle: String {
         [
             entityCount == 1 ? "1 entity" : "\(entityCount) entities",
             deviceCount == 1 ? "1 device" : deviceCount > 1 ? "\(deviceCount) devices" : nil,

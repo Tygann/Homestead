@@ -18,6 +18,7 @@ struct EntityBrowserList<Accessory: View>: View {
     let emptySystemImage: String
     let showsFilters: Bool
     let showsSearchField: Bool
+    let allowedGroupings: [EntityBrowserGrouping]
     let showsGroupingMenu: Bool
     let showsSingleGroupHeaders: Bool
     let allowsRefresh: Bool
@@ -25,6 +26,7 @@ struct EntityBrowserList<Accessory: View>: View {
     let allowedEntityIDs: Set<String>?
     let rowAction: (HAEntityState) -> Void
     let rowDetail: (HAEntityState) -> String?
+    private let typeGroup: ((HAEntityState) -> EntityBrowserGroup?)?
     private let rowDestination: ((HAEntityState) -> AnyView)?
     private let accessory: (HAEntityState) -> Accessory
 
@@ -38,6 +40,7 @@ struct EntityBrowserList<Accessory: View>: View {
         includesUnavailableByDefault: Bool = true,
         searchText: Binding<String>? = nil,
         showsSearchField: Bool = true,
+        allowedGroupings: [EntityBrowserGrouping] = EntityBrowserGrouping.allCases,
         showsGroupingMenu: Bool = true,
         showsSingleGroupHeaders: Bool = true,
         allowsRefresh: Bool = true,
@@ -46,6 +49,7 @@ struct EntityBrowserList<Accessory: View>: View {
         initialGrouping: EntityBrowserGrouping = .device,
         rowAction: @escaping (HAEntityState) -> Void,
         rowDetail: @escaping (HAEntityState) -> String? = { _ in nil },
+        typeGroup: ((HAEntityState) -> EntityBrowserGroup?)? = nil,
         rowDestination: ((HAEntityState) -> AnyView)? = nil,
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
@@ -55,6 +59,7 @@ struct EntityBrowserList<Accessory: View>: View {
         self.emptySystemImage = emptySystemImage
         self.showsFilters = showsFilters
         self.showsSearchField = showsSearchField
+        self.allowedGroupings = allowedGroupings
         self.showsGroupingMenu = showsGroupingMenu
         self.showsSingleGroupHeaders = showsSingleGroupHeaders
         self.allowsRefresh = allowsRefresh
@@ -62,6 +67,7 @@ struct EntityBrowserList<Accessory: View>: View {
         self.allowedEntityIDs = allowedEntityIDs
         self.rowAction = rowAction
         self.rowDetail = rowDetail
+        self.typeGroup = typeGroup
         self.rowDestination = rowDestination
         self.accessory = accessory
         _includesUnavailable = State(initialValue: includesUnavailableByDefault)
@@ -201,7 +207,7 @@ struct EntityBrowserList<Accessory: View>: View {
 
     private var groupingMenu: some View {
         Menu {
-            ForEach(EntityBrowserGrouping.allCases, id: \.self) { option in
+            ForEach(allowedGroupings, id: \.self) { option in
                 Button {
                     grouping = option
                     collapsedGroups.removeAll()
@@ -277,7 +283,7 @@ struct EntityBrowserList<Accessory: View>: View {
 
     @ViewBuilder
     private func groupHeaderLabel(for group: EntityBrowserGroup) -> some View {
-        if grouping == .device {
+        if grouping == .name || grouping == .device {
             Text(group.title)
         } else {
             Label(group.title, systemImage: group.systemImage)
@@ -297,7 +303,11 @@ struct EntityBrowserList<Accessory: View>: View {
     // MARK: - Helpers
 
     private func showsHeader(for group: EntityBrowserGroup, in presentation: EntityBrowserPresentation) -> Bool {
-        showsSingleGroupHeaders || presentation.groups.count > 1 || collapsedGroups.contains(group.id)
+        if grouping == .name {
+            return collapsedGroups.contains(group.id)
+        }
+
+        return showsSingleGroupHeaders || presentation.groups.count > 1 || collapsedGroups.contains(group.id)
     }
 
     private func displayNameOverride(for entityID: String) -> String? {
@@ -332,6 +342,19 @@ struct EntityBrowserList<Accessory: View>: View {
 
         let unfilteredGroups: [EntityBrowserGroup]
         switch grouping {
+        case .name:
+            let entityIDs = visibleCandidateEntityIDs
+                .filter(entityPassesVisibility)
+                .sortedByEntityDisplayName(in: stateStore)
+
+            unfilteredGroups = entityIDs.isEmpty ? [] : [
+                EntityBrowserGroup(
+                    id: "name",
+                    title: "Entities",
+                    systemImage: "textformat",
+                    entityIDs: entityIDs
+                )
+            ]
         case .device:
             if !stateStore.entityIDGroupsByDevice.isEmpty {
                 unfilteredGroups = stateStore.entityIDGroupsByDevice.compactMap { group in
@@ -359,16 +382,36 @@ struct EntityBrowserList<Accessory: View>: View {
                 }
             }
         case .type:
-            unfilteredGroups = stateStore.entityIDGroupsByDomain.compactMap { group in
-                let visibleEntityIDs = group.entityIDs.filter(entityPassesVisibility)
-                guard !visibleEntityIDs.isEmpty else { return nil }
+            if let typeGroup {
+                unfilteredGroups = Dictionary(grouping: visibleCandidateEntityIDs.filter(entityPassesVisibility)) { entityID in
+                    stateStore.entityBox(for: entityID).flatMap(typeGroup) ?? EntityBrowserGroup(
+                        id: "type-other",
+                        title: "Other",
+                        systemImage: "square.grid.2x2",
+                        entityIDs: []
+                    )
+                }
+                .map { descriptor, entityIDs in
+                    EntityBrowserGroup(
+                        id: descriptor.id,
+                        title: descriptor.title,
+                        systemImage: descriptor.systemImage,
+                        entityIDs: entityIDs.sortedByEntityDisplayName(in: stateStore)
+                    )
+                }
+                .sortedByTitle
+            } else {
+                unfilteredGroups = stateStore.entityIDGroupsByDomain.compactMap { group in
+                    let visibleEntityIDs = group.entityIDs.filter(entityPassesVisibility)
+                    guard !visibleEntityIDs.isEmpty else { return nil }
 
-                return EntityBrowserGroup(
-                    id: "type-\(group.domain.rawValue)",
-                    title: group.domain.displayName,
-                    systemImage: group.domain.systemImage,
-                    entityIDs: visibleEntityIDs
-                )
+                    return EntityBrowserGroup(
+                        id: "type-\(group.domain.rawValue)",
+                        title: group.domain.displayName,
+                        systemImage: group.domain.systemImage,
+                        entityIDs: visibleEntityIDs
+                    )
+                }
             }
         }
 
@@ -484,11 +527,14 @@ private struct EntityBrowserSearchModifier: ViewModifier {
 // MARK: - Grouping Models
 
 enum EntityBrowserGrouping: CaseIterable {
+    case name
     case device
     case type
 
     var displayName: String {
         switch self {
+        case .name:
+            "Name"
         case .device:
             "Device"
         case .type:
@@ -498,6 +544,8 @@ enum EntityBrowserGrouping: CaseIterable {
 
     var systemImage: String {
         switch self {
+        case .name:
+            "textformat"
         case .device:
             "laptopcomputer.and.iphone"
         case .type:
@@ -506,11 +554,39 @@ enum EntityBrowserGrouping: CaseIterable {
     }
 }
 
-struct EntityBrowserGroup: Identifiable, Equatable {
+struct EntityBrowserGroup: Identifiable, Equatable, Hashable {
     let id: String
     let title: String
     let systemImage: String
     let entityIDs: [String]
+}
+
+private extension Array where Element == EntityBrowserGroup {
+    var sortedByTitle: [EntityBrowserGroup] {
+        sorted { lhs, rhs in
+            lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+        }
+    }
+}
+
+private extension Set where Element == String {
+    func sortedByEntityDisplayName(in stateStore: HAStateStore) -> [String] {
+        sorted { lhs, rhs in
+            let lhsName = stateStore.entityBox(for: lhs)?.homeEntity.displayName ?? lhs
+            let rhsName = stateStore.entityBox(for: rhs)?.homeEntity.displayName ?? rhs
+            return lhsName.localizedCaseInsensitiveCompare(rhsName) == .orderedAscending
+        }
+    }
+}
+
+private extension Array where Element == String {
+    func sortedByEntityDisplayName(in stateStore: HAStateStore) -> [String] {
+        sorted { lhs, rhs in
+            let lhsName = stateStore.entityBox(for: lhs)?.homeEntity.displayName ?? lhs
+            let rhsName = stateStore.entityBox(for: rhs)?.homeEntity.displayName ?? rhs
+            return lhsName.localizedCaseInsensitiveCompare(rhsName) == .orderedAscending
+        }
+    }
 }
 
 private struct EntityBrowserPresentation {

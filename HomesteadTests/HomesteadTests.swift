@@ -9924,7 +9924,8 @@ struct HomesteadTests {
         #expect(summaries.last?.model == "Dream Machine")
         #expect(summaries.last?.platform == "unifi")
         #expect(summaries.last?.entityCount == 1)
-        #expect(summaries.last?.rowSubtitle == "Ubiquiti • Dream Machine • Closet • 1 entity • 1 unavailable")
+        #expect(summaries.last?.rowSubtitle == "1 entity")
+        #expect(summaries.last?.detailSubtitle == "Ubiquiti • Dream Machine • Closet • 1 entity • 1 unavailable")
         #expect(summaries.last?.matches(query: "closet") == true)
         #expect(summaries.last?.matches(query: "dream") == true)
         #expect(summaries.last?.matches(query: "kitchen") == false)
@@ -9979,6 +9980,8 @@ struct HomesteadTests {
         #expect(summaries.first?.hiddenEntityCount == 1)
         #expect(summaries.first?.diagnosticEntityCount == 1)
         #expect(summaries.first?.entityIDs == ["sensor.bridge_status", "light.kitchen"])
+        #expect(summaries.first?.subtitle == "1 device")
+        #expect(summaries.first?.detailSubtitle == "2 entities • 1 device • 1 unavailable")
         #expect(summaries.last?.configEntityCount == 1)
         #expect(summaries.first?.matches(query: "hue") == true)
     }

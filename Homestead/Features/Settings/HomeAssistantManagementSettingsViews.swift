@@ -159,7 +159,7 @@ private struct IntegrationRegistryDetailView: View {
                     VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                         Text(summary.title)
                             .font(.headline)
-                        Text(summary.platform)
+                        Text(summary.detailSubtitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -189,7 +189,7 @@ private struct IntegrationRegistryDetailView: View {
                 ForEach(summary.entityIDs, id: \.self) { entityID in
                     if let entityBox = stateStore.entityBox(for: entityID) {
                         NavigationLink {
-                            EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation)
+                            EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
                         } label: {
                             EntityBrowserRow(
                                 entityBox: entityBox,
@@ -272,18 +272,22 @@ private struct HelperRegistryManagementList: View {
             emptyTitle: "No Helpers",
             emptySystemImage: "wrench.and.screwdriver",
             includesUnavailableByDefault: true,
+            allowedGroupings: [.name, .type],
             showsGroupingMenu: true,
             showsSingleGroupHeaders: summaries.count > 1,
             allowedEntityIDs: helperEntityIDs,
-            initialGrouping: .type,
+            initialGrouping: .name,
             rowAction: { entityBox in
                 _ = entityBox
             },
             rowDetail: { entityBox in
-                stateStore.entityRegistryAdminDetail(for: entityBox.entityID) ?? helperDetail(for: entityBox.entityID)
+                helperDetail(for: entityBox.entityID) ?? stateStore.entityRegistryAdminDetail(for: entityBox.entityID)
+            },
+            typeGroup: { entityBox in
+                helperGroup(for: entityBox.entityID)
             },
             rowDestination: { entityBox in
-                AnyView(EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation))
+                AnyView(EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation))
             },
             accessory: { entityBox in
                 EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: false)
@@ -295,6 +299,19 @@ private struct HelperRegistryManagementList: View {
 
     private func helperDetail(for entityID: String) -> String? {
         HAHelperDomain(entityID: entityID)?.displayName
+    }
+
+    private func helperGroup(for entityID: String) -> EntityBrowserGroup? {
+        guard let domain = HAHelperDomain(entityID: entityID) else {
+            return nil
+        }
+
+        return EntityBrowserGroup(
+            id: "helper-\(domain.rawValue)",
+            title: domain.displayName,
+            systemImage: domain.systemImage,
+            entityIDs: []
+        )
     }
 }
 
@@ -423,7 +440,7 @@ private struct DeviceRegistryDetailView: View {
                             .font(.headline)
                             .lineLimit(2)
 
-                        Text(device.rowSubtitle)
+                        Text(device.detailSubtitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
@@ -457,7 +474,7 @@ private struct DeviceRegistryDetailView: View {
                     ForEach(device.entityIDs, id: \.self) { entityID in
                         if let entityBox = stateStore.entityBox(for: entityID) {
                             NavigationLink {
-                                EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation)
+                                EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
                             } label: {
                                 EntityBrowserRow(
                                     entityBox: entityBox,
@@ -680,10 +697,11 @@ private struct EntityRegistryManagementBrowser: View {
             emptyTitle: emptyTitle,
             emptySystemImage: emptySystemImage,
             includesUnavailableByDefault: true,
+            allowedGroupings: allowedDomains == nil ? EntityBrowserGrouping.allCases : [.name],
             showsGroupingMenu: allowedDomains == nil,
             showsSingleGroupHeaders: false,
             allowedDomains: allowedDomains,
-            initialGrouping: allowedDomains == nil ? .device : .type,
+            initialGrouping: .name,
             rowAction: { entityBox in
                 _ = entityBox
             },
@@ -691,7 +709,7 @@ private struct EntityRegistryManagementBrowser: View {
                 stateStore.entityRegistryAdminDetail(for: entityBox.entityID)
             },
             rowDestination: { entityBox in
-                AnyView(EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation))
+                AnyView(EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation))
             },
             accessory: { entityBox in
                 EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: allowedDomains == nil)
@@ -703,6 +721,8 @@ private struct EntityRegistryManagementBrowser: View {
 }
 
 private struct EntityRegistryStatusAccessory: View {
+    @Environment(HAStateStore.self) private var stateStore
+
     let entityBox: HAEntityState
     var showsDomain = true
 
@@ -712,11 +732,16 @@ private struct EntityRegistryStatusAccessory: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Color.red)
                 .accessibilityLabel("Unavailable")
-        } else if showsDomain {
-            Image(systemName: entityBox.homeEntity.domain.systemImage)
+        } else if stateStore.entityRegistryMetadata(for: entityBox.entityID)?.hiddenBy == true {
+            Image(systemName: "eye.slash.fill")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .accessibilityLabel(entityBox.homeEntity.domain.displayName)
+                .accessibilityLabel("Hidden")
+        } else if entityBox.homeEntity.domain == .automation {
+            Image(systemName: entityBox.homeEntity.state == "on" ? "checkmark.circle.fill" : "pause.circle")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(entityBox.homeEntity.state == "on" ? Color.accentColor : Color.secondary)
+                .accessibilityLabel(entityBox.homeEntity.state == "on" ? "Enabled" : "Disabled")
         }
     }
 }
