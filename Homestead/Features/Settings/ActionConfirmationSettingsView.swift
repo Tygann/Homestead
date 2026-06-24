@@ -37,7 +37,7 @@ struct ActionConfirmationSettingsView: View {
                 Text("Smart Confirmations keeps everyday controls fast while asking before actions that may unlock, open, or trigger larger changes.")
             }
         }
-        .navigationTitle("Action Confirmations")
+        .navigationTitle("Safety")
         .toolbarTitleDisplayMode(.inline)
     }
 }

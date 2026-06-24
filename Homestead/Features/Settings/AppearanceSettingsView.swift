@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AppearanceSettingsView: View {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
+    @Environment(HomesteadTabSettings.self) private var tabSettings
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isImportingWallpaper = false
@@ -16,6 +17,8 @@ struct AppearanceSettingsView: View {
                 appearanceMode
 
                 wallpaperSection
+
+                navigationSection
 
                 if !appearanceSettings.hasWallpaper {
                     Text("Shown behind Home and Areas.")
@@ -91,6 +94,28 @@ struct AppearanceSettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+        }
+        .appearancePanel()
+    }
+
+    // MARK: - Navigation
+    private var navigationSection: some View {
+        @Bindable var tabSettings = tabSettings
+
+        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            sectionTitle("Navigation", systemImage: "square.split.bottomrightquarter")
+
+            Picker("Start Page", selection: $tabSettings.primaryTab) {
+                ForEach(HomesteadPrimaryTab.allCases) { tab in
+                    Label(tab.displayName, systemImage: tab.systemImage)
+                        .tag(tab)
+                }
+            }
+            .pickerStyle(.menu)
+
+            Text("Browse stays separate.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
         .appearancePanel()
     }

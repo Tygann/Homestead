@@ -4,20 +4,11 @@ import UIKit
 // MARK: - Native Permissions Settings View
 struct NativePermissionsSettingsView: View {
     @Environment(\.openURL) private var openURL
-    @Environment(NativeNotificationService.self) private var nativeNotificationService
     @Environment(NativePermissionService.self) private var nativePermissionService
 
     var body: some View {
         Form {
             Section {
-                NativePermissionStatusRow(
-                    title: "Notifications",
-                    message: notificationMessage,
-                    badgeText: notificationBadgeText,
-                    systemImage: notificationSystemImage,
-                    tint: nativeNotificationService.status.authorizationStatus.permissionTint
-                )
-
                 NativePermissionStatusRow(
                     title: "Local Network",
                     message: "Needed for Home Assistant servers on your home network.",
@@ -80,12 +71,6 @@ struct NativePermissionsSettingsView: View {
             }
 
             Section {
-                NavigationLink {
-                    NativeNotificationSettingsView()
-                } label: {
-                    Label("Notification Settings", systemImage: "bell.badge")
-                }
-
                 Button {
                     openIOSSettings()
                 } label: {
@@ -94,19 +79,17 @@ struct NativePermissionsSettingsView: View {
 
                 Button {
                     Task {
-                        await nativeNotificationService.refreshAuthorizationStatus()
                         await nativePermissionService.refreshStatus()
                     }
                 } label: {
                     Label(refreshButtonTitle, systemImage: "arrow.clockwise")
                 }
-                .disabled(nativeNotificationService.isRefreshing || nativePermissionService.isRefreshing)
+                .disabled(nativePermissionService.isRefreshing)
             }
         }
-        .navigationTitle("Permissions")
+        .navigationTitle("Privacy & Permissions")
         .toolbarTitleDisplayMode(.inline)
         .task {
-            await nativeNotificationService.refreshAuthorizationStatus()
             await nativePermissionService.refreshStatus()
         }
     }
@@ -117,39 +100,7 @@ struct NativePermissionsSettingsView: View {
     }
 
     private var refreshButtonTitle: String {
-        nativeNotificationService.isRefreshing || nativePermissionService.isRefreshing ? "Refreshing" : "Refresh Status"
-    }
-
-    private var notificationBadgeText: String {
-        nativeNotificationService.status.authorizationStatus.permissionBadgeText
-    }
-
-    private var notificationSystemImage: String {
-        switch nativeNotificationService.status.authorizationStatus {
-        case .authorized, .provisional, .ephemeral:
-            return "bell.badge.fill"
-        case .denied:
-            return "bell.slash.fill"
-        case .notDetermined, .unknown:
-            return "bell.badge"
-        }
-    }
-
-    private var notificationMessage: String {
-        switch nativeNotificationService.status.authorizationStatus {
-        case .authorized:
-            return "Home Assistant alerts can appear on this device."
-        case .provisional:
-            return "Home Assistant alerts can be delivered quietly."
-        case .ephemeral:
-            return "Notification access is temporarily allowed."
-        case .denied:
-            return "Turn on notifications in Settings."
-        case .notDetermined:
-            return "Set up alerts from Notification Settings."
-        case .unknown:
-            return "Homestead is checking notification access."
-        }
+        nativePermissionService.isRefreshing ? "Refreshing" : "Refresh Status"
     }
 
     private var locationMessage: String {
@@ -236,36 +187,6 @@ private struct NativePermissionStatusRow: View {
         } icon: {
             Image(systemName: systemImage)
                 .foregroundStyle(tint)
-        }
-    }
-}
-
-private extension NativeNotificationAuthorizationStatus {
-    var permissionBadgeText: String {
-        switch self {
-        case .authorized:
-            return "Allowed"
-        case .provisional:
-            return "Quiet"
-        case .ephemeral:
-            return "Temporary"
-        case .denied:
-            return "Off"
-        case .notDetermined:
-            return "Ask"
-        case .unknown:
-            return "Checking"
-        }
-    }
-
-    var permissionTint: Color {
-        switch self {
-        case .authorized, .provisional, .ephemeral:
-            return .green
-        case .denied:
-            return .red
-        case .notDetermined, .unknown:
-            return .secondary
         }
     }
 }

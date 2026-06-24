@@ -64,7 +64,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Homestead") {
+            Section("Customize") {
                 NavigationLink {
                     AppearanceSettingsView()
                 } label: {
@@ -72,17 +72,13 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
-                    TabsSettingsView()
-                } label: {
-                    Label("Tabs", systemImage: "square.split.bottomrightquarter")
-                }
-
-                NavigationLink {
                     DashboardSettingsView()
                 } label: {
                     Label("Dashboards", systemImage: "rectangle.grid.2x2")
                 }
+            }
 
+            Section("App") {
                 NavigationLink {
                     NativeNotificationSettingsView()
                 } label: {
@@ -92,19 +88,19 @@ struct SettingsView: View {
                 NavigationLink {
                     ActionConfirmationSettingsView()
                 } label: {
-                    Label("Action Confirmations", systemImage: "hand.raised.circle")
+                    Label("Safety", systemImage: "hand.raised.circle")
                 }
 
                 NavigationLink {
                     NativePermissionsSettingsView()
                 } label: {
-                    Label("Permissions", systemImage: "hand.raised")
+                    Label("Privacy & Permissions", systemImage: "hand.raised")
                 }
 
                 NavigationLink {
                     ICloudSyncSettingsView()
                 } label: {
-                    Label("iCloud Sync", systemImage: "icloud")
+                    Label("iCloud", systemImage: "icloud")
                 }
             }
 

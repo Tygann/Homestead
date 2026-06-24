@@ -47,7 +47,7 @@ struct ICloudSyncSettingsView: View {
                     systemImage: "rectangle.grid.2x2"
                 )
                 SettingsSyncIncludedRow(
-                    title: "Action Confirmations",
+                    title: "Safety",
                     detail: actionConfirmationSettings.mode.displayName,
                     systemImage: "hand.raised.circle"
                 )
@@ -62,7 +62,7 @@ struct ICloudSyncSettingsView: View {
                 Text("Your Home Assistant sign-in, live home data, notification setup, widgets, and wallpaper images stay on this device.")
             }
         }
-        .navigationTitle("iCloud Sync")
+        .navigationTitle("iCloud")
         .toolbarTitleDisplayMode(.inline)
         .confirmationDialog(
             "Choose Which Setup to Keep",
@@ -75,7 +75,7 @@ struct ICloudSyncSettingsView: View {
         } message: {
             Text("iCloud and this device have different Homestead preferences. Your Home Assistant credentials always remain on this device.")
         }
-        .alert("iCloud Sync Unavailable", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+        .alert("iCloud Unavailable", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "Please try again later.")
@@ -169,7 +169,7 @@ private struct SettingsSyncIncludedRow: View {
 }
 
 #if DEBUG
-#Preview("iCloud Sync Settings") {
+#Preview("iCloud Settings") {
     NavigationStack {
         ICloudSyncSettingsView()
     }
