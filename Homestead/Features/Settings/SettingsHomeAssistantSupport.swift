@@ -97,9 +97,9 @@ enum SettingsHomeAssistantStatus {
             case .reconnecting:
                 dataFreshness.isUsable ? "Updating" : "Reconnecting"
             case .failed:
-                dataFreshness.isUsable ? "Using Cache" : "Error"
+                dataFreshness.isUsable ? "Offline" : "Error"
             case .disconnected:
-                dataFreshness.isUsable ? "Using Cache" : "Signed In"
+                dataFreshness.isUsable ? "Offline" : "Signed In"
             }
         }
     }
@@ -248,7 +248,7 @@ extension HADataFreshness {
         case .empty:
             "No state loaded"
         case .cached:
-            "Showing cached state"
+            "Showing Last Update"
         case .refreshing:
             "Refreshing"
         case .live:

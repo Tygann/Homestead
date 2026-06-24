@@ -45,7 +45,7 @@ struct ConnectionPresentationTests {
             connectionStatus: .connected,
             dataFreshness: .cached(Date(timeIntervalSinceNow: -180))
         )
-        #expect(cachedState?.title == "Showing cached state")
+        #expect(cachedState?.title == "Showing Last Update")
         #expect(cachedState?.message.contains("Last updated") == true)
         #expect(cachedState?.canRetry == true)
 
@@ -60,14 +60,14 @@ struct ConnectionPresentationTests {
             connectionStatus: .connected,
             dataFreshness: .stale("offline", lastUpdated: Date(timeIntervalSinceNow: -120))
         )
-        #expect(staleWithAge?.message.contains("Last live update") == true)
+        #expect(staleWithAge?.message.contains("Last updated") == true)
 
         let disconnectedStaleWithAge = AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
             connectionStatus: .disconnected,
             dataFreshness: .stale("offline", lastUpdated: Date(timeIntervalSinceNow: -120))
         )
-        #expect(disconnectedStaleWithAge?.message.contains("Last live update") == true)
+        #expect(disconnectedStaleWithAge?.message.contains("Last updated") == true)
 
         #expect(AppStatusAccessoryState.make(
             hasHomeAssistantSession: true,
@@ -134,7 +134,7 @@ struct ConnectionPresentationTests {
             authState: authState,
             connectionStatus: .failed("No route to host"),
             dataFreshness: .cached(Date(timeIntervalSinceNow: -30))
-        ) == "Using Cache")
+        ) == "Offline")
 
         #expect(SettingsHomeAssistantStatus.summaryStatusText(
             authState: authState,

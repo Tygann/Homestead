@@ -17,7 +17,7 @@ struct DevicesAndServicesManagementView: View {
                     }
                 }
             } footer: {
-                Text("Registry views use Home Assistant data already available to Homestead. Setup and configuration changes stay in Home Assistant.")
+                Text("Homestead shows the devices, services, and helpers already available from Home Assistant. Setup and configuration changes stay in Home Assistant.")
             }
         }
         .navigationTitle("Devices & Services")
@@ -67,13 +67,13 @@ private enum DevicesAndServicesSection: CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .integrations:
-            "Read-only integration entity and device overview"
+            "Connected services with their devices and entities"
         case .devices:
             "Registered hardware, bridges, and entity counts"
         case .entities:
-            "Entity registry, status, area, and device details"
+            "Status, area, and device details"
         case .helpers:
-            "Read-only helper entities exposed by Home Assistant"
+            "Helper entities available from Home Assistant"
         }
     }
 
@@ -516,7 +516,7 @@ struct AutomationsAndScenesManagementView: View {
                     }
                 }
             } footer: {
-                Text("Automations, scenes, and scripts use entity data already available to Homestead. Blueprint browsing stays in Home Assistant until an official external API is available.")
+                Text("Homestead shows automations, scenes, and scripts already available from Home Assistant. Advanced editing stays in Home Assistant.")
             }
         }
         .navigationTitle("Automations & Scenes")

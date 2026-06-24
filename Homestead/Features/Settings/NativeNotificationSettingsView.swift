@@ -67,8 +67,8 @@ struct NativeNotificationSettingsView: View {
                     LabeledContent("Sounds", value: nativeNotificationService.status.soundSetting.settingsTitle)
                     LabeledContent("Badges", value: nativeNotificationService.status.badgeSetting.settingsTitle)
                     LabeledContent("Account", value: accountReadinessTitle)
-                    LabeledContent("Mobile App", value: mobileAppReadinessTitle)
-                    LabeledContent("Delivery Channel", value: homeAssistantService.mobileAppPushNotificationState.settingsTitle)
+                    LabeledContent("Device Setup", value: mobileAppReadinessTitle)
+                    LabeledContent("Notification Delivery", value: homeAssistantService.mobileAppPushNotificationState.settingsTitle)
 
                     if let mobileAppMessage {
                         Text(mobileAppMessage)
@@ -242,11 +242,11 @@ struct NativeNotificationSettingsView: View {
 
         switch homeAssistantService.mobileAppRegistrationState {
         case .failed:
-            return "Registration Issue"
+            return "Setup Issue"
         case .unregistered:
-            return "Registration Needed"
+            return "Set Up This Device"
         case .registering:
-            return "Registering"
+            return "Setting Up"
         case .registered:
             return homeAssistantService.authState.isSignedIn ? "Delivery Not Connected" : "Sign In Needed"
         }
@@ -307,11 +307,11 @@ struct NativeNotificationSettingsView: View {
 
         switch homeAssistantService.mobileAppRegistrationState {
         case .unregistered:
-            return "Register Homestead with Home Assistant to receive notifications."
+            return "Set up this device for Home Assistant notifications."
         case .registering:
-            return "Homestead is registering this device with Home Assistant."
+            return "Homestead is setting up this device with Home Assistant."
         case .failed(let message):
-            return message
+            return HAConnectionIssuePresentation.fallbackMessage(forRawMessage: message)
         case .registered:
             break
         }
@@ -320,11 +320,11 @@ struct NativeNotificationSettingsView: View {
         case .unavailable:
             return "Connect to Home Assistant to start notification delivery."
         case .subscribing:
-            return "Homestead is opening the Home Assistant notification channel."
+            return "Homestead is connecting notifications."
         case .subscribed:
             return nil
         case .failed(let message):
-            return message
+            return HAConnectionIssuePresentation.fallbackMessage(forRawMessage: message)
         }
     }
 
@@ -354,7 +354,7 @@ struct NativeNotificationSettingsView: View {
         case .unregistered:
             return "Not registered"
         case .registering:
-            return "Registering"
+            return "Setting up"
         case .registered:
             return "Ready"
         case .failed:
@@ -366,16 +366,16 @@ struct NativeNotificationSettingsView: View {
         switch homeAssistantService.mobileAppRegistrationState {
         case .unregistered:
             guard homeAssistantService.authState.isSignedIn else {
-                return "Sign in with Home Assistant before registering Homestead as a mobile app."
+                return "Sign in with Home Assistant before setting up this device."
             }
-            return "Register Homestead with this Home Assistant server before notification delivery can be enabled."
+            return "Set up this device before Home Assistant notifications can be delivered."
         case .registering:
-            return "Homestead is registering with Home Assistant."
+            return "Homestead is setting up this device with Home Assistant."
         case .registered(let summary):
             let date = summary.registeredAt.formatted(date: .abbreviated, time: .shortened)
-            return "Registered as \(summary.deviceName) on \(date)."
+            return "Set up as \(summary.deviceName) on \(date)."
         case .failed(let message):
-            return message
+            return HAConnectionIssuePresentation.fallbackMessage(forRawMessage: message)
         }
     }
 
@@ -384,11 +384,11 @@ struct NativeNotificationSettingsView: View {
         case .unavailable:
             return "Connect to Home Assistant to start notification delivery."
         case .subscribing:
-            return "Homestead is opening Home Assistant's mobile-app notification channel."
+            return "Homestead is connecting notifications."
         case .subscribed(let date):
             return "Ready since \(date.formatted(date: .abbreviated, time: .shortened))."
         case .failed(let message):
-            return message
+            return HAConnectionIssuePresentation.fallbackMessage(forRawMessage: message)
         }
     }
 
@@ -411,11 +411,11 @@ struct NativeNotificationSettingsView: View {
     private var mobileAppButtonTitle: String {
         switch homeAssistantService.mobileAppRegistrationState {
         case .registering:
-            return "Registering"
+            return "Setting Up"
         case .registered:
-            return "Register Again"
+            return "Reconnect Notifications"
         case .unregistered, .failed:
-            return "Register Mobile App"
+            return "Set Up Notifications"
         }
     }
 

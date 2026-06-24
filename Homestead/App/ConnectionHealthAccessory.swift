@@ -141,8 +141,8 @@ nonisolated struct AppStatusAccessoryState: Equatable {
 
     static func cached(lastUpdated: Date?) -> AppStatusAccessoryState {
         AppStatusAccessoryState(
-            title: "Showing cached state",
-            message: lastUpdatedMessage(lastUpdated: lastUpdated, fallback: "Waiting for live Home Assistant state."),
+            title: "Showing Last Update",
+            message: lastUpdatedMessage(lastUpdated: lastUpdated, fallback: "Waiting to refresh from Home Assistant."),
             systemImage: "clock.arrow.circlepath",
             style: .warning,
             canRetry: true
@@ -213,13 +213,13 @@ nonisolated struct AppStatusAccessoryState: Equatable {
 
     private static func staleMessage(lastUpdated: Date?) -> String {
         guard let lastUpdated else {
-            return "Using the latest cached state."
+            return "Waiting to refresh from Home Assistant."
         }
 
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         let relativeDate = formatter.localizedString(for: lastUpdated, relativeTo: Date())
-        return "Last live update \(relativeDate)."
+        return "Last updated \(relativeDate)."
     }
 
     private var isTransientConnectionHealth: Bool {

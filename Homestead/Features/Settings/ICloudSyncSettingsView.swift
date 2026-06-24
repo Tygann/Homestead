@@ -59,7 +59,7 @@ struct ICloudSyncSettingsView: View {
             } header: {
                 Text("Included")
             } footer: {
-                Text("Home Assistant credentials, tokens, entity state, registry cache, mobile-app registration secrets, widget snapshots, and wallpaper image files stay on this device.")
+                Text("Your Home Assistant sign-in, live home data, notification setup, widgets, and wallpaper images stay on this device.")
             }
         }
         .navigationTitle("iCloud Sync")
