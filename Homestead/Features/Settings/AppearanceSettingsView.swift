@@ -10,19 +10,11 @@ struct AppearanceSettingsView: View {
     @State private var importErrorMessage: String?
 
     var body: some View {
-        @Bindable var appearanceSettings = appearanceSettings
-
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                appearanceMode
-
-                wallpaperSection
-
-                navigationSection
-            }
-            .padding(.vertical, AppSpacing.xLarge)
+        Form {
+            displaySection
+            wallpaperSection
+            navigationSection
         }
-        .background(Color(.systemGroupedBackground))
         .navigationTitle("Appearance")
         .toolbarTitleDisplayMode(.inline)
         .task(id: selectedPhoto) {
@@ -36,114 +28,57 @@ struct AppearanceSettingsView: View {
     }
 
     // MARK: - Display
-    private var appearanceMode: some View {
+
+    private var displaySection: some View {
         @Bindable var appearanceSettings = appearanceSettings
 
-        return settingsSection("Display") {
+        return Section("Display") {
             Picker("Mode", selection: $appearanceSettings.appearanceMode) {
                 ForEach(HomesteadAppearanceMode.allCases) { mode in
                     Text(mode.displayName).tag(mode)
                 }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
         }
     }
 
     // MARK: - Wallpaper
+
     private var wallpaperSection: some View {
         @Bindable var appearanceSettings = appearanceSettings
 
-        return settingsSection(
-            "Wallpaper",
-            footer: "Shown behind Home and Areas."
-        ) {
-            SettingsDashboardPhonePreview(
-                items: dashboardConfiguration.selectedDashboard.items,
-                wallpaperURL: appearanceSettings.storedWallpaperURL,
-                wallpaperRevision: appearanceSettings.wallpaperRevision,
-                accessibilityLabel: "Wallpaper Preview"
-            )
+        return Section {
+            VStack(spacing: AppSpacing.medium) {
+                SettingsDashboardPhonePreview(
+                    items: dashboardConfiguration.selectedDashboard.items,
+                    wallpaperURL: appearanceSettings.storedWallpaperURL,
+                    wallpaperRevision: appearanceSettings.wallpaperRevision,
+                    accessibilityLabel: "Wallpaper Preview"
+                )
                 .frame(width: 162)
-                .frame(maxWidth: .infinity)
 
-            wallpaperPicker
-                .frame(maxWidth: .infinity)
-
-            Divider()
+                wallpaperPicker
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, AppSpacing.small)
+            .listRowSeparator(.hidden)
 
             Toggle("Use Wallpaper", isOn: $appearanceSettings.isWallpaperEnabled)
                 .disabled(!appearanceSettings.hasWallpaper)
 
             if appearanceSettings.hasWallpaper {
-                Divider()
-
                 Button(role: .destructive) {
                     appearanceSettings.removeWallpaper()
                 } label: {
                     Label("Remove Wallpaper", systemImage: "trash")
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+        } header: {
+            Text("Wallpaper")
+        } footer: {
+            Text("Wallpaper appears behind Home and Areas.")
         }
-    }
-
-    // MARK: - Navigation
-    private var navigationSection: some View {
-        @Bindable var tabSettings = tabSettings
-
-        return settingsSection("Navigation", footer: "Browse stays separate.") {
-            HStack {
-                Text("Start Page")
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Picker("Start Page", selection: $tabSettings.primaryTab) {
-                    ForEach(HomesteadPrimaryTab.allCases) { tab in
-                        Label(tab.displayName, systemImage: tab.systemImage)
-                            .tag(tab)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-            }
-            .padding(.vertical, AppSpacing.xSmall)
-        }
-    }
-
-    private func settingsSection<Content: View>(
-        _ title: String,
-        footer: String? = nil,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-            Text(title)
-                .font(.headline)
-                .padding(.horizontal, AppSpacing.xLarge)
-
-            VStack(alignment: .leading, spacing: AppSpacing.large) {
-                content()
-            }
-            .padding(AppSpacing.large)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                Color(.secondarySystemGroupedBackground).opacity(0.76),
-                in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                    .strokeBorder(Color(.separator).opacity(0.10), lineWidth: 0.5)
-            }
-            .padding(.horizontal, AppSpacing.large)
-
-            if let footer {
-                Text(footer)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, AppSpacing.xLarge)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -154,7 +89,8 @@ struct AppearanceSettingsView: View {
                 matching: .images,
                 photoLibrary: .shared()
             ) {
-                wallpaperPickerLabel("Change Wallpaper", font: .subheadline.weight(.semibold))
+                Text("Change Wallpaper")
+                    .lineLimit(1)
             }
             .buttonStyle(.bordered)
             .disabled(isImportingWallpaper)
@@ -164,21 +100,36 @@ struct AppearanceSettingsView: View {
                 matching: .images,
                 photoLibrary: .shared()
             ) {
-                wallpaperPickerLabel("Choose Wallpaper", font: .body.weight(.semibold))
+                Text("Choose Wallpaper")
+                    .lineLimit(1)
             }
             .buttonStyle(.borderedProminent)
             .disabled(isImportingWallpaper)
         }
     }
 
-    private func wallpaperPickerLabel(
-        _ title: String,
-        font: Font
-    ) -> some View {
-        Text(title)
-            .lineLimit(1)
-            .font(font)
+    // MARK: - Navigation
+
+    private var navigationSection: some View {
+        @Bindable var tabSettings = tabSettings
+
+        return Section {
+            Picker("Start Page", selection: $tabSettings.primaryTab) {
+                ForEach(HomesteadPrimaryTab.allCases) { tab in
+                    Text(tab.displayName)
+                        .tag(tab)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(.secondary)
+        } header: {
+            Text("Navigation")
+        } footer: {
+            Text("Browse stays separate.")
+        }
     }
+
+    // MARK: - Import
 
     private var importErrorBinding: Binding<Bool> {
         Binding(
