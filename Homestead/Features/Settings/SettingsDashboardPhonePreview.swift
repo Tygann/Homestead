@@ -123,43 +123,83 @@ private struct SettingsDashboardLayoutMiniature: View {
     private let maximumVisibleItems = 24
 
     var body: some View {
-        if items.isEmpty {
-            emptyState
-        } else {
-            GeometryReader { proxy in
-                let layout = SettingsDashboardPreviewLayout(
-                    items: Array(items.prefix(maximumVisibleItems)),
-                    width: proxy.size.width,
-                    spacing: spacing,
-                    rowHeight: rowHeight
-                )
-
-                ZStack(alignment: .topLeading) {
-                    ForEach(layout.placements) { placement in
-                        SettingsDashboardLayoutPreviewTile(item: placement.item)
-                            .frame(width: placement.frame.width, height: placement.frame.height)
-                            .offset(x: placement.frame.minX, y: placement.frame.minY)
-                    }
-                }
-                .frame(width: proxy.size.width, height: layout.height, alignment: .topLeading)
-                .frame(maxHeight: .infinity, alignment: .top)
-                .clipped()
+        VStack(alignment: .leading, spacing: 7) {
+            if !chipItems.isEmpty {
+                chipRow
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Dashboard layout preview")
+
+            if cardGridItems.isEmpty {
+                emptyState
+            } else {
+                GeometryReader { proxy in
+                    let layout = SettingsDashboardPreviewLayout(
+                        items: Array(cardGridItems.prefix(maximumVisibleItems)),
+                        width: proxy.size.width,
+                        spacing: spacing,
+                        rowHeight: rowHeight
+                    )
+
+                    ZStack(alignment: .topLeading) {
+                        ForEach(layout.placements) { placement in
+                            SettingsDashboardLayoutPreviewTile(item: placement.item)
+                                .frame(width: placement.frame.width, height: placement.frame.height)
+                                .offset(x: placement.frame.minX, y: placement.frame.minY)
+                        }
+                    }
+                    .frame(width: proxy.size.width, height: layout.height, alignment: .topLeading)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .clipped()
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Dashboard layout preview")
+            }
         }
+    }
+
+    private var chipItems: [DashboardItemConfiguration] {
+        items.filter { $0.type == .chip }
+    }
+
+    private var cardGridItems: [DashboardItemConfiguration] {
+        items.filter { $0.type != .chip }
+    }
+
+    private var chipRow: some View {
+        HStack(spacing: 4) {
+            ForEach(chipItems.prefix(4)) { chip in
+                Capsule()
+                    .fill(Color.accentColor.opacity(0.18))
+                    .overlay {
+                        Capsule()
+                            .strokeBorder(Color.accentColor.opacity(0.10), lineWidth: 0.5)
+                    }
+                    .frame(width: chipWidth(for: chip), height: 13)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var emptyState: some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
             .stroke(.secondary.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
             .frame(maxWidth: .infinity)
-            .frame(height: 150)
+            .frame(height: 126)
             .overlay {
                 Text("No Cards")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
+    }
+
+    private func chipWidth(for chip: DashboardItemConfiguration) -> CGFloat {
+        switch chip.chipKind {
+        case .summary:
+            34
+        case .entity:
+            42
+        case nil:
+            34
+        }
     }
 }
 

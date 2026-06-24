@@ -15,9 +15,6 @@ struct DashboardSettingsView: View {
                     DashboardSettingsRow(
                         dashboard: dashboard,
                         isSelected: isSelected(dashboard),
-                        openDetail: {
-                            selectedRoute = .detail(dashboard.id)
-                        },
                         useOnThisDevice: {
                             dashboardConfiguration.selectDashboard(id: dashboard.id)
                         },
@@ -33,7 +30,10 @@ struct DashboardSettingsView: View {
                         delete: {
                             deletingDashboardID = dashboard.id
                         },
-                        showsReorder: dashboardConfiguration.dashboards.count > 1
+                        showsReorder: dashboardConfiguration.dashboards.count > 1,
+                        detail: {
+                            dashboardDetail(for: dashboard.id)
+                        }
                     )
                 }
             } footer: {
@@ -54,26 +54,7 @@ struct DashboardSettingsView: View {
         .navigationDestination(item: $selectedRoute) { route in
             switch route {
             case .detail(let dashboardID):
-                if let dashboard = dashboardConfiguration.dashboards.first(where: { $0.id == dashboardID }) {
-                    DashboardDetailSettingsView(
-                        dashboard: dashboard,
-                        isSelected: dashboard.id == dashboardConfiguration.selectedDashboardID,
-                        useOnThisDevice: {
-                            dashboardConfiguration.selectDashboard(id: dashboard.id)
-                        },
-                        rename: {
-                            beginRenaming(dashboard)
-                        },
-                        duplicate: {
-                            beginDuplicating(dashboard)
-                        },
-                        delete: {
-                            deletingDashboardID = dashboard.id
-                        }
-                    )
-                } else {
-                    ContentUnavailableView("Dashboard Unavailable", systemImage: "rectangle.dashed")
-                }
+                dashboardDetail(for: dashboardID)
             case .reorder:
                 DashboardReorderSettingsView()
             }
@@ -202,39 +183,52 @@ struct DashboardSettingsView: View {
         dashboardNameDraft = ""
     }
 
+    @ViewBuilder
+    private func dashboardDetail(for dashboardID: UUID) -> some View {
+        if let dashboard = dashboardConfiguration.dashboards.first(where: { $0.id == dashboardID }) {
+            DashboardDetailSettingsView(
+                dashboard: dashboard,
+                isSelected: dashboard.id == dashboardConfiguration.selectedDashboardID,
+                useOnThisDevice: {
+                    dashboardConfiguration.selectDashboard(id: dashboard.id)
+                },
+                rename: {
+                    beginRenaming(dashboard)
+                },
+                duplicate: {
+                    beginDuplicating(dashboard)
+                },
+                delete: {
+                    deletingDashboardID = dashboard.id
+                }
+            )
+        } else {
+            ContentUnavailableView("Dashboard Unavailable", systemImage: "rectangle.dashed")
+        }
+    }
+
 }
 
-private struct DashboardSettingsRow: View {
+private struct DashboardSettingsRow<Detail: View>: View {
     let dashboard: SavedDashboardConfiguration
     let isSelected: Bool
-    let openDetail: () -> Void
     let useOnThisDevice: () -> Void
     let rename: () -> Void
     let duplicate: () -> Void
     let reorder: () -> Void
     let delete: () -> Void
     let showsReorder: Bool
+    let detail: () -> Detail
 
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
-            Button(action: openDetail) {
-                HStack(spacing: AppSpacing.medium) {
-                    if isSelected {
-                        Image(systemName: "checkmark")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
-                    }
-
-                    Text(dashboard.resolvedName)
-                        .foregroundStyle(.primary)
-
-                    Spacer()
-                }
-                .padding(.vertical, AppSpacing.xSmall)
-                .contentShape(Rectangle())
+            NavigationLink(destination: detail) {
+                DashboardSettingsRowLabel(
+                    name: dashboard.resolvedName,
+                    isSelected: isSelected
+                )
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .buttonStyle(.plain)
             .accessibilityHint("Opens dashboard settings")
 
             DashboardActionsMenu(
@@ -247,6 +241,25 @@ private struct DashboardSettingsRow: View {
                 showsReorder: showsReorder
             )
         }
+    }
+}
+
+private struct DashboardSettingsRowLabel: View {
+    let name: String
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: AppSpacing.medium) {
+            Image(systemName: "checkmark")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(isSelected ? Color.accentColor : Color.clear)
+                .frame(width: 22)
+                .accessibilityHidden(!isSelected)
+
+            Text(name)
+                .foregroundStyle(.primary)
+        }
+        .padding(.vertical, AppSpacing.xSmall)
     }
 }
 
@@ -325,7 +338,11 @@ private struct DashboardDetailSettingsView: View {
             }
 
             Section {
-                LabeledContent("Items", value: itemCountText)
+                LabeledContent("Cards", value: cardCountText)
+
+                if chipCount > 0 {
+                    LabeledContent("Chips", value: chipCount.formatted())
+                }
 
                 if isSelected {
                     LabeledContent("This Device", value: "Using")
@@ -354,11 +371,19 @@ private struct DashboardDetailSettingsView: View {
         }
         .navigationTitle(dashboard.resolvedName)
         .toolbarTitleDisplayMode(.inline)
+        .safeAreaPadding(.bottom, AppSpacing.xLarge)
     }
 
-    private var itemCountText: String {
-        let count = dashboard.items.count
-        return count == 1 ? "1 item" : "\(count) items"
+    private var cardCountText: String {
+        cardCount.formatted()
+    }
+
+    private var cardCount: Int {
+        dashboard.items.filter { $0.type == .entity }.count
+    }
+
+    private var chipCount: Int {
+        dashboard.items.filter { $0.type == .chip }.count
     }
 }
 
