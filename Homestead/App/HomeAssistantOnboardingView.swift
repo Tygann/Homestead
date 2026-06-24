@@ -526,7 +526,7 @@ struct ICloudSetupRestoreView: View {
             }
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 LabeledContent("Home Assistant", value: summary.serverDisplayName)
-                LabeledContent("Dashboard", value: summary.dashboardItemCount == 1 ? "1 item" : "\(summary.dashboardItemCount) items")
+                LabeledContent("Dashboards", value: restoreDashboardSummaryText)
             }
             .padding(AppSpacing.large)
             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card))
@@ -541,6 +541,12 @@ struct ICloudSetupRestoreView: View {
         }
         .padding(AppSpacing.large)
         .background(Color(.systemGroupedBackground))
+    }
+
+    private var restoreDashboardSummaryText: String {
+        let dashboardText = summary.dashboardCount == 1 ? "1 dashboard" : "\(summary.dashboardCount) dashboards"
+        let itemText = summary.dashboardItemCount == 1 ? "1 item" : "\(summary.dashboardItemCount) items"
+        return "\(dashboardText), \(itemText)"
     }
 }
 

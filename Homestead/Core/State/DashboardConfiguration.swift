@@ -156,24 +156,48 @@ enum DashboardReorderGroup: Equatable, Sendable {
     case cards
 }
 
+struct SavedDashboardConfiguration: Identifiable, Codable, Equatable, Sendable {
+    var id: UUID
+    var name: String
+    var items: [DashboardItemConfiguration]
+    var entityDisplayNameOverrides: [String: String]
+
+    var resolvedName: String {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedName.isEmpty ? "Untitled Dashboard" : trimmedName
+    }
+}
+
 @MainActor
 @Observable
 final class DashboardConfiguration {
-    private(set) var items: [DashboardItemConfiguration] {
-        didSet { saveItems() }
+    private(set) var dashboards: [SavedDashboardConfiguration] {
+        didSet { saveDashboards() }
     }
-    private(set) var entityDisplayNameOverrides: [String: String] {
-        didSet { saveEntityDisplayNameOverrides() }
+    private(set) var selectedDashboardID: UUID {
+        didSet { saveSelectedDashboardID() }
     }
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let itemsKey = "dashboardItems"
     @ObservationIgnored private let entityDisplayNameOverridesKey = "entityDisplayNameOverrides"
+    @ObservationIgnored private let dashboardsKey = "homestead.dashboard.savedDashboards"
+    @ObservationIgnored private let selectedDashboardIDKey = "homestead.dashboard.selectedDashboardID"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        items = Self.loadItems(from: defaults, key: itemsKey)
-        entityDisplayNameOverrides = Self.loadEntityDisplayNameOverrides(from: defaults, key: entityDisplayNameOverridesKey)
+        let loadedDashboards = Self.loadDashboards(
+            from: defaults,
+            dashboardsKey: dashboardsKey,
+            itemsKey: itemsKey,
+            entityDisplayNameOverridesKey: entityDisplayNameOverridesKey
+        )
+        dashboards = loadedDashboards
+        selectedDashboardID = Self.loadSelectedDashboardID(
+            from: defaults,
+            key: selectedDashboardIDKey,
+            dashboards: loadedDashboards
+        )
     }
 
     var hasCustomLayout: Bool {
@@ -182,9 +206,20 @@ final class DashboardConfiguration {
 
     var syncSnapshot: DashboardConfigurationSyncSnapshot {
         DashboardConfigurationSyncSnapshot(
-            items: items,
-            entityDisplayNameOverrides: entityDisplayNameOverrides
+            dashboards: dashboards
         )
+    }
+
+    var selectedDashboard: SavedDashboardConfiguration {
+        dashboards.first { $0.id == selectedDashboardID } ?? dashboards[0]
+    }
+
+    var items: [DashboardItemConfiguration] {
+        selectedDashboard.items
+    }
+
+    var entityDisplayNameOverrides: [String: String] {
+        selectedDashboard.entityDisplayNameOverrides
     }
 
     var entityIDs: [String] {
@@ -199,9 +234,9 @@ final class DashboardConfiguration {
             return
         }
 
-        items = Self.defaultEntityIDs(from: entities).map {
+        updateSelectedDashboardItems(Self.defaultEntityIDs(from: entities).map {
             DashboardItemConfiguration.entity(entityID: $0)
-        }
+        })
     }
 
     func reconcile(with entities: [HomeEntity]) {
@@ -222,7 +257,7 @@ final class DashboardConfiguration {
         }
 
         if currentItems != items {
-            items = currentItems
+            updateSelectedDashboardItems(currentItems)
         }
     }
 
@@ -288,14 +323,14 @@ final class DashboardConfiguration {
         }
 
         let item = DashboardItemConfiguration.entity(entityID: entityID, size: size)
-        items.append(item)
+        appendSelectedDashboardItem(item)
         return item.id
     }
 
     @discardableResult
     func addHeader(title: String) -> UUID {
         let item = DashboardItemConfiguration.header(title: normalizedHeaderTitle(title))
-        items.append(item)
+        appendSelectedDashboardItem(item)
         return item.id
     }
 
@@ -306,14 +341,14 @@ final class DashboardConfiguration {
         }
 
         let item = DashboardItemConfiguration.summaryChip(kind: kind)
-        items.append(item)
+        appendSelectedDashboardItem(item)
         return item.id
     }
 
     @discardableResult
     func addEntityChip(entityID: String) -> UUID {
         let item = DashboardItemConfiguration.entityChip(entityID: entityID)
-        items.append(item)
+        appendSelectedDashboardItem(item)
         return item.id
     }
 
@@ -324,7 +359,7 @@ final class DashboardConfiguration {
 
         var updatedItems = items
         updatedItems[index].title = normalizedHeaderTitle(title)
-        items = updatedItems
+        updateSelectedDashboardItems(updatedItems)
     }
 
     func renameEntityItem(id: UUID, displayNameOverride: String?) {
@@ -342,7 +377,7 @@ final class DashboardConfiguration {
 
         var updatedItems = items
         updatedItems[index].displayNameOverride = normalizedDisplayNameOverride(displayNameOverride)
-        items = updatedItems
+        updateSelectedDashboardItems(updatedItems)
     }
 
     func entityDisplayNameOverride(for entityID: String) -> String? {
@@ -352,7 +387,7 @@ final class DashboardConfiguration {
     func setEntityDisplayNameOverride(_ displayNameOverride: String?, for entityID: String) {
         var updatedOverrides = entityDisplayNameOverrides
         updatedOverrides[entityID] = normalizedDisplayNameOverride(displayNameOverride)
-        entityDisplayNameOverrides = updatedOverrides
+        updateSelectedDashboardOverrides(updatedOverrides)
     }
 
     func setIconNameOverride(_ iconNameOverride: String?, forItemID itemID: UUID) {
@@ -362,15 +397,15 @@ final class DashboardConfiguration {
 
         var updatedItems = items
         updatedItems[index].iconNameOverride = normalizedDisplayNameOverride(iconNameOverride)
-        items = updatedItems
+        updateSelectedDashboardItems(updatedItems)
     }
 
     func remove(_ entityID: String) {
-        items.removeAll { $0.type == .entity && $0.entityID == entityID }
+        updateSelectedDashboardItems(items.filter { $0.type != .entity || $0.entityID != entityID })
     }
 
     func removeItem(id: UUID) {
-        items.removeAll { $0.id == id }
+        updateSelectedDashboardItems(items.filter { $0.id != id })
     }
 
     func move(from source: IndexSet, to destination: Int) {
@@ -383,7 +418,7 @@ final class DashboardConfiguration {
 
         let adjustedDestination = destination - source.filter { $0 < destination }.count
         updatedItems.insert(contentsOf: movingItems, at: adjustedDestination)
-        items = updatedItems
+        updateSelectedDashboardItems(updatedItems)
     }
 
     func moveItems(in group: DashboardReorderGroup, from source: IndexSet, to destination: Int) {
@@ -408,7 +443,7 @@ final class DashboardConfiguration {
         for (itemIndex, reorderedItem) in zip(groupIndices, reorderedGroupItems) {
             updatedItems[itemIndex] = reorderedItem
         }
-        items = updatedItems
+        updateSelectedDashboardItems(updatedItems)
     }
 
     func moveVisibleGridItem(
@@ -476,18 +511,81 @@ final class DashboardConfiguration {
             reorderedItemIndex = reorderedVisibleItemIDs.index(after: reorderedItemIndex)
         }
 
-        items = updatedItems
+        updateSelectedDashboardItems(updatedItems)
     }
 
     func reset(using entities: [HomeEntity]) {
-        items = Self.defaultEntityIDs(from: entities).map {
+        updateSelectedDashboardItems(Self.defaultEntityIDs(from: entities).map {
             DashboardItemConfiguration.entity(entityID: $0)
-        }
+        })
     }
 
     func applySyncSnapshot(_ snapshot: DashboardConfigurationSyncSnapshot) {
-        items = snapshot.items
-        entityDisplayNameOverrides = snapshot.entityDisplayNameOverrides
+        dashboards = Self.normalizedDashboards(snapshot.resolvedDashboards)
+        ensureSelectedDashboardExists()
+    }
+
+    @discardableResult
+    func selectDashboard(id: UUID) -> Bool {
+        guard dashboards.contains(where: { $0.id == id }) else {
+            ensureSelectedDashboardExists()
+            return false
+        }
+
+        selectedDashboardID = id
+        return true
+    }
+
+    @discardableResult
+    func createDashboard(named name: String = "New Dashboard") -> UUID {
+        let dashboard = SavedDashboardConfiguration(
+            id: UUID(),
+            name: uniqueDashboardName(normalizedDashboardName(name)),
+            items: [],
+            entityDisplayNameOverrides: [:]
+        )
+        dashboards.append(dashboard)
+        selectedDashboardID = dashboard.id
+        return dashboard.id
+    }
+
+    @discardableResult
+    func duplicateSelectedDashboard() -> UUID {
+        let source = selectedDashboard
+        let copiedItems = source.items.map { item in
+            var copy = item
+            copy.id = UUID()
+            return copy
+        }
+        let dashboard = SavedDashboardConfiguration(
+            id: UUID(),
+            name: uniqueDashboardName("Copy of \(source.resolvedName)"),
+            items: copiedItems,
+            entityDisplayNameOverrides: source.entityDisplayNameOverrides
+        )
+        dashboards.append(dashboard)
+        selectedDashboardID = dashboard.id
+        return dashboard.id
+    }
+
+    func renameDashboard(id: UUID, name: String) {
+        guard let index = dashboards.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        var updatedDashboards = dashboards
+        updatedDashboards[index].name = uniqueDashboardName(normalizedDashboardName(name), excluding: id)
+        dashboards = updatedDashboards
+    }
+
+    func deleteDashboard(id: UUID) {
+        var updatedDashboards = dashboards.filter { $0.id != id }
+        if updatedDashboards.isEmpty {
+            updatedDashboards = [Self.defaultDashboard()]
+        }
+
+        dashboards = updatedDashboards
+        ensureSelectedDashboardExists()
     }
 
     func cardSize(forItemID itemID: UUID) -> DashboardCardSize {
@@ -505,7 +603,7 @@ final class DashboardConfiguration {
 
         var updatedItems = items
         updatedItems[index].size = size
-        items = updatedItems
+        updateSelectedDashboardItems(updatedItems)
     }
 
     func setCardSize(_ size: DashboardCardSize, for entityID: String) {
@@ -527,23 +625,59 @@ final class DashboardConfiguration {
 
         var updatedItems = items
         updatedItems[index].featureVisibility = featureVisibility == .automatic ? nil : featureVisibility
-        items = updatedItems
+        updateSelectedDashboardItems(updatedItems)
     }
 
-    private func saveItems() {
-        guard let data = try? JSONEncoder().encode(items) else {
+    private func saveDashboards() {
+        guard let data = try? JSONEncoder().encode(dashboards) else {
             return
         }
 
-        defaults.set(data, forKey: itemsKey)
+        defaults.set(data, forKey: dashboardsKey)
     }
 
-    private func saveEntityDisplayNameOverrides() {
-        guard let data = try? JSONEncoder().encode(entityDisplayNameOverrides) else {
+    private func saveSelectedDashboardID() {
+        defaults.set(selectedDashboardID.uuidString, forKey: selectedDashboardIDKey)
+    }
+
+    private func updateSelectedDashboardItems(_ items: [DashboardItemConfiguration]) {
+        updateSelectedDashboard { dashboard in
+            dashboard.items = items
+        }
+    }
+
+    private func updateSelectedDashboardOverrides(_ overrides: [String: String]) {
+        updateSelectedDashboard { dashboard in
+            dashboard.entityDisplayNameOverrides = overrides
+        }
+    }
+
+    private func appendSelectedDashboardItem(_ item: DashboardItemConfiguration) {
+        updateSelectedDashboard { dashboard in
+            dashboard.items.append(item)
+        }
+    }
+
+    private func updateSelectedDashboard(_ update: (inout SavedDashboardConfiguration) -> Void) {
+        ensureSelectedDashboardExists()
+        guard let index = dashboards.firstIndex(where: { $0.id == selectedDashboardID }) else {
             return
         }
 
-        defaults.set(data, forKey: entityDisplayNameOverridesKey)
+        var updatedDashboards = dashboards
+        update(&updatedDashboards[index])
+        dashboards = updatedDashboards
+    }
+
+    private func ensureSelectedDashboardExists() {
+        if dashboards.isEmpty {
+            dashboards = [Self.defaultDashboard()]
+            return
+        }
+
+        if !dashboards.contains(where: { $0.id == selectedDashboardID }) {
+            selectedDashboardID = dashboards[0].id
+        }
     }
 
     private func normalizedHeaderTitle(_ title: String) -> String {
@@ -554,6 +688,66 @@ final class DashboardConfiguration {
     private func normalizedDisplayNameOverride(_ title: String?) -> String? {
         let trimmedTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmedTitle.isEmpty ? nil : trimmedTitle
+    }
+
+    private func normalizedDashboardName(_ name: String) -> String {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedName.isEmpty ? "Untitled Dashboard" : trimmedName
+    }
+
+    private func uniqueDashboardName(_ name: String, excluding excludedID: UUID? = nil) -> String {
+        let existingNames = Set(dashboards.compactMap { dashboard -> String? in
+            dashboard.id == excludedID ? nil : dashboard.resolvedName.lowercased()
+        })
+        guard existingNames.contains(name.lowercased()) else {
+            return name
+        }
+
+        for suffix in 2... {
+            let candidate = "\(name) \(suffix)"
+            if !existingNames.contains(candidate.lowercased()) {
+                return candidate
+            }
+        }
+
+        return name
+    }
+
+    private static func loadDashboards(
+        from defaults: UserDefaults,
+        dashboardsKey: String,
+        itemsKey: String,
+        entityDisplayNameOverridesKey: String
+    ) -> [SavedDashboardConfiguration] {
+        if let data = defaults.data(forKey: dashboardsKey),
+           let dashboards = try? JSONDecoder().decode([SavedDashboardConfiguration].self, from: data) {
+            return normalizedDashboards(dashboards)
+        }
+
+        let legacyItems = loadItems(from: defaults, key: itemsKey)
+        let legacyOverrides = loadEntityDisplayNameOverrides(from: defaults, key: entityDisplayNameOverridesKey)
+        return [
+            SavedDashboardConfiguration(
+                id: UUID(),
+                name: "My Dashboard",
+                items: legacyItems,
+                entityDisplayNameOverrides: legacyOverrides
+            )
+        ]
+    }
+
+    private static func loadSelectedDashboardID(
+        from defaults: UserDefaults,
+        key: String,
+        dashboards: [SavedDashboardConfiguration]
+    ) -> UUID {
+        if let rawValue = defaults.string(forKey: key),
+           let selectedID = UUID(uuidString: rawValue),
+           dashboards.contains(where: { $0.id == selectedID }) {
+            return selectedID
+        }
+
+        return dashboards.first?.id ?? defaultDashboard().id
     }
 
     private static func loadItems(
@@ -592,11 +786,92 @@ final class DashboardConfiguration {
 
         return Array(sortedEntities.prefix(10).map(\.entityID))
     }
+
+    private static func normalizedDashboards(_ dashboards: [SavedDashboardConfiguration]) -> [SavedDashboardConfiguration] {
+        let normalized = dashboards.map { dashboard in
+            SavedDashboardConfiguration(
+                id: dashboard.id,
+                name: dashboard.resolvedName,
+                items: dashboard.items,
+                entityDisplayNameOverrides: dashboard.entityDisplayNameOverrides
+            )
+        }
+
+        return normalized.isEmpty ? [defaultDashboard()] : normalized
+    }
+
+    private static func defaultDashboard() -> SavedDashboardConfiguration {
+        SavedDashboardConfiguration(
+            id: UUID(),
+            name: "My Dashboard",
+            items: [],
+            entityDisplayNameOverrides: [:]
+        )
+    }
 }
 
 struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
-    var items: [DashboardItemConfiguration]
-    var entityDisplayNameOverrides: [String: String]
+    var dashboards: [SavedDashboardConfiguration]
+
+    var items: [DashboardItemConfiguration] {
+        resolvedDashboards.first?.items ?? []
+    }
+
+    var entityDisplayNameOverrides: [String: String] {
+        resolvedDashboards.first?.entityDisplayNameOverrides ?? [:]
+    }
+
+    init(dashboards: [SavedDashboardConfiguration]) {
+        self.dashboards = dashboards
+    }
+
+    init(
+        items: [DashboardItemConfiguration],
+        entityDisplayNameOverrides: [String: String]
+    ) {
+        dashboards = [
+            SavedDashboardConfiguration(
+                id: UUID(),
+                name: "My Dashboard",
+                items: items,
+                entityDisplayNameOverrides: entityDisplayNameOverrides
+            )
+        ]
+    }
+
+    var resolvedDashboards: [SavedDashboardConfiguration] {
+        dashboards.isEmpty ? [
+            SavedDashboardConfiguration(
+                id: UUID(),
+                name: "My Dashboard",
+                items: [],
+                entityDisplayNameOverrides: [:]
+            )
+        ] : dashboards
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let dashboards = try container.decodeIfPresent([SavedDashboardConfiguration].self, forKey: .dashboards) {
+            self.init(dashboards: dashboards)
+            return
+        }
+
+        let items = try container.decodeIfPresent([DashboardItemConfiguration].self, forKey: .items) ?? []
+        let overrides = try container.decodeIfPresent([String: String].self, forKey: .entityDisplayNameOverrides) ?? [:]
+        self.init(items: items, entityDisplayNameOverrides: overrides)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(dashboards, forKey: .dashboards)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case dashboards
+        case items
+        case entityDisplayNameOverrides
+    }
 }
 
 private extension DashboardReorderGroup {

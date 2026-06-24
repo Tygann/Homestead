@@ -6,7 +6,7 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, camera snapshot hardening, and the first service/dashboard performance cleanup are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
+Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, multiple saved dashboards, camera snapshot hardening, and the first service/dashboard performance cleanup are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
 
 Recommended reasoning level: High.
 
@@ -48,6 +48,7 @@ Recommended reasoning level: High.
 - Added Settings > Appearance System/Light/Dark selection backed by the shared appearance settings snapshot, and added Settings > Tabs for choosing whether Home or Areas appears first while Browse stays fixed as the separate discovery tab.
 - Replaced the remaining Settings placeholders with production surfaces or removals: Integrations is now a read-only registry-platform overview with cached local Brands API artwork, Helpers is a read-only helper entity browser, Blueprints is removed until an official external API is confirmed, and Widgets/Live Activities no longer appear as placeholder Settings rows.
 - Added opt-in Settings > iCloud Sync backed by Apple iCloud key-value storage for small Homestead-owned preferences: server routing metadata, dashboard layout/display preferences, action confirmations, and small appearance flags. Credentials, tokens, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, and wallpaper images remain local.
+- Added Settings > Dashboards for creating, duplicating, renaming, deleting, and switching saved dashboard layouts. Saved dashboard definitions sync through the existing iCloud dashboard record, while the current dashboard selection remains local per device.
 - Added an app-level first-run Home Assistant setup surface for users without a complete saved server/sign-in session.
 - The setup surface writes the existing `HAConnectionSettings.baseURL`, starts the existing Home Assistant OAuth flow through `HomeAssistantService.signInWithHomeAssistant(settings:)`, and keeps normal setup focused on a single server-address row with a bottom Continue action.
 - Replaced the former Advanced Setup sheet with contextual discovery and server route management. Legacy single home-network metadata migrates to the optional local-network list.
@@ -227,6 +228,7 @@ Recommended reasoning level: High.
 - Authenticated dashboard/Areas/Browse/Settings behavior in iPad landscape and multitasking widths, plus Mac pointer/window behavior and Mac widget-gallery availability, still require manual testing with a real Home Assistant session.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SettingsPlaceholders` after completing Settings placeholder surfaces and iCloud sync.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SettingsPlaceholdersTests` after adding integration/helper/iCloud sync coverage. The build emitted the existing App Intents metadata extraction warning for targets without AppIntents.framework dependencies.
+- Focused `HomesteadTests/DashboardConfigurationXCTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-MultiDashboard` after adding multiple saved dashboard persistence, migration, fallback, and local-selection coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityIcons` after adding People-backed attribution, historical-state activity icons, and uncapped Security activity rows.
 - Full `HomesteadTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityIconsTests`, including current-user/person attribution, historical door icons, and uncapped activity presentation coverage.
 - Generic iOS Simulator build passed with `-derivedDataPath /tmp/HomesteadDerivedData-SecurityActivityAttribution` after adding Security activity trigger/user attribution.

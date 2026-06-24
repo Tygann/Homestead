@@ -87,8 +87,11 @@ struct ICloudSyncSettingsView: View {
     }
 
     private var dashboardSyncDetail: String {
-        let itemCount = dashboardConfiguration.items.count
-        return itemCount == 1 ? "1 dashboard item" : "\(itemCount) dashboard items"
+        let dashboardCount = dashboardConfiguration.dashboards.count
+        let itemCount = dashboardConfiguration.dashboards.reduce(0) { $0 + $1.items.count }
+        let dashboardText = dashboardCount == 1 ? "1 dashboard" : "\(dashboardCount) dashboards"
+        let itemText = itemCount == 1 ? "1 item" : "\(itemCount) items"
+        return "\(dashboardText), \(itemText)"
     }
 
     private var appearanceSyncDetail: String {

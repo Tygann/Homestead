@@ -95,6 +95,7 @@ struct HomesteadICloudSyncPayload: Codable, Equatable {
 struct HomesteadICloudRestoreSummary: Equatable, Sendable {
     var serverDisplayName: String
     var dashboardItemCount: Int
+    var dashboardCount: Int = 1
     var updatedAt: Date
 }
 
@@ -639,7 +640,8 @@ final class HomesteadICloudSyncService {
     private func restoreSummary(for payload: HomesteadICloudSyncPayload) -> HomesteadICloudRestoreSummary {
         HomesteadICloudRestoreSummary(
             serverDisplayName: payload.connection.value.baseURL.trimmedForSync,
-            dashboardItemCount: payload.dashboard.value.items.count,
+            dashboardItemCount: payload.dashboard.value.dashboards.reduce(0) { $0 + $1.items.count },
+            dashboardCount: payload.dashboard.value.dashboards.count,
             updatedAt: payload.newestUpdate
         )
     }

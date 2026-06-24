@@ -22,7 +22,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Native iPhone and iPad destinations with adaptive dashboard/area grids, plus basic Apple silicon Mac availability through the shared Designed for iPad experience; Mac Catalyst and a desktop-specific redesign remain deferred.
 - Home Assistant OAuth sign-in with short-lived access-token refresh and Keychain-backed credentials.
 - WebSocket-first state sync, registry loading, service discovery, service calls, reconnect handling, automatic internal/external URL route selection with optional saved Wi-Fi names for local routing, and cached startup state.
-- Home dashboard with configurable entity cards, Apple Home-inspired mini accessory tiles, Home Assistant frontend-aligned summary chips/views with floor grouping and area navigation, an adaptive Security activity log including person presence changes, section headers, card sizes, card feature visibility, display names, searchable SF Symbols icon overrides with entity-aware recommendations, direct card/header drag editing, chip reordering, and edit mode.
+- Home dashboard with configurable saved dashboards, per-device current dashboard selection, entity cards, Apple Home-inspired mini accessory tiles, Home Assistant frontend-aligned summary chips/views with floor grouping and area navigation, an adaptive Security activity log including person presence changes, section headers, card sizes, card feature visibility, display names, searchable SF Symbols icon overrides with entity-aware recommendations, direct card/header drag editing, chip reordering, and edit mode.
 - Local-only Homestead appearance personalization with System/Light/Dark mode selection and one optimized wallpaper image behind Home and Areas.
 - Native dashboard and area detail flows for common domains, including lights, switches, fans, locks, covers, climate, media players, cameras, vacuums, alarm panels, buttons, selects, numbers, sensors, scenes, scripts, and automations.
 - Areas browsing backed by Home Assistant area and floor registries, with area summaries and domain-grouped area detail pages.
@@ -43,7 +43,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - User-facing service-call and reconnect recovery feedback through `HomeAssistantService` and app chrome, including tappable reconnecting state and clearer action-failure copy.
 - Authenticated camera snapshot support.
 - Experience-first Home Screen widgets: Control for lights, switches, covers, fans, and lock-only lock actions; Status for sensors and people; Graph for numeric sensors; and Action for scenes/scripts. They use shared OAuth credentials, app-group state, WebSocket state refresh, documented REST history for graphs, and official WebSocket service calls where actions are available.
-- Cloud-first setup bootstrap and opt-in automatic iCloud key-value sync for small Homestead-owned preferences. Clean devices can explicitly restore server metadata and dashboard preferences before OAuth; section-level conflict resolution prevents unrelated or default changes from replacing newer data. Credentials and generated/device data stay local.
+- Cloud-first setup bootstrap and opt-in automatic iCloud key-value sync for small Homestead-owned preferences. Clean devices can explicitly restore server metadata and saved dashboard definitions before OAuth; each device keeps its current dashboard selection local. Section-level conflict resolution prevents unrelated or default changes from replacing newer data. Credentials and generated/device data stay local.
 - User-initiated local Home Assistant discovery through the advertised `_home-assistant._tcp` Bonjour service, with manual sign-in address entry as fallback.
 - App-facing model mapping through `EntityMapper`, with SwiftUI avoiding direct Home Assistant DTO use.
 
@@ -57,7 +57,6 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 ## Later Candidates
 
 - Multi-entity Home Screen widgets for medium/large families, likely as a separate Accessories-style widget using compact tile layouts and multiple App Intent entity parameters.
-- Multiple dashboards with a dashboard switcher or management screen; avoid adding every dashboard as a main tab by default.
 - Per-dashboard or per-area wallpaper choices if the single global wallpaper proves too limiting.
 - Control Center controls and App Intents for common Home Assistant actions.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.

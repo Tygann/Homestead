@@ -78,6 +78,12 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
+                    DashboardSettingsView()
+                } label: {
+                    Label("Dashboards", systemImage: "rectangle.grid.2x2")
+                }
+
+                NavigationLink {
                     NativeNotificationSettingsView()
                 } label: {
                     Label("Notifications", systemImage: "bell.badge")
