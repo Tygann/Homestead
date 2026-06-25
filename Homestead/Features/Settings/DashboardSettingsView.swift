@@ -147,7 +147,7 @@ struct DashboardSettingsView: View {
     }
 
     private func createDashboard() {
-        dashboardNameDraft = "New Dashboard"
+        dashboardNameDraft = "Dashboard"
         namingAction = .create
     }
 
@@ -316,12 +316,17 @@ private struct DashboardActionsMenu: View {
 }
 
 private struct DashboardDetailSettingsView: View {
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+
     let dashboard: SavedDashboardConfiguration
     let isSelected: Bool
     let useOnThisDevice: () -> Void
     let rename: () -> Void
     let duplicate: () -> Void
     let delete: () -> Void
+
+    @State private var isEditingDashboardTitle = false
+    @State private var dashboardTitleDraft = ""
 
     var body: some View {
         List {
@@ -335,6 +340,27 @@ private struct DashboardDetailSettingsView: View {
                     .padding(.vertical, AppSpacing.large)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
+            }
+
+            Section("Names") {
+                Button(action: rename) {
+                    DashboardDetailEditableRow(
+                        title: "Name",
+                        value: dashboard.resolvedName
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    dashboardTitleDraft = dashboard.resolvedDisplayTitle
+                    isEditingDashboardTitle = true
+                } label: {
+                    DashboardDetailEditableRow(
+                        title: "Dashboard Title",
+                        value: dashboard.resolvedDisplayTitle
+                    )
+                }
+                .buttonStyle(.plain)
             }
 
             Section {
@@ -356,10 +382,6 @@ private struct DashboardDetailSettingsView: View {
                     }
                 }
 
-                Button(action: rename) {
-                    Label("Rename", systemImage: "pencil")
-                }
-
                 Button(action: duplicate) {
                     Label("Duplicate", systemImage: "square.on.square")
                 }
@@ -372,6 +394,18 @@ private struct DashboardDetailSettingsView: View {
         .navigationTitle(dashboard.resolvedName)
         .toolbarTitleDisplayMode(.inline)
         .safeAreaPadding(.bottom, AppSpacing.xLarge)
+        .alert("Dashboard Title", isPresented: $isEditingDashboardTitle) {
+            TextField("Dashboard Title", text: $dashboardTitleDraft)
+
+            Button("Cancel", role: .cancel) {
+                dashboardTitleDraft = ""
+            }
+
+            Button("Save", role: .confirm) {
+                dashboardConfiguration.setDashboardDisplayTitle(id: dashboard.id, title: dashboardTitleDraft)
+                dashboardTitleDraft = ""
+            }
+        }
     }
 
     private var cardCountText: String {
@@ -384,6 +418,29 @@ private struct DashboardDetailSettingsView: View {
 
     private var chipCount: Int {
         dashboard.items.filter { $0.type == .chip }.count
+    }
+}
+
+private struct DashboardDetailEditableRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: AppSpacing.medium) {
+            Text(title)
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: AppSpacing.large)
+
+            Text(value)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .contentShape(Rectangle())
     }
 }
 

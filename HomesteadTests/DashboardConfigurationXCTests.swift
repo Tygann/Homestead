@@ -17,9 +17,52 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertEqual(configuration.dashboards.count, 1)
         XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Dashboard")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Dashboard")
         XCTAssertEqual(configuration.items.map(\.entityID), ["light.kitchen", nil])
         XCTAssertEqual(configuration.items.first?.resolvedCardSize, .square)
         XCTAssertEqual(configuration.entityDisplayNameOverride(for: "light.kitchen"), "Kitchen")
+    }
+
+    func testSavedDashboardWithoutDisplayTitleDefaultsDashboardTitle() throws {
+        let defaults = makeDefaults()
+        let dashboardID = UUID()
+        let json = """
+        [
+          {
+            "id": "\(dashboardID.uuidString)",
+            "name": "iPhone",
+            "items": [],
+            "entityDisplayNameOverrides": {}
+          }
+        ]
+        """
+        defaults.set(Data(json.utf8), forKey: "homestead.dashboard.savedDashboards")
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "iPhone")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Dashboard")
+    }
+
+    func testDefaultDashboardUsesDefaultNameAndDisplayTitle() {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+
+        XCTAssertEqual(configuration.dashboards.count, 1)
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Dashboard")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Dashboard")
+    }
+
+    func testCreatingDashboardUsesProvidedNameAndDefaultDisplayTitle() {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+
+        let dashboardID = configuration.createDashboard(named: "iPad")
+        let dashboard = configuration.dashboards.first { $0.id == dashboardID }
+
+        XCTAssertEqual(dashboard?.resolvedName, "iPad")
+        XCTAssertEqual(dashboard?.resolvedDisplayTitle, "Dashboard")
+        XCTAssertEqual(configuration.selectedDashboardID, dashboardID)
     }
 
     func testSelectedDashboardIDIsLocalAndNotAppliedFromSyncSnapshot() {
@@ -48,6 +91,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertEqual(configuration.selectedDashboardID, secondDashboardID)
         XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Tablet")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Dashboard")
         XCTAssertEqual(configuration.items.first?.entityID, "light.tablet")
         XCTAssertEqual(configuration.syncSnapshot.dashboards.count, 2)
     }
@@ -71,6 +115,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertEqual(configuration.selectedDashboardID, removedDashboardID)
         XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Phone")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Dashboard")
     }
 
     func testDuplicateRenameAndDeleteCurrentDashboard() {
@@ -78,12 +123,14 @@ final class DashboardConfigurationXCTests: XCTestCase {
         let configuration = DashboardConfiguration(defaults: defaults)
         configuration.add("light.kitchen", size: .square)
         configuration.setEntityDisplayNameOverride("Kitchen", for: "light.kitchen")
+        configuration.setDashboardDisplayTitle(id: configuration.selectedDashboardID, title: "Kitchen")
 
         let duplicateID = configuration.duplicateSelectedDashboard()
         configuration.renameDashboard(id: duplicateID, name: "Wall Tablet")
 
         XCTAssertEqual(configuration.selectedDashboardID, duplicateID)
         XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Wall Tablet")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Kitchen")
         XCTAssertEqual(configuration.items.first?.entityID, "light.kitchen")
         XCTAssertEqual(configuration.items.first?.resolvedCardSize, .square)
         XCTAssertEqual(configuration.entityDisplayNameOverride(for: "light.kitchen"), "Kitchen")
@@ -100,6 +147,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         let configuration = DashboardConfiguration(defaults: defaults)
         let originalID = configuration.selectedDashboardID
         configuration.add("light.kitchen", size: .square)
+        configuration.setDashboardDisplayTitle(id: originalID, title: "Home")
         let officeID = configuration.createDashboard(named: "Office")
 
         XCTAssertEqual(configuration.selectedDashboardID, officeID)
@@ -108,7 +156,36 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertEqual(configuration.selectedDashboardID, officeID)
         XCTAssertEqual(configuration.dashboards.first(where: { $0.id == duplicateID })?.resolvedName, "Phone Copy")
+        XCTAssertEqual(configuration.dashboards.first(where: { $0.id == duplicateID })?.resolvedDisplayTitle, "Home")
         XCTAssertEqual(configuration.dashboards.first(where: { $0.id == duplicateID })?.items.first?.entityID, "light.kitchen")
+    }
+
+    func testDashboardNameAndDisplayTitleCanChangeIndependently() {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let dashboardID = configuration.selectedDashboardID
+
+        configuration.renameDashboard(id: dashboardID, name: "iPhone")
+
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "iPhone")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Dashboard")
+
+        configuration.setDashboardDisplayTitle(id: dashboardID, title: "Living Room")
+
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "iPhone")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Living Room")
+    }
+
+    func testMainDashboardTitleSourceUsesDisplayTitleNotName() {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let dashboardID = configuration.selectedDashboardID
+
+        configuration.renameDashboard(id: dashboardID, name: "iPhone")
+        configuration.setDashboardDisplayTitle(id: dashboardID, title: "Dashboard")
+
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "iPhone")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Dashboard")
     }
 
     func testDeletingLastDashboardRestoresEmptyDefault() {
@@ -120,6 +197,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertEqual(configuration.dashboards.count, 1)
         XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Dashboard")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Dashboard")
         XCTAssertTrue(configuration.items.isEmpty)
     }
 
@@ -132,7 +210,24 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertEqual(configuration.dashboards.count, 1)
         XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Dashboard")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Dashboard")
         XCTAssertTrue(configuration.items.isEmpty)
+    }
+
+    func testActiveDashboardDeletionFallsBackToRemainingDisplayTitle() {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let phoneID = configuration.selectedDashboardID
+        configuration.renameDashboard(id: phoneID, name: "Phone")
+        configuration.setDashboardDisplayTitle(id: phoneID, title: "Phone Home")
+        let officeID = configuration.createDashboard(named: "Office")
+        configuration.setDashboardDisplayTitle(id: officeID, title: "Office")
+
+        configuration.deleteDashboard(id: officeID)
+
+        XCTAssertEqual(configuration.selectedDashboardID, phoneID)
+        XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Phone")
+        XCTAssertEqual(configuration.selectedDashboard.resolvedDisplayTitle, "Phone Home")
     }
 
     func testDashboardReorderingSyncsDefinitionOrderWithoutChangingLocalSelection() {

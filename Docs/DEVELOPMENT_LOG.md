@@ -2,6 +2,13 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-25
+
+### Dashboard Names And Titles
+
+- Split saved dashboard management names from main Dashboard titles. Settings and dashboard-management rows use the saved dashboard `name`, while the active Dashboard navigation title comes from `displayTitle`.
+- New/default dashboards use `Dashboard` for both labels. Duplicates keep the source Dashboard Title and ask only for the new management Name, without changing the active dashboard.
+
 ## 2026-06-22
 
 ### Connection Policy And Dashboard Summary Reuse

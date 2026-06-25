@@ -159,12 +159,49 @@ enum DashboardReorderGroup: Equatable, Sendable {
 struct SavedDashboardConfiguration: Identifiable, Codable, Equatable, Sendable {
     var id: UUID
     var name: String
+    var displayTitle: String
     var items: [DashboardItemConfiguration]
     var entityDisplayNameOverrides: [String: String]
 
+    init(
+        id: UUID,
+        name: String,
+        displayTitle: String = DashboardConfigurationDefaults.dashboardTitle,
+        items: [DashboardItemConfiguration],
+        entityDisplayNameOverrides: [String: String]
+    ) {
+        self.id = id
+        self.name = name
+        self.displayTitle = displayTitle
+        self.items = items
+        self.entityDisplayNameOverrides = entityDisplayNameOverrides
+    }
+
     var resolvedName: String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedName.isEmpty ? "Untitled Dashboard" : trimmedName
+        return trimmedName.isEmpty ? DashboardConfigurationDefaults.untitledName : trimmedName
+    }
+
+    var resolvedDisplayTitle: String {
+        let trimmedTitle = displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedTitle.isEmpty ? DashboardConfigurationDefaults.dashboardTitle : trimmedTitle
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        displayTitle = try container.decodeIfPresent(String.self, forKey: .displayTitle) ?? DashboardConfigurationDefaults.dashboardTitle
+        items = try container.decodeIfPresent([DashboardItemConfiguration].self, forKey: .items) ?? []
+        entityDisplayNameOverrides = try container.decodeIfPresent([String: String].self, forKey: .entityDisplayNameOverrides) ?? [:]
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case displayTitle
+        case items
+        case entityDisplayNameOverrides
     }
 }
 
@@ -537,10 +574,11 @@ final class DashboardConfiguration {
     }
 
     @discardableResult
-    func createDashboard(named name: String = "New Dashboard") -> UUID {
+    func createDashboard(named name: String = DashboardConfigurationDefaults.dashboardName) -> UUID {
         let dashboard = SavedDashboardConfiguration(
             id: UUID(),
             name: uniqueDashboardName(normalizedDashboardName(name)),
+            displayTitle: DashboardConfigurationDefaults.dashboardTitle,
             items: [],
             entityDisplayNameOverrides: [:]
         )
@@ -568,6 +606,7 @@ final class DashboardConfiguration {
         let dashboard = SavedDashboardConfiguration(
             id: UUID(),
             name: uniqueDashboardName("Copy of \(source.resolvedName)"),
+            displayTitle: source.resolvedDisplayTitle,
             items: copiedItems,
             entityDisplayNameOverrides: source.entityDisplayNameOverrides
         )
@@ -589,6 +628,16 @@ final class DashboardConfiguration {
 
         var updatedDashboards = dashboards
         updatedDashboards[index].name = uniqueDashboardName(normalizedDashboardName(name), excluding: id)
+        dashboards = updatedDashboards
+    }
+
+    func setDashboardDisplayTitle(id: UUID, title: String) {
+        guard let index = dashboards.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        var updatedDashboards = dashboards
+        updatedDashboards[index].displayTitle = normalizedDashboardDisplayTitle(title)
         dashboards = updatedDashboards
     }
 
@@ -720,7 +769,12 @@ final class DashboardConfiguration {
 
     private func normalizedDashboardName(_ name: String) -> String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedName.isEmpty ? "Untitled Dashboard" : trimmedName
+        return trimmedName.isEmpty ? DashboardConfigurationDefaults.untitledName : trimmedName
+    }
+
+    private func normalizedDashboardDisplayTitle(_ title: String) -> String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedTitle.isEmpty ? DashboardConfigurationDefaults.dashboardTitle : trimmedTitle
     }
 
     private func uniqueDashboardName(_ name: String, excluding excludedID: UUID? = nil) -> String {
@@ -757,7 +811,8 @@ final class DashboardConfiguration {
         return [
             SavedDashboardConfiguration(
                 id: UUID(),
-                name: defaultDashboardName,
+                name: DashboardConfigurationDefaults.dashboardName,
+                displayTitle: DashboardConfigurationDefaults.dashboardTitle,
                 items: legacyItems,
                 entityDisplayNameOverrides: legacyOverrides
             )
@@ -820,6 +875,7 @@ final class DashboardConfiguration {
             SavedDashboardConfiguration(
                 id: dashboard.id,
                 name: dashboard.resolvedName,
+                displayTitle: dashboard.resolvedDisplayTitle,
                 items: dashboard.items,
                 entityDisplayNameOverrides: dashboard.entityDisplayNameOverrides
             )
@@ -831,13 +887,12 @@ final class DashboardConfiguration {
     private static func defaultDashboard() -> SavedDashboardConfiguration {
         SavedDashboardConfiguration(
             id: UUID(),
-            name: defaultDashboardName,
+            name: DashboardConfigurationDefaults.dashboardName,
+            displayTitle: DashboardConfigurationDefaults.dashboardTitle,
             items: [],
             entityDisplayNameOverrides: [:]
         )
     }
-
-    private static let defaultDashboardName = "Dashboard"
 }
 
 struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
@@ -862,7 +917,8 @@ struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
         dashboards = [
             SavedDashboardConfiguration(
                 id: UUID(),
-                name: Self.defaultDashboardName,
+                name: DashboardConfigurationDefaults.dashboardName,
+                displayTitle: DashboardConfigurationDefaults.dashboardTitle,
                 items: items,
                 entityDisplayNameOverrides: entityDisplayNameOverrides
             )
@@ -873,7 +929,8 @@ struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
         dashboards.isEmpty ? [
             SavedDashboardConfiguration(
                 id: UUID(),
-                name: Self.defaultDashboardName,
+                name: DashboardConfigurationDefaults.dashboardName,
+                displayTitle: DashboardConfigurationDefaults.dashboardTitle,
                 items: [],
                 entityDisplayNameOverrides: [:]
             )
@@ -902,8 +959,12 @@ struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
         case items
         case entityDisplayNameOverrides
     }
+}
 
-    private static let defaultDashboardName = "Dashboard"
+private enum DashboardConfigurationDefaults {
+    static let dashboardName = "Dashboard"
+    static let dashboardTitle = "Dashboard"
+    static let untitledName = "Untitled Dashboard"
 }
 
 private extension DashboardReorderGroup {
