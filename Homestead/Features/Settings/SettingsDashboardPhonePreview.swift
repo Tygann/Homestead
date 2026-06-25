@@ -2,6 +2,10 @@ import SwiftUI
 import UIKit
 
 struct SettingsDashboardPhonePreview: View {
+    private static let viewportWidth: CGFloat = 178
+    private static let viewportHeight: CGFloat = viewportWidth / 0.49
+    private static let contentPadding: CGFloat = 11
+
     let items: [DashboardItemConfiguration]
     let dashboardTitle: String?
     let wallpaperURL: URL?
@@ -25,40 +29,63 @@ struct SettingsDashboardPhonePreview: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let phoneShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        Color.clear
+        .aspectRatio(0.49, contentMode: .fit)
+        .overlay {
+            GeometryReader { proxy in
+                let scale = proxy.size.width / Self.viewportWidth
 
-            ZStack {
-                ZStack {
-                    previewBackground(in: proxy.size)
-
-                    VStack(spacing: 0) {
-                        previewHeader(showsTitleText: proxy.size.width >= 160)
-                            .padding(.bottom, 15)
-
-                        SettingsDashboardLayoutMiniature(items: items)
-                            .frame(maxHeight: .infinity, alignment: .top)
-                    }
-                    .padding(11)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                }
-                .clipShape(phoneShape)
-
-                previewBottomChrome
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 11)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-
-                phoneShape
-                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                previewCanvas
+                    .frame(width: Self.viewportWidth, height: Self.viewportHeight)
+                    .scaleEffect(scale, anchor: .topLeading)
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             }
         }
-        .aspectRatio(0.49, contentMode: .fit)
         .shadow(color: .black.opacity(0.08), radius: 14, y: 8)
         .accessibilityLabel(accessibilityLabel)
         .task(id: previewTaskID) {
             loadPreviewImage()
         }
+    }
+
+    private var previewCanvas: some View {
+        let phoneShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+
+        return ZStack {
+            ZStack {
+                previewBackground(in: Self.viewportSize)
+
+                VStack(spacing: 0) {
+                    previewHeader
+                        .padding(.bottom, 15)
+
+                    SettingsDashboardLayoutMiniature(
+                        items: items,
+                        contentWidth: Self.contentWidth
+                    )
+                    .frame(maxHeight: .infinity, alignment: .top)
+                }
+                .padding(Self.contentPadding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .clipShape(phoneShape)
+
+            previewBottomChrome
+                .padding(.horizontal, 10)
+                .padding(.bottom, Self.contentPadding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+
+            phoneShape
+                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+        }
+    }
+
+    private static var viewportSize: CGSize {
+        CGSize(width: viewportWidth, height: viewportHeight)
+    }
+
+    private static var contentWidth: CGFloat {
+        viewportWidth - (contentPadding * 2)
     }
 
     private var previewTaskID: String {
@@ -134,9 +161,9 @@ struct SettingsDashboardPhonePreview: View {
         }
     }
 
-    private func previewHeader(showsTitleText: Bool) -> some View {
+    private var previewHeader: some View {
         HStack(alignment: .center, spacing: 6) {
-            if showsTitleText, let title = normalizedDashboardTitle {
+            if let title = normalizedDashboardTitle {
                 Text(title)
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(.white)
@@ -189,6 +216,7 @@ struct SettingsDashboardPhonePreview: View {
 
 private struct SettingsDashboardLayoutMiniature: View {
     let items: [DashboardItemConfiguration]
+    let contentWidth: CGFloat
 
     private let maximumVisibleItems = 24
     private let miniatureScale: CGFloat = 0.40
@@ -210,29 +238,28 @@ private struct SettingsDashboardLayoutMiniature: View {
             if cardGridItems.isEmpty {
                 emptyState
             } else {
-                GeometryReader { proxy in
-                    let layout = SettingsDashboardPreviewLayout(
-                        items: Array(cardGridItems.prefix(maximumVisibleItems)),
-                        width: proxy.size.width,
-                        spacing: spacing,
-                        rowHeight: rowHeight
-                    )
+                let layout = SettingsDashboardPreviewLayout(
+                    items: Array(cardGridItems.prefix(maximumVisibleItems)),
+                    width: contentWidth,
+                    spacing: spacing,
+                    rowHeight: rowHeight
+                )
 
-                    ZStack(alignment: .topLeading) {
-                        ForEach(layout.placements) { placement in
-                            SettingsDashboardLayoutPreviewTile(item: placement.item)
-                                .frame(width: placement.frame.width, height: placement.frame.height)
-                                .offset(x: placement.frame.minX, y: placement.frame.minY)
-                        }
+                ZStack(alignment: .topLeading) {
+                    ForEach(layout.placements) { placement in
+                        SettingsDashboardLayoutPreviewTile(item: placement.item)
+                            .frame(width: placement.frame.width, height: placement.frame.height)
+                            .offset(x: placement.frame.minX, y: placement.frame.minY)
                     }
-                    .frame(width: proxy.size.width, height: layout.height, alignment: .topLeading)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .clipped()
                 }
+                .frame(width: contentWidth, height: layout.height, alignment: .topLeading)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .clipped()
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Dashboard layout preview")
             }
         }
+        .frame(width: contentWidth, alignment: .topLeading)
     }
 
     private var chipItems: [DashboardItemConfiguration] {
