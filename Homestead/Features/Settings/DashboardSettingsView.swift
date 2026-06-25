@@ -191,15 +191,6 @@ struct DashboardSettingsView: View {
                 isSelected: dashboard.id == dashboardConfiguration.selectedDashboardID,
                 useOnThisDevice: {
                     dashboardConfiguration.selectDashboard(id: dashboard.id)
-                },
-                rename: {
-                    beginRenaming(dashboard)
-                },
-                duplicate: {
-                    beginDuplicating(dashboard)
-                },
-                delete: {
-                    deletingDashboardID = dashboard.id
                 }
             )
         } else {
@@ -322,12 +313,13 @@ private struct DashboardDetailSettingsView: View {
     let dashboard: SavedDashboardConfiguration
     let isSelected: Bool
     let useOnThisDevice: () -> Void
-    let rename: () -> Void
-    let duplicate: () -> Void
-    let delete: () -> Void
 
+    @Environment(\.dismiss) private var dismiss
+    @State private var namingAction: DashboardDetailNamingAction?
+    @State private var dashboardNameDraft = ""
     @State private var isEditingDashboardTitle = false
     @State private var dashboardTitleDraft = ""
+    @State private var isConfirmingDelete = false
 
     var body: some View {
         List {
@@ -347,7 +339,9 @@ private struct DashboardDetailSettingsView: View {
             }
 
             Section("Names") {
-                Button(action: rename) {
+                Button {
+                    beginRenaming()
+                } label: {
                     DashboardDetailEditableRow(
                         title: "Name",
                         value: dashboard.resolvedName
@@ -386,11 +380,15 @@ private struct DashboardDetailSettingsView: View {
                     }
                 }
 
-                Button(action: duplicate) {
+                Button {
+                    beginDuplicating()
+                } label: {
                     Label("Duplicate", systemImage: "square.on.square")
                 }
 
-                Button(role: .destructive, action: delete) {
+                Button(role: .destructive) {
+                    isConfirmingDelete = true
+                } label: {
                     Label("Delete Dashboard", systemImage: "trash")
                 }
             }
@@ -410,6 +408,29 @@ private struct DashboardDetailSettingsView: View {
                 dashboardTitleDraft = ""
             }
         }
+        .alert(namingDialogTitle, isPresented: isNamingDashboard) {
+            TextField("Name", text: $dashboardNameDraft)
+
+            Button("Cancel", role: .cancel) {
+                resetNamingState()
+            }
+
+            Button(namingDialogPrimaryActionTitle, role: .confirm) {
+                commitDashboardName()
+            }
+        }
+        .confirmationDialog(
+            "Delete \(dashboard.resolvedName)?",
+            isPresented: $isConfirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Dashboard", role: .destructive) {
+                dashboardConfiguration.deleteDashboard(id: dashboard.id)
+                dismiss()
+            }
+
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     private var cardCountText: String {
@@ -422,6 +443,67 @@ private struct DashboardDetailSettingsView: View {
 
     private var chipCount: Int {
         dashboard.items.filter { $0.type == .chip }.count
+    }
+
+    private var isNamingDashboard: Binding<Bool> {
+        Binding(
+            get: { namingAction != nil },
+            set: { isPresented in
+                if !isPresented {
+                    resetNamingState()
+                }
+            }
+        )
+    }
+
+    private var namingDialogTitle: String {
+        switch namingAction {
+        case .duplicate:
+            return "Duplicate Dashboard"
+        case .rename:
+            return "Rename Dashboard"
+        case nil:
+            return "Dashboard Name"
+        }
+    }
+
+    private var namingDialogPrimaryActionTitle: String {
+        switch namingAction {
+        case .duplicate:
+            return "Create"
+        case .rename, nil:
+            return "Save"
+        }
+    }
+
+    private func beginRenaming() {
+        dashboardNameDraft = dashboard.resolvedName
+        namingAction = .rename
+    }
+
+    private func beginDuplicating() {
+        dashboardNameDraft = "Copy of \(dashboard.resolvedName)"
+        namingAction = .duplicate
+    }
+
+    private func commitDashboardName() {
+        guard let namingAction else {
+            return
+        }
+
+        switch namingAction {
+        case .duplicate:
+            dashboardConfiguration.duplicateDashboard(id: dashboard.id, named: dashboardNameDraft)
+        case .rename:
+            dashboardConfiguration.renameDashboard(id: dashboard.id, name: dashboardNameDraft)
+        }
+
+        resetNamingState()
+    }
+
+    private func resetNamingState() {
+        namingAction = nil
+        dashboardNameDraft = ""
     }
 }
 
@@ -500,6 +582,11 @@ private enum DashboardNamingAction: Equatable {
     case create
     case duplicate(UUID)
     case rename(UUID)
+}
+
+private enum DashboardDetailNamingAction: Equatable {
+    case duplicate
+    case rename
 }
 
 #if DEBUG
