@@ -37,14 +37,17 @@ struct SettingsDashboardPhonePreview: View {
                             .padding(.bottom, 15)
 
                         SettingsDashboardLayoutMiniature(items: items)
-
-                        Spacer(minLength: AppSpacing.small)
-
-                        previewTabBar
+                            .frame(maxHeight: .infinity, alignment: .top)
                     }
                     .padding(11)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
                 .clipShape(phoneShape)
+
+                previewBottomChrome
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 11)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
                 phoneShape
                     .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
@@ -88,28 +91,47 @@ struct SettingsDashboardPhonePreview: View {
         }
     }
 
-    private var previewTabBar: some View {
-        ZStack(alignment: .leading) {
-            Capsule()
-                .fill(.thinMaterial)
+    private var previewBottomChrome: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.thinMaterial)
+                    .overlay {
+                        Capsule()
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
+                    }
 
-            Capsule()
-                .fill(Color(.tertiarySystemGroupedBackground).opacity(0.70))
-                .frame(width: 42)
-                .padding(3)
+                Capsule()
+                    .fill(Color(.tertiarySystemGroupedBackground).opacity(0.70))
+                    .frame(width: 42)
+                    .padding(3)
 
-            HStack {
-                Image(systemName: "house.fill")
-                Spacer()
-                Image(systemName: "square.split.bottomrightquarter.fill")
-                Spacer()
-                Image(systemName: "magnifyingglass")
+                HStack {
+                    Image(systemName: "house.fill")
+                    Spacer()
+                    Image(systemName: "square.split.bottomrightquarter.fill")
+                }
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 17)
             }
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 17)
+            .frame(height: 31)
+
+            Spacer(minLength: 6)
+
+            Circle()
+                .fill(.thinMaterial)
+                .overlay {
+                    Circle()
+                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
+                }
+                .overlay {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 31, height: 31)
         }
-        .frame(height: 31)
     }
 
     private func previewHeader(showsTitleText: Bool) -> some View {
@@ -168,12 +190,19 @@ struct SettingsDashboardPhonePreview: View {
 private struct SettingsDashboardLayoutMiniature: View {
     let items: [DashboardItemConfiguration]
 
-    private let spacing: CGFloat = 5
-    private let rowHeight: CGFloat = 23
     private let maximumVisibleItems = 24
+    private let miniatureScale: CGFloat = 0.40
+
+    private var spacing: CGFloat {
+        AppSpacing.medium * miniatureScale
+    }
+
+    private var rowHeight: CGFloat {
+        DashboardCardSize.renderedGridUnitHeight(cardPadding: AppSpacing.medium) * miniatureScale
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: AppSpacing.large * miniatureScale) {
             if !chipItems.isEmpty {
                 chipRow
             }
