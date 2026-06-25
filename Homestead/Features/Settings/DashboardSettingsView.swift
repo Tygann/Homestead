@@ -316,6 +316,7 @@ private struct DashboardActionsMenu: View {
 }
 
 private struct DashboardDetailSettingsView: View {
+    @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
     let dashboard: SavedDashboardConfiguration
@@ -333,6 +334,9 @@ private struct DashboardDetailSettingsView: View {
             Section {
                 SettingsDashboardPhonePreview(
                     items: dashboard.items,
+                    dashboardTitle: dashboard.resolvedDisplayTitle,
+                    wallpaperURL: appearanceSettings.activeWallpaperURL,
+                    wallpaperRevision: appearanceSettings.wallpaperRevision,
                     accessibilityLabel: "\(dashboard.resolvedName) Preview"
                 )
                     .frame(width: 178)

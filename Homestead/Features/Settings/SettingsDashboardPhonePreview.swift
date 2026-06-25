@@ -3,6 +3,7 @@ import UIKit
 
 struct SettingsDashboardPhonePreview: View {
     let items: [DashboardItemConfiguration]
+    let dashboardTitle: String?
     let wallpaperURL: URL?
     let wallpaperRevision: Int
     let accessibilityLabel: String
@@ -11,23 +12,30 @@ struct SettingsDashboardPhonePreview: View {
 
     init(
         items: [DashboardItemConfiguration],
+        dashboardTitle: String? = nil,
         wallpaperURL: URL? = nil,
         wallpaperRevision: Int = 0,
         accessibilityLabel: String = "Dashboard Preview"
     ) {
         self.items = items
+        self.dashboardTitle = dashboardTitle
         self.wallpaperURL = wallpaperURL
         self.wallpaperRevision = wallpaperRevision
         self.accessibilityLabel = accessibilityLabel
     }
 
     var body: some View {
-        ZStack {
-            GeometryReader { proxy in
+        GeometryReader { proxy in
+            let phoneShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+
+            ZStack {
                 ZStack {
                     previewBackground(in: proxy.size)
 
                     VStack(spacing: 0) {
+                        previewHeader(showsTitleText: proxy.size.width >= 160)
+                            .padding(.bottom, 15)
+
                         SettingsDashboardLayoutMiniature(items: items)
 
                         Spacer(minLength: AppSpacing.small)
@@ -36,11 +44,11 @@ struct SettingsDashboardPhonePreview: View {
                     }
                     .padding(11)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            }
+                .clipShape(phoneShape)
 
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                phoneShape
+                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+            }
         }
         .aspectRatio(0.49, contentMode: .fit)
         .shadow(color: .black.opacity(0.08), radius: 14, y: 8)
@@ -102,6 +110,48 @@ struct SettingsDashboardPhonePreview: View {
             .padding(.horizontal, 17)
         }
         .frame(height: 31)
+    }
+
+    private func previewHeader(showsTitleText: Bool) -> some View {
+        HStack(alignment: .center, spacing: 6) {
+            if showsTitleText, let title = normalizedDashboardTitle {
+                Text(title)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            } else {
+                Capsule()
+                    .fill(Color.white.opacity(0.76))
+                    .frame(width: 56, height: 7)
+            }
+
+            Spacer(minLength: 6)
+
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(Color.white.opacity(0.22))
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
+                    }
+                    .frame(width: 17, height: 17)
+
+                Circle()
+                    .fill(Color.white.opacity(0.22))
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
+                    }
+                    .frame(width: 17, height: 17)
+            }
+        }
+        .frame(height: 28)
+    }
+
+    private var normalizedDashboardTitle: String? {
+        let trimmedTitle = dashboardTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedTitle.isEmpty ? nil : trimmedTitle
     }
 
     private func loadPreviewImage() {
@@ -168,10 +218,10 @@ private struct SettingsDashboardLayoutMiniature: View {
         HStack(spacing: 4) {
             ForEach(chipItems.prefix(4)) { chip in
                 Capsule()
-                    .fill(Color.accentColor.opacity(0.18))
+                    .fill(chipColor(for: chip).opacity(0.26))
                     .overlay {
                         Capsule()
-                            .strokeBorder(Color.accentColor.opacity(0.10), lineWidth: 0.5)
+                            .strokeBorder(chipColor(for: chip).opacity(0.18), lineWidth: 0.5)
                     }
                     .frame(width: chipWidth(for: chip), height: 13)
             }
@@ -199,6 +249,25 @@ private struct SettingsDashboardLayoutMiniature: View {
             42
         case nil:
             34
+        }
+    }
+
+    private func chipColor(for chip: DashboardItemConfiguration) -> Color {
+        guard chip.chipKind == .summary, let summaryKind = chip.summaryKind else {
+            return Color(.tertiaryLabel)
+        }
+
+        switch summaryKind {
+        case .climate:
+            return .blue
+        case .lights:
+            return .yellow
+        case .security:
+            return .mint
+        case .media:
+            return .indigo
+        case .maintenance:
+            return .gray
         }
     }
 }
