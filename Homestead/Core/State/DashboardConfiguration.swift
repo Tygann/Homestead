@@ -961,7 +961,7 @@ struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
     }
 }
 
-private enum DashboardConfigurationDefaults {
+nonisolated private enum DashboardConfigurationDefaults {
     static let dashboardName = "Dashboard"
     static let dashboardTitle = "Dashboard"
     static let untitledName = "Untitled Dashboard"
