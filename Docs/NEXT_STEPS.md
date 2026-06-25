@@ -6,13 +6,14 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, multiple saved dashboards, camera snapshot hardening, and the first service/dashboard performance cleanup are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
+Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, multiple saved dashboards, camera snapshot hardening, the first service/dashboard performance cleanup, and the repository-local Cloudflare Worker push-relay scaffold are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities unless APNs app-side registration becomes the active chunk.
 
 Recommended reasoning level: High.
 
 ## Completed Chunk
 
 - Added a startup coordinator that performs read-only iCloud bootstrap before auth refresh, cache loading, connection, dashboard seeding, or uploads.
+- Added a top-level `api/` Cloudflare Worker scaffold named `homestead-api` for future Home Assistant cloud push relay: health check, push-token registration, Home Assistant `push_url` handling, protected admin test push, KV binding documentation, APNs Worker-secret wiring, and no committed secrets or deployment.
 - Replaced URL-first onboarding with explicit iCloud restore, user-triggered `_home-assistant._tcp` Bonjour discovery, discovered-home cards, and manual Sign-in Address fallback.
 - Kept credentials device-local, removed Home Network/SSID from first-run setup, and made WebSocket `get_config` fill only missing local/remote routes.
 - Added optional saved Wi-Fi names in Settings > Account > Server so the Local Address is preferred only on known home networks when a Remote Address exists. Homestead falls back to the Remote Address when the current Wi-Fi name is unavailable, permission is denied, or the connected network is not saved.
@@ -200,6 +201,7 @@ Recommended reasoning level: High.
 ## Next Chunk
 
 - Continue roadmap follow-up work: device-test dashboard mini accessory tiles in dense dashboards, then polish the expanded WidgetKit/App Intents surface and consider Control Center controls for the safest common actions.
+- For APNs follow-up work, implement iOS remote-notification registration, generate/persist the Homestead relay token, call `https://api.homesteadcontrol.com/mobile-app/register-push-token`, and update Home Assistant mobile-app registration with `push_token` plus `push_url` once the Worker is deployed.
 - Keep true Home Assistant users/admin views in research-needed status until an official supported API path and permission behavior are confirmed.
 
 ## Acceptance Notes

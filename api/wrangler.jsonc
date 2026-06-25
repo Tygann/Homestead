@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "homestead-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-25",
+  "observability": {
+    "enabled": true
+  },
+  "kv_namespaces": [
+    {
+      "binding": "HOMESTEAD_PUSH_TOKENS",
+      // Replace before deploying. Create the namespace in Cloudflare and paste its ID here.
+      "id": "REPLACE_WITH_HOMESTEAD_PUSH_TOKENS_KV_NAMESPACE_ID"
+      // Optional for local preview/development once created:
+      // "preview_id": "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+    }
+  ]
+}

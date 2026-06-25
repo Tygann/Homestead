@@ -5,3 +5,10 @@ DerivedData/
 build/
 .DS_Store
 PreviewCredentials.json
+*.p8
+.env
+.env.*
+api/.dev.vars
+api/.dev.vars.*
+!api/.dev.vars.example
+api/node_modules/

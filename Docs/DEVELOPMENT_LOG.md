@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-25
 
+### Push Relay Backend Scaffold
+
+- Added a top-level `api/` Cloudflare Worker project named `homestead-api` for future Home Assistant `push_url` notification relay.
+- The Worker stores app-generated relay-token to APNs-token mappings in the `HOMESTEAD_PUSH_TOKENS` KV binding, relays Home Assistant payloads to sandbox or production APNs using Worker secrets, and includes a protected admin test-push route.
+- Kept Cloudflare deployment, KV creation, custom domain setup, APNs secrets, and iOS app-side APNs registration out of this pass.
+
 ### Dashboard Names And Titles
 
 - Split saved dashboard management names from main Dashboard titles. Settings and dashboard-management rows use the saved dashboard `name`, while the active Dashboard navigation title comes from `displayTitle`.
