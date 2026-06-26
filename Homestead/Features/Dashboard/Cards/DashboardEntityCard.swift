@@ -4,7 +4,6 @@ import SwiftUI
 struct DashboardEntityCard: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
     @Environment(\.scenePhase) private var scenePhase
     @State private var historyPhase: DashboardHistoryCardPhase = .idle
@@ -538,36 +537,32 @@ struct DashboardEntityCard: View {
     }
 
     private var interactiveIconView: some View {
-        Group {
-            if size == .mini {
-                miniGlyph
-                    .frame(width: 28, height: 24, alignment: .topLeading)
-                    .contentShape(Rectangle())
-            } else {
-                CardIconView(
-                    icon: presentation.icon,
-                    isActive: presentation.isActive,
-                    isAvailable: presentation.isAvailable,
-                    accentColor: presentation.accentColor
-                )
-            }
-        }
+        cardIconView
+            .frame(width: 44, height: 44, alignment: .center)
+            .contentShape(Rectangle())
+            // Center the compact plate in its 44-point target without pushing the title down.
+            .offset(x: size == .mini ? -6 : 0, y: size == .mini ? -6 : 0)
     }
 
     private var miniIconPlaceholder: some View {
         Color.clear
-            .frame(width: 24, height: 18)
-            .overlay(alignment: .topLeading) {
+            .frame(width: miniIconSize, height: miniIconSize)
+            .overlay {
                 if toggle == nil {
-                    miniGlyph
+                    cardIconView
                 }
             }
     }
 
-    private var miniGlyph: some View {
-        HomesteadIconView(icon: presentation.icon, pointSize: 16)
-            .foregroundStyle(miniGlyphColor)
-            .accessibilityHidden(true)
+    private var cardIconView: some View {
+        CardIconView(
+            icon: presentation.icon,
+            isActive: presentation.isActive,
+            isAvailable: presentation.isAvailable,
+            accentColor: presentation.accentColor,
+            size: size == .mini ? miniIconSize : 44,
+            symbolSize: size == .mini ? 17 : 21
+        )
     }
 
     private var miniTitleText: String {
@@ -580,18 +575,6 @@ struct DashboardEntityCard: View {
         }
 
         return .primary
-    }
-
-    private var miniGlyphColor: Color {
-        guard presentation.isAvailable else {
-            return .secondary
-        }
-
-        guard presentation.isActive else {
-            return .primary
-        }
-
-        return colorScheme == .dark ? .white : presentation.accentColor
     }
 
     private var iconColor: Color {
@@ -625,6 +608,10 @@ struct DashboardEntityCard: View {
 
     private var cardContainerPadding: CGFloat {
         size == .mini ? AppSpacing.small : AppSpacing.medium
+    }
+
+    private var miniIconSize: CGFloat {
+        32
     }
 
     private var renderedCardHeight: CGFloat {

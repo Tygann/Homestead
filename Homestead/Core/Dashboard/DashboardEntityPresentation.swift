@@ -481,7 +481,7 @@ struct DashboardEntityPresentation {
             )
             headline = effectiveIsOn ? brightnessPercentage.map { "\($0)%" } : nil
             isActive = effectiveIsOn
-            isAvailable = true
+            isAvailable = entityBox.homeEntity.isAvailable
             accentColor = Self.accentColor(for: effectiveIsOn, behavior: capability.iconAccentBehavior)
         } else if let sensor = entityBox.sensorEntity {
             title = overrideTitle ?? sensor.displayName

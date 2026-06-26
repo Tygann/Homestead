@@ -8597,6 +8597,27 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func unavailableLightPresentationDisablesPrimaryControlStyling() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "light.hallway",
+                state: "unavailable",
+                attributes: ["friendly_name": .string("Hallway Light")]
+            )
+        ])
+
+        let presentation = DashboardEntityPresentation(
+            entityBox: try #require(store.entityBox(for: "light.hallway"))
+        )
+
+        #expect(presentation.isAvailable == false)
+        #expect(presentation.isActive == false)
+        #expect(presentation.primaryAction == nil)
+        #expect(presentation.primaryServiceIntent == nil)
+    }
+
+    @MainActor
     @Test func entityDomainRegistryDefinesCommonDomainPresentationCapabilities() throws {
         let expected: [EntityDomain: (
             DashboardEntityCardStyle,
