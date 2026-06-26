@@ -43,6 +43,21 @@ nonisolated struct NativeNotificationStatusSnapshot: Equatable, Sendable {
     )
 }
 
+nonisolated enum NativeRemoteNotificationRegistrationState: Equatable, Sendable {
+    case notRegistered
+    case registeringWithAPNS
+    case registeringWithBackend
+    case registered(Date)
+    case failed(String)
+
+    var isRegistered: Bool {
+        if case .registered = self {
+            return true
+        }
+        return false
+    }
+}
+
 nonisolated struct NativeNotificationRequest: Equatable, Sendable {
     let identifier: String
     let title: String

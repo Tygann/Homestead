@@ -14,6 +14,8 @@ nonisolated struct HAMobileAppRegistrationRequestDTO: Encodable, Equatable, Send
     let osName: String
     let osVersion: String
     let supportsEncryption: Bool
+    let pushURL: String?
+    let pushToken: String?
     let appData: [String: JSONValue]?
 
     enum CodingKeys: String, CodingKey {
@@ -27,6 +29,8 @@ nonisolated struct HAMobileAppRegistrationRequestDTO: Encodable, Equatable, Send
         case osName = "os_name"
         case osVersion = "os_version"
         case supportsEncryption = "supports_encryption"
+        case pushURL = "push_url"
+        case pushToken = "push_token"
         case appData = "app_data"
     }
 }
@@ -57,6 +61,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
     let remoteUIURL: String?
     let secret: String?
     let supportsWebSocketNotifications: Bool?
+    let supportsCloudPushNotifications: Bool?
     let registeredAt: Date
 
     nonisolated var hasEncryptedWebhookSecret: Bool {
@@ -76,6 +81,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         case remoteUIURL
         case secret
         case supportsWebSocketNotifications
+        case supportsCloudPushNotifications
         case registeredAt
     }
 
@@ -96,6 +102,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         remoteUIURL = response.remoteUIURL
         secret = response.secret
         supportsWebSocketNotifications = request.appData?["push_websocket_channel"]?.boolValue == true
+        supportsCloudPushNotifications = request.pushURL?.isEmpty == false && request.pushToken?.isEmpty == false
         self.registeredAt = registeredAt
     }
 
@@ -111,6 +118,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         remoteUIURL: String? = nil,
         secret: String? = nil,
         supportsWebSocketNotifications: Bool? = nil,
+        supportsCloudPushNotifications: Bool? = nil,
         registeredAt: Date = Date()
     ) {
         self.serverIdentifier = serverIdentifier
@@ -124,6 +132,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         self.remoteUIURL = remoteUIURL
         self.secret = secret
         self.supportsWebSocketNotifications = supportsWebSocketNotifications
+        self.supportsCloudPushNotifications = supportsCloudPushNotifications
         self.registeredAt = registeredAt
     }
 }
@@ -156,6 +165,7 @@ nonisolated struct HAMobileAppRegistrationSummary: Equatable, Sendable {
     let usesCloudhook: Bool
     let hasEncryptedWebhookSecret: Bool
     let supportsWebSocketNotifications: Bool
+    let supportsCloudPushNotifications: Bool
 
     init(info: HAMobileAppRegistrationInfo) {
         deviceName = info.deviceName
@@ -164,6 +174,7 @@ nonisolated struct HAMobileAppRegistrationSummary: Equatable, Sendable {
         usesCloudhook = info.cloudhookURL != nil
         hasEncryptedWebhookSecret = info.hasEncryptedWebhookSecret
         supportsWebSocketNotifications = info.supportsWebSocketNotifications == true
+        supportsCloudPushNotifications = info.supportsCloudPushNotifications == true
     }
 }
 
@@ -180,9 +191,12 @@ enum HAMobileAppRegistrationRequestFactory {
         manufacturer: String = CurrentDeviceInfo.manufacturer,
         model: String = CurrentDeviceInfo.model,
         osName: String = CurrentDeviceInfo.osName,
-        osVersion: String = CurrentDeviceInfo.osVersion
+        osVersion: String = CurrentDeviceInfo.osVersion,
+        pushRelayToken: String? = nil,
+        pushURL: String = HomesteadPushRelayEndpoint.pushURLString
     ) -> HAMobileAppRegistrationRequestDTO {
-        HAMobileAppRegistrationRequestDTO(
+        let trimmedPushRelayToken = pushRelayToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return HAMobileAppRegistrationRequestDTO(
             deviceID: deviceID,
             appID: appID,
             appName: appName,
@@ -193,6 +207,8 @@ enum HAMobileAppRegistrationRequestFactory {
             osName: osName,
             osVersion: osVersion,
             supportsEncryption: false,
+            pushURL: trimmedPushRelayToken?.isEmpty == false ? pushURL : nil,
+            pushToken: trimmedPushRelayToken?.isEmpty == false ? trimmedPushRelayToken : nil,
             appData: ["push_websocket_channel": .bool(true)]
         )
     }

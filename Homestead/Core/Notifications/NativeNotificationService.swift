@@ -38,18 +38,44 @@ struct UNUserNotificationPermissionClient: NativeNotificationPermissionClient {
 @Observable
 final class NativeNotificationService {
     private(set) var status: NativeNotificationStatusSnapshot = .unknown
+    private(set) var remoteRegistrationState: NativeRemoteNotificationRegistrationState = .notRegistered
     private(set) var isRefreshing = false
     private(set) var isRequestingAuthorization = false
     private(set) var lastErrorMessage: String?
 
     @ObservationIgnored private let client: any NativeNotificationPermissionClient
+    @ObservationIgnored private let remoteRegistrationClient: any NativeRemoteNotificationRegistrationClient
+    @ObservationIgnored private let pushRegistrationClient: any HomesteadPushTokenRegistrationClient
+    @ObservationIgnored private let pushRelayTokenStore: any PushRelayTokenStore
 
     convenience init() {
-        self.init(client: UNUserNotificationPermissionClient())
+        self.init(
+            client: UNUserNotificationPermissionClient(),
+            remoteRegistrationClient: UIApplicationRemoteNotificationRegistrationClient(),
+            pushRegistrationClient: URLSessionHomesteadPushTokenRegistrationClient(),
+            pushRelayTokenStore: KeychainPushRelayTokenStore()
+        )
     }
 
-    init(client: any NativeNotificationPermissionClient) {
+    convenience init(client: any NativeNotificationPermissionClient) {
+        self.init(
+            client: client,
+            remoteRegistrationClient: UIApplicationRemoteNotificationRegistrationClient(),
+            pushRegistrationClient: URLSessionHomesteadPushTokenRegistrationClient(),
+            pushRelayTokenStore: KeychainPushRelayTokenStore()
+        )
+    }
+
+    init(
+        client: any NativeNotificationPermissionClient,
+        remoteRegistrationClient: any NativeRemoteNotificationRegistrationClient,
+        pushRegistrationClient: any HomesteadPushTokenRegistrationClient,
+        pushRelayTokenStore: any PushRelayTokenStore
+    ) {
         self.client = client
+        self.remoteRegistrationClient = remoteRegistrationClient
+        self.pushRegistrationClient = pushRegistrationClient
+        self.pushRelayTokenStore = pushRelayTokenStore
     }
 
     func refreshAuthorizationStatus() async {
@@ -72,9 +98,45 @@ final class NativeNotificationService {
             _ = try await client.requestAuthorization()
             status = try await client.currentStatus()
             lastErrorMessage = nil
+            await registerForRemoteNotificationsIfAllowed()
         } catch {
             lastErrorMessage = error.localizedDescription
         }
+    }
+
+    func registerForRemoteNotificationsIfAllowed() async {
+        guard status.authorizationStatus.isAllowed else {
+            return
+        }
+
+        remoteRegistrationState = .registeringWithAPNS
+        await remoteRegistrationClient.registerForRemoteNotifications()
+    }
+
+    func handleRemoteNotificationDeviceToken(_ deviceToken: Data) async {
+        remoteRegistrationState = .registeringWithBackend
+
+        do {
+            let request = HomesteadPushTokenRegistrationRequest(
+                pushRelayToken: try pushRelayTokenStore.readOrCreateRelayToken(),
+                apnsToken: deviceToken.lowercaseHexString,
+                environment: HomesteadPushEnvironment.current,
+                deviceName: HomesteadPushDeviceInfo.name,
+                appVersion: Bundle.main.homesteadShortVersionString
+            )
+            try await pushRegistrationClient.register(request)
+            remoteRegistrationState = .registered(Date())
+            lastErrorMessage = nil
+        } catch {
+            remoteRegistrationState = .failed(error.localizedDescription)
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    func handleRemoteNotificationRegistrationFailure(_ error: Error) {
+        let registrationError = HomesteadPushRegistrationError.remoteRegistrationFailed(error.localizedDescription)
+        remoteRegistrationState = .failed(registrationError.localizedDescription)
+        lastErrorMessage = registrationError.localizedDescription
     }
 
     func presentNotification(_ request: NativeNotificationRequest) async throws {

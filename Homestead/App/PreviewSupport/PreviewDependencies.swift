@@ -47,6 +47,7 @@ struct PreviewDependencies {
             connectionStatus: .connected,
             authState: .signedIn(HAAuthSessionSummary(credential: credential)),
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            pushRelayTokenStore: InMemoryPushRelayTokenStore(),
             nativeNotificationService: nativeNotificationService,
             authManager: HAOAuthManager(tokenStore: tokenStore)
         )
@@ -92,6 +93,7 @@ struct PreviewDependencies {
                 authState: .signedIn(HAAuthSessionSummary(credential: credential)),
                 mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
                 mobileAppDeviceIDStore: InMemoryHAMobileAppDeviceIDStore(),
+                pushRelayTokenStore: InMemoryPushRelayTokenStore(),
                 nativeNotificationService: nativeNotificationService,
                 authManager: HAOAuthManager(tokenStore: tokenStore),
                 automaticallyRegistersMobileApp: false
@@ -127,6 +129,7 @@ struct PreviewDependencies {
             stateStore: stateStore,
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
             mobileAppDeviceIDStore: InMemoryHAMobileAppDeviceIDStore(),
+            pushRelayTokenStore: InMemoryPushRelayTokenStore(),
             nativeNotificationService: nativeNotificationService,
             automaticallyRegistersMobileApp: false
         )

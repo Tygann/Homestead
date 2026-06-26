@@ -22,6 +22,7 @@ struct HomesteadApp: App {
         let stateStore = HAStateStore()
         let connectionSettings = HAConnectionSettings(tokenStore: tokenStore)
         let nativeNotificationService = NativeNotificationService()
+        HomesteadAppDelegate.nativeNotificationService = nativeNotificationService
         let nativePermissionService = NativePermissionService()
         let actionConfirmationSettings = ActionConfirmationSettings()
         let appearanceSettings = HomesteadAppearanceSettings()
@@ -89,6 +90,8 @@ struct HomesteadApp: App {
                         appearanceSettings: appearanceSettings,
                         homeAssistantService: homeAssistantService
                     )
+                    await nativeNotificationService.refreshAuthorizationStatus()
+                    await nativeNotificationService.registerForRemoteNotificationsIfAllowed()
                 }
                 .onChange(of: connectionSettings.syncSnapshot) { _, _ in
                     syncPreferencesToICloud(.connection)
@@ -130,6 +133,8 @@ private extension HomesteadAppearanceMode {
 }
 
 final class HomesteadAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    @MainActor weak static var nativeNotificationService: NativeNotificationService?
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -143,5 +148,23 @@ final class HomesteadAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .list, .sound, .badge]
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        Task { @MainActor in
+            await Self.nativeNotificationService?.handleRemoteNotificationDeviceToken(deviceToken)
+        }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        Task { @MainActor in
+            Self.nativeNotificationService?.handleRemoteNotificationRegistrationFailure(error)
+        }
     }
 }

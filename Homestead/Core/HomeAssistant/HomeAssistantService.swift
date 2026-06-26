@@ -37,6 +37,7 @@ final class HomeAssistantService {
     @ObservationIgnored private let mobileAppClient: any HAMobileAppClientProtocol
     @ObservationIgnored private let mobileAppRegistrationStore: any HAMobileAppRegistrationStore
     @ObservationIgnored private let mobileAppDeviceIDStore: any HAMobileAppDeviceIDStore
+    @ObservationIgnored private let pushRelayTokenStore: any PushRelayTokenStore
     @ObservationIgnored private let nativeNotificationService: NativeNotificationService
     @ObservationIgnored private let authManager: HAOAuthManager
     @ObservationIgnored private let oauthAuthorizer: any HAOAuthAuthorizing
@@ -77,6 +78,7 @@ final class HomeAssistantService {
         mobileAppClient: (any HAMobileAppClientProtocol)? = nil,
         mobileAppRegistrationStore: (any HAMobileAppRegistrationStore)? = nil,
         mobileAppDeviceIDStore: (any HAMobileAppDeviceIDStore)? = nil,
+        pushRelayTokenStore: (any PushRelayTokenStore)? = nil,
         nativeNotificationService: NativeNotificationService? = nil,
         authManager: HAOAuthManager? = nil,
         oauthAuthorizer: (any HAOAuthAuthorizing)? = nil,
@@ -91,6 +93,7 @@ final class HomeAssistantService {
         self.mobileAppClient = mobileAppClient ?? HAMobileAppClient()
         self.mobileAppRegistrationStore = mobileAppRegistrationStore ?? KeychainHAMobileAppRegistrationStore()
         self.mobileAppDeviceIDStore = mobileAppDeviceIDStore ?? KeychainHAMobileAppDeviceIDStore()
+        self.pushRelayTokenStore = pushRelayTokenStore ?? KeychainPushRelayTokenStore()
         self.nativeNotificationService = nativeNotificationService ?? NativeNotificationService()
         self.authManager = authManager ?? HAOAuthManager()
         self.oauthAuthorizer = oauthAuthorizer ?? HAWebAuthenticationSession()
@@ -1084,7 +1087,8 @@ final class HomeAssistantService {
         if !force,
            let registration = try? mobileAppRegistrationStore.readRegistration(),
            registration.serverIdentifier == configuration.dataSourceID,
-           registration.supportsWebSocketNotifications == true {
+           registration.supportsWebSocketNotifications == true,
+           registration.supportsCloudPushNotifications == true {
             mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
             return
         }
@@ -1093,9 +1097,11 @@ final class HomeAssistantService {
 
         do {
             let deviceID = try mobileAppDeviceIDStore.readOrCreateDeviceID()
+            let pushRelayToken = try pushRelayTokenStore.readOrCreateRelayToken()
             let request = HAMobileAppRegistrationRequestFactory.makeRequest(
                 deviceID: deviceID,
-                userDisplayName: currentUserDisplayName
+                userDisplayName: currentUserDisplayName,
+                pushRelayToken: pushRelayToken
             )
             let response = try await mobileAppClient.register(
                 configuration: configuration,

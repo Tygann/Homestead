@@ -334,6 +334,21 @@ extension NativeNotificationDeliverySetting {
     }
 }
 
+extension NativeRemoteNotificationRegistrationState {
+    var settingsTitle: String {
+        switch self {
+        case .notRegistered:
+            return "Needs setup"
+        case .registeringWithAPNS, .registeringWithBackend:
+            return "Setting up"
+        case .registered:
+            return "On"
+        case .failed:
+            return "Needs attention"
+        }
+    }
+}
+
 extension HAMobileAppPushNotificationState {
     var settingsTitle: String {
         switch self {

@@ -38,8 +38,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Reusable native gauge presentation for range-aware numeric/status sensors, shown in sensor detail views and as a larger-card dashboard feature where values have clear bounds such as battery, humidity, signal, AQI, percentage levels, or Home Assistant-provided ranges.
 - Native dashboard card and detail surface for `.weather` entities, backed by typed state-attribute mapping for condition, temperature, humidity, wind, forecast availability, and attribution.
 - Official Home Assistant mobile-app registration groundwork, including persisted registration metadata and camera stream webhook handoff support.
-- Connected-session notifications through Home Assistant's official mobile-app WebSocket notification channel, including native iOS permission status, post-registration permission setup prompt, mobile-app registration readiness, local notification presentation, and Home Assistant delivery confirmation.
-- Repository-local Cloudflare Worker scaffold for future Home Assistant `push_url` to APNs relay under `api/`, including KV-backed relay-token registration, sandbox/production APNs routing, and setup documentation. The Worker is not deployed and the iOS app-side APNs registration flow is not implemented yet.
+- Home Assistant notifications through official mobile-app registration, including native iOS permission status, post-registration permission setup prompt, WebSocket connected-session delivery, APNs remote-notification registration, stable relay-token persistence, and the deployed Cloudflare Worker `push_url` relay.
 - Settings > Privacy & Permissions page for native iOS capabilities, including Local Network, Location, and Camera, backed by public platform APIs or app-owned status where iOS does not expose direct status. Notification permission and Home Assistant delivery setup live in Settings > Notifications.
 - User-facing service-call and reconnect recovery feedback through `HomeAssistantService` and app chrome, including tappable reconnecting state and clearer action-failure copy.
 - Authenticated camera snapshot support.
@@ -63,7 +62,6 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.
 - True Home Assistant users/admin views if an official supported API path is confirmed for the signed-in user's permissions.
 - Siri/Shortcuts once App Intents have stable action coverage.
-- App-side APNs remote-notification registration and Home Assistant mobile-app `push_url` updates using the existing `api/` Worker foundation.
 - Domain-specific cards and details for calendars, todo lists, humidifiers, water heaters, valves, sirens, air-quality sensors, and image entities.
 
 ## Be Careful

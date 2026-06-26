@@ -1165,8 +1165,29 @@ struct HomesteadTests {
         #expect(object["os_name"] as? String == "iOS")
         #expect(object["os_version"] as? String == "26.5")
         #expect(object["supports_encryption"] as? Bool == false)
+        #expect(object["push_url"] == nil)
+        #expect(object["push_token"] == nil)
         let appData = try #require(object["app_data"] as? [String: Any])
         #expect(appData["push_websocket_channel"] as? Bool == true)
+    }
+
+    @Test func mobileAppRegistrationRequestEncodesPushRelayFields() throws {
+        let request = HAMobileAppRegistrationRequestFactory.makeRequest(
+            deviceID: "device-123",
+            appVersion: "1.2.3",
+            deviceName: "Test Phone",
+            manufacturer: "Apple, Inc.",
+            model: "iPhone",
+            osName: "iOS",
+            osVersion: "26.5",
+            pushRelayToken: "relay-token-123"
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["push_url"] as? String == "https://api.homesteadcontrol.com/mobile-app/push")
+        #expect(object["push_token"] as? String == "relay-token-123")
     }
 
     @Test func mobileAppRegistrationNameUsesHomeAssistantUserForGenericAppleDeviceNames() {
@@ -4242,6 +4263,7 @@ struct HomesteadTests {
             mobileAppClient: client,
             mobileAppRegistrationStore: store,
             mobileAppDeviceIDStore: deviceIDStore,
+            pushRelayTokenStore: InMemoryPushRelayTokenStore(token: "stable-relay-token"),
             authManager: HAOAuthManager(
                 tokenStore: InMemoryHAOAuthTokenStore(
                     credential: testCredential(accessToken: "token-a")
@@ -4259,7 +4281,10 @@ struct HomesteadTests {
         let savedRegistration = try #require(try store.readRegistration())
         #expect(savedRegistration.deviceID == "stable-device-id")
         #expect(client.lastRegistrationRequest?.deviceID == "stable-device-id")
+        #expect(client.lastRegistrationRequest?.pushURL == "https://api.homesteadcontrol.com/mobile-app/push")
+        #expect(client.lastRegistrationRequest?.pushToken == "stable-relay-token")
         #expect(savedRegistration.webhookID == "webhook-created")
+        #expect(savedRegistration.supportsCloudPushNotifications == true)
         #expect(savedRegistration.serverIdentifier == HAConnectionConfiguration(
             baseURLString: settings.baseURL,
             accessToken: "token-a"
@@ -4330,6 +4355,12 @@ struct HomesteadTests {
         #expect(client.currentStatusCallCount == 1)
     }
 
+    @Test func apnsDeviceTokenHexStringIsLowercase() {
+        let token = Data([0x00, 0x0f, 0x10, 0xab, 0xff])
+
+        #expect(token.lowercaseHexString == "000f10abff")
+    }
+
     @MainActor
     @Test func nativeNotificationServiceRequestsPermissionThenRefreshesStatus() async {
         let expectedStatus = NativeNotificationStatusSnapshot(
@@ -4339,7 +4370,13 @@ struct HomesteadTests {
             badgeSetting: .enabled
         )
         let client = StubNativeNotificationPermissionClient(currentStatus: expectedStatus)
-        let service = NativeNotificationService(client: client)
+        let remoteClient = StubNativeRemoteNotificationRegistrationClient()
+        let service = NativeNotificationService(
+            client: client,
+            remoteRegistrationClient: remoteClient,
+            pushRegistrationClient: StubHomesteadPushTokenRegistrationClient(),
+            pushRelayTokenStore: InMemoryPushRelayTokenStore(token: "stable-relay-token")
+        )
 
         await service.requestAuthorization()
 
@@ -4347,6 +4384,51 @@ struct HomesteadTests {
         #expect(service.lastErrorMessage == nil)
         #expect(client.didRequestAuthorization)
         #expect(client.currentStatusCallCount == 1)
+        #expect(remoteClient.registerCallCount == 1)
+        #expect(service.remoteRegistrationState == .registeringWithAPNS)
+    }
+
+    @MainActor
+    @Test func nativeNotificationServiceRegistersBackendAfterAPNSToken() async throws {
+        let client = StubNativeNotificationPermissionClient(currentStatus: .unknown)
+        let pushClient = StubHomesteadPushTokenRegistrationClient()
+        let service = NativeNotificationService(
+            client: client,
+            remoteRegistrationClient: StubNativeRemoteNotificationRegistrationClient(),
+            pushRegistrationClient: pushClient,
+            pushRelayTokenStore: InMemoryPushRelayTokenStore(token: "stable-relay-token")
+        )
+
+        await service.handleRemoteNotificationDeviceToken(Data([0xab, 0xcd, 0xef]))
+
+        let request = try #require(pushClient.lastRequest)
+        #expect(request.pushRelayToken == "stable-relay-token")
+        #expect(request.apnsToken == "abcdef")
+        #expect(request.environment == HomesteadPushEnvironment.current)
+        #expect(!request.deviceName.isEmpty)
+        #expect(!request.appVersion.isEmpty)
+        #expect(service.remoteRegistrationState.isRegistered)
+        #expect(service.lastErrorMessage == nil)
+    }
+
+    @MainActor
+    @Test func nativeNotificationServiceReportsBackendRegistrationFailure() async {
+        let client = StubNativeNotificationPermissionClient(currentStatus: .unknown)
+        let pushClient = StubHomesteadPushTokenRegistrationClient(error: HomesteadPushRegistrationError.backendRejected(statusCode: 500))
+        let service = NativeNotificationService(
+            client: client,
+            remoteRegistrationClient: StubNativeRemoteNotificationRegistrationClient(),
+            pushRegistrationClient: pushClient,
+            pushRelayTokenStore: InMemoryPushRelayTokenStore(token: "stable-relay-token")
+        )
+
+        await service.handleRemoteNotificationDeviceToken(Data([0xab]))
+
+        guard case .failed = service.remoteRegistrationState else {
+            Issue.record("Expected failed remote notification registration state.")
+            return
+        }
+        #expect(service.lastErrorMessage != nil)
     }
 
     @MainActor
@@ -4435,6 +4517,7 @@ struct HomesteadTests {
             client: webSocketClient,
             mobileAppClient: mobileAppClient,
             mobileAppRegistrationStore: store,
+            pushRelayTokenStore: InMemoryPushRelayTokenStore(token: "stable-relay-token"),
             nativeNotificationService: NativeNotificationService(
                 client: StubNativeNotificationPermissionClient(currentStatus: .unknown)
             ),
@@ -4470,6 +4553,7 @@ struct HomesteadTests {
             client: webSocketClient,
             mobileAppClient: StubHAMobileAppClient(),
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            pushRelayTokenStore: InMemoryPushRelayTokenStore(token: "stable-relay-token"),
             authManager: HAOAuthManager(
                 tokenStore: InMemoryHAOAuthTokenStore(
                     credential: testCredential(accessToken: "registry-refresh-access")
@@ -10825,6 +10909,32 @@ final class StubNativeNotificationPermissionClient: NativeNotificationPermission
         }
 
         presentedNotifications.append(request)
+    }
+}
+
+@MainActor
+final class StubNativeRemoteNotificationRegistrationClient: NativeRemoteNotificationRegistrationClient {
+    private(set) var registerCallCount = 0
+
+    func registerForRemoteNotifications() async {
+        registerCallCount += 1
+    }
+}
+
+final class StubHomesteadPushTokenRegistrationClient: HomesteadPushTokenRegistrationClient {
+    var error: Error?
+    private(set) var lastRequest: HomesteadPushTokenRegistrationRequest?
+
+    init(error: Error? = nil) {
+        self.error = error
+    }
+
+    func register(_ request: HomesteadPushTokenRegistrationRequest) async throws {
+        lastRequest = request
+
+        if let error {
+            throw error
+        }
     }
 }
 

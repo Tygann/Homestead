@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-06-25
 
+### Push Registration App Integration
+
+- Added app-side APNs remote-notification registration through the existing SwiftUI app lifecycle and app delegate bridge.
+- Generated and persisted a stable Keychain-backed Homestead relay token, registered APNs tokens with the deployed Worker, and included Home Assistant mobile-app `push_url`/`push_token` registration fields without changing the OAuth `connect.homesteadcontrol.com` client identifier.
+- Kept Settings > Notifications user-facing copy native and non-sensitive while showing only high-level permission, Home Assistant setup, and background-delivery state.
+
 ### Push Relay Backend Scaffold
 
 - Added a top-level `api/` Cloudflare Worker project named `homestead-api` for future Home Assistant `push_url` notification relay.
