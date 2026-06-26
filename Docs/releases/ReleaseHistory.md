@@ -58,6 +58,38 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1.0 (Build 16)
+
+- Release Date: 2026-06-26
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This update adds remote Home Assistant notifications and further polishes saved-dashboard setup and customization.
+
+What's new:
+
+- Home Assistant notifications can now arrive when Homestead is not open
+- Notification setup now registers the device for remote delivery through Home Assistant
+
+Improvements:
+
+- Saved dashboards now keep their Settings name separate from the title shown on the dashboard
+- Dashboard previews and detail actions in Settings have a cleaner, more consistent layout
+- Notification registration and reconnect handling are more reliable
+
+Please test:
+
+- Allowing notifications during setup or from Settings > Notifications
+- Receiving a Home Assistant notification while Homestead is closed or in the background
+- Existing notification setups after updating from an earlier build
+- Renaming a saved dashboard separately from its displayed dashboard title
+- Dashboard previews and detail actions in Settings
+
+### Internal Summary
+
+Build 16 covers the post-Build 15 remote-push pass: app-side APNs registration, Home Assistant mobile-app `push_url` registration and repair, the deployed push relay and connect page, plus saved-dashboard name/title separation and focused Settings dashboard preview/detail polish.
+
 ## Version 1.0 (Build 15)
 
 - Release Date: 2026-06-24
