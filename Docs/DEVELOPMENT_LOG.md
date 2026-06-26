@@ -7,7 +7,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### Push Registration App Integration
 
 - Added app-side APNs remote-notification registration through the existing SwiftUI app lifecycle and app delegate bridge.
-- Generated and persisted a stable Keychain-backed Homestead relay token, registered APNs tokens with the deployed Worker, and included Home Assistant mobile-app `push_url`/`push_token` registration fields without changing the OAuth `connect.homesteadcontrol.com` client identifier.
+- Generated and persisted a stable Keychain-backed Homestead relay token, registered APNs tokens with the deployed Worker, and included Home Assistant mobile-app `app_data.push_url`/`app_data.push_token` registration fields without changing the OAuth `connect.homesteadcontrol.com` client identifier.
+- Corrected an initial registration-shape bug where push metadata was top-level and local push was advertised; Homestead now omits `push_websocket_channel` for the remote-push path and updates existing registrations through `update_registration`.
 - Kept Settings > Notifications user-facing copy native and non-sensitive while showing only high-level permission, Home Assistant setup, and background-delivery state.
 
 ### Push Relay Backend Scaffold

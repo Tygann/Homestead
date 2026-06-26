@@ -14,8 +14,6 @@ nonisolated struct HAMobileAppRegistrationRequestDTO: Encodable, Equatable, Send
     let osName: String
     let osVersion: String
     let supportsEncryption: Bool
-    let pushURL: String?
-    let pushToken: String?
     let appData: [String: JSONValue]?
 
     enum CodingKeys: String, CodingKey {
@@ -29,8 +27,24 @@ nonisolated struct HAMobileAppRegistrationRequestDTO: Encodable, Equatable, Send
         case osName = "os_name"
         case osVersion = "os_version"
         case supportsEncryption = "supports_encryption"
-        case pushURL = "push_url"
-        case pushToken = "push_token"
+        case appData = "app_data"
+    }
+}
+
+nonisolated struct HAMobileAppRegistrationUpdateDTO: Encodable, Equatable, Sendable {
+    let appVersion: String
+    let deviceName: String
+    let manufacturer: String
+    let model: String
+    let osVersion: String
+    let appData: [String: JSONValue]?
+
+    enum CodingKeys: String, CodingKey {
+        case appVersion = "app_version"
+        case deviceName = "device_name"
+        case manufacturer
+        case model
+        case osVersion = "os_version"
         case appData = "app_data"
     }
 }
@@ -69,6 +83,12 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         return !secret.isEmpty
     }
 
+    nonisolated func hasCurrentRemotePushRegistration(for configuration: HAConnectionConfiguration) -> Bool {
+        serverIdentifier == configuration.dataSourceID &&
+            supportsCloudPushNotifications == true &&
+            supportsWebSocketNotifications != true
+    }
+
     enum CodingKeys: String, CodingKey {
         case serverIdentifier
         case deviceID
@@ -102,7 +122,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         remoteUIURL = response.remoteUIURL
         secret = response.secret
         supportsWebSocketNotifications = request.appData?["push_websocket_channel"]?.boolValue == true
-        supportsCloudPushNotifications = request.pushURL?.isEmpty == false && request.pushToken?.isEmpty == false
+        supportsCloudPushNotifications = request.includesRemotePushAppData
         self.registeredAt = registeredAt
     }
 
@@ -193,9 +213,9 @@ enum HAMobileAppRegistrationRequestFactory {
         osName: String = CurrentDeviceInfo.osName,
         osVersion: String = CurrentDeviceInfo.osVersion,
         pushRelayToken: String? = nil,
-        pushURL: String = HomesteadPushRelayEndpoint.pushURLString
+        pushURL: String = HomesteadPushRelayEndpoint.pushURLString,
+        supportsWebSocketPush: Bool = false
     ) -> HAMobileAppRegistrationRequestDTO {
-        let trimmedPushRelayToken = pushRelayToken?.trimmingCharacters(in: .whitespacesAndNewlines)
         return HAMobileAppRegistrationRequestDTO(
             deviceID: deviceID,
             appID: appID,
@@ -207,9 +227,36 @@ enum HAMobileAppRegistrationRequestFactory {
             osName: osName,
             osVersion: osVersion,
             supportsEncryption: false,
-            pushURL: trimmedPushRelayToken?.isEmpty == false ? pushURL : nil,
-            pushToken: trimmedPushRelayToken?.isEmpty == false ? trimmedPushRelayToken : nil,
-            appData: ["push_websocket_channel": .bool(true)]
+            appData: appData(
+                pushRelayToken: pushRelayToken,
+                pushURL: pushURL,
+                supportsWebSocketPush: supportsWebSocketPush
+            )
+        )
+    }
+
+    static func makeUpdate(
+        appVersion: String = Bundle.main.shortVersionString,
+        deviceName: String = CurrentDeviceInfo.name,
+        userDisplayName: String? = nil,
+        manufacturer: String = CurrentDeviceInfo.manufacturer,
+        model: String = CurrentDeviceInfo.model,
+        osVersion: String = CurrentDeviceInfo.osVersion,
+        pushRelayToken: String? = nil,
+        pushURL: String = HomesteadPushRelayEndpoint.pushURLString,
+        supportsWebSocketPush: Bool = false
+    ) -> HAMobileAppRegistrationUpdateDTO {
+        HAMobileAppRegistrationUpdateDTO(
+            appVersion: appVersion,
+            deviceName: visibleDeviceName(for: deviceName, userDisplayName: userDisplayName),
+            manufacturer: manufacturer,
+            model: model,
+            osVersion: osVersion,
+            appData: appData(
+                pushRelayToken: pushRelayToken,
+                pushURL: pushURL,
+                supportsWebSocketPush: supportsWebSocketPush
+            )
         )
     }
 
@@ -243,6 +290,45 @@ enum HAMobileAppRegistrationRequestFactory {
         default:
             return false
         }
+    }
+
+    private nonisolated static func appData(
+        pushRelayToken: String?,
+        pushURL: String,
+        supportsWebSocketPush: Bool
+    ) -> [String: JSONValue]? {
+        let trimmedPushRelayToken = pushRelayToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+        var appData: [String: JSONValue] = [:]
+
+        if let trimmedPushRelayToken, !trimmedPushRelayToken.isEmpty {
+            appData["push_url"] = .string(pushURL)
+            appData["push_token"] = .string(trimmedPushRelayToken)
+        }
+
+        if supportsWebSocketPush {
+            appData["push_websocket_channel"] = .bool(true)
+        }
+
+        return appData.isEmpty ? nil : appData
+    }
+}
+
+extension HAMobileAppRegistrationRequestDTO {
+    nonisolated var includesRemotePushAppData: Bool {
+        appData?.includesRemotePushMetadata == true
+    }
+}
+
+extension HAMobileAppRegistrationUpdateDTO {
+    nonisolated var includesRemotePushAppData: Bool {
+        appData?.includesRemotePushMetadata == true
+    }
+}
+
+private extension [String: JSONValue] {
+    nonisolated var includesRemotePushMetadata: Bool {
+        self["push_url"]?.stringValue?.isEmpty == false &&
+            self["push_token"]?.stringValue?.isEmpty == false
     }
 }
 

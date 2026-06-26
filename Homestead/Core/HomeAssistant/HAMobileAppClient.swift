@@ -11,6 +11,12 @@ nonisolated protocol HAMobileAppClientProtocol {
         registration: HAMobileAppRegistrationInfo,
         entityID: String
     ) async throws -> HACameraStreamResponseDTO
+
+    func updateRegistration(
+        configuration: HAConnectionConfiguration,
+        registration: HAMobileAppRegistrationInfo,
+        update: HAMobileAppRegistrationUpdateDTO
+    ) async throws
 }
 
 actor HAMobileAppClient: HAMobileAppClientProtocol {
@@ -80,6 +86,34 @@ actor HAMobileAppClient: HAMobileAppClientProtocol {
         }
 
         return try decoder.decode(HACameraStreamResponseDTO.self, from: data)
+    }
+
+    func updateRegistration(
+        configuration: HAConnectionConfiguration,
+        registration: HAMobileAppRegistrationInfo,
+        update: HAMobileAppRegistrationUpdateDTO
+    ) async throws {
+        guard registration.serverIdentifier == configuration.dataSourceID else {
+            throw HAWebSocketError.requestFailed("Homestead is not registered with this Home Assistant server.")
+        }
+
+        guard !registration.hasEncryptedWebhookSecret else {
+            throw HAWebSocketError.requestFailed("Encrypted Home Assistant mobile-app webhooks are not supported yet.")
+        }
+
+        let url = try webhookURL(configuration: configuration, registration: registration)
+        let payload = HAMobileAppWebhookRequestDTO(
+            type: HAMobileAppWebhookType.updateRegistration,
+            data: update
+        )
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try encoder.encode(payload)
+
+        let (_, response) = try await session.data(for: urlRequest)
+        try validate(response: response, failurePrefix: "Home Assistant app registration update failed")
     }
 
     private func validate(response: URLResponse, failurePrefix: String) throws {

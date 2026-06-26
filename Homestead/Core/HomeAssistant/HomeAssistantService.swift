@@ -1080,15 +1080,36 @@ final class HomeAssistantService {
         await registerMobileAppIfNeeded(configuration: configuration, force: true)
     }
 
+    func refreshMobileAppPushRegistrationIfNeeded(settings: HAConnectionSettings) async {
+        currentConnectionSettings = settings
+        guard settings.hasServerURL, authState.isSignedIn else {
+            return
+        }
+
+        do {
+            let configuration = try await preferredConfiguration(for: settings)
+            await registerMobileAppIfNeeded(configuration: configuration, force: false)
+        } catch {
+            mobileAppRegistrationState = .failed(error.localizedDescription)
+            authState = authFailureState(for: error)
+        }
+    }
+
     private func registerMobileAppIfNeeded(
         configuration: HAConnectionConfiguration,
         force: Bool = false
     ) async {
+        let existingRegistration: HAMobileAppRegistrationInfo?
+        do {
+            existingRegistration = try mobileAppRegistrationStore.readRegistration()
+        } catch {
+            mobileAppRegistrationState = .failed(error.localizedDescription)
+            return
+        }
+
         if !force,
-           let registration = try? mobileAppRegistrationStore.readRegistration(),
-           registration.serverIdentifier == configuration.dataSourceID,
-           registration.supportsWebSocketNotifications == true,
-           registration.supportsCloudPushNotifications == true {
+           let registration = existingRegistration,
+           registration.hasCurrentRemotePushRegistration(for: configuration) {
             mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
             return
         }
@@ -1098,20 +1119,55 @@ final class HomeAssistantService {
         do {
             let deviceID = try mobileAppDeviceIDStore.readOrCreateDeviceID()
             let pushRelayToken = try pushRelayTokenStore.readOrCreateRelayToken()
-            let request = HAMobileAppRegistrationRequestFactory.makeRequest(
-                deviceID: deviceID,
-                userDisplayName: currentUserDisplayName,
-                pushRelayToken: pushRelayToken
-            )
-            let response = try await mobileAppClient.register(
-                configuration: configuration,
-                request: request
-            )
-            let registration = HAMobileAppRegistrationInfo(
-                serverIdentifier: configuration.dataSourceID,
-                request: request,
-                response: response
-            )
+
+            let registration: HAMobileAppRegistrationInfo
+            if let existingRegistration,
+               existingRegistration.serverIdentifier == configuration.dataSourceID {
+                let update = HAMobileAppRegistrationRequestFactory.makeUpdate(
+                    userDisplayName: currentUserDisplayName,
+                    pushRelayToken: pushRelayToken
+                )
+                try await mobileAppClient.updateRegistration(
+                    configuration: configuration,
+                    registration: existingRegistration,
+                    update: update
+                )
+                registration = HAMobileAppRegistrationInfo(
+                    serverIdentifier: configuration.dataSourceID,
+                    deviceID: existingRegistration.deviceID,
+                    appID: existingRegistration.appID,
+                    appName: existingRegistration.appName,
+                    appVersion: update.appVersion,
+                    deviceName: update.deviceName,
+                    webhookID: existingRegistration.webhookID,
+                    cloudhookURL: existingRegistration.cloudhookURL,
+                    remoteUIURL: existingRegistration.remoteUIURL,
+                    secret: existingRegistration.secret,
+                    supportsWebSocketNotifications: update.appData?["push_websocket_channel"]?.boolValue == true,
+                    supportsCloudPushNotifications: update.includesRemotePushAppData
+                )
+                #if DEBUG
+                print("Home Assistant mobile-app registration updated: remotePush=\(update.includesRemotePushAppData), localPush=\(update.appData?["push_websocket_channel"]?.boolValue == true)")
+                #endif
+            } else {
+                let request = HAMobileAppRegistrationRequestFactory.makeRequest(
+                    deviceID: deviceID,
+                    userDisplayName: currentUserDisplayName,
+                    pushRelayToken: pushRelayToken
+                )
+                let response = try await mobileAppClient.register(
+                    configuration: configuration,
+                    request: request
+                )
+                registration = HAMobileAppRegistrationInfo(
+                    serverIdentifier: configuration.dataSourceID,
+                    request: request,
+                    response: response
+                )
+                #if DEBUG
+                print("Home Assistant mobile-app registration created: remotePush=\(request.includesRemotePushAppData), localPush=\(request.appData?["push_websocket_channel"]?.boolValue == true)")
+                #endif
+            }
             try mobileAppRegistrationStore.saveRegistration(registration)
             mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
             lastErrorMessage = nil
@@ -2400,7 +2456,7 @@ final class HomeAssistantService {
         do {
             let registration = try currentMobileAppRegistration(for: configuration)
             guard registration.supportsWebSocketNotifications == true else {
-                mobileAppPushNotificationState = .failed("Register Homestead again to enable Home Assistant WebSocket notification delivery.")
+                mobileAppPushNotificationState = .unavailable
                 return
             }
 

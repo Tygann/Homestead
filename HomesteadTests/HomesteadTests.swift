@@ -1167,11 +1167,10 @@ struct HomesteadTests {
         #expect(object["supports_encryption"] as? Bool == false)
         #expect(object["push_url"] == nil)
         #expect(object["push_token"] == nil)
-        let appData = try #require(object["app_data"] as? [String: Any])
-        #expect(appData["push_websocket_channel"] as? Bool == true)
+        #expect(object["app_data"] == nil)
     }
 
-    @Test func mobileAppRegistrationRequestEncodesPushRelayFields() throws {
+    @Test func mobileAppRegistrationRequestEncodesRemotePushMetadataInAppData() throws {
         let request = HAMobileAppRegistrationRequestFactory.makeRequest(
             deviceID: "device-123",
             appVersion: "1.2.3",
@@ -1185,9 +1184,21 @@ struct HomesteadTests {
 
         let data = try JSONEncoder().encode(request)
         let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let appData = try #require(object["app_data"] as? [String: Any])
 
-        #expect(object["push_url"] as? String == "https://api.homesteadcontrol.com/mobile-app/push")
-        #expect(object["push_token"] as? String == "relay-token-123")
+        #expect(object["push_url"] == nil)
+        #expect(object["push_token"] == nil)
+        #expect(appData["push_url"] as? String == "https://api.homesteadcontrol.com/mobile-app/push")
+        #expect(appData["push_token"] as? String == "relay-token-123")
+    }
+
+    @Test func mobileAppRegistrationRequestDoesNotAdvertiseLocalPushByDefault() throws {
+        let request = HAMobileAppRegistrationRequestFactory.makeRequest(pushRelayToken: "relay-token-123")
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let appData = try #require(object["app_data"] as? [String: Any])
+
+        #expect(appData["push_websocket_channel"] == nil)
     }
 
     @Test func mobileAppRegistrationNameUsesHomeAssistantUserForGenericAppleDeviceNames() {
@@ -4281,10 +4292,12 @@ struct HomesteadTests {
         let savedRegistration = try #require(try store.readRegistration())
         #expect(savedRegistration.deviceID == "stable-device-id")
         #expect(client.lastRegistrationRequest?.deviceID == "stable-device-id")
-        #expect(client.lastRegistrationRequest?.pushURL == "https://api.homesteadcontrol.com/mobile-app/push")
-        #expect(client.lastRegistrationRequest?.pushToken == "stable-relay-token")
+        #expect(client.lastRegistrationRequest?.appData?["push_url"]?.stringValue == "https://api.homesteadcontrol.com/mobile-app/push")
+        #expect(client.lastRegistrationRequest?.appData?["push_token"]?.stringValue == "stable-relay-token")
+        #expect(client.lastRegistrationRequest?.appData?["push_websocket_channel"] == nil)
         #expect(savedRegistration.webhookID == "webhook-created")
         #expect(savedRegistration.supportsCloudPushNotifications == true)
+        #expect(savedRegistration.supportsWebSocketNotifications == false)
         #expect(savedRegistration.serverIdentifier == HAConnectionConfiguration(
             baseURLString: settings.baseURL,
             accessToken: "token-a"
@@ -4295,6 +4308,56 @@ struct HomesteadTests {
             return
         }
         #expect(summary.deviceName == savedRegistration.deviceName)
+    }
+
+    @MainActor
+    @Test func serviceUpdatesExistingMobileAppRegistrationWithRemotePushMetadata() async throws {
+        let configuration = HAConnectionConfiguration(
+            baseURLString: "http://homeassistant.local:8123",
+            accessToken: "token-a"
+        )
+        let existingRegistration = HAMobileAppRegistrationInfo(
+            serverIdentifier: configuration.dataSourceID,
+            deviceID: "existing-device-id",
+            appVersion: "1.0",
+            deviceName: "Homestead • iPhone",
+            webhookID: "existing-webhook",
+            supportsWebSocketNotifications: true,
+            supportsCloudPushNotifications: true
+        )
+        let store = InMemoryHAMobileAppRegistrationStore(registration: existingRegistration)
+        let client = StubHAMobileAppClient()
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            mobileAppClient: client,
+            mobileAppRegistrationStore: store,
+            mobileAppDeviceIDStore: InMemoryHAMobileAppDeviceIDStore(deviceID: "stable-device-id"),
+            pushRelayTokenStore: InMemoryPushRelayTokenStore(token: "stable-relay-token"),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(
+                    credential: testCredential(accessToken: "token-a")
+                )
+            )
+        )
+        let settings = HAConnectionSettings(
+            baseURL: configuration.baseURLString,
+            defaults: try isolatedDefaults(),
+            tokenStore: InMemoryHAOAuthTokenStore()
+        )
+
+        await service.refreshMobileAppPushRegistrationIfNeeded(settings: settings)
+
+        #expect(client.lastRegistrationRequest == nil)
+        #expect(client.lastRegistrationUpdate?.appData?["push_url"]?.stringValue == "https://api.homesteadcontrol.com/mobile-app/push")
+        #expect(client.lastRegistrationUpdate?.appData?["push_token"]?.stringValue == "stable-relay-token")
+        #expect(client.lastRegistrationUpdate?.appData?["push_websocket_channel"] == nil)
+        #expect(client.lastRegistrationToUpdate?.webhookID == "existing-webhook")
+
+        let savedRegistration = try #require(try store.readRegistration())
+        #expect(savedRegistration.deviceID == "existing-device-id")
+        #expect(savedRegistration.webhookID == "existing-webhook")
+        #expect(savedRegistration.supportsCloudPushNotifications == true)
+        #expect(savedRegistration.supportsWebSocketNotifications == false)
     }
 
     @MainActor
@@ -4501,7 +4564,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func serviceConnectionRegistersWebSocketNotificationsAndSubscribes() async throws {
+    @Test func serviceConnectionRegistersRemotePushWithoutLocalPushAdvertising() async throws {
         let store = InMemoryHAMobileAppRegistrationStore()
         let mobileAppClient = StubHAMobileAppClient(
             registrationResponse: HAMobileAppRegistrationResponseDTO(
@@ -4531,15 +4594,17 @@ struct HomesteadTests {
         await service.connect(baseURLString: "http://homeassistant.local:8123")
 
         let savedRegistration = try #require(try store.readRegistration())
-        #expect(savedRegistration.supportsWebSocketNotifications == true)
-        #expect(mobileAppClient.lastRegistrationRequest?.appData?["push_websocket_channel"]?.boolValue == true)
-        #expect(webSocketClient.mobileAppPushNotificationSubscription?.webhookID == "webhook-created")
-        #expect(webSocketClient.mobileAppPushNotificationSubscription?.supportConfirm == true)
+        #expect(savedRegistration.supportsCloudPushNotifications == true)
+        #expect(savedRegistration.supportsWebSocketNotifications == false)
+        #expect(mobileAppClient.lastRegistrationRequest?.appData?["push_url"]?.stringValue == "https://api.homesteadcontrol.com/mobile-app/push")
+        #expect(mobileAppClient.lastRegistrationRequest?.appData?["push_token"]?.stringValue == "stable-relay-token")
+        #expect(mobileAppClient.lastRegistrationRequest?.appData?["push_websocket_channel"] == nil)
+        #expect(webSocketClient.mobileAppPushNotificationSubscription == nil)
         try await waitUntil {
             webSocketClient.registryChangeSubscriptionCount == 1
         }
         #expect(webSocketClient.registryChangeSubscriptionCount == 1)
-        #expect(service.mobileAppPushNotificationState.isSubscribed)
+        #expect(service.mobileAppPushNotificationState == .unavailable)
     }
 
     @MainActor
@@ -10832,6 +10897,9 @@ final class StubHAMobileAppClient: HAMobileAppClientProtocol {
     var cameraStreamResponse: HACameraStreamResponseDTO
     private(set) var lastRegistrationConfiguration: HAConnectionConfiguration?
     private(set) var lastRegistrationRequest: HAMobileAppRegistrationRequestDTO?
+    private(set) var lastRegistrationUpdateConfiguration: HAConnectionConfiguration?
+    private(set) var lastRegistrationToUpdate: HAMobileAppRegistrationInfo?
+    private(set) var lastRegistrationUpdate: HAMobileAppRegistrationUpdateDTO?
     private(set) var lastCameraStreamEntityID: String?
 
     init(
@@ -10866,6 +10934,16 @@ final class StubHAMobileAppClient: HAMobileAppClientProtocol {
     ) async throws -> HACameraStreamResponseDTO {
         lastCameraStreamEntityID = entityID
         return cameraStreamResponse
+    }
+
+    func updateRegistration(
+        configuration: HAConnectionConfiguration,
+        registration: HAMobileAppRegistrationInfo,
+        update: HAMobileAppRegistrationUpdateDTO
+    ) async throws {
+        lastRegistrationUpdateConfiguration = configuration
+        lastRegistrationToUpdate = registration
+        lastRegistrationUpdate = update
     }
 }
 

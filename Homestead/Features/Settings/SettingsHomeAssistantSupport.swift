@@ -374,7 +374,9 @@ extension HAMobileAppRegistrationState {
         case .registered(let summary):
             let cloudhook = summary.usesCloudhook ? "cloudhook" : "local webhook"
             let encryptedSecret = summary.hasEncryptedWebhookSecret ? "secret present" : "no secret"
-            return "Registered as \(summary.deviceName), app \(summary.appVersion), \(cloudhook), \(encryptedSecret)"
+            let remotePush = summary.supportsCloudPushNotifications ? "remote push metadata present" : "remote push metadata missing"
+            let localPush = summary.supportsWebSocketNotifications ? "local push advertised" : "local push not advertised"
+            return "Registered as \(summary.deviceName), app \(summary.appVersion), \(cloudhook), \(encryptedSecret), \(remotePush), \(localPush)"
         case .failed(let message):
             return "Failed: \(message)"
         }

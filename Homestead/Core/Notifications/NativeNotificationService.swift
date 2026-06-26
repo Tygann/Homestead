@@ -127,6 +127,9 @@ final class NativeNotificationService {
             try await pushRegistrationClient.register(request)
             remoteRegistrationState = .registered(Date())
             lastErrorMessage = nil
+            #if DEBUG
+            print("Homestead push token registered with backend: apnsTokenReceived=true, relayTokenExists=true")
+            #endif
         } catch {
             remoteRegistrationState = .failed(error.localizedDescription)
             lastErrorMessage = error.localizedDescription

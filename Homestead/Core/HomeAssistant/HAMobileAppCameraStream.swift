@@ -41,4 +41,5 @@ nonisolated struct HACameraStreamHandoff: Equatable, Sendable {
 
 nonisolated enum HAMobileAppWebhookType {
     nonisolated static let streamCamera = "stream_camera"
+    nonisolated static let updateRegistration = "update_registration"
 }

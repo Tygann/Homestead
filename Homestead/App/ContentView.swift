@@ -116,6 +116,12 @@ struct ContentView: View {
         .onChange(of: notificationSetupPromptEvaluationID) { _, _ in
             presentNotificationSetupPromptIfNeeded()
         }
+        .onChange(of: nativeNotificationService.remoteRegistrationState) { _, state in
+            guard state.isRegistered else { return }
+            Task {
+                await homeAssistantService.refreshMobileAppPushRegistrationIfNeeded(settings: connectionSettings)
+            }
+        }
         .task(id: notificationSetupRefreshTaskID) {
             await refreshNotificationSetupStatusIfNeeded()
         }
