@@ -10,7 +10,7 @@
     {
       "binding": "HOMESTEAD_PUSH_TOKENS",
       // Replace before deploying. Create the namespace in Cloudflare and paste its ID here.
-      "id": "REPLACE_WITH_HOMESTEAD_PUSH_TOKENS_KV_NAMESPACE_ID"
+      "id": "048d230a29e74dfcbac7ec99e88911a9"
       // Optional for local preview/development once created:
       // "preview_id": "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
     }
