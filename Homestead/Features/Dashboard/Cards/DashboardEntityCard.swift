@@ -153,6 +153,9 @@ struct DashboardEntityCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.leading, miniContentLeadingInset)
+        .padding(.trailing, miniContentTrailingInset)
+        .padding(.vertical, miniContentVerticalInset)
         .frame(maxWidth: .infinity, minHeight: cardContainerMinHeight, alignment: .topLeading)
     }
 
@@ -537,11 +540,17 @@ struct DashboardEntityCard: View {
     private var interactiveIconView: some View {
         Group {
             if size == .mini {
-                miniGlyph
+                Color.clear
                     .frame(width: 44, height: 44)
+                    .overlay(alignment: .topLeading) {
+                        miniGlyph
+                            .frame(width: miniIconSize, height: miniIconSize)
+                            .offset(
+                                x: miniContentLeadingInset,
+                                y: miniContentVerticalInset
+                            )
+                    }
                     .contentShape(Rectangle())
-                    // Center the chip-scale glyph in its 44-point target without widening the layout.
-                    .offset(x: -11, y: -11)
             } else {
                 cardIconView
             }
@@ -624,7 +633,19 @@ struct DashboardEntityCard: View {
     }
 
     private var cardContainerPadding: CGFloat {
-        size == .mini ? AppSpacing.small : AppSpacing.medium
+        size == .mini ? 0 : AppSpacing.medium
+    }
+
+    private var miniContentLeadingInset: CGFloat {
+        6
+    }
+
+    private var miniContentTrailingInset: CGFloat {
+        10
+    }
+
+    private var miniContentVerticalInset: CGFloat {
+        4
     }
 
     private var miniIconSize: CGFloat {
