@@ -44,7 +44,8 @@ test("GET / on the connect host returns the connect HTML", async () => {
   assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
   assert.match(body, /<title>Homestead<\/title>/);
   assert.match(body, /<h1>Homestead<\/h1>/);
-  assert.match(body, /<p>Native Home Assistant client\.<\/p>/);
+  assert.match(body, /A native Home Assistant client for iPhone\./);
+  assert.match(body, /Open Homestead on your iPhone to continue setup\./);
 });
 
 test("connect HTML includes the Home Assistant redirect_uri metadata", async () => {

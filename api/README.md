@@ -6,12 +6,12 @@ The Worker project name is `homestead-api`. The repo folder is `api/`; when this
 
 ## Domains
 
-The Worker project name is `homestead-api` and should serve both Homestead backend hostnames after the manual Cloudflare cutover:
+The Worker project name is `homestead-api` and serves both Homestead backend hostnames:
 
 - `api.homesteadcontrol.com` custom domain on `homestead-api`
 - `connect.homesteadcontrol.com` custom domain on `homestead-api`
 
-Keep the old `homestead` Cloudflare Pages project untouched until the cutover is tested. It remains the temporary rollback target for `connect.homesteadcontrol.com`.
+The old `homestead` Cloudflare Pages project has been removed. `connect.homesteadcontrol.com` is served by this Worker.
 
 ## API Routes
 
@@ -26,7 +26,7 @@ Keep the old `homestead` Cloudflare Pages project untouched until the cutover is
 https://api.homesteadcontrol.com
 ```
 
-The Home Assistant mobile app `push_url` should eventually be:
+The Home Assistant mobile app `push_url` is:
 
 ```text
 https://api.homesteadcontrol.com/mobile-app/push
@@ -81,7 +81,7 @@ Use `.dev.vars` for local secrets only. Do not commit `.dev.vars`, `.env`, APNs 
 1. Create a Cloudflare Worker named `homestead-api`.
 2. Connect the Worker to the GitHub repo.
 3. Set the Worker root/build directory to `api`.
-4. Add the custom domain `api.homesteadcontrol.com`.
+4. Add custom domains for `api.homesteadcontrol.com` and `connect.homesteadcontrol.com`.
 5. Create a KV namespace for push token mappings.
 6. Bind that namespace as `HOMESTEAD_PUSH_TOKENS`.
 7. Replace the placeholder KV namespace ID in `wrangler.jsonc`.
@@ -106,18 +106,6 @@ npx wrangler secret put HOMESTEAD_PUSH_ADMIN_TOKEN
 ```
 
 `APNS_PRIVATE_KEY` should be the contents of the Apple `.p8` private key, supplied only as a Worker secret. The `.p8` file itself must never be committed to the repo.
-
-## Connect Domain Cutover
-
-Do not delete the old `homestead` Pages project as part of this repo change. Cut over `connect.homesteadcontrol.com` manually after the updated Worker is deployed and the API hostname still passes smoke tests.
-
-1. Deploy the updated `homestead-api` Worker.
-2. Remove `connect.homesteadcontrol.com` from the old `homestead` Pages project.
-3. Add `connect.homesteadcontrol.com` as a custom domain on `homestead-api`.
-4. Test sign-in immediately from Homestead.
-5. Keep the old Pages project temporarily as rollback.
-
-If sign-in breaks, remove `connect.homesteadcontrol.com` from `homestead-api`, restore it to the old `homestead` Pages project, and confirm the old connect page is serving before retrying the Worker cutover.
 
 ## Push Token Registration
 

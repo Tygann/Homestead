@@ -6,14 +6,14 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
-Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, multiple saved dashboards, camera snapshot hardening, the first service/dashboard performance cleanup, the deployed Cloudflare Worker push relay, and app-side APNs push registration are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, device/backend push verification, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
+Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, multiple saved dashboards, camera snapshot hardening, the first service/dashboard performance cleanup, the deployed Cloudflare Worker push relay, Worker-hosted OAuth/connect page, and app-side APNs push registration are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
 
 Recommended reasoning level: High.
 
 ## Completed Chunk
 
 - Added a startup coordinator that performs read-only iCloud bootstrap before auth refresh, cache loading, connection, dashboard seeding, or uploads.
-- Added a top-level `api/` Cloudflare Worker scaffold named `homestead-api` for future Home Assistant cloud push relay: health check, push-token registration, Home Assistant `push_url` handling, protected admin test push, KV binding documentation, APNs Worker-secret wiring, and no committed secrets or deployment.
+- Added a top-level `api/` Cloudflare Worker named `homestead-api` for the Home Assistant cloud push relay and OAuth/connect page: health check, push-token registration, Home Assistant `push_url` handling, protected admin test push, `connect.homesteadcontrol.com` auth metadata, KV binding documentation, APNs Worker-secret wiring, and no committed secrets.
 - Added app-side notification push registration: Homestead requests notification permission through the native flow, registers for APNs remote notifications, stores a stable Keychain relay token, registers APNs tokens with `https://api.homesteadcontrol.com/mobile-app/register-push-token`, and sends Home Assistant `app_data.push_url`/`app_data.push_token` in mobile-app registration.
 - Corrected the mobile-app push metadata placement after device testing showed Home Assistant was using local/WebSocket delivery instead of calling the remote `push_url`; Homestead now omits `push_websocket_channel` and updates existing HA mobile-app registrations through the documented `update_registration` webhook when needed.
 - Replaced URL-first onboarding with explicit iCloud restore, user-triggered `_home-assistant._tcp` Bonjour discovery, discovered-home cards, and manual Sign-in Address fallback.
@@ -101,7 +101,7 @@ Recommended reasoning level: High.
 - Replaced the Settings > Notifications placeholder with a real setup/status page that shows iOS permission state, Home Assistant account/mobile-app readiness, delivery readiness, recovery actions, an iOS Settings handoff, and advanced details behind disclosure.
 - Added Home Assistant's official mobile-app WebSocket notification delivery code, but current mobile-app registration intentionally does not advertise `push_websocket_channel` so remote APNs push is the active notification path.
 - Hardened Home Assistant WebSocket notification decoding so both the documented root-level event payload and nested `event.data` payload variants can present local notifications and send HA confirmations.
-- Kept cloud/APNs forwarding out of scope because Home Assistant's cloud path requires a separate push forwarding server and `push_url`.
+- Kept the connected-session WebSocket notification decoder available, while remote APNs delivery now uses Home Assistant's `push_url` path through `https://api.homesteadcontrol.com/mobile-app/push`.
 - Added a native Settings > Updates page backed by Home Assistant `.update` entities.
 - Added typed update mapping and presentation helpers for installed/latest version, title/name, release summary/notes URL, skipped state, in-progress/unavailable state, entity/device/area/floor context, grouping, filtering, and search.
 - Added official Home Assistant update service actions for install, skip, and clear skipped update through WebSocket `call_service`, gated by `HomeAssistantService.serviceActionAvailable(...)` and confirmation UX for install backup choices.
@@ -203,7 +203,6 @@ Recommended reasoning level: High.
 ## Next Chunk
 
 - Continue roadmap follow-up work: device-test dashboard mini accessory tiles in dense dashboards, then polish the expanded WidgetKit/App Intents surface and consider Control Center controls for the safest common actions.
-- Device-test push notifications from Xcode on a physical device, then verify the Worker has a `HOMESTEAD_PUSH_TOKENS` entry for the app's relay token and that Home Assistant notifications arrive while Homestead is suspended.
 - Keep true Home Assistant users/admin views in research-needed status until an official supported API path and permission behavior are confirmed.
 
 ## Acceptance Notes

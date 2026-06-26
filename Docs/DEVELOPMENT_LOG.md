@@ -13,9 +13,9 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Push Relay Backend Scaffold
 
-- Added a top-level `api/` Cloudflare Worker project named `homestead-api` for future Home Assistant `push_url` notification relay.
-- The Worker stores app-generated relay-token to APNs-token mappings in the `HOMESTEAD_PUSH_TOKENS` KV binding, relays Home Assistant payloads to sandbox or production APNs using Worker secrets, and includes a protected admin test-push route.
-- Kept Cloudflare deployment, KV creation, custom domain setup, APNs secrets, and iOS app-side APNs registration out of this pass.
+- Added a top-level `api/` Cloudflare Worker project named `homestead-api` for Home Assistant `push_url` notification relay and the OAuth/connect metadata page.
+- The Worker serves `api.homesteadcontrol.com` for API/push routes, serves `connect.homesteadcontrol.com` for the static auth page with `rel="redirect_uri"`, stores app-generated relay-token to APNs-token mappings in the `HOMESTEAD_PUSH_TOKENS` KV binding, relays Home Assistant payloads to sandbox or production APNs using Worker secrets, and includes a protected admin test-push route.
+- Kept APNs credentials in Worker secrets only, with no committed secrets or private keys.
 
 ### Dashboard Names And Titles
 
@@ -199,10 +199,9 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Notifications
 
-- Investigated Home Assistant automation notification delivery end to end.
-- Confirmed Homestead implements native iOS notification permission/status and Home Assistant mobile-app WebSocket notification delivery, but does not implement APNs remote notification registration, APNs token persistence, or Home Assistant cloud `push_url` forwarding.
+- Investigated Home Assistant automation notification delivery end to end and added the connected-session WebSocket notification decoder.
 - Hardened mobile-app WebSocket notification decoding so Homestead accepts both the documented root-level event payload and nested `event.data` payload variants before presenting a local notification and confirming delivery.
-- Clarified durable docs that current Homestead notification support is connected-session delivery; suspended/closed-app APNs delivery remains out of scope unless Homestead adds APNs entitlements and a push forwarding service.
+- This connected-session work was later superseded for background delivery by the APNs `push_url` relay through `homestead-api`.
 
 ### Dashboard Mini Tiles
 
@@ -328,7 +327,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Replaced the Settings > Notifications placeholder with a real setup/status page for iOS permission state, Home Assistant account/mobile-app readiness, WebSocket delivery readiness, and recovery actions.
 - Polished Settings > Notifications into a simpler user-facing status screen with clear permission/readiness summaries, an iOS Settings handoff, and lower-level delivery details behind disclosure.
 - Added Home Assistant's official mobile-app WebSocket notification delivery by registering `push_websocket_channel`, subscribing over the active Home Assistant WebSocket connection, presenting local iOS notifications, and sending HA confirmation IDs after local presentation.
-- Kept cloud/APNs forwarding out of scope because Home Assistant's cloud notification path requires a separate push forwarding service and `push_url`.
+- Later APNs relay work stopped advertising `push_websocket_channel` in the active mobile-app registration so Home Assistant uses the remote `push_url` path.
 
 ### Server Configuration Foundation
 
