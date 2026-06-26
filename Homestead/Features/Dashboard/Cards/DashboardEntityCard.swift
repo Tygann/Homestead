@@ -153,9 +153,7 @@ struct DashboardEntityCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.leading, miniContentLeadingInset)
-        .padding(.trailing, miniContentTrailingInset)
-        .padding(.vertical, miniContentVerticalInset)
+        .padding(miniContentInset)
         .frame(maxWidth: .infinity, minHeight: cardContainerMinHeight, alignment: .topLeading)
     }
 
@@ -545,10 +543,7 @@ struct DashboardEntityCard: View {
                     .overlay(alignment: .topLeading) {
                         miniGlyph
                             .frame(width: miniIconSize, height: miniIconSize)
-                            .offset(
-                                x: miniContentLeadingInset,
-                                y: miniContentVerticalInset
-                            )
+                            .offset(x: miniContentInset, y: miniContentInset)
                     }
                     .contentShape(Rectangle())
             } else {
@@ -636,16 +631,8 @@ struct DashboardEntityCard: View {
         size == .mini ? 0 : AppSpacing.medium
     }
 
-    private var miniContentLeadingInset: CGFloat {
+    private var miniContentInset: CGFloat {
         6
-    }
-
-    private var miniContentTrailingInset: CGFloat {
-        10
-    }
-
-    private var miniContentVerticalInset: CGFloat {
-        4
     }
 
     private var miniIconSize: CGFloat {
