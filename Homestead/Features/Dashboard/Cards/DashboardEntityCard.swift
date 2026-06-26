@@ -141,7 +141,7 @@ struct DashboardEntityCard: View {
     }
 
     private var miniContent: some View {
-        HStack(alignment: .top, spacing: 6) {
+        VStack(alignment: .leading, spacing: 2) {
             miniIconPlaceholder
 
             Text(miniTitleText)
