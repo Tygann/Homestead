@@ -141,19 +141,17 @@ struct DashboardEntityCard: View {
     }
 
     private var miniContent: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+        HStack(alignment: .top, spacing: 6) {
             miniIconPlaceholder
 
-            Spacer(minLength: 0)
-
             Text(miniTitleText)
-                .font(.system(size: 12, weight: .medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(miniTitleColor)
                 .lineLimit(2)
-                .minimumScaleFactor(0.82)
                 .truncationMode(.tail)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, minHeight: cardContainerMinHeight, alignment: .topLeading)
     }
@@ -537,11 +535,17 @@ struct DashboardEntityCard: View {
     }
 
     private var interactiveIconView: some View {
-        cardIconView
-            .frame(width: 44, height: 44, alignment: .center)
-            .contentShape(Rectangle())
-            // Center the compact plate in its 44-point target without pushing the title down.
-            .offset(x: size == .mini ? -6 : 0, y: size == .mini ? -6 : 0)
+        Group {
+            if size == .mini {
+                miniGlyph
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    // Center the chip-scale glyph in its 44-point target without widening the layout.
+                    .offset(x: -11, y: -11)
+            } else {
+                cardIconView
+            }
+        }
     }
 
     private var miniIconPlaceholder: some View {
@@ -549,9 +553,15 @@ struct DashboardEntityCard: View {
             .frame(width: miniIconSize, height: miniIconSize)
             .overlay {
                 if toggle == nil {
-                    cardIconView
+                    miniGlyph
                 }
             }
+    }
+
+    private var miniGlyph: some View {
+        HomesteadIconView(icon: presentation.icon, pointSize: 16)
+            .foregroundStyle(miniIconColor)
+            .accessibilityHidden(true)
     }
 
     private var cardIconView: some View {
@@ -559,9 +569,7 @@ struct DashboardEntityCard: View {
             icon: presentation.icon,
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable,
-            accentColor: presentation.accentColor,
-            size: size == .mini ? miniIconSize : 44,
-            symbolSize: size == .mini ? 17 : 21
+            accentColor: presentation.accentColor
         )
     }
 
@@ -575,6 +583,15 @@ struct DashboardEntityCard: View {
         }
 
         return .primary
+    }
+
+    private var miniIconColor: Color {
+        HomesteadSurfaceStyle.iconForeground(
+            isWallpaperActive: isWallpaperSurfaceActive,
+            isActive: presentation.isActive,
+            isAvailable: presentation.isAvailable,
+            accentColor: presentation.accentColor
+        )
     }
 
     private var iconColor: Color {
@@ -611,7 +628,7 @@ struct DashboardEntityCard: View {
     }
 
     private var miniIconSize: CGFloat {
-        32
+        22
     }
 
     private var renderedCardHeight: CGFloat {
