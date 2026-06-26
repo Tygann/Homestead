@@ -1,17 +1,26 @@
 # Homestead API
 
-Cloudflare Worker backend foundation for Homestead push notification relay.
+Cloudflare Worker backend foundation for Homestead push notification relay and Home Assistant connect/auth client metadata.
 
 The Worker project name is `homestead-api`. The repo folder is `api/`; when this is connected to Cloudflare Workers Builds, set the Git root directory to `api` so Cloudflare finds `wrangler.jsonc` and `package.json`.
 
-## Routes
+## Domains
+
+The Worker project name is `homestead-api` and should serve both Homestead backend hostnames after the manual Cloudflare cutover:
+
+- `api.homesteadcontrol.com` custom domain on `homestead-api`
+- `connect.homesteadcontrol.com` custom domain on `homestead-api`
+
+Keep the old `homestead` Cloudflare Pages project untouched until the cutover is tested. It remains the temporary rollback target for `connect.homesteadcontrol.com`.
+
+## API Routes
+
+`api.homesteadcontrol.com` serves the push/API surface:
 
 - `GET /health`
 - `POST /mobile-app/register-push-token`
 - `POST /mobile-app/push`
 - `POST /admin/test-push`
-
-The public backend host is expected to be:
 
 ```text
 https://api.homesteadcontrol.com
@@ -22,6 +31,22 @@ The Home Assistant mobile app `push_url` should eventually be:
 ```text
 https://api.homesteadcontrol.com/mobile-app/push
 ```
+
+## Connect/Auth Route
+
+`connect.homesteadcontrol.com` serves the Home Assistant OAuth/connect client page:
+
+- `GET /`
+
+The connect page includes:
+
+```html
+<link rel="redirect_uri" href="homestead://auth" />
+```
+
+The app's OAuth/client identifier should remain `connect.homesteadcontrol.com`. Do not move it to the API hostname.
+
+Unknown paths on the connect hostname return a plain 404. API and admin routes are intentionally not exposed from `connect.homesteadcontrol.com`.
 
 ## Local Development
 
@@ -35,6 +60,12 @@ Run a type check:
 
 ```sh
 npm run typecheck
+```
+
+Run tests:
+
+```sh
+npm test
 ```
 
 Run Wrangler locally:
@@ -75,6 +106,18 @@ npx wrangler secret put HOMESTEAD_PUSH_ADMIN_TOKEN
 ```
 
 `APNS_PRIVATE_KEY` should be the contents of the Apple `.p8` private key, supplied only as a Worker secret. The `.p8` file itself must never be committed to the repo.
+
+## Connect Domain Cutover
+
+Do not delete the old `homestead` Pages project as part of this repo change. Cut over `connect.homesteadcontrol.com` manually after the updated Worker is deployed and the API hostname still passes smoke tests.
+
+1. Deploy the updated `homestead-api` Worker.
+2. Remove `connect.homesteadcontrol.com` from the old `homestead` Pages project.
+3. Add `connect.homesteadcontrol.com` as a custom domain on `homestead-api`.
+4. Test sign-in immediately from Homestead.
+5. Keep the old Pages project temporarily as rollback.
+
+If sign-in breaks, remove `connect.homesteadcontrol.com` from `homestead-api`, restore it to the old `homestead` Pages project, and confirm the old connect page is serving before retrying the Worker cutover.
 
 ## Push Token Registration
 

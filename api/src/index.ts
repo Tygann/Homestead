@@ -1,6 +1,8 @@
+import { connectPageResponse } from "./connectPage.ts";
+
 type PushEnvironment = "sandbox" | "production";
 
-interface Env {
+export interface Env {
   HOMESTEAD_PUSH_TOKENS: KVNamespace;
   APNS_KEY_ID: string;
   APNS_TEAM_ID: string;
@@ -29,6 +31,7 @@ type JSONValue = JSONPrimitive | JSONValue[] | { [key: string]: JSONValue };
 type JSONObject = { [key: string]: JSONValue };
 
 const SERVICE_NAME = "homestead-api";
+const CONNECT_HOST = "connect.homesteadcontrol.com";
 const MAX_JSON_BYTES = 64 * 1024;
 const APNS_JWT_MAX_AGE_SECONDS = 50 * 60;
 
@@ -38,6 +41,10 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
       const url = new URL(request.url);
+
+      if (url.hostname.toLowerCase() === CONNECT_HOST) {
+        return routeConnectRequest(request, url);
+      }
 
       if (request.method === "GET" && url.pathname === "/health") {
         return jsonResponse({ ok: true, service: SERVICE_NAME });
@@ -64,6 +71,19 @@ export default {
 };
 
 // MARK: - Routes
+
+function routeConnectRequest(request: Request, url: URL): Response {
+  if (request.method === "GET" && url.pathname === "/") {
+    return connectPageResponse();
+  }
+
+  return new Response("Not found.", {
+    status: 404,
+    headers: {
+      "content-type": "text/plain; charset=utf-8"
+    }
+  });
+}
 
 async function registerPushToken(request: Request, env: Env): Promise<Response> {
   const payload = await readJSONObject(request);
