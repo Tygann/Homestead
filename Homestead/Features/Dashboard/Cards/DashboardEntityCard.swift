@@ -434,7 +434,8 @@ struct DashboardEntityCard: View {
             presentation: gauge,
             style: .instrument,
             tint: iconColor,
-            title: presentation.title
+            title: presentation.title,
+            icon: presentation.icon
         )
 
         if let showDetails {

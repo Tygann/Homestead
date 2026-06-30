@@ -12,6 +12,7 @@ struct GaugePresentationView: View {
     let style: GaugePresentationStyle
     let tint: Color
     var title: String? = nil
+    var icon: ResolvedIcon? = nil
 
     private let dashboardLineWidth: CGFloat = 11
     private let sectionGap: Double = 0.018
@@ -32,31 +33,44 @@ struct GaugePresentationView: View {
 
     private var instrumentGauge: some View {
         GeometryReader { proxy in
-            let diameter = min(proxy.size.width, proxy.size.height)
+            let titleHeight: CGFloat = title == nil ? 0 : 18
+            let titleSpacing: CGFloat = title == nil ? 0 : 3
+            let diameter = min(proxy.size.width, max(proxy.size.height - titleHeight - titleSpacing, 0))
             let lineWidth = min(max(diameter * 0.085, 10), 17)
 
-            ZStack {
-                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
-                    let segment = visualSegment(for: section, at: index)
-
-                    GaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
-                        .stroke(
-                            statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
-                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                        )
+            VStack(spacing: titleSpacing) {
+                if let title {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .frame(height: titleHeight)
                 }
 
-                if presentation.normalizedValue > 0 {
-                    GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
-                        .stroke(
-                            statusColor(for: presentation.status),
-                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                        )
-                }
+                ZStack {
+                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                        let segment = visualSegment(for: section, at: index)
 
-                instrumentLabels(diameter: diameter, lineWidth: lineWidth)
+                        GaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
+                            .stroke(
+                                statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
+                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                            )
+                    }
+
+                    if presentation.normalizedValue > 0 {
+                        GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
+                            .stroke(
+                                statusColor(for: presentation.status),
+                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                            )
+                    }
+
+                    instrumentLabels(diameter: diameter, lineWidth: lineWidth)
+                }
+                .frame(width: diameter, height: diameter)
             }
-            .frame(width: diameter, height: diameter)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
         .accessibilityElement(children: .ignore)
@@ -70,45 +84,43 @@ struct GaugePresentationView: View {
 
         return ZStack {
             VStack(spacing: 1) {
-                if let title {
-                    Text(title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                }
-
                 Spacer(minLength: 0)
 
-                Text(presentation.valueText)
-                    .font(.system(size: valueFontSize, weight: .medium, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-                    .monospacedDigit()
-
-                if let unitText = presentation.unitText {
-                    Text(unitText)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(presentation.valueText)
+                        .font(.system(size: valueFontSize, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
+
+                    if let unitText = presentation.unitText {
+                        Text(unitText)
+                            .font(.system(size: valueFontSize * 0.42, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .minimumScaleFactor(0.55)
+                .monospacedDigit()
+
+                if let icon {
+                    HomesteadIconView(
+                        icon: icon,
+                        pointSize: min(max(diameter * 0.13, 14), 22),
+                        weight: .semibold
+                    )
+                    .foregroundStyle(tint)
+                    .accessibilityHidden(true)
                 }
 
-                Text(presentation.statusDisplayText)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(statusColor(for: presentation.status))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-
-                Spacer(minLength: diameter * 0.08)
+                Spacer(minLength: diameter * 0.12)
             }
-            .padding(.top, lineWidth * 1.35)
+            .padding(.top, lineWidth * 1.1)
             .padding(.horizontal, lineWidth * 1.8)
 
-            Text(rangeText(presentation.range.lowerBound))
+            Text(rangeValueText(presentation.range.lowerBound))
                 .position(x: lineWidth + endpointInset, y: diameter - (lineWidth * 0.45))
 
-            Text(rangeText(presentation.range.upperBound))
+            Text(rangeValueText(presentation.range.upperBound))
                 .position(x: diameter - lineWidth - endpointInset, y: diameter - (lineWidth * 0.45))
         }
         .font(.caption2.weight(.semibold))
@@ -352,7 +364,7 @@ struct GaugePresentationView: View {
     }
 
     private func rangeText(_ value: Double) -> String {
-        let formattedValue = gaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        let formattedValue = rangeValueText(value)
         guard let unitText = presentation.unitText,
               !unitText.isEmpty else {
             return formattedValue
@@ -360,6 +372,10 @@ struct GaugePresentationView: View {
 
         let separator = unitText.hasPrefix("°") || unitText == "%" ? "" : " "
         return "\(formattedValue)\(separator)\(unitText)"
+    }
+
+    private func rangeValueText(_ value: Double) -> String {
+        gaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 }
 
