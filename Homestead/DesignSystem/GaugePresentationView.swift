@@ -85,9 +85,7 @@ struct GaugePresentationView: View {
         let endpointY = (diameter / 2) + endpointOffset
         let lowerEndpointX = (diameter / 2) - endpointOffset
         let upperEndpointX = (diameter / 2) + endpointOffset
-        let labelGap: CGFloat = 4
-        let lowerLabelWidth = max(lowerEndpointX - labelGap, 0)
-        let upperLabelWidth = max(diameter - upperEndpointX - labelGap, 0)
+        let labelInset = max(lineWidth * 1.3, 14)
 
         return ZStack {
             HStack(alignment: .firstTextBaseline, spacing: 0) {
@@ -120,12 +118,14 @@ struct GaugePresentationView: View {
             }
 
             Text(rangeValueText(presentation.range.lowerBound))
-                .frame(width: lowerLabelWidth, alignment: .trailing)
-                .position(x: lowerLabelWidth / 2, y: endpointY - 2)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .position(x: lowerEndpointX + labelInset, y: endpointY - 2)
 
             Text(rangeValueText(presentation.range.upperBound))
-                .frame(width: upperLabelWidth, alignment: .leading)
-                .position(x: upperEndpointX + labelGap + (upperLabelWidth / 2), y: endpointY - 2)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .position(x: upperEndpointX - labelInset, y: endpointY - 2)
         }
         .font(.caption2.weight(.semibold))
         .foregroundStyle(.secondary)
