@@ -2,6 +2,7 @@ import SwiftUI
 
 enum GaugePresentationStyle: Equatable, Sendable {
     case arc
+    case instrument
     case row
     case detail
 }
@@ -10,6 +11,7 @@ struct GaugePresentationView: View {
     let presentation: GaugePresentation
     let style: GaugePresentationStyle
     let tint: Color
+    var title: String? = nil
 
     private let dashboardLineWidth: CGFloat = 11
     private let sectionGap: Double = 0.018
@@ -19,11 +21,98 @@ struct GaugePresentationView: View {
         switch style {
         case .arc:
             arcGauge(arcHeight: 68, lineWidth: dashboardLineWidth, markerFont: .caption2.weight(.semibold))
+        case .instrument:
+            instrumentGauge
         case .row:
             rowGauge
         case .detail:
             detailGauge
         }
+    }
+
+    private var instrumentGauge: some View {
+        GeometryReader { proxy in
+            let diameter = min(proxy.size.width, proxy.size.height)
+            let lineWidth = min(max(diameter * 0.085, 10), 17)
+
+            ZStack {
+                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                    let segment = visualSegment(for: section, at: index)
+
+                    GaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
+                        .stroke(
+                            statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
+                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                        )
+                }
+
+                if presentation.normalizedValue > 0 {
+                    GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
+                        .stroke(
+                            statusColor(for: presentation.status),
+                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                        )
+                }
+
+                instrumentLabels(diameter: diameter, lineWidth: lineWidth)
+            }
+            .frame(width: diameter, height: diameter)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.accessibilityLabel)
+        .accessibilityValue(presentation.accessibilityValue)
+    }
+
+    private func instrumentLabels(diameter: CGFloat, lineWidth: CGFloat) -> some View {
+        let valueFontSize = min(max(diameter * 0.25, 28), 58)
+        let endpointInset = max(lineWidth * 0.2, 3)
+
+        return ZStack {
+            VStack(spacing: 1) {
+                if let title {
+                    Text(title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+
+                Spacer(minLength: 0)
+
+                Text(presentation.valueText)
+                    .font(.system(size: valueFontSize, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .monospacedDigit()
+
+                if let unitText = presentation.unitText {
+                    Text(unitText)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Text(presentation.statusDisplayText)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(statusColor(for: presentation.status))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Spacer(minLength: diameter * 0.08)
+            }
+            .padding(.top, lineWidth * 1.35)
+            .padding(.horizontal, lineWidth * 1.8)
+
+            Text(rangeText(presentation.range.lowerBound))
+                .position(x: lineWidth + endpointInset, y: diameter - (lineWidth * 0.45))
+
+            Text(rangeText(presentation.range.upperBound))
+                .position(x: diameter - lineWidth - endpointInset, y: diameter - (lineWidth * 0.45))
+        }
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(.secondary)
     }
 
     private var detailGauge: some View {
@@ -227,6 +316,8 @@ struct GaugePresentationView: View {
         switch style {
         case .arc:
             1.24
+        case .instrument:
+            1
         case .row:
             1
         case .detail:
@@ -269,6 +360,38 @@ struct GaugePresentationView: View {
 
         let separator = unitText.hasPrefix("°") || unitText == "%" ? "" : " "
         return "\(formattedValue)\(separator)\(unitText)"
+    }
+}
+
+private struct GaugeInstrumentArcShape: Shape {
+    let start: Double
+    let end: Double
+    let inset: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let radius = max((min(rect.width, rect.height) / 2) - inset, 0)
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let clampedStart = min(max(start, 0), 1)
+        let clampedEnd = min(max(end, clampedStart), 1)
+        let stepCount = max(Int((clampedEnd - clampedStart) * 72), 2)
+        var path = Path()
+
+        for step in 0...stepCount {
+            let progress = clampedStart + ((clampedEnd - clampedStart) * (Double(step) / Double(stepCount)))
+            let angle = (Double.pi * 1.25) - (Double.pi * 1.5 * progress)
+            let point = CGPoint(
+                x: center.x + (radius * CGFloat(cos(angle))),
+                y: center.y - (radius * CGFloat(sin(angle)))
+            )
+
+            if step == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+
+        return path
     }
 }
 

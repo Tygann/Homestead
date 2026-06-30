@@ -389,38 +389,76 @@ struct DashboardEntityCard: View {
         }
     }
 
+    @ViewBuilder
     private func stackedFeatureContent(visibleFeatures: [DashboardCardFeature]) -> some View {
-        let showsGauge = visibleFeatures.contains { feature in
-            if case .gauge = feature.content {
-                return true
-            }
-            return false
-        }
-
-        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            featureHeader
-
-            if size == .large {
-                largeFeatureContext(visibleFeatures: visibleFeatures)
-            } else if !showsGauge {
-                Spacer(minLength: AppSpacing.xSmall)
+        if let gauge = gaugeFirstPresentation(from: visibleFeatures) {
+            gaugeFirstContent(gauge)
+        } else {
+            let showsGauge = visibleFeatures.contains { feature in
+                if case .gauge = feature.content {
+                    return true
+                }
+                return false
             }
 
-            VStack(alignment: .leading, spacing: AppSpacing.small) {
-                ForEach(visibleFeatures) { feature in
-                    DashboardCardFeatureView(
-                        feature: feature,
-                        isPending: isPending,
-                        isActive: presentation.isActive,
-                        fillColor: iconColor,
-                        trackColor: iconBackground,
-                        gaugeStyle: .arc,
-                        isInteractionEnabled: isFeatureInteractionEnabled,
-                        actions: featureActions
-                    )
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                featureHeader
+
+                if size == .large {
+                    largeFeatureContext(visibleFeatures: visibleFeatures)
+                } else if !showsGauge {
+                    Spacer(minLength: AppSpacing.xSmall)
+                }
+
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    ForEach(visibleFeatures) { feature in
+                        DashboardCardFeatureView(
+                            feature: feature,
+                            isPending: isPending,
+                            isActive: presentation.isActive,
+                            fillColor: iconColor,
+                            trackColor: iconBackground,
+                            gaugeStyle: .arc,
+                            isInteractionEnabled: isFeatureInteractionEnabled,
+                            actions: featureActions
+                        )
+                    }
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func gaugeFirstContent(_ gauge: GaugePresentation) -> some View {
+        let content = GaugePresentationView(
+            presentation: gauge,
+            style: .instrument,
+            tint: iconColor,
+            title: presentation.title
+        )
+
+        if let showDetails {
+            Button(action: showDetails) {
+                content
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(HomeCardButtonStyle())
+            .accessibilityLabel(presentation.accessibilityDetailLabel)
+            .accessibilityValue(gauge.accessibilityValue)
+            .accessibilityHint(presentation.accessibilityDetailHint)
+        } else {
+            content
+        }
+    }
+
+    private func gaugeFirstPresentation(from visibleFeatures: [DashboardCardFeature]) -> GaugePresentation? {
+        guard visibleFeatures.count == 1,
+              size == .square || size == .wide || size == .large,
+              case .gauge(let gauge) = visibleFeatures[0].content else {
+            return nil
+        }
+
+        return gauge.presentation
     }
 
     private func largeFeatureContext(visibleFeatures: [DashboardCardFeature]) -> some View {

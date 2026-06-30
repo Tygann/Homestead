@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-06-30
+
+### Gauge-First Dashboard Cards
+
+- Replaced the standard icon/title/subtitle header on gauge-only Square, Wide, and Large dashboard cards with a dedicated instrument composition inspired by Apple's automotive gauge hierarchy.
+- The new card centers the entity name, current value, unit, and status inside a 270-degree semantic range dial while retaining the existing mapped range sections, accessibility value, and tap-to-open-detail behavior.
+- Row gauges remain horizontal, Mini and Compact cards remain simple, and Large cards that combine a gauge with other features retain the standard header and feature stack.
+
 ## 2026-06-25
 
 ### Push Registration App Integration
