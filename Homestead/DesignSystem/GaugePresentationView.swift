@@ -67,7 +67,7 @@ struct GaugePresentationView: View {
                             )
                     }
 
-                    instrumentLabels(diameter: diameter, lineWidth: lineWidth)
+                    instrumentContent(diameter: diameter, lineWidth: lineWidth)
                 }
                 .frame(width: diameter, height: diameter)
             }
@@ -78,33 +78,48 @@ struct GaugePresentationView: View {
         .accessibilityValue(presentation.accessibilityValue)
     }
 
-    private func instrumentLabels(diameter: CGFloat, lineWidth: CGFloat) -> some View {
+    private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let valueFontSize = min(max(diameter * 0.25, 28), 58)
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
-        let endpointOffset = radius / sqrt(2)
-        let endpointY = (diameter / 2) + endpointOffset
-        let lowerEndpointX = (diameter / 2) - endpointOffset
-        let upperEndpointX = (diameter / 2) + endpointOffset
-        let labelInset = max(lineWidth * 1.3, 14)
+        let endpointY = (diameter / 2) + (radius * 0.5)
+        let legendWidth = max((sqrt(3) * radius) - lineWidth, 0)
 
         return ZStack {
-            HStack(alignment: .firstTextBaseline, spacing: 0) {
-                Text(presentation.valueText)
-                    .font(.system(size: valueFontSize, weight: .medium, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+            instrumentReadout(fontSize: valueFontSize)
+                .position(x: diameter / 2, y: diameter * 0.43)
 
-                if let unitText = presentation.unitText {
-                    Text(unitText)
-                        .font(.system(size: valueFontSize * 0.58, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .baselineOffset(-1)
-                        .lineLimit(1)
-                }
+            instrumentLegend(diameter: diameter)
+                .frame(width: legendWidth)
+                .position(x: diameter / 2, y: endpointY)
+        }
+    }
+
+    private func instrumentReadout(fontSize: CGFloat) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text(presentation.valueText)
+                .font(.system(size: fontSize, weight: .medium, design: .rounded))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
+            if let unitText = presentation.unitText {
+                Text(unitText)
+                    .font(.system(size: fontSize * 0.58, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .baselineOffset(-1)
+                    .lineLimit(1)
             }
-            .minimumScaleFactor(0.55)
-            .monospacedDigit()
-            .position(x: diameter / 2, y: diameter * 0.48)
+        }
+        .minimumScaleFactor(0.55)
+        .monospacedDigit()
+    }
+
+    private func instrumentLegend(diameter: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: AppSpacing.xSmall) {
+            Text(rangeValueText(presentation.range.lowerBound))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+
+            Spacer(minLength: 0)
 
             if let icon {
                 HomesteadIconView(
@@ -113,19 +128,14 @@ struct GaugePresentationView: View {
                     weight: .semibold
                 )
                 .foregroundStyle(tint)
-                .position(x: diameter / 2, y: endpointY)
                 .accessibilityHidden(true)
             }
 
-            Text(rangeValueText(presentation.range.lowerBound))
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .position(x: lowerEndpointX + labelInset, y: endpointY - 2)
+            Spacer(minLength: 0)
 
             Text(rangeValueText(presentation.range.upperBound))
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
-                .position(x: upperEndpointX - labelInset, y: endpointY - 2)
         }
         .font(.caption2.weight(.semibold))
         .foregroundStyle(.secondary)
@@ -399,7 +409,7 @@ private struct GaugeInstrumentArcShape: Shape {
 
         for step in 0...stepCount {
             let progress = clampedStart + ((clampedEnd - clampedStart) * (Double(step) / Double(stepCount)))
-            let angle = (Double.pi * 1.25) - (Double.pi * 1.5 * progress)
+            let angle = (Double.pi * 7 / 6) - (Double.pi * 4 / 3 * progress)
             let point = CGPoint(
                 x: center.x + (radius * CGFloat(cos(angle))),
                 y: center.y - (radius * CGFloat(sin(angle)))
