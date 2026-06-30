@@ -668,7 +668,11 @@ struct DashboardEntityCard: View {
     }
 
     private var cardContainerPadding: CGFloat {
-        size == .mini ? 0 : AppSpacing.medium
+        if gaugeFirstPresentation(from: visibleFeatures) != nil {
+            return AppSpacing.small
+        }
+
+        return size == .mini ? 0 : AppSpacing.medium
     }
 
     private var miniContentHorizontalInset: CGFloat {
