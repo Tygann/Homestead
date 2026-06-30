@@ -33,8 +33,8 @@ struct GaugePresentationView: View {
 
     private var instrumentGauge: some View {
         GeometryReader { proxy in
-            let titleHeight: CGFloat = title == nil ? 0 : 18
-            let titleSpacing: CGFloat = title == nil ? 0 : 3
+            let titleHeight: CGFloat = title == nil ? 0 : 17
+            let titleSpacing: CGFloat = 0
             let diameter = min(proxy.size.width, max(proxy.size.height - titleHeight - titleSpacing, 0))
             let lineWidth = min(max(diameter * 0.085, 10), 17)
 
@@ -80,51 +80,50 @@ struct GaugePresentationView: View {
 
     private func instrumentLabels(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let valueFontSize = min(max(diameter * 0.25, 28), 58)
-        let endpointInset = max(lineWidth * 0.2, 3)
+        let radius = max((diameter / 2) - (lineWidth / 2), 0)
+        let endpointOffset = radius / sqrt(2)
+        let endpointY = (diameter / 2) + endpointOffset
+        let labelOffset = max(lineWidth * 0.85, 8)
 
         return ZStack {
-            VStack(spacing: 1) {
-                Spacer(minLength: 0)
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Text(presentation.valueText)
+                    .font(.system(size: valueFontSize, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(presentation.valueText)
-                        .font(.system(size: valueFontSize, weight: .medium, design: .rounded))
-                        .foregroundStyle(.primary)
+                if let unitText = presentation.unitText {
+                    Text(unitText)
+                        .font(.system(size: valueFontSize * 0.58, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .baselineOffset(-1)
                         .lineLimit(1)
-
-                    if let unitText = presentation.unitText {
-                        Text(unitText)
-                            .font(.system(size: valueFontSize * 0.42, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
                 }
-                .minimumScaleFactor(0.55)
-                .monospacedDigit()
-
-                if let icon {
-                    HomesteadIconView(
-                        icon: icon,
-                        pointSize: min(max(diameter * 0.13, 14), 22),
-                        weight: .semibold
-                    )
-                    .foregroundStyle(tint)
-                    .accessibilityHidden(true)
-                }
-
-                Spacer(minLength: diameter * 0.12)
             }
-            .padding(.top, lineWidth * 1.1)
-            .padding(.horizontal, lineWidth * 1.8)
+            .minimumScaleFactor(0.55)
+            .monospacedDigit()
+            .position(x: diameter / 2, y: diameter * 0.48)
+
+            if let icon {
+                HomesteadIconView(
+                    icon: icon,
+                    pointSize: min(max(diameter * 0.18, 18), 28),
+                    weight: .semibold
+                )
+                .foregroundStyle(tint)
+                .position(x: diameter / 2, y: endpointY)
+                .accessibilityHidden(true)
+            }
 
             Text(rangeValueText(presentation.range.lowerBound))
-                .position(x: lineWidth + endpointInset, y: diameter - (lineWidth * 0.45))
+                .position(x: (diameter / 2) - endpointOffset - labelOffset, y: endpointY)
 
             Text(rangeValueText(presentation.range.upperBound))
-                .position(x: diameter - lineWidth - endpointInset, y: diameter - (lineWidth * 0.45))
+                .position(x: (diameter / 2) + endpointOffset + labelOffset, y: endpointY)
         }
         .font(.caption2.weight(.semibold))
         .foregroundStyle(.secondary)
+        .monospacedDigit()
     }
 
     private var detailGauge: some View {
