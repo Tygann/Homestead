@@ -114,28 +114,32 @@ struct GaugePresentationView: View {
     }
 
     private func instrumentLegend(diameter: CGFloat) -> some View {
-        HStack(alignment: .center, spacing: AppSpacing.xSmall) {
+        let iconSize = min(max(diameter * 0.18, 18), 28)
+
+        return HStack(alignment: .center, spacing: 0) {
             Text(rangeValueText(presentation.range.lowerBound))
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
-
-            Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             if let icon {
                 HomesteadIconView(
                     icon: icon,
-                    pointSize: min(max(diameter * 0.18, 18), 28),
+                    pointSize: iconSize,
                     weight: .semibold
                 )
                 .foregroundStyle(tint)
+                .frame(width: iconSize, height: iconSize)
                 .accessibilityHidden(true)
+            } else {
+                Color.clear
+                    .frame(width: iconSize, height: iconSize)
             }
-
-            Spacer(minLength: 0)
 
             Text(rangeValueText(presentation.range.upperBound))
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .font(.caption2.weight(.semibold))
         .foregroundStyle(.secondary)

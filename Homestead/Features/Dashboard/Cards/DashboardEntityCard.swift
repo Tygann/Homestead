@@ -71,8 +71,14 @@ struct DashboardEntityCard: View {
         ) {
             ZStack(alignment: .topLeading) {
                 if !visibleFeatureSnapshot.isEmpty {
-                    cardContent(visibleFeatures: visibleFeatureSnapshot)
-                        .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
+                    if gaugeFirstPresentation(from: visibleFeatureSnapshot) != nil {
+                        cardContent(visibleFeatures: visibleFeatureSnapshot)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: cardContainerMinHeight, alignment: .topLeading)
+                    } else {
+                        cardContent(visibleFeatures: visibleFeatureSnapshot)
+                            .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
+                    }
                 } else if let showDetails {
                     Button(action: showDetails) {
                         cardContent(visibleFeatures: visibleFeatureSnapshot)
