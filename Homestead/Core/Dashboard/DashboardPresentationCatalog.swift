@@ -4,9 +4,9 @@ nonisolated struct DashboardPresentationDescriptor: Identifiable, Equatable, Sen
     let kind: DashboardPresentationKind
     let title: String
     let systemImage: String
-    let supportedLayouts: [DashboardCardSize]
 
     var id: DashboardPresentationKind { kind }
+    var supportedLayouts: [DashboardCardSize] { kind.supportedLayouts }
 }
 
 @MainActor
@@ -14,25 +14,25 @@ enum DashboardPresentationCatalog {
     static let descriptors: [DashboardPresentationDescriptor] = DashboardPresentationKind.allCases.map(descriptor(for:))
 
     static func descriptor(for kind: DashboardPresentationKind) -> DashboardPresentationDescriptor {
-        switch kind {
+        return switch kind {
         case .chip:
-            DashboardPresentationDescriptor(kind: kind, title: "Chip", systemImage: "capsule", supportedLayouts: [])
+            DashboardPresentationDescriptor(kind: kind, title: "Chip", systemImage: "capsule")
         case .control:
-            DashboardPresentationDescriptor(kind: kind, title: "Control", systemImage: "switch.2", supportedLayouts: DashboardCardSize.allCases)
+            DashboardPresentationDescriptor(kind: kind, title: "Control", systemImage: "switch.2")
         case .status:
-            DashboardPresentationDescriptor(kind: kind, title: "Status", systemImage: "circle.lefthalf.filled", supportedLayouts: DashboardCardSize.allCases)
+            DashboardPresentationDescriptor(kind: kind, title: "Status", systemImage: "circle.lefthalf.filled")
         case .gauge:
-            DashboardPresentationDescriptor(kind: kind, title: "Gauge", systemImage: "gauge.with.dots.needle.33percent", supportedLayouts: [.square, .wide, .large])
+            DashboardPresentationDescriptor(kind: kind, title: "Gauge", systemImage: "gauge.with.dots.needle.33percent")
         case .graph:
-            DashboardPresentationDescriptor(kind: kind, title: "Graph", systemImage: "chart.xyaxis.line", supportedLayouts: [.square, .wide, .large])
+            DashboardPresentationDescriptor(kind: kind, title: "Graph", systemImage: "chart.xyaxis.line")
         case .camera:
-            DashboardPresentationDescriptor(kind: kind, title: "Camera", systemImage: "camera.fill", supportedLayouts: [.square, .wide, .large])
+            DashboardPresentationDescriptor(kind: kind, title: "Camera", systemImage: "camera.fill")
         case .weather:
-            DashboardPresentationDescriptor(kind: kind, title: "Weather", systemImage: "cloud.sun.fill", supportedLayouts: [.square, .wide, .large])
+            DashboardPresentationDescriptor(kind: kind, title: "Weather", systemImage: "cloud.sun.fill")
         case .media:
-            DashboardPresentationDescriptor(kind: kind, title: "Media", systemImage: "play.tv.fill", supportedLayouts: [.compact, .row, .square, .wide, .large])
+            DashboardPresentationDescriptor(kind: kind, title: "Media", systemImage: "play.tv.fill")
         case .action:
-            DashboardPresentationDescriptor(kind: kind, title: "Action", systemImage: "sparkles", supportedLayouts: [.mini, .compact, .row, .square])
+            DashboardPresentationDescriptor(kind: kind, title: "Action", systemImage: "sparkles")
         }
     }
 
@@ -112,23 +112,26 @@ enum DashboardPresentationCatalog {
         if kind == .chip { return .chip }
         if recommendation(for: entityBox).kind == kind { return recommendation(for: entityBox) }
         guard let layout = descriptor(for: kind).supportedLayouts.first else { return nil }
-        return .card(cardConfiguration(kind: kind, layout: layout))
+        return cardConfiguration(kind: kind, layout: layout).map(DashboardPresentationConfiguration.card)
     }
 
     static func cardConfiguration(
         kind: DashboardPresentationKind,
         layout: DashboardCardSize,
         featureVisibility: DashboardCardFeatureVisibility = .automatic
-    ) -> DashboardCardConfiguration {
-        switch kind {
+    ) -> DashboardCardConfiguration? {
+        guard kind.supportedLayouts.contains(layout) else { return nil }
+
+        return switch kind {
         case .control: .control(layout: layout, featureVisibility: featureVisibility)
-        case .status, .chip: .status(layout: layout)
+        case .status: .status(layout: layout)
         case .gauge: .gauge(layout: layout)
         case .graph: .graph(layout: layout)
         case .camera: .camera(layout: layout)
         case .weather: .weather(layout: layout)
         case .media: .media(layout: layout, featureVisibility: featureVisibility)
         case .action: .action(layout: layout)
+        case .chip: nil
         }
     }
 }

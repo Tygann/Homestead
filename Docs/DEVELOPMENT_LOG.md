@@ -10,6 +10,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Rebuilt Add to Dashboard as native Items-first and Cards-first navigation while preserving one-tap recommended add. Summaries now live alongside entities as sources rather than under a separate Chip mode.
 - Chose a clean schema reset: old, corrupt, or unsupported local and iCloud dashboard definitions are discarded safely, local selection resets, and unrelated synced preferences remain untouched.
 - Made dashboard card rendering explicit for Control, Status, Gauge, Graph, Camera, Weather, Media, and Action presentations and disabled network/action side effects in previews.
+- Followed with a focused polish pass that made supported layouts a single catalog rule, rejected invalid catalog factories, removed obsolete pre-schema helpers, added searchable card-first source selection, and clarified preview, Added, and accessibility states.
 
 ### Deterministic And Live UI Verification
 

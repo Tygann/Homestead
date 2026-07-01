@@ -41,6 +41,7 @@ struct DashboardChooseStyleView: View {
                                     .foregroundStyle(Color.accentColor)
                             }
                         }
+                        .accessibilityHint("Choose a layout")
 
                         Button {
                             guard let presentation else { return }
@@ -53,7 +54,12 @@ struct DashboardChooseStyleView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(isAdded || presentation == nil)
-                        .accessibilityLabel(isAdded ? "Already added" : "Add \(kind.rawValue)")
+                        .accessibilityLabel(
+                            isAdded
+                                ? "\(DashboardPresentationCatalog.descriptor(for: kind).title) added"
+                                : "Add \(DashboardPresentationCatalog.descriptor(for: kind).title)"
+                        )
+                        .accessibilityHint(isAdded ? "" : "Adds the default layout")
                     }
                 }
             } header: {
@@ -117,7 +123,6 @@ struct DashboardChooseStyleView: View {
 struct DashboardPresentationOptionsView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @State private var featureVisibility: DashboardCardFeatureVisibility = .automatic
 
     let source: DashboardAddSource
     let kind: DashboardPresentationKind
@@ -125,14 +130,10 @@ struct DashboardPresentationOptionsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+            VStack(alignment: .leading, spacing: AppSpacing.large) {
                 if kind == .chip {
                     chipOption
                 } else if let entityBox {
-                    if supportsFeatureVisibility {
-                        featureVisibilityPicker
-                    }
-
                     ForEach(DashboardPresentationCatalog.descriptor(for: kind).supportedLayouts, id: \.self) { layout in
                         cardOption(entityBox: entityBox, layout: layout)
                     }
@@ -152,27 +153,16 @@ struct DashboardPresentationOptionsView: View {
         return stateStore.entityBox(for: entityID)
     }
 
-    private var supportsFeatureVisibility: Bool {
-        kind == .control || kind == .media
-    }
-
-    private var featureVisibilityPicker: some View {
-        Picker("Card Features", selection: $featureVisibility) {
-            ForEach(DashboardCardFeatureVisibility.allCases, id: \.self) { option in
-                Text(option.displayName).tag(option)
-            }
-        }
-        .pickerStyle(.segmented)
-    }
-
     @ViewBuilder
     private var chipOption: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.large) {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
             if let presentation = chipPresentation {
+                Text("Preview")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
                 DashboardChipView(presentation: presentation)
-                    .padding(AppSpacing.large)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             }
 
             Button {
@@ -182,46 +172,53 @@ struct DashboardPresentationOptionsView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .frame(minHeight: 44)
             .disabled(isAlreadyAdded)
         }
     }
 
+    @ViewBuilder
     private func cardOption(entityBox: HAEntityState, layout: DashboardCardSize) -> some View {
-        let card = DashboardPresentationCatalog.cardConfiguration(
-            kind: kind,
-            layout: layout,
-            featureVisibility: featureVisibility
-        )
-        let isRecommended = DashboardPresentationCatalog.recommendation(for: entityBox).cardConfiguration?.layout == layout
+        if let card = DashboardPresentationCatalog.cardConfiguration(kind: kind, layout: layout) {
+            let recommendation = DashboardPresentationCatalog.recommendation(for: entityBox)
+            let isRecommended = recommendation.kind == kind
+                && recommendation.cardConfiguration?.layout == layout
 
-        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            HStack {
-                Label(layout.chooserTitle, systemImage: layout.systemImage)
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                HStack(spacing: AppSpacing.small) {
+                    Label(layout.chooserTitle, systemImage: layout.systemImage)
+                        .font(.headline)
 
-                if isRecommended {
-                    Text("Suggested")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
+                    if isRecommended {
+                        Text("Suggested")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.accentColor)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        add(source, .card(card))
+                    } label: {
+                        Label(isAlreadyAdded ? "Added" : "Add", systemImage: isAlreadyAdded ? "checkmark" : "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .frame(minHeight: 44)
+                    .disabled(isAlreadyAdded)
                 }
 
-                Spacer()
-
-                Button("Add") { add(source, .card(card)) }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(isAlreadyAdded)
-            }
-
-            CardGrid {
-                DashboardCardView(
-                    entityID: entityBox.entityID,
-                    size: layout,
-                    presentationKind: kind,
-                    featureVisibility: card.featureVisibility,
-                    isPreview: true
-                )
-                .cardGridSpan(layout.layoutMetadata)
+                CardGrid {
+                    DashboardCardView(
+                        entityID: entityBox.entityID,
+                        size: layout,
+                        presentationKind: kind,
+                        featureVisibility: card.featureVisibility,
+                        isPreview: true
+                    )
+                    .cardGridSpan(layout.layoutMetadata)
+                }
             }
         }
     }

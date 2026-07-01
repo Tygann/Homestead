@@ -457,7 +457,7 @@ enum DashboardSummaryProvider {
 
         return DashboardChipPresentation(
             title: presentation.title,
-            value: presentation.headline ?? presentation.subtitle,
+            value: entityBox.mediaPlayerEntity?.displayState ?? presentation.headline ?? presentation.subtitle,
             icon: presentation.icon,
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable

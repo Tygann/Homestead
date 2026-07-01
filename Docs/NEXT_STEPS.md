@@ -15,6 +15,7 @@ Recommended reasoning level: High.
 - Rebuilt Add to Dashboard around a clean, versioned source + presentation configuration model. Items is the default source-first path, Cards provides the inverse presentation gallery, both share one compatibility/recommendation catalog, and exact source/presentation duplicates are prevented while distinct styles remain available.
 - Deliberately reset pre-release legacy/corrupt dashboard definitions and local selections instead of migrating them. The dashboard iCloud section sanitizes independently so server, appearance, and safety preferences remain intact.
 - Made Graph, Gauge, Camera, Control, Status, Weather, Media, and Action explicit card configurations with validated layouts; preview cards disable service actions, history requests, and camera snapshot loading.
+- Polished the approved flow with searchable card-first source lists, accessible quick-add and Added states, compact chip previews, semantic card-gallery previews, and one catalog-owned layout rule. Feature visibility remains Automatic during add and can be edited later in dashboard options.
 
 - Added deterministic light/dark gauge-card previews plus a Debug-only live-preview simulator host backed by the existing ignored `PreviewCredentials.json`. `--live-preview` bypasses onboarding with side effects disabled, while optional `--preview-entity`, `--preview-size`, and `--preview-appearance` arguments replace only the preview-specific dashboard for focused screenshot verification.
 
@@ -231,6 +232,8 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Generic iOS Simulator build passed after the focused Add to Dashboard correctness and polish pass.
+- All 14 `DashboardConfigurationXCTests` passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5`, including clean-schema reset, independent iCloud preference preservation, catalog validation, duplicate identity, and concise media-chip coverage.
 - Focused routing/service tests passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SSIDRoutingTests` after adding SSID-gated local routing.
 - Generic iOS Simulator, iPad Air 11-inch (M4) iOS 26.5, and Apple silicon Mac Designed-for-iPad builds passed after unified setup/discovery/iCloud restore. Full `HomesteadTests` passed on iPhone 17 iOS 26.5, including the clean-device no-default-upload regression.
 - Generic iOS Simulator, iPad Air 11-inch (M4) iOS 26.5, and Apple silicon Mac Designed-for-iPad builds passed with isolated derived-data paths after the platform-support review.

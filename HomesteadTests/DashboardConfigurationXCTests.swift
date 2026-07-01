@@ -122,6 +122,22 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertTrue(configuration.items.isEmpty)
     }
 
+    func testCatalogOnlyBuildsCardPresentationsWithSupportedLayouts() {
+        XCTAssertNil(DashboardPresentationCatalog.cardConfiguration(kind: .chip, layout: .compact))
+
+        for kind in DashboardPresentationKind.allCases where kind != .chip {
+            for layout in DashboardCardSize.allCases {
+                let configuration = DashboardPresentationCatalog.cardConfiguration(kind: kind, layout: layout)
+
+                XCTAssertEqual(
+                    configuration != nil,
+                    kind.supportedLayouts.contains(layout),
+                    "\(kind.rawValue) and \(layout.rawValue) should agree with the catalog."
+                )
+            }
+        }
+    }
+
     func testOldICloudDashboardSnapshotSanitizesWithoutDecodingItems() throws {
         let oldJSON = """
         {
@@ -270,6 +286,27 @@ final class DashboardConfigurationXCTests: XCTestCase {
         store.applyLiveStateUpdates([HAEntityDTO(entityID: "light.kitchen", state: "on")])
         let updatedLight = try XCTUnwrap(store.entityBox(for: "light.kitchen"))
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: updatedLight).kind, .control)
+    }
+
+    func testMediaEntityChipUsesConcisePlaybackState() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "media_player.living_room",
+                state: "playing",
+                attributes: [
+                    "friendly_name": .string("Living Room"),
+                    "media_title": .string("A Very Long Episode Title"),
+                    "media_artist": .string("A Very Long Podcast Name")
+                ]
+            )
+        ])
+
+        let entityBox = try XCTUnwrap(store.entityBox(for: "media_player.living_room"))
+        let chip = DashboardSummaryProvider.makeEntityChip(entityBox: entityBox)
+
+        XCTAssertEqual(chip.title, "Living Room")
+        XCTAssertEqual(chip.value, "Playing")
     }
 
     private func makeDashboard(items: [DashboardItemConfiguration]) -> SavedDashboardConfiguration {

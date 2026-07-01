@@ -18,6 +18,21 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
     case weather
     case media
     case action
+
+    var supportedLayouts: [DashboardCardSize] {
+        switch self {
+        case .chip:
+            []
+        case .control, .status:
+            DashboardCardSize.allCases
+        case .gauge, .graph, .camera, .weather:
+            [.square, .wide, .large]
+        case .media:
+            [.compact, .row, .square, .wide, .large]
+        case .action:
+            [.mini, .compact, .row, .square]
+        }
+    }
 }
 
 nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
@@ -333,25 +348,8 @@ final class DashboardConfiguration {
     var syncSnapshot: DashboardConfigurationSyncSnapshot { DashboardConfigurationSyncSnapshot(dashboards: dashboards) }
     var selectedDashboard: SavedDashboardConfiguration { dashboards.first { $0.id == selectedDashboardID } ?? dashboards[0] }
     var items: [DashboardItemConfiguration] { selectedDashboard.items }
-    var entityIDs: [String] { items.compactMap { $0.role == .card ? $0.entityID : nil } }
 
     // MARK: Lifecycle
-
-    func seedIfNeeded(from entities: [HomeEntity]) {
-        guard items.isEmpty else { return }
-        let seededItems = Self.defaultEntityIDs(from: entities).map { entityID in
-            DashboardItemConfiguration.entityCard(
-                entityID: entityID,
-                configuration: .status(layout: .compact)
-            )
-        }
-        updateSelectedDashboardItems(seededItems)
-    }
-
-    func reconcile(with entities: [HomeEntity]) {
-        reconcile(withAvailableEntityIDs: Set(entities.map(\.entityID)))
-        seedIfNeeded(from: entities)
-    }
 
     func reconcile(with entityBoxes: [HAEntityState]) {
         let boxesByID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
@@ -383,16 +381,7 @@ final class DashboardConfiguration {
         updateSelectedDashboardItems(seededItems)
     }
 
-    func reconcile(withAvailableEntityIDs _: Set<String>) {
-        let normalized = DashboardConfigurationValidator.normalizedItems(items)
-        if normalized != items { updateSelectedDashboardItems(normalized) }
-    }
-
     // MARK: Queries
-
-    func visibleItems(from entities: [HomeEntity]) -> [DashboardItemConfiguration] {
-        visibleItems(fromAvailableEntityIDs: Set(entities.map(\.entityID)))
-    }
 
     func visibleItems(fromAvailableEntityIDs availableIDs: Set<String>) -> [DashboardItemConfiguration] {
         items.filter { item in
@@ -408,22 +397,6 @@ final class DashboardConfiguration {
                 }
             }
         }
-    }
-
-    func visibleEntityIDs(from entities: [HomeEntity]) -> [String] {
-        visibleEntityIDs(fromAvailableEntityIDs: Set(entities.map(\.entityID)))
-    }
-
-    func visibleEntityIDs(fromAvailableEntityIDs availableIDs: Set<String>) -> [String] {
-        visibleItems(fromAvailableEntityIDs: availableIDs).compactMap { $0.role == .card ? $0.entityID : nil }
-    }
-
-    func addableEntityIDs(fromAvailableEntityIDs availableIDs: Set<String>) -> Set<String> {
-        availableIDs.subtracting(Set(entityIDs))
-    }
-
-    func contains(_ entityID: String) -> Bool {
-        items.contains { $0.entityID == entityID && $0.role == .card }
     }
 
     func itemRole(for itemID: UUID) -> DashboardItemRole? {
@@ -452,29 +425,11 @@ final class DashboardConfiguration {
         return item.id
     }
 
-    func setEntity(_ entityID: String, isVisible: Bool) {
-        if isVisible {
-            _ = add(source: .entity(entityID), presentation: .card(.status(layout: .compact)))
-        } else {
-            remove(entityID)
-        }
-    }
-
     @discardableResult
     func addHeader(title: String) -> UUID {
         let item = DashboardItemConfiguration.header(title: normalizedHeaderTitle(title))
         appendSelectedDashboardItem(item)
         return item.id
-    }
-
-    @discardableResult
-    func addSummaryChip(kind: DashboardSummaryKind) -> UUID {
-        add(source: .summary(kind), presentation: .chip) ?? UUID()
-    }
-
-    @discardableResult
-    func addEntityChip(entityID: String) -> UUID {
-        add(source: .entity(entityID), presentation: .chip) ?? UUID()
     }
 
     func renameHeader(id: UUID, title: String) {
@@ -496,10 +451,6 @@ final class DashboardConfiguration {
         var updated = items
         updated[index].iconNameOverride = normalizedOverride(iconNameOverride)
         updateSelectedDashboardItems(updated)
-    }
-
-    func remove(_ entityID: String) {
-        updateSelectedDashboardItems(items.filter { $0.entityID != entityID || $0.role != .card })
     }
 
     func removeItem(id: UUID) {
@@ -808,18 +759,7 @@ nonisolated enum DashboardConfigurationValidator {
     }
 
     static func isValid(_ card: DashboardCardConfiguration) -> Bool {
-        switch card.kind {
-        case .control, .status:
-            return true
-        case .gauge, .graph, .camera, .weather:
-            return [.square, .wide, .large].contains(card.layout)
-        case .media:
-            return [.compact, .row, .square, .wide, .large].contains(card.layout)
-        case .action:
-            return [.mini, .compact, .row, .square].contains(card.layout)
-        case .chip:
-            return false
-        }
+        card.kind.supportedLayouts.contains(card.layout)
     }
 
 }

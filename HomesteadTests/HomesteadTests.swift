@@ -7186,21 +7186,6 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func dashboardConfigurationOwnsDeviceDashboardMembership() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.membership.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.setEntity("light.kitchen", isVisible: true)
-        configuration.setEntity("sensor.missing", isVisible: true)
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.entityIDs == ["light.kitchen", "sensor.missing"])
-        #expect(restoredConfiguration.contains("light.kitchen"))
-    }
-
-    @MainActor
     @Test func areaBuilderGroupsEntitiesAndCountsActivePresentations() {
         let store = HAStateStore()
         store.applyInitialStates([
@@ -8661,16 +8646,6 @@ struct HomesteadTests {
                 attributes: ["friendly_name": .string("Shared Name")]
             )
         ])
-        let suiteName = "com.tyler.Homestead.summary.order.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
-        dashboardConfiguration.setEntity("light.same_name_zeta", isVisible: true)
-        dashboardConfiguration.setEntity("light.gamma", isVisible: true)
-        dashboardConfiguration.setEntity("light.same_name_beta", isVisible: true)
-        dashboardConfiguration.setEntity("light.alpha", isVisible: true)
-
         let initialDetail = try #require(DashboardSummaryProvider.makeDetail(
             kind: .lights,
             entityBoxes: store.allEntityBoxes(),
@@ -8710,10 +8685,6 @@ struct HomesteadTests {
                 attributes: ["friendly_name": .string("Shared Name")]
             )
         ])
-        dashboardConfiguration.remove("light.gamma")
-        dashboardConfiguration.setEntity("light.gamma", isVisible: true)
-        dashboardConfiguration.move(from: IndexSet(integer: 0), to: dashboardConfiguration.items.count)
-
         let updatedDetail = try #require(DashboardSummaryProvider.makeDetail(
             kind: .lights,
             entityBoxes: store.allEntityBoxes(),
