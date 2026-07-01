@@ -12,6 +12,8 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added deterministic light/dark gauge-card previews plus a Debug-only live-preview simulator host backed by the existing ignored `PreviewCredentials.json`. `--live-preview` bypasses onboarding with side effects disabled, while optional `--preview-entity`, `--preview-size`, and `--preview-appearance` arguments replace only the preview-specific dashboard for focused screenshot verification.
+
 - Added a startup coordinator that performs read-only iCloud bootstrap before auth refresh, cache loading, connection, dashboard seeding, or uploads.
 - Added a top-level `api/` Cloudflare Worker named `homestead-api` for the Home Assistant cloud push relay and OAuth/connect page: health check, push-token registration, Home Assistant `push_url` handling, protected admin test push, `connect.homesteadcontrol.com` auth metadata, KV binding documentation, APNs Worker-secret wiring, and no committed secrets.
 - Added app-side notification push registration: Homestead requests notification permission through the native flow, registers for APNs remote notifications, stores a stable Keychain relay token, registers APNs tokens with `https://api.homesteadcontrol.com/mobile-app/register-push-token`, and sends Home Assistant `app_data.push_url`/`app_data.push_token` in mobile-app registration.

@@ -16,8 +16,32 @@ struct HomesteadApp: App {
     @State private var tabSettings: HomesteadTabSettings
     @State private var iCloudSyncService: HomesteadICloudSyncService
     @State private var setupCoordinator: HomesteadSetupCoordinator
+    private let usesLivePreviewLaunch: Bool
 
     init() {
+#if DEBUG
+        if RuntimeEnvironment.isLivePreviewLaunch,
+           let dependencies = PreviewDependencies.liveHomeAssistant {
+            if let appearanceMode = RuntimeEnvironment.livePreviewAppearanceMode {
+                dependencies.appearanceSettings.appearanceMode = appearanceMode
+            }
+            HomesteadAppDelegate.nativeNotificationService = dependencies.nativeNotificationService
+            _stateStore = State(initialValue: dependencies.stateStore)
+            _connectionSettings = State(initialValue: dependencies.connectionSettings)
+            _homeAssistantService = State(initialValue: dependencies.homeAssistantService)
+            _nativeNotificationService = State(initialValue: dependencies.nativeNotificationService)
+            _nativePermissionService = State(initialValue: dependencies.nativePermissionService)
+            _dashboardConfiguration = State(initialValue: dependencies.dashboardConfiguration)
+            _actionConfirmationSettings = State(initialValue: dependencies.actionConfirmationSettings)
+            _appearanceSettings = State(initialValue: dependencies.appearanceSettings)
+            _tabSettings = State(initialValue: dependencies.tabSettings)
+            _iCloudSyncService = State(initialValue: dependencies.iCloudSyncService)
+            _setupCoordinator = State(initialValue: HomesteadSetupCoordinator(initialPhase: .ready))
+            usesLivePreviewLaunch = true
+            return
+        }
+#endif
+
         let tokenStore = KeychainHAOAuthTokenStore()
         let stateStore = HAStateStore()
         let connectionSettings = HAConnectionSettings(tokenStore: tokenStore)
@@ -62,6 +86,7 @@ struct HomesteadApp: App {
         _tabSettings = State(initialValue: tabSettings)
         _iCloudSyncService = State(initialValue: iCloudSyncService)
         _setupCoordinator = State(initialValue: setupCoordinator)
+        usesLivePreviewLaunch = false
     }
 
     var body: some Scene {
@@ -81,6 +106,15 @@ struct HomesteadApp: App {
                 .environment(setupCoordinator.discoveryService)
                 .preferredColorScheme(appearanceSettings.appearanceMode.colorScheme)
                 .task {
+#if DEBUG
+                    if usesLivePreviewLaunch {
+                        await homeAssistantService.refreshAuthState()
+                        await homeAssistantService.connectIfPossible(settings: connectionSettings)
+                        focusLivePreviewDashboardIfRequested()
+                        return
+                    }
+#endif
+
                     guard !RuntimeEnvironment.isRunningForPreviews else { return }
                     await setupCoordinator.start(
                         iCloud: iCloudSyncService,
@@ -117,6 +151,19 @@ struct HomesteadApp: App {
             appearanceSettings: appearanceSettings
         )
     }
+
+#if DEBUG
+    private func focusLivePreviewDashboardIfRequested() {
+        guard let entityID = RuntimeEnvironment.livePreviewEntityID else {
+            return
+        }
+
+        for item in dashboardConfiguration.items {
+            dashboardConfiguration.removeItem(id: item.id)
+        }
+        dashboardConfiguration.add(entityID, size: RuntimeEnvironment.livePreviewCardSize)
+    }
+#endif
 }
 
 private extension HomesteadAppearanceMode {

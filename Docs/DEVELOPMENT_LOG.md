@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-01
+
+### Deterministic And Live UI Verification
+
+- Added dedicated light/dark Square, Wide, and Large gauge-card previews using deterministic sample battery data.
+- Added a Debug-only `--live-preview` simulator launch path that consumes the existing ignored `PreviewCredentials.json`, bypasses onboarding, uses preview-specific preferences, and keeps mobile-app registration disabled without changing production OAuth startup.
+- Added optional `--preview-entity`, `--preview-size`, and `--preview-appearance` arguments so focused live cards can be rendered and captured in light or dark appearance without altering the user's normal dashboard configuration.
+
 ## 2026-06-30
 
 ### Gauge-First Dashboard Cards

@@ -541,6 +541,37 @@ private struct DashboardCardDisplaySizesPreview: View {
         .withPreviewEnvironment()
 }
 
+private struct DashboardGaugeCardsPreview: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.large) {
+                DashboardCardView(entityID: "sensor.front_door_battery", size: .square, isPreview: true)
+                    .frame(width: 180)
+
+                DashboardCardView(entityID: "sensor.front_door_battery", size: .wide, isPreview: true)
+                    .frame(width: 376)
+
+                DashboardCardView(entityID: "sensor.front_door_battery", size: .large, isPreview: true)
+                    .frame(width: 376)
+            }
+            .padding()
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+}
+
+#Preview("Gauge Cards — Dark") {
+    DashboardGaugeCardsPreview()
+        .withPreviewEnvironment()
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Gauge Cards — Light") {
+    DashboardGaugeCardsPreview()
+        .withPreviewEnvironment()
+        .preferredColorScheme(.light)
+}
+
 private struct DashboardCardEditModePreview: View {
     @State private var size: DashboardCardSize = .square
 

@@ -28,3 +28,23 @@ If `PreviewCredentials.json` is missing, the live preview falls back to the save
 The default `Sample Data` preview never connects to Home Assistant. Use it for UI work when you do not need real entities.
 
 The `Live Home Assistant` preview stores dashboard card selection and sizing in a preview-specific `UserDefaults` suite. This keeps live preview layout edits persistent across preview reloads without mixing them into the simulator app's normal on-device dashboard layout.
+
+## Debug Simulator Launch
+
+Debug builds can use the same isolated live-preview environment outside Xcode's canvas. Launch with `--live-preview` to bypass onboarding without writing the preview token into the simulator Keychain or changing the normal OAuth startup path:
+
+```sh
+xcrun simctl launch booted com.tyler.Homestead --live-preview
+```
+
+For focused card inspection, optionally replace the preview-specific dashboard with one live entity and select its card size:
+
+```sh
+xcrun simctl launch booted com.tyler.Homestead \
+  --live-preview \
+  --preview-entity sensor.example_battery \
+  --preview-size square \
+  --preview-appearance dark
+```
+
+Supported sizes are `mini`, `compact`, `row`, `square`, `wide`, and `large`. Preview appearance accepts `system`, `light`, or `dark`. These arguments are compiled only in Debug builds. Live-preview services do not register Homestead as a Home Assistant Mobile App device.
