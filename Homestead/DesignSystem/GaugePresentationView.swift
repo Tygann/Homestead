@@ -8,6 +8,8 @@ enum GaugePresentationStyle: Equatable, Sendable {
 }
 
 struct GaugePresentationView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let presentation: GaugePresentation
     let style: GaugePresentationStyle
     let tint: Color
@@ -118,6 +120,8 @@ struct GaugePresentationView: View {
         }
         .minimumScaleFactor(0.55)
         .monospacedDigit()
+        .contentTransition(.numericText(value: presentation.value))
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: presentation.value)
     }
 
     private func instrumentLegend(diameter: CGFloat) -> some View {
@@ -419,23 +423,17 @@ private struct GaugeInstrumentArcShape: Shape {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let clampedStart = min(max(start, 0), 1)
         let clampedEnd = min(max(end, clampedStart), 1)
-        let stepCount = max(Int((clampedEnd - clampedStart) * 72), 2)
         var path = Path()
+        let startAngle = 150 + (240 * clampedStart)
+        let endAngle = 150 + (240 * clampedEnd)
 
-        for step in 0...stepCount {
-            let progress = clampedStart + ((clampedEnd - clampedStart) * (Double(step) / Double(stepCount)))
-            let angle = (Double.pi * 7 / 6) - (Double.pi * 4 / 3 * progress)
-            let point = CGPoint(
-                x: center.x + (radius * CGFloat(cos(angle))),
-                y: center.y - (radius * CGFloat(sin(angle)))
-            )
-
-            if step == 0 {
-                path.move(to: point)
-            } else {
-                path.addLine(to: point)
-            }
-        }
+        path.addArc(
+            center: center,
+            radius: radius,
+            startAngle: .degrees(startAngle),
+            endAngle: .degrees(endAngle),
+            clockwise: false
+        )
 
         return path
     }
