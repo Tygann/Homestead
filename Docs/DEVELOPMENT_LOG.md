@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-01
 
+### Source-First Dashboard Configuration
+
+- Replaced the pre-release dashboard item option bag with one versioned source + presentation model. Cards own their valid layout/options, and a shared catalog drives compatibility, recommendations, duplicate identity, default seeding, and both add paths.
+- Rebuilt Add to Dashboard as native Items-first and Cards-first navigation while preserving one-tap recommended add. Summaries now live alongside entities as sources rather than under a separate Chip mode.
+- Chose a clean schema reset: old, corrupt, or unsupported local and iCloud dashboard definitions are discarded safely, local selection resets, and unrelated synced preferences remain untouched.
+- Made dashboard card rendering explicit for Control, Status, Gauge, Graph, Camera, Weather, Media, and Action presentations and disabled network/action side effects in previews.
+
 ### Deterministic And Live UI Verification
 
 - Added dedicated light/dark Square, Wide, and Large gauge-card previews using deterministic sample battery data.

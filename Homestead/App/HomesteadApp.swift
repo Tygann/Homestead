@@ -66,7 +66,7 @@ struct HomesteadApp: App {
                 tokenStore: tokenStore
             )
             if stateStore.hasEntities {
-                dashboardConfiguration.reconcile(with: stateStore.allEntities)
+                dashboardConfiguration.reconcile(with: stateStore.allEntityBoxes())
             }
             if !stateStore.hasLoadedInitialSnapshot {
                 Task { @MainActor in
@@ -161,7 +161,10 @@ struct HomesteadApp: App {
         for item in dashboardConfiguration.items {
             dashboardConfiguration.removeItem(id: item.id)
         }
-        dashboardConfiguration.add(entityID, size: RuntimeEnvironment.livePreviewCardSize)
+        _ = dashboardConfiguration.add(
+            source: .entity(entityID),
+            presentation: .card(.status(layout: RuntimeEnvironment.livePreviewCardSize))
+        )
     }
 #endif
 }

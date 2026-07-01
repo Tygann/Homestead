@@ -1,49 +1,35 @@
 import SwiftUI
 
 enum DashboardAddItemMode: String, CaseIterable, Identifiable {
+    case items = "Items"
     case cards = "Cards"
-    case chips = "Chips"
 
     var id: Self { self }
 }
 
-enum DashboardAddChipCategory: Hashable, Identifiable {
-    case all
-    case summary
-    case domain(EntityDomain)
+enum DashboardAddSource: Hashable, Identifiable {
+    case entity(String)
+    case summary(DashboardSummaryKind)
 
     var id: String {
         switch self {
-        case .all:
-            "all"
-        case .summary:
-            "summary"
-        case .domain(let domain):
-            domain.rawValue
+        case .entity(let entityID): "entity-\(entityID)"
+        case .summary(let kind): "summary-\(kind.rawValue)"
         }
     }
 
-    var title: String {
+    var reference: DashboardSourceReference {
         switch self {
-        case .all:
-            "All"
-        case .summary:
-            "Summary"
-        case .domain(let domain):
-            domain.displayName
+        case .entity(let entityID): .entity(entityID)
+        case .summary(let kind): .summary(kind)
         }
     }
+}
 
-    var systemImage: String {
-        switch self {
-        case .all:
-            "square.grid.2x2"
-        case .summary:
-            "chart.bar.doc.horizontal"
-        case .domain(let domain):
-            domain.systemImage
-        }
-    }
+enum DashboardAddRoute: Hashable {
+    case styles(DashboardAddSource)
+    case sources(DashboardPresentationKind)
+    case options(DashboardAddSource, DashboardPresentationKind)
 }
 
 struct DashboardAddSummaryCandidate: Identifiable, Equatable {

@@ -3,19 +3,30 @@ import SwiftUI
 struct DashboardCardItem: Identifiable, Equatable {
     let id: UUID
     let entityID: String
-    let size: DashboardCardSize
+    let configuration: DashboardCardConfiguration
     let displayNameOverride: String?
     let iconNameOverride: String?
-    let featureVisibility: DashboardCardFeatureVisibility
+
+    var size: DashboardCardSize { configuration.layout }
+    var featureVisibility: DashboardCardFeatureVisibility { configuration.featureVisibility }
+    var presentationKind: DashboardPresentationKind { configuration.kind }
 }
 
 struct DashboardChipItem: Identifiable, Equatable {
     let id: UUID
-    let chipKind: DashboardChipKind
-    let entityID: String?
-    let summaryKind: DashboardSummaryKind?
+    let source: DashboardSourceReference
     let displayNameOverride: String?
     let iconNameOverride: String?
+
+    var entityID: String? {
+        guard case .entity(let entityID) = source else { return nil }
+        return entityID
+    }
+
+    var summaryKind: DashboardSummaryKind? {
+        guard case .summary(let kind) = source else { return nil }
+        return kind
+    }
 }
 
 enum DashboardLayoutItemKind: Equatable {
@@ -63,44 +74,41 @@ struct DashboardEntityDetailRoute: Identifiable, Equatable, Hashable {
 enum DashboardLayoutItemBuilder {
     static func makeItems(from configurationItems: [DashboardItemConfiguration]) -> [DashboardLayoutItem] {
         return configurationItems.compactMap { configurationItem in
-            switch configurationItem.type {
-            case .header:
+            switch configurationItem.content {
+            case .heading:
                 return DashboardLayoutItem(
                     kind: .header(configurationItem),
                     layoutMetadata: configurationItem.layoutMetadata
                 )
-            case .entity:
-                guard let entityID = configurationItem.entityID else {
-                    return nil
+            case .sourced(let sourced):
+                switch sourced.presentation {
+                case .card(let cardConfiguration):
+                    guard case .entity(let entityID) = sourced.source else {
+                        return nil
+                    }
+                    let cardItem = DashboardCardItem(
+                        id: configurationItem.id,
+                        entityID: entityID,
+                        configuration: cardConfiguration,
+                        displayNameOverride: configurationItem.displayNameOverride,
+                        iconNameOverride: configurationItem.iconNameOverride
+                    )
+                    return DashboardLayoutItem(
+                        kind: .card(cardItem),
+                        layoutMetadata: cardConfiguration.layout.layoutMetadata
+                    )
+                case .chip:
+                    let chipItem = DashboardChipItem(
+                        id: configurationItem.id,
+                        source: sourced.source,
+                        displayNameOverride: configurationItem.displayNameOverride,
+                        iconNameOverride: configurationItem.iconNameOverride
+                    )
+                    return DashboardLayoutItem(
+                        kind: .chip(chipItem),
+                        layoutMetadata: configurationItem.layoutMetadata
+                    )
                 }
-
-                let configuredSize = configurationItem.resolvedCardSize
-                let cardItem = DashboardCardItem(
-                    id: configurationItem.id,
-                    entityID: entityID,
-                    size: configuredSize,
-                    displayNameOverride: configurationItem.displayNameOverride,
-                    iconNameOverride: configurationItem.iconNameOverride,
-                    featureVisibility: configurationItem.resolvedFeatureVisibility
-                )
-                return DashboardLayoutItem(
-                    kind: .card(cardItem),
-                    layoutMetadata: configuredSize.layoutMetadata
-                )
-            case .chip:
-                let chipKind = configurationItem.chipKind ?? .summary
-                let chipItem = DashboardChipItem(
-                    id: configurationItem.id,
-                    chipKind: chipKind,
-                    entityID: configurationItem.entityID,
-                    summaryKind: configurationItem.summaryKind,
-                    displayNameOverride: configurationItem.displayNameOverride,
-                    iconNameOverride: configurationItem.iconNameOverride
-                )
-                return DashboardLayoutItem(
-                    kind: .chip(chipItem),
-                    layoutMetadata: configurationItem.layoutMetadata
-                )
             }
         }
     }

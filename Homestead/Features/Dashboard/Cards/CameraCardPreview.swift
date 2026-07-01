@@ -20,6 +20,7 @@ struct CameraCardPreview: View {
     let accessibilityTitle: String
     let refreshGeneration: Int
     let height: CGFloat
+    var loadsSnapshots = true
 
     var body: some View {
         GeometryReader { proxy in
@@ -167,6 +168,10 @@ struct CameraCardPreview: View {
 
     @MainActor
     private func refreshSnapshotsWhileVisible() async {
+        guard loadsSnapshots else {
+            snapshotPhase = .idle
+            return
+        }
         guard isAvailable else {
             snapshotPhase = .failed
             return

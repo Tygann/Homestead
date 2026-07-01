@@ -52,7 +52,7 @@ struct DashboardView: View {
                         EmptyConfiguredDashboardCard(
                             isEditing: isEditingDashboard,
                             addCards: {
-                                addSheetMode = .cards
+                                addSheetMode = .items
                             },
                             addHeader: {
                                 addHeaderAndRename()
@@ -186,7 +186,7 @@ struct DashboardView: View {
         return dashboardConfiguration
             .visibleItems(fromAvailableEntityIDs: stateStore.availableEntityIDs)
             .compactMap { item in
-                guard item.type == .entity, let entityID = item.entityID else {
+                guard item.role == .card, let entityID = item.entityID else {
                     return item
                 }
 
@@ -200,7 +200,7 @@ struct DashboardView: View {
 
     private var visibleDashboardGridItemIDs: [UUID] {
         visibleDashboardItems.compactMap { item in
-            item.type == .chip ? nil : item.id
+            item.role == .chip ? nil : item.id
         }
     }
 
@@ -210,7 +210,7 @@ struct DashboardView: View {
 
     private var visibleDashboardChipItemIDs: [UUID] {
         visibleDashboardItems.compactMap { item in
-            item.type == .chip ? item.id : nil
+            item.role == .chip ? item.id : nil
         }
     }
 
@@ -223,7 +223,7 @@ struct DashboardView: View {
             return
         }
         
-        dashboardConfiguration.reconcile(with: stateStore.allEntities)
+        dashboardConfiguration.reconcile(with: stateStore.allEntityBoxes())
         dashboardReconciliationGeneration &+= 1
     }
 
@@ -286,10 +286,10 @@ struct DashboardView: View {
     }
 
     private func dashboardScrollID(for itemID: UUID) -> String {
-        switch dashboardConfiguration.itemType(for: itemID) {
-        case .header:
+        switch dashboardConfiguration.itemRole(for: itemID) {
+        case .heading:
             "header-\(itemID)"
-        case .entity:
+        case .card:
             "card-\(itemID)"
         case .chip, nil:
             "chip-\(itemID)"
@@ -306,8 +306,7 @@ struct DashboardView: View {
             return
         }
 
-        displayTitleDraft = dashboardConfiguration.entityDisplayNameOverride(for: item.entityID)
-            ?? item.displayNameOverride
+        displayTitleDraft = item.displayNameOverride
             ?? entity.displayName
         renamingDisplayItemID = item.id
     }
@@ -332,17 +331,10 @@ struct DashboardView: View {
             return
         }
 
-        if dashboardConfiguration.itemType(for: renamingDisplayItemID) == .entity {
-            dashboardConfiguration.renameEntityItem(
-                id: renamingDisplayItemID,
-                displayNameOverride: displayTitleDraft
-            )
-        } else {
-            dashboardConfiguration.renameDisplayItem(
-                id: renamingDisplayItemID,
-                displayNameOverride: displayTitleDraft
-            )
-        }
+        dashboardConfiguration.renameDisplayItem(
+            id: renamingDisplayItemID,
+            displayNameOverride: displayTitleDraft
+        )
         self.renamingDisplayItemID = nil
         displayTitleDraft = ""
     }
@@ -352,17 +344,7 @@ struct DashboardView: View {
             return
         }
 
-        if dashboardConfiguration.itemType(for: renamingDisplayItemID) == .entity {
-            dashboardConfiguration.renameEntityItem(
-                id: renamingDisplayItemID,
-                displayNameOverride: nil
-            )
-        } else {
-            dashboardConfiguration.renameDisplayItem(
-                id: renamingDisplayItemID,
-                displayNameOverride: nil
-            )
-        }
+        dashboardConfiguration.renameDisplayItem(id: renamingDisplayItemID, displayNameOverride: nil)
         self.renamingDisplayItemID = nil
         displayTitleDraft = ""
     }
@@ -517,6 +499,7 @@ struct DashboardView: View {
                 DashboardCardView(
                     entityID: item.entityID,
                     size: item.size,
+                    presentationKind: item.presentationKind,
                     displayNameOverride: currentCardDisplayNameOverride(for: item),
                     iconNameOverride: item.iconNameOverride,
                     featureVisibility: item.featureVisibility,
@@ -531,6 +514,7 @@ struct DashboardView: View {
             DashboardCardView(
                 entityID: item.entityID,
                 size: item.size,
+                presentationKind: item.presentationKind,
                 displayNameOverride: currentCardDisplayNameOverride(for: item),
                 iconNameOverride: item.iconNameOverride,
                 featureVisibility: item.featureVisibility,
@@ -993,7 +977,7 @@ struct DashboardView: View {
             if isEditingDashboard {
                 editableDashboardChip(item: item, presentation: presentation)
             } else {
-                switch item.chipKind {
+                switch item.source {
                 case .summary:
                     if let summaryKind = item.summaryKind {
                         NavigationLink {
@@ -1083,13 +1067,13 @@ struct DashboardView: View {
     @ViewBuilder
     private func cardEditMenuContent(for item: DashboardCardItem) -> some View {
         Picker("Card Size", selection: Binding(
-            get: { dashboardConfiguration.cardSize(forItemID: item.id) },
+            get: { dashboardConfiguration.cardConfiguration(forItemID: item.id)?.layout ?? item.size },
             set: { size in
                 HapticFeedback.selection()
-                dashboardConfiguration.setCardSize(size, forItemID: item.id)
+                dashboardConfiguration.setCardLayout(size, forItemID: item.id)
             }
         )) {
-            ForEach(DashboardCardSize.allCases, id: \.self) { option in
+            ForEach(DashboardPresentationCatalog.descriptor(for: item.presentationKind).supportedLayouts, id: \.self) { option in
                 Label(option.displayName, systemImage: option.systemImage)
                     .tag(option)
                     .tint(item.size == option ? .primary : .gray)
@@ -1173,7 +1157,7 @@ struct DashboardView: View {
     }
 
     private func presentIconPicker(for item: DashboardChipItem) {
-        switch item.chipKind {
+        switch item.source {
         case .summary:
             guard let summaryKind = item.summaryKind else { return }
             iconPickerContext = DashboardIconPickerContext(
@@ -1195,7 +1179,7 @@ struct DashboardView: View {
     }
 
     private func currentCardDisplayNameOverride(for item: DashboardCardItem) -> String? {
-        item.displayNameOverride ?? dashboardConfiguration.entityDisplayNameOverride(for: item.entityID)
+        item.displayNameOverride
     }
 
     private func dashboardCardEditTitle(for item: DashboardCardItem) -> String {
@@ -1221,7 +1205,7 @@ struct DashboardView: View {
         for item: DashboardChipItem,
         summaryWorkspace: DashboardSummaryWorkspace
     ) -> DashboardChipPresentation? {
-        switch item.chipKind {
+        switch item.source {
         case .summary:
             guard let summaryKind = item.summaryKind else { return nil }
             return DashboardSummaryProvider.makeSummary(
@@ -1238,19 +1222,19 @@ struct DashboardView: View {
 
             return DashboardSummaryProvider.makeEntityChip(
                 entityBox: entityBox,
-                titleOverride: item.displayNameOverride ?? dashboardConfiguration.entityDisplayNameOverride(for: entityID),
+                titleOverride: item.displayNameOverride,
                 iconNameOverride: item.iconNameOverride
             )
         }
     }
 
     private func defaultChipTitle(for item: DashboardChipItem) -> String {
-        switch item.chipKind {
+        switch item.source {
         case .summary:
             item.summaryKind?.title ?? "Chip"
         case .entity:
             item.entityID.flatMap { entityID in
-                dashboardConfiguration.entityDisplayNameOverride(for: entityID) ?? stateStore.entity(for: entityID)?.displayName
+                stateStore.entity(for: entityID)?.displayName
             } ?? "Chip"
         }
     }
@@ -1259,7 +1243,7 @@ struct DashboardView: View {
     private var optionsMenu: some View {
         Menu {
             Button {
-                addSheetMode = .cards
+                addSheetMode = .items
             } label: {
                 Label("Add to Dashboard", systemImage: "plus.app")
             }

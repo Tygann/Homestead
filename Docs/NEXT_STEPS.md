@@ -12,6 +12,10 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Rebuilt Add to Dashboard around a clean, versioned source + presentation configuration model. Items is the default source-first path, Cards provides the inverse presentation gallery, both share one compatibility/recommendation catalog, and exact source/presentation duplicates are prevented while distinct styles remain available.
+- Deliberately reset pre-release legacy/corrupt dashboard definitions and local selections instead of migrating them. The dashboard iCloud section sanitizes independently so server, appearance, and safety preferences remain intact.
+- Made Graph, Gauge, Camera, Control, Status, Weather, Media, and Action explicit card configurations with validated layouts; preview cards disable service actions, history requests, and camera snapshot loading.
+
 - Added deterministic light/dark gauge-card previews plus a Debug-only live-preview simulator host backed by the existing ignored `PreviewCredentials.json`. `--live-preview` bypasses onboarding with side effects disabled, while optional `--preview-entity`, `--preview-size`, and `--preview-appearance` arguments replace only the preview-specific dashboard for focused screenshot verification.
 
 - Added a startup coordinator that performs read-only iCloud bootstrap before auth refresh, cache loading, connection, dashboard seeding, or uploads.

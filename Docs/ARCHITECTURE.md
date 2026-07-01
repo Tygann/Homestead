@@ -46,6 +46,10 @@ Before WebSocket connect, reconnect, camera snapshot HTTP requests, mobile-app r
 
 ## Adding cards
 
+Dashboard persistence uses a versioned, source-first configuration model. A sourced item pairs a `DashboardSourceReference` (currently entity or summary) with a typed `DashboardPresentationConfiguration` (Chip or a card configuration that owns its valid layout/options). `DashboardPresentationCatalog` is the shared compatibility and recommendation source for both Items-first and Cards-first add flows. Unsupported layouts and incompatible decoded source/presentation pairs are removed before they become active state.
+
+Dashboard schema changes are currently allowed to reset saved dashboard definitions because Homestead is pre-release. An unsupported or corrupt dashboard section resets independently; it must not discard connection, appearance, safety, or other iCloud-synced preferences. The current dashboard selection remains device-local.
+
 New cards should:
 
 1. Route from an `entityID`.

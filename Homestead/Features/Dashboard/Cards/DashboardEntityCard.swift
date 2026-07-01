@@ -11,6 +11,7 @@ struct DashboardEntityCard: View {
     let entityBox: HAEntityState
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
+    let presentationKind: DashboardPresentationKind
     let features: [DashboardCardFeature]
     let featureVisibility: DashboardCardFeatureVisibility
     let contextualAreaName: String?
@@ -370,7 +371,8 @@ struct DashboardEntityCard: View {
             title: cameraPreviewTitle,
             accessibilityTitle: presentation.title,
             refreshGeneration: cameraRefreshGeneration,
-            height: renderedCardHeight
+            height: renderedCardHeight,
+            loadsSnapshots: isFeatureInteractionEnabled
         )
     }
 
@@ -701,11 +703,20 @@ struct DashboardEntityCard: View {
     }
 
     private var visibleFeatures: [DashboardCardFeature] {
-        size.visibleFeatures(from: features, visibility: featureVisibility).filter { featureActions.canRender($0) }
+        let compatibleFeatures: [DashboardCardFeature]
+        switch presentationKind {
+        case .control, .media:
+            compatibleFeatures = features
+        case .gauge:
+            compatibleFeatures = features.filter { $0.key == .sensorGauge }
+        default:
+            compatibleFeatures = []
+        }
+        return size.visibleFeatures(from: compatibleFeatures, visibility: featureVisibility).filter { featureActions.canRender($0) }
     }
 
     private var shouldUseCameraPreviewCard: Bool {
-        guard presentation.capability.domain == .camera else {
+        guard presentationKind == .camera, presentation.capability.domain == .camera else {
             return false
         }
 
@@ -718,7 +729,7 @@ struct DashboardEntityCard: View {
     }
 
     private var shouldUseDashboardHistoryCard: Bool {
-        visibleFeatures.isEmpty && DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size)
+        presentationKind == .graph && DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size)
     }
 
     private var dashboardHistoryTaskID: String {

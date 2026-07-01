@@ -438,11 +438,11 @@ private struct DashboardDetailSettingsView: View {
     }
 
     private var cardCount: Int {
-        dashboard.items.filter { $0.type == .entity }.count
+        dashboard.items.filter { $0.role == .card }.count
     }
 
     private var chipCount: Int {
-        dashboard.items.filter { $0.type == .chip }.count
+        dashboard.items.filter { $0.role == .chip }.count
     }
 
     private var isNamingDashboard: Binding<Bool> {

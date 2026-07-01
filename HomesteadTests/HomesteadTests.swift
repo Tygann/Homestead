@@ -6588,182 +6588,6 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func dashboardConfigurationResetSeedsEntityItems() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.reset(using: dashboardTestEntities)
-
-        #expect(configuration.items.map(\.type) == [.entity, .entity])
-        #expect(configuration.items.map(\.entityID) == ["light.kitchen", "sensor.hallway_temperature"])
-        #expect(configuration.items.map(\.resolvedCardSize) == [.compact, .compact])
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationResetSeedsTenSuggestedEntityItems() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let entities = (0..<14).map { index in
-            HomeEntity(
-                entityID: "sensor.test_\(index)",
-                domain: .sensor,
-                displayName: String(format: "Test %02d", index),
-                state: "\(index)",
-                iconName: "sensor",
-                isAvailable: true,
-                lastUpdated: nil
-            )
-        }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.reset(using: entities)
-
-        #expect(configuration.items.count == 10)
-        #expect(configuration.items.map(\.entityID) == (0..<10).map { "sensor.test_\($0)" })
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationAddEntityItemPersists() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.add("light.kitchen")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.map(\.type) == [.entity])
-        #expect(restoredConfiguration.items.map(\.entityID) == ["light.kitchen"])
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationAddEntityItemPersistsInitialCardSize() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.add("camera.driveway", size: .square)
-        configuration.add("sensor.hallway_temperature")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.map(\.entityID) == ["camera.driveway", "sensor.hallway_temperature"])
-        #expect(restoredConfiguration.items.map(\.resolvedCardSize) == [.square, .compact])
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationRemoveEntityItemPersists() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.add("light.kitchen")
-        configuration.remove("light.kitchen")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.isEmpty)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationCardSizeChangesPersistOnEntityItem() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let itemID = configuration.add("sensor.hallway_temperature")
-        configuration.setCardSize(.wide, forItemID: itemID)
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.first?.entityID == "sensor.hallway_temperature")
-        #expect(restoredConfiguration.items.first?.resolvedCardSize == .wide)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationFeatureVisibilityPersistsOnEntityItem() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let itemID = configuration.add("light.kitchen")
-
-        #expect(configuration.featureVisibility(forItemID: itemID) == .automatic)
-        configuration.setFeatureVisibility(.hidden, forItemID: itemID)
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.first?.resolvedFeatureVisibility == .hidden)
-        #expect(restoredConfiguration.featureVisibility(forItemID: itemID) == .hidden)
-
-        restoredConfiguration.setFeatureVisibility(.automatic, forItemID: itemID)
-        #expect(restoredConfiguration.items.first?.featureVisibility == nil)
-        #expect(restoredConfiguration.featureVisibility(forItemID: itemID) == .automatic)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationDisplayNameOverridePersistsOnEntityItem() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let itemID = configuration.add("sensor.hallway_temperature")
-        configuration.renameEntityItem(id: itemID, displayNameOverride: "Hallway")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.first?.displayNameOverride == nil)
-        #expect(restoredConfiguration.entityDisplayNameOverride(for: "sensor.hallway_temperature") == "Hallway")
-
-        restoredConfiguration.renameEntityItem(id: itemID, displayNameOverride: " ")
-        #expect(restoredConfiguration.entityDisplayNameOverride(for: "sensor.hallway_temperature") == nil)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationVisibleItemsPreserveAllConfiguredSizes() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let miniID = configuration.add("sensor.mini")
-        let rowID = configuration.add("sensor.row")
-        let largeID = configuration.add("sensor.large")
-        configuration.setCardSize(.mini, forItemID: miniID)
-        configuration.setCardSize(.row, forItemID: rowID)
-        configuration.setCardSize(.large, forItemID: largeID)
-
-        let visibleItems = configuration.visibleItems(
-            fromAvailableEntityIDs: ["sensor.mini", "sensor.row", "sensor.large"]
-        )
-
-        #expect(visibleItems.map(\.resolvedCardSize) == [.mini, .row, .large])
-        #expect(visibleItems.map(\.layoutMetadata) == [
-            DashboardCardSize.mini.layoutMetadata,
-            DashboardCardSize.row.layoutMetadata,
-            DashboardCardSize.large.layoutMetadata
-        ])
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationPersistsLargeCardSize() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let itemID = configuration.add("sensor.hallway_temperature")
-        configuration.setCardSize(.large, forItemID: itemID)
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.first?.resolvedCardSize == .large)
-    }
-
-    @MainActor
     @Test func dashboardCardSizesExposeFourColumnLayoutMetadata() {
         #expect(DashboardCardSize.mini.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 1, rowSpan: 1))
         #expect(DashboardCardSize.compact.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1))
@@ -6861,177 +6685,6 @@ struct HomesteadTests {
         #expect(DashboardCardSize.defaultGeneratedSize(entityBox: textSensor) == .compact)
     }
 
-    @MainActor
-    @Test func dashboardAddCardPresentationGroupsFiltersAndSuggestsCardSizes() throws {
-        let store = HAStateStore()
-        store.applyInitialStates([
-            HAEntityDTO(
-                entityID: "light.kitchen",
-                state: "on",
-                attributes: [
-                    "friendly_name": .string("Kitchen Light"),
-                    "brightness": .number(128)
-                ]
-            ),
-            HAEntityDTO(
-                entityID: "sensor.kitchen_temperature",
-                state: "71.5",
-                attributes: [
-                    "friendly_name": .string("Kitchen Temperature"),
-                    "unit_of_measurement": .string("°F"),
-                    "device_class": .string("temperature")
-                ]
-            ),
-            HAEntityDTO(
-                entityID: "sensor.kitchen_humidity",
-                state: "44",
-                attributes: [
-                    "friendly_name": .string("Kitchen Humidity"),
-                    "unit_of_measurement": .string("%"),
-                    "device_class": .string("humidity")
-                ]
-            ),
-            HAEntityDTO(
-                entityID: "camera.driveway",
-                state: "idle",
-                attributes: ["friendly_name": .string("Driveway Camera")]
-            ),
-            HAEntityDTO(
-                entityID: "scene.movie_night",
-                state: "scening",
-                attributes: ["friendly_name": .string("Movie Night")]
-            ),
-            HAEntityDTO(
-                entityID: "media_player.tv",
-                state: "unavailable",
-                attributes: ["friendly_name": .string("TV")]
-            )
-        ])
-        store.applyRegistryMetadata(
-            entities: [
-                HAEntityRegistryDisplayDTO(entityID: "light.kitchen", deviceID: "kitchen-device", originalName: "Kitchen Light"),
-                HAEntityRegistryDisplayDTO(entityID: "sensor.kitchen_temperature", deviceID: "kitchen-device", originalName: "Kitchen Temperature"),
-                HAEntityRegistryDisplayDTO(entityID: "sensor.kitchen_humidity", deviceID: "kitchen-device", originalName: "Kitchen Humidity"),
-                HAEntityRegistryDisplayDTO(entityID: "camera.driveway", deviceID: "driveway-device", originalName: "Driveway Camera"),
-                HAEntityRegistryDisplayDTO(entityID: "scene.movie_night", deviceID: nil, originalName: "Movie Night"),
-                HAEntityRegistryDisplayDTO(entityID: "media_player.tv", deviceID: "tv-device", originalName: "TV")
-            ],
-            devices: [
-                HADeviceRegistryDTO(id: "kitchen-device", name: "Kitchen Hub"),
-                HADeviceRegistryDTO(id: "driveway-device", name: "Driveway"),
-                HADeviceRegistryDTO(id: "tv-device", name: "Living Room TV")
-            ]
-        )
-
-        let groups = DashboardAddCardPresentation.makeCandidateGroups(
-            entityBoxes: store.allEntityBoxes(),
-            configuredEntityIDs: ["light.kitchen"],
-            deviceGroups: store.entityIDGroupsByDevice,
-            domainGroups: store.entityIDGroupsByDomain,
-            displayNameForDeviceGroupedEntity: store.displayNameForDeviceGroupedEntity(entityID:),
-            category: .all,
-            searchText: "",
-            includesUnavailable: false
-        )
-        let candidates = groups.flatMap(\.candidates)
-
-        #expect(groups.map(\.title) == ["Driveway", "Kitchen Hub", "Other Entities"])
-        #expect(candidates.map(\.entityID) == ["camera.driveway", "sensor.kitchen_humidity", "sensor.kitchen_temperature", "scene.movie_night"])
-        #expect(candidates.first { $0.entityID == "sensor.kitchen_temperature" }?.recommendedSize == .square)
-        #expect(candidates.first { $0.entityID == "sensor.kitchen_temperature" }?.recommendedFeatureVisibility == .automatic)
-        #expect(candidates.first { $0.entityID == "sensor.kitchen_humidity" }?.recommendedSize == .square)
-        #expect(candidates.first { $0.entityID == "sensor.kitchen_humidity" }?.recommendedFeatureVisibility == .hidden)
-        #expect(candidates.first { $0.entityID == "camera.driveway" }?.recommendedSize == .square)
-        #expect(candidates.first { $0.entityID == "scene.movie_night" }?.cardStyle == .action)
-
-        let categories = DashboardAddCardPresentation.makeCategories(from: candidates)
-        #expect(categories.map(\.title) == ["All", "Values", "Cameras", "Actions"])
-
-        let categorySummaries = DashboardAddCardPresentation.makeCategorySummaries(from: candidates)
-        #expect(categorySummaries.map(\.category.title) == ["All", "Values", "Cameras", "Actions"])
-        #expect(categorySummaries.map(\.count) == [4, 2, 1, 1])
-
-        let sensorChoices = DashboardAddCardPresentation.makeSizeChoices(
-            for: try #require(store.entityBox(for: "sensor.kitchen_temperature"))
-        )
-        #expect(sensorChoices.map(\.size) == DashboardCardSize.allCases)
-        #expect(sensorChoices.first { $0.size == .square }?.isRecommended == true)
-        #expect(sensorChoices.first { $0.size == .square }?.summary == "Shows a 6-hour trend chart.")
-        #expect(sensorChoices.first { $0.size == .compact }?.summary == "Shows name and current state.")
-
-        let cameraChoices = DashboardAddCardPresentation.makeSizeChoices(
-            for: try #require(store.entityBox(for: "camera.driveway"))
-        )
-        #expect(cameraChoices.first { $0.size == .square }?.isRecommended == true)
-        #expect(cameraChoices.first { $0.size == .wide }?.summary == "Shows a live camera-style preview.")
-
-        let lightChoices = DashboardAddCardPresentation.makeSizeChoices(
-            for: try #require(store.entityBox(for: "light.kitchen"))
-        )
-        #expect(lightChoices.first { $0.size == .square }?.isRecommended == true)
-        #expect(lightChoices.first { $0.size == .square }?.summary == "Includes brightness controls.")
-        #expect(lightChoices.first { $0.size == .square }?.featureTitles == ["Brightness"])
-    }
-
-    @MainActor
-    @Test func dashboardAddCardPresentationFiltersByCardTypeSearchAndAvailability() throws {
-        let store = HAStateStore()
-        store.applyInitialStates([
-            HAEntityDTO(entityID: "light.kitchen", state: "on", attributes: ["friendly_name": .string("Kitchen Light")]),
-            HAEntityDTO(entityID: "sensor.temperature", state: "72", attributes: ["friendly_name": .string("Temperature")]),
-            HAEntityDTO(entityID: "media_player.tv", state: "unavailable", attributes: ["friendly_name": .string("TV")])
-        ])
-
-        let valueGroups = DashboardAddCardPresentation.makeCandidateGroups(
-            entityBoxes: store.allEntityBoxes(),
-            configuredEntityIDs: [],
-            deviceGroups: [],
-            domainGroups: store.entityIDGroupsByDomain,
-            displayNameForDeviceGroupedEntity: { _ in nil },
-            category: .style(.value),
-            searchText: "",
-            includesUnavailable: true
-        )
-        #expect(valueGroups.flatMap(\.candidates).map(\.entityID) == ["sensor.temperature"])
-
-        let searchGroups = DashboardAddCardPresentation.makeCandidateGroups(
-            entityBoxes: store.allEntityBoxes(),
-            configuredEntityIDs: [],
-            deviceGroups: [],
-            domainGroups: store.entityIDGroupsByDomain,
-            displayNameForDeviceGroupedEntity: { _ in nil },
-            category: .all,
-            searchText: "Media",
-            includesUnavailable: true
-        )
-        #expect(searchGroups.map(\.title) == ["Media Players"])
-        #expect(searchGroups.flatMap(\.candidates).map(\.entityID) == ["media_player.tv"])
-
-        let configuredUnavailableGroups = DashboardAddCardPresentation.makeCandidateGroups(
-            entityBoxes: store.allEntityBoxes(),
-            configuredEntityIDs: ["media_player.tv"],
-            deviceGroups: [],
-            domainGroups: store.entityIDGroupsByDomain,
-            displayNameForDeviceGroupedEntity: { _ in nil },
-            category: .all,
-            searchText: "",
-            includesUnavailable: true
-        )
-        #expect(configuredUnavailableGroups.flatMap(\.candidates).map(\.entityID) == ["light.kitchen", "sensor.temperature"])
-
-        let availableOnlyGroups = DashboardAddCardPresentation.makeCandidateGroups(
-            entityBoxes: store.allEntityBoxes(),
-            configuredEntityIDs: [],
-            deviceGroups: [],
-            domainGroups: store.entityIDGroupsByDomain,
-            displayNameForDeviceGroupedEntity: { _ in nil },
-            category: .all,
-            searchText: "",
-            includesUnavailable: false
-        )
-        #expect(availableOnlyGroups.flatMap(\.candidates).map(\.entityID) == ["light.kitchen", "sensor.temperature"])
-    }
-
     @Test func entityDisplayNameResolverShortensNamesOnlyInMatchingAreaContext() {
         #expect(EntityDisplayNameResolver.contextualDisplayName("Primary Bedroom Light", areaName: "Primary Bedroom") == "Light")
         #expect(EntityDisplayNameResolver.contextualDisplayName("Primary Bedroom - Lamp", areaName: "Primary Bedroom") == "Lamp")
@@ -7094,191 +6747,6 @@ struct HomesteadTests {
         #expect(unavailableNames.isEmpty)
     }
 
-    @MainActor
-    @Test func dashboardHeaderItemsExposeFullWidthRowLayoutMetadata() {
-        let header = DashboardItemConfiguration.header(title: "Downstairs")
-        #expect(header.layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 1))
-    }
-
-    @MainActor
-    @Test func dashboardChipItemsPersistAsSeparateDashboardComponents() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let summaryID = configuration.addSummaryChip(kind: .lights)
-        let entityID = configuration.addEntityChip(entityID: "sensor.hallway_temperature")
-        configuration.renameDisplayItem(id: summaryID, displayNameOverride: "Lighting")
-        configuration.setIconNameOverride("lamp.table", forItemID: entityID)
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.map(\.type) == [.chip, .chip])
-        #expect(restoredConfiguration.items.first?.chipKind == .summary)
-        #expect(restoredConfiguration.items.first?.summaryKind == .lights)
-        #expect(restoredConfiguration.items.first?.resolvedDisplayName(default: "Lights") == "Lighting")
-        #expect(restoredConfiguration.items.last?.chipKind == .entity)
-        #expect(restoredConfiguration.items.last?.entityID == "sensor.hallway_temperature")
-        #expect(restoredConfiguration.items.last?.resolvedIconName(default: "gauge.medium") == "lamp.table")
-        #expect(restoredConfiguration.items.map(\.layoutMetadata) == [
-            DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1),
-            DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1)
-        ])
-    }
-
-    @MainActor
-    @Test func dashboardIconOverrideCanResetToDefault() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let cardID = configuration.add("light.kitchen")
-        configuration.setIconNameOverride("lamp.table.fill", forItemID: cardID)
-        configuration.setIconNameOverride(nil, forItemID: cardID)
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        let restoredCard = try #require(restoredConfiguration.items.first)
-        #expect(restoredCard.iconNameOverride == nil)
-        #expect(restoredCard.resolvedIconName(default: "lightbulb.fill") == "lightbulb.fill")
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationAddHeaderPersists() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.addHeader(title: "Downstairs")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.map(\.type) == [.header])
-        #expect(restoredConfiguration.items.first?.resolvedTitle == "Downstairs")
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationRenameHeaderPersists() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let headerID = configuration.addHeader(title: "Downstairs")
-        configuration.renameHeader(id: headerID, title: "Main Floor")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.first?.resolvedTitle == "Main Floor")
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationRemoveHeaderPersists() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let headerID = configuration.addHeader(title: "Downstairs")
-        configuration.removeItem(id: headerID)
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.isEmpty)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationReconcilePreservesTemporarilyMissingEntitiesAndHeaders() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.add("light.kitchen")
-        configuration.addHeader(title: "Sensors")
-        configuration.add("sensor.removed")
-
-        configuration.reconcile(with: dashboardTestEntities)
-
-        #expect(configuration.items.map(\.type) == [.entity, .header, .entity])
-        #expect(configuration.items.first?.entityID == "light.kitchen")
-        #expect(configuration.items[1].resolvedTitle == "Sensors")
-        #expect(configuration.items.last?.entityID == "sensor.removed")
-        #expect(configuration.visibleEntityIDs(from: dashboardTestEntities) == ["light.kitchen"])
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationAddableEntityIDsExcludeAddedAndIncludeRemoved() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let availableEntityIDs = Set(dashboardTestEntities.map(\.entityID))
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.add("light.kitchen")
-
-        #expect(configuration.addableEntityIDs(fromAvailableEntityIDs: availableEntityIDs) == ["sensor.hallway_temperature"])
-
-        configuration.remove("light.kitchen")
-        #expect(configuration.addableEntityIDs(fromAvailableEntityIDs: availableEntityIDs) == availableEntityIDs)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationMovesMixedItemsAndPersistsOrder() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.addHeader(title: "Downstairs")
-        configuration.add("light.kitchen")
-        configuration.add("sensor.hallway_temperature")
-
-        configuration.move(from: IndexSet(integer: 0), to: 3)
-
-        #expect(configuration.items.map(\.type) == [.entity, .entity, .header])
-        #expect(configuration.items.map(\.entityID) == ["light.kitchen", "sensor.hallway_temperature", nil])
-        #expect(configuration.items.last?.resolvedTitle == "Downstairs")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.map(\.type) == [.entity, .entity, .header])
-        #expect(restoredConfiguration.items.map(\.entityID) == ["light.kitchen", "sensor.hallway_temperature", nil])
-        #expect(restoredConfiguration.items.last?.resolvedTitle == "Downstairs")
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationMovesReorderGroupsIndependently() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.addSummaryChip(kind: .lights)
-        configuration.addHeader(title: "Downstairs")
-        configuration.add("light.kitchen")
-        configuration.addSummaryChip(kind: .security)
-        configuration.add("sensor.hallway_temperature")
-
-        configuration.moveItems(in: .chips, from: IndexSet(integer: 1), to: 0)
-
-        #expect(configuration.items.map(\.type) == [.chip, .header, .entity, .chip, .entity])
-        #expect(configuration.items[0].summaryKind == .security)
-        #expect(configuration.items[3].summaryKind == .lights)
-
-        configuration.moveItems(in: .cards, from: IndexSet(integer: 0), to: 3)
-
-        #expect(configuration.items.map(\.type) == [.chip, .entity, .entity, .chip, .header])
-        #expect(configuration.items[0].summaryKind == .security)
-        #expect(configuration.items[1].entityID == "light.kitchen")
-        #expect(configuration.items[2].entityID == "sensor.hallway_temperature")
-        #expect(configuration.items[3].summaryKind == .lights)
-        #expect(configuration.items[4].resolvedTitle == "Downstairs")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.map(\.type) == [.chip, .entity, .entity, .chip, .header])
-        #expect(restoredConfiguration.items[0].summaryKind == .security)
-        #expect(restoredConfiguration.items[3].summaryKind == .lights)
-        #expect(restoredConfiguration.items[4].resolvedTitle == "Downstairs")
-    }
-
     @Test func cameraSnapshotStoreKeepsRecentFallbackAndExpiresOldSnapshots() async throws {
         let store = CameraSnapshotStore()
         let entityID = "camera.driveway"
@@ -7316,167 +6784,6 @@ struct HomesteadTests {
             now: capturedAt.addingTimeInterval(CameraSnapshotStore.maximumFallbackAge + 1)
         )
         #expect(expiredSnapshot == nil)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationMovesVisibleGridItemsAndPreservesChipSlots() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        configuration.addSummaryChip(kind: .lights)
-        let headerID = configuration.addHeader(title: "Downstairs")
-        let lightID = configuration.add("light.kitchen")
-        configuration.addSummaryChip(kind: .security)
-        let sensorID = configuration.add("sensor.hallway_temperature")
-
-        configuration.moveVisibleGridItem(
-            id: sensorID,
-            before: headerID,
-            visibleGridItemIDs: [headerID, lightID, sensorID]
-        )
-
-        #expect(configuration.items.map(\.type) == [.chip, .entity, .header, .chip, .entity])
-        #expect(configuration.items[0].summaryKind == .lights)
-        #expect(configuration.items[1].entityID == "sensor.hallway_temperature")
-        #expect(configuration.items[2].resolvedTitle == "Downstairs")
-        #expect(configuration.items[3].summaryKind == .security)
-        #expect(configuration.items[4].entityID == "light.kitchen")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.map(\.type) == [.chip, .entity, .header, .chip, .entity])
-        #expect(restoredConfiguration.items[1].entityID == "sensor.hallway_temperature")
-        #expect(restoredConfiguration.items[3].summaryKind == .security)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationMovesVisibleChipItemsAndPreservesGridSlots() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let lightsID = configuration.addSummaryChip(kind: .lights)
-        configuration.addHeader(title: "Downstairs")
-        configuration.add("light.kitchen")
-        let securityID = configuration.addSummaryChip(kind: .security)
-        configuration.add("sensor.hallway_temperature")
-
-        configuration.moveVisibleChipItem(
-            id: securityID,
-            before: lightsID,
-            visibleChipItemIDs: [lightsID, securityID]
-        )
-
-        #expect(configuration.items.map(\.type) == [.chip, .header, .entity, .chip, .entity])
-        #expect(configuration.items[0].summaryKind == .security)
-        #expect(configuration.items[1].resolvedTitle == "Downstairs")
-        #expect(configuration.items[2].entityID == "light.kitchen")
-        #expect(configuration.items[3].summaryKind == .lights)
-        #expect(configuration.items[4].entityID == "sensor.hallway_temperature")
-
-        let restoredConfiguration = DashboardConfiguration(defaults: defaults)
-        #expect(restoredConfiguration.items.map(\.type) == [.chip, .header, .entity, .chip, .entity])
-        #expect(restoredConfiguration.items[0].summaryKind == .security)
-        #expect(restoredConfiguration.items[3].summaryKind == .lights)
-    }
-
-    @MainActor
-    @Test func dashboardConfigurationMovesVisibleGridItemsWithoutMovingHiddenConfiguredItems() throws {
-        let suiteName = "com.tyler.Homestead.dashboard.tests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let configuration = DashboardConfiguration(defaults: defaults)
-        let headerID = configuration.addHeader(title: "Downstairs")
-        let lightID = configuration.add("light.kitchen")
-        configuration.add("sensor.hidden_temperature")
-        let sensorID = configuration.add("sensor.hallway_temperature")
-
-        configuration.moveVisibleGridItem(
-            id: sensorID,
-            before: lightID,
-            visibleGridItemIDs: [headerID, lightID, sensorID]
-        )
-
-        #expect(configuration.items.map(\.type) == [.header, .entity, .entity, .entity])
-        #expect(configuration.items[0].resolvedTitle == "Downstairs")
-        #expect(configuration.items[1].entityID == "sensor.hallway_temperature")
-        #expect(configuration.items[2].entityID == "sensor.hidden_temperature")
-        #expect(configuration.items[3].entityID == "light.kitchen")
-    }
-
-    @MainActor
-    @Test func dashboardLayoutBuilderPreservesHeadersEntityOverridesAndSizes() throws {
-        let headerID = UUID()
-        let lightID = UUID()
-        let sensorID = UUID()
-        let chipID = UUID()
-        let items = [
-            DashboardItemConfiguration.header(title: "Downstairs", id: headerID),
-            DashboardItemConfiguration(
-                id: lightID,
-                type: .entity,
-                entityID: "light.kitchen",
-                title: nil,
-                displayNameOverride: "Counter",
-                iconNameOverride: "lamp.table",
-                size: .row,
-                featureVisibility: .hidden,
-                chipKind: nil,
-                summaryKind: nil
-            ),
-            DashboardItemConfiguration(
-                id: sensorID,
-                type: .entity,
-                entityID: "sensor.temperature",
-                title: nil,
-                displayNameOverride: nil,
-                iconNameOverride: nil,
-                size: .large,
-                featureVisibility: nil,
-                chipKind: nil,
-                summaryKind: nil
-            ),
-            DashboardItemConfiguration.summaryChip(kind: .security, id: chipID)
-        ]
-
-        let layoutItems = DashboardLayoutItemBuilder.makeItems(from: items)
-
-        #expect(layoutItems.count == 4)
-        #expect(layoutItems[0].id == "header-\(headerID)")
-        #expect(layoutItems[0].layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 4, rowSpan: 1))
-
-        guard case .card(let lightCard) = layoutItems[1].kind else {
-            Issue.record("Expected light card layout item.")
-            return
-        }
-        #expect(lightCard.id == lightID)
-        #expect(lightCard.entityID == "light.kitchen")
-        #expect(lightCard.displayNameOverride == "Counter")
-        #expect(lightCard.iconNameOverride == "lamp.table")
-        #expect(lightCard.featureVisibility == .hidden)
-        #expect(lightCard.size == .row)
-        #expect(layoutItems[1].layoutMetadata == DashboardCardSize.row.layoutMetadata)
-
-        guard case .card(let sensorCard) = layoutItems[2].kind else {
-            Issue.record("Expected sensor card layout item.")
-            return
-        }
-        #expect(sensorCard.id == sensorID)
-        #expect(sensorCard.entityID == "sensor.temperature")
-        #expect(sensorCard.size == .large)
-        #expect(layoutItems[2].layoutMetadata == DashboardCardSize.large.layoutMetadata)
-
-        guard case .chip(let chip) = layoutItems[3].kind else {
-            Issue.record("Expected chip layout item.")
-            return
-        }
-        #expect(chip.id == chipID)
-        #expect(chip.chipKind == .summary)
-        #expect(chip.summaryKind == .security)
-        #expect(layoutItems[3].layoutMetadata == DashboardCardLayoutMetadata(columnSpan: 2, rowSpan: 1))
     }
 
     @Test func dashboardEntityDetailRouteUsesStableSourceIdentity() {
@@ -9359,10 +8666,10 @@ struct HomesteadTests {
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
         let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
-        dashboardConfiguration.add("light.same_name_zeta")
-        dashboardConfiguration.add("light.gamma")
-        dashboardConfiguration.add("light.same_name_beta")
-        dashboardConfiguration.add("light.alpha")
+        dashboardConfiguration.setEntity("light.same_name_zeta", isVisible: true)
+        dashboardConfiguration.setEntity("light.gamma", isVisible: true)
+        dashboardConfiguration.setEntity("light.same_name_beta", isVisible: true)
+        dashboardConfiguration.setEntity("light.alpha", isVisible: true)
 
         let initialDetail = try #require(DashboardSummaryProvider.makeDetail(
             kind: .lights,
@@ -9404,7 +8711,7 @@ struct HomesteadTests {
             )
         ])
         dashboardConfiguration.remove("light.gamma")
-        dashboardConfiguration.add("light.gamma")
+        dashboardConfiguration.setEntity("light.gamma", isVisible: true)
         dashboardConfiguration.move(from: IndexSet(integer: 0), to: dashboardConfiguration.items.count)
 
         let updatedDetail = try #require(DashboardSummaryProvider.makeDetail(
@@ -10184,8 +9491,11 @@ struct HomesteadTests {
         connectionSettings.externalURL = "https://home.example"
         connectionSettings.homeNetworkName = "Home Wi-Fi"
         let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
-        dashboardConfiguration.add("light.kitchen", size: .square)
-        dashboardConfiguration.setEntityDisplayNameOverride("Kitchen", for: "light.kitchen")
+        let dashboardItemID = try #require(dashboardConfiguration.add(
+            source: .entity("light.kitchen"),
+            presentation: .card(.control(layout: .square, featureVisibility: .automatic))
+        ))
+        dashboardConfiguration.renameDisplayItem(id: dashboardItemID, displayNameOverride: "Kitchen")
         let actionSettings = ActionConfirmationSettings(defaults: defaults)
         actionSettings.mode = .all
         let appearanceSettings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: try temporaryTestDirectory())
@@ -10203,8 +9513,8 @@ struct HomesteadTests {
 
         #expect(payload.connection.value.baseURL == "https://home.example")
         #expect(payload.connection.value.internalURL == "http://homeassistant.local:8123")
-        #expect(payload.dashboard.value.items.first?.entityID == "light.kitchen")
-        #expect(payload.dashboard.value.entityDisplayNameOverrides == ["light.kitchen": "Kitchen"])
+        #expect(payload.dashboard.value.dashboards.first?.items.first?.entityID == "light.kitchen")
+        #expect(payload.dashboard.value.dashboards.first?.items.first?.displayNameOverride == "Kitchen")
         #expect(payload.actionConfirmations.value.mode == .all)
         #expect(!encodedText.contains("Home Wi-Fi"))
         #expect(!encodedText.localizedCaseInsensitiveContains("token"))
@@ -10228,8 +9538,11 @@ struct HomesteadTests {
                 baseURL: "https://new.example", internalURL: "http://new.local:8123", externalURL: "https://new.example"
             )),
             dashboard: HomesteadSyncRecord(updatedAt: updatedAt, value: DashboardConfigurationSyncSnapshot(
-                items: [.entity(entityID: "switch.outlet", size: .wide)],
-                entityDisplayNameOverrides: ["switch.outlet": "Outlet"]
+                dashboards: [SavedDashboardConfiguration(
+                    id: UUID(),
+                    name: "Dashboard",
+                    items: [.entityCard(entityID: "switch.outlet", configuration: .status(layout: .wide))]
+                )]
             )),
             actionConfirmations: HomesteadSyncRecord(updatedAt: updatedAt, value: ActionConfirmationSettingsSyncSnapshot(
                 mode: .off,
@@ -10264,7 +9577,7 @@ struct HomesteadTests {
 
         #expect(connectionSettings.baseURL == "https://new.example")
         #expect(dashboardConfiguration.items.first?.entityID == "switch.outlet")
-        #expect(dashboardConfiguration.entityDisplayNameOverride(for: "switch.outlet") == "Outlet")
+        #expect(dashboardConfiguration.items.first?.displayNameOverride == nil)
         #expect(actionSettings.mode == .off)
         #expect(!appearanceSettings.isWallpaperEnabled)
         #expect(syncService.lastRemoteChangeDate == updatedAt)

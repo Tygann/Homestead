@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardCardView: View {
     let entityID: String
     let size: DashboardCardSize
+    var presentationKind: DashboardPresentationKind?
     var displayNameOverride: String?
     var iconNameOverride: String?
     var featureVisibility: DashboardCardFeatureVisibility = .automatic
@@ -15,6 +16,7 @@ struct DashboardCardView: View {
     init(
         entityID: String,
         size: DashboardCardSize,
+        presentationKind: DashboardPresentationKind? = nil,
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
         featureVisibility: DashboardCardFeatureVisibility = .automatic,
@@ -25,6 +27,7 @@ struct DashboardCardView: View {
     ) {
         self.entityID = entityID
         self.size = size
+        self.presentationKind = presentationKind
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
         self.featureVisibility = featureVisibility
@@ -38,6 +41,7 @@ struct DashboardCardView: View {
     init(
         entityID: String,
         size: DashboardCardSize,
+        presentationKind: DashboardPresentationKind? = nil,
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
         featureVisibility: DashboardCardFeatureVisibility = .automatic,
@@ -49,6 +53,7 @@ struct DashboardCardView: View {
     ) {
         self.entityID = entityID
         self.size = size
+        self.presentationKind = presentationKind
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
         self.featureVisibility = featureVisibility
@@ -67,6 +72,7 @@ struct DashboardCardView: View {
 
     var body: some View {
         if let entityBox = stateStore.entityBox(for: entityID) {
+            let resolvedPresentationKind = presentationKind ?? DashboardPresentationCatalog.recommendation(for: entityBox).kind
             let presentation = DashboardEntityPresentation(
                 entityBox: entityBox,
                 displayNameOverride: resolvedDisplayNameOverride(for: entityBox),
@@ -77,6 +83,7 @@ struct DashboardCardView: View {
                 entityBox: entityBox,
                 presentation: presentation,
                 size: size,
+                presentationKind: resolvedPresentationKind,
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
                 featureVisibility: featureVisibility,
                 contextualAreaName: contextualAreaName,
@@ -86,7 +93,7 @@ struct DashboardCardView: View {
                     primaryAction: presentation.primaryAction,
                     entityID: entityBox.entityID
                 ),
-                toggle: isEditing || isPreview ? nil : primaryAction(
+                toggle: isEditing || isPreview || !allowsPrimaryAction(resolvedPresentationKind) ? nil : primaryAction(
                     presentation.primaryAction,
                     entityBox: entityBox
                 ),
@@ -106,6 +113,10 @@ struct DashboardCardView: View {
             }
             .actionConfirmationDialog(request: $confirmationRequest)
         }
+    }
+
+    private func allowsPrimaryAction(_ kind: DashboardPresentationKind) -> Bool {
+        [.control, .media, .action].contains(kind)
     }
 
     private func resolvedDisplayNameOverride(for entityBox: HAEntityState) -> String? {

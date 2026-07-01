@@ -263,11 +263,11 @@ private struct SettingsDashboardLayoutMiniature: View {
     }
 
     private var chipItems: [DashboardItemConfiguration] {
-        items.filter { $0.type == .chip }
+        items.filter { $0.role == .chip }
     }
 
     private var cardGridItems: [DashboardItemConfiguration] {
-        items.filter { $0.type != .chip }
+        items.filter { $0.role != .chip }
     }
 
     private var chipRow: some View {
@@ -298,7 +298,7 @@ private struct SettingsDashboardLayoutMiniature: View {
     }
 
     private func chipWidth(for chip: DashboardItemConfiguration) -> CGFloat {
-        switch chip.chipKind {
+        switch chip.source {
         case .summary:
             34
         case .entity:
@@ -309,7 +309,7 @@ private struct SettingsDashboardLayoutMiniature: View {
     }
 
     private func chipColor(for chip: DashboardItemConfiguration) -> Color {
-        guard chip.chipKind == .summary, let summaryKind = chip.summaryKind else {
+        guard case .summary(let summaryKind) = chip.source else {
             return Color(.tertiaryLabel)
         }
 
@@ -339,12 +339,12 @@ private struct SettingsDashboardLayoutPreviewTile: View {
                     .strokeBorder(strokeStyle, lineWidth: 0.5)
             }
             .overlay(alignment: .topLeading) {
-                if item.type == .entity {
+                if item.role == .card {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(Color(.tertiarySystemGroupedBackground).opacity(0.60))
                         .frame(width: 13, height: 13)
                         .padding(5)
-                } else if item.type == .header {
+                } else if item.role == .heading {
                     Capsule()
                         .fill(.secondary.opacity(0.45))
                         .frame(width: 44, height: 5)
@@ -355,10 +355,10 @@ private struct SettingsDashboardLayoutPreviewTile: View {
     }
 
     private var fillStyle: Color {
-        switch item.type {
-        case .entity:
+        switch item.role {
+        case .card:
             Color(.secondarySystemGroupedBackground).opacity(0.78)
-        case .header:
+        case .heading:
             Color.clear
         case .chip:
             Color.accentColor.opacity(0.18)
@@ -366,10 +366,10 @@ private struct SettingsDashboardLayoutPreviewTile: View {
     }
 
     private var strokeStyle: Color {
-        switch item.type {
-        case .entity:
+        switch item.role {
+        case .card:
             Color(.separator).opacity(0.22)
-        case .header:
+        case .heading:
             Color.clear
         case .chip:
             Color.accentColor.opacity(0.10)
@@ -377,7 +377,7 @@ private struct SettingsDashboardLayoutPreviewTile: View {
     }
 
     private var cornerRadius: CGFloat {
-        item.type == .chip ? 10 : 8
+        item.role == .chip ? 10 : 8
     }
 }
 

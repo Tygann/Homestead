@@ -527,6 +527,8 @@ private extension UserDefaults {
         defaults.removeObject(forKey: "dashboardItems")
         defaults.removeObject(forKey: "dashboardEntityIDs")
         defaults.removeObject(forKey: "dashboardCardSizes")
+        defaults.removeObject(forKey: "homestead.dashboard.configuration.v2")
+        defaults.removeObject(forKey: "homestead.dashboard.selectedDashboardID.v2")
         return defaults
     }
 
