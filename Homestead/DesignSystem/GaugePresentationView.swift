@@ -34,33 +34,30 @@ struct GaugePresentationView: View {
     private var instrumentGauge: some View {
         GeometryReader { proxy in
             let titleHeight: CGFloat = title == nil ? 0 : 17
-            let titleSpacing: CGFloat = 0
+            let titleSpacing: CGFloat = title == nil ? 0 : 2
             let bodyHeight = max(proxy.size.height - titleHeight - titleSpacing, 0)
 
             VStack(spacing: titleSpacing) {
                 if let title {
                     Text(title)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
+                        .padding(.horizontal, 6)
                         .frame(height: titleHeight)
                 }
 
                 GeometryReader { bodyProxy in
-                    let diameter = min(bodyProxy.size.width, bodyProxy.size.height / 0.84)
+                    let diameter = min(bodyProxy.size.width, bodyProxy.size.height / 0.79)
                     let lineWidth = min(max(diameter * 0.085, 10), 17)
 
                     ZStack {
-                        ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
-                            let segment = visualSegment(for: section, at: index)
-
-                            GaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
-                                .stroke(
-                                    statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
-                                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                                )
-                        }
+                        GaugeInstrumentArcShape(start: 0, end: 1, inset: lineWidth / 2)
+                            .stroke(
+                                Color.secondary.opacity(0.16),
+                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                            )
 
                         if presentation.normalizedValue > 0 {
                             GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
@@ -88,7 +85,9 @@ struct GaugePresentationView: View {
         let valueFontSize = min(max(diameter * 0.25, 28), 58)
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
         let endpointY = (diameter / 2) + (radius * 0.5)
-        let legendWidth = max((sqrt(3) * radius) - lineWidth, 0)
+        let endpointBottomY = endpointY + (lineWidth / 2)
+        let legendWidth = max((sqrt(3) * radius) - (lineWidth * 1.8), 0)
+        let iconSize = instrumentIconSize(diameter: diameter)
 
         return ZStack {
             instrumentReadout(fontSize: valueFontSize)
@@ -96,7 +95,8 @@ struct GaugePresentationView: View {
 
             instrumentLegend(diameter: diameter)
                 .frame(width: legendWidth)
-                .position(x: diameter / 2, y: endpointY)
+                .frame(height: iconSize, alignment: .bottom)
+                .position(x: diameter / 2, y: endpointBottomY - (iconSize / 2))
         }
     }
 
@@ -109,9 +109,10 @@ struct GaugePresentationView: View {
 
             if let unitText = presentation.unitText {
                 Text(unitText)
-                    .font(.system(size: fontSize * 0.58, weight: .medium, design: .rounded))
+                    .font(.system(size: fontSize * 0.5, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
-                    .baselineOffset(-1)
+                    .baselineOffset(2)
+                    .padding(.leading, -1)
                     .lineLimit(1)
             }
         }
@@ -120,9 +121,9 @@ struct GaugePresentationView: View {
     }
 
     private func instrumentLegend(diameter: CGFloat) -> some View {
-        let iconSize = min(max(diameter * 0.18, 18), 28)
+        let iconSize = instrumentIconSize(diameter: diameter)
 
-        return HStack(alignment: .center, spacing: 0) {
+        return HStack(alignment: .bottom, spacing: 0) {
             Text(rangeValueText(presentation.range.lowerBound))
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
@@ -148,8 +149,12 @@ struct GaugePresentationView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .font(.caption2.weight(.semibold))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Color.secondary.opacity(0.72))
         .monospacedDigit()
+    }
+
+    private func instrumentIconSize(diameter: CGFloat) -> CGFloat {
+        min(max(diameter * 0.19, 20), 34)
     }
 
     private var detailGauge: some View {
