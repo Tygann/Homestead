@@ -15,7 +15,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### Gauge-First Dashboard Cards
 
 - Replaced the standard icon/title/subtitle header on gauge-only Square, Wide, and Large dashboard cards with a dedicated instrument composition inspired by Apple's automotive gauge hierarchy.
-- The new card gives the entity name its own centered row above a 240-degree semantic range dial, places the unit beside the current value, and uses an explicit bottom legend for numeric bounds plus the resolved entity glyph while retaining the mapped range sections, accessibility value, and tap-to-open-detail behavior.
+- The new card gives the entity name its own centered row above a 240-degree semantic range dial, sizes the underlying circle against its rendered arc rather than an unused full-circle box, places the unit beside the current value, and uses an explicit bottom legend for numeric bounds plus the resolved entity glyph while retaining the mapped range sections, accessibility value, and tap-to-open-detail behavior.
 - Row gauges remain horizontal, Mini and Compact cards remain simple, and Large cards that combine a gauge with other features retain the standard header and feature stack.
 
 ## 2026-06-25

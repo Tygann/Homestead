@@ -35,8 +35,7 @@ struct GaugePresentationView: View {
         GeometryReader { proxy in
             let titleHeight: CGFloat = title == nil ? 0 : 17
             let titleSpacing: CGFloat = 0
-            let diameter = min(proxy.size.width, max(proxy.size.height - titleHeight - titleSpacing, 0))
-            let lineWidth = min(max(diameter * 0.085, 10), 17)
+            let bodyHeight = max(proxy.size.height - titleHeight - titleSpacing, 0)
 
             VStack(spacing: titleSpacing) {
                 if let title {
@@ -48,28 +47,35 @@ struct GaugePresentationView: View {
                         .frame(height: titleHeight)
                 }
 
-                ZStack {
-                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
-                        let segment = visualSegment(for: section, at: index)
+                GeometryReader { bodyProxy in
+                    let diameter = min(bodyProxy.size.width, bodyProxy.size.height / 0.84)
+                    let lineWidth = min(max(diameter * 0.085, 10), 17)
 
-                        GaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
-                            .stroke(
-                                statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
-                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                            )
+                    ZStack {
+                        ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                            let segment = visualSegment(for: section, at: index)
+
+                            GaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
+                                .stroke(
+                                    statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
+                                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                                )
+                        }
+
+                        if presentation.normalizedValue > 0 {
+                            GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
+                                .stroke(
+                                    statusColor(for: presentation.status),
+                                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                                )
+                        }
+
+                        instrumentContent(diameter: diameter, lineWidth: lineWidth)
                     }
-
-                    if presentation.normalizedValue > 0 {
-                        GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
-                            .stroke(
-                                statusColor(for: presentation.status),
-                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                            )
-                    }
-
-                    instrumentContent(diameter: diameter, lineWidth: lineWidth)
+                    .frame(width: diameter, height: diameter)
+                    .position(x: bodyProxy.size.width / 2, y: diameter / 2)
                 }
-                .frame(width: diameter, height: diameter)
+                .frame(height: bodyHeight)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
