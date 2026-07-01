@@ -125,7 +125,14 @@ final class DashboardConfigurationXCTests: XCTestCase {
     func testCatalogOnlyBuildsCardPresentationsWithSupportedLayouts() {
         XCTAssertNil(DashboardPresentationCatalog.cardConfiguration(kind: .chip, layout: .compact))
 
-        for kind in DashboardPresentationKind.allCases where kind != .chip {
+        for kind in DashboardPresentationKind.allCases {
+            if let defaultLayout = kind.defaultLayout {
+                XCTAssertTrue(kind.supportedLayouts.contains(defaultLayout))
+            } else {
+                XCTAssertEqual(kind, .chip)
+            }
+
+            guard kind != .chip else { continue }
             for layout in DashboardCardSize.allCases {
                 let configuration = DashboardPresentationCatalog.cardConfiguration(kind: kind, layout: layout)
 
@@ -282,6 +289,14 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: battery).kind, .status)
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: camera).kind, .camera)
         XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: temperature).contains(.gauge))
+        XCTAssertEqual(
+            DashboardPresentationCatalog.defaultPresentation(kind: .gauge, for: temperature),
+            .card(.gauge(layout: .square))
+        )
+        XCTAssertEqual(
+            DashboardPresentationCatalog.defaultPresentation(kind: .status, for: temperature),
+            .card(.status(layout: .compact))
+        )
 
         store.applyLiveStateUpdates([HAEntityDTO(entityID: "light.kitchen", state: "on")])
         let updatedLight = try XCTUnwrap(store.entityBox(for: "light.kitchen"))

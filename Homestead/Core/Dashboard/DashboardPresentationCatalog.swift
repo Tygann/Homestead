@@ -111,7 +111,7 @@ enum DashboardPresentationCatalog {
         guard isCompatible(kind, with: entityBox) else { return nil }
         if kind == .chip { return .chip }
         if recommendation(for: entityBox).kind == kind { return recommendation(for: entityBox) }
-        guard let layout = descriptor(for: kind).supportedLayouts.first else { return nil }
+        guard let layout = kind.defaultLayout else { return nil }
         return cardConfiguration(kind: kind, layout: layout).map(DashboardPresentationConfiguration.card)
     }
 

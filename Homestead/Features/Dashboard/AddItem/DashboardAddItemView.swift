@@ -38,6 +38,8 @@ struct DashboardAddItemView: View {
                     DashboardChooseStyleView(source: source, add: add)
                 case .sources(let kind):
                     DashboardCompatibleSourcesView(kind: kind, add: add)
+                case .review(let source, let kind):
+                    DashboardPresentationReviewView(source: source, kind: kind, add: add)
                 case .options(let source, let kind):
                     DashboardPresentationOptionsView(source: source, kind: kind, add: add)
                 }
@@ -508,6 +510,7 @@ private struct DashboardCompatibleSourcesView: View {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    @ViewBuilder
     private func sourceLink(
         _ source: DashboardAddSource,
         title: String,
@@ -516,26 +519,36 @@ private struct DashboardCompatibleSourcesView: View {
     ) -> some View {
         let isAdded = dashboardConfiguration.contains(source: source.reference, presentationKind: kind)
 
-        return NavigationLink(value: DashboardAddRoute.options(source, kind)) {
+        if isAdded {
             HStack {
-                Label {
-                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                        Text(title).foregroundStyle(.primary).lineLimit(1)
-                        Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                } icon: {
-                    HomesteadIconView(icon: icon, pointSize: 18)
-                        .foregroundStyle(Color.accentColor)
-                }
+                sourceLabel(title: title, subtitle: subtitle, icon: icon)
                 Spacer()
-                if isAdded {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityValue("Added")
+        } else {
+            NavigationLink(value: DashboardAddRoute.review(source, kind)) {
+                HStack {
+                    sourceLabel(title: title, subtitle: subtitle, icon: icon)
+                    Spacer()
                 }
             }
+            .accessibilityHint("Preview and add \(DashboardPresentationCatalog.descriptor(for: kind).title)")
         }
-        .accessibilityValue(isAdded ? "Added" : "")
-        .accessibilityHint("Choose a layout")
+    }
+
+    private func sourceLabel(title: String, subtitle: String, icon: ResolvedIcon) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(title).foregroundStyle(.primary).lineLimit(1)
+                Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+        } icon: {
+            HomesteadIconView(icon: icon, pointSize: 18)
+                .foregroundStyle(Color.accentColor)
+        }
     }
 }

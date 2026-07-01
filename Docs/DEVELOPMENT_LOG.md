@@ -11,6 +11,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Chose a clean schema reset: old, corrupt, or unsupported local and iCloud dashboard definitions are discarded safely, local selection resets, and unrelated synced preferences remain untouched.
 - Made dashboard card rendering explicit for Control, Status, Gauge, Graph, Camera, Weather, Media, and Action presentations and disabled network/action side effects in previews.
 - Followed with a focused polish pass that made supported layouts a single catalog rule, rejected invalid catalog factories, removed obsolete pre-schema helpers, added searchable card-first source selection, and clarified preview, Added, and accessibility states.
+- Shifted the normal add path from choosing a layout to adding each presentation's catalog default directly. Rich style previews and card-first review screens now expose Add first, with alternate layouts behind an explicit secondary customization action.
 
 ### Deterministic And Live UI Verification
 

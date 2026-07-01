@@ -33,6 +33,17 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
             [.mini, .compact, .row, .square]
         }
     }
+
+    var defaultLayout: DashboardCardSize? {
+        switch self {
+        case .chip:
+            nil
+        case .control, .status, .media, .action:
+            .compact
+        case .gauge, .graph, .camera, .weather:
+            .square
+        }
+    }
 }
 
 nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
