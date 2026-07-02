@@ -93,12 +93,6 @@ struct DashboardView: View {
                 } else {
                     if dashboardConfiguration.setupState != .notChosen {
                         ToolbarItem(placement: .topBarTrailing) {
-                            addMenu
-                        }
-
-                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
-
-                        ToolbarItem(placement: .topBarTrailing) {
                             optionsMenu
                         }
 
@@ -1290,7 +1284,7 @@ struct DashboardView: View {
     
     // MARK: - Toolbar Menus
 
-    private var addMenu: some View {
+    private var optionsMenu: some View {
         Menu {
             Button {
                 dashboardConfiguration.chooseManualSetup()
@@ -1298,22 +1292,9 @@ struct DashboardView: View {
             } label: {
                 Label("Add Cards", systemImage: "rectangle.stack.badge.plus")
             }
-
-            Button {
-                dashboardConfiguration.chooseManualSetup()
-                addHeaderAndRename()
-            } label: {
-                Label("Add Section", systemImage: "textformat.size")
-            }
-        } label: {
-            Image(systemName: "plus")
-                .bold()
-        }
-        .accessibilityLabel("Add to Dashboard")
-    }
-
-    private var optionsMenu: some View {
-        Menu {
+            
+            Divider()
+            
             Button {
                 isEditingDashboard = true
             } label: {
