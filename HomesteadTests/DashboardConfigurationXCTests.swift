@@ -8,6 +8,8 @@ final class DashboardConfigurationXCTests: XCTestCase {
         defaults.set(Data("[{\"legacy\":true}]".utf8), forKey: "homestead.dashboard.savedDashboards")
         defaults.set(UUID().uuidString, forKey: "homestead.dashboard.selectedDashboardID")
         defaults.set(Data("[]".utf8), forKey: "dashboardItems")
+        defaults.set(Data("{\"schemaVersion\":2,\"dashboards\":[]}".utf8), forKey: "homestead.dashboard.configuration.v2")
+        defaults.set(UUID().uuidString, forKey: "homestead.dashboard.selectedDashboardID.v2")
 
         let configuration = DashboardConfiguration(defaults: defaults)
 
@@ -17,13 +19,15 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: "homestead.dashboard.savedDashboards"))
         XCTAssertNil(defaults.object(forKey: "homestead.dashboard.selectedDashboardID"))
         XCTAssertNil(defaults.object(forKey: "dashboardItems"))
-        XCTAssertNotNil(defaults.data(forKey: "homestead.dashboard.configuration.v2"))
+        XCTAssertNil(defaults.object(forKey: "homestead.dashboard.configuration.v2"))
+        XCTAssertNil(defaults.object(forKey: "homestead.dashboard.selectedDashboardID.v2"))
+        XCTAssertNotNil(defaults.data(forKey: "homestead.dashboard.configuration.v3"))
     }
 
     func testCorruptCurrentDocumentResetsWithoutCrashing() {
         let defaults = makeDefaults()
-        defaults.set(Data("not-json".utf8), forKey: "homestead.dashboard.configuration.v2")
-        defaults.set(UUID().uuidString, forKey: "homestead.dashboard.selectedDashboardID.v2")
+        defaults.set(Data("not-json".utf8), forKey: "homestead.dashboard.configuration.v3")
+        defaults.set(UUID().uuidString, forKey: "homestead.dashboard.selectedDashboardID.v3")
 
         let configuration = DashboardConfiguration(defaults: defaults)
 
@@ -38,12 +42,12 @@ final class DashboardConfigurationXCTests: XCTestCase {
             schemaVersion: DashboardConfigurationDocument.currentSchemaVersion + 1,
             dashboards: [makeDashboard(items: [.entityChip(entityID: "sensor.old")])]
         )
-        defaults.set(try JSONEncoder().encode(unsupported), forKey: "homestead.dashboard.configuration.v2")
+        defaults.set(try JSONEncoder().encode(unsupported), forKey: "homestead.dashboard.configuration.v3")
 
         let configuration = DashboardConfiguration(defaults: defaults)
 
         XCTAssertTrue(configuration.items.isEmpty)
-        let stored = try XCTUnwrap(defaults.data(forKey: "homestead.dashboard.configuration.v2"))
+        let stored = try XCTUnwrap(defaults.data(forKey: "homestead.dashboard.configuration.v3"))
         let decoded = try JSONDecoder().decode(DashboardConfigurationDocument.self, from: stored)
         XCTAssertEqual(decoded.schemaVersion, DashboardConfigurationDocument.currentSchemaVersion)
     }
@@ -58,6 +62,8 @@ final class DashboardConfigurationXCTests: XCTestCase {
         configuration.renameDisplayItem(id: graphID, displayNameOverride: "Temperature")
         _ = configuration.add(source: .summary(.lights), presentation: .chip)
 
+        let storedBeforeRestore = try XCTUnwrap(defaults.data(forKey: "homestead.dashboard.configuration.v3"))
+        _ = try JSONDecoder().decode(DashboardConfigurationDocument.self, from: storedBeforeRestore)
         let restored = DashboardConfiguration(defaults: defaults)
 
         XCTAssertEqual(restored.items.count, 2)
@@ -67,7 +73,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(restored.items[1].source, .summary(.lights))
         XCTAssertEqual(restored.items[1].presentation, .chip)
 
-        let data = try XCTUnwrap(defaults.data(forKey: "homestead.dashboard.configuration.v2"))
+        let data = try XCTUnwrap(defaults.data(forKey: "homestead.dashboard.configuration.v3"))
         let json = try XCTUnwrap(String(data: data, encoding: .utf8))
         XCTAssertFalse(json.contains("chipKind"))
         XCTAssertFalse(json.contains("summaryKind"))
@@ -78,17 +84,40 @@ final class DashboardConfigurationXCTests: XCTestCase {
         let defaults = makeDefaults()
         let invalid = DashboardItemConfiguration.entityCard(
             entityID: "sensor.humidity",
-            configuration: .gauge(layout: .mini)
+            configuration: .gauge(style: .circular, layout: .mini)
         )
         let document = DashboardConfigurationDocument(dashboards: [makeDashboard(items: [invalid])])
-        defaults.set(try JSONEncoder().encode(document), forKey: "homestead.dashboard.configuration.v2")
+        defaults.set(try JSONEncoder().encode(document), forKey: "homestead.dashboard.configuration.v3")
 
         let configuration = DashboardConfiguration(defaults: defaults)
 
         XCTAssertTrue(configuration.items.isEmpty)
     }
 
-    func testDuplicateIdentityAllowsDifferentPresentationsButNotSameKind() throws {
+    func testCurrentDocumentRoundTripsPresentationStyles() throws {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        _ = configuration.add(
+            source: .entity("sensor.battery"),
+            presentation: .card(.gauge(style: .circular, layout: .square))
+        )
+        _ = configuration.add(
+            source: .entity("sensor.battery"),
+            presentation: .card(.gauge(style: .bar, layout: .wide))
+        )
+
+        let restored = DashboardConfiguration(defaults: defaults)
+
+        XCTAssertEqual(
+            restored.items.compactMap(\.cardConfiguration),
+            [
+                .gauge(style: .circular, layout: .square),
+                .gauge(style: .bar, layout: .wide)
+            ]
+        )
+    }
+
+    func testDuplicateIdentityIncludesStyleButNotLayout() throws {
         let configuration = DashboardConfiguration(defaults: makeDefaults())
         let statusID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
@@ -102,10 +131,34 @@ final class DashboardConfigurationXCTests: XCTestCase {
             source: .entity("sensor.temperature"),
             presentation: .card(.graph(layout: .square))
         ))
+        let circularGaugeID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.gauge(style: .circular, layout: .square))
+        ))
+        let duplicateCircularGaugeID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.gauge(style: .circular, layout: .wide))
+        ))
+        let barGaugeID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.gauge(style: .bar, layout: .wide))
+        ))
 
+        XCTAssertEqual(
+            DashboardPresentationIdentity(
+                source: .entity("sensor.temperature"),
+                presentation: .card(.status(layout: .compact))
+            ),
+            DashboardPresentationIdentity(
+                source: .entity("sensor.temperature"),
+                presentation: .card(.status(layout: .wide))
+            )
+        )
         XCTAssertEqual(statusID, duplicateStatusID)
         XCTAssertNotEqual(statusID, graphID)
-        XCTAssertEqual(configuration.items.count, 2)
+        XCTAssertEqual(circularGaugeID, duplicateCircularGaugeID)
+        XCTAssertNotEqual(circularGaugeID, barGaugeID)
+        XCTAssertEqual(configuration.items.count, 4)
     }
 
     func testSummaryCardAndInvalidLayoutAreRejected() {
@@ -117,7 +170,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         ))
         XCTAssertNil(configuration.add(
             source: .entity("sensor.humidity"),
-            presentation: .card(.gauge(layout: .mini))
+            presentation: .card(.gauge(style: .circular, layout: .mini))
         ))
         XCTAssertTrue(configuration.items.isEmpty)
     }
@@ -147,7 +200,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
     func testGalleryCatalogSeparatesImplementedAndPlannedMetadata() {
         XCTAssertEqual(
-            DashboardAddGallerySection.layout.items.map(\.title),
+            DashboardAddGallerySection.elements.items.map(\.title),
             ["Header", "Chip"]
         )
 
@@ -253,7 +306,10 @@ final class DashboardConfigurationXCTests: XCTestCase {
             SavedDashboardConfiguration(
                 id: firstID,
                 name: "Phone",
-                items: [.entityCard(entityID: "light.phone", configuration: .control(layout: .square, featureVisibility: .automatic))]
+                items: [.entityCard(
+                    entityID: "light.phone",
+                    configuration: .control(style: .slider, layout: .square, featureVisibility: .automatic)
+                )]
             ),
             SavedDashboardConfiguration(
                 id: secondID,
@@ -274,20 +330,43 @@ final class DashboardConfigurationXCTests: XCTestCase {
             source: .entity("light.kitchen"),
             presentation: .card(.camera(layout: .square))
         )
+        _ = configuration.add(
+            source: .entity("light.kitchen"),
+            presentation: .card(.control(
+                style: .thermostat,
+                layout: .square,
+                featureVisibility: .automatic
+            ))
+        )
         let store = HAStateStore()
-        store.applyInitialStates([HAEntityDTO(entityID: "light.kitchen", state: "on")])
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "on",
+                attributes: ["brightness": .number(128)]
+            )
+        ])
 
         configuration.reconcile(with: store.allEntityBoxes())
 
         XCTAssertFalse(configuration.items.contains { $0.presentation?.kind == .camera })
+        XCTAssertFalse(configuration.items.contains { $0.presentation?.style == .control(.thermostat) })
         XCTAssertFalse(configuration.items.isEmpty, "A reset dashboard should reseed from valid catalog recommendations.")
         XCTAssertEqual(configuration.items.first?.presentation?.kind, .control)
+        XCTAssertEqual(configuration.items.first?.presentation?.style, .control(.slider))
     }
 
     func testCatalogRecommendationsUseCapabilitiesRatherThanLiveState() throws {
         let store = HAStateStore()
         store.applyInitialStates([
-            HAEntityDTO(entityID: "light.kitchen", state: "off"),
+            HAEntityDTO(
+                entityID: "light.kitchen",
+                state: "off",
+                attributes: [
+                    "brightness": .number(128),
+                    "supported_color_modes": .array([.string("brightness")])
+                ]
+            ),
             HAEntityDTO(
                 entityID: "sensor.temperature",
                 state: "70",
@@ -343,7 +422,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: thermostat).contains(.control))
         XCTAssertEqual(
             DashboardPresentationCatalog.recommendation(for: thermostat),
-            .card(.control(layout: .square, featureVisibility: .automatic))
+            .card(.control(style: .thermostat, layout: .square, featureVisibility: .automatic))
         )
         XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: readOnlyClimate).contains(.control))
         XCTAssertEqual(
@@ -352,7 +431,27 @@ final class DashboardConfigurationXCTests: XCTestCase {
         )
         XCTAssertEqual(
             DashboardPresentationCatalog.defaultPresentation(kind: .gauge, for: temperature),
-            .card(.gauge(layout: .square))
+            .card(.gauge(style: .circular, layout: .square))
+        )
+        XCTAssertEqual(
+            DashboardPresentationCatalog.defaultPresentation(
+                kind: .gauge,
+                style: .gauge(.bar),
+                for: temperature
+            ),
+            .card(.gauge(style: .bar, layout: .wide))
+        )
+        XCTAssertEqual(
+            DashboardPresentationCatalog.styleDescriptors(for: .gauge, entityBox: battery).map(\.style),
+            [.gauge(.circular), .gauge(.bar)]
+        )
+        XCTAssertEqual(
+            DashboardPresentationCatalog.styleDescriptors(for: .control, entityBox: thermostat).map(\.style),
+            [.control(.thermostat)]
+        )
+        XCTAssertEqual(
+            DashboardPresentationCatalog.styleDescriptors(for: .control, entityBox: light).map(\.style),
+            [.control(.slider)]
         )
         XCTAssertEqual(
             DashboardPresentationCatalog.defaultPresentation(kind: .status, for: temperature),

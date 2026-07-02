@@ -9464,7 +9464,11 @@ struct HomesteadTests {
         let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
         let dashboardItemID = try #require(dashboardConfiguration.add(
             source: .entity("light.kitchen"),
-            presentation: .card(.control(layout: .square, featureVisibility: .automatic))
+            presentation: .card(.control(
+                style: .slider,
+                layout: .square,
+                featureVisibility: .automatic
+            ))
         ))
         dashboardConfiguration.renameDisplayItem(id: dashboardItemID, displayNameOverride: "Kitchen")
         let actionSettings = ActionConfirmationSettings(defaults: defaults)

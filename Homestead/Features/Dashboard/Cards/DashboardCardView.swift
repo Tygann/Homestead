@@ -4,6 +4,7 @@ struct DashboardCardView: View {
     let entityID: String
     let size: DashboardCardSize
     var presentationKind: DashboardPresentationKind?
+    var presentationStyle: DashboardPresentationStyle?
     var displayNameOverride: String?
     var iconNameOverride: String?
     var featureVisibility: DashboardCardFeatureVisibility = .automatic
@@ -28,6 +29,34 @@ struct DashboardCardView: View {
         self.entityID = entityID
         self.size = size
         self.presentationKind = presentationKind
+        self.presentationStyle = nil
+        self.displayNameOverride = displayNameOverride
+        self.iconNameOverride = iconNameOverride
+        self.featureVisibility = featureVisibility
+        self.contextualAreaName = contextualAreaName
+        self.cameraRefreshGeneration = cameraRefreshGeneration
+        self.isEditing = isEditing
+        self.isPreview = false
+        self.openDetails = openDetails
+    }
+
+    init(
+        entityID: String,
+        size: DashboardCardSize,
+        presentationKind: DashboardPresentationKind?,
+        presentationStyle: DashboardPresentationStyle?,
+        displayNameOverride: String? = nil,
+        iconNameOverride: String? = nil,
+        featureVisibility: DashboardCardFeatureVisibility = .automatic,
+        contextualAreaName: String? = nil,
+        cameraRefreshGeneration: Int = 0,
+        isEditing: Bool = false,
+        openDetails: (() -> Void)? = nil
+    ) {
+        self.entityID = entityID
+        self.size = size
+        self.presentationKind = presentationKind
+        self.presentationStyle = presentationStyle
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
         self.featureVisibility = featureVisibility
@@ -54,6 +83,35 @@ struct DashboardCardView: View {
         self.entityID = entityID
         self.size = size
         self.presentationKind = presentationKind
+        self.presentationStyle = nil
+        self.displayNameOverride = displayNameOverride
+        self.iconNameOverride = iconNameOverride
+        self.featureVisibility = featureVisibility
+        self.contextualAreaName = contextualAreaName
+        self.cameraRefreshGeneration = cameraRefreshGeneration
+        self.isEditing = isEditing
+        self.isPreview = isPreview
+        self.openDetails = openDetails
+    }
+
+    init(
+        entityID: String,
+        size: DashboardCardSize,
+        presentationKind: DashboardPresentationKind?,
+        presentationStyle: DashboardPresentationStyle?,
+        displayNameOverride: String? = nil,
+        iconNameOverride: String? = nil,
+        featureVisibility: DashboardCardFeatureVisibility = .automatic,
+        contextualAreaName: String? = nil,
+        cameraRefreshGeneration: Int = 0,
+        isEditing: Bool = false,
+        isPreview: Bool,
+        openDetails: (() -> Void)? = nil
+    ) {
+        self.entityID = entityID
+        self.size = size
+        self.presentationKind = presentationKind
+        self.presentationStyle = presentationStyle
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
         self.featureVisibility = featureVisibility
@@ -73,6 +131,11 @@ struct DashboardCardView: View {
     var body: some View {
         if let entityBox = stateStore.entityBox(for: entityID) {
             let resolvedPresentationKind = presentationKind ?? DashboardPresentationCatalog.recommendation(for: entityBox).kind
+            let resolvedPresentationStyle = presentationStyle
+                ?? DashboardPresentationCatalog.defaultPresentation(
+                    kind: resolvedPresentationKind,
+                    for: entityBox
+                )?.style
             let presentation = DashboardEntityPresentation(
                 entityBox: entityBox,
                 displayNameOverride: resolvedDisplayNameOverride(for: entityBox),
@@ -84,6 +147,7 @@ struct DashboardCardView: View {
                 presentation: presentation,
                 size: size,
                 presentationKind: resolvedPresentationKind,
+                presentationStyle: resolvedPresentationStyle,
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
                 featureVisibility: featureVisibility,
                 contextualAreaName: contextualAreaName,

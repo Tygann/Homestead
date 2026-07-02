@@ -46,10 +46,37 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
     }
 }
 
+nonisolated enum DashboardControlStyle: String, Codable, Equatable, Hashable, Sendable {
+    case standard
+    case slider
+    case thermostat
+}
+
+nonisolated enum DashboardGaugeStyle: String, Codable, Equatable, Hashable, Sendable {
+    case circular
+    case bar
+}
+
+nonisolated enum DashboardPresentationStyle: Codable, Equatable, Hashable, Sendable {
+    case control(DashboardControlStyle)
+    case gauge(DashboardGaugeStyle)
+
+    var kind: DashboardPresentationKind {
+        switch self {
+        case .control: .control
+        case .gauge: .gauge
+        }
+    }
+}
+
 nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
-    case control(layout: DashboardCardSize, featureVisibility: DashboardCardFeatureVisibility)
+    case control(
+        style: DashboardControlStyle,
+        layout: DashboardCardSize,
+        featureVisibility: DashboardCardFeatureVisibility
+    )
     case status(layout: DashboardCardSize)
-    case gauge(layout: DashboardCardSize)
+    case gauge(style: DashboardGaugeStyle, layout: DashboardCardSize)
     case graph(layout: DashboardCardSize)
     case camera(layout: DashboardCardSize)
     case weather(layout: DashboardCardSize)
@@ -71,15 +98,23 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
 
     var layout: DashboardCardSize {
         switch self {
-        case .control(let layout, _), .media(let layout, _): layout
-        case .status(let layout), .gauge(let layout), .graph(let layout), .camera(let layout),
+        case .control(_, let layout, _), .media(let layout, _): layout
+        case .status(let layout), .gauge(_, let layout), .graph(let layout), .camera(let layout),
              .weather(let layout), .action(let layout): layout
+        }
+    }
+
+    var style: DashboardPresentationStyle? {
+        switch self {
+        case .control(let style, _, _): .control(style)
+        case .gauge(let style, _): .gauge(style)
+        default: nil
         }
     }
 
     var featureVisibility: DashboardCardFeatureVisibility {
         switch self {
-        case .control(_, let visibility), .media(_, let visibility): visibility
+        case .control(_, _, let visibility), .media(_, let visibility): visibility
         case .gauge: .automatic
         default: .hidden
         }
@@ -87,9 +122,10 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
 
     func withLayout(_ layout: DashboardCardSize) -> Self {
         switch self {
-        case .control(_, let visibility): .control(layout: layout, featureVisibility: visibility)
+        case .control(let style, _, let visibility):
+            .control(style: style, layout: layout, featureVisibility: visibility)
         case .status: .status(layout: layout)
-        case .gauge: .gauge(layout: layout)
+        case .gauge(let style, _): .gauge(style: style, layout: layout)
         case .graph: .graph(layout: layout)
         case .camera: .camera(layout: layout)
         case .weather: .weather(layout: layout)
@@ -100,7 +136,8 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
 
     func withFeatureVisibility(_ visibility: DashboardCardFeatureVisibility) -> Self {
         switch self {
-        case .control(let layout, _): .control(layout: layout, featureVisibility: visibility)
+        case .control(let style, let layout, _):
+            .control(style: style, layout: layout, featureVisibility: visibility)
         case .media(let layout, _): .media(layout: layout, featureVisibility: visibility)
         default: self
         }
@@ -116,6 +153,10 @@ nonisolated enum DashboardPresentationConfiguration: Codable, Equatable, Sendabl
         case .chip: .chip
         case .card(let card): card.kind
         }
+    }
+
+    var style: DashboardPresentationStyle? {
+        cardConfiguration?.style
     }
 
     var cardConfiguration: DashboardCardConfiguration? {
@@ -283,7 +324,7 @@ nonisolated struct SavedDashboardConfiguration: Identifiable, Codable, Equatable
 }
 
 nonisolated struct DashboardConfigurationDocument: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
 
     var schemaVersion: Int
     var dashboards: [SavedDashboardConfiguration]
@@ -309,6 +350,13 @@ nonisolated enum DashboardReorderGroup: Equatable, Sendable {
 nonisolated struct DashboardPresentationIdentity: Hashable, Sendable {
     let source: DashboardSourceReference
     let kind: DashboardPresentationKind
+    let style: DashboardPresentationStyle?
+
+    init(source: DashboardSourceReference, presentation: DashboardPresentationConfiguration) {
+        self.source = source
+        kind = presentation.kind
+        style = presentation.style
+    }
 }
 
 // MARK: - Configuration Store
@@ -325,13 +373,15 @@ final class DashboardConfiguration {
     }
 
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let documentKey = "homestead.dashboard.configuration.v2"
-    @ObservationIgnored private let selectedDashboardIDKey = "homestead.dashboard.selectedDashboardID.v2"
+    @ObservationIgnored private let documentKey = "homestead.dashboard.configuration.v3"
+    @ObservationIgnored private let selectedDashboardIDKey = "homestead.dashboard.selectedDashboardID.v3"
     @ObservationIgnored private let obsoleteKeys = [
         "dashboardItems",
         "entityDisplayNameOverrides",
         "homestead.dashboard.savedDashboards",
-        "homestead.dashboard.selectedDashboardID"
+        "homestead.dashboard.selectedDashboardID",
+        "homestead.dashboard.configuration.v2",
+        "homestead.dashboard.selectedDashboardID.v2"
     ]
 
     init(defaults: UserDefaults = .standard) {
@@ -370,7 +420,7 @@ final class DashboardConfiguration {
                   let entityBox = boxesByID[entityID] else {
                 return true
             }
-            return DashboardPresentationCatalog.isCompatible(card.kind, with: entityBox)
+            return DashboardPresentationCatalog.isCompatible(card, with: entityBox)
         }
         if compatibleItems != items { updateSelectedDashboardItems(compatibleItems) }
 
@@ -414,8 +464,15 @@ final class DashboardConfiguration {
         items.first { $0.id == itemID }?.role
     }
 
-    func contains(source: DashboardSourceReference, presentationKind: DashboardPresentationKind) -> Bool {
-        items.contains { $0.source == source && $0.presentation?.kind == presentationKind }
+    func contains(
+        source: DashboardSourceReference,
+        presentation: DashboardPresentationConfiguration
+    ) -> Bool {
+        let identity = DashboardPresentationIdentity(source: source, presentation: presentation)
+        return items.contains {
+            guard let itemSource = $0.source, let itemPresentation = $0.presentation else { return false }
+            return DashboardPresentationIdentity(source: itemSource, presentation: itemPresentation) == identity
+        }
     }
 
     // MARK: Mutations
@@ -426,8 +483,10 @@ final class DashboardConfiguration {
             .sourced(source: source, presentation: presentation)
         ) else { return nil }
 
+        let identity = DashboardPresentationIdentity(source: source, presentation: presentation)
         if let existing = items.first(where: {
-            $0.source == source && $0.presentation?.kind == presentation.kind
+            guard let itemSource = $0.source, let itemPresentation = $0.presentation else { return false }
+            return DashboardPresentationIdentity(source: itemSource, presentation: itemPresentation) == identity
         }) {
             return existing.id
         }
@@ -746,8 +805,10 @@ nonisolated enum DashboardConfigurationValidator {
         var identities = Set<DashboardPresentationIdentity>()
         return items.compactMap { item in
             guard let normalized = normalizedItem(item) else { return nil }
-            guard let source = normalized.source, let kind = normalized.presentation?.kind else { return normalized }
-            return identities.insert(DashboardPresentationIdentity(source: source, kind: kind)).inserted ? normalized : nil
+            guard let source = normalized.source, let presentation = normalized.presentation else { return normalized }
+            return identities.insert(
+                DashboardPresentationIdentity(source: source, presentation: presentation)
+            ).inserted ? normalized : nil
         }
     }
 

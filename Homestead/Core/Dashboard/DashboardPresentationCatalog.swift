@@ -9,6 +9,14 @@ nonisolated struct DashboardPresentationDescriptor: Identifiable, Equatable, Sen
     var supportedLayouts: [DashboardCardSize] { kind.supportedLayouts }
 }
 
+nonisolated struct DashboardPresentationStyleDescriptor: Identifiable, Equatable, Sendable {
+    let style: DashboardPresentationStyle
+    let title: String
+    let systemImage: String
+
+    var id: DashboardPresentationStyle { style }
+}
+
 @MainActor
 enum DashboardPresentationCatalog {
     static let descriptors: [DashboardPresentationDescriptor] = DashboardPresentationKind.allCases.map(descriptor(for:))
@@ -61,6 +69,45 @@ enum DashboardPresentationCatalog {
         }
     }
 
+    static func isCompatible(_ card: DashboardCardConfiguration, with entityBox: HAEntityState) -> Bool {
+        guard isCompatible(card.kind, with: entityBox) else { return false }
+        guard let style = card.style else { return true }
+        return styleDescriptors(for: card.kind, entityBox: entityBox).contains { $0.style == style }
+    }
+
+    static func styleDescriptors(
+        for kind: DashboardPresentationKind,
+        entityBox: HAEntityState
+    ) -> [DashboardPresentationStyleDescriptor] {
+        switch kind {
+        case .control:
+            let style = controlStyle(for: entityBox)
+            return [styleDescriptor(for: .control(style))]
+        case .gauge:
+            return [
+                styleDescriptor(for: .gauge(.circular)),
+                styleDescriptor(for: .gauge(.bar))
+            ]
+        default:
+            return []
+        }
+    }
+
+    static func styleDescriptor(for style: DashboardPresentationStyle) -> DashboardPresentationStyleDescriptor {
+        switch style {
+        case .control(.standard):
+            DashboardPresentationStyleDescriptor(style: style, title: "Standard", systemImage: "switch.2")
+        case .control(.slider):
+            DashboardPresentationStyleDescriptor(style: style, title: "Slider", systemImage: "slider.horizontal.3")
+        case .control(.thermostat):
+            DashboardPresentationStyleDescriptor(style: style, title: "Thermostat", systemImage: "thermometer.medium")
+        case .gauge(.circular):
+            DashboardPresentationStyleDescriptor(style: style, title: "Circular", systemImage: "gauge.with.dots.needle.33percent")
+        case .gauge(.bar):
+            DashboardPresentationStyleDescriptor(style: style, title: "Bar", systemImage: "chart.bar.fill")
+        }
+    }
+
     static func recommendation(for entityBox: HAEntityState) -> DashboardPresentationConfiguration {
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
 
@@ -86,6 +133,7 @@ enum DashboardPresentationCatalog {
             let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
             let layout: DashboardCardSize = features.isEmpty ? .compact : .square
             return .card(.control(
+                style: controlStyle(for: entityBox),
                 layout: layout,
                 featureVisibility: DashboardCardSize.defaultGeneratedFeatureVisibility(entityBox: entityBox, size: layout)
             ))
@@ -104,34 +152,93 @@ enum DashboardPresentationCatalog {
             || !actionableFeatures.isEmpty
     }
 
+    private static func controlStyle(for entityBox: HAEntityState) -> DashboardControlStyle {
+        let presentation = DashboardEntityPresentation(entityBox: entityBox)
+        let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
+
+        if features.contains(where: {
+            if case .setpoint = $0.content { return true }
+            return false
+        }) {
+            return .thermostat
+        }
+
+        if features.contains(where: {
+            if case .level = $0.content { return true }
+            return false
+        }) {
+            return .slider
+        }
+
+        return .standard
+    }
+
     static func defaultPresentation(
         kind: DashboardPresentationKind,
+        style: DashboardPresentationStyle? = nil,
         for entityBox: HAEntityState
     ) -> DashboardPresentationConfiguration? {
         guard isCompatible(kind, with: entityBox) else { return nil }
         if kind == .chip { return .chip }
-        if recommendation(for: entityBox).kind == kind { return recommendation(for: entityBox) }
-        guard let layout = kind.defaultLayout else { return nil }
-        return cardConfiguration(kind: kind, layout: layout).map(DashboardPresentationConfiguration.card)
+
+        let availableStyles = styleDescriptors(for: kind, entityBox: entityBox)
+        if let style {
+            guard style.kind == kind, availableStyles.contains(where: { $0.style == style }) else { return nil }
+        }
+        let resolvedStyle = style ?? availableStyles.first?.style
+        let recommendation = recommendation(for: entityBox)
+        if recommendation.kind == kind, recommendation.style == resolvedStyle {
+            return recommendation
+        }
+
+        let layout: DashboardCardSize?
+        if resolvedStyle == .gauge(.bar) {
+            layout = .wide
+        } else {
+            layout = kind.defaultLayout
+        }
+        guard let layout else { return nil }
+        return cardConfiguration(kind: kind, style: resolvedStyle, layout: layout)
+            .map(DashboardPresentationConfiguration.card)
     }
 
     static func cardConfiguration(
         kind: DashboardPresentationKind,
+        style: DashboardPresentationStyle? = nil,
         layout: DashboardCardSize,
         featureVisibility: DashboardCardFeatureVisibility = .automatic
     ) -> DashboardCardConfiguration? {
         guard kind.supportedLayouts.contains(layout) else { return nil }
 
         return switch kind {
-        case .control: .control(layout: layout, featureVisibility: featureVisibility)
-        case .status: .status(layout: layout)
-        case .gauge: .gauge(layout: layout)
-        case .graph: .graph(layout: layout)
-        case .camera: .camera(layout: layout)
-        case .weather: .weather(layout: layout)
-        case .media: .media(layout: layout, featureVisibility: featureVisibility)
-        case .action: .action(layout: layout)
-        case .chip: nil
+        case .control:
+            switch style ?? .control(.standard) {
+            case .control(let controlStyle):
+                .control(style: controlStyle, layout: layout, featureVisibility: featureVisibility)
+            case .gauge:
+                nil
+            }
+        case .status:
+            style == nil ? .status(layout: layout) : nil
+        case .gauge:
+            switch style ?? .gauge(.circular) {
+            case .gauge(let gaugeStyle):
+                .gauge(style: gaugeStyle, layout: layout)
+            case .control:
+                nil
+            }
+        case .graph:
+            style == nil ? .graph(layout: layout) : nil
+        case .camera:
+            style == nil ? .camera(layout: layout) : nil
+        case .weather:
+            style == nil ? .weather(layout: layout) : nil
+        case .media:
+            style == nil ? .media(layout: layout, featureVisibility: featureVisibility) : nil
+        case .action:
+            style == nil ? .action(layout: layout) : nil
+        case .chip:
+            nil
         }
     }
 }

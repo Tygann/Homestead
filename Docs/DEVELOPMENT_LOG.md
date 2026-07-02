@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-02
+
+### Dashboard Presentation Styles
+
+- Added typed, persisted presentation styles beneath broad card families. Control records its source-derived Standard, Slider, or Thermostat style; Gauge supports real Circular and Bar renderers and exposes a style picker only because both are meaningful.
+- Kept family choice above style and layout: direct Add saves the catalog-recommended style and layout, while optional customization selects style before layout.
+- Changed duplicate identity to source + family + style, deliberately excluding layout, and advanced the clean pre-release dashboard schema to v3 so stale v2 local or iCloud dashboard data resets instead of decoding into an incomplete configuration.
+
 ## 2026-07-01
 
 ### Source-First Dashboard Configuration

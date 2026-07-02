@@ -30,7 +30,7 @@ enum DashboardAddRoute: Hashable {
     case styles(DashboardAddSource)
     case sources(DashboardPresentationKind)
     case review(DashboardAddSource, DashboardPresentationKind)
-    case options(DashboardAddSource, DashboardPresentationKind)
+    case options(DashboardAddSource, DashboardPresentationKind, DashboardPresentationStyle?)
     case header
 }
 
@@ -95,7 +95,7 @@ enum DashboardPlannedGalleryCard: String, CaseIterable, Identifiable {
 }
 
 enum DashboardAddGallerySection: String, CaseIterable, Identifiable {
-    case layout = "Layout"
+    case elements = "Elements"
     case cards = "Cards"
     case planned = "Planned"
 
@@ -103,7 +103,7 @@ enum DashboardAddGallerySection: String, CaseIterable, Identifiable {
 
     var items: [DashboardAddGalleryItem] {
         switch self {
-        case .layout:
+        case .elements:
             [
                 .header,
                 .presentation(DashboardPresentationCatalog.descriptor(for: .chip))

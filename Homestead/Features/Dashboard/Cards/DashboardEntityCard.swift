@@ -12,6 +12,7 @@ struct DashboardEntityCard: View {
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
     let presentationKind: DashboardPresentationKind
+    let presentationStyle: DashboardPresentationStyle?
     let features: [DashboardCardFeature]
     let featureVisibility: DashboardCardFeatureVisibility
     let contextualAreaName: String?
@@ -438,17 +439,9 @@ struct DashboardEntityCard: View {
 
     @ViewBuilder
     private func gaugeFirstContent(_ gauge: GaugePresentation) -> some View {
-        let content = GaugePresentationView(
-            presentation: gauge,
-            style: .instrument,
-            tint: iconColor,
-            title: presentation.title,
-            icon: presentation.icon
-        )
-
         if let showDetails {
             Button(action: showDetails) {
-                content
+                gaugeFirstVisual(gauge)
                     .contentShape(Rectangle())
             }
             .buttonStyle(HomeCardButtonStyle())
@@ -456,7 +449,47 @@ struct DashboardEntityCard: View {
             .accessibilityValue(gauge.accessibilityValue)
             .accessibilityHint(presentation.accessibilityDetailHint)
         } else {
-            content
+            gaugeFirstVisual(gauge)
+        }
+    }
+
+    @ViewBuilder
+    private func gaugeFirstVisual(_ gauge: GaugePresentation) -> some View {
+        if presentationStyle == .gauge(.bar) {
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
+                featureHeader
+
+                Spacer(minLength: AppSpacing.xSmall)
+
+                HStack(alignment: .firstTextBaseline, spacing: 1) {
+                    Text(gauge.valueText)
+                        .font(.system(.title, design: .rounded, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .monospacedDigit()
+
+                    if let unitText = gauge.unitText {
+                        Text(unitText)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                GaugePresentationView(
+                    presentation: gauge,
+                    style: .row,
+                    tint: iconColor
+                )
+                .frame(height: 28)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            GaugePresentationView(
+                presentation: gauge,
+                style: .instrument,
+                tint: iconColor,
+                title: presentation.title,
+                icon: presentation.icon
+            )
         }
     }
 

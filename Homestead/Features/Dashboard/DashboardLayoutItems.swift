@@ -10,6 +10,7 @@ struct DashboardCardItem: Identifiable, Equatable {
     var size: DashboardCardSize { configuration.layout }
     var featureVisibility: DashboardCardFeatureVisibility { configuration.featureVisibility }
     var presentationKind: DashboardPresentationKind { configuration.kind }
+    var presentationStyle: DashboardPresentationStyle? { configuration.style }
 }
 
 struct DashboardChipItem: Identifiable, Equatable {

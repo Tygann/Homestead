@@ -41,8 +41,13 @@ struct DashboardAddItemView: View {
                     DashboardCompatibleSourcesView(kind: kind, add: add)
                 case .review(let source, let kind):
                     DashboardPresentationReviewView(source: source, kind: kind, add: add)
-                case .options(let source, let kind):
-                    DashboardPresentationOptionsView(source: source, kind: kind, add: add)
+                case .options(let source, let kind, let style):
+                    DashboardPresentationOptionsView(
+                        source: source,
+                        kind: kind,
+                        initialStyle: style,
+                        add: add
+                    )
                 case .header:
                     DashboardAddHeaderView(add: addHeader)
                 }
@@ -165,7 +170,7 @@ struct DashboardAddItemView: View {
     ) -> some View {
         let recommendation = recommendation(for: source)
         let isAdded = recommendation.map {
-            dashboardConfiguration.contains(source: source.reference, presentationKind: $0.kind)
+            dashboardConfiguration.contains(source: source.reference, presentation: $0)
         } ?? false
 
         return HStack(spacing: AppSpacing.medium) {
@@ -664,9 +669,13 @@ private struct DashboardCompatibleSourcesView: View {
         subtitle: String,
         icon: ResolvedIcon
     ) -> some View {
-        let isAdded = dashboardConfiguration.contains(source: source.reference, presentationKind: kind)
+        let presentation = source.defaultPresentation(kind: kind, stateStore: stateStore)
+        let isAdded = presentation.map {
+            dashboardConfiguration.contains(source: source.reference, presentation: $0)
+        } ?? false
+        let hasMultipleStyles = source.styleDescriptors(kind: kind, stateStore: stateStore).count > 1
 
-        if isAdded {
+        if isAdded && !hasMultipleStyles {
             HStack {
                 sourceLabel(title: title, subtitle: subtitle, icon: icon)
                 Spacer()
@@ -681,8 +690,14 @@ private struct DashboardCompatibleSourcesView: View {
                 HStack {
                     sourceLabel(title: title, subtitle: subtitle, icon: icon)
                     Spacer()
+                    if isAdded {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
                 }
             }
+            .accessibilityValue(isAdded ? "Default style added" : "")
             .accessibilityHint("Preview and add \(DashboardPresentationCatalog.descriptor(for: kind).title)")
         }
     }
