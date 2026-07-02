@@ -137,6 +137,7 @@ struct DashboardChooseStyleView: View {
 struct DashboardPresentationReviewView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @State private var selectedStyle: DashboardPresentationStyle?
 
     let source: DashboardAddSource
     let kind: DashboardPresentationKind
@@ -144,13 +145,12 @@ struct DashboardPresentationReviewView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                 if styleDescriptors.count > 1 {
-                    ForEach(Array(styleDescriptors.enumerated()), id: \.element.id) { index, descriptor in
-                        if index > 0 {
-                            Divider()
-                        }
-                        styleOption(descriptor)
+                    styleSelector
+
+                    if let selectedPresentation {
+                        previewSection(selectedPresentation)
                     }
                 } else if let presentation = source.defaultPresentation(kind: kind, stateStore: stateStore) {
                     presentationOption(presentation)
@@ -169,22 +169,85 @@ struct DashboardPresentationReviewView: View {
         source.styleDescriptors(kind: kind, stateStore: stateStore)
     }
 
-    @ViewBuilder
-    private func styleOption(_ descriptor: DashboardPresentationStyleDescriptor) -> some View {
-        if let presentation = source.defaultPresentation(
-            kind: kind,
-            style: descriptor.style,
-            stateStore: stateStore
-        ) {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                Text(descriptor.title)
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .center)
+    private var resolvedStyle: DashboardPresentationStyle? {
+        selectedStyle ?? styleDescriptors.first?.style
+    }
 
-                presentationOption(presentation)
+    private var selectedPresentation: DashboardPresentationConfiguration? {
+        source.defaultPresentation(
+            kind: kind,
+            style: resolvedStyle,
+            stateStore: stateStore
+        )
+    }
+
+    private var styleSelector: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Text("Style")
+                .font(.headline)
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 132), spacing: AppSpacing.medium)],
+                spacing: AppSpacing.medium
+            ) {
+                ForEach(styleDescriptors) { descriptor in
+                    styleButton(descriptor)
+                }
             }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("\(descriptor.title) style")
+        }
+    }
+
+    private func styleButton(_ descriptor: DashboardPresentationStyleDescriptor) -> some View {
+        let isSelected = descriptor.style == resolvedStyle
+
+        return Button {
+            selectedStyle = descriptor.style
+            HapticFeedback.selection()
+        } label: {
+            VStack(spacing: AppSpacing.small) {
+                Image(systemName: descriptor.systemImage)
+                    .font(.title2.weight(.medium))
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+
+                Text(descriptor.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 76)
+            .background(
+                isSelected ? Color.accentColor.opacity(0.10) : Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(
+                        isSelected ? Color.accentColor : Color(.separator).opacity(0.28),
+                        lineWidth: isSelected ? 1.5 : 1
+                    )
+            }
+            .overlay(alignment: .topTrailing) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .padding(AppSpacing.small)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(descriptor.title)
+        .accessibilityValue(isSelected ? "Selected" : "")
+        .accessibilityHint("Selects the \(descriptor.title) style")
+    }
+
+    private func previewSection(_ presentation: DashboardPresentationConfiguration) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Text("Preview")
+                .font(.headline)
+
+            presentationOption(presentation)
         }
     }
 
