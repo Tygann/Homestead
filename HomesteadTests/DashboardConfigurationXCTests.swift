@@ -276,19 +276,52 @@ final class DashboardConfigurationXCTests: XCTestCase {
                     "unit_of_measurement": .string("%")
                 ]
             ),
-            HAEntityDTO(entityID: "camera.driveway", state: "idle")
+            HAEntityDTO(entityID: "camera.driveway", state: "idle"),
+            HAEntityDTO(
+                entityID: "climate.thermostat",
+                state: "heat",
+                attributes: [
+                    "current_temperature": .number(70),
+                    "temperature": .number(72),
+                    "temperature_unit": .string("°F"),
+                    "min_temp": .number(50),
+                    "max_temp": .number(90),
+                    "target_temp_step": .number(1)
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "climate.read_only",
+                state: "heat",
+                attributes: [
+                    "current_temperature": .number(70),
+                    "temperature_unit": .string("°F")
+                ]
+            )
         ])
 
         let light = try XCTUnwrap(store.entityBox(for: "light.kitchen"))
         let temperature = try XCTUnwrap(store.entityBox(for: "sensor.temperature"))
         let battery = try XCTUnwrap(store.entityBox(for: "sensor.remote_battery"))
         let camera = try XCTUnwrap(store.entityBox(for: "camera.driveway"))
+        let thermostat = try XCTUnwrap(store.entityBox(for: "climate.thermostat"))
+        let readOnlyClimate = try XCTUnwrap(store.entityBox(for: "climate.read_only"))
 
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: light).kind, .control)
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: temperature).kind, .graph)
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: battery).kind, .status)
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: camera).kind, .camera)
         XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: temperature).contains(.gauge))
+        XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: battery).contains(.control))
+        XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: thermostat).contains(.control))
+        XCTAssertEqual(
+            DashboardPresentationCatalog.recommendation(for: thermostat),
+            .card(.control(layout: .square, featureVisibility: .automatic))
+        )
+        XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: readOnlyClimate).contains(.control))
+        XCTAssertEqual(
+            DashboardPresentationCatalog.recommendation(for: readOnlyClimate),
+            .card(.status(layout: .compact))
+        )
         XCTAssertEqual(
             DashboardPresentationCatalog.defaultPresentation(kind: .gauge, for: temperature),
             .card(.gauge(layout: .square))

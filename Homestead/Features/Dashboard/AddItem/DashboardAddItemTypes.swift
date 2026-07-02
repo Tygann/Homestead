@@ -31,6 +31,30 @@ enum DashboardAddRoute: Hashable {
     case sources(DashboardPresentationKind)
     case review(DashboardAddSource, DashboardPresentationKind)
     case options(DashboardAddSource, DashboardPresentationKind)
+    case header
+}
+
+enum DashboardAddGalleryItem: Identifiable {
+    case presentation(DashboardPresentationDescriptor)
+    case header
+
+    var id: String {
+        switch self {
+        case .presentation(let descriptor):
+            "presentation-\(descriptor.kind.rawValue)"
+        case .header:
+            "header"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .presentation(let descriptor):
+            descriptor.title
+        case .header:
+            "Header"
+        }
+    }
 }
 
 struct DashboardAddSummaryCandidate: Identifiable, Equatable {

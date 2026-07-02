@@ -19,6 +19,7 @@ Recommended reasoning level: High.
 - Made layout a secondary Add to Dashboard decision: Choose a Style now shows real default-presentation previews with direct Add actions, card-first source selection opens the same default preview, and alternate layouts live behind Customize Layout. Chip remains fixed-layout.
 - Flattened Add to Dashboard previews so real cards and chips sit directly on the grouped background without redundant source or preview containers; style metadata and layout customization remain lightweight surrounding controls.
 - Replaced schematic Cards gallery art with side-effect-free real renderer previews backed by private sample entities, kept a two-column phone/adaptive wider grid, and clarified Choose a Style with quiet source context, Add/Added capsules, and style-specific layout links.
+- Centered Cards gallery labels above their real previews, centered the real Chip preview, added the existing source-free Header through a focused title/preview add screen, and made the Control gallery sample a thermostat so the existing setpoint controls are visible without adding a separate public card type.
 
 - Added deterministic light/dark gauge-card previews plus a Debug-only live-preview simulator host backed by the existing ignored `PreviewCredentials.json`. `--live-preview` bypasses onboarding with side effects disabled, while optional `--preview-entity`, `--preview-size`, and `--preview-appearance` arguments replace only the preview-specific dashboard for focused screenshot verification.
 
@@ -241,6 +242,7 @@ Recommended reasoning level: High.
 - All 14 `DashboardConfigurationXCTests` passed after making catalog defaults the primary add path, including explicit default-layout validation.
 - Generic iOS Simulator build and all 14 `DashboardConfigurationXCTests` passed after flattening Add to Dashboard preview chrome and aligning card-first search placement with the root sheet.
 - Generic iOS Simulator build and all 14 `DashboardConfigurationXCTests` passed after the real-renderer gallery and final Add to Dashboard UI polish pass.
+- Generic iOS Simulator build and all 14 `DashboardConfigurationXCTests` passed after the gallery/header/climate consistency pass, including thermostat Control and read-only climate Status catalog coverage.
 - Focused routing/service tests passed on `platform=iOS Simulator,name=iPhone 17,OS=26.5` with `-derivedDataPath /tmp/HomesteadDerivedData-SSIDRoutingTests` after adding SSID-gated local routing.
 - Generic iOS Simulator, iPad Air 11-inch (M4) iOS 26.5, and Apple silicon Mac Designed-for-iPad builds passed after unified setup/discovery/iCloud restore. Full `HomesteadTests` passed on iPhone 17 iOS 26.5, including the clean-device no-default-upload regression.
 - Generic iOS Simulator, iPad Air 11-inch (M4) iOS 26.5, and Apple silicon Mac Designed-for-iPad builds passed with isolated derived-data paths after the platform-support review.

@@ -42,6 +42,8 @@ struct DashboardAddItemView: View {
                     DashboardPresentationReviewView(source: source, kind: kind, add: add)
                 case .options(let source, let kind):
                     DashboardPresentationOptionsView(source: source, kind: kind, add: add)
+                case .header:
+                    DashboardAddHeaderView(add: addHeader)
                 }
             }
             .onChange(of: mode) { _, _ in searchText = "" }
@@ -106,9 +108,9 @@ struct DashboardAddItemView: View {
                 columns: [GridItem(.adaptive(minimum: 156, maximum: 220), spacing: AppSpacing.medium)],
                 spacing: AppSpacing.xLarge
             ) {
-                ForEach(filteredPresentationDescriptors) { descriptor in
-                    NavigationLink(value: DashboardAddRoute.sources(descriptor.kind)) {
-                        DashboardPresentationGalleryTile(descriptor: descriptor)
+                ForEach(filteredGalleryItems) { item in
+                    NavigationLink(value: route(for: item)) {
+                        DashboardPresentationGalleryTile(item: item)
                     }
                     .buttonStyle(.plain)
                 }
@@ -117,7 +119,7 @@ struct DashboardAddItemView: View {
         }
         .background(Color(.systemGroupedBackground))
         .overlay {
-            if filteredPresentationDescriptors.isEmpty {
+            if filteredGalleryItems.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
         }
@@ -168,9 +170,10 @@ struct DashboardAddItemView: View {
         .frame(minHeight: 48)
     }
 
-    private var filteredPresentationDescriptors: [DashboardPresentationDescriptor] {
+    private var filteredGalleryItems: [DashboardAddGalleryItem] {
         let query = normalizedSearch
-        return DashboardPresentationCatalog.descriptors.filter {
+        let items = DashboardPresentationCatalog.descriptors.map(DashboardAddGalleryItem.presentation) + [.header]
+        return items.filter {
             query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
         }
     }
@@ -255,19 +258,35 @@ struct DashboardAddItemView: View {
         HapticFeedback.selection()
         onAddItem(itemID)
     }
+
+    private func addHeader(_ title: String) {
+        let itemID = dashboardConfiguration.addHeader(title: title)
+        HapticFeedback.selection()
+        onAddItem(itemID)
+    }
+
+    private func route(for item: DashboardAddGalleryItem) -> DashboardAddRoute {
+        switch item {
+        case .presentation(let descriptor):
+            .sources(descriptor.kind)
+        case .header:
+            .header
+        }
+    }
 }
 
 private struct DashboardPresentationGalleryTile: View {
-    let descriptor: DashboardPresentationDescriptor
+    let item: DashboardAddGalleryItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            DashboardPresentationGalleryPreview(kind: descriptor.kind)
-                .frame(height: DashboardPresentationGalleryPreview.previewHeight)
-
-            Text(descriptor.title)
+        VStack(alignment: .center, spacing: AppSpacing.small) {
+            Text(item.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            DashboardPresentationGalleryPreview(item: item)
+                .frame(height: DashboardPresentationGalleryPreview.previewHeight)
         }
         .contentShape(Rectangle())
     }
@@ -279,26 +298,34 @@ private struct DashboardPresentationGalleryPreview: View {
         cardPadding: AppSpacing.medium
     )
 
-    let kind: DashboardPresentationKind
+    let item: DashboardAddGalleryItem
 
     @ViewBuilder
     var body: some View {
-        if kind == .chip {
+        switch item {
+        case .presentation(let descriptor) where descriptor.kind == .chip:
             DashboardChipView(presentation: DashboardPresentationGallerySamples.chip)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
-        } else if let entityID = DashboardPresentationGallerySamples.entityID(for: kind) {
-            DashboardCardView(
-                entityID: entityID,
-                size: .square,
-                presentationKind: kind,
-                featureVisibility: .automatic,
-                isPreview: true
-            )
-            .environment(DashboardPresentationGallerySamples.stateStore)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        case .presentation(let descriptor):
+            if let entityID = DashboardPresentationGallerySamples.entityID(for: descriptor.kind) {
+                DashboardCardView(
+                    entityID: entityID,
+                    size: .square,
+                    presentationKind: descriptor.kind,
+                    featureVisibility: .automatic,
+                    isPreview: true
+                )
+                .environment(DashboardPresentationGallerySamples.stateStore)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        case .header:
+            DashboardHeaderCardView(title: "Living Room")
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 }
@@ -309,11 +336,17 @@ private enum DashboardPresentationGallerySamples {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(
-                entityID: "light.gallery",
-                state: "on",
+                entityID: "climate.gallery",
+                state: "heat",
                 attributes: [
-                    "friendly_name": .string("Living Room"),
-                    "brightness": .number(184)
+                    "friendly_name": .string("Thermostat"),
+                    "current_temperature": .number(70),
+                    "temperature": .number(72),
+                    "temperature_unit": .string("°F"),
+                    "min_temp": .number(50),
+                    "max_temp": .number(90),
+                    "target_temp_step": .number(1),
+                    "hvac_modes": .array([.string("off"), .string("heat"), .string("cool")])
                 ]
             ),
             HAEntityDTO(
@@ -383,7 +416,7 @@ private enum DashboardPresentationGallerySamples {
         case .chip:
             nil
         case .control:
-            "light.gallery"
+            "climate.gallery"
         case .status, .graph:
             "sensor.gallery_temperature"
         case .gauge:
@@ -397,6 +430,49 @@ private enum DashboardPresentationGallerySamples {
         case .action:
             "scene.gallery"
         }
+    }
+}
+
+private struct DashboardAddHeaderView: View {
+    @State private var title = "New Section"
+    @State private var isAdded = false
+    let add: (String) -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                TextField("Header Title", text: $title)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.done)
+
+                DashboardHeaderCardView(title: previewTitle)
+                    .allowsHitTesting(false)
+
+                Button {
+                    add(normalizedTitle)
+                    isAdded = true
+                } label: {
+                    Label(isAdded ? "Added" : "Add Header", systemImage: isAdded ? "checkmark" : "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(normalizedTitle.isEmpty || isAdded)
+            }
+            .padding(AppSpacing.large)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Header")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var normalizedTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var previewTitle: String {
+        normalizedTitle.isEmpty ? "Header" : normalizedTitle
     }
 }
 
