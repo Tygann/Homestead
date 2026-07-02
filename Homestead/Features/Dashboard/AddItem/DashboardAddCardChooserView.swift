@@ -142,7 +142,10 @@ struct DashboardPresentationReviewView: View {
                 }
 
                 if let selectedPresentation {
-                    presentationOption(selectedPresentation)
+                    presentationOption(
+                        selectedPresentation,
+                        showsPreview: styleDescriptors.count <= 1
+                    )
                 } else {
                     ContentUnavailableView("Item Unavailable", systemImage: "questionmark.circle")
                 }
@@ -222,18 +225,21 @@ struct DashboardPresentationReviewView: View {
             HapticFeedback.selection()
         } label: {
             VStack(spacing: AppSpacing.small) {
-                Image(systemName: descriptor.systemImage)
-                    .font(.title2.weight(.medium))
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-
                 Text(descriptor.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
+
+                if let previewPresentation = stylePreviewPresentation(for: descriptor) {
+                    DashboardAddStylePreview(
+                        source: source,
+                        presentation: previewPresentation
+                    )
+                }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 92)
+            .padding(AppSpacing.small)
             .background(
-                isSelected ? Color.accentColor.opacity(0.10) : Color(.secondarySystemGroupedBackground),
+                isSelected ? Color.accentColor.opacity(0.08) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
             .overlay {
@@ -257,6 +263,26 @@ struct DashboardPresentationReviewView: View {
         .accessibilityLabel(descriptor.title)
         .accessibilityValue(isSelected ? "Selected" : "")
         .accessibilityHint("Selects the \(descriptor.title) style")
+    }
+
+    private func stylePreviewPresentation(
+        for descriptor: DashboardPresentationStyleDescriptor
+    ) -> DashboardPresentationConfiguration? {
+        guard case .card(let card) = source.defaultPresentation(
+            kind: kind,
+            style: descriptor.style,
+            stateStore: stateStore
+        ) else { return nil }
+
+        let layout = resolvedLayout.flatMap { candidate in
+            DashboardPresentationCatalog.cardConfiguration(
+                kind: kind,
+                style: descriptor.style,
+                layout: candidate
+            ) == nil ? nil : candidate
+        } ?? card.layout
+
+        return .card(card.withLayout(layout))
     }
 
     private var layoutSelector: some View {
@@ -330,14 +356,19 @@ struct DashboardPresentationReviewView: View {
         .accessibilityHint("Selects the \(layout.chooserTitle) layout")
     }
 
-    private func presentationOption(_ presentation: DashboardPresentationConfiguration) -> some View {
+    private func presentationOption(
+        _ presentation: DashboardPresentationConfiguration,
+        showsPreview: Bool
+    ) -> some View {
         let isAdded = dashboardConfiguration.contains(
             source: source.reference,
             presentation: presentation
         )
 
         return VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            DashboardAddPresentationPreview(source: source, presentation: presentation)
+            if showsPreview {
+                DashboardAddPresentationPreview(source: source, presentation: presentation)
+            }
 
             Button {
                 add(source, presentation)
@@ -348,6 +379,44 @@ struct DashboardPresentationReviewView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(isAdded)
+        }
+    }
+}
+
+private struct DashboardAddStylePreview: View {
+    static let canvasHeight = DashboardCardSize.square.renderedHeight(
+        rowSpacing: AppSpacing.medium,
+        cardPadding: AppSpacing.medium
+    )
+
+    @Environment(HAStateStore.self) private var stateStore
+    let source: DashboardAddSource
+    let presentation: DashboardPresentationConfiguration
+
+    @ViewBuilder
+    var body: some View {
+        if case .card(let card) = presentation,
+           case .entity(let entityID) = source,
+           stateStore.entityBox(for: entityID) != nil {
+            let renderedHeight = card.layout.renderedHeight(
+                rowSpacing: AppSpacing.medium,
+                cardPadding: AppSpacing.medium
+            )
+            let scale = min(1, Self.canvasHeight / renderedHeight)
+
+            DashboardCardView(
+                entityID: entityID,
+                size: card.layout,
+                presentationKind: card.kind,
+                presentationStyle: card.style,
+                featureVisibility: card.featureVisibility,
+                isPreview: true
+            )
+            .frame(height: renderedHeight)
+            .scaleEffect(scale)
+            .frame(height: Self.canvasHeight)
+            .clipped()
+            .allowsHitTesting(false)
         }
     }
 }
