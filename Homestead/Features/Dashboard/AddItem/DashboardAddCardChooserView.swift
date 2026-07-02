@@ -68,7 +68,7 @@ struct DashboardChooseStyleView: View {
                 if kind == .chip {
                     DashboardAddPresentationPreview(source: source, presentation: presentation)
                 } else {
-                    NavigationLink(value: DashboardAddRoute.options(source, kind, presentation.style)) {
+                    NavigationLink(value: customizationRoute(for: kind, presentation: presentation)) {
                         VStack(spacing: AppSpacing.small) {
                             DashboardAddPresentationPreview(source: source, presentation: presentation)
 
@@ -111,7 +111,7 @@ struct DashboardChooseStyleView: View {
         descriptor: DashboardPresentationDescriptor
     ) -> String {
         source.styleDescriptors(kind: kind, stateStore: stateStore).count > 1
-            ? "Customize \(descriptor.title)"
+            ? "Choose \(descriptor.title) Style"
             : "Customize \(descriptor.title) Layout"
     }
 
@@ -120,15 +120,23 @@ struct DashboardChooseStyleView: View {
         descriptor: DashboardPresentationDescriptor
     ) -> String {
         source.styleDescriptors(kind: kind, stateStore: stateStore).count > 1
-            ? "Choose a style or layout for \(descriptor.title)"
+            ? "Choose a visual style for \(descriptor.title)"
             : "Choose another layout for \(descriptor.title)"
+    }
+
+    private func customizationRoute(
+        for kind: DashboardPresentationKind,
+        presentation: DashboardPresentationConfiguration
+    ) -> DashboardAddRoute {
+        source.styleDescriptors(kind: kind, stateStore: stateStore).count > 1
+            ? .review(source, kind)
+            : .options(source, kind, presentation.style)
     }
 }
 
 struct DashboardPresentationReviewView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @State private var selectedStyle: DashboardPresentationStyle?
 
     let source: DashboardAddSource
     let kind: DashboardPresentationKind
@@ -136,40 +144,16 @@ struct DashboardPresentationReviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.large) {
+            LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                 if styleDescriptors.count > 1 {
-                    stylePicker
-                }
-
-                if let presentation {
-                    DashboardAddPresentationPreview(source: source, presentation: presentation)
-
-                    Button {
-                        add(source, presentation)
-                    } label: {
-                        Label(isAlreadyAdded ? "Added" : "Add", systemImage: isAlreadyAdded ? "checkmark" : "plus")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(isAlreadyAdded)
-
-                    if case .card = presentation {
-                        NavigationLink(value: DashboardAddRoute.options(source, kind, resolvedStyle)) {
-                            HStack {
-                                Label(customizeTitle, systemImage: "rectangle.3.group")
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold))
-                            }
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                            .frame(minHeight: 44)
-                            .contentShape(Rectangle())
+                    ForEach(Array(styleDescriptors.enumerated()), id: \.element.id) { index, descriptor in
+                        if index > 0 {
+                            Divider()
                         }
-                        .buttonStyle(.plain)
+                        styleOption(descriptor)
                     }
+                } else if let presentation = source.defaultPresentation(kind: kind, stateStore: stateStore) {
+                    presentationOption(presentation)
                 } else {
                     ContentUnavailableView("Item Unavailable", systemImage: "questionmark.circle")
                 }
@@ -181,49 +165,75 @@ struct DashboardPresentationReviewView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var presentation: DashboardPresentationConfiguration? {
-        source.defaultPresentation(kind: kind, style: resolvedStyle, stateStore: stateStore)
-    }
-
-    private var isAlreadyAdded: Bool {
-        presentation.map {
-            dashboardConfiguration.contains(source: source.reference, presentation: $0)
-        } ?? false
-    }
-
     private var styleDescriptors: [DashboardPresentationStyleDescriptor] {
         source.styleDescriptors(kind: kind, stateStore: stateStore)
     }
 
-    private var resolvedStyle: DashboardPresentationStyle? {
-        selectedStyle ?? styleDescriptors.first?.style
+    @ViewBuilder
+    private func styleOption(_ descriptor: DashboardPresentationStyleDescriptor) -> some View {
+        if let presentation = source.defaultPresentation(
+            kind: kind,
+            style: descriptor.style,
+            stateStore: stateStore
+        ) {
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                Text(descriptor.title)
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                presentationOption(presentation)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("\(descriptor.title) style")
+        }
     }
 
-    private var stylePicker: some View {
-        Picker("Style", selection: Binding(
-            get: { resolvedStyle ?? styleDescriptors[0].style },
-            set: { selectedStyle = $0 }
-        )) {
-            ForEach(styleDescriptors) { descriptor in
-                Label(descriptor.title, systemImage: descriptor.systemImage)
-                    .tag(descriptor.style)
+    private func presentationOption(_ presentation: DashboardPresentationConfiguration) -> some View {
+        let isAdded = dashboardConfiguration.contains(
+            source: source.reference,
+            presentation: presentation
+        )
+
+        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            DashboardAddPresentationPreview(source: source, presentation: presentation)
+
+            Button {
+                add(source, presentation)
+            } label: {
+                Label(isAdded ? "Added" : "Add", systemImage: isAdded ? "checkmark" : "plus")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(isAdded)
+
+            if case .card(let card) = presentation {
+                NavigationLink(value: DashboardAddRoute.options(source, kind, card.style)) {
+                    HStack {
+                        Label("Customize Layout", systemImage: "rectangle.3.group")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
-        .pickerStyle(.segmented)
-    }
-
-    private var customizeTitle: String {
-        styleDescriptors.count > 1 ? "Customize Style & Layout" : "Customize Layout"
     }
 }
 
 struct DashboardPresentationOptionsView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @State private var selectedStyle: DashboardPresentationStyle?
 
     let source: DashboardAddSource
     let kind: DashboardPresentationKind
+    let initialStyle: DashboardPresentationStyle?
     let add: (DashboardAddSource, DashboardPresentationConfiguration) -> Void
 
     init(
@@ -234,8 +244,8 @@ struct DashboardPresentationOptionsView: View {
     ) {
         self.source = source
         self.kind = kind
+        self.initialStyle = initialStyle
         self.add = add
-        _selectedStyle = State(initialValue: initialStyle)
     }
 
     var body: some View {
@@ -244,10 +254,6 @@ struct DashboardPresentationOptionsView: View {
                 if kind == .chip {
                     ContentUnavailableView("No Layout Options", systemImage: "capsule")
                 } else if let entityBox {
-                    if styleDescriptors.count > 1 {
-                        stylePicker
-                    }
-
                     ForEach(DashboardPresentationCatalog.descriptor(for: kind).supportedLayouts, id: \.self) { layout in
                         cardOption(entityBox: entityBox, layout: layout)
                     }
@@ -258,7 +264,7 @@ struct DashboardPresentationOptionsView: View {
             .padding(AppSpacing.large)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle(styleDescriptors.count > 1 ? "Customize \(familyTitle)" : "Choose Layout")
+        .navigationTitle("Choose Layout")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -330,24 +336,7 @@ struct DashboardPresentationOptionsView: View {
     }
 
     private var resolvedStyle: DashboardPresentationStyle? {
-        selectedStyle ?? styleDescriptors.first?.style
-    }
-
-    private var familyTitle: String {
-        DashboardPresentationCatalog.descriptor(for: kind).title
-    }
-
-    private var stylePicker: some View {
-        Picker("Style", selection: Binding(
-            get: { resolvedStyle ?? styleDescriptors[0].style },
-            set: { selectedStyle = $0 }
-        )) {
-            ForEach(styleDescriptors) { descriptor in
-                Label(descriptor.title, systemImage: descriptor.systemImage)
-                    .tag(descriptor.style)
-            }
-        }
-        .pickerStyle(.segmented)
+        initialStyle ?? styleDescriptors.first?.style
     }
 }
 
