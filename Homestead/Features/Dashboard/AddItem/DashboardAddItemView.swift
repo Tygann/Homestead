@@ -107,9 +107,11 @@ struct DashboardAddItemView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: AppSpacing.xxLarge) {
                 ForEach(filteredGallerySections) { section in
-                    VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                    VStack(alignment: .leading, spacing: AppSpacing.large) {
                         Text(section.title)
-                            .font(.title3.weight(.bold))
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, AppSpacing.xSmall)
 
                         LazyVGrid(columns: galleryColumns, spacing: AppSpacing.xLarge) {
                             ForEach(section.items) { item in
@@ -342,23 +344,24 @@ private struct DashboardPresentationGalleryTile: View {
     var body: some View {
         VStack(alignment: .center, spacing: AppSpacing.small) {
             Text(item.title)
-                .font(.headline)
-                .foregroundStyle(.primary)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(item.isPlanned ? .secondary : .primary)
                 .frame(maxWidth: .infinity, alignment: .center)
 
             DashboardPresentationGalleryPreview(item: item)
-                .frame(height: DashboardPresentationGalleryPreview.previewHeight)
+                .frame(height: item.previewHeight)
         }
         .contentShape(Rectangle())
-        .opacity(item.isPlanned ? 0.55 : 1)
     }
 }
 
 private struct DashboardPresentationGalleryPreview: View {
-    static let previewHeight = DashboardCardSize.square.renderedHeight(
+    static let cardPreviewHeight = DashboardCardSize.square.renderedHeight(
         rowSpacing: AppSpacing.medium,
         cardPadding: AppSpacing.medium
     )
+    static let layoutPreviewHeight: CGFloat = 72
+    static let plannedPreviewHeight: CGFloat = 88
 
     let item: DashboardAddGalleryItem
 
@@ -389,16 +392,32 @@ private struct DashboardPresentationGalleryPreview: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         case .planned(let card):
-            VStack(spacing: AppSpacing.small) {
+            VStack(spacing: AppSpacing.xSmall) {
                 Image(systemName: card.systemImage)
-                    .font(.system(size: 36, weight: .medium))
+                    .font(.system(size: 32, weight: .medium))
 
                 Text("Coming Later")
-                    .font(.caption.weight(.semibold))
+                    .font(.caption2.weight(.medium))
             }
             .foregroundStyle(.secondary)
+            .opacity(0.72)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityHidden(true)
+        }
+    }
+}
+
+private extension DashboardAddGalleryItem {
+    var previewHeight: CGFloat {
+        switch self {
+        case .header:
+            DashboardPresentationGalleryPreview.layoutPreviewHeight
+        case .presentation(let descriptor):
+            descriptor.kind == .chip
+                ? DashboardPresentationGalleryPreview.layoutPreviewHeight
+                : DashboardPresentationGalleryPreview.cardPreviewHeight
+        case .planned:
+            DashboardPresentationGalleryPreview.plannedPreviewHeight
         }
     }
 }
