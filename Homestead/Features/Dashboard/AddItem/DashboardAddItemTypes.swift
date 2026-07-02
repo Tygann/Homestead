@@ -30,7 +30,6 @@ enum DashboardAddRoute: Hashable {
     case styles(DashboardAddSource)
     case sources(DashboardPresentationKind)
     case review(DashboardAddSource, DashboardPresentationKind)
-    case options(DashboardAddSource, DashboardPresentationKind, DashboardPresentationStyle?)
     case header
 }
 

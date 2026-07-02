@@ -41,13 +41,6 @@ struct DashboardAddItemView: View {
                     DashboardCompatibleSourcesView(kind: kind, add: add)
                 case .review(let source, let kind):
                     DashboardPresentationReviewView(source: source, kind: kind, add: add)
-                case .options(let source, let kind, let style):
-                    DashboardPresentationOptionsView(
-                        source: source,
-                        kind: kind,
-                        initialStyle: style,
-                        add: add
-                    )
                 case .header:
                     DashboardAddHeaderView(add: addHeader)
                 }
