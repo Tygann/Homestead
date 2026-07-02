@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-02
 
+### Intentional Dashboard Setup And Empty States
+
+- Added an explicit per-saved-dashboard setup state for never chosen, suggested, manual, and intentionally empty layouts. Existing non-empty dashboards migrate as manual, existing empty dashboards remain intentionally empty, and local reconciliation no longer treats emptiness as permission to reseed.
+- Unified first setup and restore behind a deterministic suggested-layout selector capped at eight high-value controls. It excludes hidden, unavailable, categorized, duplicate, technical, random-switch, and low-value sensor candidates while preserving catalog-recommended card presentations.
+- Replaced the crowded empty/edit-empty action row with stacked native actions, exposed Add Cards and Add Section from a dedicated dashboard toolbar menu outside edit mode, and added focused XCTest coverage for setup transitions, no-reseed behavior, and suggestion quality/order.
+
 ### Dashboard Presentation Styles
 
 - Added typed, persisted presentation styles beneath broad card families. Control records its source-derived Standard, Slider, or Thermostat style; Gauge supports real Circular and Bar renderers and exposes a style picker only because both are meaningful.

@@ -18,6 +18,7 @@ struct DashboardView: View {
     @State private var dashboardReconciliationGeneration = 0
     @State private var highlightedDashboardItemID: UUID?
     @State private var pendingScrollDashboardItemID: UUID?
+    @State private var isConfirmingSuggestedSetup = false
     @State private var gridDragState = DashboardEditDragState()
     @State private var gridDragCleanupTask: Task<Void, Never>?
     @State private var chipDragState = DashboardEditDragState()
@@ -49,16 +50,22 @@ struct DashboardView: View {
                     } else if !stateStore.hasEntities {
                         EmptyDashboardCard()
                     } else if visibleItemsSnapshot.isEmpty {
-                        EmptyConfiguredDashboardCard(
-                            isEditing: isEditingDashboard,
+                        DashboardEmptyStateView(
+                            style: dashboardConfiguration.setupState == .notChosen ? .setup : .empty,
                             addCards: {
+                                dashboardConfiguration.chooseManualSetup()
                                 addSheetMode = .items
                             },
                             addHeader: {
+                                dashboardConfiguration.chooseManualSetup()
                                 addHeaderAndRename()
                             },
-                            reset: {
-                                dashboardConfiguration.reset(using: stateStore.allEntities)
+                            useSuggestedSetup: {
+                                requestSuggestedSetup()
+                            },
+                            buildManually: {
+                                dashboardConfiguration.chooseManualSetup()
+                                addSheetMode = .items
                             }
                         )
                     } else {
@@ -84,11 +91,19 @@ struct DashboardView: View {
                         }
                     }
                 } else {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        optionsMenu
-                    }
+                    if dashboardConfiguration.setupState != .notChosen {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            addMenu
+                        }
 
-                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
+                        ToolbarItem(placement: .topBarTrailing) {
+                            optionsMenu
+                        }
+
+                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                    }
 
                     ToolbarItem(placement: .topBarTrailing) {
                         SettingsAccountButton()
@@ -144,6 +159,18 @@ struct DashboardView: View {
                 Button("Save", role: .confirm) {
                     saveEntityRename()
                 }
+            }
+            .confirmationDialog(
+                "Replace Dashboard?",
+                isPresented: $isConfirmingSuggestedSetup,
+                titleVisibility: .visible
+            ) {
+                Button("Use Suggested Setup", role: .destructive) {
+                    applySuggestedSetup()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This replaces the cards currently saved to this dashboard.")
             }
             .onAppear {
                 reconcileDashboardConfigurationIfReady()
@@ -225,6 +252,24 @@ struct DashboardView: View {
         
         dashboardConfiguration.reconcile(with: stateStore.allEntityBoxes())
         dashboardReconciliationGeneration &+= 1
+    }
+
+    private func requestSuggestedSetup() {
+        if dashboardConfiguration.items.isEmpty {
+            applySuggestedSetup()
+        } else {
+            isConfirmingSuggestedSetup = true
+        }
+    }
+
+    private func applySuggestedSetup() {
+        let applied = dashboardConfiguration.applySuggestedSetup(
+            using: stateStore.dashboardSuggestionCandidates()
+        )
+        if !applied {
+            dashboardConfiguration.chooseManualSetup()
+            addSheetMode = .items
+        }
     }
 
     private var isRenamingHeader: Binding<Bool> {
@@ -1243,23 +1288,32 @@ struct DashboardView: View {
         }
     }
     
-    // MARK: - Options Menu
-    private var optionsMenu: some View {
+    // MARK: - Toolbar Menus
+
+    private var addMenu: some View {
         Menu {
             Button {
+                dashboardConfiguration.chooseManualSetup()
                 addSheetMode = .items
             } label: {
-                Label("Add to Dashboard", systemImage: "plus.app")
+                Label("Add Cards", systemImage: "rectangle.stack.badge.plus")
             }
 
             Button {
+                dashboardConfiguration.chooseManualSetup()
                 addHeaderAndRename()
             } label: {
-                Label("Add Section Header", systemImage: "textformat.size")
+                Label("Add Section", systemImage: "textformat.size")
             }
+        } label: {
+            Image(systemName: "plus")
+                .bold()
+        }
+        .accessibilityLabel("Add to Dashboard")
+    }
 
-            Divider()
-
+    private var optionsMenu: some View {
+        Menu {
             Button {
                 isEditingDashboard = true
             } label: {

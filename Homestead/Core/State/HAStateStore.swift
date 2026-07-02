@@ -98,6 +98,23 @@ final class HAStateStore {
         allEntities.compactMap { entityBoxesByID[$0.entityID] }
     }
 
+    func dashboardSuggestionCandidates() -> [DashboardSuggestionCandidate] {
+        allEntityBoxes().map { entityBox in
+            let metadata = entityRegistryByID[entityBox.entityID]
+            return DashboardSuggestionCandidate(
+                entityID: entityBox.entityID,
+                domain: entityBox.domain,
+                displayName: entityBox.homeEntity.displayName,
+                isAvailable: entityBox.homeEntity.isAvailable,
+                isHidden: metadata?.hiddenBy == true,
+                entityCategory: metadata?.entityCategory?.nonEmptyValue
+                    ?? metadata?.entityCategoryIndex.map(String.init),
+                deviceClass: entityBox.sensorEntity?.deviceClass ?? entityBox.coverEntity?.deviceClass,
+                presentation: DashboardPresentationCatalog.recommendation(for: entityBox)
+            )
+        }
+    }
+
     func pendingCommand(for entityID: String) -> HAEntityPendingCommand? {
         pendingCommandsByID[entityID]
     }

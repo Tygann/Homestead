@@ -12,6 +12,9 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Reworked new-user and empty-dashboard behavior around an explicit per-dashboard setup choice: suggested setup is opt-in, Build My Own persists, removing the last item records an intentional empty state, and reconciliation never silently reseeds an empty dashboard.
+- Replaced the crowded empty/edit-empty chip actions with one calm card using stacked native buttons, added direct Add Cards/Add Section actions plus a dedicated toolbar add menu outside edit mode, and reframed restore as Restore Suggested Setup with overwrite confirmation when saved items still exist.
+- Replaced first-ten entity seeding with one deterministic suggested-setup selector capped at eight items. It filters hidden, unavailable, config/diagnostic, duplicate, technical scene/script, random switch, and low-value sensor candidates while preferring a small domain-diverse set of lights, climate, locks, covers, fans, weather, scenes/scripts, and clearly useful environmental sensors.
 - Rebuilt Add to Dashboard around a clean, versioned source + presentation configuration model. Items is the default source-first path, Cards provides the inverse presentation gallery, both share one compatibility/recommendation catalog, and exact source/presentation duplicates are prevented while distinct styles remain available.
 - Deliberately reset pre-release legacy/corrupt dashboard definitions and local selections instead of migrating them. The dashboard iCloud section sanitizes independently so server, appearance, and safety preferences remain intact.
 - Made Graph, Gauge, Camera, Control, Status, Weather, Media, and Action explicit card configurations with validated layouts; preview cards disable service actions, history requests, and camera snapshot loading.

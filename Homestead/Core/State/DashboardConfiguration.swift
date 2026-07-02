@@ -294,22 +294,51 @@ nonisolated struct DashboardItemConfiguration: Identifiable, Codable, Equatable,
     }
 }
 
+nonisolated enum DashboardSetupState: String, Codable, Equatable, Sendable {
+    case notChosen
+    case suggested
+    case manual
+    case intentionallyEmpty
+}
+
 nonisolated struct SavedDashboardConfiguration: Identifiable, Codable, Equatable, Sendable {
     var id: UUID
     var name: String
     var displayTitle: String
     var items: [DashboardItemConfiguration]
+    var setupState: DashboardSetupState
 
     init(
         id: UUID,
         name: String,
         displayTitle: String = DashboardConfigurationDefaults.dashboardTitle,
-        items: [DashboardItemConfiguration]
+        items: [DashboardItemConfiguration],
+        setupState: DashboardSetupState? = nil
     ) {
         self.id = id
         self.name = name
         self.displayTitle = displayTitle
         self.items = items
+        self.setupState = setupState ?? (items.isEmpty ? .notChosen : .manual)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case displayTitle
+        case items
+        case setupState
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        displayTitle = try container.decodeIfPresent(String.self, forKey: .displayTitle)
+            ?? DashboardConfigurationDefaults.dashboardTitle
+        items = try container.decode([DashboardItemConfiguration].self, forKey: .items)
+        setupState = try container.decodeIfPresent(DashboardSetupState.self, forKey: .setupState)
+            ?? (items.isEmpty ? .intentionallyEmpty : .manual)
     }
 
     var resolvedName: String {
@@ -321,6 +350,117 @@ nonisolated struct SavedDashboardConfiguration: Identifiable, Codable, Equatable
         let trimmed = displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? DashboardConfigurationDefaults.dashboardTitle : trimmed
     }
+}
+
+// MARK: - Suggested Setup
+
+nonisolated struct DashboardSuggestionCandidate: Equatable, Sendable {
+    let entityID: String
+    let domain: EntityDomain
+    let displayName: String
+    let isAvailable: Bool
+    let isHidden: Bool
+    let entityCategory: String?
+    let deviceClass: String?
+    let presentation: DashboardPresentationConfiguration
+}
+
+nonisolated enum DashboardSuggestedSetup {
+    static let maximumItemCount = 8
+
+    static func items(from candidates: [DashboardSuggestionCandidate]) -> [DashboardItemConfiguration] {
+        var domainCounts: [EntityDomain: Int] = [:]
+        var seenEntityIDs = Set<String>()
+
+        return candidates
+            .filter(isEligible)
+            .sorted(by: isHigherQuality)
+            .compactMap { candidate in
+                guard seenEntityIDs.insert(candidate.entityID).inserted else { return nil }
+                let count = domainCounts[candidate.domain, default: 0]
+                guard count < domainLimit(candidate.domain) else { return nil }
+                domainCounts[candidate.domain] = count + 1
+                return DashboardItemConfiguration.sourced(
+                    source: .entity(candidate.entityID),
+                    presentation: candidate.presentation
+                )
+            }
+            .prefix(maximumItemCount)
+            .map { $0 }
+    }
+
+    private static func isEligible(_ candidate: DashboardSuggestionCandidate) -> Bool {
+        guard candidate.isAvailable,
+              !candidate.isHidden,
+              candidate.entityCategory == nil else {
+            return false
+        }
+
+        switch candidate.domain {
+        case .light, .climate, .lock, .cover, .fan, .weather:
+            return true
+        case .scene, .script:
+            return !containsTechnicalName(candidate)
+        case .sensor:
+            return usefulSensorDeviceClasses.contains(candidate.deviceClass ?? "")
+        default:
+            return false
+        }
+    }
+
+    private static func isHigherQuality(
+        _ lhs: DashboardSuggestionCandidate,
+        _ rhs: DashboardSuggestionCandidate
+    ) -> Bool {
+        let lhsRank = domainRank(lhs.domain)
+        let rhsRank = domainRank(rhs.domain)
+        if lhsRank != rhsRank { return lhsRank < rhsRank }
+
+        let nameOrder = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+        if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+        return lhs.entityID.localizedCaseInsensitiveCompare(rhs.entityID) == .orderedAscending
+    }
+
+    private static func domainRank(_ domain: EntityDomain) -> Int {
+        switch domain {
+        case .light: 0
+        case .climate: 1
+        case .lock: 2
+        case .cover: 3
+        case .fan: 4
+        case .weather: 5
+        case .scene: 6
+        case .script: 7
+        case .sensor: 8
+        default: 100
+        }
+    }
+
+    private static func domainLimit(_ domain: EntityDomain) -> Int {
+        switch domain {
+        case .light: 3
+        case .cover: 2
+        case .sensor: 2
+        default: 1
+        }
+    }
+
+    private static func containsTechnicalName(_ candidate: DashboardSuggestionCandidate) -> Bool {
+        let searchableText = "\(candidate.displayName) \(candidate.entityID)".lowercased()
+        return ["debug", "notification", "reload", "restart", "test"].contains {
+            searchableText.contains($0)
+        }
+    }
+
+    private static let usefulSensorDeviceClasses: Set<String> = [
+        "air_quality",
+        "carbon_dioxide",
+        "humidity",
+        "pm1",
+        "pm10",
+        "pm25",
+        "temperature"
+    ]
 }
 
 nonisolated struct DashboardConfigurationDocument: Codable, Equatable, Sendable {
@@ -409,6 +549,7 @@ final class DashboardConfiguration {
     var syncSnapshot: DashboardConfigurationSyncSnapshot { DashboardConfigurationSyncSnapshot(dashboards: dashboards) }
     var selectedDashboard: SavedDashboardConfiguration { dashboards.first { $0.id == selectedDashboardID } ?? dashboards[0] }
     var items: [DashboardItemConfiguration] { selectedDashboard.items }
+    var setupState: DashboardSetupState { selectedDashboard.setupState }
 
     // MARK: Lifecycle
 
@@ -424,22 +565,6 @@ final class DashboardConfiguration {
         }
         if compatibleItems != items { updateSelectedDashboardItems(compatibleItems) }
 
-        guard self.items.isEmpty else { return }
-        let seededItems = entityBoxes
-            .sorted {
-                if $0.domain.dashboardPriority != $1.domain.dashboardPriority {
-                    return $0.domain.dashboardPriority < $1.domain.dashboardPriority
-                }
-                return $0.homeEntity.displayName.localizedCaseInsensitiveCompare($1.homeEntity.displayName) == .orderedAscending
-            }
-            .prefix(10)
-            .map { entityBox in
-                DashboardItemConfiguration.sourced(
-                    source: .entity(entityBox.entityID),
-                    presentation: DashboardPresentationCatalog.recommendation(for: entityBox)
-                )
-            }
-        updateSelectedDashboardItems(seededItems)
     }
 
     // MARK: Queries
@@ -491,14 +616,14 @@ final class DashboardConfiguration {
             return existing.id
         }
 
-        appendSelectedDashboardItem(item)
+        appendSelectedDashboardItem(item, setupState: .manual)
         return item.id
     }
 
     @discardableResult
     func addHeader(title: String) -> UUID {
         let item = DashboardItemConfiguration.header(title: normalizedHeaderTitle(title))
-        appendSelectedDashboardItem(item)
+        appendSelectedDashboardItem(item, setupState: .manual)
         return item.id
     }
 
@@ -506,25 +631,26 @@ final class DashboardConfiguration {
         guard let index = items.firstIndex(where: { $0.id == id && $0.role == .heading }) else { return }
         var updated = items
         updated[index].content = .heading(DashboardHeadingConfiguration(title: normalizedHeaderTitle(title)))
-        updateSelectedDashboardItems(updated)
+        updateSelectedDashboardItems(updated, setupState: .manual)
     }
 
     func renameDisplayItem(id: UUID, displayNameOverride: String?) {
         guard let index = items.firstIndex(where: { $0.id == id && $0.role != .heading }) else { return }
         var updated = items
         updated[index].displayNameOverride = normalizedOverride(displayNameOverride)
-        updateSelectedDashboardItems(updated)
+        updateSelectedDashboardItems(updated, setupState: .manual)
     }
 
     func setIconNameOverride(_ iconNameOverride: String?, forItemID itemID: UUID) {
         guard let index = items.firstIndex(where: { $0.id == itemID && $0.role != .heading }) else { return }
         var updated = items
         updated[index].iconNameOverride = normalizedOverride(iconNameOverride)
-        updateSelectedDashboardItems(updated)
+        updateSelectedDashboardItems(updated, setupState: .manual)
     }
 
     func removeItem(id: UUID) {
-        updateSelectedDashboardItems(items.filter { $0.id != id })
+        let updated = items.filter { $0.id != id }
+        updateSelectedDashboardItems(updated, setupState: updated.isEmpty ? .intentionallyEmpty : .manual)
     }
 
     func move(from source: IndexSet, to destination: Int) {
@@ -533,7 +659,7 @@ final class DashboardConfiguration {
         for index in source.sorted(by: >) { updated.remove(at: index) }
         let target = destination - source.filter { $0 < destination }.count
         updated.insert(contentsOf: moving, at: target)
-        updateSelectedDashboardItems(updated)
+        updateSelectedDashboardItems(updated, setupState: .manual)
     }
 
     func moveItems(in group: DashboardReorderGroup, from source: IndexSet, to destination: Int) {
@@ -546,7 +672,7 @@ final class DashboardConfiguration {
         reordered.insert(contentsOf: moving, at: target)
         var updated = items
         for (index, item) in zip(groupIndices, reordered) { updated[index] = item }
-        updateSelectedDashboardItems(updated)
+        updateSelectedDashboardItems(updated, setupState: .manual)
     }
 
     func moveVisibleGridItem(id: UUID, before targetID: UUID?, visibleGridItemIDs: [UUID]) {
@@ -557,11 +683,16 @@ final class DashboardConfiguration {
         moveVisibleItems(id: id, before: targetID, visibleItemIDs: visibleChipItemIDs)
     }
 
-    func reset(using entities: [HomeEntity]) {
-        let resetItems = Self.defaultEntityIDs(from: entities).map {
-            DashboardItemConfiguration.entityCard(entityID: $0, configuration: .status(layout: .compact))
-        }
-        updateSelectedDashboardItems(resetItems)
+    func chooseManualSetup() {
+        updateSelectedDashboard { $0.setupState = .manual }
+    }
+
+    @discardableResult
+    func applySuggestedSetup(using candidates: [DashboardSuggestionCandidate]) -> Bool {
+        let suggestedItems = DashboardSuggestedSetup.items(from: candidates)
+        guard !suggestedItems.isEmpty else { return false }
+        updateSelectedDashboardItems(suggestedItems, setupState: .suggested)
+        return true
     }
 
     func cardConfiguration(forItemID itemID: UUID) -> DashboardCardConfiguration? {
@@ -578,7 +709,7 @@ final class DashboardConfiguration {
             source: updated[index].source!,
             presentation: .card(updatedCard)
         ))
-        updateSelectedDashboardItems(updated)
+        updateSelectedDashboardItems(updated, setupState: .manual)
     }
 
     func featureVisibility(forItemID itemID: UUID) -> DashboardCardFeatureVisibility {
@@ -594,7 +725,7 @@ final class DashboardConfiguration {
             source: updated[index].source!,
             presentation: .card(updatedCard)
         ))
-        updateSelectedDashboardItems(updated)
+        updateSelectedDashboardItems(updated, setupState: .manual)
     }
 
     // MARK: Saved Dashboards
@@ -617,7 +748,8 @@ final class DashboardConfiguration {
             id: UUID(),
             name: uniqueDashboardName(normalizedDashboardName(name)),
             displayTitle: DashboardConfigurationDefaults.dashboardTitle,
-            items: []
+            items: [],
+            setupState: .notChosen
         )
         dashboards.append(dashboard)
         selectedDashboardID = dashboard.id
@@ -638,7 +770,8 @@ final class DashboardConfiguration {
             id: UUID(),
             name: uniqueDashboardName("Copy of \(source.resolvedName)"),
             displayTitle: source.resolvedDisplayTitle,
-            items: source.items.map { item in var copy = item; copy.id = UUID(); return copy }
+            items: source.items.map { item in var copy = item; copy.id = UUID(); return copy },
+            setupState: source.items.isEmpty ? .intentionallyEmpty : .manual
         )
         dashboards.append(dashboard)
         return dashboard.id
@@ -696,7 +829,7 @@ final class DashboardConfiguration {
             guard let id = iterator.next(), let item = byID[id] else { return }
             updated[index] = item
         }
-        updateSelectedDashboardItems(updated)
+        updateSelectedDashboardItems(updated, setupState: .manual)
     }
 
     private func saveDashboards() {
@@ -708,12 +841,21 @@ final class DashboardConfiguration {
         defaults.set(selectedDashboardID.uuidString, forKey: selectedDashboardIDKey)
     }
 
-    private func updateSelectedDashboardItems(_ items: [DashboardItemConfiguration]) {
-        updateSelectedDashboard { $0.items = DashboardConfigurationValidator.normalizedItems(items) }
+    private func updateSelectedDashboardItems(
+        _ items: [DashboardItemConfiguration],
+        setupState: DashboardSetupState? = nil
+    ) {
+        updateSelectedDashboard {
+            $0.items = DashboardConfigurationValidator.normalizedItems(items)
+            if let setupState { $0.setupState = setupState }
+        }
     }
 
-    private func appendSelectedDashboardItem(_ item: DashboardItemConfiguration) {
-        updateSelectedDashboard { $0.items.append(item) }
+    private func appendSelectedDashboardItem(_ item: DashboardItemConfiguration, setupState: DashboardSetupState) {
+        updateSelectedDashboard {
+            $0.items.append(item)
+            $0.setupState = setupState
+        }
     }
 
     private func updateSelectedDashboard(_ update: (inout SavedDashboardConfiguration) -> Void) {
@@ -768,21 +910,14 @@ final class DashboardConfiguration {
         return dashboards[0].id
     }
 
-    private static func defaultEntityIDs(from entities: [HomeEntity]) -> [String] {
-        let sorted = entities.sorted {
-            if $0.domain.dashboardPriority != $1.domain.dashboardPriority { return $0.domain.dashboardPriority < $1.domain.dashboardPriority }
-            return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
-        }
-        return Array(sorted.prefix(10).map(\.entityID))
-    }
-
     private static func normalizedDashboards(_ dashboards: [SavedDashboardConfiguration]) -> [SavedDashboardConfiguration] {
         let normalized = dashboards.map {
             SavedDashboardConfiguration(
                 id: $0.id,
                 name: $0.resolvedName,
                 displayTitle: $0.resolvedDisplayTitle,
-                items: DashboardConfigurationValidator.normalizedItems($0.items)
+                items: DashboardConfigurationValidator.normalizedItems($0.items),
+                setupState: $0.setupState
             )
         }
         return normalized.isEmpty ? [defaultDashboard()] : normalized
@@ -793,7 +928,8 @@ final class DashboardConfiguration {
             id: UUID(),
             name: DashboardConfigurationDefaults.dashboardName,
             displayTitle: DashboardConfigurationDefaults.dashboardTitle,
-            items: []
+            items: [],
+            setupState: .notChosen
         )
     }
 }

@@ -23,7 +23,7 @@ struct PreviewDependencies {
         let appearanceSettings = HomesteadAppearanceSettings(defaults: previewDefaults)
         let tabSettings = HomesteadTabSettings(defaults: previewDefaults)
         let iCloudSyncService = HomesteadICloudSyncService(defaults: previewDefaults)
-        dashboardConfiguration.reset(using: stateStore.allEntities)
+        _ = dashboardConfiguration.applySuggestedSetup(using: stateStore.dashboardSuggestionCandidates())
 
         let credential = PreviewCredentialProvider.sampleCredential(
             baseURL: "http://homeassistant.local:8123",

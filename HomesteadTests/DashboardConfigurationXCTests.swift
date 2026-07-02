@@ -351,9 +351,78 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertFalse(configuration.items.contains { $0.presentation?.kind == .camera })
         XCTAssertFalse(configuration.items.contains { $0.presentation?.style == .control(.thermostat) })
-        XCTAssertFalse(configuration.items.isEmpty, "A reset dashboard should reseed from valid catalog recommendations.")
-        XCTAssertEqual(configuration.items.first?.presentation?.kind, .control)
-        XCTAssertEqual(configuration.items.first?.presentation?.style, .control(.slider))
+        XCTAssertTrue(configuration.items.isEmpty)
+        XCTAssertEqual(configuration.setupState, .manual)
+    }
+
+    func testNewDashboardWaitsForAnExplicitSetupChoice() throws {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+
+        configuration.reconcile(with: store.allEntityBoxes())
+
+        XCTAssertEqual(configuration.setupState, .notChosen)
+        XCTAssertTrue(configuration.items.isEmpty)
+
+        configuration.chooseManualSetup()
+        let restored = DashboardConfiguration(defaults: defaults)
+        XCTAssertEqual(restored.setupState, .manual)
+        XCTAssertTrue(restored.items.isEmpty)
+    }
+
+    func testRemovingLastSuggestedItemPersistsIntentionalEmptyStateWithoutReseeding() throws {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let candidates = [suggestionCandidate(
+            entityID: "light.kitchen",
+            domain: .light,
+            displayName: "Kitchen"
+        )]
+
+        XCTAssertTrue(configuration.applySuggestedSetup(using: candidates))
+        XCTAssertEqual(configuration.setupState, .suggested)
+        let acceptedSetup = DashboardConfiguration(defaults: defaults)
+        XCTAssertEqual(acceptedSetup.setupState, .suggested)
+        let itemID = try XCTUnwrap(acceptedSetup.items.first?.id)
+
+        acceptedSetup.removeItem(id: itemID)
+        let restored = DashboardConfiguration(defaults: defaults)
+        XCTAssertEqual(restored.setupState, .intentionallyEmpty)
+        XCTAssertTrue(restored.items.isEmpty)
+
+        let store = HAStateStore()
+        store.applyInitialStates([HAEntityDTO(entityID: "light.kitchen", state: "on")])
+        restored.reconcile(with: store.allEntityBoxes())
+        XCTAssertTrue(restored.items.isEmpty)
+        XCTAssertEqual(restored.setupState, .intentionallyEmpty)
+    }
+
+    func testSuggestedSetupIsDeterministicAndFiltersLowQualityEntities() {
+        let candidates = [
+            suggestionCandidate(entityID: "sensor.temperature", domain: .sensor, displayName: "Temperature", deviceClass: "temperature"),
+            suggestionCandidate(entityID: "scene.good_night", domain: .scene, displayName: "Good Night"),
+            suggestionCandidate(entityID: "light.kitchen", domain: .light, displayName: "Kitchen"),
+            suggestionCandidate(entityID: "cover.garage", domain: .cover, displayName: "Garage Door", deviceClass: "garage"),
+            suggestionCandidate(entityID: "climate.hall", domain: .climate, displayName: "Hall Thermostat"),
+            suggestionCandidate(entityID: "switch.random_plug", domain: .switch, displayName: "Random Plug"),
+            suggestionCandidate(entityID: "sensor.router", domain: .sensor, displayName: "Router", entityCategory: "diagnostic", deviceClass: "temperature"),
+            suggestionCandidate(entityID: "light.hidden", domain: .light, displayName: "Hidden Light", isHidden: true),
+            suggestionCandidate(entityID: "lock.front_door", domain: .lock, displayName: "Front Door", isAvailable: false),
+            suggestionCandidate(entityID: "scene.restart_server", domain: .scene, displayName: "Restart Server")
+        ]
+
+        let first = DashboardSuggestedSetup.items(from: candidates)
+        let second = DashboardSuggestedSetup.items(from: Array(candidates.reversed()))
+
+        XCTAssertEqual(first.map(\.entityID), second.map(\.entityID))
+        XCTAssertEqual(
+            first.compactMap(\.entityID),
+            ["light.kitchen", "climate.hall", "cover.garage", "scene.good_night", "sensor.temperature"]
+        )
     }
 
     func testCatalogRecommendationsUseCapabilitiesRatherThanLiveState() throws {
@@ -486,6 +555,27 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
     private func makeDashboard(items: [DashboardItemConfiguration]) -> SavedDashboardConfiguration {
         SavedDashboardConfiguration(id: UUID(), name: "Dashboard", items: items)
+    }
+
+    private func suggestionCandidate(
+        entityID: String,
+        domain: EntityDomain,
+        displayName: String,
+        isAvailable: Bool = true,
+        isHidden: Bool = false,
+        entityCategory: String? = nil,
+        deviceClass: String? = nil
+    ) -> DashboardSuggestionCandidate {
+        DashboardSuggestionCandidate(
+            entityID: entityID,
+            domain: domain,
+            displayName: displayName,
+            isAvailable: isAvailable,
+            isHidden: isHidden,
+            entityCategory: entityCategory,
+            deviceClass: deviceClass,
+            presentation: .card(.status(layout: .compact))
+        )
     }
 
     private func makeDefaults() -> UserDefaults {
