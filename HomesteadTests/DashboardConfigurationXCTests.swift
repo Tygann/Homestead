@@ -145,6 +145,34 @@ final class DashboardConfigurationXCTests: XCTestCase {
         }
     }
 
+    func testGalleryCatalogSeparatesImplementedAndPlannedMetadata() {
+        XCTAssertEqual(
+            DashboardAddGallerySection.layout.items.map(\.title),
+            ["Header", "Chip"]
+        )
+
+        let implementedKinds: [DashboardPresentationKind] = DashboardAddGallerySection.cards.items.compactMap { item in
+            guard case .presentation(let descriptor) = item else { return nil }
+            return descriptor.kind
+        }
+        XCTAssertEqual(
+            implementedKinds,
+            [.control, .status, .gauge, .graph, .camera, .weather, .media, .action]
+        )
+        XCTAssertEqual(implementedKinds.count, DashboardAddGallerySection.cards.items.count)
+
+        let plannedItems = DashboardAddGallerySection.planned.items
+        XCTAssertEqual(
+            plannedItems.map(\.title),
+            ["Calendar", "Map", "Picture", "Area", "Person", "Energy", "Text", "Spacer"]
+        )
+        XCTAssertTrue(plannedItems.allSatisfy(\.isPlanned))
+        XCTAssertEqual(
+            DashboardAddGalleryCatalog.sections.contains(.planned),
+            DashboardAddGalleryCatalog.showsPlannedCards
+        )
+    }
+
     func testOldICloudDashboardSnapshotSanitizesWithoutDecodingItems() throws {
         let oldJSON = """
         {

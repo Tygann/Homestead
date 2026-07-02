@@ -6,6 +6,7 @@ struct DashboardAddItemView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var mode: DashboardAddItemMode
     @State private var searchText = ""
+    @State private var plannedCardNotice: DashboardPlannedGalleryCard?
     private let onAddItem: (UUID) -> Void
 
     init(initialMode: DashboardAddItemMode, onAddItem: @escaping (UUID) -> Void = { _ in }) {
@@ -104,23 +105,52 @@ struct DashboardAddItemView: View {
 
     private var cardsContent: some View {
         ScrollView {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 156, maximum: 220), spacing: AppSpacing.medium)],
-                spacing: AppSpacing.xLarge
-            ) {
-                ForEach(filteredGalleryItems) { item in
-                    NavigationLink(value: route(for: item)) {
-                        DashboardPresentationGalleryTile(item: item)
+            LazyVStack(alignment: .leading, spacing: AppSpacing.xxLarge) {
+                ForEach(filteredGallerySections) { section in
+                    VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                        Text(section.title)
+                            .font(.title3.weight(.bold))
+
+                        LazyVGrid(columns: galleryColumns, spacing: AppSpacing.xLarge) {
+                            ForEach(section.items) { item in
+                                galleryItem(item)
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(AppSpacing.large)
         }
         .background(Color(.systemGroupedBackground))
         .overlay {
-            if filteredGalleryItems.isEmpty {
+            if filteredGallerySections.isEmpty {
                 ContentUnavailableView.search(text: searchText)
+            }
+        }
+        .alert("Not Available Yet", isPresented: plannedNoticeIsPresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(plannedNoticeMessage)
+        }
+    }
+
+    @ViewBuilder
+    private func galleryItem(_ item: DashboardAddGalleryItem) -> some View {
+        switch item {
+        case .planned(let card):
+            Button {
+                plannedCardNotice = card
+            } label: {
+                DashboardPresentationGalleryTile(item: item)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Not available yet")
+        case .presentation, .header:
+            if let route = route(for: item) {
+                NavigationLink(value: route) {
+                    DashboardPresentationGalleryTile(item: item)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -170,11 +200,18 @@ struct DashboardAddItemView: View {
         .frame(minHeight: 48)
     }
 
-    private var filteredGalleryItems: [DashboardAddGalleryItem] {
+    private var galleryColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 156, maximum: 220), spacing: AppSpacing.medium)]
+    }
+
+    private var filteredGallerySections: [DashboardAddGallerySectionContent] {
         let query = normalizedSearch
-        let items = DashboardPresentationCatalog.descriptors.map(DashboardAddGalleryItem.presentation) + [.header]
-        return items.filter {
-            query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
+        return DashboardAddGalleryCatalog.sections.compactMap { section in
+            let items = section.items.filter {
+                query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
+            }
+            guard !items.isEmpty else { return nil }
+            return DashboardAddGallerySectionContent(section: section, items: items)
         }
     }
 
@@ -265,14 +302,38 @@ struct DashboardAddItemView: View {
         onAddItem(itemID)
     }
 
-    private func route(for item: DashboardAddGalleryItem) -> DashboardAddRoute {
+    private func route(for item: DashboardAddGalleryItem) -> DashboardAddRoute? {
         switch item {
         case .presentation(let descriptor):
             .sources(descriptor.kind)
         case .header:
             .header
+        case .planned:
+            nil
         }
     }
+
+    private var plannedNoticeIsPresented: Binding<Bool> {
+        Binding(
+            get: { plannedCardNotice != nil },
+            set: { isPresented in
+                if !isPresented { plannedCardNotice = nil }
+            }
+        )
+    }
+
+    private var plannedNoticeMessage: String {
+        guard let plannedCardNotice else { return "This card hasn’t been built yet." }
+        return "\(plannedCardNotice.title) hasn’t been built yet."
+    }
+}
+
+private struct DashboardAddGallerySectionContent: Identifiable {
+    let section: DashboardAddGallerySection
+    let items: [DashboardAddGalleryItem]
+
+    var id: DashboardAddGallerySection { section }
+    var title: String { section.rawValue }
 }
 
 private struct DashboardPresentationGalleryTile: View {
@@ -289,6 +350,7 @@ private struct DashboardPresentationGalleryTile: View {
                 .frame(height: DashboardPresentationGalleryPreview.previewHeight)
         }
         .contentShape(Rectangle())
+        .opacity(item.isPlanned ? 0.55 : 1)
     }
 }
 
@@ -326,6 +388,17 @@ private struct DashboardPresentationGalleryPreview: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+        case .planned(let card):
+            VStack(spacing: AppSpacing.small) {
+                Image(systemName: card.systemImage)
+                    .font(.system(size: 36, weight: .medium))
+
+                Text("Coming Later")
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityHidden(true)
         }
     }
 }

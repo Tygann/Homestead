@@ -37,6 +37,7 @@ enum DashboardAddRoute: Hashable {
 enum DashboardAddGalleryItem: Identifiable {
     case presentation(DashboardPresentationDescriptor)
     case header
+    case planned(DashboardPlannedGalleryCard)
 
     var id: String {
         switch self {
@@ -44,6 +45,8 @@ enum DashboardAddGalleryItem: Identifiable {
             "presentation-\(descriptor.kind.rawValue)"
         case .header:
             "header"
+        case .planned(let card):
+            "planned-\(card.rawValue)"
         }
     }
 
@@ -53,6 +56,84 @@ enum DashboardAddGalleryItem: Identifiable {
             descriptor.title
         case .header:
             "Header"
+        case .planned(let card):
+            card.title
+        }
+    }
+
+    var isPlanned: Bool {
+        if case .planned = self { return true }
+        return false
+    }
+}
+
+enum DashboardPlannedGalleryCard: String, CaseIterable, Identifiable {
+    case calendar
+    case map
+    case picture
+    case area
+    case person
+    case energy
+    case text
+    case spacer
+
+    var id: Self { self }
+    var title: String { rawValue.capitalized }
+
+    var systemImage: String {
+        switch self {
+        case .calendar: "calendar"
+        case .map: "map"
+        case .picture: "photo"
+        case .area: "square.grid.2x2"
+        case .person: "person.crop.circle"
+        case .energy: "bolt.fill"
+        case .text: "textformat"
+        case .spacer: "arrow.up.and.down"
+        }
+    }
+}
+
+enum DashboardAddGallerySection: String, CaseIterable, Identifiable {
+    case layout = "Layout"
+    case cards = "Cards"
+    case planned = "Planned"
+
+    var id: Self { self }
+
+    var items: [DashboardAddGalleryItem] {
+        switch self {
+        case .layout:
+            [
+                .header,
+                .presentation(DashboardPresentationCatalog.descriptor(for: .chip))
+            ]
+        case .cards:
+            [
+                .control,
+                .status,
+                .gauge,
+                .graph,
+                .camera,
+                .weather,
+                .media,
+                .action
+            ].map {
+                .presentation(DashboardPresentationCatalog.descriptor(for: $0))
+            }
+        case .planned:
+            DashboardPlannedGalleryCard.allCases.map(DashboardAddGalleryItem.planned)
+        }
+    }
+}
+
+enum DashboardAddGalleryCatalog {
+    // Keep planned roadmap metadata easy to hide before a public release.
+    static let showsPlannedCards = true
+
+    static var sections: [DashboardAddGallerySection] {
+        DashboardAddGallerySection.allCases.filter {
+            showsPlannedCards || $0 != .planned
         }
     }
 }
