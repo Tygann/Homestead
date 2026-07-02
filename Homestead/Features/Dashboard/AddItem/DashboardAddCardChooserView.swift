@@ -10,6 +10,11 @@ struct DashboardChooseStyleView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                Text(source.contextTitle(stateStore: stateStore))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
                 ForEach(compatibleKinds, id: \.self) { kind in
                     styleChoice(kind: kind)
                 }
@@ -50,15 +55,14 @@ struct DashboardChooseStyleView: View {
                     Button {
                         add(source, presentation)
                     } label: {
-                        Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(isAdded ? Color.secondary : Color.accentColor)
-                            .frame(width: 44, height: 44)
+                        Label(isAdded ? "Added" : "Add", systemImage: isAdded ? "checkmark" : "plus")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .frame(minHeight: 44)
                     .disabled(isAdded)
                     .accessibilityLabel(isAdded ? "\(descriptor.title) added" : "Add \(descriptor.title)")
-                    .accessibilityHint(isAdded ? "" : "Adds the suggested layout")
+                    .accessibilityHint(isAdded ? "" : "Adds the default \(descriptor.title)")
                 }
 
                 if kind == .chip || isAdded {
@@ -69,7 +73,7 @@ struct DashboardChooseStyleView: View {
                             DashboardAddPresentationPreview(source: source, presentation: presentation)
 
                             HStack {
-                                Text("Customize Layout")
+                                Text("Customize \(descriptor.title) Layout")
                                 Spacer()
                                 Image(systemName: "chevron.right")
                             }
@@ -279,6 +283,15 @@ private struct DashboardAddPresentationPreview: View {
 }
 
 private extension DashboardAddSource {
+    func contextTitle(stateStore: HAStateStore) -> String {
+        switch self {
+        case .summary(let kind):
+            kind.title
+        case .entity(let entityID):
+            stateStore.entityBox(for: entityID)?.homeEntity.displayName ?? entityID
+        }
+    }
+
     func defaultPresentation(
         kind: DashboardPresentationKind,
         stateStore: HAStateStore

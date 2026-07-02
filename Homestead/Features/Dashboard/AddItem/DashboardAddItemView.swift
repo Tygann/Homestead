@@ -102,7 +102,10 @@ struct DashboardAddItemView: View {
 
     private var cardsContent: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 148), spacing: AppSpacing.medium)], spacing: AppSpacing.medium) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 156, maximum: 220), spacing: AppSpacing.medium)],
+                spacing: AppSpacing.xLarge
+            ) {
                 ForEach(filteredPresentationDescriptors) { descriptor in
                     NavigationLink(value: DashboardAddRoute.sources(descriptor.kind)) {
                         DashboardPresentationGalleryTile(descriptor: descriptor)
@@ -258,169 +261,141 @@ private struct DashboardPresentationGalleryTile: View {
     let descriptor: DashboardPresentationDescriptor
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                .fill(Color(.tertiarySystemGroupedBackground))
-                .frame(height: 92)
-                .overlay {
-                    DashboardPresentationGalleryPreview(kind: descriptor.kind)
-                        .padding(AppSpacing.medium)
-                }
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            DashboardPresentationGalleryPreview(kind: descriptor.kind)
+                .frame(height: DashboardPresentationGalleryPreview.previewHeight)
 
             Text(descriptor.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
         }
-        .padding(AppSpacing.medium)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .contentShape(Rectangle())
     }
 }
 
 private struct DashboardPresentationGalleryPreview: View {
+    static let previewHeight = DashboardCardSize.square.renderedHeight(
+        rowSpacing: AppSpacing.medium,
+        cardPadding: AppSpacing.medium
+    )
+
     let kind: DashboardPresentationKind
 
+    @ViewBuilder
     var body: some View {
-        Group {
-            switch kind {
-            case .chip:
-                HStack(spacing: AppSpacing.small) {
-                    previewIcon("lightbulb.fill")
-                    previewLines
-                }
-                .padding(.horizontal, AppSpacing.medium)
-                .frame(height: 38)
-                .background(Color(.secondarySystemGroupedBackground), in: Capsule())
-            case .control:
-                miniCard {
-                    HStack {
-                        previewIcon("lightbulb.fill")
-                        previewLines
-                        Spacer(minLength: AppSpacing.small)
-                        Circle()
-                            .fill(Color.accentColor)
-                            .frame(width: 22, height: 22)
-                            .overlay {
-                                Circle().fill(.white).frame(width: 8, height: 8)
-                            }
-                    }
-                }
-            case .status:
-                miniCard {
-                    HStack {
-                        previewIcon("thermometer.medium")
-                        previewLines
-                        Spacer(minLength: AppSpacing.small)
-                        Text("72°")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            case .gauge:
-                ZStack {
-                    Circle()
-                        .stroke(Color.secondary.opacity(0.18), lineWidth: 8)
-                    Circle()
-                        .trim(from: 0, to: 0.72)
-                        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                    Text("72")
-                        .font(.headline.monospacedDigit())
-                }
-                .frame(width: 62, height: 62)
-            case .graph:
-                graphPreview
-            case .camera:
-                ZStack(alignment: .bottomLeading) {
-                    RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                        .fill(Color.secondary.opacity(0.12))
-                    Image(systemName: "camera.fill")
-                        .font(.title2)
-                        .foregroundStyle(Color.accentColor)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    previewLines
-                        .padding(AppSpacing.small)
-                }
-            case .weather:
-                miniCard {
-                    HStack(spacing: AppSpacing.medium) {
-                        Image(systemName: "cloud.sun.fill")
-                            .font(.title)
-                            .symbolRenderingMode(.multicolor)
-                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                            Text("72°").font(.title3.weight(.semibold))
-                            previewBar(width: 44)
-                        }
-                    }
-                }
-            case .media:
-                miniCard {
-                    HStack(spacing: AppSpacing.medium) {
-                        Image(systemName: "play.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(Color.accentColor)
-                        VStack(alignment: .leading, spacing: AppSpacing.small) {
-                            previewLines
-                            previewBar(width: 68)
-                        }
-                    }
-                }
-            case .action:
-                Button {} label: {
-                    Label("Run", systemImage: "sparkles")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(true)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityHidden(true)
-    }
-
-    private func miniCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .padding(AppSpacing.medium)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-    }
-
-    private func previewIcon(_ systemImage: String) -> some View {
-        Image(systemName: systemImage)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Color.accentColor)
-            .frame(width: 28, height: 28)
-            .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-    }
-
-    private var previewLines: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-            previewBar(width: 56)
-            previewBar(width: 38)
-                .opacity(0.55)
+        if kind == .chip {
+            DashboardChipView(presentation: DashboardPresentationGallerySamples.chip)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        } else if let entityID = DashboardPresentationGallerySamples.entityID(for: kind) {
+            DashboardCardView(
+                entityID: entityID,
+                size: .square,
+                presentationKind: kind,
+                featureVisibility: .automatic,
+                isPreview: true
+            )
+            .environment(DashboardPresentationGallerySamples.stateStore)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
     }
+}
 
-    private func previewBar(width: CGFloat) -> some View {
-        Capsule()
-            .fill(Color.secondary.opacity(0.32))
-            .frame(width: width, height: 5)
-    }
+@MainActor
+private enum DashboardPresentationGallerySamples {
+    static let stateStore: HAStateStore = {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "light.gallery",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Living Room"),
+                    "brightness": .number(184)
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.gallery_temperature",
+                state: "72",
+                attributes: [
+                    "friendly_name": .string("Hallway"),
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.gallery_battery",
+                state: "74",
+                attributes: [
+                    "friendly_name": .string("Front Door Battery"),
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "camera.gallery",
+                state: "idle",
+                attributes: ["friendly_name": .string("Driveway")]
+            ),
+            HAEntityDTO(
+                entityID: "weather.gallery",
+                state: "partlycloudy",
+                attributes: [
+                    "friendly_name": .string("Home Weather"),
+                    "temperature": .number(73),
+                    "temperature_unit": .string("°F"),
+                    "humidity": .number(56),
+                    "wind_speed": .number(8),
+                    "wind_speed_unit": .string("mph")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "media_player.gallery",
+                state: "playing",
+                attributes: [
+                    "friendly_name": .string("Living Room TV"),
+                    "volume_level": .number(0.42),
+                    "media_title": .string("Morning Mix"),
+                    "media_artist": .string("Homestead Radio")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "scene.gallery",
+                state: "scening",
+                attributes: ["friendly_name": .string("Movie Night")]
+            )
+        ])
+        return store
+    }()
 
-    private var graphPreview: some View {
-        GeometryReader { proxy in
-            ZStack {
-                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
+    static let chip = DashboardChipPresentation(
+        title: "Living Room",
+        value: "On",
+        systemImage: "lightbulb.fill",
+        isActive: true,
+        isAvailable: true
+    )
 
-                Path { path in
-                    path.move(to: CGPoint(x: 8, y: proxy.size.height * 0.72))
-                    path.addLine(to: CGPoint(x: proxy.size.width * 0.28, y: proxy.size.height * 0.48))
-                    path.addLine(to: CGPoint(x: proxy.size.width * 0.48, y: proxy.size.height * 0.62))
-                    path.addLine(to: CGPoint(x: proxy.size.width * 0.68, y: proxy.size.height * 0.30))
-                    path.addLine(to: CGPoint(x: proxy.size.width - 8, y: proxy.size.height * 0.40))
-                }
-                .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-            }
+    static func entityID(for kind: DashboardPresentationKind) -> String? {
+        switch kind {
+        case .chip:
+            nil
+        case .control:
+            "light.gallery"
+        case .status, .graph:
+            "sensor.gallery_temperature"
+        case .gauge:
+            "sensor.gallery_battery"
+        case .camera:
+            "camera.gallery"
+        case .weather:
+            "weather.gallery"
+        case .media:
+            "media_player.gallery"
+        case .action:
+            "scene.gallery"
         }
     }
 }
