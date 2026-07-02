@@ -469,7 +469,11 @@ private struct DashboardCompatibleSourcesView: View {
                 }
             }
         }
-        .searchable(text: $searchText, prompt: "Search")
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .automatic),
+            prompt: "Search"
+        )
         .navigationTitle(DashboardPresentationCatalog.descriptor(for: kind).title)
     }
 

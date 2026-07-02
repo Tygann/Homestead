@@ -9,9 +9,7 @@ struct DashboardChooseStyleView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.large) {
-                DashboardAddSourceHeader(source: source)
-
+            LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                 ForEach(compatibleKinds, id: \.self) { kind in
                     styleChoice(kind: kind)
                 }
@@ -83,11 +81,6 @@ struct DashboardChooseStyleView: View {
                     .accessibilityHint("Choose another layout for \(descriptor.title)")
                 }
             }
-            .padding(AppSpacing.medium)
-            .background(
-                Color(.secondarySystemGroupedBackground),
-                in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-            )
         }
     }
 
@@ -121,15 +114,8 @@ struct DashboardPresentationReviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.large) {
-                DashboardAddSourceHeader(source: source)
-
                 if let presentation {
                     DashboardAddPresentationPreview(source: source, presentation: presentation)
-                        .padding(AppSpacing.medium)
-                        .background(
-                            Color(.secondarySystemGroupedBackground),
-                            in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                        )
 
                     Button {
                         add(source, presentation)
@@ -143,11 +129,19 @@ struct DashboardPresentationReviewView: View {
 
                     if case .card = presentation, !isAlreadyAdded {
                         NavigationLink(value: DashboardAddRoute.options(source, kind)) {
-                            Label("Customize Layout", systemImage: "rectangle.3.group")
-                                .frame(maxWidth: .infinity)
+                            HStack {
+                                Label("Customize Layout", systemImage: "rectangle.3.group")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
+                        .buttonStyle(.plain)
                     }
                 } else {
                     ContentUnavailableView("Item Unavailable", systemImage: "questionmark.circle")
@@ -248,39 +242,6 @@ struct DashboardPresentationOptionsView: View {
 
     private var isAlreadyAdded: Bool {
         dashboardConfiguration.contains(source: source.reference, presentationKind: kind)
-    }
-}
-
-private struct DashboardAddSourceHeader: View {
-    @Environment(HAStateStore.self) private var stateStore
-    let source: DashboardAddSource
-
-    var body: some View {
-        Group {
-            switch source {
-            case .summary(let kind):
-                Label(kind.title, systemImage: kind.systemImage)
-                    .font(.headline)
-            case .entity(let entityID):
-                if let entityBox = stateStore.entityBox(for: entityID) {
-                    Label {
-                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                            Text(entityBox.homeEntity.displayName).font(.headline)
-                            Text(entityID).font(.caption).foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        HomesteadIconView(icon: entityBox.homeEntity.resolvedIcon, pointSize: 20)
-                            .foregroundStyle(Color.accentColor)
-                    }
-                }
-            }
-        }
-        .padding(AppSpacing.medium)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            Color(.secondarySystemGroupedBackground),
-            in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-        )
     }
 }
 
