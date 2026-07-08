@@ -128,10 +128,10 @@ struct DashboardPresentationReviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                Text(source.contextTitle(stateStore: stateStore))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+//                Text(source.contextTitle(stateStore: stateStore))
+//                    .font(.subheadline.weight(.medium))
+//                    .foregroundStyle(.secondary)
+//                    .lineLimit(1)
 
                 if styleDescriptors.count > 1 {
                     styleSelector
@@ -153,8 +153,18 @@ struct DashboardPresentationReviewView: View {
             .padding(AppSpacing.large)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle(DashboardPresentationCatalog.descriptor(for: kind).title)
+//        .navigationTitle(DashboardPresentationCatalog.descriptor(for: kind).title)
+        .navigationTitle("Add \(DashboardPresentationCatalog.descriptor(for: kind).title) Card")
+        .navigationSubtitle(source.contextTitle(stateStore: stateStore))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .confirm) {
+                    // TODO: Move add confirmation button here
+//                    add(source, presentation)
+                }
+            }
+        }
     }
 
     private var styleDescriptors: [DashboardPresentationStyleDescriptor] {
@@ -506,3 +516,14 @@ extension DashboardAddSource {
         }
     }
 }
+
+// TODO: Add previewer
+
+//#if DEBUG
+//#Preview {
+//    NavigationStack {
+//
+//    }
+//    .withPreviewEnvironment()
+//}
+//#endif

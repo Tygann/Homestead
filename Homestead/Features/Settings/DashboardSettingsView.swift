@@ -232,6 +232,19 @@ private struct DashboardSettingsRow<Detail: View>: View {
                 showsReorder: showsReorder
             )
         }
+        // TODO: Move menu items to swipe actions instead
+        .swipeActions(edge: .trailing) {
+            Button {
+//                favoritesManager.toggleFavorite(for: festival.id)
+            } label: {
+                Label(
+//                    favoritesManager.isFavorite(festivalID: festival.id) ? "Unfavorite" : "Favorite",
+//                    systemImage: favoritesManager.isFavorite(festivalID: festival.id) ? "star.slash" : "star"
+                    "hi", systemImage: "star"
+                )
+            }
+            .tint(.yellow)
+        }
     }
 }
 

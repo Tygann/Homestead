@@ -79,6 +79,14 @@ xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'platform
 - If the named simulator is unavailable, inspect local simulators and choose an installed iPhone runtime.
 - Docs-only changes do not require a build.
 
+## Live Browser Simulator
+
+- When the in-app browser is mirroring the iOS Simulator through `serve-sim`, keep the mirror pinned to one simulator UDID and reuse that same simulator for rebuilds.
+- Do not call `build_run_sim` with empty launch arguments during preview-oriented browser work unless the user explicitly asks to test the normal app launch or onboarding path.
+- For live Home Assistant preview work, rebuild and relaunch with `--live-preview`. Preserve any focused arguments such as `--preview-entity`, `--preview-size`, and `--preview-appearance` across rebuilds.
+- For UI-only Settings or sample-data checks, launch the Debug-only screen route instead of temporarily editing `HomesteadApp`: `--preview-screen appearance`.
+- After each rebuild, verify a real simulator frame in the browser mirror or capture a simulator screenshot before reporting UI results.
+
 ## Xcode Storage Hygiene
 
 - Prefer focused tests over broad simulator test suites unless broad coverage is needed for the change.

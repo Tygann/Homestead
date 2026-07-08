@@ -12,6 +12,7 @@ struct AppearanceSettingsView: View {
     var body: some View {
         Form {
             displaySection
+            colorSection
             wallpaperSection
             navigationSection
         }
@@ -41,6 +42,54 @@ struct AppearanceSettingsView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
         }
+    }
+
+    // MARK: - Color
+
+    private var colorSection: some View {
+        Section("Color") {
+            HStack {
+                Text("App Color")
+
+                Spacer()
+
+                appColorMenu
+            }
+        }
+    }
+
+    private var appColorMenu: some View {
+        Menu {
+            ForEach(HomesteadAppColor.allCases) { appColor in
+                Button {
+                    appearanceSettings.appColor = appColor
+                } label: {
+                    HStack {
+                        Label {
+                            Text(appColor.displayName)
+                        } icon: {
+                            AppColorMenuSwatch(appColor: appColor)
+                        }
+
+                        if appColor == appearanceSettings.appColor {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                .tint(Color(appColor.uiColor))
+            }
+        } label: {
+            HStack(spacing: 6) {
+                AppColorSwatch(appColor: appearanceSettings.appColor, size: 12)
+
+                Text(appearanceSettings.appColor.displayName)
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.weight(.semibold))
+            }
+            .foregroundStyle(.secondary)
+        }
+        .tint(.secondary)
     }
 
     // MARK: - Wallpaper
@@ -125,8 +174,8 @@ struct AppearanceSettingsView: View {
             .tint(.secondary)
         } header: {
             Text("Navigation")
-        } footer: {
-            Text("Browse stays separate.")
+//        } footer: {
+//            Text("Browse stays separate.")
         }
     }
 
@@ -163,6 +212,32 @@ struct AppearanceSettingsView: View {
         } catch {
             importErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+}
+
+private struct AppColorSwatch: View {
+    let appColor: HomesteadAppColor
+    let size: CGFloat
+
+    var body: some View {
+        Circle()
+            .fill(Color(appColor.uiColor))
+            .frame(width: size, height: size)
+            .overlay {
+                Circle()
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+            }
+            .accessibilityHidden(true)
+    }
+}
+
+private struct AppColorMenuSwatch: View {
+    let appColor: HomesteadAppColor
+
+    var body: some View {
+        Image(systemName: "circle.fill")
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(Color(appColor.uiColor))
     }
 }
 

@@ -48,3 +48,11 @@ xcrun simctl launch booted com.tyler.Homestead \
 ```
 
 Supported sizes are `mini`, `compact`, `row`, `square`, `wide`, and `large`. Preview appearance accepts `system`, `light`, or `dark`. These arguments are compiled only in Debug builds. Live-preview services do not register Homestead as a Home Assistant Mobile App device.
+
+For UI-only simulator checks that should bypass onboarding without connecting to Home Assistant, launch a Debug-only sample screen:
+
+```sh
+xcrun simctl launch booted com.tyler.Homestead --preview-screen appearance
+```
+
+This is intended for Codex/browser-simulator verification loops and uses sample dependencies instead of the normal app startup path.

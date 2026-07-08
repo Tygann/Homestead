@@ -2,6 +2,13 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-07
+
+### Browser Simulator Preview Workflow
+
+- Added a Debug-only `--preview-screen appearance` simulator launch route that uses sample dependencies and skips normal startup so Codex/browser-simulator UI checks can rebuild directly into Appearance without accidentally returning to onboarding.
+- Documented the live browser simulator workflow: keep `serve-sim` pinned to one simulator, preserve `--live-preview` and focused preview launch arguments across rebuilds, and reserve empty launch arguments for intentional normal-startup testing.
+
 ## 2026-07-02
 
 ### Intentional Dashboard Setup And Empty States

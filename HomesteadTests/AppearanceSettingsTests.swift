@@ -4,6 +4,49 @@ import UIKit
 @testable import Homestead
 
 struct AppearanceSettingsTests {
+    @Test @MainActor func appearanceSettingsPersistsAppColor() throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: directory)
+        #expect(settings.appColor == .blue)
+
+        settings.appColor = .green
+
+        let reloadedSettings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: directory)
+        #expect(reloadedSettings.appColor == .green)
+    }
+
+    @Test @MainActor func appearanceSettingsSyncSnapshotIncludesAppColor() throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: directory)
+        settings.appColor = .purple
+
+        #expect(settings.syncSnapshot.appColor == .purple)
+
+        settings.applySyncSnapshot(HomesteadAppearanceSettingsSyncSnapshot(appColor: .orange, isWallpaperEnabled: false))
+        #expect(settings.appColor == .orange)
+    }
+
+    @Test func appearanceSettingsSyncSnapshotDecodesLegacyAppColorAsBlue() throws {
+        let data = try #require("""
+        {
+            "appearanceMode": "dark",
+            "isWallpaperEnabled": true
+        }
+        """.data(using: .utf8))
+
+        let snapshot = try JSONDecoder().decode(HomesteadAppearanceSettingsSyncSnapshot.self, from: data)
+
+        #expect(snapshot.appearanceMode == .dark)
+        #expect(snapshot.appColor == .blue)
+        #expect(snapshot.isWallpaperEnabled)
+    }
+
     @Test @MainActor func appearanceSettingsPersistsImportedWallpaperState() async throws {
         let defaults = testUserDefaults()
         let directory = try temporaryTestDirectory()

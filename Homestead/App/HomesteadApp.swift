@@ -17,9 +17,29 @@ struct HomesteadApp: App {
     @State private var iCloudSyncService: HomesteadICloudSyncService
     @State private var setupCoordinator: HomesteadSetupCoordinator
     private let usesLivePreviewLaunch: Bool
+    private let previewScreen: HomesteadPreviewScreen?
 
     init() {
 #if DEBUG
+        if let previewScreen = RuntimeEnvironment.previewScreen {
+            let dependencies = PreviewDependencies.sample
+            HomesteadAppDelegate.nativeNotificationService = dependencies.nativeNotificationService
+            _stateStore = State(initialValue: dependencies.stateStore)
+            _connectionSettings = State(initialValue: dependencies.connectionSettings)
+            _homeAssistantService = State(initialValue: dependencies.homeAssistantService)
+            _nativeNotificationService = State(initialValue: dependencies.nativeNotificationService)
+            _nativePermissionService = State(initialValue: dependencies.nativePermissionService)
+            _dashboardConfiguration = State(initialValue: dependencies.dashboardConfiguration)
+            _actionConfirmationSettings = State(initialValue: dependencies.actionConfirmationSettings)
+            _appearanceSettings = State(initialValue: dependencies.appearanceSettings)
+            _tabSettings = State(initialValue: dependencies.tabSettings)
+            _iCloudSyncService = State(initialValue: dependencies.iCloudSyncService)
+            _setupCoordinator = State(initialValue: HomesteadSetupCoordinator(initialPhase: .ready))
+            usesLivePreviewLaunch = false
+            self.previewScreen = previewScreen
+            return
+        }
+
         if RuntimeEnvironment.isLivePreviewLaunch,
            let dependencies = PreviewDependencies.liveHomeAssistant {
             if let appearanceMode = RuntimeEnvironment.livePreviewAppearanceMode {
@@ -38,6 +58,7 @@ struct HomesteadApp: App {
             _iCloudSyncService = State(initialValue: dependencies.iCloudSyncService)
             _setupCoordinator = State(initialValue: HomesteadSetupCoordinator(initialPhase: .ready))
             usesLivePreviewLaunch = true
+            previewScreen = nil
             return
         }
 #endif
@@ -87,11 +108,12 @@ struct HomesteadApp: App {
         _iCloudSyncService = State(initialValue: iCloudSyncService)
         _setupCoordinator = State(initialValue: setupCoordinator)
         usesLivePreviewLaunch = false
+        previewScreen = nil
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            rootView
                 .environment(stateStore)
                 .environment(connectionSettings)
                 .environment(homeAssistantService)
@@ -104,9 +126,15 @@ struct HomesteadApp: App {
                 .environment(iCloudSyncService)
                 .environment(setupCoordinator)
                 .environment(setupCoordinator.discoveryService)
+                .tint(Color(appearanceSettings.appColor.uiColor))
+                .accentColor(Color(appearanceSettings.appColor.uiColor))
                 .preferredColorScheme(appearanceSettings.appearanceMode.colorScheme)
                 .task {
 #if DEBUG
+                    if previewScreen != nil {
+                        return
+                    }
+
                     if usesLivePreviewLaunch {
                         await homeAssistantService.refreshAuthState()
                         await homeAssistantService.connectIfPossible(settings: connectionSettings)
@@ -141,6 +169,31 @@ struct HomesteadApp: App {
                 }
         }
     }
+
+    @ViewBuilder
+    private var rootView: some View {
+#if DEBUG
+        if let previewScreen {
+            previewScreenView(previewScreen)
+        } else {
+            ContentView()
+        }
+#else
+        ContentView()
+#endif
+    }
+
+#if DEBUG
+    @ViewBuilder
+    private func previewScreenView(_ previewScreen: HomesteadPreviewScreen) -> some View {
+        switch previewScreen {
+        case .appearance:
+            NavigationStack {
+                AppearanceSettingsView()
+            }
+        }
+    }
+#endif
 
     private func syncPreferencesToICloud(_ section: HomesteadSyncSection) {
         iCloudSyncService.noteLocalChange(

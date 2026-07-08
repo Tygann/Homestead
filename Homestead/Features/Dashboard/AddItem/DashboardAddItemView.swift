@@ -27,7 +27,8 @@ struct DashboardAddItemView: View {
             .navigationTitle("Add to Dashboard")
             .toolbarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .top, spacing: 0) { modePicker }
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+//            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+            .searchable(text: $searchText)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", role: .confirm) { dismiss() }
@@ -610,11 +611,12 @@ private struct DashboardCompatibleSourcesView: View {
                 }
             }
         }
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .automatic),
-            prompt: "Search"
-        )
+//        .searchable(
+//            text: $searchText,
+//            placement: .navigationBarDrawer(displayMode: .automatic),
+//            prompt: "Search"
+//        )
+        .searchable(text: $searchText)
         .navigationTitle(DashboardPresentationCatalog.descriptor(for: kind).title)
     }
 
