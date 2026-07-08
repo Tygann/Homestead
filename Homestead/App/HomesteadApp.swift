@@ -126,7 +126,6 @@ struct HomesteadApp: App {
                 .environment(iCloudSyncService)
                 .environment(setupCoordinator)
                 .environment(setupCoordinator.discoveryService)
-                .tint(Color(appearanceSettings.appColor.uiColor))
                 .accentColor(Color(appearanceSettings.appColor.uiColor))
                 .preferredColorScheme(appearanceSettings.appearanceMode.colorScheme)
                 .task {
