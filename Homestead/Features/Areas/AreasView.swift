@@ -312,25 +312,36 @@ private struct AreaDomainStrip: View {
             ForEach(chips, id: \.self) { chip in
                 Image(systemName: chip.domain.systemImage)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(iconColor)
+                    .foregroundStyle(iconColor(for: chip))
                     .frame(width: 24, height: 24)
-                    .background(iconBackground, in: Circle())
+                    .background(iconBackground(for: chip), in: Circle())
                     .accessibilityLabel(chip.domain.displayName)
                     .accessibilityValue(chip.isActive ? "Active" : "Idle")
             }
         }
     }
 
-    private var iconColor: Color {
-        .accentColor
+    private func iconColor(for chip: DashboardAreaDomainChip) -> Color {
+        switch chip.domain {
+        case .light:
+            return .yellow
+        case .climate, .fan:
+            return .blue
+        case .binarySensor, .lock, .camera:
+            return .mint
+        case .mediaPlayer:
+            return .indigo
+        default:
+            return .accentColor
+        }
     }
 
-    private var iconBackground: AnyShapeStyle {
+    private func iconBackground(for chip: DashboardAreaDomainChip) -> AnyShapeStyle {
         if isWallpaperSurfaceActive {
             return HomesteadSurfaceStyle.cardBackground(isWallpaperActive: true)
         }
 
-        return AnyShapeStyle(iconColor.opacity(0.16))
+        return AnyShapeStyle(iconColor(for: chip).opacity(0.16))
     }
 }
 
