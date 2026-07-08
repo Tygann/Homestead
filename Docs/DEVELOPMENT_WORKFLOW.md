@@ -85,6 +85,7 @@ xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'platform
 - Do not call `build_run_sim` with empty launch arguments during preview-oriented browser work unless the user explicitly asks to test the normal app launch or onboarding path.
 - For live Home Assistant preview work, rebuild and relaunch with `--live-preview`. Preserve any focused arguments such as `--preview-entity`, `--preview-size`, and `--preview-appearance` across rebuilds.
 - For UI-only Settings or sample-data checks, launch the Debug-only screen route instead of temporarily editing `HomesteadApp`: `--preview-screen appearance`.
+- After visible SwiftUI edits, refresh the browser preview automatically by rebuilding and relaunching the app with the current preview launch arguments. Leave the existing `serve-sim` process and browser tab running; they should only be restarted when the mirror is unhealthy.
 - After each rebuild, verify a real simulator frame in the browser mirror or capture a simulator screenshot before reporting UI results.
 
 ## Xcode Storage Hygiene
