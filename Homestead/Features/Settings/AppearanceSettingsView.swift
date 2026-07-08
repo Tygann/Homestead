@@ -34,7 +34,7 @@ struct AppearanceSettingsView: View {
         @Bindable var tabSettings = tabSettings
 
         return Section {
-            Picker("Mode", selection: $appearanceSettings.appearanceMode) {
+            Picker("Appearance", selection: $appearanceSettings.appearanceMode) {
                 ForEach(HomesteadAppearanceMode.allCases) { mode in
                     Text(mode.displayName)
                         .foregroundStyle(.primary)
@@ -44,7 +44,7 @@ struct AppearanceSettingsView: View {
             .pickerStyle(.menu)
             .tint(.primary)
 
-            Picker("App Color", selection: $appearanceSettings.appColor) {
+            Picker("Accent Color", selection: $appearanceSettings.appColor) {
                 ForEach(HomesteadAppColor.allCases) { appColor in
                     Label {
                         Text(appColor.displayName)
