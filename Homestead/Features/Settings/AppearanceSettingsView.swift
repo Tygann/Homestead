@@ -47,49 +47,30 @@ struct AppearanceSettingsView: View {
     // MARK: - Color
 
     private var colorSection: some View {
-        Section("Color") {
+        @Bindable var appearanceSettings = appearanceSettings
+
+        return Section("Color") {
             HStack {
                 Text("App Color")
 
                 Spacer()
 
-                appColorMenu
-            }
-        }
-    }
-
-    private var appColorMenu: some View {
-        Menu {
-            ForEach(HomesteadAppColor.allCases) { appColor in
-                Button {
-                    appearanceSettings.appColor = appColor
-                } label: {
-                    HStack {
+                Picker("App Color", selection: $appearanceSettings.appColor) {
+                    ForEach(HomesteadAppColor.allCases) { appColor in
                         Label {
                             Text(appColor.displayName)
                         } icon: {
                             AppColorMenuSwatch(appColor: appColor)
                         }
-
-                        if appColor == appearanceSettings.appColor {
-                            Image(systemName: "checkmark")
-                        }
+                        .tag(appColor)
                     }
                 }
-                .tint(Color(appColor.uiColor))
+                .padding(.vertical, AppSpacing.xSmall)
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .tint(.secondary)
             }
-        } label: {
-            HStack(spacing: 6) {
-                AppColorSwatch(appColor: appearanceSettings.appColor, size: 12)
-
-                Text(appearanceSettings.appColor.displayName)
-
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2.weight(.semibold))
-            }
-            .foregroundStyle(.secondary)
         }
-        .tint(.secondary)
     }
 
     // MARK: - Wallpaper
@@ -212,22 +193,6 @@ struct AppearanceSettingsView: View {
         } catch {
             importErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
-    }
-}
-
-private struct AppColorSwatch: View {
-    let appColor: HomesteadAppColor
-    let size: CGFloat
-
-    var body: some View {
-        Circle()
-            .fill(Color(appColor.uiColor))
-            .frame(width: size, height: size)
-            .overlay {
-                Circle()
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
-            }
-            .accessibilityHidden(true)
     }
 }
 
