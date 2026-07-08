@@ -11,10 +11,8 @@ struct AppearanceSettingsView: View {
 
     var body: some View {
         Form {
-            displaySection
-            colorSection
+            appearanceSection
             wallpaperSection
-            navigationSection
         }
         .navigationTitle("Appearance")
         .toolbarTitleDisplayMode(.inline)
@@ -28,48 +26,40 @@ struct AppearanceSettingsView: View {
         }
     }
 
-    // MARK: - Display
+    // MARK: - Appearance
 
-    private var displaySection: some View {
+    private var appearanceSection: some View {
         @Bindable var appearanceSettings = appearanceSettings
+        @Bindable var tabSettings = tabSettings
 
-        return Section("Display") {
+        return Section {
             Picker("Mode", selection: $appearanceSettings.appearanceMode) {
                 ForEach(HomesteadAppearanceMode.allCases) { mode in
-                    Text(mode.displayName).tag(mode)
+                    Text(mode.displayName)
+                        .tag(mode)
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-        }
-    }
+            .pickerStyle(.menu)
 
-    // MARK: - Color
-
-    private var colorSection: some View {
-        @Bindable var appearanceSettings = appearanceSettings
-
-        return Section("Color") {
-            HStack {
-                Text("App Color")
-
-                Spacer()
-
-                Picker("App Color", selection: $appearanceSettings.appColor) {
-                    ForEach(HomesteadAppColor.allCases) { appColor in
-                        Label {
-                            Text(appColor.displayName)
-                        } icon: {
-                            AppColorMenuSwatch(appColor: appColor)
-                        }
-                        .tag(appColor)
+            Picker("App Color", selection: $appearanceSettings.appColor) {
+                ForEach(HomesteadAppColor.allCases) { appColor in
+                    Label {
+                        Text(appColor.displayName)
+                    } icon: {
+                        AppColorMenuSwatch(appColor: appColor)
                     }
+                    .tag(appColor)
                 }
-                .padding(.vertical, AppSpacing.xSmall)
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .tint(.secondary)
             }
+            .pickerStyle(.menu)
+
+            Picker("Start Page", selection: $tabSettings.primaryTab) {
+                ForEach(HomesteadPrimaryTab.allCases) { tab in
+                    Label(tab.displayName, systemImage: tab.systemImage)
+                        .tag(tab)
+                }
+            }
+            .pickerStyle(.menu)
         }
     }
 
@@ -136,27 +126,6 @@ struct AppearanceSettingsView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(isImportingWallpaper)
-        }
-    }
-
-    // MARK: - Navigation
-
-    private var navigationSection: some View {
-        @Bindable var tabSettings = tabSettings
-
-        return Section {
-            Picker("Start Page", selection: $tabSettings.primaryTab) {
-                ForEach(HomesteadPrimaryTab.allCases) { tab in
-                    Text(tab.displayName)
-                        .tag(tab)
-                }
-            }
-            .pickerStyle(.menu)
-            .tint(.secondary)
-        } header: {
-            Text("Navigation")
-//        } footer: {
-//            Text("Browse stays separate.")
         }
     }
 
