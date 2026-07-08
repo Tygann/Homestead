@@ -37,15 +37,18 @@ struct AppearanceSettingsView: View {
             Picker("Mode", selection: $appearanceSettings.appearanceMode) {
                 ForEach(HomesteadAppearanceMode.allCases) { mode in
                     Text(mode.displayName)
+                        .foregroundStyle(.primary)
                         .tag(mode)
                 }
             }
             .pickerStyle(.menu)
+            .tint(.primary)
 
             Picker("App Color", selection: $appearanceSettings.appColor) {
                 ForEach(HomesteadAppColor.allCases) { appColor in
                     Label {
                         Text(appColor.displayName)
+                            .foregroundStyle(.primary)
                     } icon: {
                         AppColorMenuSwatch(appColor: appColor)
                     }
@@ -53,14 +56,21 @@ struct AppearanceSettingsView: View {
                 }
             }
             .pickerStyle(.menu)
+            .tint(.primary)
 
             Picker("Start Page", selection: $tabSettings.primaryTab) {
                 ForEach(HomesteadPrimaryTab.allCases) { tab in
-                    Label(tab.displayName, systemImage: tab.systemImage)
+                    Label {
+                        Text(tab.displayName)
+                            .foregroundStyle(.primary)
+                    } icon: {
+                        Image(systemName: tab.systemImage)
+                    }
                         .tag(tab)
                 }
             }
             .pickerStyle(.menu)
+            .tint(.primary)
         }
     }
 
