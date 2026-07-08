@@ -163,22 +163,3 @@ struct DashboardAddEntityCandidateGroup: Identifiable, Equatable {
     let systemImage: String
     let candidates: [DashboardAddEntityCandidate]
 }
-
-extension DashboardCardSize {
-    var chooserTitle: String {
-        switch self {
-        case .mini:
-            "Mini"
-        case .compact:
-            "Compact"
-        case .row:
-            "Row"
-        case .square:
-            "Square"
-        case .wide:
-            "Wide"
-        case .large:
-            "Large"
-        }
-    }
-}

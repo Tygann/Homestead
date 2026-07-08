@@ -119,7 +119,6 @@ struct DashboardPresentationReviewView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var selectedStyle: DashboardPresentationStyle?
-    @State private var selectedLayout: DashboardCardSize?
 
     let source: DashboardAddSource
     let kind: DashboardPresentationKind
@@ -128,24 +127,12 @@ struct DashboardPresentationReviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-//                Text(source.contextTitle(stateStore: stateStore))
-//                    .font(.subheadline.weight(.medium))
-//                    .foregroundStyle(.secondary)
-//                    .lineLimit(1)
-
                 if styleDescriptors.count > 1 {
                     styleSelector
                 }
 
-                if availableLayouts.count > 1 {
-                    layoutSelector
-                }
-
                 if let selectedPresentation {
-                    presentationOption(
-                        selectedPresentation,
-                        showsPreview: styleDescriptors.count <= 1
-                    )
+                    presentationPreview(selectedPresentation)
                 } else {
                     ContentUnavailableView("Item Unavailable", systemImage: "questionmark.circle")
                 }
@@ -153,16 +140,17 @@ struct DashboardPresentationReviewView: View {
             .padding(AppSpacing.large)
         }
         .background(Color(.systemGroupedBackground))
-//        .navigationTitle(DashboardPresentationCatalog.descriptor(for: kind).title)
         .navigationTitle("Add \(DashboardPresentationCatalog.descriptor(for: kind).title) Card")
         .navigationSubtitle(source.contextTitle(stateStore: stateStore))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(role: .confirm) {
-                    // TODO: Move add confirmation button here
-//                    add(source, presentation)
+                    guard let selectedPresentation else { return }
+                    add(source, selectedPresentation)
                 }
+                .disabled(selectedPresentation == nil || selectedPresentationIsAdded)
+                .accessibilityLabel(selectedPresentationIsAdded ? "Added" : "Add")
             }
         }
     }
@@ -183,31 +171,16 @@ struct DashboardPresentationReviewView: View {
         )
     }
 
-    private var recommendedLayout: DashboardCardSize? {
-        defaultPresentation?.cardConfiguration?.layout
-    }
-
-    private var resolvedLayout: DashboardCardSize? {
-        if let selectedLayout, availableLayouts.contains(selectedLayout) {
-            return selectedLayout
-        }
-        return recommendedLayout ?? availableLayouts.first
-    }
-
     private var selectedPresentation: DashboardPresentationConfiguration? {
-        guard case .card(let card) = defaultPresentation,
-              let resolvedLayout else { return defaultPresentation }
-        return .card(card.withLayout(resolvedLayout))
+        defaultPresentation
     }
 
-    private var availableLayouts: [DashboardCardSize] {
-        DashboardPresentationCatalog.descriptor(for: kind).supportedLayouts.filter { layout in
-            DashboardPresentationCatalog.cardConfiguration(
-                kind: kind,
-                style: resolvedStyle,
-                layout: layout
-            ) != nil
-        }
+    private var selectedPresentationIsAdded: Bool {
+        guard let selectedPresentation else { return false }
+        return dashboardConfiguration.contains(
+            source: source.reference,
+            presentation: selectedPresentation
+        )
     }
 
     private var styleSelector: some View {
@@ -231,7 +204,6 @@ struct DashboardPresentationReviewView: View {
 
         return Button {
             selectedStyle = descriptor.style
-            selectedLayout = nil
             HapticFeedback.selection()
         } label: {
             VStack(spacing: AppSpacing.small) {
@@ -284,111 +256,13 @@ struct DashboardPresentationReviewView: View {
             stateStore: stateStore
         ) else { return nil }
 
-        let layout = resolvedLayout.flatMap { candidate in
-            DashboardPresentationCatalog.cardConfiguration(
-                kind: kind,
-                style: descriptor.style,
-                layout: candidate
-            ) == nil ? nil : candidate
-        } ?? card.layout
-
-        return .card(card.withLayout(layout))
+        return .card(card)
     }
 
-    private var layoutSelector: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Text("Layout")
-                .font(.headline)
-
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: AppSpacing.small), count: 3),
-                spacing: AppSpacing.small
-            ) {
-                ForEach(availableLayouts, id: \.self) { layout in
-                    layoutButton(layout)
-                }
-            }
-        }
-    }
-
-    private func layoutButton(_ layout: DashboardCardSize) -> some View {
-        let isSelected = layout == resolvedLayout
-        let isDefault = layout == recommendedLayout
-
-        return Button {
-            selectedLayout = layout
-            HapticFeedback.selection()
-        } label: {
-            VStack(spacing: AppSpacing.xSmall) {
-                Image(systemName: layout.systemImage)
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-
-                Text(layout.chooserTitle)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                Text(isDefault ? "Default" : " ")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 78)
-            .background(
-                isSelected ? Color.accentColor.opacity(0.10) : Color(.secondarySystemGroupedBackground),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(
-                        isSelected ? Color.accentColor : Color(.separator).opacity(0.28),
-                        lineWidth: isSelected ? 1.5 : 1
-                    )
-            }
-            .overlay(alignment: .topTrailing) {
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                        .padding(AppSpacing.xSmall)
-                }
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(layout.chooserTitle)
-        .accessibilityValue(
-            [isSelected ? "Selected" : nil, isDefault ? "Default" : nil]
-                .compactMap { $0 }
-                .joined(separator: ", ")
-        )
-        .accessibilityHint("Selects the \(layout.chooserTitle) layout")
-    }
-
-    private func presentationOption(
-        _ presentation: DashboardPresentationConfiguration,
-        showsPreview: Bool
-    ) -> some View {
-        let isAdded = dashboardConfiguration.contains(
-            source: source.reference,
-            presentation: presentation
-        )
-
-        return VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            if showsPreview {
-                DashboardAddPresentationPreview(source: source, presentation: presentation)
-            }
-
-            Button {
-                add(source, presentation)
-            } label: {
-                Label(isAdded ? "Added" : "Add", systemImage: isAdded ? "checkmark" : "plus")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(isAdded)
+    @ViewBuilder
+    private func presentationPreview(_ presentation: DashboardPresentationConfiguration) -> some View {
+        if styleDescriptors.count <= 1 {
+            DashboardAddPresentationPreview(source: source, presentation: presentation)
         }
     }
 }
