@@ -267,7 +267,7 @@ private struct AreaSummaryCard: View {
 
     init(area: DashboardAreaSummary) {
         self.area = area
-        self.visibleDomainChips = Array(area.domainChips.prefix(3))
+        self.visibleDomainChips = area.domainChips.filter(\.isActive)
     }
 
     var body: some View {
@@ -312,40 +312,25 @@ private struct AreaDomainStrip: View {
             ForEach(chips, id: \.self) { chip in
                 Image(systemName: chip.domain.systemImage)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(iconColor(for: chip))
+                    .foregroundStyle(iconColor)
                     .frame(width: 24, height: 24)
-                    .background(iconBackground(for: chip), in: Circle())
+                    .background(iconBackground, in: Circle())
                     .accessibilityLabel(chip.domain.displayName)
                     .accessibilityValue(chip.isActive ? "Active" : "Idle")
             }
         }
     }
 
-    private func iconColor(for chip: DashboardAreaDomainChip) -> Color {
-        guard chip.isActive else {
-            return .secondary
-        }
-
-        switch chip.domain {
-        case .light:
-            return .yellow
-        case .climate, .fan:
-            return .blue
-        case .binarySensor, .lock, .camera:
-            return .mint
-        case .mediaPlayer:
-            return .indigo
-        default:
-            return .accentColor
-        }
+    private var iconColor: Color {
+        .accentColor
     }
 
-    private func iconBackground(for chip: DashboardAreaDomainChip) -> AnyShapeStyle {
+    private var iconBackground: AnyShapeStyle {
         if isWallpaperSurfaceActive {
             return HomesteadSurfaceStyle.cardBackground(isWallpaperActive: true)
         }
 
-        return AnyShapeStyle(chip.isActive ? iconColor(for: chip).opacity(0.16) : Color(.tertiarySystemGroupedBackground))
+        return AnyShapeStyle(iconColor.opacity(0.16))
     }
 }
 
