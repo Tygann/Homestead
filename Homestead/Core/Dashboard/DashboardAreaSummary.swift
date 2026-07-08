@@ -14,30 +14,10 @@ struct DashboardAreaSummary: Identifiable, Hashable, Sendable {
     let unavailableCount: Int
     let domainCounts: [EntityDomain: Int]
     let activeDomainCounts: [EntityDomain: Int]
+    let domainChips: [DashboardAreaDomainChip]
 
     var topDomains: [EntityDomain] {
         domainChips.map(\.domain)
-    }
-
-    var domainChips: [DashboardAreaDomainChip] {
-        domainCounts
-            .filter { $0.value > 0 }
-            .map(\.key)
-            .sorted { lhs, rhs in
-                let lhsIsActive = activeDomainCounts[lhs, default: 0] > 0
-                let rhsIsActive = activeDomainCounts[rhs, default: 0] > 0
-                if lhsIsActive != rhsIsActive {
-                    return lhsIsActive
-                }
-
-                return lhs.dashboardPriority < rhs.dashboardPriority
-            }
-            .map { domain in
-                DashboardAreaDomainChip(
-                    domain: domain,
-                    isActive: activeDomainCounts[domain, default: 0] > 0
-                )
-            }
     }
 
     var resolvedIcon: ResolvedIcon {
@@ -50,6 +30,63 @@ struct DashboardAreaSummary: Identifiable, Hashable, Sendable {
 struct DashboardAreaDomainChip: Hashable, Sendable {
     let domain: EntityDomain
     let isActive: Bool
+    let family: DashboardAreaDomainChipFamily
+
+    var displayName: String { family.displayName }
+    var systemImage: String { family.systemImage }
+}
+
+enum DashboardAreaDomainChipFamily: Hashable, Sendable {
+    case lights
+    case climate
+    case security
+    case media
+    case maintenance
+
+    var displayName: String {
+        switch self {
+        case .lights:
+            "Lights"
+        case .climate:
+            "Climate"
+        case .security:
+            "Security"
+        case .media:
+            "Media"
+        case .maintenance:
+            "Maintenance"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .lights:
+            DashboardSummaryKind.lights.systemImage
+        case .climate:
+            DashboardSummaryKind.climate.systemImage
+        case .security:
+            DashboardSummaryKind.security.systemImage
+        case .media:
+            DashboardSummaryKind.media.systemImage
+        case .maintenance:
+            DashboardSummaryKind.maintenance.systemImage
+        }
+    }
+
+    var sortPriority: Int {
+        switch self {
+        case .lights:
+            0
+        case .climate:
+            1
+        case .security:
+            2
+        case .media:
+            3
+        case .maintenance:
+            4
+        }
+    }
 }
 
 struct DashboardAreaContext: Hashable, Sendable {

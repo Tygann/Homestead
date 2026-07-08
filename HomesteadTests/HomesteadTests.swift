@@ -7223,21 +7223,22 @@ struct HomesteadTests {
         #expect(kitchen?.domainCounts[.light] == 1)
         #expect(kitchen?.domainCounts[.sensor] == 1)
         #expect(kitchen?.activeDomainCounts[.light] == 1)
-        #expect(kitchen?.topDomains == [.light, .sensor])
+        #expect(kitchen?.topDomains == [.light])
         #expect(kitchen?.domainChips == [
-            DashboardAreaDomainChip(domain: .light, isActive: true),
-            DashboardAreaDomainChip(domain: .sensor, isActive: false)
+            DashboardAreaDomainChip(domain: .light, isActive: true, family: .lights)
         ])
         #expect(office?.unavailableCount == 1)
     }
 
     @MainActor
-    @Test func areaBuilderPrioritizesActiveDomainChipsBeforeInactiveDomains() {
+    @Test func areaBuilderBuildsActiveFamilyDomainChipsAndSuppressesGenericDomains() {
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(entityID: "light.living_room_lamp", state: "off"),
             HAEntityDTO(entityID: "sensor.living_room_temperature", state: "72"),
             HAEntityDTO(entityID: "media_player.living_room_tv", state: "playing"),
+            HAEntityDTO(entityID: "remote.living_room_tv", state: "on"),
+            HAEntityDTO(entityID: "switch.living_room_outlet", state: "on"),
             HAEntityDTO(entityID: "camera.living_room", state: "idle")
         ])
 
@@ -7245,6 +7246,8 @@ struct HomesteadTests {
             "light.living_room_lamp": "Living Room",
             "sensor.living_room_temperature": "Living Room",
             "media_player.living_room_tv": "Living Room",
+            "remote.living_room_tv": "Living Room",
+            "switch.living_room_outlet": "Living Room",
             "camera.living_room": "Living Room"
         ]
 
@@ -7253,8 +7256,9 @@ struct HomesteadTests {
             areaNameForEntityID: { areaNames[$0] }
         ).first
 
-        #expect(area?.domainChips.prefix(3).map(\.domain) == [.mediaPlayer, .light, .sensor])
-        #expect(area?.domainChips.first?.isActive == true)
+        #expect(area?.domainChips == [
+            DashboardAreaDomainChip(domain: .mediaPlayer, isActive: true, family: .media)
+        ])
     }
 
     @MainActor

@@ -6,7 +6,8 @@ enum DashboardAreaBuilder {
 
     static func buildAreas(
         from entityBoxes: [HAEntityState],
-        areaNameForEntityID: (String) -> String? = { _ in nil }
+        areaNameForEntityID: (String) -> String? = { _ in nil },
+        membershipContext: DashboardSummaryMembershipContext = .empty
     ) -> [DashboardAreaSummary] {
         buildAreas(
             from: entityBoxes,
@@ -22,13 +23,15 @@ enum DashboardAreaBuilder {
                         floorSortOrder: nil
                     )
                 }
-            }
+            },
+            membershipContext: membershipContext
         )
     }
 
     static func buildAreas(
         from entityBoxes: [HAEntityState],
-        areaContextForEntityID: (String) -> DashboardAreaContext?
+        areaContextForEntityID: (String) -> DashboardAreaContext?,
+        membershipContext: DashboardSummaryMembershipContext = .empty
     ) -> [DashboardAreaSummary] {
         let grouped = Dictionary(grouping: entityBoxes) { entityBox in
             areaGroupKey(for: areaContextForEntityID(entityBox.entityID))
@@ -36,7 +39,7 @@ enum DashboardAreaBuilder {
 
         return grouped
             .map { key, entityBoxes in
-                buildArea(key: key, from: entityBoxes)
+                buildArea(key: key, from: entityBoxes, membershipContext: membershipContext)
             }
             .sorted { lhs, rhs in
                 areaNameAscending(lhs.name, rhs.name)
@@ -45,7 +48,8 @@ enum DashboardAreaBuilder {
 
     static func buildArea(
         named areaName: String,
-        from entityBoxes: [HAEntityState]
+        from entityBoxes: [HAEntityState],
+        membershipContext: DashboardSummaryMembershipContext = .empty
     ) -> DashboardAreaSummary {
         buildArea(
             key: AreaGroupKey(
@@ -57,7 +61,8 @@ enum DashboardAreaBuilder {
                 floorLevel: nil,
                 floorSortOrder: nil
             ),
-            from: entityBoxes
+            from: entityBoxes,
+            membershipContext: membershipContext
         )
     }
 
@@ -108,9 +113,12 @@ enum DashboardAreaBuilder {
 
     private static func buildArea(
         key: AreaGroupKey,
-        from entityBoxes: [HAEntityState]
+        from entityBoxes: [HAEntityState],
+        membershipContext: DashboardSummaryMembershipContext
     ) -> DashboardAreaSummary {
         let presentations = entityBoxes.map { DashboardEntityPresentation(entityBox: $0) }
+        let activeDomainCounts = Dictionary(grouping: presentations.filter(\.isActive), by: \.capability.domain)
+            .mapValues(\.count)
 
         return DashboardAreaSummary(
             id: key.areaID.map { "area-\($0)" } ?? "unassigned",
@@ -132,9 +140,66 @@ enum DashboardAreaBuilder {
             unavailableCount: entityBoxes.filter { !$0.homeEntity.isAvailable }.count,
             domainCounts: Dictionary(grouping: entityBoxes, by: \.domain)
                 .mapValues(\.count),
-            activeDomainCounts: Dictionary(grouping: presentations.filter(\.isActive), by: \.capability.domain)
-                .mapValues(\.count)
+            activeDomainCounts: activeDomainCounts,
+            domainChips: makeDomainChips(
+                from: Array(zip(entityBoxes, presentations)),
+                membershipContext: membershipContext
+            )
         )
+    }
+
+    private static func makeDomainChips(
+        from entityPresentations: [(HAEntityState, DashboardEntityPresentation)],
+        membershipContext: DashboardSummaryMembershipContext
+    ) -> [DashboardAreaDomainChip] {
+        let activeEntitiesByFamily = Dictionary(grouping: entityPresentations.filter { _, presentation in
+            presentation.isActive
+        }.compactMap { entityBox, presentation -> (DashboardAreaDomainChipFamily, EntityDomain)? in
+            guard let family = domainChipFamily(for: entityBox, membershipContext: membershipContext) else {
+                return nil
+            }
+
+            return (family, presentation.capability.domain)
+        }, by: \.0)
+
+        return activeEntitiesByFamily
+            .map { family, entries in
+                let domain = entries
+                    .map(\.1)
+                    .min { $0.dashboardPriority < $1.dashboardPriority } ?? .other
+                return DashboardAreaDomainChip(domain: domain, isActive: true, family: family)
+            }
+            .sorted { lhs, rhs in
+                lhs.family.sortPriority < rhs.family.sortPriority
+            }
+    }
+
+    private static func domainChipFamily(
+        for entityBox: HAEntityState,
+        membershipContext: DashboardSummaryMembershipContext
+    ) -> DashboardAreaDomainChipFamily? {
+        if HomeAssistantSummaryClassifier.contains(entityBox, in: .lights, context: membershipContext) {
+            return .lights
+        }
+
+        if HomeAssistantSummaryClassifier.contains(entityBox, in: .climate, context: membershipContext) {
+            return .climate
+        }
+
+        if HomeAssistantSummaryClassifier.contains(entityBox, in: .security, context: membershipContext) {
+            return .security
+        }
+
+        if entityBox.domain == .remote ||
+            HomeAssistantSummaryClassifier.contains(entityBox, in: .media, context: membershipContext) {
+            return .media
+        }
+
+        if HomeAssistantSummaryClassifier.contains(entityBox, in: .maintenance, context: membershipContext) {
+            return .maintenance
+        }
+
+        return nil
     }
 
     private static func areaGroupKey(for context: DashboardAreaContext?) -> AreaGroupKey {

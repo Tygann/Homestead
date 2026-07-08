@@ -144,7 +144,8 @@ private struct AreasOverviewPresentation {
 
         let areas = DashboardAreaBuilder.buildAreas(
             from: entityBoxes,
-            areaContextForEntityID: stateStore.areaContext(for:)
+            areaContextForEntityID: stateStore.areaContext(for:),
+            membershipContext: membershipContext
         )
 
         return AreasOverviewPresentation(
@@ -267,7 +268,7 @@ private struct AreaSummaryCard: View {
 
     init(area: DashboardAreaSummary) {
         self.area = area
-        self.visibleDomainChips = area.domainChips.filter(\.isActive)
+        self.visibleDomainChips = area.domainChips
     }
 
     var body: some View {
@@ -310,29 +311,29 @@ private struct AreaDomainStrip: View {
     var body: some View {
         HStack(spacing: AppSpacing.xSmall) {
             ForEach(chips, id: \.self) { chip in
-                Image(systemName: chip.domain.systemImage)
+                Image(systemName: chip.systemImage)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(iconColor(for: chip))
                     .frame(width: 24, height: 24)
                     .background(iconBackground(for: chip), in: Circle())
-                    .accessibilityLabel(chip.domain.displayName)
+                    .accessibilityLabel(chip.displayName)
                     .accessibilityValue(chip.isActive ? "Active" : "Idle")
             }
         }
     }
 
     private func iconColor(for chip: DashboardAreaDomainChip) -> Color {
-        switch chip.domain {
-        case .light:
+        switch chip.family {
+        case .lights:
             return .yellow
-        case .climate, .fan:
+        case .climate:
             return .blue
-        case .binarySensor, .lock, .camera:
+        case .security:
             return .mint
-        case .mediaPlayer:
+        case .media:
             return .indigo
-        default:
-            return .accentColor
+        case .maintenance:
+            return .gray
         }
     }
 
