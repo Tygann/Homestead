@@ -169,13 +169,9 @@ private struct AppColorMenuSwatch: View {
     let appColor: HomesteadAppColor
 
     var body: some View {
-        Circle()
-            .fill(Color(appColor.uiColor))
-            .frame(width: 12, height: 12)
-            .overlay {
-                Circle()
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
-            }
+        Image(systemName: "circle.fill")
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(Color(appColor.uiColor))
             .accessibilityHidden(true)
     }
 }
