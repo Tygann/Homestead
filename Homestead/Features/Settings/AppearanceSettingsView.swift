@@ -1,5 +1,6 @@
 import PhotosUI
 import SwiftUI
+import UIKit
 
 struct AppearanceSettingsView: View {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
@@ -169,10 +170,14 @@ private struct AppColorMenuSwatch: View {
     let appColor: HomesteadAppColor
 
     var body: some View {
-        Image(systemName: "circle.fill")
-            .symbolRenderingMode(.monochrome)
-            .foregroundStyle(Color(appColor.uiColor))
+        Image(uiImage: swatchImage)
+            .renderingMode(.original)
             .accessibilityHidden(true)
+    }
+
+    private var swatchImage: UIImage {
+        UIImage(systemName: "circle.fill")?
+            .withTintColor(appColor.uiColor, renderingMode: .alwaysOriginal) ?? UIImage()
     }
 }
 
