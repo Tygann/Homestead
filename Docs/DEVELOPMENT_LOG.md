@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-08
+
+### WidgetKit Surface Consolidation
+
+- Kept widgets as native WidgetKit/App Intents surfaces rather than reusing dashboard card views directly.
+- Moved the widget bundle entry point into its own file, kept the public widget gallery focused on Control, Status, Sensor Graph, and Action, and removed the retired standalone Light, Switch, Fan, Cover, Lock, Presence, and Sensor widget files.
+- Added shared widget presentation primitives for icon badges and compact text tiles so active widgets share the same small/rectangular visual language while preserving family-specific WidgetKit layouts.
+
 ## 2026-07-07
 
 ### Browser Simulator Preview Workflow

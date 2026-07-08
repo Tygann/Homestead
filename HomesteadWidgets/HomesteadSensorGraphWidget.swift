@@ -365,23 +365,13 @@ struct HomesteadSensorGraphWidgetView: View {
     }
 
     private var unconfigured: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        HomesteadWidgetSmallTile(
+            title: entry.displayName,
+            value: entry.valueText,
+            valueColor: .secondary
+        ) {
             graphIcon
-
-            Spacer(minLength: 0)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.displayName)
-                    .font(.headline)
-                    .lineLimit(2)
-
-                Text(entry.valueText)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var header: some View {
@@ -396,10 +386,14 @@ struct HomesteadSensorGraphWidgetView: View {
     }
 
     private var graphIcon: some View {
-        HomesteadIconView(icon: entry.resolvedIcon, pointSize: 13)
-            .foregroundStyle(entry.isAvailable ? .blue : .secondary)
-            .frame(width: 24, height: 24)
-            .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        HomesteadWidgetIconBadge(
+            content: .resolved(entry.resolvedIcon),
+            color: entry.isAvailable ? .blue : .secondary,
+            pointSize: 13,
+            size: 24,
+            cornerRadius: 7,
+            background: AnyShapeStyle(.fill.tertiary)
+        )
     }
 
     private var graph: some View {

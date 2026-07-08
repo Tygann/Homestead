@@ -627,23 +627,13 @@ struct HomesteadControlWidgetView: View {
     }
 
     private var systemSmall: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        HomesteadWidgetSmallTile(
+            title: entry.displayName,
+            value: entry.statusText,
+            valueColor: entry.isActive || entry.isMoving ? .primary : .secondary
+        ) {
             widgetButton
-
-            Spacer(minLength: 0)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.displayName)
-                    .font(.headline)
-                    .lineLimit(2)
-
-                Text(entry.statusText)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(entry.isActive || entry.isMoving ? .primary : .secondary)
-                    .lineLimit(1)
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var accessoryCircular: some View {
@@ -651,18 +641,12 @@ struct HomesteadControlWidgetView: View {
     }
 
     private var accessoryRectangular: some View {
-        HStack(spacing: 8) {
+        HomesteadWidgetRectangularTile(
+            title: entry.displayName,
+            value: entry.statusText
+        ) {
             HomesteadIconView(icon: displayedIcon, pointSize: 16)
                 .foregroundStyle(iconColor)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.displayName)
-                    .font(.headline)
-                    .lineLimit(1)
-                Text(entry.statusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 
@@ -679,10 +663,7 @@ struct HomesteadControlWidgetView: View {
     }
 
     private var controlIcon: some View {
-        HomesteadIconView(icon: displayedIcon, pointSize: 22)
-            .foregroundStyle(iconColor)
-            .frame(width: 44, height: 44)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        HomesteadWidgetIconBadge(content: .resolved(displayedIcon), color: iconColor)
     }
 
     private var displayedIcon: ResolvedIcon {

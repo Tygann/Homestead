@@ -251,26 +251,13 @@ struct HomesteadActionWidgetView: View {
     }
 
     private var systemSmall: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        HomesteadWidgetSmallTile(
+            title: entry.displayName,
+            supportingText: supportingText,
+            titleLineLimit: entry.isConfigured ? 3 : 2
+        ) {
             actionButton
-
-            Spacer(minLength: 0)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.displayName)
-                    .font(.headline)
-                    .lineLimit(entry.isConfigured ? 3 : 2)
-                    .minimumScaleFactor(0.86)
-
-                if let supportingText {
-                    Text(supportingText)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var accessoryCircular: some View {
@@ -278,20 +265,11 @@ struct HomesteadActionWidgetView: View {
     }
 
     private var accessoryRectangular: some View {
-        HStack(spacing: 8) {
+        HomesteadWidgetRectangularTile(
+            title: entry.displayName,
+            value: supportingText
+        ) {
             actionButton
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.displayName)
-                    .font(.headline)
-                    .lineLimit(1)
-                if let supportingText {
-                    Text(supportingText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
         }
     }
 
@@ -308,11 +286,10 @@ struct HomesteadActionWidgetView: View {
     }
 
     private var actionIcon: some View {
-        Image(systemName: entry.isConfigured ? "play.circle.fill" : entry.systemImage)
-            .font(.title2.weight(.semibold))
-            .foregroundStyle(entry.isConfigured ? .purple : .secondary)
-            .frame(width: 44, height: 44)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        HomesteadWidgetIconBadge(
+            content: .symbol(entry.isConfigured ? "play.circle.fill" : entry.systemImage),
+            color: entry.isConfigured ? .purple : .secondary
+        )
     }
 
     private var supportingText: String? {
