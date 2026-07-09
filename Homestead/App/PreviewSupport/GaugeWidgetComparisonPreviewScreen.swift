@@ -166,6 +166,7 @@ private struct WidgetGaugeBarComparisonFace: View {
 
 #Preview("Gauge Widget Comparison") {
     GaugeWidgetComparisonPreviewScreen()
+        .withPreviewEnvironment()
         .preferredColorScheme(.dark)
 }
 #endif
