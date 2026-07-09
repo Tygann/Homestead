@@ -17,7 +17,6 @@ struct GaugePresentationView: View {
     var icon: ResolvedIcon? = nil
 
     private let dashboardLineWidth: CGFloat = 11
-    private let sectionGap: Double = 0.018
     private let arcMarkerHeight: CGFloat = 10
 
     var body: some View {
@@ -256,10 +255,10 @@ struct GaugePresentationView: View {
         GeometryReader { proxy in
             let width = proxy.size.width
 
-            VStack(spacing: 3) {
+            VStack(spacing: GaugeVisualMetrics.barRangeMarkerSpacing) {
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color(.tertiarySystemGroupedBackground))
+                        .fill(Color.secondary.opacity(0.16))
 
                     ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
                         let segment = visualSegment(for: section, at: index)
@@ -276,22 +275,21 @@ struct GaugePresentationView: View {
                     if presentation.normalizedValue > 0 {
                         Capsule()
                             .fill(statusColor(for: presentation.status))
-                            .frame(width: max(CGFloat(presentation.normalizedValue) * width, dashboardLineWidth))
+                            .frame(width: max(CGFloat(presentation.normalizedValue) * width, GaugeVisualMetrics.barMinimumFillWidth))
                     }
 
                     Capsule()
-                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                        .strokeBorder(Color.white.opacity(GaugeVisualMetrics.barBorderOpacity), lineWidth: 1)
 
                     sectionBoundaryTicks(width: width)
                 }
-                .frame(height: dashboardLineWidth)
+                .frame(height: GaugeVisualMetrics.barTrackHeight)
                 .clipShape(Capsule())
 
                 rangeMarkers(font: .caption2.weight(.semibold))
-                    .opacity(0.72)
             }
         }
-        .frame(height: dashboardLineWidth + arcMarkerHeight + 3)
+        .frame(height: GaugeVisualMetrics.barTotalHeight)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(presentation.accessibilityValue)
@@ -319,12 +317,12 @@ struct GaugePresentationView: View {
 
     private func rangeMarkers(font: Font) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-            Text(rangeText(presentation.range.lowerBound))
+            Text(rangeValueText(presentation.range.lowerBound))
             Spacer(minLength: AppSpacing.small)
-            Text(rangeText(presentation.range.upperBound))
+            Text(rangeValueText(presentation.range.upperBound))
         }
         .font(font)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Color.secondary.opacity(GaugeVisualMetrics.barRangeMarkerOpacity))
         .lineLimit(1)
         .minimumScaleFactor(0.75)
         .monospacedDigit()
@@ -345,19 +343,14 @@ struct GaugePresentationView: View {
     ) -> (start: Double, end: Double) {
         let rawStart = normalized(section.range.lowerBound)
         let rawEnd = normalized(section.range.upperBound)
-        let start = index == 0 ? rawStart : rawStart + (sectionGap / 2)
-        let end = index == presentation.sections.indices.last ? rawEnd : rawEnd - (sectionGap / 2)
+        let start = index == 0 ? rawStart : rawStart + (GaugeVisualMetrics.barSectionGap / 2)
+        let end = index == presentation.sections.indices.last ? rawEnd : rawEnd - (GaugeVisualMetrics.barSectionGap / 2)
 
         return (min(max(start, 0), 1), min(max(end, start), 1))
     }
 
     private func sectionBackgroundOpacity(for status: GaugePresentationStatus) -> Double {
-        switch presentation.status {
-        case .nominal:
-            status == .nominal ? 0.18 : 0.10
-        case .low, .high, .warning, .critical:
-            status == presentation.status ? 0.28 : 0.16
-        }
+        gaugeSectionBackgroundOpacity(current: presentation.status.visualStatus, section: status.visualStatus)
     }
 
     private var horizontalArcScale: CGFloat {
@@ -377,11 +370,14 @@ struct GaugePresentationView: View {
     private func sectionBoundaryTicks(width: CGFloat) -> some View {
         ForEach(presentation.sections.indices.dropLast(), id: \.self) { index in
             let boundary = normalized(presentation.sections[index].range.upperBound)
-            let xOffset = min(max(CGFloat(boundary) * width, dashboardLineWidth / 2), width - (dashboardLineWidth / 2))
+            let xOffset = min(
+                max(CGFloat(boundary) * width, GaugeVisualMetrics.barTrackHeight / 2),
+                width - (GaugeVisualMetrics.barTrackHeight / 2)
+            )
 
             Capsule()
-                .fill(Color.white.opacity(0.13))
-                .frame(width: 1.5, height: dashboardLineWidth - 3)
+                .fill(Color.white.opacity(GaugeVisualMetrics.barBoundaryOpacity))
+                .frame(width: 1.5, height: GaugeVisualMetrics.barTrackHeight - 3)
                 .offset(x: xOffset - 0.75)
         }
     }

@@ -468,7 +468,7 @@ struct DashboardEntityCard: View {
                     style: .row,
                     tint: iconColor
                 )
-                .frame(height: 28)
+                .frame(height: GaugeVisualMetrics.barTotalHeight)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {

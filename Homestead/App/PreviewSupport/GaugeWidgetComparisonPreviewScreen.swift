@@ -109,22 +109,22 @@ private struct WidgetGaugeBarComparisonFace: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: GaugeVisualMetrics.barIconCornerRadius, style: .continuous)
                         .fill(.fill.tertiary)
 
-                    HomesteadIconView(icon: icon, pointSize: 13, weight: .semibold)
+                    HomesteadIconView(icon: icon, pointSize: GaugeVisualMetrics.barIconPointSize, weight: .semibold)
                         .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
                 }
-                .frame(width: 24, height: 24)
+                .frame(width: GaugeVisualMetrics.barIconSize, height: GaugeVisualMetrics.barIconSize)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.headline)
-                        .lineLimit(2)
+                        .lineLimit(1)
                         .minimumScaleFactor(0.78)
 
                     Text(gauge.statusDisplayText)
-                        .font(.caption2.weight(.semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -138,7 +138,7 @@ private struct WidgetGaugeBarComparisonFace: View {
             gaugeReadout
 
             WidgetGaugeBarView(gauge: gauge)
-                .frame(height: 18)
+                .frame(height: GaugeVisualMetrics.barTotalHeight)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }

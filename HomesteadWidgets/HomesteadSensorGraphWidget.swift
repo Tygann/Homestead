@@ -686,20 +686,20 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
                 HomesteadWidgetIconBadge(
                     content: .resolved(entry.resolvedIcon),
                     color: widgetGaugeStatusColor(for: gauge.status),
-                    pointSize: isMedium ? 16 : 13,
-                    size: isMedium ? 30 : 24,
-                    cornerRadius: isMedium ? 9 : 7,
+                    pointSize: GaugeVisualMetrics.barIconPointSize,
+                    size: GaugeVisualMetrics.barIconSize,
+                    cornerRadius: GaugeVisualMetrics.barIconCornerRadius,
                     background: AnyShapeStyle(.fill.tertiary)
                 )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.displayName)
                         .font(.headline)
-                        .lineLimit(isMedium ? 1 : 2)
+                        .lineLimit(1)
                         .minimumScaleFactor(0.78)
 
                     Text(gauge.statusDisplayText)
-                        .font(.caption2.weight(.semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -713,7 +713,7 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
             gaugeReadout
 
             WidgetGaugeBarView(gauge: gauge)
-                .frame(height: isMedium ? 22 : 18)
+                .frame(height: GaugeVisualMetrics.barTotalHeight)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .ignore)

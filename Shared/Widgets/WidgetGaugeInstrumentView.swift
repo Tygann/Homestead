@@ -8,6 +8,24 @@ enum GaugeVisualStatus: Equatable, Sendable {
     case critical
 }
 
+enum GaugeVisualMetrics {
+    static let barTrackHeight: CGFloat = 11
+    static let barRangeMarkerHeight: CGFloat = 10
+    static let barRangeMarkerSpacing: CGFloat = 3
+    static let barRangeMarkerOpacity = 0.72
+    static let barMinimumFillWidth: CGFloat = 11
+    static let barSectionGap = 0.018
+    static let barBoundaryOpacity = 0.13
+    static let barBorderOpacity = 0.10
+    static let barIconSize: CGFloat = 44
+    static let barIconPointSize: CGFloat = 22
+    static let barIconCornerRadius: CGFloat = 14
+
+    static var barTotalHeight: CGFloat {
+        barTrackHeight + barRangeMarkerHeight + barRangeMarkerSpacing
+    }
+}
+
 struct WidgetGaugeInstrumentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -193,31 +211,52 @@ func widgetGaugeStatusColor(for status: WidgetGaugeStatus) -> Color {
     gaugeVisualStatusColor(for: status.visualStatus)
 }
 
+func gaugeSectionBackgroundOpacity(current: GaugeVisualStatus, section: GaugeVisualStatus) -> Double {
+    switch current {
+    case .nominal:
+        section == .nominal ? 0.18 : 0.10
+    case .low, .high, .warning, .critical:
+        section == current ? 0.28 : 0.16
+    }
+}
+
 struct WidgetGaugeBarView: View {
     let gauge: WidgetGaugePresentation
 
     var body: some View {
-        VStack(spacing: 3) {
+        VStack(spacing: GaugeVisualMetrics.barRangeMarkerSpacing) {
             GeometryReader { proxy in
-                let fillWidth = max(proxy.size.width * CGFloat(gauge.normalizedValue), 4)
+                let width = proxy.size.width
+                let fillWidth = max(width * CGFloat(gauge.normalizedValue), GaugeVisualMetrics.barMinimumFillWidth)
 
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(.fill.quaternary)
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.16))
 
-                    ForEach(Array(gauge.sections.enumerated()), id: \.offset) { _, section in
-                        let segment = visualSegment(for: section)
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    ForEach(Array(gauge.sections.enumerated()), id: \.offset) { index, section in
+                        let segment = visualSegment(for: section, at: index)
+                        let segmentWidth = max(CGFloat(segment.end - segment.start) * width, 0)
+
+                        Capsule()
                             .fill(widgetGaugeStatusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)))
-                            .frame(width: max(proxy.size.width * CGFloat(segment.width), 0))
-                            .offset(x: proxy.size.width * CGFloat(segment.start))
+                            .frame(width: segmentWidth)
+                            .offset(x: CGFloat(segment.start) * width)
                     }
 
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(widgetGaugeStatusColor(for: gauge.status))
-                        .frame(width: fillWidth)
+                    if gauge.normalizedValue > 0 {
+                        Capsule()
+                            .fill(widgetGaugeStatusColor(for: gauge.status))
+                            .frame(width: fillWidth)
+                    }
+
+                    Capsule()
+                        .strokeBorder(Color.white.opacity(GaugeVisualMetrics.barBorderOpacity), lineWidth: 1)
+
+                    sectionBoundaryTicks(width: width)
                 }
             }
+            .frame(height: GaugeVisualMetrics.barTrackHeight)
+            .clipShape(Capsule())
 
             HStack {
                 Text(rangeText(gauge.lowerBound))
@@ -225,15 +264,21 @@ struct WidgetGaugeBarView: View {
                 Text(rangeText(gauge.upperBound))
             }
             .font(.caption2.weight(.semibold))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.secondary.opacity(GaugeVisualMetrics.barRangeMarkerOpacity))
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
             .monospacedDigit()
         }
+        .frame(height: GaugeVisualMetrics.barTotalHeight)
     }
 
-    private func visualSegment(for section: WidgetGaugeSection) -> (start: Double, width: Double) {
-        let start = normalized(section.lowerBound)
-        let end = normalized(section.upperBound)
-        return (start, max(end - start, 0))
+    private func visualSegment(for section: WidgetGaugeSection, at index: Int) -> (start: Double, end: Double) {
+        let rawStart = normalized(section.lowerBound)
+        let rawEnd = normalized(section.upperBound)
+        let start = index == 0 ? rawStart : rawStart + (GaugeVisualMetrics.barSectionGap / 2)
+        let end = index == gauge.sections.indices.last ? rawEnd : rawEnd - (GaugeVisualMetrics.barSectionGap / 2)
+
+        return (min(max(start, 0), 1), min(max(end, start), 1))
     }
 
     private func normalized(_ value: Double) -> Double {
@@ -243,11 +288,27 @@ struct WidgetGaugeBarView: View {
     }
 
     private func sectionBackgroundOpacity(for status: WidgetGaugeStatus) -> Double {
-        status == gauge.status ? 0.28 : 0.14
+        gaugeSectionBackgroundOpacity(current: gauge.status.visualStatus, section: status.visualStatus)
     }
 
     private func rangeText(_ value: Double) -> String {
         widgetGaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
+    @ViewBuilder
+    private func sectionBoundaryTicks(width: CGFloat) -> some View {
+        ForEach(gauge.sections.indices.dropLast(), id: \.self) { index in
+            let boundary = normalized(gauge.sections[index].upperBound)
+            let xOffset = min(
+                max(CGFloat(boundary) * width, GaugeVisualMetrics.barTrackHeight / 2),
+                width - (GaugeVisualMetrics.barTrackHeight / 2)
+            )
+
+            Capsule()
+                .fill(Color.white.opacity(GaugeVisualMetrics.barBoundaryOpacity))
+                .frame(width: 1.5, height: GaugeVisualMetrics.barTrackHeight - 3)
+                .offset(x: xOffset - 0.75)
+        }
     }
 }
 
