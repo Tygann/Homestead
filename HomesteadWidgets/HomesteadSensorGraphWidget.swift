@@ -561,7 +561,7 @@ struct HomesteadSensorGraphWidgetView: View {
     private func mediumCircularGauge(_ gauge: WidgetGaugePresentation) -> some View {
         WidgetGaugeInstrumentView(
             gauge: gauge,
-            tint: sensorValueColor,
+            tint: widgetGaugeStatusColor(for: gauge.status),
             title: entry.displayName,
             icon: entry.resolvedIcon
         )
@@ -667,7 +667,7 @@ private struct HomesteadSensorCircularGaugeWidgetView: View {
     var body: some View {
         WidgetGaugeInstrumentView(
             gauge: gauge,
-            tint: entry.isAvailable ? .blue : .secondary,
+            tint: entry.isAvailable ? widgetGaugeStatusColor(for: gauge.status) : .secondary,
             title: entry.displayName,
             icon: entry.resolvedIcon
         )
@@ -710,12 +710,7 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
 
             Spacer(minLength: 0)
 
-            Text(gauge.valueText)
-                .font(.system(size: isMedium ? 36 : 27, weight: .bold, design: .rounded))
-                .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
-                .lineLimit(1)
-                .minimumScaleFactor(0.58)
-                .monospacedDigit()
+            gaugeReadout
 
             WidgetGaugeBarView(gauge: gauge)
                 .frame(height: isMedium ? 22 : 18)
@@ -725,63 +720,26 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
         .accessibilityLabel(gauge.accessibilityLabel)
         .accessibilityValue(gauge.accessibilityValue)
     }
-}
 
-private struct WidgetGaugeBarView: View {
-    let gauge: WidgetGaugePresentation
+    private var gaugeReadout: some View {
+        let fontSize: CGFloat = isMedium ? 36 : 27
+        let parts = widgetGaugeValueParts(from: gauge.valueText, unitText: gauge.unitText)
 
-    var body: some View {
-        VStack(spacing: 3) {
-            GeometryReader { proxy in
-                let fillWidth = max(proxy.size.width * CGFloat(gauge.normalizedValue), 4)
+        return HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text(parts.value)
+                .font(.system(size: fontSize, weight: .bold, design: .rounded))
 
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(.fill.quaternary)
-
-                    ForEach(Array(gauge.sections.enumerated()), id: \.offset) { _, section in
-                        let segment = visualSegment(for: section)
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(widgetGaugeStatusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)))
-                            .frame(width: max(proxy.size.width * CGFloat(segment.width), 0))
-                            .offset(x: proxy.size.width * CGFloat(segment.start))
-                    }
-
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(widgetGaugeStatusColor(for: gauge.status))
-                        .frame(width: fillWidth)
-                }
+            if let unit = parts.unit {
+                Text(unit)
+                    .font(.system(size: fontSize * 0.52, weight: .bold, design: .rounded))
+                    .baselineOffset(fontSize * 0.08)
+                    .padding(.leading, -1)
             }
-
-            HStack {
-                Text(rangeText(gauge.lowerBound))
-                Spacer(minLength: 8)
-                Text(rangeText(gauge.upperBound))
-            }
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .monospacedDigit()
         }
-    }
-
-    private func visualSegment(for section: WidgetGaugeSection) -> (start: Double, width: Double) {
-        let start = normalized(section.lowerBound)
-        let end = normalized(section.upperBound)
-        return (start, max(end - start, 0))
-    }
-
-    private func normalized(_ value: Double) -> Double {
-        guard gauge.upperBound > gauge.lowerBound else { return 0 }
-        let normalizedValue = (value - gauge.lowerBound) / (gauge.upperBound - gauge.lowerBound)
-        return min(max(normalizedValue, 0), 1)
-    }
-
-    private func sectionBackgroundOpacity(for status: WidgetGaugeStatus) -> Double {
-        status == gauge.status ? 0.28 : 0.14
-    }
-
-    private func rangeText(_ value: Double) -> String {
-        widgetGaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
+        .lineLimit(1)
+        .minimumScaleFactor(0.58)
+        .monospacedDigit()
     }
 }
 
