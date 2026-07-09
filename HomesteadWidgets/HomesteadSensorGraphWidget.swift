@@ -559,34 +559,12 @@ struct HomesteadSensorGraphWidgetView: View {
     }
 
     private func mediumCircularGauge(_ gauge: WidgetGaugePresentation) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            VStack(alignment: .leading, spacing: 5) {
-                header
-
-                Spacer(minLength: 0)
-
-                Text(gauge.valueText)
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(statusColor(for: gauge.status))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.62)
-                    .monospacedDigit()
-
-                Text(gauge.statusDisplayText)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(statusColor(for: gauge.status))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            .frame(width: 122, alignment: .leading)
-
-            WidgetGaugeArcView(gauge: gauge)
-                .frame(maxWidth: .infinity)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(gauge.accessibilityLabel)
-        .accessibilityValue(gauge.accessibilityValue)
+        WidgetGaugeInstrumentView(
+            gauge: gauge,
+            tint: sensorValueColor,
+            title: entry.displayName,
+            icon: entry.resolvedIcon
+        )
     }
 
     private var accessoryCircular: some View {
@@ -687,48 +665,13 @@ private struct HomesteadSensorCircularGaugeWidgetView: View {
     let gauge: WidgetGaugePresentation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(entry.displayName)
-                    .font(.headline)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-
-                Spacer(minLength: 4)
-
-                Text(gauge.statusDisplayText)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(statusColor(for: gauge.status))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-
-            Spacer(minLength: 0)
-
-            WidgetGaugeArcView(gauge: gauge)
-                .frame(maxWidth: .infinity)
-
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(gauge.valueText)
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundStyle(statusColor(for: gauge.status))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.64)
-                    .monospacedDigit()
-
-                Spacer(minLength: 4)
-
-                Text(entry.subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-        }
+        WidgetGaugeInstrumentView(
+            gauge: gauge,
+            tint: entry.isAvailable ? .blue : .secondary,
+            title: entry.displayName,
+            icon: entry.resolvedIcon
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(gauge.accessibilityLabel)
-        .accessibilityValue(gauge.accessibilityValue)
     }
 }
 
@@ -742,7 +685,7 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
             HStack(alignment: .top, spacing: 8) {
                 HomesteadWidgetIconBadge(
                     content: .resolved(entry.resolvedIcon),
-                    color: statusColor(for: gauge.status),
+                    color: widgetGaugeStatusColor(for: gauge.status),
                     pointSize: isMedium ? 16 : 13,
                     size: isMedium ? 30 : 24,
                     cornerRadius: isMedium ? 9 : 7,
@@ -757,7 +700,7 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
 
                     Text(gauge.statusDisplayText)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(statusColor(for: gauge.status))
+                        .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                 }
@@ -769,7 +712,7 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
 
             Text(gauge.valueText)
                 .font(.system(size: isMedium ? 36 : 27, weight: .bold, design: .rounded))
-                .foregroundStyle(statusColor(for: gauge.status))
+                .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
                 .lineLimit(1)
                 .minimumScaleFactor(0.58)
                 .monospacedDigit()
@@ -799,13 +742,13 @@ private struct WidgetGaugeBarView: View {
                     ForEach(Array(gauge.sections.enumerated()), id: \.offset) { _, section in
                         let segment = visualSegment(for: section)
                         RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)))
+                            .fill(widgetGaugeStatusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)))
                             .frame(width: max(proxy.size.width * CGFloat(segment.width), 0))
                             .offset(x: proxy.size.width * CGFloat(segment.start))
                     }
 
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(statusColor(for: gauge.status))
+                        .fill(widgetGaugeStatusColor(for: gauge.status))
                         .frame(width: fillWidth)
                 }
             }
@@ -839,130 +782,6 @@ private struct WidgetGaugeBarView: View {
 
     private func rangeText(_ value: Double) -> String {
         widgetGaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
-}
-
-private struct WidgetGaugeArcView: View {
-    let gauge: WidgetGaugePresentation
-
-    private let lineWidth: CGFloat = 11
-    private let arcHeight: CGFloat = 58
-    private let markerHeight: CGFloat = 11
-    private let sectionGap: Double = 0.018
-    private let horizontalScale: CGFloat = 1.18
-
-    var body: some View {
-        GeometryReader { proxy in
-            let maxArcWidth = max((arcHeight - lineWidth) * 2 * horizontalScale, 0)
-            let arcWidth = min(max(proxy.size.width - lineWidth, 0), maxArcWidth)
-
-            VStack(spacing: 1) {
-                ZStack {
-                    ForEach(Array(gauge.sections.enumerated()), id: \.offset) { index, section in
-                        let segment = visualSegment(for: section, at: index)
-
-                        WidgetGaugeArcShape(
-                            start: segment.start,
-                            end: segment.end,
-                            inset: lineWidth / 2,
-                            horizontalScale: horizontalScale
-                        )
-                        .stroke(
-                            statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
-                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                        )
-                    }
-
-                    if gauge.normalizedValue > 0 {
-                        WidgetGaugeArcShape(
-                            start: 0,
-                            end: gauge.normalizedValue,
-                            inset: lineWidth / 2,
-                            horizontalScale: horizontalScale
-                        )
-                        .stroke(
-                            statusColor(for: gauge.status),
-                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                        )
-                    }
-                }
-                .frame(width: arcWidth, height: arcHeight)
-
-                ZStack {
-                    Text(rangeText(gauge.lowerBound))
-                        .position(x: lineWidth / 2, y: markerHeight / 2)
-
-                    Text(rangeText(gauge.upperBound))
-                        .position(x: arcWidth - lineWidth / 2, y: markerHeight / 2)
-                }
-                .frame(width: arcWidth, height: markerHeight)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .monospacedDigit()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        }
-        .frame(height: arcHeight + markerHeight + 1)
-    }
-
-    private func visualSegment(
-        for section: WidgetGaugeSection,
-        at index: Int
-    ) -> (start: Double, end: Double) {
-        let rawStart = normalized(section.lowerBound)
-        let rawEnd = normalized(section.upperBound)
-        let start = index == 0 ? rawStart : rawStart + (sectionGap / 2)
-        let end = index == gauge.sections.indices.last ? rawEnd : rawEnd - (sectionGap / 2)
-
-        return (min(max(start, 0), 1), min(max(end, start), 1))
-    }
-
-    private func normalized(_ value: Double) -> Double {
-        guard gauge.upperBound > gauge.lowerBound else { return 0 }
-        let normalizedValue = (value - gauge.lowerBound) / (gauge.upperBound - gauge.lowerBound)
-        return min(max(normalizedValue, 0), 1)
-    }
-
-    private func sectionBackgroundOpacity(for status: WidgetGaugeStatus) -> Double {
-        switch gauge.status {
-        case .nominal:
-            status == .nominal ? 0.18 : 0.10
-        case .low, .high, .warning, .critical:
-            status == gauge.status ? 0.28 : 0.16
-        }
-    }
-
-    private func rangeText(_ value: Double) -> String {
-        widgetGaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
-}
-
-private struct WidgetGaugeArcShape: Shape {
-    let start: Double
-    let end: Double
-    let inset: CGFloat
-    let horizontalScale: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let normalizedStart = min(max(start, 0), 1)
-        let normalizedEnd = min(max(end, normalizedStart), 1)
-        let radius = max((rect.height - inset) / 2, 0)
-        let scaledRadius = radius * horizontalScale
-        let center = CGPoint(x: rect.midX, y: rect.maxY - inset)
-        let startAngle = Angle.degrees(180 + normalizedStart * 180)
-        let endAngle = Angle.degrees(180 + normalizedEnd * 180)
-
-        var path = Path()
-        path.addArc(
-            center: center,
-            radius: scaledRadius,
-            startAngle: startAngle,
-            endAngle: endAngle,
-            clockwise: false
-        )
-        return path
     }
 }
 
@@ -1059,29 +878,6 @@ struct HomesteadWidgetLineChart: View {
         }
     }
 }
-
-private func statusColor(for status: WidgetGaugeStatus) -> Color {
-    switch status {
-    case .nominal:
-        .green
-    case .low:
-        .blue
-    case .high:
-        .orange
-    case .warning:
-        .yellow
-    case .critical:
-        .red
-    }
-}
-
-private let widgetGaugeRangeFormatter: NumberFormatter = {
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .decimal
-    formatter.maximumFractionDigits = 1
-    formatter.minimumFractionDigits = 0
-    return formatter
-}()
 
 private extension WidgetGaugePresentation {
     static let previewTemperature = WidgetGaugePresentation(

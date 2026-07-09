@@ -190,6 +190,8 @@ struct HomesteadApp: App {
             NavigationStack {
                 AppearanceSettingsView()
             }
+        case .gaugeWidget:
+            GaugeWidgetComparisonPreviewScreen()
         }
     }
 #endif

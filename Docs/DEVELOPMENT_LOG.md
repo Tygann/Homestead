@@ -10,6 +10,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Moved the widget bundle entry point into its own file, kept the public widget gallery focused on Control, Status, Sensor Graph, and Action, and removed the retired standalone Light, Switch, Fan, Cover, Lock, Presence, and Sensor widget files.
 - Added shared widget presentation primitives for icon badges and compact text tiles so active widgets share the same small/rectangular visual language while preserving family-specific WidgetKit layouts.
 - Evolved the public sensor widget from graph-only to a configurable Sensor surface with Reading, Trend, Gauge - Circular, and Gauge - Bar displays. The WidgetKit kind stays `HomesteadSensorGraphWidget` for installed-widget continuity, while the gallery-facing name becomes Homestead Sensor.
+- Replaced the circular sensor widget's older semicircle composition with a shared dashboard-inspired 240-degree instrument gauge and added a Debug-only gauge-widget comparison screen for side-by-side simulator verification.
 
 ## 2026-07-07
 
