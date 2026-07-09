@@ -163,4 +163,9 @@ private struct WidgetGaugeBarComparisonFace: View {
         .monospacedDigit()
     }
 }
+
+#Preview("Gauge Widget Comparison") {
+    GaugeWidgetComparisonPreviewScreen()
+        .preferredColorScheme(.dark)
+}
 #endif
