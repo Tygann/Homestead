@@ -253,9 +253,12 @@ struct WidgetGaugeBarView: View {
 
 func gaugeValueParts(from valueText: String, unitText: String?) -> (value: String, unit: String?) {
     guard let unitText,
-          !unitText.isEmpty,
-          valueText.hasSuffix(unitText) else {
+          !unitText.isEmpty else {
         return (valueText, nil)
+    }
+
+    guard valueText.hasSuffix(unitText) else {
+        return (valueText, unitText)
     }
 
     let value = valueText.dropLast(unitText.count).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -296,7 +299,7 @@ extension WidgetGaugePresentation {
         value: 100,
         lowerBound: 0,
         upperBound: 100,
-        valueText: "100%",
+        valueText: "100",
         unitText: "%",
         status: .nominal,
         statusDisplayText: "Normal",
@@ -313,10 +316,10 @@ extension WidgetGaugePresentation {
         value: 18,
         lowerBound: 0,
         upperBound: 100,
-        valueText: "18%",
+        valueText: "18",
         unitText: "%",
         status: .warning,
-        statusDisplayText: "Low",
+        statusDisplayText: "Warning",
         sections: [
             WidgetGaugeSection(lowerBound: 0, upperBound: 10, status: .critical),
             WidgetGaugeSection(lowerBound: 10, upperBound: 20, status: .warning),
