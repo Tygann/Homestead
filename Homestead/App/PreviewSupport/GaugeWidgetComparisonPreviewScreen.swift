@@ -7,7 +7,13 @@ struct GaugeWidgetComparisonPreviewScreen: View {
     private let widgetCornerRadius: CGFloat = 36
     private let widgetPadding: CGFloat = 16
     private let gauge = WidgetGaugePresentation.previewLowBattery
-    private let widgetIcon = ResolvedIcon.sfSymbol("battery.25percent", provenance: .homesteadSemanticMapping)
+    private let baseIcon = IconResolver.resolveEntity(
+        EntityIconResolutionInput(domain: "sensor", deviceClass: "battery", state: "18")
+    )
+
+    private var gaugeIcon: ResolvedIcon {
+        gaugeDisplayIcon(base: baseIcon, value: gauge.value, status: gauge.status.visualStatus)
+    }
 
     var body: some View {
         NavigationStack {
@@ -45,7 +51,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                         gauge: gauge,
                         tint: widgetGaugeStatusColor(for: gauge.status),
                         title: "Front Door Battery",
-                        icon: widgetIcon
+                        icon: gaugeIcon
                     )
                     .padding(widgetPadding)
                     .frame(width: widgetSide, height: widgetSide)
@@ -76,7 +82,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                     WidgetGaugeBarComparisonFace(
                         title: "Front Door Battery",
                         gauge: gauge,
-                        icon: widgetIcon
+                        icon: gaugeIcon
                     )
                     .padding(widgetPadding)
                     .frame(width: widgetSide, height: widgetSide)
@@ -107,27 +113,27 @@ private struct WidgetGaugeBarComparisonFace: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: GaugeVisualMetrics.compactHeaderSpacing) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: GaugeVisualMetrics.barIconCornerRadius, style: .continuous)
+                    RoundedRectangle(cornerRadius: GaugeVisualMetrics.compactHeaderIconCornerRadius, style: .continuous)
                         .fill(.fill.tertiary)
 
-                    HomesteadIconView(icon: icon, pointSize: GaugeVisualMetrics.barIconPointSize, weight: .semibold)
+                    HomesteadIconView(icon: icon, pointSize: GaugeVisualMetrics.compactHeaderIconPointSize, weight: .semibold)
                         .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
                 }
-                .frame(width: GaugeVisualMetrics.barIconSize, height: GaugeVisualMetrics.barIconSize)
+                .frame(width: GaugeVisualMetrics.compactHeaderIconSize, height: GaugeVisualMetrics.compactHeaderIconSize)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: GaugeVisualMetrics.compactHeaderTextSpacing) {
                     Text(title)
-                        .font(.headline)
+                        .font(GaugeVisualMetrics.compactHeaderTitleFont)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.78)
+                        .minimumScaleFactor(GaugeVisualMetrics.compactHeaderTitleMinimumScale)
 
                     Text(gauge.statusDisplayText)
-                        .font(.caption.weight(.semibold))
+                        .font(GaugeVisualMetrics.compactHeaderStatusFont)
                         .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .minimumScaleFactor(GaugeVisualMetrics.compactHeaderStatusMinimumScale)
                 }
 
                 Spacer(minLength: 0)

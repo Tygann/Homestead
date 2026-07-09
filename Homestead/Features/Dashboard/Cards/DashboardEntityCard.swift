@@ -477,7 +477,7 @@ struct DashboardEntityCard: View {
                 style: .instrument,
                 tint: iconColor,
                 title: presentation.title,
-                icon: presentation.icon
+                icon: gaugeIcon(for: gauge)
             )
         }
     }
@@ -580,32 +580,36 @@ struct DashboardEntityCard: View {
     }
 
     private func gaugeHeaderContent(_ gauge: GaugePresentation) -> some View {
-        HStack(alignment: .center, spacing: AppSpacing.medium) {
+        HStack(alignment: .center, spacing: GaugeVisualMetrics.compactHeaderSpacing) {
             ZStack {
-                RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                RoundedRectangle(cornerRadius: GaugeVisualMetrics.compactHeaderIconCornerRadius, style: .continuous)
                     .fill(iconBackground)
 
-                HomesteadIconView(icon: presentation.icon, pointSize: 22, weight: .semibold)
+                HomesteadIconView(icon: gaugeIcon(for: gauge), pointSize: GaugeVisualMetrics.compactHeaderIconPointSize, weight: .semibold)
                     .foregroundStyle(gaugeStatusColor(for: gauge.status))
                     .accessibilityHidden(true)
             }
-            .frame(width: 44, height: 44)
+            .frame(width: GaugeVisualMetrics.compactHeaderIconSize, height: GaugeVisualMetrics.compactHeaderIconSize)
 
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            VStack(alignment: .leading, spacing: GaugeVisualMetrics.compactHeaderTextSpacing) {
                 Text(presentation.title)
-                    .font(.headline.weight(.semibold))
+                    .font(GaugeVisualMetrics.compactHeaderTitleFont)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.84)
+                    .minimumScaleFactor(GaugeVisualMetrics.compactHeaderTitleMinimumScale)
                     .truncationMode(.tail)
 
                 Text(gauge.statusDisplayText)
-                    .font(.caption.weight(.semibold))
+                    .font(GaugeVisualMetrics.compactHeaderStatusFont)
                     .foregroundStyle(gaugeStatusColor(for: gauge.status))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                    .minimumScaleFactor(GaugeVisualMetrics.compactHeaderStatusMinimumScale)
             }
         }
+    }
+
+    private func gaugeIcon(for gauge: GaugePresentation) -> ResolvedIcon {
+        gaugeDisplayIcon(base: presentation.icon, value: gauge.value, status: gauge.status.visualStatus)
     }
 
     private func cardHeader(subtitle: String, subtitleFont: Font) -> some View {

@@ -9,6 +9,15 @@ enum GaugeVisualStatus: Equatable, Sendable {
 }
 
 enum GaugeVisualMetrics {
+    static let compactHeaderSpacing: CGFloat = 12
+    static let compactHeaderTextSpacing: CGFloat = 4
+    static let compactHeaderIconSize: CGFloat = 44
+    static let compactHeaderIconPointSize: CGFloat = 22
+    static let compactHeaderIconCornerRadius: CGFloat = 14
+    static let compactHeaderTitleFont: Font = .headline.weight(.semibold)
+    static let compactHeaderStatusFont: Font = .caption.weight(.semibold)
+    static let compactHeaderTitleMinimumScale = 0.84
+    static let compactHeaderStatusMinimumScale = 0.82
     static let barTrackHeight: CGFloat = 11
     static let barRangeMarkerHeight: CGFloat = 10
     static let barRangeMarkerSpacing: CGFloat = 3
@@ -17,9 +26,6 @@ enum GaugeVisualMetrics {
     static let barSectionGap = 0.018
     static let barBoundaryOpacity = 0.13
     static let barBorderOpacity = 0.10
-    static let barIconSize: CGFloat = 44
-    static let barIconPointSize: CGFloat = 22
-    static let barIconCornerRadius: CGFloat = 14
 
     static var barTotalHeight: CGFloat {
         barTrackHeight + barRangeMarkerHeight + barRangeMarkerSpacing
@@ -218,6 +224,44 @@ func gaugeSectionBackgroundOpacity(current: GaugeVisualStatus, section: GaugeVis
     case .low, .high, .warning, .critical:
         section == current ? 0.28 : 0.16
     }
+}
+
+func gaugeDisplayIcon(base icon: ResolvedIcon, value: Double, status: GaugeVisualStatus) -> ResolvedIcon {
+    switch icon.provenance {
+    case .dashboardOverride, .appOverride, .haRegistryIcon, .haExplicitIcon:
+        return icon
+    case .haSemanticMapping, .homesteadSemanticMapping, .fallback:
+        break
+    }
+
+    let currentSymbol = icon.sfSymbolName
+    guard currentSymbol.hasPrefix("battery."),
+          !currentSymbol.contains("bolt") else {
+        return icon
+    }
+
+    let symbol: String
+    if status == .critical || value <= 10 {
+        symbol = "battery.0percent"
+    } else if status == .warning || status == .low || value <= 25 {
+        symbol = "battery.25percent"
+    } else if value <= 50 {
+        symbol = "battery.50percent"
+    } else if value <= 85 {
+        symbol = "battery.75percent"
+    } else {
+        symbol = "battery.100percent"
+    }
+
+    guard symbol != currentSymbol else {
+        return icon
+    }
+
+    return .sfSymbol(
+        symbol,
+        provenance: icon.provenance,
+        sourceIdentifier: icon.sourceIdentifier
+    )
 }
 
 struct WidgetGaugeBarView: View {

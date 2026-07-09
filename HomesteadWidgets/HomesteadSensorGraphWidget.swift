@@ -183,6 +183,13 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
         icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
     }
 
+    var gaugeIcon: ResolvedIcon {
+        guard let gauge else {
+            return resolvedIcon
+        }
+        return gaugeDisplayIcon(base: resolvedIcon, value: gauge.value, status: gauge.status.visualStatus)
+    }
+
     var shouldShowTrend: Bool {
         display == .trend
     }
@@ -669,7 +676,7 @@ private struct HomesteadSensorCircularGaugeWidgetView: View {
             gauge: gauge,
             tint: entry.isAvailable ? widgetGaugeStatusColor(for: gauge.status) : .secondary,
             title: entry.displayName,
-            icon: entry.resolvedIcon
+            icon: entry.gaugeIcon
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -682,27 +689,27 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: isMedium ? 10 : 8) {
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: GaugeVisualMetrics.compactHeaderSpacing) {
                 HomesteadWidgetIconBadge(
-                    content: .resolved(entry.resolvedIcon),
+                    content: .resolved(entry.gaugeIcon),
                     color: widgetGaugeStatusColor(for: gauge.status),
-                    pointSize: GaugeVisualMetrics.barIconPointSize,
-                    size: GaugeVisualMetrics.barIconSize,
-                    cornerRadius: GaugeVisualMetrics.barIconCornerRadius,
+                    pointSize: GaugeVisualMetrics.compactHeaderIconPointSize,
+                    size: GaugeVisualMetrics.compactHeaderIconSize,
+                    cornerRadius: GaugeVisualMetrics.compactHeaderIconCornerRadius,
                     background: AnyShapeStyle(.fill.tertiary)
                 )
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: GaugeVisualMetrics.compactHeaderTextSpacing) {
                     Text(entry.displayName)
-                        .font(.headline)
+                        .font(GaugeVisualMetrics.compactHeaderTitleFont)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.78)
+                        .minimumScaleFactor(GaugeVisualMetrics.compactHeaderTitleMinimumScale)
 
                     Text(gauge.statusDisplayText)
-                        .font(.caption.weight(.semibold))
+                        .font(GaugeVisualMetrics.compactHeaderStatusFont)
                         .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .minimumScaleFactor(GaugeVisualMetrics.compactHeaderStatusMinimumScale)
                 }
 
                 Spacer(minLength: 0)
