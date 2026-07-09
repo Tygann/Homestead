@@ -1,5 +1,13 @@
 import SwiftUI
 
+enum GaugeVisualStatus: Equatable, Sendable {
+    case nominal
+    case low
+    case high
+    case warning
+    case critical
+}
+
 struct WidgetGaugeInstrumentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -115,7 +123,7 @@ struct WidgetGaugeInstrumentView: View {
     }
 
     private func instrumentReadout(fontSize: CGFloat) -> some View {
-        let parts = widgetGaugeValueParts(from: gauge.valueText, unitText: gauge.unitText)
+        let parts = gaugeValueParts(from: gauge.valueText, unitText: gauge.unitText)
 
         return HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(parts.value)
@@ -168,7 +176,7 @@ private struct WidgetGaugeInstrumentArcShape: Shape {
     }
 }
 
-func widgetGaugeStatusColor(for status: WidgetGaugeStatus) -> Color {
+func gaugeVisualStatusColor(for status: GaugeVisualStatus) -> Color {
     switch status {
     case .nominal:
         .green
@@ -179,6 +187,10 @@ func widgetGaugeStatusColor(for status: WidgetGaugeStatus) -> Color {
     case .critical:
         .red
     }
+}
+
+func widgetGaugeStatusColor(for status: WidgetGaugeStatus) -> Color {
+    gaugeVisualStatusColor(for: status.visualStatus)
 }
 
 struct WidgetGaugeBarView: View {
@@ -239,7 +251,7 @@ struct WidgetGaugeBarView: View {
     }
 }
 
-func widgetGaugeValueParts(from valueText: String, unitText: String?) -> (value: String, unit: String?) {
+func gaugeValueParts(from valueText: String, unitText: String?) -> (value: String, unit: String?) {
     guard let unitText,
           !unitText.isEmpty,
           valueText.hasSuffix(unitText) else {
@@ -252,6 +264,23 @@ func widgetGaugeValueParts(from valueText: String, unitText: String?) -> (value:
     }
 
     return (value, unitText)
+}
+
+extension WidgetGaugeStatus {
+    var visualStatus: GaugeVisualStatus {
+        switch self {
+        case .nominal:
+            .nominal
+        case .low:
+            .low
+        case .high:
+            .high
+        case .warning:
+            .warning
+        case .critical:
+            .critical
+        }
+    }
 }
 
 let widgetGaugeRangeFormatter: NumberFormatter = {

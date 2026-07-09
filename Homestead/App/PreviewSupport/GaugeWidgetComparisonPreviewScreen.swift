@@ -144,7 +144,7 @@ private struct WidgetGaugeBarComparisonFace: View {
     }
 
     private var gaugeReadout: some View {
-        let parts = widgetGaugeValueParts(from: gauge.valueText, unitText: gauge.unitText)
+        let parts = gaugeValueParts(from: gauge.valueText, unitText: gauge.unitText)
 
         return HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(parts.value)

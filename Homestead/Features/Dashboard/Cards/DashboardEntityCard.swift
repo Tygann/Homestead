@@ -457,22 +457,11 @@ struct DashboardEntityCard: View {
     private func gaugeFirstVisual(_ gauge: GaugePresentation) -> some View {
         if presentationStyle == .gauge(.bar) {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
-                featureHeader
+                gaugeFeatureHeader(gauge)
 
                 Spacer(minLength: AppSpacing.xSmall)
 
-                HStack(alignment: .firstTextBaseline, spacing: 1) {
-                    Text(gauge.valueText)
-                        .font(.system(.title, design: .rounded, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .monospacedDigit()
-
-                    if let unitText = gauge.unitText {
-                        Text(unitText)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                gaugeBarReadout(gauge)
 
                 GaugePresentationView(
                     presentation: gauge,
@@ -491,6 +480,26 @@ struct DashboardEntityCard: View {
                 icon: presentation.icon
             )
         }
+    }
+
+    private func gaugeBarReadout(_ gauge: GaugePresentation) -> some View {
+        let parts = gaugeValueParts(from: gauge.valueText, unitText: gauge.unitText)
+
+        return HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text(parts.value)
+                .font(.system(.title, design: .rounded, weight: .bold))
+
+            if let unitText = parts.unit {
+                Text(unitText)
+                    .font(.subheadline.weight(.semibold))
+                    .baselineOffset(2)
+                    .padding(.leading, -1)
+            }
+        }
+        .foregroundStyle(gaugeStatusColor(for: gauge.status))
+        .lineLimit(1)
+        .minimumScaleFactor(0.58)
+        .monospacedDigit()
     }
 
     private func gaugeFirstPresentation(from visibleFeatures: [DashboardCardFeature]) -> GaugePresentation? {
@@ -549,6 +558,52 @@ struct DashboardEntityCard: View {
                 .accessibilityHint(presentation.accessibilityDetailHint)
             } else {
                 cardHeader(subtitle: featureHeaderSubtitle, subtitleFont: .caption.weight(.semibold))
+            }
+        }
+    }
+
+    private func gaugeFeatureHeader(_ gauge: GaugePresentation) -> some View {
+        Group {
+            if let showDetails {
+                Button(action: showDetails) {
+                    gaugeHeaderContent(gauge)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(HomeCardButtonStyle())
+                .accessibilityLabel(presentation.accessibilityDetailLabel)
+                .accessibilityValue(gauge.accessibilityValue)
+                .accessibilityHint(presentation.accessibilityDetailHint)
+            } else {
+                gaugeHeaderContent(gauge)
+            }
+        }
+    }
+
+    private func gaugeHeaderContent(_ gauge: GaugePresentation) -> some View {
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            ZStack {
+                RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                    .fill(iconBackground)
+
+                HomesteadIconView(icon: presentation.icon, pointSize: 22, weight: .semibold)
+                    .foregroundStyle(gaugeStatusColor(for: gauge.status))
+                    .accessibilityHidden(true)
+            }
+            .frame(width: 44, height: 44)
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(presentation.title)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.84)
+                    .truncationMode(.tail)
+
+                Text(gauge.statusDisplayText)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(gaugeStatusColor(for: gauge.status))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
             }
         }
     }
@@ -681,6 +736,10 @@ struct DashboardEntityCard: View {
 
     private var iconColor: Color {
         presentation.isActive ? presentation.accentColor : Color.primary
+    }
+
+    private func gaugeStatusColor(for status: GaugePresentationStatus) -> Color {
+        gaugeVisualStatusColor(for: status.visualStatus)
     }
 
     private var iconBackground: Color {

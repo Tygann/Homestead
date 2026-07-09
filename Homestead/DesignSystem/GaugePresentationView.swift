@@ -103,13 +103,15 @@ struct GaugePresentationView: View {
     }
 
     private func instrumentReadout(fontSize: CGFloat) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
-            Text(presentation.valueText)
+        let parts = gaugeValueParts(from: presentation.valueText, unitText: presentation.unitText)
+
+        return HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text(parts.value)
                 .font(.system(size: fontSize, weight: .medium, design: .rounded))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
 
-            if let unitText = presentation.unitText {
+            if let unitText = parts.unit {
                 Text(unitText)
                     .font(.system(size: fontSize * 0.5, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
@@ -139,7 +141,7 @@ struct GaugePresentationView: View {
                     pointSize: iconSize,
                     weight: .semibold
                 )
-                .foregroundStyle(tint)
+                .foregroundStyle(statusColor(for: presentation.status))
                 .frame(width: iconSize, height: iconSize)
                 .accessibilityHidden(true)
             } else {
@@ -385,16 +387,7 @@ struct GaugePresentationView: View {
     }
 
     private func statusColor(for status: GaugePresentationStatus) -> Color {
-        switch status {
-        case .nominal:
-            .green
-        case .low:
-            .blue
-        case .high, .warning:
-            .orange
-        case .critical:
-            .red
-        }
+        gaugeVisualStatusColor(for: status.visualStatus)
     }
 
     private func rangeText(_ value: Double) -> String {
@@ -410,6 +403,23 @@ struct GaugePresentationView: View {
 
     private func rangeValueText(_ value: Double) -> String {
         gaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+}
+
+extension GaugePresentationStatus {
+    var visualStatus: GaugeVisualStatus {
+        switch self {
+        case .nominal:
+            .nominal
+        case .low:
+            .low
+        case .high:
+            .high
+        case .warning:
+            .warning
+        case .critical:
+            .critical
+        }
     }
 }
 

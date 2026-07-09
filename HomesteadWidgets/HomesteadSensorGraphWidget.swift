@@ -723,7 +723,7 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
 
     private var gaugeReadout: some View {
         let fontSize: CGFloat = isMedium ? 36 : 27
-        let parts = widgetGaugeValueParts(from: gauge.valueText, unitText: gauge.unitText)
+        let parts = gaugeValueParts(from: gauge.valueText, unitText: gauge.unitText)
 
         return HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(parts.value)
