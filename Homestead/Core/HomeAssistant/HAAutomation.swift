@@ -82,10 +82,12 @@ nonisolated enum HAAutomationOverviewBuilder {
         config: [String: JSONValue],
         entityName: (String) -> String
     ) -> HAAutomationOverview {
-        HAAutomationOverview(
-            triggers: steps(in: config, plural: "triggers", legacy: "trigger").enumerated().map {
-                triggerStep($0.element, index: $0.offset, entityName: entityName)
-            },
+        let rawTriggers = steps(in: config, plural: "triggers", legacy: "trigger")
+        let triggers = rawTriggers.enumerated().map {
+            triggerStep($0.element, index: $0.offset, entityName: entityName)
+        }
+        return HAAutomationOverview(
+            triggers: triggers,
             conditions: steps(in: config, plural: "conditions", legacy: "condition").enumerated().map {
                 conditionStep($0.element, index: $0.offset, entityName: entityName)
             },
@@ -194,7 +196,11 @@ nonisolated enum HAAutomationOverviewBuilder {
         )
     }
 
-    private static func actionStep(_ value: JSONValue, index: Int, entityName: (String) -> String) -> HAAutomationStep {
+    private static func actionStep(
+        _ value: JSONValue,
+        index: Int,
+        entityName: (String) -> String
+    ) -> HAAutomationStep {
         let item = value.objectValue ?? [:]
         let service = string(item, "action") ?? string(item, "service")
         let entities = resolvedEntityNames(in: item, entityName: entityName)
@@ -210,7 +216,11 @@ nonisolated enum HAAutomationOverviewBuilder {
             let count = item["choose"]?.arrayValue?.count ?? 0
             title = "Choose between \(max(count, 1)) option\(count == 1 ? "" : "s")"
             icon = "mdi:source-branch"
-            children = choiceOptions(in: item, actionIndex: index, entityName: entityName)
+            children = choiceOptions(
+                in: item,
+                actionIndex: index,
+                entityName: entityName
+            )
         } else if item["if"] != nil {
             title = "If a condition matches"
             icon = "arrow.triangle.branch"
@@ -263,10 +273,18 @@ nonisolated enum HAAutomationOverviewBuilder {
         var result = options.enumerated().map { optionIndex, value in
             let option = value.objectValue ?? [:]
             let conditions = steps(in: option, plural: "conditions", legacy: "condition").enumerated().map {
-                choiceConditionStep($0.element, index: $0.offset, entityName: entityName)
+                choiceConditionStep(
+                    $0.element,
+                    index: $0.offset,
+                    entityName: entityName
+                )
             }
             let actions = steps(in: option, plural: "sequence", legacy: "actions").enumerated().map {
-                actionStep($0.element, index: $0.offset, entityName: entityName)
+                actionStep(
+                    $0.element,
+                    index: $0.offset,
+                    entityName: entityName
+                )
             }
             let triggerDescription = conditions.first?.title.replacingOccurrences(of: "If triggered by ", with: "")
             let title = "Option \(optionIndex + 1): \(triggerDescription.map { "If triggered by \($0)" } ?? "Actions")"
@@ -285,7 +303,9 @@ nonisolated enum HAAutomationOverviewBuilder {
         }
 
         if let defaultActions = item["default"]?.arrayValue, !defaultActions.isEmpty {
-            let actions = defaultActions.enumerated().map { actionStep($0.element, index: $0.offset, entityName: entityName) }
+            let actions = defaultActions.enumerated().map {
+                actionStep($0.element, index: $0.offset, entityName: entityName)
+            }
             result.append(step(
                 id: "choice-\(actionIndex)-default",
                 title: "Default actions",
@@ -298,13 +318,19 @@ nonisolated enum HAAutomationOverviewBuilder {
         return result
     }
 
-    private static func choiceConditionStep(_ value: JSONValue, index: Int, entityName: (String) -> String) -> HAAutomationStep {
+    private static func choiceConditionStep(
+        _ value: JSONValue,
+        index: Int,
+        entityName: (String) -> String
+    ) -> HAAutomationStep {
         let item = value.objectValue ?? [:]
         let type = string(item, "condition") ?? inferredConditionType(item) ?? ""
         if type == "trigger" {
+            let triggerID = firstString(item["id"]) ?? firstString(item["trigger_id"])
+            let title = triggerID ?? "a matching trigger"
             return step(
                 id: "choice-condition-\(index)",
-                title: "If triggered by \(string(item, "id") ?? "a matching trigger")",
+                title: "If triggered by \(title)",
                 subtitle: nil,
                 icon: "mdi:identifier"
             )
@@ -338,6 +364,10 @@ nonisolated enum HAAutomationOverviewBuilder {
     private static func strings(in value: JSONValue) -> [String] {
         if let string = value.stringValue { return [string] }
         return value.arrayValue?.compactMap(\.stringValue) ?? []
+    }
+
+    private static func firstString(_ value: JSONValue?) -> String? {
+        strings(in: value ?? .null).first?.nonEmptyAutomationString
     }
 
     private static func stateTitle(prefix: String, entities: [String], state: String?, fallback: String) -> String {
@@ -444,6 +474,13 @@ nonisolated enum HAAutomationOverviewBuilder {
 private extension Array where Element == String {
     var nonEmptyAutomationValue: [String]? {
         isEmpty ? nil : self
+    }
+}
+
+private extension String {
+    var nonEmptyAutomationString: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

@@ -164,6 +164,7 @@ struct AutomationDetailView: View {
 
 private struct AutomationOverviewView: View {
     let overview: HAAutomationOverview
+    @State private var collapsedChoiceIDs: Set<String> = []
 
     var body: some View {
         EntityControlPanel(title: "Automation", systemImage: "point.3.connected.trianglepath.dotted") {
@@ -240,23 +241,18 @@ private struct AutomationOverviewView: View {
     private func choiceOutline(_ options: [HAAutomationStep]) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             ForEach(Array(options.enumerated()), id: \.element.id) { index, option in
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    HStack(alignment: .top, spacing: AppSpacing.small) {
-                        HomesteadIconView(icon: option.icon, pointSize: 11, weight: .bold)
-                            .foregroundStyle(Color.accentColor)
-                            .frame(width: 22, height: 22)
-                            .background(Color.accentColor.opacity(0.12), in: Circle())
-
-                        Text(option.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
+                DisclosureGroup(isExpanded: choiceExpansion(for: option.id)) {
                     ForEach(option.groups) { group in
                         choiceGroup(group)
                     }
+                    .padding(.leading, AppSpacing.medium)
+                } label: {
+                    Text(option.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .tint(.accentColor)
 
                 if index < options.count - 1 {
                     Divider().padding(.leading, 30)
@@ -265,6 +261,19 @@ private struct AutomationOverviewView: View {
         }
         .padding(.leading, 40)
         .padding(.top, AppSpacing.small)
+    }
+
+    private func choiceExpansion(for id: String) -> Binding<Bool> {
+        Binding(
+            get: { !collapsedChoiceIDs.contains(id) },
+            set: { isExpanded in
+                if isExpanded {
+                    collapsedChoiceIDs.remove(id)
+                } else {
+                    collapsedChoiceIDs.insert(id)
+                }
+            }
+        )
     }
 
     private func choiceGroup(_ group: HAAutomationStepGroup) -> some View {
