@@ -166,46 +166,38 @@ private struct AutomationOverviewView: View {
     let overview: HAAutomationOverview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.large) {
-            if !overview.triggers.isEmpty {
-                section(title: "When", systemImage: "bolt.fill", steps: overview.triggers)
-            }
-            if !overview.conditions.isEmpty {
-                section(title: "And If", systemImage: "checkmark.seal.fill", steps: overview.conditions)
-            }
-            if !overview.actions.isEmpty {
-                section(title: "Then Do", systemImage: "play.fill", steps: overview.actions)
+        EntityControlPanel(title: "Automation", systemImage: "point.3.connected.trianglepath.dotted") {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(sections.enumerated()), id: \.offset) { index, section in
+                    if index > 0 { sectionDivider }
+                    flowSection(title: section.title, systemImage: section.systemImage, steps: section.steps)
+                }
             }
         }
     }
 
-    private func section(title: String, systemImage: String, steps: [HAAutomationStep]) -> some View {
-        EntityControlPanel(title: title, systemImage: systemImage) {
+    private var sections: [(title: String, systemImage: String, steps: [HAAutomationStep])] {
+        [
+            ("When", "bolt.fill", overview.triggers),
+            ("And If", "checkmark.seal.fill", overview.conditions),
+            ("Then Do", "play.fill", overview.actions)
+        ].filter { !$0.steps.isEmpty }
+    }
+
+    private var sectionDivider: some View {
+        Divider()
+            .padding(.vertical, AppSpacing.medium)
+    }
+
+    private func flowSection(title: String, systemImage: String, steps: [HAAutomationStep]) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.secondary)
+
             VStack(spacing: 0) {
                 ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
-                    HStack(alignment: .top, spacing: AppSpacing.medium) {
-                        HomesteadIconView(icon: step.icon, pointSize: 15, weight: .semibold)
-                            .foregroundStyle(Color.accentColor)
-                            .frame(width: 28, height: 28)
-                            .background(Color.accentColor.opacity(0.12), in: Circle())
-
-                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                            Text(step.title)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.primary)
-                                .fixedSize(horizontal: false, vertical: true)
-
-                            if let subtitle = step.subtitle, !subtitle.isEmpty {
-                                Text(subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.vertical, AppSpacing.small)
+                    stepRow(step)
 
                     if index < steps.count - 1 {
                         Divider().padding(.leading, 44)
@@ -213,6 +205,32 @@ private struct AutomationOverviewView: View {
                 }
             }
         }
+    }
+
+    private func stepRow(_ step: HAAutomationStep) -> some View {
+        HStack(alignment: .top, spacing: AppSpacing.medium) {
+            HomesteadIconView(icon: step.icon, pointSize: 15, weight: .semibold)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28, height: 28)
+                .background(Color.accentColor.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(step.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let subtitle = step.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, AppSpacing.small)
     }
 }
 
