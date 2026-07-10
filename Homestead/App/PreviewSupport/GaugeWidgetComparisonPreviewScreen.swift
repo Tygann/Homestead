@@ -20,6 +20,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     circularComparisonRow
+                    segmentedComparisonRow
                     barComparisonRow
                 }
                 .padding(20)
@@ -88,6 +89,24 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                     .frame(width: widgetSide, height: widgetSide)
                     .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous))
                 }
+            }
+        }
+    }
+
+    private var segmentedComparisonRow: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Segmented")
+                .font(.headline)
+
+            previewColumn("Dashboard") {
+                DashboardCardView(
+                    entityID: "sensor.front_door_battery",
+                    size: .square,
+                    presentationKind: .gauge,
+                    presentationStyle: .gauge(.segmented),
+                    isPreview: true
+                )
+                .frame(width: dashboardWidth)
             }
         }
     }
