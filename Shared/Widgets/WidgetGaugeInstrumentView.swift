@@ -141,7 +141,7 @@ struct WidgetGaugeInstrumentView: View {
     private func instrumentValueIndicator(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
         let angle = Angle.degrees(150 + (240 * gauge.normalizedValue))
-        let dotDiameter = max(lineWidth * 0.72, 10)
+        let dotDiameter = lineWidth + 2
 
         return Circle()
             .fill(Color.white)
