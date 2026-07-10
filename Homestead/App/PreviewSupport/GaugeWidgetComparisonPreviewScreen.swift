@@ -98,15 +98,30 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             Text("Segmented")
                 .font(.headline)
 
-            previewColumn("Dashboard") {
-                DashboardCardView(
-                    entityID: "sensor.front_door_battery",
-                    size: .square,
-                    presentationKind: .gauge,
-                    presentationStyle: .gauge(.segmented),
-                    isPreview: true
-                )
-                .frame(width: dashboardWidth)
+            HStack(alignment: .top, spacing: 18) {
+                previewColumn("Dashboard") {
+                    DashboardCardView(
+                        entityID: "sensor.front_door_battery",
+                        size: .square,
+                        presentationKind: .gauge,
+                        presentationStyle: .gauge(.segmented),
+                        isPreview: true
+                    )
+                    .frame(width: dashboardWidth)
+                }
+
+                previewColumn("Widget") {
+                    WidgetGaugeInstrumentView(
+                        gauge: gauge,
+                        tint: widgetGaugeStatusColor(for: gauge.status),
+                        title: "Front Door Battery",
+                        icon: gaugeIcon,
+                        style: .segmented
+                    )
+                    .padding(widgetPadding)
+                    .frame(width: widgetSide, height: widgetSide)
+                    .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous))
+                }
             }
         }
     }

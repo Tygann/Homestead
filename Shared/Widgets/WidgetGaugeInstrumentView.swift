@@ -8,6 +8,11 @@ enum GaugeVisualStatus: Equatable, Sendable {
     case critical
 }
 
+enum WidgetGaugeInstrumentStyle: Equatable, Sendable {
+    case standard
+    case segmented
+}
+
 enum GaugeVisualMetrics {
     static let compactHeaderSpacing: CGFloat = 12
     static let compactHeaderTextSpacing: CGFloat = 4
@@ -39,6 +44,7 @@ struct WidgetGaugeInstrumentView: View {
     let tint: Color
     var title: String? = nil
     var icon: ResolvedIcon? = nil
+    var style: WidgetGaugeInstrumentStyle = .standard
 
     var body: some View {
         GeometryReader { proxy in
@@ -62,13 +68,11 @@ struct WidgetGaugeInstrumentView: View {
                     let lineWidth = min(max(diameter * 0.085, 10), 17)
 
                     ZStack {
-                        WidgetGaugeInstrumentArcShape(start: 0, end: 1, inset: lineWidth / 2)
-                            .stroke(
-                                Color.secondary.opacity(0.16),
-                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                            )
+                        instrumentTrack(lineWidth: lineWidth)
 
-                        if gauge.normalizedValue > 0 {
+                        if style == .segmented {
+                            instrumentValueIndicator(diameter: diameter, lineWidth: lineWidth)
+                        } else if gauge.normalizedValue > 0 {
                             WidgetGaugeInstrumentArcShape(start: 0, end: gauge.normalizedValue, inset: lineWidth / 2)
                                 .stroke(
                                     widgetGaugeStatusColor(for: gauge.status),
@@ -88,6 +92,59 @@ struct WidgetGaugeInstrumentView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(gauge.accessibilityLabel)
         .accessibilityValue(gauge.accessibilityValue)
+    }
+
+    @ViewBuilder
+    private func instrumentTrack(lineWidth: CGFloat) -> some View {
+        if style == .segmented {
+            ForEach(Array(gauge.sections.enumerated()), id: \.offset) { index, section in
+                let segment = visualSegment(for: section, at: index)
+
+                WidgetGaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
+                    .stroke(
+                        widgetGaugeStatusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                    )
+            }
+        } else {
+            WidgetGaugeInstrumentArcShape(start: 0, end: 1, inset: lineWidth / 2)
+                .stroke(
+                    Color.secondary.opacity(0.16),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                )
+        }
+    }
+
+    private func instrumentValueIndicator(diameter: CGFloat, lineWidth: CGFloat) -> some View {
+        let radius = max((diameter / 2) - (lineWidth / 2), 0)
+        let angle = Angle.degrees(150 + (240 * gauge.normalizedValue))
+        let dotDiameter = max(lineWidth * 0.72, 10)
+
+        return Circle()
+            .fill(widgetGaugeStatusColor(for: gauge.status))
+            .overlay(Circle().stroke(.background, lineWidth: 2))
+            .frame(width: dotDiameter, height: dotDiameter)
+            .position(
+                x: (diameter / 2) + (radius * CGFloat(cos(angle.radians))),
+                y: (diameter / 2) + (radius * CGFloat(sin(angle.radians)))
+            )
+    }
+
+    private func normalized(_ value: Double) -> Double {
+        guard gauge.upperBound > gauge.lowerBound else { return 0 }
+        return min(max((value - gauge.lowerBound) / (gauge.upperBound - gauge.lowerBound), 0), 1)
+    }
+
+    private func visualSegment(for section: WidgetGaugeSection, at index: Int) -> (start: Double, end: Double) {
+        let rawStart = normalized(section.lowerBound)
+        let rawEnd = normalized(section.upperBound)
+        let start = index == 0 ? rawStart : rawStart + (GaugeVisualMetrics.barSectionGap / 2)
+        let end = index == gauge.sections.indices.last ? rawEnd : rawEnd - (GaugeVisualMetrics.barSectionGap / 2)
+        return (min(max(start, 0), 1), min(max(end, start), 1))
+    }
+
+    private func sectionBackgroundOpacity(for status: WidgetGaugeStatus) -> Double {
+        gaugeSectionBackgroundOpacity(current: gauge.status.visualStatus, section: status.visualStatus)
     }
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {

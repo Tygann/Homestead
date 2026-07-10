@@ -59,7 +59,11 @@ struct GaugePresentationView: View {
                     ZStack {
                         instrumentTrack(lineWidth: lineWidth)
 
-                        instrumentValueFill(lineWidth: lineWidth)
+                        if style == .segmentedInstrument {
+                            instrumentValueIndicator(diameter: diameter, lineWidth: lineWidth)
+                        } else {
+                            instrumentValueFill(lineWidth: lineWidth)
+                        }
 
                         instrumentContent(diameter: diameter, lineWidth: lineWidth)
                     }
@@ -99,27 +103,27 @@ struct GaugePresentationView: View {
     @ViewBuilder
     private func instrumentValueFill(lineWidth: CGFloat) -> some View {
         if presentation.normalizedValue > 0 {
-            if style == .segmentedInstrument {
-                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
-                    let segment = visualSegment(for: section, at: index)
-                    let valueEnd = min(segment.end, presentation.normalizedValue)
-
-                    if valueEnd > segment.start {
-                        GaugeInstrumentArcShape(start: segment.start, end: valueEnd, inset: lineWidth / 2)
-                            .stroke(
-                                statusColor(for: section.status),
-                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                            )
-                    }
-                }
-            } else {
-                GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
-                    .stroke(
-                        statusColor(for: presentation.status),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                    )
-            }
+            GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
+                .stroke(
+                    statusColor(for: presentation.status),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                )
         }
+    }
+
+    private func instrumentValueIndicator(diameter: CGFloat, lineWidth: CGFloat) -> some View {
+        let radius = max((diameter / 2) - (lineWidth / 2), 0)
+        let angle = Angle.degrees(150 + (240 * presentation.normalizedValue))
+        let dotDiameter = max(lineWidth * 0.72, 10)
+
+        return Circle()
+            .fill(statusColor(for: presentation.status))
+            .overlay(Circle().stroke(.background, lineWidth: 2))
+            .frame(width: dotDiameter, height: dotDiameter)
+            .position(
+                x: (diameter / 2) + (radius * CGFloat(cos(angle.radians))),
+                y: (diameter / 2) + (radius * CGFloat(sin(angle.radians)))
+            )
     }
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
