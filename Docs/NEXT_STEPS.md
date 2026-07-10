@@ -15,7 +15,7 @@ Recommended reasoning level: High.
 ## Completed Chunk
 
 - Added the segmented zone gauge across dashboard and Sensor widget presentation with the circular gauge's shared 240-degree geometry, seamless proportional zones, and a current-value dot.
-- Added HA-first overall range resolution, modern device-class fallback zones (including red/orange/green/orange/red humidity defaults), and validated per-card range/boundary overrides through a native Gauge Zones editor.
+- Added HA-first overall range resolution, modern device-class fallback zones (including red/orange/green/orange/red humidity defaults), validated per-card overrides through a native Gauge Zones editor, and equivalent optional decimal min/max/boundary fields for segmented Sensor widgets.
 - Persisted zone overrides with dashboard customization, kept raw Home Assistant DTOs out of SwiftUI, updated the humidity-focused comparison preview, and added focused resolution/persistence coverage.
 
 - Reworked new-user and empty-dashboard behavior around an explicit per-dashboard setup choice: suggested setup is opt-in, Build My Own persists, removing the last item records an intentional empty state, and reconciliation never silently reseeds an empty dashboard.

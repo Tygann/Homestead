@@ -27,6 +27,24 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
 
     @Parameter(title: "Display")
     var display: HomesteadSensorWidgetDisplay?
+
+    @Parameter(title: "Gauge Minimum")
+    var gaugeMinimum: Double?
+
+    @Parameter(title: "Low Critical Upper Bound")
+    var gaugeLowCriticalUpperBound: Double?
+
+    @Parameter(title: "Low Warning Upper Bound")
+    var gaugeLowWarningUpperBound: Double?
+
+    @Parameter(title: "Comfortable Upper Bound")
+    var gaugeComfortableUpperBound: Double?
+
+    @Parameter(title: "High Warning Upper Bound")
+    var gaugeHighWarningUpperBound: Double?
+
+    @Parameter(title: "Gauge Maximum")
+    var gaugeMaximum: Double?
 }
 
 enum HomesteadSensorWidgetDisplay: String, AppEnum {
@@ -283,13 +301,44 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             )
         }
 
-        let cachedGauge = latestConfiguredSnapshot?.gauge
+        let cachedGauge = latestConfiguredSnapshot?.gauge.map {
+            resolvedGauge($0, display: display, configuration: configuration)
+        }
 
         if display == .trend {
             return await trendEntry(for: selectedSensor, cachedGauge: cachedGauge)
         }
 
         return await stateEntry(for: selectedSensor, display: display, cachedGauge: cachedGauge)
+    }
+
+    private func resolvedGauge(
+        _ gauge: WidgetGaugePresentation,
+        display: HomesteadSensorWidgetDisplay,
+        configuration: HomesteadSensorGraphWidgetConfigurationIntent
+    ) -> WidgetGaugePresentation {
+        guard display == .segmentedGauge else { return gauge }
+        let overrides = [
+            configuration.gaugeMinimum,
+            configuration.gaugeLowCriticalUpperBound,
+            configuration.gaugeLowWarningUpperBound,
+            configuration.gaugeComfortableUpperBound,
+            configuration.gaugeHighWarningUpperBound,
+            configuration.gaugeMaximum
+        ]
+        guard overrides.contains(where: { $0 != nil }) else { return gauge }
+
+        let defaults = gauge.fiveZoneValues
+        return gauge.applyingFiveZoneConfiguration(
+            lowerBound: configuration.gaugeMinimum ?? defaults[0],
+            boundaries: [
+                configuration.gaugeLowCriticalUpperBound ?? defaults[1],
+                configuration.gaugeLowWarningUpperBound ?? defaults[2],
+                configuration.gaugeComfortableUpperBound ?? defaults[3],
+                configuration.gaugeHighWarningUpperBound ?? defaults[4]
+            ],
+            upperBound: configuration.gaugeMaximum ?? defaults[5]
+        )
     }
 
     private func trendEntry(

@@ -3158,6 +3158,41 @@ struct HomesteadTests {
         #expect(invalidResolved.sections.map(\.status) == presentation.sections.map(\.status))
     }
 
+    @Test func widgetGaugeAppliesDecimalFiveZoneOverrides() {
+        let gauge = WidgetGaugePresentation(
+            value: 56.25,
+            lowerBound: 0,
+            upperBound: 100,
+            valueText: "56.25",
+            unitText: "%",
+            status: .nominal,
+            statusDisplayText: "Normal",
+            sections: [WidgetGaugeSection(lowerBound: 0, upperBound: 100, status: .nominal)],
+            accessibilityLabel: "Humidity gauge",
+            accessibilityValue: "56.25%"
+        )
+        let resolved = gauge.applyingFiveZoneConfiguration(
+            lowerBound: 5.5,
+            boundaries: [20.25, 30.5, 60.75, 70.125],
+            upperBound: 95.5
+        )
+
+        #expect(resolved.lowerBound == 5.5)
+        #expect(resolved.upperBound == 95.5)
+        #expect(resolved.sections.map(\.upperBound) == [20.25, 30.5, 60.75, 70.125, 95.5])
+        #expect(resolved.sections.map(\.status) == [.critical, .warning, .nominal, .warning, .critical])
+        #expect(resolved.status == .nominal)
+
+        let invalid = gauge.applyingFiveZoneConfiguration(
+            lowerBound: 0,
+            boundaries: [30, 20, 60, 70],
+            upperBound: 100
+        )
+        #expect(invalid.sections.count == 1)
+        #expect(invalid.lowerBound == 0)
+        #expect(invalid.upperBound == 100)
+    }
+
     @Test func entityMapperCarriesSensorGaugeRangeMetadata() throws {
         let dto = HAEntityDTO(
             entityID: "sensor.water_tank",

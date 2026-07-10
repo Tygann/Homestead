@@ -133,6 +133,54 @@ nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
         return min(max(normalized, 0), 1)
     }
 
+    var fiveZoneValues: [Double] {
+        if sections.count == 5 {
+            return [lowerBound] + sections.dropLast().map(\.upperBound) + [upperBound]
+        }
+
+        let span = upperBound - lowerBound
+        return [
+            lowerBound,
+            lowerBound + (span * 0.2),
+            lowerBound + (span * 0.3),
+            lowerBound + (span * 0.6),
+            lowerBound + (span * 0.7),
+            upperBound
+        ]
+    }
+
+    func applyingFiveZoneConfiguration(
+        lowerBound: Double,
+        boundaries: [Double],
+        upperBound: Double
+    ) -> WidgetGaugePresentation {
+        let values = [lowerBound] + boundaries + [upperBound]
+        guard boundaries.count == 4,
+              zip(values, values.dropFirst()).allSatisfy({ $0.0 < $0.1 }) else { return self }
+
+        let statuses: [WidgetGaugeStatus] = [.critical, .warning, .nominal, .warning, .critical]
+        var lower = lowerBound
+        let sections = zip(boundaries + [upperBound], statuses).map { upper, status in
+            defer { lower = upper }
+            return WidgetGaugeSection(lowerBound: lower, upperBound: upper, status: status)
+        }
+        let resolvedStatus = sections.first(where: { value >= $0.lowerBound && value <= $0.upperBound })?.status
+            ?? .critical
+
+        return WidgetGaugePresentation(
+            value: value,
+            lowerBound: lowerBound,
+            upperBound: upperBound,
+            valueText: valueText,
+            unitText: unitText,
+            status: resolvedStatus,
+            statusDisplayText: Self.statusDisplayText(for: resolvedStatus),
+            sections: sections,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityValue: Self.accessibilityValue(valueText: valueText, status: resolvedStatus)
+        )
+    }
+
     func updating(value newValue: Double, valueText newValueText: String) -> WidgetGaugePresentation {
         let newStatus = status(for: newValue)
         let newStatusDisplayText = newStatus == status ? statusDisplayText : Self.statusDisplayText(for: newStatus)
