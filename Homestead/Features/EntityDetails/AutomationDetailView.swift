@@ -199,6 +199,10 @@ private struct AutomationOverviewView: View {
                 ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
                     stepRow(step)
 
+                    if !step.children.isEmpty {
+                        choiceOutline(step.children)
+                    }
+
                     if index < steps.count - 1 {
                         Divider().padding(.leading, 44)
                     }
@@ -231,6 +235,37 @@ private struct AutomationOverviewView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, AppSpacing.small)
+    }
+
+    private func choiceOutline(_ options: [HAAutomationStep]) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            ForEach(options) { option in
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    stepRow(option)
+
+                    ForEach(option.groups) { group in
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(group.title)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                                .padding(.top, AppSpacing.xSmall)
+
+                            ForEach(Array(group.steps.enumerated()), id: \.element.id) { index, step in
+                                stepRow(step)
+
+                                if index < group.steps.count - 1 {
+                                    Divider().padding(.leading, 44)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, AppSpacing.medium)
+                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+            }
+        }
+        .padding(.leading, 40)
+        .padding(.top, AppSpacing.xSmall)
     }
 }
 

@@ -43,6 +43,36 @@ nonisolated struct HAAutomationStep: Identifiable, Equatable, Sendable {
     let title: String
     let subtitle: String?
     let icon: ResolvedIcon
+    let children: [HAAutomationStep]
+    let groups: [HAAutomationStepGroup]
+
+    init(
+        id: String,
+        title: String,
+        subtitle: String?,
+        icon: ResolvedIcon,
+        children: [HAAutomationStep] = [],
+        groups: [HAAutomationStepGroup] = []
+    ) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.icon = icon
+        self.children = children
+        self.groups = groups
+    }
+}
+
+nonisolated struct HAAutomationStepGroup: Identifiable, Equatable, Sendable {
+    let id: String
+    let title: String
+    let steps: [HAAutomationStep]
+
+    init(id: String, title: String, steps: [HAAutomationStep]) {
+        self.id = id
+        self.title = title
+        self.steps = steps
+    }
 }
 
 // MARK: - Presentation Builder
@@ -72,6 +102,10 @@ nonisolated enum HAAutomationOverviewBuilder {
         let title: String
 
         switch type {
+        case "occupancy.detected":
+            title = "Occupancy detected"
+        case "occupancy.cleared":
+            title = "Occupancy cleared"
         case "zone.left":
             title = "Zone left"
         case "zone.entered":
@@ -166,41 +200,116 @@ nonisolated enum HAAutomationOverviewBuilder {
         let entities = resolvedEntityNames(in: item, entityName: entityName)
         let title: String
         let icon: String
+        let children: [HAAutomationStep]
 
         if let service {
             title = serviceTitle(service)
             icon = serviceIcon(service)
+            children = []
         } else if item["choose"] != nil {
             let count = item["choose"]?.arrayValue?.count ?? 0
             title = "Choose between \(max(count, 1)) option\(count == 1 ? "" : "s")"
-            icon = "arrow.triangle.branch"
+            icon = "mdi:source-branch"
+            children = choiceOptions(in: item, actionIndex: index, entityName: entityName)
         } else if item["if"] != nil {
             title = "If a condition matches"
             icon = "arrow.triangle.branch"
+            children = []
         } else if item["repeat"] != nil {
             title = "Repeat actions"
             icon = "repeat"
+            children = []
         } else if let delay = string(item, "delay") {
             title = "Wait \(delay)"
             icon = "clock.fill"
+            children = []
         } else if item["wait_for_trigger"] != nil {
             title = "Wait for a trigger"
             icon = "hourglass"
+            children = []
         } else if item["wait_template"] != nil {
             title = "Wait for a template"
             icon = "hourglass"
+            children = []
         } else if item["event"] != nil {
             title = "Fire \(string(item, "event") ?? "an event")"
             icon = "bolt.horizontal.fill"
+            children = []
         } else if item["stop"] != nil {
             title = "Stop automation"
             icon = "stop.fill"
+            children = []
         } else {
             title = string(item, "alias") ?? "Run an action"
             icon = "play.fill"
+            children = []
         }
 
-        return step(id: "action-\(index)", title: title, subtitle: entities.isEmpty ? detail(for: item, excluding: []) : entities.joined(separator: ", "), icon: icon)
+        return step(
+            id: "action-\(index)",
+            title: title,
+            subtitle: entities.isEmpty ? detail(for: item, excluding: []) : entities.joined(separator: " • "),
+            icon: icon,
+            children: children
+        )
+    }
+
+    private static func choiceOptions(
+        in item: [String: JSONValue],
+        actionIndex: Int,
+        entityName: (String) -> String
+    ) -> [HAAutomationStep] {
+        let options = item["choose"]?.arrayValue ?? []
+        var result = options.enumerated().map { optionIndex, value in
+            let option = value.objectValue ?? [:]
+            let conditions = steps(in: option, plural: "conditions", legacy: "condition").enumerated().map {
+                choiceConditionStep($0.element, index: $0.offset, entityName: entityName)
+            }
+            let actions = steps(in: option, plural: "sequence", legacy: "actions").enumerated().map {
+                actionStep($0.element, index: $0.offset, entityName: entityName)
+            }
+            let triggerDescription = conditions.first?.title.replacingOccurrences(of: "If triggered by ", with: "")
+            let title = "Option \(optionIndex + 1): \(triggerDescription.map { "If triggered by \($0)" } ?? "Actions")"
+            let groups = [
+                HAAutomationStepGroup(id: "choice-\(actionIndex)-\(optionIndex)-conditions", title: "Conditions", steps: conditions),
+                HAAutomationStepGroup(id: "choice-\(actionIndex)-\(optionIndex)-actions", title: "Actions", steps: actions)
+            ].filter { !$0.steps.isEmpty }
+
+            return step(
+                id: "choice-\(actionIndex)-\(optionIndex)",
+                title: title,
+                subtitle: nil,
+                icon: "chevron.up",
+                groups: groups
+            )
+        }
+
+        if let defaultActions = item["default"]?.arrayValue, !defaultActions.isEmpty {
+            let actions = defaultActions.enumerated().map { actionStep($0.element, index: $0.offset, entityName: entityName) }
+            result.append(step(
+                id: "choice-\(actionIndex)-default",
+                title: "Default actions",
+                subtitle: nil,
+                icon: "arrow.turn.down.right",
+                groups: [HAAutomationStepGroup(id: "choice-\(actionIndex)-default-actions", title: "Actions", steps: actions)]
+            ))
+        }
+
+        return result
+    }
+
+    private static func choiceConditionStep(_ value: JSONValue, index: Int, entityName: (String) -> String) -> HAAutomationStep {
+        let item = value.objectValue ?? [:]
+        let type = string(item, "condition") ?? inferredConditionType(item) ?? ""
+        if type == "trigger" {
+            return step(
+                id: "choice-condition-\(index)",
+                title: "If triggered by \(string(item, "id") ?? "a matching trigger")",
+                subtitle: nil,
+                icon: "mdi:identifier"
+            )
+        }
+        return conditionStep(value, index: index, entityName: entityName)
     }
 
     private static func steps(in config: [String: JSONValue], plural: String, legacy: String) -> [JSONValue] {
@@ -260,6 +369,9 @@ nonisolated enum HAAutomationOverviewBuilder {
             break
         }
 
+        if service == "light.turn_on" { return "Turn on light" }
+        if service == "light.turn_off" { return "Turn off light" }
+
         let pieces = service.split(separator: ".", maxSplits: 1).map(String.init)
         guard pieces.count == 2 else { return service.replacingOccurrences(of: "_", with: " ").capitalized }
         return "\(pieces[1].replacingOccurrences(of: "_", with: " ").capitalized) \(pieces[0].replacingOccurrences(of: "_", with: " "))"
@@ -267,6 +379,8 @@ nonisolated enum HAAutomationOverviewBuilder {
 
     private static func serviceIcon(_ service: String) -> String {
         if service == "input_select.select_option" || service == "select.select_option" { return "mdi:check" }
+        if service == "light.turn_on" { return "mdi:lightbulb-on" }
+        if service == "light.turn_off" { return "mdi:lightbulb-off" }
         if service.hasSuffix(".turn_on") { return "power" }
         if service.hasSuffix(".turn_off") { return "power" }
         if service.hasSuffix(".toggle") { return "switch.2" }
@@ -284,6 +398,10 @@ nonisolated enum HAAutomationOverviewBuilder {
             "mdi:clock-outline"
         case "state":
             "mdi:state-machine"
+        case "occupancy.detected":
+            "mdi:home-account"
+        case "occupancy.cleared":
+            "mdi:home-outline"
         default:
             "mdi:lightning-bolt"
         }
@@ -304,12 +422,21 @@ nonisolated enum HAAutomationOverviewBuilder {
         }
     }
 
-    private static func step(id: String, title: String, subtitle: String?, icon: String) -> HAAutomationStep {
+    private static func step(
+        id: String,
+        title: String,
+        subtitle: String?,
+        icon: String,
+        children: [HAAutomationStep] = [],
+        groups: [HAAutomationStepGroup] = []
+    ) -> HAAutomationStep {
         HAAutomationStep(
             id: id,
             title: title,
             subtitle: subtitle,
-            icon: IconResolver.resolveRegistryIcon(icon, fallback: icon.hasPrefix("mdi:") ? "circle" : icon)
+            icon: IconResolver.resolveRegistryIcon(icon, fallback: icon.hasPrefix("mdi:") ? "circle" : icon),
+            children: children,
+            groups: groups
         )
     }
 }

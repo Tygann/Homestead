@@ -1930,6 +1930,38 @@ struct HomesteadTests {
         #expect(modernOverview.conditions.map(\.title) == ["Is not in zone", "Switch is off"])
         #expect(modernOverview.actions.map(\.title) == ["Input select: Select input select option"])
 
+        let chooseOverview = HAAutomationOverviewBuilder.make(config: [
+            "actions": .array([.object([
+                "choose": .array([
+                    .object([
+                        "conditions": .array([.object([
+                            "condition": .string("trigger"),
+                            "id": .string("detected")
+                        ])]),
+                        "sequence": .array([.object([
+                            "action": .string("light.turn_on"),
+                            "target": .object(["entity_id": .array([.string("light.entryway_lamp"), .string("light.hallway_chandelier")])])
+                        ])])
+                    ]),
+                    .object([
+                        "conditions": .array([.object([
+                            "condition": .string("trigger"),
+                            "id": .string("cleared")
+                        ])]),
+                        "sequence": .array([.object(["action": .string("light.turn_off")])])
+                    ])
+                ])
+            ])])
+        ]) { id in
+            ["light.entryway_lamp": "Entryway Lamp", "light.hallway_chandelier": "Hallway Chandelier"][id] ?? id
+        }
+        let choose = try #require(chooseOverview.actions.first)
+        #expect(choose.title == "Choose between 2 options")
+        #expect(choose.children.map(\.title) == ["Option 1: If triggered by detected", "Option 2: If triggered by cleared"])
+        #expect(choose.children[0].groups.map(\.title) == ["Conditions", "Actions"])
+        #expect(choose.children[0].groups[1].steps.map(\.title) == ["Turn on light"])
+        #expect(choose.children[0].groups[1].steps.map(\.subtitle) == ["Entryway Lamp • Hallway Chandelier"])
+
         let traces = try JSONDecoder().decode([HAAutomationTraceDTO].self, from: Data(#"""
         [
           {"run_id":"finished","state":"stopped","script_execution":"finished","timestamp":{"start":"2026-06-05T15:10:00Z"}},

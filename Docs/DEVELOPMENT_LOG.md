@@ -9,6 +9,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Replaced automation REST state-history activity with Home Assistant WebSocket execution traces, so the native detail shows real Triggered, Failed, and Stopped runs rather than repeated Enabled/Unavailable state transitions.
 - Added a read-only, app-facing automation configuration mapper for the official `automation/config` response. The detail presents compact native When, And If, and Then Do sections while retaining editing and full trace inspection in Home Assistant.
 - Standardized automation state semantics across the detail surface as Enabled/Disabled, without changing switch or other entity state wording.
+- Extended automation action presentation to retain Home Assistant `choose` branches: options now show their trigger conditions and nested target actions, with occupancy, condition, branch, and light icons resolved through the shared HA MDI/SF icon system.
 
 ## 2026-07-08
 
