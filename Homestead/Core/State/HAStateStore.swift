@@ -135,7 +135,11 @@ final class HAStateStore {
     }
 
     func managementAreaName(for entityID: String) -> String? {
-        areaID(for: entityID)?.nonEmptyValue.flatMap { areaRegistryByID[$0]?.name.nonEmptyValue }
+        managementArea(for: entityID)?.name.nonEmptyValue
+    }
+
+    func managementArea(for entityID: String) -> HAAreaRegistryDTO? {
+        areaID(for: entityID)?.nonEmptyValue.flatMap { areaRegistryByID[$0] }
     }
 
     func managementCategory(for entityID: String, scope: HAOrganizationScope) -> HACategoryRegistryDTO? {

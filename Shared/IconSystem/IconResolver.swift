@@ -88,6 +88,18 @@ nonisolated enum IconResolver {
         return .sfSymbol("house", provenance: .fallback)
     }
 
+    static func resolveRegistryIcon(_ identifier: String?, fallback: String) -> ResolvedIcon {
+        guard let identifier = normalized(identifier) else {
+            return .sfSymbol(fallback, provenance: .fallback)
+        }
+
+        return resolveHomeAssistantIdentifier(
+            identifier,
+            fallback: fallback,
+            provenance: .haRegistryIcon
+        )
+    }
+
     static func applyingDashboardOverride(
         _ identifier: String?,
         to icon: ResolvedIcon

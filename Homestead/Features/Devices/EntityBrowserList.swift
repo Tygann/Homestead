@@ -372,7 +372,11 @@ struct EntityBrowserList<Accessory: View>: View {
         if grouping == .name || grouping == .device || grouping == .recent {
             Text(group.title)
         } else {
-            Label(group.title, systemImage: group.systemImage)
+            Label {
+                Text(group.title)
+            } icon: {
+                HomesteadIconView(icon: group.resolvedIcon, pointSize: 14, weight: .semibold)
+            }
         }
     }
 
@@ -482,7 +486,8 @@ struct EntityBrowserList<Accessory: View>: View {
                         id: descriptor.id,
                         title: descriptor.title,
                         systemImage: descriptor.systemImage,
-                        entityIDs: entityIDs.sortedByEntityDisplayName(in: stateStore)
+                        entityIDs: entityIDs.sortedByEntityDisplayName(in: stateStore),
+                        resolvedIcon: descriptor.resolvedIcon
                     )
                 }
                 .sortedByTitle
@@ -503,8 +508,16 @@ struct EntityBrowserList<Accessory: View>: View {
             unfilteredGroups = groupedEntities(
                 visibleCandidateEntityIDs.filter(entityPassesVisibility),
                 descriptor: { entityID in
-                    if let areaName = stateStore.managementAreaName(for: entityID) {
-                        return EntityBrowserGroup(id: "area-\(areaName)", title: areaName, systemImage: "rectangle.3.group", entityIDs: [])
+                    if let area = stateStore.managementArea(for: entityID) {
+                        return EntityBrowserGroup(
+                            id: "area-\(area.id)",
+                            title: area.name,
+                            systemImage: "rectangle.3.group",
+                            entityIDs: [],
+                            resolvedIcon: IconResolver.resolveArea(
+                                AreaIconResolutionInput(name: area.name, registryIcon: area.icon)
+                            )
+                        )
                     }
                     return EntityBrowserGroup(id: "area-unassigned", title: "Unassigned", systemImage: "questionmark.folder", entityIDs: [])
                 }
@@ -515,7 +528,13 @@ struct EntityBrowserList<Accessory: View>: View {
                 descriptor: { entityID in
                     if let organizationScope,
                        let category = stateStore.managementCategory(for: entityID, scope: organizationScope) {
-                        return EntityBrowserGroup(id: "category-\(category.id)", title: category.name, systemImage: "folder", entityIDs: [])
+                        return EntityBrowserGroup(
+                            id: "category-\(category.id)",
+                            title: category.name,
+                            systemImage: "folder",
+                            entityIDs: [],
+                            resolvedIcon: IconResolver.resolveRegistryIcon(category.icon, fallback: "folder")
+                        )
                     }
                     return EntityBrowserGroup(id: "category-unassigned", title: "Unassigned", systemImage: "questionmark.folder", entityIDs: [])
                 }
@@ -631,7 +650,8 @@ struct EntityBrowserList<Accessory: View>: View {
                     id: descriptor.id,
                     title: descriptor.title,
                     systemImage: descriptor.systemImage,
-                    entityIDs: entityIDs.sortedByEntityDisplayName(in: stateStore)
+                    entityIDs: entityIDs.sortedByEntityDisplayName(in: stateStore),
+                    resolvedIcon: descriptor.resolvedIcon
                 )
             }
             .sorted { lhs, rhs in
@@ -744,6 +764,21 @@ struct EntityBrowserGroup: Identifiable, Equatable, Hashable {
     let title: String
     let systemImage: String
     let entityIDs: [String]
+    let resolvedIcon: ResolvedIcon
+
+    init(
+        id: String,
+        title: String,
+        systemImage: String,
+        entityIDs: [String],
+        resolvedIcon: ResolvedIcon? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.systemImage = systemImage
+        self.entityIDs = entityIDs
+        self.resolvedIcon = resolvedIcon ?? .sfSymbol(systemImage, provenance: .fallback)
+    }
 }
 
 private extension Array where Element == EntityBrowserGroup {

@@ -145,6 +145,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Removed the Blueprints, Widgets, and Live Activities placeholder rows from production Settings; Blueprints still needs an official external API before native browsing/import/management, while widgets are configured from the Home Screen and Live Activities are not implemented yet.
 - Added opt-in Settings > iCloud Sync backed by Apple iCloud key-value storage for small Homestead-owned preferences, intentionally excluding credentials, tokens, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, wallpaper files, and generated user data.
 - Aligned Settings management organization with Home Assistant: Automations, Scenes, Scripts, and Helpers now consume scoped Categories; entities consume direct/device area relationships; labels filter Devices, Entities, Helpers, Automations, Scenes, and Scripts; and automation/scene/script lists can sort by recent activity when timestamps are available.
+- Replaced generic Area and Category group-header symbols with registry-provided Home Assistant icons rendered through the shared native-first MDI-to-SF icon resolver, preserving semantic area and folder fallbacks when no icon is assigned.
 
 ### UX Cleanup and Fan Controls
 

@@ -9488,7 +9488,7 @@ struct HomesteadTests {
             devices: [
                 HADeviceRegistryDTO(id: "bridge", name: "Bridge", labels: ["important"])
             ],
-            areas: [HAAreaRegistryDTO(id: "entry", name: "Entry")],
+            areas: [HAAreaRegistryDTO(id: "entry", name: "Entry", icon: "mdi:door")],
             organization: [
                 HAEntityOrganizationDTO(
                     entityID: "automation.arrival_lights",
@@ -9501,6 +9501,7 @@ struct HomesteadTests {
         )
 
         #expect(store.managementAreaName(for: "automation.arrival_lights") == "Entry")
+        #expect(store.managementArea(for: "automation.arrival_lights")?.icon == "mdi:door")
         #expect(store.managementCategory(for: "automation.arrival_lights", scope: .automation)?.name == "Presence")
         #expect(store.managementLabels(for: "automation.arrival_lights").map(\.name) == ["Important"])
         #expect(store.managementOrganizationDetail(for: "automation.arrival_lights", scope: .automation) == "Entry • Presence")
@@ -9862,6 +9863,18 @@ struct HomesteadTests {
         #expect(resolved.asset == .materialDesign("piano"))
         #expect(resolved.provenance == .haRegistryIcon)
         #expect(resolved.fallbackSFSymbol == "bed.double")
+    }
+
+    @Test func genericRegistryIconUsesHybridResolverAndFallback() {
+        let mapped = IconResolver.resolveRegistryIcon("mdi:router-wireless", fallback: "folder")
+        let materialDesign = IconResolver.resolveRegistryIcon("mdi:piano", fallback: "folder")
+        let fallback = IconResolver.resolveRegistryIcon(nil, fallback: "folder")
+
+        #expect(mapped.asset == .sfSymbol("wifi.router.fill"))
+        #expect(mapped.provenance == .haRegistryIcon)
+        #expect(materialDesign.asset == .materialDesign("piano"))
+        #expect(fallback.asset == .sfSymbol("folder"))
+        #expect(fallback.provenance == .fallback)
     }
 
     @Test func entityRegistryCompactIconMetadataDecodes() throws {
