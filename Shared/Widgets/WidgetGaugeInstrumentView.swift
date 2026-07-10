@@ -97,15 +97,14 @@ struct WidgetGaugeInstrumentView: View {
     @ViewBuilder
     private func instrumentTrack(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         if style == .segmented {
-            ForEach(Array(gauge.sections.enumerated()), id: \.offset) { index, section in
-                let segment = instrumentSegment(for: section, at: index, diameter: diameter, lineWidth: lineWidth)
+            ForEach(gauge.sections.indices, id: \.self) { index in
+                let section = gauge.sections[index]
+                let segment = instrumentSegment(for: section)
 
                 WidgetGaugeInstrumentArcShape(
                     start: segment.start,
                     end: segment.end,
-                    inset: lineWidth / 2,
-                    startAngle: 135,
-                    sweepAngle: 270
+                    inset: lineWidth / 2
                 )
                     .stroke(
                         widgetGaugeStatusColor(for: section.status),
@@ -141,7 +140,7 @@ struct WidgetGaugeInstrumentView: View {
 
     private func instrumentValueIndicator(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
-        let angle = Angle.degrees(135 + (270 * gauge.normalizedValue))
+        let angle = Angle.degrees(150 + (240 * gauge.normalizedValue))
         let dotDiameter = max(lineWidth * 0.72, 10)
 
         return Circle()
@@ -162,7 +161,7 @@ struct WidgetGaugeInstrumentView: View {
         lineWidth: CGFloat
     ) -> some View {
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
-        let angle = Angle.degrees(135 + (270 * normalized(value)))
+        let angle = Angle.degrees(150 + (240 * normalized(value)))
 
         return Circle()
             .fill(color)
@@ -186,19 +185,10 @@ struct WidgetGaugeInstrumentView: View {
         return (min(max(start, 0), 1), min(max(end, start), 1))
     }
 
-    private func instrumentSegment(
-        for section: WidgetGaugeSection,
-        at index: Int,
-        diameter: CGFloat,
-        lineWidth: CGFloat
-    ) -> (start: Double, end: Double) {
+    private func instrumentSegment(for section: WidgetGaugeSection) -> (start: Double, end: Double) {
         let rawStart = normalized(section.lowerBound)
         let rawEnd = normalized(section.upperBound)
-        let radius = max((diameter / 2) - (lineWidth / 2), 1)
-        let gap = min(max((Double(lineWidth / radius) * 1.15) / (1.5 * Double.pi), 0.035), 0.08)
-        let start = index == 0 ? rawStart : rawStart + (gap / 2)
-        let end = index == gauge.sections.indices.last ? rawEnd : rawEnd - (gap / 2)
-        return (min(max(start, 0), 1), min(max(end, start), 1))
+        return (rawStart, max(rawEnd, rawStart))
     }
 
     private func sectionBackgroundOpacity(for status: WidgetGaugeStatus) -> Double {
