@@ -7,7 +7,7 @@ Entries are newest first. Use this as the published-build boundary when preparin
 ## Future Workflow
 
 1. Before uploading a new TestFlight or App Store build, ask Codex to compare project changes since the latest release-history entry.
-2. Generate concise user-facing update notes from meaningful product, reliability, performance, and polish changes. Lead with new user-visible features, then meaningful improvements, then reliability or fix notes.
+2. Generate concise user-facing update notes from meaningful product, reliability, performance, and polish changes. Prioritize the few changes with the most tester value instead of summarizing every workstream.
 3. Append the finalized notes to this file with the version, build number, release date, and optional internal source notes.
 4. Commit the release-history update with the build-related changes.
 5. Optionally, later introduce git tags to mark shipped builds and improve release-note generation accuracy:
@@ -24,7 +24,10 @@ Write notes for the audience and channel:
 - Public App Store notes should skip tester instructions and focus on what changed, what is new, and what improved.
 - Lead with new features or the highest-value user-visible changes. Put polish, performance, reliability, and bug fixes after that unless they are the main reason for the release.
 - Avoid generic "bug fixes and improvements" when significant product changes shipped. Name the changes in plain user-facing language.
-- Keep the final App Store copy short enough to scan on a phone. A brief intro plus a few bullets is usually enough.
+- Default to one short introductory sentence and 3-5 bullets total. Combine related work and omit implementation details, minor iterations, and exhaustive lists.
+- For TestFlight, add only 2-4 targeted test prompts covering the riskiest or most important flows. Do not repeat every release-note bullet.
+- Keep each bullet to one line where practical, start with the user benefit, and use direct language without marketing filler.
+- Aim for roughly 60-120 words of pasteable TestFlight copy. Go longer only when testers need essential setup or safety instructions.
 
 ## Entry Template
 
@@ -38,25 +41,41 @@ Write notes for the audience and channel:
 
 This update adds [new/highest-value changes] and improves [main improvement area].
 
-What's new:
-
-- ...
-- ...
-
-Improvements:
-
 - ...
 - ...
 
 Please test:
 
-- Include this section for TestFlight builds only.
-- Omit this section for public App Store release notes.
+- [2-4 focused flows for TestFlight only]
 
 ### Internal Summary
 
 Optional notes about the major source changes covered by this release.
 ```
+
+## Version 1 (Build 101)
+
+- Release Date: 2026-07-10
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build makes dashboards easier to personalize and adds richer ways to view Home Assistant data.
+
+- Redesigned Add to Dashboard flow with clearer, live card previews
+- New and refined gauge styles, including configurable zones and expanded sensor widget displays
+- More useful automation details with readable conditions, actions, and choice branches
+- Refreshed app icon, appearance controls, and Home Assistant management navigation
+
+Please test:
+
+- Adding and configuring dashboard cards, especially gauges and zone ranges
+- Sensor widgets and automation detail views
+- Devices & Services navigation and Appearance settings
+
+### Internal Summary
+
+Build 101 covers the post-Build 16 dashboard presentation and add-flow redesign, gauge and widget consolidation, configurable segmented gauge zones, automation overview and branch presentation, Home Assistant-style management organization, appearance color controls, refreshed app icon, shared Xcode Cloud scheme, and Xcode 27 Cloud compatibility fixes.
 
 ## Version 1.0 (Build 16)
 
