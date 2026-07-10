@@ -472,13 +472,13 @@ nonisolated enum HAAutomationOverviewBuilder {
 }
 
 private extension Array where Element == String {
-    var nonEmptyAutomationValue: [String]? {
+    nonisolated var nonEmptyAutomationValue: [String]? {
         isEmpty ? nil : self
     }
 }
 
 private extension String {
-    var nonEmptyAutomationString: String? {
+    nonisolated var nonEmptyAutomationString: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }

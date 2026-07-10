@@ -188,17 +188,9 @@ struct ContentView: View {
                 }
             }
 
-            if #available(iOS 27.0, *) {
-                Tab("Browse", systemImage: "magnifyingglass", role: .prominent) {
-                    tabContent(statusAccessoryState: chrome.statusAccessoryState) {
-                        DevicesView()
-                    }
-                }
-            } else {
-                Tab("Browse", systemImage: "magnifyingglass", role: .search) {
-                    tabContent(statusAccessoryState: chrome.statusAccessoryState) {
-                        DevicesView()
-                    }
+            Tab("Browse", systemImage: "magnifyingglass", role: .search) {
+                tabContent(statusAccessoryState: chrome.statusAccessoryState) {
+                    DevicesView()
                 }
             }
         }

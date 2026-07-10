@@ -4,7 +4,6 @@ import UIKit
 #endif
 
 struct HomeAssistantAsyncImage<Content: View>: View {
-    @State private var request: URLRequest?
     @State private var fallbackImage: Image?
 
     let id: String
@@ -22,15 +21,7 @@ struct HomeAssistantAsyncImage<Content: View>: View {
     }
 
     var body: some View {
-        Group {
-            if #available(iOS 27.0, *) {
-                AsyncImage(request: request) { phase in
-                    content(phase.image)
-                }
-            } else {
-                content(fallbackImage)
-            }
-        }
+        content(fallbackImage)
         .task(id: id) {
             await loadImage()
         }
@@ -38,7 +29,6 @@ struct HomeAssistantAsyncImage<Content: View>: View {
 
     @MainActor
     private func loadImage() async {
-        request = nil
         fallbackImage = nil
 
         guard let request = await requestProvider() else {
@@ -49,20 +39,16 @@ struct HomeAssistantAsyncImage<Content: View>: View {
             return
         }
 
-        if #available(iOS 27.0, *) {
-            self.request = request
-        } else {
-            #if canImport(UIKit)
-            guard let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
-                return
-            }
-
-            guard !Task.isCancelled else {
-                return
-            }
-
-            fallbackImage = Image(uiImage: uiImage)
-            #endif
+        #if canImport(UIKit)
+        guard let uiImage = await HomeAssistantImageCache.shared.image(for: request) else {
+            return
         }
+
+        guard !Task.isCancelled else {
+            return
+        }
+
+        fallbackImage = Image(uiImage: uiImage)
+        #endif
     }
 }
