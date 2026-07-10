@@ -474,7 +474,7 @@ struct DashboardEntityCard: View {
         } else {
             GaugePresentationView(
                 presentation: gauge,
-                style: .instrument,
+                style: presentationStyle == .gauge(.segmented) ? .segmentedInstrument : .instrument,
                 tint: iconColor,
                 title: presentation.title,
                 icon: gaugeIcon(for: gauge)

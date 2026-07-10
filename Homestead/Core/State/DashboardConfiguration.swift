@@ -54,6 +54,7 @@ nonisolated enum DashboardControlStyle: String, Codable, Equatable, Hashable, Se
 
 nonisolated enum DashboardGaugeStyle: String, Codable, Equatable, Hashable, Sendable {
     case circular
+    case segmented
     case bar
 }
 

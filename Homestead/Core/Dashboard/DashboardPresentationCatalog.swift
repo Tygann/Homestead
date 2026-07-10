@@ -86,6 +86,7 @@ enum DashboardPresentationCatalog {
         case .gauge:
             return [
                 styleDescriptor(for: .gauge(.circular)),
+                styleDescriptor(for: .gauge(.segmented)),
                 styleDescriptor(for: .gauge(.bar))
             ]
         default:
@@ -103,6 +104,8 @@ enum DashboardPresentationCatalog {
             DashboardPresentationStyleDescriptor(style: style, title: "Thermostat", systemImage: "thermometer.medium")
         case .gauge(.circular):
             DashboardPresentationStyleDescriptor(style: style, title: "Circular", systemImage: "gauge.with.dots.needle.33percent")
+        case .gauge(.segmented):
+            DashboardPresentationStyleDescriptor(style: style, title: "Segmented", systemImage: "gauge.with.dots.needle.50percent")
         case .gauge(.bar):
             DashboardPresentationStyleDescriptor(style: style, title: "Bar", systemImage: "chart.bar.fill")
         }

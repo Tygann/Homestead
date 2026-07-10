@@ -103,6 +103,10 @@ final class DashboardConfigurationXCTests: XCTestCase {
         )
         _ = configuration.add(
             source: .entity("sensor.battery"),
+            presentation: .card(.gauge(style: .segmented, layout: .square))
+        )
+        _ = configuration.add(
+            source: .entity("sensor.battery"),
             presentation: .card(.gauge(style: .bar, layout: .wide))
         )
 
@@ -112,6 +116,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
             restored.items.compactMap(\.cardConfiguration),
             [
                 .gauge(style: .circular, layout: .square),
+                .gauge(style: .segmented, layout: .square),
                 .gauge(style: .bar, layout: .wide)
             ]
         )
@@ -512,7 +517,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         )
         XCTAssertEqual(
             DashboardPresentationCatalog.styleDescriptors(for: .gauge, entityBox: battery).map(\.style),
-            [.gauge(.circular), .gauge(.bar)]
+            [.gauge(.circular), .gauge(.segmented), .gauge(.bar)]
         )
         XCTAssertEqual(
             DashboardPresentationCatalog.styleDescriptors(for: .control, entityBox: thermostat).map(\.style),

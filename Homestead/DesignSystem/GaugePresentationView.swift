@@ -3,6 +3,7 @@ import SwiftUI
 enum GaugePresentationStyle: Equatable, Sendable {
     case arc
     case instrument
+    case segmentedInstrument
     case row
     case detail
 }
@@ -24,6 +25,8 @@ struct GaugePresentationView: View {
         case .arc:
             arcGauge(arcHeight: 68, lineWidth: dashboardLineWidth, markerFont: .caption2.weight(.semibold))
         case .instrument:
+            instrumentGauge
+        case .segmentedInstrument:
             instrumentGauge
         case .row:
             rowGauge
@@ -54,19 +57,9 @@ struct GaugePresentationView: View {
                     let lineWidth = min(max(diameter * 0.085, 10), 17)
 
                     ZStack {
-                        GaugeInstrumentArcShape(start: 0, end: 1, inset: lineWidth / 2)
-                            .stroke(
-                                Color.secondary.opacity(0.16),
-                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                            )
+                        instrumentTrack(lineWidth: lineWidth)
 
-                        if presentation.normalizedValue > 0 {
-                            GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
-                                .stroke(
-                                    statusColor(for: presentation.status),
-                                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                                )
-                        }
+                        instrumentValueFill(lineWidth: lineWidth)
 
                         instrumentContent(diameter: diameter, lineWidth: lineWidth)
                     }
@@ -80,6 +73,53 @@ struct GaugePresentationView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(presentation.accessibilityValue)
+    }
+
+    @ViewBuilder
+    private func instrumentTrack(lineWidth: CGFloat) -> some View {
+        if style == .segmentedInstrument {
+            ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                let segment = visualSegment(for: section, at: index)
+
+                GaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
+                    .stroke(
+                        statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                    )
+            }
+        } else {
+            GaugeInstrumentArcShape(start: 0, end: 1, inset: lineWidth / 2)
+                .stroke(
+                    Color.secondary.opacity(0.16),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func instrumentValueFill(lineWidth: CGFloat) -> some View {
+        if presentation.normalizedValue > 0 {
+            if style == .segmentedInstrument {
+                ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
+                    let segment = visualSegment(for: section, at: index)
+                    let valueEnd = min(segment.end, presentation.normalizedValue)
+
+                    if valueEnd > segment.start {
+                        GaugeInstrumentArcShape(start: segment.start, end: valueEnd, inset: lineWidth / 2)
+                            .stroke(
+                                statusColor(for: section.status),
+                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                            )
+                    }
+                }
+            } else {
+                GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
+                    .stroke(
+                        statusColor(for: presentation.status),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                    )
+            }
+        }
     }
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
@@ -358,6 +398,8 @@ struct GaugePresentationView: View {
         case .arc:
             1.24
         case .instrument:
+            1
+        case .segmentedInstrument:
             1
         case .row:
             1
