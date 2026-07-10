@@ -112,6 +112,24 @@ struct WidgetGaugeInstrumentView: View {
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
                     )
             }
+
+            if let first = gauge.sections.first {
+                instrumentEndpointCap(
+                    value: first.lowerBound,
+                    color: widgetGaugeStatusColor(for: first.status),
+                    diameter: diameter,
+                    lineWidth: lineWidth
+                )
+            }
+
+            if let last = gauge.sections.last {
+                instrumentEndpointCap(
+                    value: last.upperBound,
+                    color: widgetGaugeStatusColor(for: last.status),
+                    diameter: diameter,
+                    lineWidth: lineWidth
+                )
+            }
         } else {
             WidgetGaugeInstrumentArcShape(start: 0, end: 1, inset: lineWidth / 2)
                 .stroke(
@@ -131,6 +149,24 @@ struct WidgetGaugeInstrumentView: View {
             .overlay(Circle().stroke(Color.white.opacity(0.92), lineWidth: 2))
             .shadow(color: .black.opacity(0.22), radius: 1.5, y: 1)
             .frame(width: dotDiameter, height: dotDiameter)
+            .position(
+                x: (diameter / 2) + (radius * CGFloat(cos(angle.radians))),
+                y: (diameter / 2) + (radius * CGFloat(sin(angle.radians)))
+            )
+    }
+
+    private func instrumentEndpointCap(
+        value: Double,
+        color: Color,
+        diameter: CGFloat,
+        lineWidth: CGFloat
+    ) -> some View {
+        let radius = max((diameter / 2) - (lineWidth / 2), 0)
+        let angle = Angle.degrees(135 + (270 * normalized(value)))
+
+        return Circle()
+            .fill(color)
+            .frame(width: lineWidth, height: lineWidth)
             .position(
                 x: (diameter / 2) + (radius * CGFloat(cos(angle.radians))),
                 y: (diameter / 2) + (radius * CGFloat(sin(angle.radians)))
