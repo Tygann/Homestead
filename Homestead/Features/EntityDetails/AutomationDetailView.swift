@@ -240,48 +240,31 @@ private struct AutomationOverviewView: View {
     private func choiceOutline(_ options: [HAAutomationStep]) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             ForEach(Array(options.enumerated()), id: \.element.id) { index, option in
-                HStack(alignment: .top, spacing: AppSpacing.small) {
-                    outlineGuide(isLast: index == options.count - 1)
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    HStack(alignment: .top, spacing: AppSpacing.small) {
+                        HomesteadIconView(icon: option.icon, pointSize: 11, weight: .bold)
+                            .foregroundStyle(Color.accentColor)
+                            .frame(width: 22, height: 22)
+                            .background(Color.accentColor.opacity(0.12), in: Circle())
 
-                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                        HStack(alignment: .top, spacing: AppSpacing.small) {
-                            HomesteadIconView(icon: option.icon, pointSize: 11, weight: .bold)
-                                .foregroundStyle(Color.accentColor)
-                                .frame(width: 22, height: 22)
-                                .background(Color.accentColor.opacity(0.12), in: Circle())
-
-                            Text(option.title)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.primary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-
-                        ForEach(option.groups) { group in
-                            choiceGroup(group)
-                        }
+                        Text(option.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.bottom, index == options.count - 1 ? 0 : AppSpacing.xSmall)
+
+                    ForEach(option.groups) { group in
+                        choiceGroup(group)
+                    }
+                }
+
+                if index < options.count - 1 {
+                    Divider().padding(.leading, 30)
                 }
             }
         }
         .padding(.leading, 40)
         .padding(.top, AppSpacing.small)
-    }
-
-    private func outlineGuide(isLast: Bool) -> some View {
-        VStack(spacing: 0) {
-            Circle()
-                .fill(Color.accentColor)
-                .frame(width: 7, height: 7)
-                .padding(.top, 8)
-
-            if !isLast {
-                Rectangle()
-                    .fill(Color.accentColor.opacity(0.25))
-                    .frame(width: 1)
-            }
-        }
-        .frame(width: 14)
     }
 
     private func choiceGroup(_ group: HAAutomationStepGroup) -> some View {
