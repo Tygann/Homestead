@@ -85,7 +85,7 @@ struct GaugePresentationView: View {
             ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
                 let segment = visualSegment(for: section, at: index)
 
-                GaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
+                GaugeSegmentedInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
                     .stroke(
                         statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
@@ -113,7 +113,7 @@ struct GaugePresentationView: View {
 
     private func instrumentValueIndicator(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
-        let angle = Angle.degrees(150 + (240 * presentation.normalizedValue))
+        let angle = Double.pi * (1 - presentation.normalizedValue)
         let dotDiameter = max(lineWidth * 0.72, 10)
 
         return Circle()
@@ -121,12 +121,16 @@ struct GaugePresentationView: View {
             .overlay(Circle().stroke(.background, lineWidth: 2))
             .frame(width: dotDiameter, height: dotDiameter)
             .position(
-                x: (diameter / 2) + (radius * CGFloat(cos(angle.radians))),
-                y: (diameter / 2) + (radius * CGFloat(sin(angle.radians)))
+                x: (diameter / 2) + (radius * CGFloat(cos(angle))),
+                y: diameter - (lineWidth / 2) - (radius * CGFloat(sin(angle)))
             )
     }
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
+        if style == .segmentedInstrument {
+            return AnyView(segmentedInstrumentContent(diameter: diameter, lineWidth: lineWidth))
+        }
+
         let valueFontSize = min(max(diameter * 0.25, 28), 58)
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
         let endpointY = (diameter / 2) + (radius * 0.5)
@@ -134,7 +138,7 @@ struct GaugePresentationView: View {
         let legendWidth = max((sqrt(3) * radius) - (lineWidth * 1.8), 0)
         let iconSize = instrumentIconSize(diameter: diameter)
 
-        return ZStack {
+        return AnyView(ZStack {
             instrumentReadout(fontSize: valueFontSize)
                 .position(x: diameter / 2, y: diameter * 0.43)
 
@@ -142,6 +146,21 @@ struct GaugePresentationView: View {
                 .frame(width: legendWidth)
                 .frame(height: iconSize, alignment: .bottom)
                 .position(x: diameter / 2, y: endpointBottomY - (iconSize / 2))
+        })
+    }
+
+    private func segmentedInstrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
+        let valueFontSize = min(max(diameter * 0.23, 26), 52)
+        let iconSize = instrumentIconSize(diameter: diameter)
+
+        return ZStack {
+            instrumentReadout(fontSize: valueFontSize)
+                .position(x: diameter / 2, y: diameter * 0.54)
+
+            instrumentLegend(diameter: diameter)
+                .frame(width: max(diameter - lineWidth, 0))
+                .frame(height: iconSize, alignment: .bottom)
+                .position(x: diameter / 2, y: diameter - (iconSize / 2))
         }
     }
 
@@ -486,6 +505,38 @@ private struct GaugeInstrumentArcShape: Shape {
             endAngle: .degrees(endAngle),
             clockwise: false
         )
+
+        return path
+    }
+}
+
+private struct GaugeSegmentedInstrumentArcShape: Shape {
+    let start: Double
+    let end: Double
+    let inset: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let radius = max((min(rect.width, rect.height) / 2) - inset, 0)
+        let center = CGPoint(x: rect.midX, y: rect.maxY - inset)
+        let clampedStart = min(max(start, 0), 1)
+        let clampedEnd = min(max(end, clampedStart), 1)
+        let stepCount = max(Int((clampedEnd - clampedStart) * 48), 2)
+        var path = Path()
+
+        for step in 0...stepCount {
+            let progress = clampedStart + ((clampedEnd - clampedStart) * (Double(step) / Double(stepCount)))
+            let angle = Double.pi * (1 - progress)
+            let point = CGPoint(
+                x: center.x + (radius * CGFloat(cos(angle))),
+                y: center.y - (radius * CGFloat(sin(angle)))
+            )
+
+            if step == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
 
         return path
     }
