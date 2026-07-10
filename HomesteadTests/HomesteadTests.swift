@@ -2123,6 +2123,33 @@ struct HomesteadTests {
         #expect(response.entities.first?.deviceID == "kitchen")
     }
 
+    @Test func entityOrganizationAndScopedCategoryPayloadsDecode() throws {
+        let organizationPayload = """
+        [{
+            "entity_id": "automation.arrival_lights",
+            "labels": ["important"],
+            "categories": {"automation": "presence"}
+        }]
+        """
+        let organization = try JSONDecoder().decode(
+            [HAEntityOrganizationDTO].self,
+            from: Data(organizationPayload.utf8)
+        )
+
+        let categoryPayload = """
+        [{"category_id": "presence", "name": "Presence", "icon": "mdi:home-account"}]
+        """
+        let categories = try JSONDecoder().decode(
+            [HACategoryRegistryDTO].self,
+            from: Data(categoryPayload.utf8)
+        ).map { $0.withScope(.automation) }
+
+        #expect(organization.first?.labels == ["important"])
+        #expect(organization.first?.categories["automation"] == "presence")
+        #expect(categories.first?.name == "Presence")
+        #expect(categories.first?.scope == .automation)
+    }
+
     @Test func areaRegistryResponseDecodesHomeAssistantAreaID() throws {
         let payload = """
         [
@@ -9440,6 +9467,49 @@ struct HomesteadTests {
         #expect(summaries.first?.matches(query: "hue") == true)
     }
 
+    @Test @MainActor func managementOrganizationUsesAreasScopedCategoriesLabelsAndActivity() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "automation.arrival_lights",
+                state: "on",
+                attributes: ["last_triggered": .string("2026-07-10T15:00:00Z")]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "automation.arrival_lights",
+                    deviceID: nil,
+                    areaID: "entry",
+                    originalName: "Arrival Lights"
+                )
+            ],
+            devices: [
+                HADeviceRegistryDTO(id: "bridge", name: "Bridge", labels: ["important"])
+            ],
+            areas: [HAAreaRegistryDTO(id: "entry", name: "Entry")],
+            organization: [
+                HAEntityOrganizationDTO(
+                    entityID: "automation.arrival_lights",
+                    labels: ["important"],
+                    categories: ["automation": "presence"]
+                )
+            ],
+            labels: [HALabelRegistryDTO(id: "important", name: "Important", icon: nil, color: nil)],
+            categories: [HACategoryRegistryDTO(id: "presence", name: "Presence", scope: .automation)]
+        )
+
+        #expect(store.managementAreaName(for: "automation.arrival_lights") == "Entry")
+        #expect(store.managementCategory(for: "automation.arrival_lights", scope: .automation)?.name == "Presence")
+        #expect(store.managementLabels(for: "automation.arrival_lights").map(\.name) == ["Important"])
+        #expect(store.managementOrganizationDetail(for: "automation.arrival_lights", scope: .automation) == "Entry • Presence")
+        #expect(store.managementSearchMetadata(for: "automation.arrival_lights", scope: .automation) == "Entry Presence Important")
+        let expectedActivityDate = HADateParser.date(from: "2026-07-10T15:00:00Z")
+        #expect(store.managementActivityDate(for: "automation.arrival_lights") == expectedActivityDate)
+        #expect(store.deviceManagementSummaries().first?.labels == ["Important"])
+    }
+
     @Test @MainActor func helperManagementSummariesClassifyHelperEntityDomains() {
         let store = HAStateStore()
         store.applyInitialStates([
@@ -9975,6 +10045,9 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
     var entityRegistryEntities: [HAEntityRegistryDisplayDTO] = []
+    var entityOrganization: [HAEntityOrganizationDTO] = []
+    var labelRegistry: [HALabelRegistryDTO] = []
+    var categoryRegistry: [HACategoryRegistryDTO] = []
     var config = HAConfigDTO(
         version: nil,
         locationName: nil,
@@ -10055,6 +10128,10 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         return HAEntityRegistryDisplayResponseDTO(entities: entityRegistryEntities)
     }
 
+    func fetchEntityOrganization() async throws -> [HAEntityOrganizationDTO] {
+        entityOrganization
+    }
+
     func fetchDeviceRegistry() async throws -> [HADeviceRegistryDTO] {
         []
     }
@@ -10065,6 +10142,14 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func fetchFloorRegistry() async throws -> [HAFloorRegistryDTO] {
         []
+    }
+
+    func fetchLabelRegistry() async throws -> [HALabelRegistryDTO] {
+        labelRegistry
+    }
+
+    func fetchCategoryRegistry(scope: HAOrganizationScope) async throws -> [HACategoryRegistryDTO] {
+        categoryRegistry.filter { $0.scope == scope }
     }
 
     func fetchConfig() async throws -> HAConfigDTO {

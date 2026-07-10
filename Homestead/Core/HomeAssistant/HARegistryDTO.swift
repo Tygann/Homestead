@@ -1,5 +1,86 @@
 import Foundation
 
+nonisolated enum HAOrganizationScope: String, CaseIterable, Codable, Sendable {
+    case automation
+    case scene
+    case script
+    case helper
+}
+
+nonisolated struct HAEntityOrganizationDTO: Codable, Equatable, Identifiable, Sendable {
+    let entityID: String
+    let labels: [String]
+    let categories: [String: String]
+
+    var id: String { entityID }
+
+    enum CodingKeys: String, CodingKey {
+        case entityID = "entity_id"
+        case labels
+        case categories
+    }
+
+    nonisolated init(entityID: String, labels: [String] = [], categories: [String: String] = [:]) {
+        self.entityID = entityID
+        self.labels = labels
+        self.categories = categories
+    }
+
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        entityID = try container.decode(String.self, forKey: .entityID)
+        labels = try container.decodeIfPresent([String].self, forKey: .labels) ?? []
+        categories = try container.decodeIfPresent([String: String].self, forKey: .categories) ?? [:]
+    }
+}
+
+nonisolated struct HALabelRegistryDTO: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let icon: String?
+    let color: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id = "label_id"
+        case name
+        case icon
+        case color
+    }
+}
+
+nonisolated struct HACategoryRegistryDTO: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let icon: String?
+    let scope: HAOrganizationScope
+
+    enum CodingKeys: String, CodingKey {
+        case id = "category_id"
+        case name
+        case icon
+        case scope
+    }
+
+    nonisolated init(id: String, name: String, icon: String? = nil, scope: HAOrganizationScope) {
+        self.id = id
+        self.name = name
+        self.icon = icon
+        self.scope = scope
+    }
+
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        icon = try container.decodeIfPresent(String.self, forKey: .icon)
+        scope = try container.decodeIfPresent(HAOrganizationScope.self, forKey: .scope) ?? .automation
+    }
+
+    nonisolated func withScope(_ scope: HAOrganizationScope) -> HACategoryRegistryDTO {
+        HACategoryRegistryDTO(id: id, name: name, icon: icon, scope: scope)
+    }
+}
+
 nonisolated struct HAEntityRegistryDisplayResponseDTO: Decodable, Equatable, Sendable {
     let entities: [HAEntityRegistryDisplayDTO]
 
@@ -160,6 +241,7 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
     let areaID: String?
     let manufacturer: String?
     let model: String?
+    let labels: [String]
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -168,6 +250,7 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
         case areaID = "area_id"
         case manufacturer
         case model
+        case labels
     }
 
     nonisolated init(
@@ -176,7 +259,8 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
         nameByUser: String? = nil,
         areaID: String? = nil,
         manufacturer: String? = nil,
-        model: String? = nil
+        model: String? = nil,
+        labels: [String] = []
     ) {
         self.id = id
         self.name = name
@@ -184,6 +268,7 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
         self.areaID = areaID
         self.manufacturer = manufacturer
         self.model = model
+        self.labels = labels
     }
 
     nonisolated init(from decoder: Decoder) throws {
@@ -195,6 +280,7 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
         areaID = try container.decodeIfPresent(String.self, forKey: .areaID)
         manufacturer = try container.decodeIfPresent(String.self, forKey: .manufacturer)
         model = try container.decodeIfPresent(String.self, forKey: .model)
+        labels = try container.decodeIfPresent([String].self, forKey: .labels) ?? []
     }
 }
 

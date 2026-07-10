@@ -301,18 +301,22 @@ private struct HelperRegistryManagementList: View {
             hiddenEntityIDs: [],
             emptyTitle: "No Helpers",
             emptySystemImage: "wrench.and.screwdriver",
+            showsFilters: true,
             includesUnavailableByDefault: true,
             groupingPersistenceKey: "homestead.management.helpers.grouping",
-            allowedGroupings: [.name, .type],
+            allowedGroupings: [.name, .type, .area, .category],
             showsGroupingMenu: true,
             showsSingleGroupHeaders: summaries.count > 1,
             allowedEntityIDs: helperEntityIDs,
+            organizationScope: .helper,
+            showsLabelFilter: true,
             initialGrouping: .name,
             rowAction: { entityBox in
                 _ = entityBox
             },
             rowDetail: { entityBox in
-                helperDetail(for: entityBox.entityID) ?? stateStore.entityRegistryAdminDetail(for: entityBox.entityID)
+                stateStore.managementOrganizationDetail(for: entityBox.entityID, scope: .helper)
+                    ?? helperDetail(for: entityBox.entityID)
             },
             typeGroup: { entityBox in
                 helperGroup(for: entityBox.entityID)
@@ -350,10 +354,15 @@ private struct DeviceRegistryManagementList: View {
     @Environment(HAStateStore.self) private var stateStore
     @AppStorage("homestead.management.devices.grouping") private var groupingRawValue = DeviceManagementGrouping.name.rawValue
     @State private var searchText = ""
+    @State private var selectedLabel: String?
 
     var body: some View {
         let grouping = currentGrouping
-        let devices = stateStore.deviceManagementSummaries()
+        let allDevices = stateStore.deviceManagementSummaries()
+        let devices = allDevices.filter { device in
+            guard let selectedLabel else { return true }
+            return device.labels.contains(selectedLabel)
+        }
         let presentation = DeviceManagementPresentation.make(
             devices: devices,
             searchText: searchText,
@@ -374,8 +383,10 @@ private struct DeviceRegistryManagementList: View {
             }
         }
         .overlay {
-            if devices.isEmpty {
+            if allDevices.isEmpty {
                 ContentUnavailableView("No Devices", systemImage: "laptopcomputer.and.iphone")
+            } else if devices.isEmpty, let selectedLabel {
+                ContentUnavailableView("No Devices with \(selectedLabel)", systemImage: "tag")
             } else if presentation.groups.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
@@ -420,17 +431,42 @@ private struct DeviceRegistryManagementList: View {
 
     private var groupingMenu: some View {
         Menu {
-            ForEach(DeviceManagementGrouping.allCases) { option in
-                Button {
-                    groupingRawValue = option.rawValue
-                } label: {
-                    Label(option.title, systemImage: currentGrouping == option ? "checkmark" : option.systemImage)
+            Section("Group By") {
+                ForEach(DeviceManagementGrouping.allCases) { option in
+                    Button {
+                        groupingRawValue = option.rawValue
+                    } label: {
+                        Label(option.title, systemImage: currentGrouping == option ? "checkmark" : option.systemImage)
+                    }
+                }
+            }
+
+            if !availableLabels.isEmpty {
+                Section("Label") {
+                    Button {
+                        selectedLabel = nil
+                    } label: {
+                        Label("All Labels", systemImage: selectedLabel == nil ? "checkmark" : "tag")
+                    }
+                    ForEach(availableLabels, id: \.self) { label in
+                        Button {
+                            selectedLabel = label
+                        } label: {
+                            Label(label, systemImage: selectedLabel == label ? "checkmark" : "tag")
+                        }
+                    }
                 }
             }
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
         }
         .accessibilityLabel("Group devices")
+    }
+
+    private var availableLabels: [String] {
+        Set(stateStore.deviceManagementSummaries().flatMap(\.labels)).sorted {
+            $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+        }
     }
 
     private var currentGrouping: DeviceManagementGrouping {
@@ -658,7 +694,9 @@ struct AutomationsAndScenesManagementView: View {
                 emptyTitle: "No Automations",
                 emptySystemImage: section.systemImage,
                 allowedDomains: [.automation],
-                groupingPersistenceKey: "homestead.management.automations.grouping"
+                groupingPersistenceKey: "homestead.management.automations.grouping",
+                organizationScope: .automation,
+                allowedGroupings: [.name, .area, .category, .recent]
             )
         case .scenes:
             EntityRegistryManagementBrowser(
@@ -666,7 +704,9 @@ struct AutomationsAndScenesManagementView: View {
                 emptyTitle: "No Scenes",
                 emptySystemImage: section.systemImage,
                 allowedDomains: [.scene],
-                groupingPersistenceKey: "homestead.management.scenes.grouping"
+                groupingPersistenceKey: "homestead.management.scenes.grouping",
+                organizationScope: .scene,
+                allowedGroupings: [.name, .area, .category, .recent]
             )
         case .scripts:
             EntityRegistryManagementBrowser(
@@ -674,7 +714,9 @@ struct AutomationsAndScenesManagementView: View {
                 emptyTitle: "No Scripts",
                 emptySystemImage: section.systemImage,
                 allowedDomains: [.script],
-                groupingPersistenceKey: "homestead.management.scripts.grouping"
+                groupingPersistenceKey: "homestead.management.scripts.grouping",
+                organizationScope: .script,
+                allowedGroupings: [.name, .area, .category, .recent]
             )
         }
     }
@@ -729,24 +771,30 @@ private struct EntityRegistryManagementBrowser: View {
     let emptySystemImage: String
     var allowedDomains: Set<EntityDomain>?
     var groupingPersistenceKey: String?
+    var organizationScope: HAOrganizationScope?
+    var allowedGroupings: [EntityBrowserGrouping]?
 
     var body: some View {
         EntityBrowserList(
             hiddenEntityIDs: [],
             emptyTitle: emptyTitle,
             emptySystemImage: emptySystemImage,
+            showsFilters: true,
             includesUnavailableByDefault: true,
             groupingPersistenceKey: groupingPersistenceKey,
-            allowedGroupings: allowedDomains == nil ? EntityBrowserGrouping.allCases : [.name],
-            showsGroupingMenu: allowedDomains == nil,
+            allowedGroupings: allowedGroupings ?? (allowedDomains == nil ? [.name, .device, .type, .area] : [.name]),
+            showsGroupingMenu: true,
             showsSingleGroupHeaders: false,
             allowedDomains: allowedDomains,
+            organizationScope: organizationScope,
+            showsLabelFilter: true,
+            showsAutomationStateFilter: organizationScope == .automation,
             initialGrouping: .name,
             rowAction: { entityBox in
                 _ = entityBox
             },
             rowDetail: { entityBox in
-                stateStore.entityRegistryAdminDetail(for: entityBox.entityID)
+                managementRowDetail(for: entityBox)
             },
             rowDestination: { entityBox in
                 AnyView(EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation))
@@ -757,6 +805,29 @@ private struct EntityRegistryManagementBrowser: View {
         )
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
+    }
+
+    private func managementRowDetail(for entityBox: HAEntityState) -> String? {
+        let organizationDetail = stateStore.managementOrganizationDetail(for: entityBox.entityID, scope: organizationScope)
+        guard allowedGroupings?.contains(.recent) == true,
+              let date = stateStore.managementActivityDate(for: entityBox.entityID) else {
+            return organizationDetail
+        }
+
+        let verb: String
+        switch entityBox.homeEntity.domain {
+        case .automation: verb = "Triggered"
+        case .scene: verb = "Activated"
+        case .script: verb = "Run"
+        default: verb = "Used"
+        }
+        let activity = "\(verb) \(date.formatted(.relative(presentation: .named)))"
+        return [organizationDetail, activity]
+            .compactMap { value in
+                guard let value, !value.isEmpty else { return nil }
+                return value
+            }
+            .joined(separator: " • ")
     }
 }
 

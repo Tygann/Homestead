@@ -2337,11 +2337,30 @@ final class HomeAssistantService {
                 #endif
             }
 
+            async let organizationResult = try? client.fetchEntityOrganization()
+            async let labelResult = try? client.fetchLabelRegistry()
+            async let automationCategoriesResult = try? client.fetchCategoryRegistry(scope: .automation)
+            async let sceneCategoriesResult = try? client.fetchCategoryRegistry(scope: .scene)
+            async let scriptCategoriesResult = try? client.fetchCategoryRegistry(scope: .script)
+            async let helperCategoriesResult = try? client.fetchCategoryRegistry(scope: .helper)
+
+            let organization = await organizationResult ?? []
+            let labels = await labelResult ?? []
+            let categories = await [
+                automationCategoriesResult,
+                sceneCategoriesResult,
+                scriptCategoriesResult,
+                helperCategoriesResult
+            ].compactMap { $0 }.flatMap { $0 }
+
             let metadata = HARegistryMetadataSnapshot(
                 entities: registryMetadata.0.entities,
                 devices: registryMetadata.1,
                 areas: areas,
-                floors: floors
+                floors: floors,
+                organization: organization,
+                labels: labels,
+                categories: categories
             )
             guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
                 return nil

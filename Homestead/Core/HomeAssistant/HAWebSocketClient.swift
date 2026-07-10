@@ -9,9 +9,12 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func fetchCurrentUser() async throws -> HACurrentUserDTO
     func fetchStates() async throws -> [HAEntityDTO]
     func fetchEntityRegistryForDisplay() async throws -> HAEntityRegistryDisplayResponseDTO
+    func fetchEntityOrganization() async throws -> [HAEntityOrganizationDTO]
     func fetchDeviceRegistry() async throws -> [HADeviceRegistryDTO]
     func fetchAreaRegistry() async throws -> [HAAreaRegistryDTO]
     func fetchFloorRegistry() async throws -> [HAFloorRegistryDTO]
+    func fetchLabelRegistry() async throws -> [HALabelRegistryDTO]
+    func fetchCategoryRegistry(scope: HAOrganizationScope) async throws -> [HACategoryRegistryDTO]
     func fetchConfig() async throws -> HAConfigDTO
     func fetchServices() async throws -> HAServiceRegistry
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities
@@ -162,6 +165,16 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         return try result.decoded(HAEntityRegistryDisplayResponseDTO.self)
     }
 
+    func fetchEntityOrganization() async throws -> [HAEntityOrganizationDTO] {
+        let id = makeRequestID()
+        let response = try await sendRequest(
+            .registryCommand(id: id, type: HAWebSocketMessageType.entityRegistryList),
+            id: id
+        )
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return try result.decoded([HAEntityOrganizationDTO].self)
+    }
+
     func fetchDeviceRegistry() async throws -> [HADeviceRegistryDTO] {
         let id = makeRequestID()
         let response = try await sendRequest(
@@ -202,6 +215,23 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return try result.decoded([HAFloorRegistryDTO].self)
+    }
+
+    func fetchLabelRegistry() async throws -> [HALabelRegistryDTO] {
+        let id = makeRequestID()
+        let response = try await sendRequest(
+            .registryCommand(id: id, type: HAWebSocketMessageType.labelRegistryList),
+            id: id
+        )
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return try result.decoded([HALabelRegistryDTO].self)
+    }
+
+    func fetchCategoryRegistry(scope: HAOrganizationScope) async throws -> [HACategoryRegistryDTO] {
+        let id = makeRequestID()
+        let response = try await sendRequest(.categoryRegistryList(id: id, scope: scope), id: id)
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return try result.decoded([HACategoryRegistryDTO].self).map { $0.withScope(scope) }
     }
 
     func fetchConfig() async throws -> HAConfigDTO {
@@ -313,7 +343,9 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
             "entity_registry_updated",
             "device_registry_updated",
             "area_registry_updated",
-            "floor_registry_updated"
+            "floor_registry_updated",
+            "label_registry_updated",
+            "category_registry_updated"
         ]
 
         for eventType in eventTypes where registryChangeSubscriptionIDs[eventType] == nil {

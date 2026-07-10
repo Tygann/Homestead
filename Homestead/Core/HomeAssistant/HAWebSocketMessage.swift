@@ -19,9 +19,12 @@ enum HAWebSocketMessageType {
     nonisolated static var mobileAppPushNotificationConfirm: String { "mobile_app/push_notification_confirm" }
     nonisolated static var currentUser: String { "auth/current_user" }
     nonisolated static var entityRegistryListForDisplay: String { "config/entity_registry/list_for_display" }
+    nonisolated static var entityRegistryList: String { "config/entity_registry/list" }
     nonisolated static var deviceRegistryList: String { "config/device_registry/list" }
     nonisolated static var areaRegistryList: String { "config/area_registry/list" }
     nonisolated static var floorRegistryList: String { "config/floor_registry/list" }
+    nonisolated static var labelRegistryList: String { "config/label_registry/list" }
+    nonisolated static var categoryRegistryList: String { "config/category_registry/list" }
     nonisolated static var cameraCapabilities: String { "camera/capabilities" }
     nonisolated static var supervisorAPI: String { "supervisor/api" }
 }
@@ -102,6 +105,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case mobileAppPushNotificationChannel(id: Int, webhookID: String, supportConfirm: Bool)
     case mobileAppPushNotificationConfirm(id: Int, webhookID: String, confirmID: String)
     case registryCommand(id: Int, type: String)
+    case categoryRegistryList(id: Int, scope: HAOrganizationScope)
     case cameraCapabilities(id: Int, entityID: String)
     case supervisorAPI(id: Int, endpoint: String, method: String)
     case callService(
@@ -128,6 +132,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case confirmID = "confirm_id"
         case endpoint
         case method
+        case scope
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -173,6 +178,10 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case .registryCommand(let id, let type):
             try container.encode(id, forKey: .id)
             try container.encode(type, forKey: .type)
+        case .categoryRegistryList(let id, let scope):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.categoryRegistryList, forKey: .type)
+            try container.encode(scope.rawValue, forKey: .scope)
         case .cameraCapabilities(let id, let entityID):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.cameraCapabilities, forKey: .type)

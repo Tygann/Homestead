@@ -10,6 +10,8 @@ struct EntityBrowserList<Accessory: View>: View {
     @State private var grouping: EntityBrowserGrouping
     @State private var collapsedGroups: Set<String> = []
     @State private var selectedDomain: EntityDomain?
+    @State private var selectedLabelID: String?
+    @State private var automationEnabledFilter: Bool?
     @State private var includesUnavailable: Bool
 
     private let externalSearchText: Binding<String>?
@@ -25,6 +27,9 @@ struct EntityBrowserList<Accessory: View>: View {
     let allowsRefresh: Bool
     let allowedDomains: Set<EntityDomain>?
     let allowedEntityIDs: Set<String>?
+    let organizationScope: HAOrganizationScope?
+    let showsLabelFilter: Bool
+    let showsAutomationStateFilter: Bool
     let rowAction: (HAEntityState) -> Void
     let rowDetail: (HAEntityState) -> String?
     private let typeGroup: ((HAEntityState) -> EntityBrowserGroup?)?
@@ -42,12 +47,15 @@ struct EntityBrowserList<Accessory: View>: View {
         searchText: Binding<String>? = nil,
         groupingPersistenceKey: String? = nil,
         showsSearchField: Bool = true,
-        allowedGroupings: [EntityBrowserGrouping] = EntityBrowserGrouping.allCases,
+        allowedGroupings: [EntityBrowserGrouping] = [.name, .device, .type, .area],
         showsGroupingMenu: Bool = true,
         showsSingleGroupHeaders: Bool = true,
         allowsRefresh: Bool = true,
         allowedDomains: Set<EntityDomain>? = nil,
         allowedEntityIDs: Set<String>? = nil,
+        organizationScope: HAOrganizationScope? = nil,
+        showsLabelFilter: Bool = false,
+        showsAutomationStateFilter: Bool = false,
         initialGrouping: EntityBrowserGrouping = .device,
         rowAction: @escaping (HAEntityState) -> Void,
         rowDetail: @escaping (HAEntityState) -> String? = { _ in nil },
@@ -68,6 +76,9 @@ struct EntityBrowserList<Accessory: View>: View {
         self.allowsRefresh = allowsRefresh
         self.allowedDomains = allowedDomains
         self.allowedEntityIDs = allowedEntityIDs
+        self.organizationScope = organizationScope
+        self.showsLabelFilter = showsLabelFilter
+        self.showsAutomationStateFilter = showsAutomationStateFilter
         self.rowAction = rowAction
         self.rowDetail = rowDetail
         self.typeGroup = typeGroup
@@ -88,7 +99,10 @@ struct EntityBrowserList<Accessory: View>: View {
 
         VStack(spacing: 0) {
             if showsFilters {
-                filterBar(filterDomains: presentation.filterDomains)
+                filterBar(
+                    filterDomains: presentation.filterDomains,
+                    labels: stateStore.allManagementLabels(among: presentation.visibleCandidateEntityIDs)
+                )
             }
 
             List {
@@ -228,29 +242,78 @@ struct EntityBrowserList<Accessory: View>: View {
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
         }
-        .accessibilityLabel("Group devices")
+        .accessibilityLabel("Group items")
     }
 
-    private func filterBar(filterDomains: [EntityDomain]) -> some View {
+    private func filterBar(filterDomains: [EntityDomain], labels: [HALabelRegistryDTO]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: AppSpacing.small) {
-                filterChip(
-                    title: "All",
-                    systemImage: "square.grid.2x2",
-                    isSelected: selectedDomain == nil
-                ) {
-                    selectedDomain = nil
-                    collapsedGroups.removeAll()
+                if filterDomains.count > 1 {
+                    filterChip(
+                        title: "All",
+                        systemImage: "square.grid.2x2",
+                        isSelected: selectedDomain == nil
+                    ) {
+                        selectedDomain = nil
+                        collapsedGroups.removeAll()
+                    }
+
+                    ForEach(filterDomains, id: \.self) { domain in
+                        filterChip(
+                            title: domain.displayName,
+                            systemImage: domain.systemImage,
+                            isSelected: selectedDomain == domain
+                        ) {
+                            selectedDomain = domain
+                            collapsedGroups.removeAll()
+                        }
+                    }
                 }
 
-                ForEach(filterDomains, id: \.self) { domain in
-                    filterChip(
-                        title: domain.displayName,
-                        systemImage: domain.systemImage,
-                        isSelected: selectedDomain == domain
-                    ) {
-                        selectedDomain = domain
-                        collapsedGroups.removeAll()
+                if showsLabelFilter, !labels.isEmpty {
+                    Menu {
+                        Button("All Labels") {
+                            selectedLabelID = nil
+                            collapsedGroups.removeAll()
+                        }
+                        ForEach(labels) { label in
+                            Button {
+                                selectedLabelID = label.id
+                                collapsedGroups.removeAll()
+                            } label: {
+                                Label(label.name, systemImage: selectedLabelID == label.id ? "checkmark" : "tag")
+                            }
+                        }
+                    } label: {
+                        Label(selectedLabelName(in: labels) ?? "Labels", systemImage: "tag")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, AppSpacing.medium)
+                            .frame(height: 34)
+                            .background(selectedLabelID == nil ? Color(.tertiarySystemGroupedBackground) : Color.accentColor.opacity(0.14), in: Capsule())
+                            .foregroundStyle(selectedLabelID == nil ? Color.secondary : Color.accentColor)
+                    }
+                }
+
+                if showsAutomationStateFilter {
+                    Menu {
+                        Button("All Statuses") { automationEnabledFilter = nil }
+                        Button {
+                            automationEnabledFilter = true
+                        } label: {
+                            Label("Enabled", systemImage: automationEnabledFilter == true ? "checkmark" : "checkmark.circle")
+                        }
+                        Button {
+                            automationEnabledFilter = false
+                        } label: {
+                            Label("Disabled", systemImage: automationEnabledFilter == false ? "checkmark" : "pause.circle")
+                        }
+                    } label: {
+                        Label(automationStatusFilterTitle, systemImage: "switch.2")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, AppSpacing.medium)
+                            .frame(height: 34)
+                            .background(automationEnabledFilter == nil ? Color(.tertiarySystemGroupedBackground) : Color.accentColor.opacity(0.14), in: Capsule())
+                            .foregroundStyle(automationEnabledFilter == nil ? Color.secondary : Color.accentColor)
                     }
                 }
 
@@ -291,9 +354,22 @@ struct EntityBrowserList<Accessory: View>: View {
         .buttonStyle(.plain)
     }
 
+    private func selectedLabelName(in labels: [HALabelRegistryDTO]) -> String? {
+        guard let selectedLabelID else { return nil }
+        return labels.first { $0.id == selectedLabelID }?.name
+    }
+
+    private var automationStatusFilterTitle: String {
+        switch automationEnabledFilter {
+        case true: "Enabled"
+        case false: "Disabled"
+        case nil: "Status"
+        }
+    }
+
     @ViewBuilder
     private func groupHeaderLabel(for group: EntityBrowserGroup) -> some View {
-        if grouping == .name || grouping == .device {
+        if grouping == .name || grouping == .device || grouping == .recent {
             Text(group.title)
         } else {
             Label(group.title, systemImage: group.systemImage)
@@ -423,6 +499,38 @@ struct EntityBrowserList<Accessory: View>: View {
                     )
                 }
             }
+        case .area:
+            unfilteredGroups = groupedEntities(
+                visibleCandidateEntityIDs.filter(entityPassesVisibility),
+                descriptor: { entityID in
+                    if let areaName = stateStore.managementAreaName(for: entityID) {
+                        return EntityBrowserGroup(id: "area-\(areaName)", title: areaName, systemImage: "rectangle.3.group", entityIDs: [])
+                    }
+                    return EntityBrowserGroup(id: "area-unassigned", title: "Unassigned", systemImage: "questionmark.folder", entityIDs: [])
+                }
+            )
+        case .category:
+            unfilteredGroups = groupedEntities(
+                visibleCandidateEntityIDs.filter(entityPassesVisibility),
+                descriptor: { entityID in
+                    if let organizationScope,
+                       let category = stateStore.managementCategory(for: entityID, scope: organizationScope) {
+                        return EntityBrowserGroup(id: "category-\(category.id)", title: category.name, systemImage: "folder", entityIDs: [])
+                    }
+                    return EntityBrowserGroup(id: "category-unassigned", title: "Unassigned", systemImage: "questionmark.folder", entityIDs: [])
+                }
+            )
+        case .recent:
+            let entityIDs = visibleCandidateEntityIDs.filter(entityPassesVisibility).sorted { lhs, rhs in
+                let lhsDate = stateStore.managementActivityDate(for: lhs) ?? .distantPast
+                let rhsDate = stateStore.managementActivityDate(for: rhs) ?? .distantPast
+                if lhsDate != rhsDate { return lhsDate > rhsDate }
+                return (stateStore.entityBox(for: lhs)?.homeEntity.displayName ?? lhs)
+                    .localizedCaseInsensitiveCompare(stateStore.entityBox(for: rhs)?.homeEntity.displayName ?? rhs) == .orderedAscending
+            }
+            unfilteredGroups = entityIDs.isEmpty ? [] : [
+                EntityBrowserGroup(id: "recent", title: "Recently Used", systemImage: "clock", entityIDs: entityIDs)
+            ]
         }
 
         let groups: [EntityBrowserGroup]
@@ -436,12 +544,14 @@ struct EntityBrowserList<Accessory: View>: View {
                     }
                     let displayName = displayNameOverride(for: entityID) ?? entity.displayName
                     let detailText = stateStore.entityBox(for: entityID).flatMap(rowDetail) ?? ""
+                    let organizationText = stateStore.managementSearchMetadata(for: entityID, scope: organizationScope)
 
                     return displayName.localizedCaseInsensitiveContains(query) ||
                         group.title.localizedCaseInsensitiveContains(query) ||
                         entity.entityID.localizedCaseInsensitiveContains(query) ||
                         entity.state.localizedCaseInsensitiveContains(query) ||
-                        detailText.localizedCaseInsensitiveContains(query)
+                        detailText.localizedCaseInsensitiveContains(query) ||
+                        organizationText.localizedCaseInsensitiveContains(query)
                 }
 
                 guard !matchingEntityIDs.isEmpty else {
@@ -465,7 +575,7 @@ struct EntityBrowserList<Accessory: View>: View {
     }
 
     private var hasActiveFilters: Bool {
-        selectedDomain != nil || !includesUnavailable
+        selectedDomain != nil || selectedLabelID != nil || automationEnabledFilter != nil || !includesUnavailable
     }
 
     private var currentSearchText: String {
@@ -498,7 +608,37 @@ struct EntityBrowserList<Accessory: View>: View {
             return false
         }
 
+        if let selectedLabelID,
+           !stateStore.managementLabels(for: entityID).contains(where: { $0.id == selectedLabelID }) {
+            return false
+        }
+
+        if let automationEnabledFilter {
+            let expectedState = automationEnabledFilter ? "on" : "off"
+            guard entity.state == expectedState else { return false }
+        }
+
         return true
+    }
+
+    private func groupedEntities(
+        _ entityIDs: Set<String>,
+        descriptor: (String) -> EntityBrowserGroup
+    ) -> [EntityBrowserGroup] {
+        Dictionary(grouping: entityIDs, by: descriptor)
+            .map { descriptor, entityIDs in
+                EntityBrowserGroup(
+                    id: descriptor.id,
+                    title: descriptor.title,
+                    systemImage: descriptor.systemImage,
+                    entityIDs: entityIDs.sortedByEntityDisplayName(in: stateStore)
+                )
+            }
+            .sorted { lhs, rhs in
+                if lhs.title == "Unassigned" { return false }
+                if rhs.title == "Unassigned" { return true }
+                return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+            }
     }
 
     private func persistGrouping(_ grouping: EntityBrowserGrouping) {
@@ -560,6 +700,9 @@ enum EntityBrowserGrouping: String, CaseIterable {
     case name
     case device
     case type
+    case area
+    case category
+    case recent
 
     var displayName: String {
         switch self {
@@ -569,6 +712,12 @@ enum EntityBrowserGrouping: String, CaseIterable {
             "Device"
         case .type:
             "Type"
+        case .area:
+            "Area"
+        case .category:
+            "Category"
+        case .recent:
+            "Recently Used"
         }
     }
 
@@ -580,6 +729,12 @@ enum EntityBrowserGrouping: String, CaseIterable {
             "laptopcomputer.and.iphone"
         case .type:
             "square.grid.2x2"
+        case .area:
+            "rectangle.3.group"
+        case .category:
+            "folder"
+        case .recent:
+            "clock"
         }
     }
 }

@@ -144,6 +144,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Replaced Settings > Devices & Services > Helpers with a read-only browser for helper entity domains exposed by Home Assistant state/registry data.
 - Removed the Blueprints, Widgets, and Live Activities placeholder rows from production Settings; Blueprints still needs an official external API before native browsing/import/management, while widgets are configured from the Home Screen and Live Activities are not implemented yet.
 - Added opt-in Settings > iCloud Sync backed by Apple iCloud key-value storage for small Homestead-owned preferences, intentionally excluding credentials, tokens, Home Assistant state/cache, registry metadata, mobile-app registration secrets, widget snapshots, wallpaper files, and generated user data.
+- Aligned Settings management organization with Home Assistant: Automations, Scenes, Scripts, and Helpers now consume scoped Categories; entities consume direct/device area relationships; labels filter Devices, Entities, Helpers, Automations, Scenes, and Scripts; and automation/scene/script lists can sort by recent activity when timestamps are available.
 
 ### UX Cleanup and Fan Controls
 

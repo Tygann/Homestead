@@ -233,24 +233,36 @@ nonisolated struct HARegistryMetadataSnapshot: Codable, Equatable, Sendable {
     let devices: [HADeviceRegistryDTO]
     let areas: [HAAreaRegistryDTO]
     let floors: [HAFloorRegistryDTO]
+    let organization: [HAEntityOrganizationDTO]
+    let labels: [HALabelRegistryDTO]
+    let categories: [HACategoryRegistryDTO]
 
     enum CodingKeys: String, CodingKey {
         case entities
         case devices
         case areas
         case floors
+        case organization
+        case labels
+        case categories
     }
 
     nonisolated init(
         entities: [HAEntityRegistryDisplayDTO],
         devices: [HADeviceRegistryDTO],
         areas: [HAAreaRegistryDTO],
-        floors: [HAFloorRegistryDTO] = []
+        floors: [HAFloorRegistryDTO] = [],
+        organization: [HAEntityOrganizationDTO] = [],
+        labels: [HALabelRegistryDTO] = [],
+        categories: [HACategoryRegistryDTO] = []
     ) {
         self.entities = entities
         self.devices = devices
         self.areas = areas
         self.floors = floors
+        self.organization = organization
+        self.labels = labels
+        self.categories = categories
     }
 
     nonisolated init(from decoder: Decoder) throws {
@@ -259,6 +271,9 @@ nonisolated struct HARegistryMetadataSnapshot: Codable, Equatable, Sendable {
         devices = try container.decode([HADeviceRegistryDTO].self, forKey: .devices)
         areas = try container.decode([HAAreaRegistryDTO].self, forKey: .areas)
         floors = try container.decodeIfPresent([HAFloorRegistryDTO].self, forKey: .floors) ?? []
+        organization = try container.decodeIfPresent([HAEntityOrganizationDTO].self, forKey: .organization) ?? []
+        labels = try container.decodeIfPresent([HALabelRegistryDTO].self, forKey: .labels) ?? []
+        categories = try container.decodeIfPresent([HACategoryRegistryDTO].self, forKey: .categories) ?? []
     }
 }
 

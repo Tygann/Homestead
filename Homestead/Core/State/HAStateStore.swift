@@ -36,6 +36,9 @@ final class HAStateStore {
     @ObservationIgnored private var deviceRegistryByID: [String: HADeviceRegistryDTO] = [:]
     @ObservationIgnored private var areaRegistryByID: [String: HAAreaRegistryDTO] = [:]
     @ObservationIgnored private var floorRegistryByID: [String: HAFloorRegistryDTO] = [:]
+    @ObservationIgnored private var organizationByEntityID: [String: HAEntityOrganizationDTO] = [:]
+    @ObservationIgnored private var labelRegistryByID: [String: HALabelRegistryDTO] = [:]
+    @ObservationIgnored private var categoryRegistryByKey: [String: HACategoryRegistryDTO] = [:]
     @ObservationIgnored private var floorSortOrderByID: [String: Int] = [:]
     @ObservationIgnored private var cachedDashboardSummaryMembershipContext: DashboardSummaryMembershipContext?
     @ObservationIgnored private var isApplyingSnapshotBatch = false
@@ -131,6 +134,53 @@ final class HAStateStore {
         entityRegistryByID[entityID]?.deviceID.flatMap { deviceRegistryByID[$0] }
     }
 
+    func managementAreaName(for entityID: String) -> String? {
+        areaID(for: entityID)?.nonEmptyValue.flatMap { areaRegistryByID[$0]?.name.nonEmptyValue }
+    }
+
+    func managementCategory(for entityID: String, scope: HAOrganizationScope) -> HACategoryRegistryDTO? {
+        guard let categoryID = organizationByEntityID[entityID]?.categories[scope.rawValue] else { return nil }
+        return categoryRegistryByKey[Self.categoryKey(scope: scope, id: categoryID)]
+    }
+
+    func managementLabels(for entityID: String) -> [HALabelRegistryDTO] {
+        (organizationByEntityID[entityID]?.labels ?? []).compactMap { labelRegistryByID[$0] }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    func managementOrganizationDetail(for entityID: String, scope: HAOrganizationScope?) -> String? {
+        let values = [
+            managementAreaName(for: entityID),
+            scope.flatMap { managementCategory(for: entityID, scope: $0)?.name }
+        ].compactMap { $0?.nonEmptyValue }
+        return values.isEmpty ? entityRegistryAdminDetail(for: entityID) : values.joined(separator: " • ")
+    }
+
+    func managementSearchMetadata(for entityID: String, scope: HAOrganizationScope?) -> String {
+        [
+            managementAreaName(for: entityID),
+            scope.flatMap { managementCategory(for: entityID, scope: $0)?.name },
+            managementLabels(for: entityID).map(\.name).joined(separator: " ")
+        ].compactMap { $0?.nonEmptyValue }.joined(separator: " ")
+    }
+
+    func managementActivityDate(for entityID: String) -> Date? {
+        guard let dto = rawEntitiesByID[entityID] else { return nil }
+        if let value = dto.attributes["last_triggered"]?.stringValue {
+            return HADateParser.date(from: value)
+        }
+        if entityID.hasPrefix("scene."), let date = HADateParser.date(from: dto.state) {
+            return date
+        }
+        return nil
+    }
+
+    func allManagementLabels(among entityIDs: Set<String>) -> [HALabelRegistryDTO] {
+        let usedIDs = Set(entityIDs.flatMap { organizationByEntityID[$0]?.labels ?? [] })
+        return usedIDs.compactMap { labelRegistryByID[$0] }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     func deviceManagementSummaries() -> [HADeviceManagementSummary] {
         let entityMetadataByDeviceID = Dictionary(
             grouping: entityRegistryByID.values.compactMap { metadata -> (String, HAEntityRegistryDisplayDTO)? in
@@ -164,6 +214,7 @@ final class HAStateStore {
                     manufacturer: manufacturer,
                     model: model,
                     platform: platform,
+                    labels: device.labels.compactMap { labelRegistryByID[$0]?.name }.sorted(),
                     entityIDs: entityIDs,
                     unavailableEntityCount: entityIDs.filter { entitiesByID[$0]?.isAvailable == false }.count
                 )
@@ -517,13 +568,21 @@ final class HAStateStore {
         entities: [HAEntityRegistryDisplayDTO],
         devices: [HADeviceRegistryDTO],
         areas: [HAAreaRegistryDTO] = [],
-        floors: [HAFloorRegistryDTO] = []
+        floors: [HAFloorRegistryDTO] = [],
+        organization: [HAEntityOrganizationDTO] = [],
+        labels: [HALabelRegistryDTO] = [],
+        categories: [HACategoryRegistryDTO] = []
     ) {
         let previousEntityRegistryByID = entityRegistryByID
         entityRegistryByID = Dictionary(uniqueKeysWithValues: entities.map { ($0.entityID, $0) })
         deviceRegistryByID = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
         areaRegistryByID = Dictionary(uniqueKeysWithValues: areas.map { ($0.id, $0) })
         floorRegistryByID = Dictionary(uniqueKeysWithValues: floors.map { ($0.id, $0) })
+        organizationByEntityID = Dictionary(uniqueKeysWithValues: organization.map { ($0.entityID, $0) })
+        labelRegistryByID = Dictionary(uniqueKeysWithValues: labels.map { ($0.id, $0) })
+        categoryRegistryByKey = Dictionary(uniqueKeysWithValues: categories.map {
+            (Self.categoryKey(scope: $0.scope, id: $0.id), $0)
+        })
         floorSortOrderByID = Dictionary(uniqueKeysWithValues: floors.enumerated().map { index, floor in
             (floor.id, index)
         })
@@ -537,7 +596,10 @@ final class HAStateStore {
             entities: metadata.entities,
             devices: metadata.devices,
             areas: metadata.areas,
-            floors: metadata.floors
+            floors: metadata.floors,
+            organization: metadata.organization,
+            labels: metadata.labels,
+            categories: metadata.categories
         )
     }
 
@@ -750,6 +812,9 @@ final class HAStateStore {
         deviceRegistryByID.removeAll()
         areaRegistryByID.removeAll()
         floorRegistryByID.removeAll()
+        organizationByEntityID.removeAll()
+        labelRegistryByID.removeAll()
+        categoryRegistryByKey.removeAll()
         floorSortOrderByID.removeAll()
         invalidateDashboardSummaryMembershipContext()
         isApplyingSnapshotBatch = false
@@ -1145,6 +1210,7 @@ struct HADeviceManagementSummary: Equatable, Identifiable, Sendable {
     let manufacturer: String?
     let model: String?
     let platform: String?
+    let labels: [String]
     let entityIDs: [String]
     let unavailableEntityCount: Int
 
@@ -1164,6 +1230,7 @@ struct HADeviceManagementSummary: Equatable, Identifiable, Sendable {
             manufacturer,
             model,
             platform,
+            labels.joined(separator: " "),
             entityCountText
         ]
             .compactMap { $0 }
@@ -1397,6 +1464,10 @@ private extension HAStateStore {
                 return lowercased.prefix(1).uppercased() + lowercased.dropFirst()
             }
             .joined(separator: " ")
+    }
+
+    private static func categoryKey(scope: HAOrganizationScope, id: String) -> String {
+        "\(scope.rawValue)|\(id)"
     }
 }
 
