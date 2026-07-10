@@ -1888,6 +1888,56 @@ struct HomesteadTests {
         #expect(trackerEntries.map(\.tone) == [.active, .inactive, .unavailable])
     }
 
+    @Test func automationOverviewAndTraceTimelineUseAutomationConfigurationAndRuns() throws {
+        let config: [String: JSONValue] = [
+            "triggers": .array([.object([
+                "trigger": .string("state"),
+                "entity_id": .string("binary_sensor.entryway_occupancy"),
+                "to": .string("on")
+            ])]),
+            "conditions": .array([.object([
+                "condition": .string("state"),
+                "entity_id": .string("person.tyler"),
+                "state": .string("home")
+            ])]),
+            "actions": .array([.object([
+                "action": .string("light.turn_on"),
+                "target": .object(["entity_id": .array([.string("light.entryway_lamp")])])
+            ])])
+        ]
+
+        let overview = HAAutomationOverviewBuilder.make(config: config) { id in
+            [
+                "binary_sensor.entryway_occupancy": "Entryway Occupancy",
+                "person.tyler": "Tyler",
+                "light.entryway_lamp": "Entryway Lamp"
+            ][id] ?? id
+        }
+        #expect(overview.triggers.map(\.title) == ["When Entryway Occupancy is on"])
+        #expect(overview.conditions.map(\.title) == ["Only if Tyler is home"])
+        #expect(overview.actions.map(\.title) == ["Turn On light"])
+        #expect(overview.actions.map(\.subtitle) == ["Entryway Lamp"])
+
+        let traces = try JSONDecoder().decode([HAAutomationTraceDTO].self, from: Data(#"""
+        [
+          {"run_id":"finished","state":"stopped","script_execution":"finished","timestamp":{"start":"2026-06-05T15:10:00Z"}},
+          {"run_id":"failed","state":"stopped","script_execution":"failed_conditions","timestamp":{"start":"2026-06-05T15:20:00Z"}},
+          {"run_id":"ignored","state":"stopped","not_triggered":true,"timestamp":{"start":"2026-06-05T15:30:00Z"}}
+        ]
+        """#.utf8))
+        let start = try testDate("2026-06-05T15:00:00Z")
+        let end = try testDate("2026-06-05T16:00:00Z")
+        let timeline = HAAutomationTraceTimeline.make(
+            traces: traces,
+            entityID: "automation.entryway_light",
+            displayName: "Entryway Light",
+            range: .oneHour,
+            interval: DateInterval(start: start, end: end)
+        )
+        #expect(timeline.entries.map(\.title) == ["Triggered", "Failed"])
+        #expect(timeline.summaryText == "2 executions • Now Failed")
+    }
+
     @Test func historyTimelineFiltersDiscreteDomainsByRangeEntityUnsupportedStatesAndDuplicateStates() throws {
         let startDate = try testDate("2026-06-05T15:00:00Z")
         let firstDate = try testDate("2026-06-05T15:10:00Z")
@@ -10075,6 +10125,8 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var supervisorAppsResponse = HASupervisorAppsResponseDTO(addons: [])
     var supervisorInfo = HASupervisorInfoDTO(version: nil)
     var operatingSystemInfo = HAOperatingSystemInfoDTO(version: nil)
+    var automationConfiguration = HAAutomationConfigurationResponseDTO(config: [:])
+    var automationTraces: [HAAutomationTraceDTO] = []
     var fetchServicesDelay: Duration?
     var fetchServicesError: Error?
     var supervisorAppsError: Error?
@@ -10213,6 +10265,14 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return operatingSystemInfo
+    }
+
+    func fetchAutomationConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO {
+        automationConfiguration
+    }
+
+    func fetchAutomationTraces(itemID: String) async throws -> [HAAutomationTraceDTO] {
+        automationTraces
     }
 
     func subscribeToStateChanges() async throws {}

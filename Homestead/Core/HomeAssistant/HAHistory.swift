@@ -333,6 +333,24 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
     let displayName: String
     let range: HAHistoryRangePreset
     let entries: [HAHistoryTimelineEntry]
+    let emptyMessage: String
+    let summaryNoun: String
+
+    init(
+        entityID: String,
+        displayName: String,
+        range: HAHistoryRangePreset,
+        entries: [HAHistoryTimelineEntry],
+        emptyMessage: String? = nil,
+        summaryNoun: String = "change"
+    ) {
+        self.entityID = entityID
+        self.displayName = displayName
+        self.range = range
+        self.entries = entries
+        self.emptyMessage = emptyMessage ?? "No state changes in \(range.accessibilityTitle.lowercased())"
+        self.summaryNoun = summaryNoun
+    }
 
     var isEmpty: Bool {
         entries.isEmpty
@@ -344,10 +362,10 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
 
     var summaryText: String {
         guard !entries.isEmpty else {
-            return "No state changes in \(range.accessibilityTitle.lowercased())"
+            return emptyMessage
         }
 
-        let changeText = entries.count == 1 ? "1 change" : "\(entries.count) changes"
+        let changeText = entries.count == 1 ? "1 \(summaryNoun)" : "\(entries.count) \(summaryNoun)s"
         guard let latestEntry else {
             return changeText
         }

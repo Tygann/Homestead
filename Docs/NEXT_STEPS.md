@@ -6,6 +6,8 @@ For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API re
 
 ## Current Focus
 
+Automation details now use Home Assistant's `automation/config` and `trace/list` WebSocket commands: state is presented as Enabled/Disabled, activity reflects actual Triggered/Failed/Stopped runs instead of state-history churn, and the read-only native detail summarizes When / And If / Then Do. Follow-up should be live-server verification across YAML, UI-created, blueprint, and nested choose/repeat automations; editing and full trace inspection remain intentionally in Home Assistant.
+
 Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, multiple saved dashboards, camera snapshot hardening, the first service/dashboard performance cleanup, the deployed Cloudflare Worker push relay, Worker-hosted OAuth/connect page, and app-side APNs push registration are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
 
 Recommended reasoning level: High.

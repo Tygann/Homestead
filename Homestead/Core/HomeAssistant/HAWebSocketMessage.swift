@@ -27,6 +27,8 @@ enum HAWebSocketMessageType {
     nonisolated static var categoryRegistryList: String { "config/category_registry/list" }
     nonisolated static var cameraCapabilities: String { "camera/capabilities" }
     nonisolated static var supervisorAPI: String { "supervisor/api" }
+    nonisolated static var automationConfig: String { "automation/config" }
+    nonisolated static var traceList: String { "trace/list" }
 }
 
 struct HAWebSocketIncomingMessage: Decodable, Sendable {
@@ -108,6 +110,8 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case categoryRegistryList(id: Int, scope: HAOrganizationScope)
     case cameraCapabilities(id: Int, entityID: String)
     case supervisorAPI(id: Int, endpoint: String, method: String)
+    case automationConfig(id: Int, entityID: String)
+    case traceList(id: Int, domain: String, itemID: String)
     case callService(
         id: Int,
         domain: String,
@@ -133,6 +137,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case endpoint
         case method
         case scope
+        case itemID = "item_id"
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -191,6 +196,15 @@ enum HAWebSocketRequest: Encodable, Sendable {
             try container.encode(HAWebSocketMessageType.supervisorAPI, forKey: .type)
             try container.encode(endpoint, forKey: .endpoint)
             try container.encode(method, forKey: .method)
+        case .automationConfig(let id, let entityID):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.automationConfig, forKey: .type)
+            try container.encode(entityID, forKey: .entityID)
+        case .traceList(let id, let domain, let itemID):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.traceList, forKey: .type)
+            try container.encode(domain, forKey: .domain)
+            try container.encode(itemID, forKey: .itemID)
         case .callService(let id, let domain, let service, let target, let serviceData):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.callService, forKey: .type)

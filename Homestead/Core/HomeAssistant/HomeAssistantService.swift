@@ -916,6 +916,34 @@ final class HomeAssistantService {
         }
     }
 
+    func fetchAutomationOverview(entityID: String) async throws -> HAAutomationOverview {
+        let response = try await client.fetchAutomationConfiguration(entityID: entityID)
+        return HAAutomationOverviewBuilder.make(config: response.config) { [stateStore] targetID in
+            stateStore.entity(for: targetID)?.displayName ?? targetID
+        }
+    }
+
+    func fetchAutomationTimeline(
+        entityID: String,
+        range: HAHistoryRangePreset
+    ) async throws -> HAHistoryTimeline {
+        let configuration = try await client.fetchAutomationConfiguration(entityID: entityID)
+        let itemID = configuration.config["id"]?.stringValue
+            ?? stateStore.rawEntity(for: entityID)?.attributes["id"]?.stringValue
+            ?? String(entityID.dropFirst("automation.".count))
+        let traces = try await client.fetchAutomationTraces(itemID: itemID)
+        let interval = range.interval()
+        let displayName = stateStore.entity(for: entityID)?.displayName ?? entityID
+
+        return HAAutomationTraceTimeline.make(
+            traces: traces,
+            entityID: entityID,
+            displayName: displayName,
+            range: range,
+            interval: DateInterval(start: interval.start, end: interval.end)
+        )
+    }
+
     func fetchDashboardHistory(
         settings: HAConnectionSettings,
         entityID: String,

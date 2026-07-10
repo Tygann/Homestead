@@ -21,6 +21,8 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func fetchSupervisorApps() async throws -> HASupervisorAppsResponseDTO
     func fetchSupervisorInfo() async throws -> HASupervisorInfoDTO
     func fetchOperatingSystemInfo() async throws -> HAOperatingSystemInfoDTO
+    func fetchAutomationConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO
+    func fetchAutomationTraces(itemID: String) async throws -> [HAAutomationTraceDTO]
     func subscribeToStateChanges() async throws
     func subscribeToRegistryChanges() async throws
     func unsubscribeFromStateChanges() async throws
@@ -310,6 +312,20 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return try result.decoded(HAOperatingSystemInfoDTO.self)
+    }
+
+    func fetchAutomationConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO {
+        let id = makeRequestID()
+        let response = try await sendRequest(.automationConfig(id: id, entityID: entityID), id: id)
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return try result.decoded(HAAutomationConfigurationResponseDTO.self)
+    }
+
+    func fetchAutomationTraces(itemID: String) async throws -> [HAAutomationTraceDTO] {
+        let id = makeRequestID()
+        let response = try await sendRequest(.traceList(id: id, domain: "automation", itemID: itemID), id: id)
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return try result.decoded([HAAutomationTraceDTO].self)
     }
 
     func subscribeToStateChanges() async throws {

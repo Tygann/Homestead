@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-10
+
+### Automation Detail Alignment
+
+- Replaced automation REST state-history activity with Home Assistant WebSocket execution traces, so the native detail shows real Triggered, Failed, and Stopped runs rather than repeated Enabled/Unavailable state transitions.
+- Added a read-only, app-facing automation configuration mapper for the official `automation/config` response. The detail presents compact native When, And If, and Then Do sections while retaining editing and full trace inspection in Home Assistant.
+- Standardized automation state semantics across the detail surface as Enabled/Disabled, without changing switch or other entity state wording.
+
 ## 2026-07-08
 
 ### WidgetKit Surface Consolidation
