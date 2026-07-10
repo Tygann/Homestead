@@ -85,9 +85,15 @@ struct GaugePresentationView: View {
             ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
                 let segment = instrumentSegment(for: section, at: index, diameter: diameter, lineWidth: lineWidth)
 
-                GaugeInstrumentArcShape(start: segment.start, end: segment.end, inset: lineWidth / 2)
+                GaugeInstrumentArcShape(
+                    start: segment.start,
+                    end: segment.end,
+                    inset: lineWidth / 2,
+                    startAngle: 135,
+                    sweepAngle: 270
+                )
                     .stroke(
-                        statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
+                        statusColor(for: section.status),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
                     )
             }
@@ -113,12 +119,13 @@ struct GaugePresentationView: View {
 
     private func instrumentValueIndicator(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
-        let angle = Angle.degrees(150 + (240 * presentation.normalizedValue))
+        let angle = Angle.degrees(135 + (270 * presentation.normalizedValue))
         let dotDiameter = max(lineWidth * 0.72, 10)
 
         return Circle()
             .fill(statusColor(for: presentation.status))
-            .overlay(Circle().stroke(.background, lineWidth: 2))
+            .overlay(Circle().stroke(Color.white.opacity(0.92), lineWidth: 2))
+            .shadow(color: .black.opacity(0.22), radius: 1.5, y: 1)
             .frame(width: dotDiameter, height: dotDiameter)
             .position(
                 x: (diameter / 2) + (radius * CGFloat(cos(angle.radians))),
@@ -135,7 +142,7 @@ struct GaugePresentationView: View {
         let rawStart = normalized(section.range.lowerBound)
         let rawEnd = normalized(section.range.upperBound)
         let radius = max((diameter / 2) - (lineWidth / 2), 1)
-        let gap = min(max((Double(lineWidth / radius) * 1.15) / ((4 * Double.pi) / 3), 0.035), 0.08)
+        let gap = min(max((Double(lineWidth / radius) * 1.15) / (1.5 * Double.pi), 0.035), 0.08)
         let start = index == 0 ? rawStart : rawStart + (gap / 2)
         let end = index == presentation.sections.indices.last ? rawEnd : rawEnd - (gap / 2)
         return (min(max(start, 0), 1), min(max(end, start), 1))
@@ -484,6 +491,8 @@ private struct GaugeInstrumentArcShape: Shape {
     let start: Double
     let end: Double
     let inset: CGFloat
+    var startAngle: Double = 150
+    var sweepAngle: Double = 240
 
     func path(in rect: CGRect) -> Path {
         let radius = max((min(rect.width, rect.height) / 2) - inset, 0)
@@ -491,14 +500,14 @@ private struct GaugeInstrumentArcShape: Shape {
         let clampedStart = min(max(start, 0), 1)
         let clampedEnd = min(max(end, clampedStart), 1)
         var path = Path()
-        let startAngle = 150 + (240 * clampedStart)
-        let endAngle = 150 + (240 * clampedEnd)
+        let resolvedStartAngle = startAngle + (sweepAngle * clampedStart)
+        let resolvedEndAngle = startAngle + (sweepAngle * clampedEnd)
 
         path.addArc(
             center: center,
             radius: radius,
-            startAngle: .degrees(startAngle),
-            endAngle: .degrees(endAngle),
+            startAngle: .degrees(resolvedStartAngle),
+            endAngle: .degrees(resolvedEndAngle),
             clockwise: false
         )
 
