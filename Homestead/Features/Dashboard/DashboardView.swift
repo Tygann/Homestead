@@ -9,6 +9,7 @@ struct DashboardView: View {
     @State private var isEditingDashboard = false
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var iconPickerContext: DashboardIconPickerContext?
+    @State private var gaugeZoneEditorContext: DashboardGaugeZoneEditorContext?
     @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
@@ -116,6 +117,13 @@ struct DashboardView: View {
                         dashboardConfiguration.setIconNameOverride(iconName, forItemID: context.id)
                     }
                 )
+            }
+            .sheet(item: $gaugeZoneEditorContext) { context in
+                DashboardGaugeZoneEditorView(context: context) { configuration in
+                    dashboardConfiguration.setGaugeZoneConfiguration(configuration, forItemID: context.id)
+                } onReset: {
+                    dashboardConfiguration.setGaugeZoneConfiguration(nil, forItemID: context.id)
+                }
             }
             .navigationDestination(item: $selectedEntityDetailRoute) { route in
                 if let entityBox = stateStore.entityBox(for: route.entityID) {
@@ -542,6 +550,7 @@ struct DashboardView: View {
                     presentationStyle: item.presentationStyle,
                     displayNameOverride: currentCardDisplayNameOverride(for: item),
                     iconNameOverride: item.iconNameOverride,
+                    gaugeZoneConfiguration: item.gaugeZoneConfiguration,
                     featureVisibility: item.featureVisibility,
                     cameraRefreshGeneration: cameraRefreshGeneration,
                     isEditing: true
@@ -558,6 +567,7 @@ struct DashboardView: View {
                 presentationStyle: item.presentationStyle,
                 displayNameOverride: currentCardDisplayNameOverride(for: item),
                 iconNameOverride: item.iconNameOverride,
+                gaugeZoneConfiguration: item.gaugeZoneConfiguration,
                 featureVisibility: item.featureVisibility,
                 cameraRefreshGeneration: cameraRefreshGeneration,
                 openDetails: {
@@ -666,6 +676,7 @@ struct DashboardView: View {
                 presentationStyle: cardItem.presentationStyle,
                 displayNameOverride: currentCardDisplayNameOverride(for: cardItem),
                 iconNameOverride: cardItem.iconNameOverride,
+                gaugeZoneConfiguration: cardItem.gaugeZoneConfiguration,
                 featureVisibility: cardItem.featureVisibility,
                 cameraRefreshGeneration: cameraRefreshGeneration,
                 isEditing: true
@@ -1151,6 +1162,14 @@ struct DashboardView: View {
             }
         }
 
+        if item.presentationStyle == .gauge(.segmented) {
+            Button {
+                presentGaugeZoneEditor(for: item)
+            } label: {
+                Label("Gauge Zones", systemImage: "dial.medium")
+            }
+        }
+
         Button {
             presentIconPicker(for: item)
         } label: {
@@ -1196,6 +1215,16 @@ struct DashboardView: View {
             defaultSystemName: entity?.iconName ?? "square.grid.2x2",
             selectedSystemName: item.iconNameOverride,
             recommendation: .domain(entity?.domain ?? EntityDomain(entityID: item.entityID))
+        )
+    }
+
+    private func presentGaugeZoneEditor(for item: DashboardCardItem) {
+        guard let presentation = stateStore.entityBox(for: item.entityID)?.sensorEntity?.gaugePresentation else { return }
+        let storedConfiguration = item.gaugeZoneConfiguration.flatMap { $0.isValid ? $0 : nil }
+        gaugeZoneEditorContext = DashboardGaugeZoneEditorContext(
+            id: item.id,
+            presentation: presentation,
+            configuration: storedConfiguration ?? .defaults(for: presentation)
         )
     }
 

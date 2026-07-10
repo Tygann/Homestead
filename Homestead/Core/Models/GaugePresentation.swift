@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated enum GaugePresentationStatus: String, Equatable, Sendable {
+nonisolated enum GaugePresentationStatus: String, Codable, Equatable, Sendable {
     case nominal
     case low
     case high
@@ -19,6 +19,39 @@ struct GaugePresentationSection: Equatable, Sendable {
     let status: GaugePresentationStatus
 }
 
+nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
+    var lowerBound: Double
+    var upperBound: Double
+    var boundaries: [Double]
+    var statuses: [GaugePresentationStatus]
+
+    var isValid: Bool {
+        guard lowerBound < upperBound,
+              statuses.count == boundaries.count + 1 else { return false }
+        let values = [lowerBound] + boundaries + [upperBound]
+        return zip(values, values.dropFirst()).allSatisfy { $0.0 < $0.1 }
+    }
+
+    func sections() -> [GaugePresentationSection]? {
+        guard isValid else { return nil }
+        let upperBounds = boundaries + [upperBound]
+        var lower = lowerBound
+        return zip(upperBounds, statuses).map { upper, status in
+            defer { lower = upper }
+            return GaugePresentationSection(range: lower...upper, status: status)
+        }
+    }
+
+    static func defaults(for presentation: GaugePresentation) -> Self {
+        GaugeZoneConfiguration(
+            lowerBound: presentation.range.lowerBound,
+            upperBound: presentation.range.upperBound,
+            boundaries: presentation.sections.dropLast().map(\.range.upperBound),
+            statuses: presentation.sections.map(\.status)
+        )
+    }
+}
+
 struct GaugePresentation: Equatable, Sendable {
     let value: Double
     let range: ClosedRange<Double>
@@ -32,10 +65,57 @@ struct GaugePresentation: Equatable, Sendable {
     let accessibilityLabel: String
     let accessibilityValue: String
 
+    private init(
+        value: Double,
+        range: ClosedRange<Double>,
+        valueText: String,
+        unitText: String?,
+        status: GaugePresentationStatus,
+        statusDisplayText: String,
+        rangeSource: GaugeRangeSource,
+        isDashboardFeatureEligible: Bool,
+        sections: [GaugePresentationSection],
+        accessibilityLabel: String,
+        accessibilityValue: String
+    ) {
+        self.value = value
+        self.range = range
+        self.valueText = valueText
+        self.unitText = unitText
+        self.status = status
+        self.statusDisplayText = statusDisplayText
+        self.rangeSource = rangeSource
+        self.isDashboardFeatureEligible = isDashboardFeatureEligible
+        self.sections = sections
+        self.accessibilityLabel = accessibilityLabel
+        self.accessibilityValue = accessibilityValue
+    }
+
     var normalizedValue: Double {
         guard range.upperBound > range.lowerBound else { return 0 }
         let normalized = (value - range.lowerBound) / (range.upperBound - range.lowerBound)
         return min(max(normalized, 0), 1)
+    }
+
+    func applying(zoneConfiguration: GaugeZoneConfiguration?) -> Self {
+        guard let zoneConfiguration,
+              let resolvedSections = zoneConfiguration.sections() else { return self }
+        let resolvedStatus = resolvedSections.first(where: { $0.range.contains(value) })?.status
+            ?? (value < zoneConfiguration.lowerBound ? resolvedSections[0].status : resolvedSections[resolvedSections.count - 1].status)
+
+        return GaugePresentation(
+            value: value,
+            range: zoneConfiguration.lowerBound...zoneConfiguration.upperBound,
+            valueText: valueText,
+            unitText: unitText,
+            status: resolvedStatus,
+            statusDisplayText: Self.genericStatusDisplayText(for: resolvedStatus),
+            rangeSource: rangeSource,
+            isDashboardFeatureEligible: isDashboardFeatureEligible,
+            sections: resolvedSections,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityValue: Self.accessibilityValue(valueText: valueText, status: resolvedStatus)
+        )
     }
 
     init?(sensor: SensorEntity) {
@@ -169,9 +249,8 @@ private extension GaugePresentation {
         case .battery:
             return lowIsBadStatus(value, warning: 20, critical: 10)
         case .humidity, .moisture:
-            if value < 25 || value > 70 { return .warning }
-            if value < 30 { return .low }
-            if value > 60 { return .high }
+            if value < 20 || value > 70 { return .critical }
+            if value < 30 || value > 60 { return .warning }
             return .nominal
         case .temperature:
             return temperatureStatus(value, unitText: sensor.unitText)
@@ -210,11 +289,11 @@ private extension GaugePresentation {
         case .humidity, .moisture:
             return clampedSections(
                 [
-                    GaugePresentationSection(range: range.lowerBound...25, status: .warning),
-                    GaugePresentationSection(range: 25...30, status: .low),
+                    GaugePresentationSection(range: range.lowerBound...20, status: .critical),
+                    GaugePresentationSection(range: 20...30, status: .warning),
                     GaugePresentationSection(range: 30...60, status: .nominal),
-                    GaugePresentationSection(range: 60...70, status: .high),
-                    GaugePresentationSection(range: 70...range.upperBound, status: .warning)
+                    GaugePresentationSection(range: 60...70, status: .warning),
+                    GaugePresentationSection(range: 70...range.upperBound, status: .critical)
                 ],
                 to: range
             )
@@ -258,6 +337,16 @@ private extension GaugePresentation {
             return "Warning"
         case (_, .critical):
             return "Critical"
+        }
+    }
+
+    static func genericStatusDisplayText(for status: GaugePresentationStatus) -> String {
+        switch status {
+        case .nominal: "Normal"
+        case .low: "Low"
+        case .high: "High"
+        case .warning: "Warning"
+        case .critical: "Critical"
         }
     }
 

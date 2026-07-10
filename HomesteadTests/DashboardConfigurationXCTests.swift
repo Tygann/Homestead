@@ -101,10 +101,17 @@ final class DashboardConfigurationXCTests: XCTestCase {
             source: .entity("sensor.battery"),
             presentation: .card(.gauge(style: .circular, layout: .square))
         )
-        _ = configuration.add(
+        let segmentedID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.battery"),
             presentation: .card(.gauge(style: .segmented, layout: .square))
+        ))
+        let zoneConfiguration = GaugeZoneConfiguration(
+            lowerBound: 0,
+            upperBound: 100,
+            boundaries: [15, 30, 70, 85],
+            statuses: [.critical, .warning, .nominal, .warning, .critical]
         )
+        configuration.setGaugeZoneConfiguration(zoneConfiguration, forItemID: segmentedID)
         _ = configuration.add(
             source: .entity("sensor.battery"),
             presentation: .card(.gauge(style: .bar, layout: .wide))
@@ -120,6 +127,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
                 .gauge(style: .bar, layout: .wide)
             ]
         )
+        XCTAssertEqual(restored.items.first(where: { $0.id == segmentedID })?.gaugeZoneConfiguration, zoneConfiguration)
     }
 
     func testDuplicateIdentityIncludesStyleButNotLayout() throws {

@@ -140,8 +140,8 @@ struct GaugePresentationView: View {
         let dotDiameter = max(lineWidth * 0.72, 10)
 
         return Circle()
-            .fill(statusColor(for: presentation.status))
-            .overlay(Circle().stroke(Color.white.opacity(0.92), lineWidth: 2))
+            .fill(Color.white)
+            .overlay(Circle().stroke(statusColor(for: presentation.status), lineWidth: 2.5))
             .shadow(color: .black.opacity(0.22), radius: 1.5, y: 1)
             .frame(width: dotDiameter, height: dotDiameter)
             .position(

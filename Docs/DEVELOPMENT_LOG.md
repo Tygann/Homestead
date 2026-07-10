@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-10
 
+### Configurable Segmented Zone Gauges
+
+- Added a shared segmented zone-dial style for dashboard and Sensor widgets using the circular gauge's 240-degree geometry, fully colored proportional zones, and a current-value dot.
+- Kept Home Assistant-provided min/max metadata as the preferred overall range, with device-class-aware fallback ranges and semantic zone defaults when HA does not expose thresholds.
+- Added validated, per-dashboard-card gauge zone overrides for minimum, maximum, and interior boundaries, persisted with dashboard customization and resettable to recommended defaults.
+- Added a native Gauge Zones editor with an inline live preview and focused range/persistence regression coverage.
+
 ### Automation Detail Alignment
 
 - Replaced automation REST state-history activity with Home Assistant WebSocket execution traces, so the native detail shows real Triggered, Failed, and Stopped runs rather than repeated Enabled/Unavailable state transitions.

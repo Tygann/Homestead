@@ -7,6 +7,7 @@ struct DashboardCardView: View {
     var presentationStyle: DashboardPresentationStyle?
     var displayNameOverride: String?
     var iconNameOverride: String?
+    var gaugeZoneConfiguration: GaugeZoneConfiguration?
     var featureVisibility: DashboardCardFeatureVisibility = .automatic
     var contextualAreaName: String?
     var cameraRefreshGeneration = 0
@@ -20,6 +21,7 @@ struct DashboardCardView: View {
         presentationKind: DashboardPresentationKind? = nil,
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
+        gaugeZoneConfiguration: GaugeZoneConfiguration? = nil,
         featureVisibility: DashboardCardFeatureVisibility = .automatic,
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
@@ -32,6 +34,7 @@ struct DashboardCardView: View {
         self.presentationStyle = nil
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
+        self.gaugeZoneConfiguration = gaugeZoneConfiguration
         self.featureVisibility = featureVisibility
         self.contextualAreaName = contextualAreaName
         self.cameraRefreshGeneration = cameraRefreshGeneration
@@ -47,6 +50,7 @@ struct DashboardCardView: View {
         presentationStyle: DashboardPresentationStyle?,
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
+        gaugeZoneConfiguration: GaugeZoneConfiguration? = nil,
         featureVisibility: DashboardCardFeatureVisibility = .automatic,
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
@@ -59,6 +63,7 @@ struct DashboardCardView: View {
         self.presentationStyle = presentationStyle
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
+        self.gaugeZoneConfiguration = gaugeZoneConfiguration
         self.featureVisibility = featureVisibility
         self.contextualAreaName = contextualAreaName
         self.cameraRefreshGeneration = cameraRefreshGeneration
@@ -73,6 +78,7 @@ struct DashboardCardView: View {
         presentationKind: DashboardPresentationKind? = nil,
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
+        gaugeZoneConfiguration: GaugeZoneConfiguration? = nil,
         featureVisibility: DashboardCardFeatureVisibility = .automatic,
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
@@ -86,6 +92,7 @@ struct DashboardCardView: View {
         self.presentationStyle = nil
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
+        self.gaugeZoneConfiguration = gaugeZoneConfiguration
         self.featureVisibility = featureVisibility
         self.contextualAreaName = contextualAreaName
         self.cameraRefreshGeneration = cameraRefreshGeneration
@@ -101,6 +108,7 @@ struct DashboardCardView: View {
         presentationStyle: DashboardPresentationStyle?,
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
+        gaugeZoneConfiguration: GaugeZoneConfiguration? = nil,
         featureVisibility: DashboardCardFeatureVisibility = .automatic,
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
@@ -114,6 +122,7 @@ struct DashboardCardView: View {
         self.presentationStyle = presentationStyle
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
+        self.gaugeZoneConfiguration = gaugeZoneConfiguration
         self.featureVisibility = featureVisibility
         self.contextualAreaName = contextualAreaName
         self.cameraRefreshGeneration = cameraRefreshGeneration
@@ -148,6 +157,7 @@ struct DashboardCardView: View {
                 size: size,
                 presentationKind: resolvedPresentationKind,
                 presentationStyle: resolvedPresentationStyle,
+                gaugeZoneConfiguration: gaugeZoneConfiguration,
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
                 featureVisibility: featureVisibility,
                 contextualAreaName: contextualAreaName,

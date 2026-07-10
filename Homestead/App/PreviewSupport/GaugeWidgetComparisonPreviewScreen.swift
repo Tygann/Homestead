@@ -7,12 +7,36 @@ struct GaugeWidgetComparisonPreviewScreen: View {
     private let widgetCornerRadius: CGFloat = 36
     private let widgetPadding: CGFloat = 16
     private let gauge = WidgetGaugePresentation.previewLowBattery
+    private let segmentedGauge = WidgetGaugePresentation(
+        value: 56,
+        lowerBound: 0,
+        upperBound: 100,
+        valueText: "56",
+        unitText: "%",
+        status: .nominal,
+        statusDisplayText: "Comfortable",
+        sections: [
+            WidgetGaugeSection(lowerBound: 0, upperBound: 20, status: .critical),
+            WidgetGaugeSection(lowerBound: 20, upperBound: 30, status: .warning),
+            WidgetGaugeSection(lowerBound: 30, upperBound: 60, status: .nominal),
+            WidgetGaugeSection(lowerBound: 60, upperBound: 70, status: .warning),
+            WidgetGaugeSection(lowerBound: 70, upperBound: 100, status: .critical)
+        ],
+        accessibilityLabel: "Living Room Humidity gauge",
+        accessibilityValue: "56%, comfortable"
+    )
     private let baseIcon = IconResolver.resolveEntity(
         EntityIconResolutionInput(domain: "sensor", deviceClass: "battery", state: "18")
     )
 
     private var gaugeIcon: ResolvedIcon {
         gaugeDisplayIcon(base: baseIcon, value: gauge.value, status: gauge.status.visualStatus)
+    }
+
+    private var segmentedGaugeIcon: ResolvedIcon {
+        IconResolver.resolveEntity(
+            EntityIconResolutionInput(domain: "sensor", deviceClass: "humidity", state: "56")
+        )
     }
 
     var body: some View {
@@ -101,7 +125,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             HStack(alignment: .top, spacing: 18) {
                 previewColumn("Dashboard") {
                     DashboardCardView(
-                        entityID: "sensor.front_door_battery",
+                        entityID: "sensor.living_room_humidity",
                         size: .square,
                         presentationKind: .gauge,
                         presentationStyle: .gauge(.segmented),
@@ -112,10 +136,10 @@ struct GaugeWidgetComparisonPreviewScreen: View {
 
                 previewColumn("Widget") {
                     WidgetGaugeInstrumentView(
-                        gauge: gauge,
-                        tint: widgetGaugeStatusColor(for: gauge.status),
-                        title: "Front Door Battery",
-                        icon: gaugeIcon,
+                        gauge: segmentedGauge,
+                        tint: widgetGaugeStatusColor(for: segmentedGauge.status),
+                        title: "Living Room Humidity",
+                        icon: segmentedGaugeIcon,
                         style: .segmented
                     )
                     .padding(widgetPadding)

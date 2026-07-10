@@ -3043,6 +3043,8 @@ struct HomesteadTests {
         #expect(humidity.unitText == "%")
         #expect(humidity.displayKind == .humidity)
         #expect(humidity.gaugePresentation?.statusDisplayText == "Comfortable")
+        #expect(humidity.gaugePresentation?.sections.map(\.status) == [.critical, .warning, .nominal, .warning, .critical])
+        #expect(humidity.gaugePresentation?.sections.map(\.range.upperBound) == [20, 30, 60, 70, 100])
         #expect(humidity.isAlerting == false)
         #expect(humidity.displaySubtitle == "Humidity")
         #expect(energy.formattedValue == "12.35 kWh")
@@ -3119,6 +3121,41 @@ struct HomesteadTests {
             lastUpdated: nil
         )
         #expect(textSensor.gaugePresentation == nil)
+    }
+
+    @Test func gaugeZoneConfigurationValidatesAndOverridesPresentation() throws {
+        let humidity = SensorEntity(
+            entityID: "sensor.living_room_humidity",
+            displayName: "Living Room Humidity",
+            value: "72",
+            unit: "%",
+            deviceClass: "humidity",
+            lastUpdated: nil
+        )
+        let presentation = try #require(humidity.gaugePresentation)
+        let custom = GaugeZoneConfiguration(
+            lowerBound: 10,
+            upperBound: 90,
+            boundaries: [25, 35, 55, 65],
+            statuses: [.critical, .warning, .nominal, .warning, .critical]
+        )
+        let resolved = presentation.applying(zoneConfiguration: custom)
+
+        #expect(custom.isValid)
+        #expect(resolved.range == 10...90)
+        #expect(resolved.sections.map(\.range.upperBound) == [25, 35, 55, 65, 90])
+        #expect(resolved.status == .critical)
+
+        let invalid = GaugeZoneConfiguration(
+            lowerBound: 0,
+            upperBound: 100,
+            boundaries: [30, 20],
+            statuses: [.warning, .nominal, .warning]
+        )
+        #expect(!invalid.isValid)
+        let invalidResolved = presentation.applying(zoneConfiguration: invalid)
+        #expect(invalidResolved.range == presentation.range)
+        #expect(invalidResolved.sections.map(\.status) == presentation.sections.map(\.status))
     }
 
     @Test func entityMapperCarriesSensorGaugeRangeMetadata() throws {

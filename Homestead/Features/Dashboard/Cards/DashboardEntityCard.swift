@@ -13,6 +13,7 @@ struct DashboardEntityCard: View {
     let size: DashboardCardSize
     let presentationKind: DashboardPresentationKind
     let presentationStyle: DashboardPresentationStyle?
+    let gaugeZoneConfiguration: GaugeZoneConfiguration?
     let features: [DashboardCardFeature]
     let featureVisibility: DashboardCardFeatureVisibility
     let contextualAreaName: String?
@@ -509,7 +510,7 @@ struct DashboardEntityCard: View {
             return nil
         }
 
-        return gauge.presentation
+        return gauge.presentation.applying(zoneConfiguration: gaugeZoneConfiguration)
     }
 
     private func largeFeatureContext(visibleFeatures: [DashboardCardFeature]) -> some View {

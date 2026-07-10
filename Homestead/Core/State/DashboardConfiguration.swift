@@ -183,8 +183,13 @@ nonisolated enum DashboardItemContent: Codable, Equatable, Sendable {
 nonisolated struct DashboardItemCustomization: Codable, Equatable, Sendable {
     var displayNameOverride: String?
     var iconNameOverride: String?
+    var gaugeZoneConfiguration: GaugeZoneConfiguration?
 
-    static let none = DashboardItemCustomization(displayNameOverride: nil, iconNameOverride: nil)
+    static let none = DashboardItemCustomization(
+        displayNameOverride: nil,
+        iconNameOverride: nil,
+        gaugeZoneConfiguration: nil
+    )
 }
 
 nonisolated enum DashboardItemRole: Equatable, Sendable {
@@ -278,6 +283,11 @@ nonisolated struct DashboardItemConfiguration: Identifiable, Codable, Equatable,
     var iconNameOverride: String? {
         get { customization.iconNameOverride }
         set { customization.iconNameOverride = newValue }
+    }
+
+    var gaugeZoneConfiguration: GaugeZoneConfiguration? {
+        get { customization.gaugeZoneConfiguration }
+        set { customization.gaugeZoneConfiguration = newValue }
     }
 
     var resolvedTitle: String {
@@ -646,6 +656,14 @@ final class DashboardConfiguration {
         guard let index = items.firstIndex(where: { $0.id == itemID && $0.role != .heading }) else { return }
         var updated = items
         updated[index].iconNameOverride = normalizedOverride(iconNameOverride)
+        updateSelectedDashboardItems(updated, setupState: .manual)
+    }
+
+    func setGaugeZoneConfiguration(_ configuration: GaugeZoneConfiguration?, forItemID itemID: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == itemID && $0.role == .card }) else { return }
+        guard configuration?.isValid != false else { return }
+        var updated = items
+        updated[index].gaugeZoneConfiguration = configuration
         updateSelectedDashboardItems(updated, setupState: .manual)
     }
 

@@ -6,6 +6,7 @@ struct DashboardCardItem: Identifiable, Equatable {
     let configuration: DashboardCardConfiguration
     let displayNameOverride: String?
     let iconNameOverride: String?
+    let gaugeZoneConfiguration: GaugeZoneConfiguration?
 
     var size: DashboardCardSize { configuration.layout }
     var featureVisibility: DashboardCardFeatureVisibility { configuration.featureVisibility }
@@ -92,7 +93,8 @@ enum DashboardLayoutItemBuilder {
                         entityID: entityID,
                         configuration: cardConfiguration,
                         displayNameOverride: configurationItem.displayNameOverride,
-                        iconNameOverride: configurationItem.iconNameOverride
+                        iconNameOverride: configurationItem.iconNameOverride,
+                        gaugeZoneConfiguration: configurationItem.gaugeZoneConfiguration
                     )
                     return DashboardLayoutItem(
                         kind: .card(cardItem),

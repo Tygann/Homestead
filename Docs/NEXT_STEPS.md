@@ -14,6 +14,10 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added the segmented zone gauge across dashboard and Sensor widget presentation with the circular gauge's shared 240-degree geometry, seamless proportional zones, and a current-value dot.
+- Added HA-first overall range resolution, modern device-class fallback zones (including red/orange/green/orange/red humidity defaults), and validated per-card range/boundary overrides through a native Gauge Zones editor.
+- Persisted zone overrides with dashboard customization, kept raw Home Assistant DTOs out of SwiftUI, updated the humidity-focused comparison preview, and added focused resolution/persistence coverage.
+
 - Reworked new-user and empty-dashboard behavior around an explicit per-dashboard setup choice: suggested setup is opt-in, Build My Own persists, removing the last item records an intentional empty state, and reconciliation never silently reseeds an empty dashboard.
 - Replaced the crowded empty/edit-empty chip actions with one calm card using stacked native buttons, added direct Add Cards/Add Section actions plus a dedicated toolbar add menu outside edit mode, and reframed restore as Restore Suggested Setup with overwrite confirmation when saved items still exist.
 - Replaced first-ten entity seeding with one deterministic suggested-setup selector capped at eight items. It filters hidden, unavailable, config/diagnostic, duplicate, technical scene/script, random switch, and low-value sensor candidates while preferring a small domain-diverse set of lights, climate, locks, covers, fans, weather, scenes/scripts, and clearly useful environmental sensors.
