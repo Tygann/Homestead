@@ -109,7 +109,7 @@ struct WidgetGaugeInstrumentView: View {
                 )
                     .stroke(
                         widgetGaugeStatusColor(for: section.status),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
                     )
             }
         } else {

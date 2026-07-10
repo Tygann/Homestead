@@ -94,7 +94,7 @@ struct GaugePresentationView: View {
                 )
                     .stroke(
                         statusColor(for: section.status),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
                     )
             }
         } else {

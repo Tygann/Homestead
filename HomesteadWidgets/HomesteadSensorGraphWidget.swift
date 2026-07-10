@@ -33,6 +33,7 @@ enum HomesteadSensorWidgetDisplay: String, AppEnum {
     case reading
     case trend
     case circularGauge
+    case segmentedGauge
     case barGauge
 
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Display")
@@ -40,6 +41,7 @@ enum HomesteadSensorWidgetDisplay: String, AppEnum {
         .reading: "Reading",
         .trend: "Trend",
         .circularGauge: "Gauge - Circular",
+        .segmentedGauge: "Gauge - Segmented",
         .barGauge: "Gauge - Bar"
     ]
 }
@@ -200,6 +202,10 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
 
     var shouldShowBarGauge: Bool {
         display == .barGauge && gauge != nil
+    }
+
+    var shouldShowSegmentedGauge: Bool {
+        display == .segmentedGauge && gauge != nil
     }
 }
 
@@ -459,6 +465,8 @@ struct HomesteadSensorGraphWidgetView: View {
             unconfigured
         } else if entry.shouldShowCircularGauge, let gauge = entry.gauge {
             HomesteadSensorCircularGaugeWidgetView(entry: entry, gauge: gauge)
+        } else if entry.shouldShowSegmentedGauge, let gauge = entry.gauge {
+            HomesteadSensorCircularGaugeWidgetView(entry: entry, gauge: gauge, style: .segmented)
         } else if entry.shouldShowBarGauge, let gauge = entry.gauge {
             HomesteadSensorBarGaugeWidgetView(entry: entry, gauge: gauge, isMedium: false)
         } else if entry.shouldShowTrend {
@@ -474,6 +482,8 @@ struct HomesteadSensorGraphWidgetView: View {
             unconfigured
         } else if entry.shouldShowBarGauge, let gauge = entry.gauge {
             HomesteadSensorBarGaugeWidgetView(entry: entry, gauge: gauge, isMedium: true)
+        } else if entry.shouldShowSegmentedGauge, let gauge = entry.gauge {
+            mediumCircularGauge(gauge, style: .segmented)
         } else if entry.shouldShowCircularGauge, let gauge = entry.gauge {
             mediumCircularGauge(gauge)
         } else if entry.shouldShowTrend {
@@ -565,12 +575,16 @@ struct HomesteadSensorGraphWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
-    private func mediumCircularGauge(_ gauge: WidgetGaugePresentation) -> some View {
+    private func mediumCircularGauge(
+        _ gauge: WidgetGaugePresentation,
+        style: WidgetGaugeInstrumentStyle = .standard
+    ) -> some View {
         WidgetGaugeInstrumentView(
             gauge: gauge,
             tint: widgetGaugeStatusColor(for: gauge.status),
             title: entry.displayName,
-            icon: entry.resolvedIcon
+            icon: entry.resolvedIcon,
+            style: style
         )
     }
 
@@ -670,13 +684,15 @@ struct HomesteadSensorGraphWidgetView: View {
 private struct HomesteadSensorCircularGaugeWidgetView: View {
     let entry: HomesteadSensorGraphEntry
     let gauge: WidgetGaugePresentation
+    var style: WidgetGaugeInstrumentStyle = .standard
 
     var body: some View {
         WidgetGaugeInstrumentView(
             gauge: gauge,
             tint: entry.isAvailable ? widgetGaugeStatusColor(for: gauge.status) : .secondary,
             title: entry.displayName,
-            icon: entry.gaugeIcon
+            icon: entry.gaugeIcon,
+            style: style
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
