@@ -174,12 +174,19 @@ final class HAStateStore {
     }
 
     func integrationManagementSummaries() -> [HAIntegrationManagementSummary] {
-        Dictionary(grouping: entityRegistryByID.values) { metadata in
+        let devicesByID = Dictionary(uniqueKeysWithValues: deviceManagementSummaries().map { ($0.id, $0) })
+
+        return Dictionary(grouping: entityRegistryByID.values) { metadata in
             metadata.platform?.nonEmptyValue ?? "unknown"
         }
         .map { platform, metadataEntries in
             let entityIDs = metadataEntries.map(\.entityID).filter { entitiesByID[$0] != nil }
             let deviceIDs = Set(metadataEntries.compactMap { $0.deviceID?.nonEmptyValue })
+            let devices = deviceIDs
+                .compactMap { devicesByID[$0] }
+                .sorted { lhs, rhs in
+                    lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+                }
             let unavailableCount = entityIDs.filter { entitiesByID[$0]?.isAvailable == false }.count
             let hiddenCount = metadataEntries.filter { $0.hiddenBy == true }.count
             let configEntityCount = metadataEntries.filter { $0.entityCategory == "config" || $0.entityCategoryIndex == 0 }.count
@@ -190,7 +197,7 @@ final class HAStateStore {
                 title: Self.displayName(forIntegrationPlatform: platform),
                 platform: platform,
                 entityIDs: entityIDs.sortedByEntityDisplayName(in: entitiesByID),
-                deviceCount: deviceIDs.count,
+                devices: devices,
                 unavailableEntityCount: unavailableCount,
                 hiddenEntityCount: hiddenCount,
                 configEntityCount: configEntityCount,
@@ -1259,13 +1266,19 @@ struct HAIntegrationManagementSummary: Equatable, Identifiable, Sendable {
     let title: String
     let platform: String
     let entityIDs: [String]
-    let deviceCount: Int
+    let devices: [HADeviceManagementSummary]
     let unavailableEntityCount: Int
     let hiddenEntityCount: Int
     let configEntityCount: Int
     let diagnosticEntityCount: Int
 
     var entityCount: Int { entityIDs.count }
+    var deviceCount: Int { devices.count }
+
+    var unassignedEntityIDs: [String] {
+        let deviceEntityIDs = Set(devices.flatMap(\.entityIDs))
+        return entityIDs.filter { !deviceEntityIDs.contains($0) }
+    }
 
     var subtitle: String {
         if deviceCount > 0 {

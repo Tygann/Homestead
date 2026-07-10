@@ -186,18 +186,47 @@ private struct IntegrationRegistryDetailView: View {
                 }
             }
 
-            Section("Entities") {
-                ForEach(summary.entityIDs, id: \.self) { entityID in
-                    if let entityBox = stateStore.entityBox(for: entityID) {
+            if !summary.devices.isEmpty {
+                Section("Devices") {
+                    ForEach(summary.devices) { device in
                         NavigationLink {
-                            EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
+                            DeviceRegistryDetailView(device: device)
                         } label: {
-                            EntityBrowserRow(
-                                entityBox: entityBox,
-                                displayNameOverride: nil,
-                                detailText: stateStore.entityRegistryAdminDetail(for: entityID),
-                                accessory: EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: true)
-                            )
+                            HStack(spacing: AppSpacing.medium) {
+                                DeviceManagementIconView(device: device, size: 36)
+
+                                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                                    Text(device.title)
+                                        .font(.body)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+
+                                    Text(device.rowSubtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                                .padding(.vertical, AppSpacing.xSmall)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !summary.unassignedEntityIDs.isEmpty {
+                Section(summary.devices.isEmpty ? "Entities" : "Entities Without a Device") {
+                    ForEach(summary.unassignedEntityIDs, id: \.self) { entityID in
+                        if let entityBox = stateStore.entityBox(for: entityID) {
+                            NavigationLink {
+                                EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
+                            } label: {
+                                EntityBrowserRow(
+                                    entityBox: entityBox,
+                                    displayNameOverride: nil,
+                                    detailText: stateStore.entityRegistryAdminDetail(for: entityID),
+                                    accessory: EntityRegistryStatusAccessory(entityBox: entityBox, showsDomain: true)
+                                )
+                            }
                         }
                     }
                 }

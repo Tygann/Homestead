@@ -9432,6 +9432,8 @@ struct HomesteadTests {
         #expect(summaries.first?.hiddenEntityCount == 1)
         #expect(summaries.first?.diagnosticEntityCount == 1)
         #expect(summaries.first?.entityIDs == ["sensor.bridge_status", "light.kitchen"])
+        #expect(summaries.first?.devices.map(\.title) == ["Hue Bridge"])
+        #expect(summaries.first?.unassignedEntityIDs.isEmpty == true)
         #expect(summaries.first?.subtitle == "1 device")
         #expect(summaries.first?.detailSubtitle == "2 entities • 1 device • 1 unavailable")
         #expect(summaries.last?.configEntityCount == 1)
