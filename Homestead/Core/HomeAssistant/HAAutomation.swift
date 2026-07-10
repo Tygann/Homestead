@@ -72,6 +72,10 @@ nonisolated enum HAAutomationOverviewBuilder {
         let title: String
 
         switch type {
+        case "zone.left":
+            title = "Zone left"
+        case "zone.entered":
+            title = "Zone entered"
         case "state":
             title = stateTitle(prefix: "When", entities: entities, state: string(item, "to"), fallback: "state changes")
         case "numeric_state":
@@ -102,7 +106,12 @@ nonisolated enum HAAutomationOverviewBuilder {
             title = string(item, "alias") ?? "When \(type.isEmpty ? "a trigger occurs" : type.replacingOccurrences(of: "_", with: " "))"
         }
 
-        return step(id: "trigger-\(index)", title: title, subtitle: detail(for: item, excluding: entities), icon: "bolt.fill")
+        return step(
+            id: "trigger-\(index)",
+            title: title,
+            subtitle: detail(for: item, excluding: entities) ?? entities.nonEmptyAutomationValue?.joined(separator: " • "),
+            icon: triggerIcon(for: type)
+        )
     }
 
     private static func conditionStep(_ value: JSONValue, index: Int, entityName: (String) -> String) -> HAAutomationStep {
@@ -112,6 +121,14 @@ nonisolated enum HAAutomationOverviewBuilder {
         let title: String
 
         switch type {
+        case "zone.not_in_zone":
+            title = "Is not in zone"
+        case "zone.in_zone":
+            title = "Is in zone"
+        case "switch.is_off":
+            title = "Switch is off"
+        case "switch.is_on":
+            title = "Switch is on"
         case "state":
             title = stateTitle(prefix: "Only if", entities: entities, state: string(item, "state"), fallback: "a state matches")
         case "numeric_state":
@@ -135,7 +152,12 @@ nonisolated enum HAAutomationOverviewBuilder {
             title = string(item, "alias") ?? "Condition\(type.isEmpty ? "" : ": \(type.replacingOccurrences(of: "_", with: " "))")"
         }
 
-        return step(id: "condition-\(index)", title: title, subtitle: detail(for: item, excluding: entities), icon: "checkmark.seal.fill")
+        return step(
+            id: "condition-\(index)",
+            title: title,
+            subtitle: detail(for: item, excluding: entities) ?? entities.nonEmptyAutomationValue?.joined(separator: " • "),
+            icon: conditionIcon(for: type)
+        )
     }
 
     private static func actionStep(_ value: JSONValue, index: Int, entityName: (String) -> String) -> HAAutomationStep {
@@ -229,12 +251,22 @@ nonisolated enum HAAutomationOverviewBuilder {
     }
 
     private static func serviceTitle(_ service: String) -> String {
+        switch service {
+        case "input_select.select_option":
+            return "Input select: Select input select option"
+        case "select.select_option":
+            return "Select: Select option"
+        default:
+            break
+        }
+
         let pieces = service.split(separator: ".", maxSplits: 1).map(String.init)
         guard pieces.count == 2 else { return service.replacingOccurrences(of: "_", with: " ").capitalized }
         return "\(pieces[1].replacingOccurrences(of: "_", with: " ").capitalized) \(pieces[0].replacingOccurrences(of: "_", with: " "))"
     }
 
     private static func serviceIcon(_ service: String) -> String {
+        if service == "input_select.select_option" || service == "select.select_option" { return "mdi:check" }
         if service.hasSuffix(".turn_on") { return "power" }
         if service.hasSuffix(".turn_off") { return "power" }
         if service.hasSuffix(".toggle") { return "switch.2" }
@@ -244,8 +276,47 @@ nonisolated enum HAAutomationOverviewBuilder {
         return "play.fill"
     }
 
+    private static func triggerIcon(for type: String) -> String {
+        switch type {
+        case "zone.left", "zone.entered", "zone":
+            "mdi:map-marker"
+        case "time":
+            "mdi:clock-outline"
+        case "state":
+            "mdi:state-machine"
+        default:
+            "mdi:lightning-bolt"
+        }
+    }
+
+    private static func conditionIcon(for type: String) -> String {
+        switch type {
+        case "zone.not_in_zone":
+            "mdi:map-marker-off"
+        case "zone.in_zone", "zone":
+            "mdi:map-marker"
+        case "switch.is_off":
+            "mdi:toggle-switch-off-outline"
+        case "switch.is_on":
+            "mdi:toggle-switch-outline"
+        default:
+            "mdi:check"
+        }
+    }
+
     private static func step(id: String, title: String, subtitle: String?, icon: String) -> HAAutomationStep {
-        HAAutomationStep(id: id, title: title, subtitle: subtitle, icon: .sfSymbol(icon, provenance: .homesteadSemanticMapping))
+        HAAutomationStep(
+            id: id,
+            title: title,
+            subtitle: subtitle,
+            icon: IconResolver.resolveRegistryIcon(icon, fallback: icon.hasPrefix("mdi:") ? "circle" : icon)
+        )
+    }
+}
+
+private extension Array where Element == String {
+    var nonEmptyAutomationValue: [String]? {
+        isEmpty ? nil : self
     }
 }
 

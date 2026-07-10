@@ -1918,6 +1918,18 @@ struct HomesteadTests {
         #expect(overview.actions.map(\.title) == ["Turn On light"])
         #expect(overview.actions.map(\.subtitle) == ["Entryway Lamp"])
 
+        let modernOverview = HAAutomationOverviewBuilder.make(config: [
+            "triggers": .array([.object(["trigger": .string("zone.left")])]),
+            "conditions": .array([
+                .object(["condition": .string("zone.not_in_zone")]),
+                .object(["condition": .string("switch.is_off")])
+            ]),
+            "actions": .array([.object(["action": .string("input_select.select_option")])])
+        ]) { $0 }
+        #expect(modernOverview.triggers.map(\.title) == ["Zone left"])
+        #expect(modernOverview.conditions.map(\.title) == ["Is not in zone", "Switch is off"])
+        #expect(modernOverview.actions.map(\.title) == ["Input select: Select input select option"])
+
         let traces = try JSONDecoder().decode([HAAutomationTraceDTO].self, from: Data(#"""
         [
           {"run_id":"finished","state":"stopped","script_execution":"finished","timestamp":{"start":"2026-06-05T15:10:00Z"}},
