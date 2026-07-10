@@ -15,6 +15,7 @@ enum HAWebSocketMessageType {
     nonisolated static var callService: String { "call_service" }
     nonisolated static var getConfig: String { "get_config" }
     nonisolated static var getServices: String { "get_services" }
+    nonisolated static var getServicesForTarget: String { "get_services_for_target" }
     nonisolated static var mobileAppPushNotificationChannel: String { "mobile_app/push_notification_channel" }
     nonisolated static var mobileAppPushNotificationConfirm: String { "mobile_app/push_notification_confirm" }
     nonisolated static var currentUser: String { "auth/current_user" }
@@ -104,6 +105,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case currentUser(id: Int)
     case getConfig(id: Int)
     case getServices(id: Int)
+    case getServicesForTarget(id: Int, entityID: String)
     case mobileAppPushNotificationChannel(id: Int, webhookID: String, supportConfirm: Bool)
     case mobileAppPushNotificationConfirm(id: Int, webhookID: String, confirmID: String)
     case registryCommand(id: Int, type: String)
@@ -170,6 +172,10 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case .getServices(let id):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.getServices, forKey: .type)
+        case .getServicesForTarget(let id, let entityID):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.getServicesForTarget, forKey: .type)
+            try container.encode(["entity_id": JSONValue.array([.string(entityID)])], forKey: .target)
         case .mobileAppPushNotificationChannel(let id, let webhookID, let supportConfirm):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.mobileAppPushNotificationChannel, forKey: .type)

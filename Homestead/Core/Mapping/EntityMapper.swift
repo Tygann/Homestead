@@ -115,6 +115,9 @@ enum EntityMapper {
             value: dto.state,
             unit: dto.attributes["unit_of_measurement"]?.stringValue,
             deviceClass: dto.attributes["device_class"]?.stringValue,
+            stateClass: dto.attributes["state_class"]?.stringValue.flatMap(SensorStateClass.init(rawValue:)),
+            displayPrecision: dto.attributes["display_precision"]?.intValue
+                ?? dto.attributes["suggested_display_precision"]?.intValue,
             lastUpdated: dto.lastUpdated,
             suggestedMinimumValue: numericAttribute(
                 from: dto,

@@ -6,6 +6,8 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
     let value: String
     let unit: String?
     let deviceClass: String?
+    let stateClass: SensorStateClass?
+    let displayPrecision: Int?
     let lastUpdated: Date?
     let suggestedMinimumValue: Double?
     let suggestedMaximumValue: Double?
@@ -16,6 +18,8 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         value: String,
         unit: String?,
         deviceClass: String?,
+        stateClass: SensorStateClass? = nil,
+        displayPrecision: Int? = nil,
         lastUpdated: Date?,
         suggestedMinimumValue: Double? = nil,
         suggestedMaximumValue: Double? = nil
@@ -25,6 +29,8 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         self.value = value
         self.unit = unit
         self.deviceClass = deviceClass
+        self.stateClass = stateClass
+        self.displayPrecision = displayPrecision
         self.lastUpdated = lastUpdated
         self.suggestedMinimumValue = suggestedMinimumValue
         self.suggestedMaximumValue = suggestedMaximumValue
@@ -138,7 +144,10 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
     }
 
     private var maximumFractionDigits: Int {
-        switch deviceClass {
+        if let displayPrecision {
+            return max(displayPrecision, 0)
+        }
+        return switch deviceClass {
         case "humidity", "battery", "illuminance", "signal_strength":
             0
         case "temperature":
@@ -174,6 +183,12 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
             formattedDeviceClass ?? "Sensor"
         }
     }
+}
+
+nonisolated enum SensorStateClass: String, Codable, Equatable, Sendable {
+    case measurement
+    case total
+    case totalIncreasing = "total_increasing"
 }
 
 struct BinarySensorEntity: Identifiable, Equatable, Sendable {

@@ -5,6 +5,8 @@ struct GenericEntityDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var selectedHistoryRange: HAHistoryRangePreset = .day
     @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
+    @State private var selectedAction: HAEntityAction?
+    @State private var availableActions: [HAEntityAction] = []
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -21,6 +23,9 @@ struct GenericEntityDetailView: View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
             currentStatePanel
+            if !availableActions.isEmpty {
+                actionsPanel
+            }
             if supportsTimeline {
                 timelinePanel
             }
@@ -28,6 +33,12 @@ struct GenericEntityDetailView: View {
         }
         .task(id: timelineTaskID) {
             await refreshTimeline()
+        }
+        .task(id: entity.entityID) {
+            availableActions = await homeAssistantService.actions(for: entity.entityID)
+        }
+        .sheet(item: $selectedAction) { action in
+            GenericEntityActionSheet(action: action, entity: entity)
         }
     }
 
@@ -52,6 +63,47 @@ struct GenericEntityDetailView: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.55)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var actionsPanel: some View {
+        EntityControlPanel(title: "Actions", systemImage: "bolt.fill") {
+            VStack(spacing: AppSpacing.small) {
+                ForEach(availableActions) { action in
+                    Button {
+                        if action.fields.isEmpty {
+                            Task {
+                                await homeAssistantService.callService(
+                                    domain: action.domain,
+                                    service: action.service,
+                                    entityID: entity.entityID,
+                                    successTitle: action.displayName
+                                )
+                            }
+                        } else {
+                            selectedAction = action
+                        }
+                    } label: {
+                        HStack(spacing: AppSpacing.medium) {
+                            Image(systemName: "play.fill")
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(action.displayName)
+                                    .font(.subheadline.weight(.semibold))
+                                if !action.fields.isEmpty {
+                                    Text("Configure options")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!entity.isAvailable)
+                }
+            }
         }
     }
 

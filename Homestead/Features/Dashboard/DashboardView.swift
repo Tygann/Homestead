@@ -1162,11 +1162,11 @@ struct DashboardView: View {
             }
         }
 
-        if item.presentationStyle == .gauge(.segmented) {
+        if item.presentationKind == .gauge {
             Button {
                 presentGaugeZoneEditor(for: item)
             } label: {
-                Label("Gauge Zones", systemImage: "dial.medium")
+                Label("Gauge Range & Zones", systemImage: "dial.medium")
             }
         }
 

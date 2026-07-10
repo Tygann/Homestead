@@ -402,7 +402,7 @@ enum WidgetSharedStore {
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
     ) -> [WidgetActionSnapshot] {
         entities
-            .filter { $0.domain == .scene || $0.domain == .script }
+            .filter { $0.domain == .scene || $0.domain == .script || $0.domain == .button }
             .sorted { lhs, rhs in
                 let domainComparison = lhs.domain.rawValue.localizedCaseInsensitiveCompare(rhs.domain.rawValue)
                 guard domainComparison == .orderedSame else {

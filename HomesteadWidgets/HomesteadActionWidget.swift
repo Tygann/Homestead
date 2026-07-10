@@ -13,14 +13,14 @@ struct HomesteadActionWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Homestead Action")
-        .description("Run a Home Assistant scene or script from your Home Screen.")
+        .description("Run a Home Assistant scene, script, or button from your Home Screen.")
         .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular])
     }
 }
 
 struct HomesteadActionWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Action"
-    static var description = IntentDescription("Choose a Home Assistant scene or script.")
+    static var description = IntentDescription("Choose a Home Assistant scene, script, or button.")
 
     @Parameter(title: "Action")
     var action: HomesteadActionEntity?
@@ -28,7 +28,7 @@ struct HomesteadActionWidgetConfigurationIntent: WidgetConfigurationIntent {
 
 struct RunHomesteadActionIntent: AppIntent {
     static var title: LocalizedStringResource = "Run Action"
-    static var description = IntentDescription("Runs a Home Assistant scene or script.")
+    static var description = IntentDescription("Runs a Home Assistant scene, script, or button.")
 
     @Parameter(title: "Entity ID")
     var entityID: String
@@ -80,8 +80,16 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
         HomesteadWidgetEntityPickerText.groupName(
             areaName: areaName,
             deviceName: deviceName,
-            fallback: domain == "script" ? "Scripts" : "Scenes"
+            fallback: fallbackGroupTitle
         )
+    }
+
+    private var fallbackGroupTitle: String {
+        switch domain {
+        case "script": "Scripts"
+        case "button": "Buttons"
+        default: "Scenes"
+        }
     }
 
     func matches(_ query: String) -> Bool {

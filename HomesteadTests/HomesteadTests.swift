@@ -870,6 +870,18 @@ struct HomesteadTests {
         #expect(object["type"] as? String == "get_services")
     }
 
+    @Test func getServicesForTargetRequestEncodesEntityTarget() throws {
+        let request = HAWebSocketRequest.getServicesForTarget(id: 9, entityID: "valve.garden")
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["id"] as? Int == 9)
+        #expect(object["type"] as? String == "get_services_for_target")
+        let target = try #require(object["target"] as? [String: Any])
+        let entityIDs = try #require(target["entity_id"] as? [String])
+        #expect(entityIDs == ["valve.garden"])
+    }
+
     @Test func getConfigRequestEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.getConfig(id: 10)
 
@@ -3095,7 +3107,7 @@ struct HomesteadTests {
         #expect(temperatureGauge?.range == 0...120)
         #expect(temperatureGauge?.status == .high)
         #expect(temperatureGauge?.statusDisplayText == "High")
-        #expect(temperatureGauge?.isDashboardFeatureEligible == false)
+        #expect(temperatureGauge?.isDashboardFeatureEligible == true)
 
         let tankLevel = SensorEntity(
             entityID: "sensor.water_tank",
@@ -3121,6 +3133,52 @@ struct HomesteadTests {
             lastUpdated: nil
         )
         #expect(textSensor.gaugePresentation == nil)
+
+        let alkalinity = SensorEntity(
+            entityID: "sensor.apex_alk",
+            displayName: "Alk",
+            value: "9.68",
+            unit: "dKH",
+            deviceClass: nil,
+            stateClass: .measurement,
+            displayPrecision: 2,
+            lastUpdated: nil
+        )
+        let alkalinityGauge = alkalinity.gaugePresentation
+        #expect(alkalinity.valueText == "9.68")
+        #expect(alkalinityGauge?.range == 0...12)
+        #expect(alkalinityGauge?.rangeSource == .valueSuggested)
+        #expect(alkalinityGauge?.isDashboardFeatureEligible == true)
+        #expect(alkalinityGauge?.sections.map(\.status) == [.nominal])
+
+        let lifetimeTotal = SensorEntity(
+            entityID: "sensor.lifetime_energy",
+            displayName: "Lifetime Energy",
+            value: "12345",
+            unit: "kWh",
+            deviceClass: "energy",
+            stateClass: .totalIncreasing,
+            lastUpdated: nil
+        )
+        #expect(lifetimeTotal.gaugePresentation == nil)
+    }
+
+    @Test func serviceRegistryBuildsGenericEntityActions() {
+        let registry = HAServiceRegistry(domains: [
+            "valve": [
+                "open_valve": HAServiceDescription(name: "Open", fields: [:]),
+                "set_position": HAServiceDescription(
+                    name: "Set position",
+                    fields: ["position": .object(["required": .bool(true)])]
+                )
+            ]
+        ])
+
+        let actions = registry.actions(for: "valve.garden")
+        #expect(actions.map(\.service) == ["open_valve", "set_position"])
+        #expect(actions[0].requiresFields == false)
+        #expect(actions[1].requiresFields == true)
+        #expect(registry.actions(for: "light.kitchen").isEmpty)
     }
 
     @Test func gaugeZoneConfigurationValidatesAndOverridesPresentation() throws {
@@ -3143,6 +3201,7 @@ struct HomesteadTests {
 
         #expect(custom.isValid)
         #expect(resolved.range == 10...90)
+        #expect(resolved.rangeSource == .userConfigured)
         #expect(resolved.sections.map(\.range.upperBound) == [25, 35, 55, 65, 90])
         #expect(resolved.status == .critical)
 
@@ -10238,6 +10297,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         unitSystem: nil
     )
     var serviceRegistry: HAServiceRegistry = .empty
+    var servicesForTarget: [String] = []
     var supervisorAppsResponse = HASupervisorAppsResponseDTO(addons: [])
     var supervisorInfo = HASupervisorInfoDTO(version: nil)
     var operatingSystemInfo = HAOperatingSystemInfoDTO(version: nil)
@@ -10268,6 +10328,10 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) async {}
+
+    func fetchServicesForTarget(entityID: String) async throws -> [String] {
+        servicesForTarget
+    }
 
     func connect(configuration: HAConnectionConfiguration) async throws {
         lastConnectConfiguration = configuration

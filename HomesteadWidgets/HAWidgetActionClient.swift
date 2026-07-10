@@ -407,11 +407,17 @@ final class HAWidgetActionClient: Sendable {
     }
 
     func triggerAction(domain: String, entityID: String) async throws {
-        guard domain == "scene" || domain == "script" else {
+        let service: String
+        switch domain {
+        case "scene", "script":
+            service = "turn_on"
+        case "button":
+            service = "press"
+        default:
             throw HAWidgetActionError.serviceCallFailed
         }
 
-        try await callService(domain: domain, service: "turn_on", entityID: entityID)
+        try await callService(domain: domain, service: service, entityID: entityID)
     }
 
     func fetchSensorHistory(

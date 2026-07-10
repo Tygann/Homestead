@@ -9,9 +9,11 @@ nonisolated enum GaugePresentationStatus: String, Codable, Equatable, Sendable {
 }
 
 nonisolated enum GaugeRangeSource: String, Equatable, Sendable {
+    case userConfigured
     case homeAssistant
     case deviceClass
     case percentageUnit
+    case valueSuggested
 }
 
 struct GaugePresentationSection: Equatable, Sendable {
@@ -110,7 +112,7 @@ struct GaugePresentation: Equatable, Sendable {
             unitText: unitText,
             status: resolvedStatus,
             statusDisplayText: Self.genericStatusDisplayText(for: resolvedStatus),
-            rangeSource: rangeSource,
+            rangeSource: .userConfigured,
             isDashboardFeatureEligible: isDashboardFeatureEligible,
             sections: resolvedSections,
             accessibilityLabel: accessibilityLabel,
@@ -164,7 +166,7 @@ private extension GaugePresentation {
         rangeSource: GaugeRangeSource
     ) -> Bool {
         switch rangeSource {
-        case .homeAssistant, .percentageUnit:
+        case .userConfigured, .homeAssistant, .percentageUnit, .valueSuggested:
             return true
         case .deviceClass:
             switch sensor.displayKind {
@@ -172,7 +174,9 @@ private extension GaugePresentation {
                 return true
             case .water:
                 return sensor.unitText == "%" || sensor.displayName.localizedCaseInsensitiveContains("level")
-            case .temperature, .area, .carbonMonoxide, .conductivity, .data, .date, .distance, .duration, .enum, .energy, .energyDistance, .energyStorage, .frequency, .gas, .generic, .illuminance, .irradiance, .monetary, .pH, .power, .powerFactor, .precipitation, .pressure, .problem, .reactiveEnergy, .reactivePower, .soundPressure, .speed, .temperatureDelta, .uptime, .voltage, .current, .volume, .volumeFlowRate, .weight, .windDirection:
+            case .temperature:
+                return true
+            case .area, .carbonMonoxide, .conductivity, .data, .date, .distance, .duration, .enum, .energy, .energyDistance, .energyStorage, .frequency, .gas, .generic, .illuminance, .irradiance, .monetary, .pH, .power, .powerFactor, .precipitation, .pressure, .problem, .reactiveEnergy, .reactivePower, .soundPressure, .speed, .temperatureDelta, .uptime, .voltage, .current, .volume, .volumeFlowRate, .weight, .windDirection:
                 return false
             }
         }
@@ -207,8 +211,23 @@ private extension GaugePresentation {
             if sensor.unitText == "%" {
                 return GaugeRangeResolution(range: 0...100, source: .percentageUnit)
             }
-            return nil
+            guard sensor.stateClass != .total, sensor.stateClass != .totalIncreasing else { return nil }
+            return suggestedRange(around: sensor.numericValue).map {
+                GaugeRangeResolution(range: $0, source: .valueSuggested)
+            }
         }
+    }
+
+    static func suggestedRange(around value: Double?) -> ClosedRange<Double>? {
+        guard let value, value.isFinite else { return nil }
+        if value == 0 { return 0...100 }
+
+        let magnitude = pow(10, floor(log10(abs(value))))
+        let padding = max(magnitude, abs(value) * 0.2)
+        let lower = value >= 0 ? 0 : floor((value - padding) / magnitude) * magnitude
+        let upper = ceil((value + padding) / magnitude) * magnitude
+        guard lower < upper else { return nil }
+        return lower...upper
     }
 
     static func metadataRange(for sensor: SensorEntity) -> ClosedRange<Double>? {

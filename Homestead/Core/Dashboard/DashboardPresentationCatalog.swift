@@ -45,28 +45,50 @@ enum DashboardPresentationCatalog {
     }
 
     static func compatiblePresentationKinds(for entityBox: HAEntityState) -> [DashboardPresentationKind] {
-        descriptors.map(\.kind).filter { isCompatible($0, with: entityBox) }
+        descriptors.map(\.kind).filter { availability(of: $0, for: entityBox).isSelectable }
+    }
+
+    static func availability(
+        of kind: DashboardPresentationKind,
+        for entityBox: HAEntityState
+    ) -> PresentationAvailability {
+        let capabilities = EntityCapabilityResolver.capabilities(for: entityBox)
+        switch kind {
+        case .chip, .status:
+            return .available
+        case .control:
+            let controlAffordances: Set<EntityAffordance> = [.primaryAction, .level, .setpoint, .options, .commands]
+            return !capabilities.affordances.isDisjoint(with: controlAffordances)
+                ? .available
+                : .unavailable(.unsupportedDomain)
+        case .gauge:
+            guard entityBox.homeEntity.isAvailable else { return .unavailable(.requiresAvailableEntity) }
+            guard let sensor = entityBox.sensorEntity, sensor.numericValue != nil else {
+                return .unavailable(.requiresNumericState)
+            }
+            guard let gauge = sensor.gaugePresentation else { return .unavailable(.requiresGaugeRange) }
+            return gauge.rangeSource == .valueSuggested
+                ? .configurable("Review the suggested range and zones.")
+                : .available
+        case .graph:
+            return capabilities.affordances.contains(.history)
+                ? .available
+                : .unavailable(.requiresNumericState)
+        case .camera:
+            return entityBox.domain == .camera ? .available : .unavailable(.unsupportedDomain)
+        case .weather:
+            return entityBox.domain == .weather ? .available : .unavailable(.unsupportedDomain)
+        case .media:
+            return entityBox.domain == .mediaPlayer ? .available : .unavailable(.unsupportedDomain)
+        case .action:
+            return capabilities.affordances.contains(.trigger)
+                ? .available
+                : .unavailable(.unsupportedDomain)
+        }
     }
 
     static func isCompatible(_ kind: DashboardPresentationKind, with entityBox: HAEntityState) -> Bool {
-        switch kind {
-        case .chip, .status:
-            return true
-        case .control:
-            return hasControls(entityBox)
-        case .gauge:
-            return entityBox.sensorEntity?.gaugePresentation != nil
-        case .graph:
-            return DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: .square)
-        case .camera:
-            return entityBox.domain == .camera
-        case .weather:
-            return entityBox.domain == .weather
-        case .media:
-            return entityBox.domain == .mediaPlayer
-        case .action:
-            return [.scene, .script].contains(entityBox.domain)
-        }
+        availability(of: kind, for: entityBox).isSelectable
     }
 
     static func isCompatible(_ card: DashboardCardConfiguration, with entityBox: HAEntityState) -> Bool {
@@ -121,7 +143,7 @@ enum DashboardPresentationCatalog {
             return .card(.weather(layout: .square))
         case .mediaPlayer:
             return .card(.media(layout: .compact, featureVisibility: .automatic))
-        case .scene, .script:
+        case .scene, .script, .button:
             return .card(.action(layout: .compact))
         default:
             break

@@ -317,7 +317,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         display: HomesteadSensorWidgetDisplay,
         configuration: HomesteadSensorGraphWidgetConfigurationIntent
     ) -> WidgetGaugePresentation {
-        guard display == .segmentedGauge else { return gauge }
+        guard [.circularGauge, .segmentedGauge, .barGauge].contains(display) else { return gauge }
         let overrides = [
             configuration.gaugeMinimum,
             configuration.gaugeLowCriticalUpperBound,

@@ -65,6 +65,14 @@ struct DashboardChooseStyleView: View {
                     .accessibilityHint(isAdded ? "" : "Adds the default \(descriptor.title)")
                 }
 
+                if case .entity(let entityID) = source,
+                   let entityBox = stateStore.entityBox(for: entityID),
+                   case .configurable(let message) = DashboardPresentationCatalog.availability(of: kind, for: entityBox) {
+                    Label(message, systemImage: "slider.horizontal.3")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 if kind == .chip {
                     DashboardAddPresentationPreview(source: source, presentation: presentation)
                 } else {

@@ -545,6 +545,73 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: updatedLight).kind, .control)
     }
 
+    func testGenericNumericMeasurementOffersConfigurableGauge() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.apex_alk",
+                state: "9.68",
+                attributes: [
+                    "unit_of_measurement": .string("dKH"),
+                    "state_class": .string("measurement")
+                ]
+            )
+        ])
+
+        let entityBox = try XCTUnwrap(store.entityBox(for: "sensor.apex_alk"))
+        let gauge = try XCTUnwrap(entityBox.sensorEntity?.gaugePresentation)
+        XCTAssertEqual(gauge.range, 0...12)
+        XCTAssertEqual(gauge.rangeSource, .valueSuggested)
+        XCTAssertEqual(gauge.sections.map(\.status), [.nominal])
+        XCTAssertEqual(
+            DashboardPresentationCatalog.availability(of: .gauge, for: entityBox),
+            .configurable("Review the suggested range and zones.")
+        )
+    }
+
+    func testTotalIncreasingSensorDoesNotOfferGauge() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.lifetime_energy",
+                state: "12345",
+                attributes: [
+                    "device_class": .string("energy"),
+                    "state_class": .string("total_increasing"),
+                    "unit_of_measurement": .string("kWh")
+                ]
+            )
+        ])
+
+        let entityBox = try XCTUnwrap(store.entityBox(for: "sensor.lifetime_energy"))
+        XCTAssertNil(entityBox.sensorEntity?.gaugePresentation)
+        XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: entityBox).contains(.gauge))
+        XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: entityBox).contains(.graph))
+    }
+
+    func testTargetActionMetadataBuildsSchemaDrivenFields() throws {
+        let registry = HAServiceRegistry(domains: [
+            "valve": [
+                "set_position": HAServiceDescription(
+                    name: "Set position",
+                    fields: [
+                        "position": .object([
+                            "name": .string("Position"),
+                            "required": .bool(true),
+                            "selector": .object(["number": .object([:])])
+                        ])
+                    ]
+                )
+            ]
+        ])
+
+        let action = try XCTUnwrap(registry.actions(with: ["valve.set_position"]).first)
+        XCTAssertEqual(action.displayName, "Set position")
+        XCTAssertEqual(action.fields.first?.displayName, "Position")
+        XCTAssertEqual(action.fields.first?.kind, .number)
+        XCTAssertTrue(action.requiresFields)
+    }
+
     func testMediaEntityChipUsesConcisePlaybackState() throws {
         let store = HAStateStore()
         store.applyInitialStates([

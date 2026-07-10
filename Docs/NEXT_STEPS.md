@@ -14,6 +14,10 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added a shared entity-capability layer with explicit available/configurable/unavailable presentation results and semantic affordances, keeping Home Assistant service and sensor metadata out of SwiftUI decisions.
+- Expanded gauges to generic numeric measurements such as aquarium alkalinity: recognized device classes retain semantic defaults, unknown measurements receive neutral reviewable bounds, total-style sensors remain excluded, and dashboard/widget overrides apply across circular, segmented, and bar styles.
+- Added a native generic action fallback for unspecialized entity details, backed by the cached Home Assistant service catalog and schema-driven boolean, number, select, and text fields. Specialized domain details remain preferred.
+- Expanded Action widgets and action-card compatibility to `button.*` entities through the official `button.press` service.
 - Added the segmented zone gauge across dashboard and Sensor widget presentation with the circular gauge's shared 240-degree geometry, seamless proportional zones, and a current-value dot.
 - Added HA-first overall range resolution, modern device-class fallback zones (including red/orange/green/orange/red humidity defaults), validated per-card overrides through a native Gauge Zones editor, and equivalent optional decimal min/max/boundary fields for segmented Sensor widgets.
 - Persisted zone overrides with dashboard customization, kept raw Home Assistant DTOs out of SwiftUI, updated the humidity-focused comparison preview, and added focused resolution/persistence coverage.

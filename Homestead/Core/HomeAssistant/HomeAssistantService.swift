@@ -1836,6 +1836,16 @@ final class HomeAssistantService {
         }
     }
 
+    func actions(for entityID: String) async -> [HAEntityAction] {
+        do {
+            let identifiers = try await client.fetchServicesForTarget(entityID: entityID)
+            return serviceRegistry.actions(with: identifiers)
+        } catch {
+            // Older servers and temporarily unavailable metadata still get the domain catalog fallback.
+            return serviceRegistry.actions(for: entityID)
+        }
+    }
+
     func clearServiceFeedback(id: HAServiceFeedback.ID) {
         guard serviceFeedback?.id == id else { return }
         serviceFeedback = nil

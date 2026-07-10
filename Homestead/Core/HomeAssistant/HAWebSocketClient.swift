@@ -17,6 +17,7 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func fetchCategoryRegistry(scope: HAOrganizationScope) async throws -> [HACategoryRegistryDTO]
     func fetchConfig() async throws -> HAConfigDTO
     func fetchServices() async throws -> HAServiceRegistry
+    func fetchServicesForTarget(entityID: String) async throws -> [String]
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities
     func fetchSupervisorApps() async throws -> HASupervisorAppsResponseDTO
     func fetchSupervisorInfo() async throws -> HASupervisorInfoDTO
@@ -256,6 +257,13 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return try result.decoded(HAServiceRegistry.self)
+    }
+
+    func fetchServicesForTarget(entityID: String) async throws -> [String] {
+        let id = makeRequestID()
+        let response = try await sendRequest(.getServicesForTarget(id: id, entityID: entityID), id: id)
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return try result.decoded([String].self)
     }
 
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
