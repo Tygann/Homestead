@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardGaugeZoneEditorContext: Identifiable {
     let id: UUID
     let presentation: GaugePresentation
+    let style: DashboardGaugeStyle
     let configuration: GaugeZoneConfiguration
 }
 
@@ -31,7 +32,7 @@ struct DashboardGaugeZoneEditorView: View {
                 Section {
                     GaugePresentationView(
                         presentation: context.presentation.applying(zoneConfiguration: configuration),
-                        style: .segmentedInstrument,
+                        style: previewStyle,
                         tint: .accentColor
                     )
                     .frame(height: 180)
@@ -50,34 +51,29 @@ struct DashboardGaugeZoneEditorView: View {
 
                 Section {
                     ForEach(configuration.statuses.indices, id: \.self) { index in
-                        VStack(alignment: .leading, spacing: AppSpacing.small) {
+                        NavigationLink {
+                            DashboardGaugeZoneDetailView(
+                                configuration: $configuration,
+                                zoneIndex: index,
+                                unitText: context.presentation.unitText
+                            )
+                        } label: {
                             HStack(spacing: AppSpacing.medium) {
                                 Circle()
                                     .fill(statusColor(configuration.statuses[index]))
                                     .frame(width: 10, height: 10)
 
-                                Picker("Zone \(index + 1)", selection: $configuration.statuses[index]) {
-                                    ForEach(GaugePresentationStatus.allCases, id: \.self) { status in
-                                        Text(status.displayName).tag(status)
-                                    }
-                                }
-                                .pickerStyle(.menu)
+                                Text("Zone \(index + 1)")
 
                                 Spacer()
 
-                                Text(zoneRangeText(index))
-                                    .font(.subheadline.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            if index > 0 {
-                                LabeledContent("Starts At") {
-                                    TextField("Value", value: $configuration.boundaries[index - 1], format: .number)
-                                        .multilineTextAlignment(.trailing)
-                                        .keyboardType(.numbersAndPunctuation)
-                                        .frame(maxWidth: 110)
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(configuration.statuses[index].displayName)
+                                        .foregroundStyle(Color.accentColor)
+                                    Text(zoneRangeText(index))
+                                        .font(.subheadline.monospacedDigit())
+                                        .foregroundStyle(.secondary)
                                 }
-                                .font(.subheadline)
                             }
                         }
                     }
@@ -135,6 +131,14 @@ struct DashboardGaugeZoneEditorView: View {
         }
     }
 
+    private var previewStyle: GaugePresentationStyle {
+        switch context.style {
+        case .circular: .instrument
+        case .segmented: .segmentedInstrument
+        case .bar: .row
+        }
+    }
+
     private var scaleFooter: String {
         let source: String = switch context.presentation.rangeSource {
         case .homeAssistant: "Home Assistant"
@@ -181,6 +185,53 @@ struct DashboardGaugeZoneEditorView: View {
 
     private func statusColor(_ status: GaugePresentationStatus) -> Color {
         gaugeVisualStatusColor(for: status.visualStatus)
+    }
+}
+
+private struct DashboardGaugeZoneDetailView: View {
+    @Binding var configuration: GaugeZoneConfiguration
+
+    let zoneIndex: Int
+    let unitText: String?
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Status", selection: $configuration.statuses[zoneIndex]) {
+                    ForEach(GaugePresentationStatus.allCases, id: \.self) { status in
+                        Text(status.displayName).tag(status)
+                    }
+                }
+            } header: {
+                Text("Appearance")
+            }
+
+            if zoneIndex > 0 {
+                Section {
+                    LabeledContent("Begins At") {
+                        TextField("Value", value: $configuration.boundaries[zoneIndex - 1], format: .number)
+                            .multilineTextAlignment(.trailing)
+                            .keyboardType(.numbersAndPunctuation)
+                            .font(.body.monospacedDigit())
+                            .frame(maxWidth: 110)
+                    }
+                } header: {
+                    Text("Range")
+                } footer: {
+                    Text("This zone begins at \(formatted(configuration.boundaries[zoneIndex - 1]))\(unitSuffix).")
+                }
+            }
+        }
+        .navigationTitle("Zone \(zoneIndex + 1)")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var unitSuffix: String {
+        unitText.map { " \($0)" } ?? ""
+    }
+
+    private func formatted(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...2)))
     }
 }
 

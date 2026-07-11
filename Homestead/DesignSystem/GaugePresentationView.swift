@@ -59,11 +59,7 @@ struct GaugePresentationView: View {
                     ZStack {
                         instrumentTrack(diameter: diameter, lineWidth: lineWidth)
 
-                        if style == .segmentedInstrument {
-                            instrumentValueIndicator(diameter: diameter, lineWidth: lineWidth)
-                        } else {
-                            instrumentValueFill(lineWidth: lineWidth)
-                        }
+                        instrumentValueIndicator(diameter: diameter, lineWidth: lineWidth)
 
                         instrumentContent(diameter: diameter, lineWidth: lineWidth)
                     }
@@ -81,7 +77,7 @@ struct GaugePresentationView: View {
 
     @ViewBuilder
     private func instrumentTrack(diameter: CGFloat, lineWidth: CGFloat) -> some View {
-        if style == .segmentedInstrument {
+        if style == .instrument || style == .segmentedInstrument {
             ForEach(presentation.sections.indices, id: \.self) { index in
                 let section = presentation.sections[index]
                 let segment = instrumentSegment(for: section)
@@ -93,7 +89,11 @@ struct GaugePresentationView: View {
                 )
                     .stroke(
                         statusColor(for: section.status),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
+                        style: StrokeStyle(
+                            lineWidth: lineWidth,
+                            lineCap: style == .segmentedInstrument ? .round : .butt,
+                            lineJoin: .round
+                        )
                     )
             }
 
@@ -114,23 +114,6 @@ struct GaugePresentationView: View {
                     lineWidth: lineWidth
                 )
             }
-        } else {
-            GaugeInstrumentArcShape(start: 0, end: 1, inset: lineWidth / 2)
-                .stroke(
-                    Color.secondary.opacity(0.16),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                )
-        }
-    }
-
-    @ViewBuilder
-    private func instrumentValueFill(lineWidth: CGFloat) -> some View {
-        if presentation.normalizedValue > 0 {
-            GaugeInstrumentArcShape(start: 0, end: presentation.normalizedValue, inset: lineWidth / 2)
-                .stroke(
-                    statusColor(for: presentation.status),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                )
         }
     }
 
@@ -171,7 +154,14 @@ struct GaugePresentationView: View {
     private func instrumentSegment(for section: GaugePresentationSection) -> (start: Double, end: Double) {
         let rawStart = normalized(section.range.lowerBound)
         let rawEnd = normalized(section.range.upperBound)
-        return (rawStart, max(rawEnd, rawStart))
+        guard style == .segmentedInstrument else {
+            return (rawStart, max(rawEnd, rawStart))
+        }
+
+        let gap = 0.012
+        let start = section.range.lowerBound == presentation.range.lowerBound ? rawStart : rawStart + (gap / 2)
+        let end = section.range.upperBound == presentation.range.upperBound ? rawEnd : rawEnd - (gap / 2)
+        return (min(max(start, 0), 1), max(end, start))
     }
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {

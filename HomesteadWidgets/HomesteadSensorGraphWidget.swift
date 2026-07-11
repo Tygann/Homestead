@@ -28,22 +28,10 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Display")
     var display: HomesteadSensorWidgetDisplay?
 
-    @Parameter(title: "Minimum Override")
+    @Parameter(title: "Minimum")
     var gaugeMinimum: Double?
 
-    @Parameter(title: "Threshold 1")
-    var gaugeLowCriticalUpperBound: Double?
-
-    @Parameter(title: "Threshold 2")
-    var gaugeLowWarningUpperBound: Double?
-
-    @Parameter(title: "Threshold 3")
-    var gaugeComfortableUpperBound: Double?
-
-    @Parameter(title: "Threshold 4")
-    var gaugeHighWarningUpperBound: Double?
-
-    @Parameter(title: "Maximum Override")
+    @Parameter(title: "Maximum")
     var gaugeMaximum: Double?
 
     @Parameter(title: "Zones", default: .automatic)
@@ -52,14 +40,26 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Zone 1 Status", default: .normal)
     var zone1Status: HomesteadGaugeZoneStatus
 
+    @Parameter(title: "Zone 2 Begins At")
+    var gaugeLowCriticalUpperBound: Double?
+
     @Parameter(title: "Zone 2 Status", default: .normal)
     var zone2Status: HomesteadGaugeZoneStatus
+
+    @Parameter(title: "Zone 3 Begins At")
+    var gaugeLowWarningUpperBound: Double?
 
     @Parameter(title: "Zone 3 Status", default: .normal)
     var zone3Status: HomesteadGaugeZoneStatus
 
+    @Parameter(title: "Zone 4 Begins At")
+    var gaugeComfortableUpperBound: Double?
+
     @Parameter(title: "Zone 4 Status", default: .normal)
     var zone4Status: HomesteadGaugeZoneStatus
+
+    @Parameter(title: "Zone 5 Begins At")
+    var gaugeHighWarningUpperBound: Double?
 
     @Parameter(title: "Zone 5 Status", default: .normal)
     var zone5Status: HomesteadGaugeZoneStatus

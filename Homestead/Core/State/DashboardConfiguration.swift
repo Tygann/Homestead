@@ -68,6 +68,11 @@ nonisolated enum DashboardPresentationStyle: Codable, Equatable, Hashable, Senda
         case .gauge: .gauge
         }
     }
+
+    var gaugeStyle: DashboardGaugeStyle? {
+        guard case .gauge(let style) = self else { return nil }
+        return style
+    }
 }
 
 nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {

@@ -14,6 +14,9 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Completed the gauge configuration parity pass: circular, segmented, and bar dashboard gauges now render their saved zone configurations; the setup preview matches the selected style; and the card action is consistently named Gauge Setup. Circular gauge tracks are continuous while segmented gauges use visible inter-zone separation.
+- Reworked Gauge Setup into a scale overview plus native drill-in zone rows. Each zone now presents its status and resolved range at a glance; its detail screen owns the Status and Begins At fields, avoiding the former detached inline Starts At controls.
+- Aligned gauge language across surfaces: dashboard catalog uses Sensor Gauge, while the Sensor widget retains its sensor-first presentation choice and exposes Minimum/Maximum plus Zone N Begins At/Status fields in a logical order.
 - Replaced the fixed gauge-boundary editor with a native Gauge Setup flow: every dashboard card independently edits min/max, starts with its resolved Home Assistant/device-class/fallback scale, adds up to five zones by splitting the widest interval, assigns each zone a semantic status, and removes zones with standard list deletion. Neutral generic sensors such as Alk now expose Add Zone instead of an empty section.
 - Reworked each Sensor widget configuration to remain fully standalone: Automatic preserves resolved sensor zones, optional minimum/maximum fields override either endpoint, a one-to-five Zones choice conditionally reveals only the required thresholds and statuses, and legacy populated five-boundary configurations retain their prior critical/warning/normal/warning/critical behavior.
 - Added a shared entity-capability layer with explicit available/configurable/unavailable presentation results and semantic affordances, keeping Home Assistant service and sensor metadata out of SwiftUI decisions.

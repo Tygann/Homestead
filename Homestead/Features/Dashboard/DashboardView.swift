@@ -1166,7 +1166,7 @@ struct DashboardView: View {
             Button {
                 presentGaugeZoneEditor(for: item)
             } label: {
-                Label("Gauge Range & Zones", systemImage: "dial.medium")
+                Label("Gauge Setup", systemImage: "dial.medium")
             }
         }
 
@@ -1224,6 +1224,7 @@ struct DashboardView: View {
         gaugeZoneEditorContext = DashboardGaugeZoneEditorContext(
             id: item.id,
             presentation: presentation,
+            style: item.presentationStyle?.gaugeStyle ?? .circular,
             configuration: storedConfiguration ?? .defaults(for: presentation)
         )
     }

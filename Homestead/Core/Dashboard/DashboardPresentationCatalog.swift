@@ -30,7 +30,7 @@ enum DashboardPresentationCatalog {
         case .status:
             DashboardPresentationDescriptor(kind: kind, title: "Status", systemImage: "circle.lefthalf.filled")
         case .gauge:
-            DashboardPresentationDescriptor(kind: kind, title: "Gauge", systemImage: "gauge.with.dots.needle.33percent")
+            DashboardPresentationDescriptor(kind: kind, title: "Sensor Gauge", systemImage: "gauge.with.dots.needle.33percent")
         case .graph:
             DashboardPresentationDescriptor(kind: kind, title: "Graph", systemImage: "chart.xyaxis.line")
         case .camera:
