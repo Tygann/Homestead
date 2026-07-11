@@ -28,23 +28,183 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Display")
     var display: HomesteadSensorWidgetDisplay?
 
-    @Parameter(title: "Gauge Minimum")
+    @Parameter(title: "Minimum Override")
     var gaugeMinimum: Double?
 
-    @Parameter(title: "Low Critical Upper Bound")
+    @Parameter(title: "Threshold 1")
     var gaugeLowCriticalUpperBound: Double?
 
-    @Parameter(title: "Low Warning Upper Bound")
+    @Parameter(title: "Threshold 2")
     var gaugeLowWarningUpperBound: Double?
 
-    @Parameter(title: "Comfortable Upper Bound")
+    @Parameter(title: "Threshold 3")
     var gaugeComfortableUpperBound: Double?
 
-    @Parameter(title: "High Warning Upper Bound")
+    @Parameter(title: "Threshold 4")
     var gaugeHighWarningUpperBound: Double?
 
-    @Parameter(title: "Gauge Maximum")
+    @Parameter(title: "Maximum Override")
     var gaugeMaximum: Double?
+
+    @Parameter(title: "Zones", default: .automatic)
+    var zoneCount: HomesteadGaugeZoneCount
+
+    @Parameter(title: "Zone 1 Status", default: .normal)
+    var zone1Status: HomesteadGaugeZoneStatus
+
+    @Parameter(title: "Zone 2 Status", default: .normal)
+    var zone2Status: HomesteadGaugeZoneStatus
+
+    @Parameter(title: "Zone 3 Status", default: .normal)
+    var zone3Status: HomesteadGaugeZoneStatus
+
+    @Parameter(title: "Zone 4 Status", default: .normal)
+    var zone4Status: HomesteadGaugeZoneStatus
+
+    @Parameter(title: "Zone 5 Status", default: .normal)
+    var zone5Status: HomesteadGaugeZoneStatus
+
+    static var parameterSummary: some ParameterSummary {
+        When(
+            \HomesteadSensorGraphWidgetConfigurationIntent.$display,
+            .oneOf,
+            [HomesteadSensorWidgetDisplay.circularGauge, .segmentedGauge, .barGauge]
+        ) {
+            When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.five) {
+                Summary {
+                    \.$sensor
+                    \.$display
+                    \.$gaugeMinimum
+                    \.$gaugeMaximum
+                    \.$zoneCount
+                    \.$zone1Status
+                    \.$gaugeLowCriticalUpperBound
+                    \.$zone2Status
+                    \.$gaugeLowWarningUpperBound
+                    \.$zone3Status
+                    \.$gaugeComfortableUpperBound
+                    \.$zone4Status
+                    \.$gaugeHighWarningUpperBound
+                    \.$zone5Status
+                }
+            } otherwise: {
+                When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.four) {
+                    Summary {
+                        \.$sensor
+                        \.$display
+                        \.$gaugeMinimum
+                        \.$gaugeMaximum
+                        \.$zoneCount
+                        \.$zone1Status
+                        \.$gaugeLowCriticalUpperBound
+                        \.$zone2Status
+                        \.$gaugeLowWarningUpperBound
+                        \.$zone3Status
+                        \.$gaugeComfortableUpperBound
+                        \.$zone4Status
+                    }
+                } otherwise: {
+                    When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.three) {
+                        Summary {
+                            \.$sensor
+                            \.$display
+                            \.$gaugeMinimum
+                            \.$gaugeMaximum
+                            \.$zoneCount
+                            \.$zone1Status
+                            \.$gaugeLowCriticalUpperBound
+                            \.$zone2Status
+                            \.$gaugeLowWarningUpperBound
+                            \.$zone3Status
+                        }
+                    } otherwise: {
+                        When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.two) {
+                            Summary {
+                                \.$sensor
+                                \.$display
+                                \.$gaugeMinimum
+                                \.$gaugeMaximum
+                                \.$zoneCount
+                                \.$zone1Status
+                                \.$gaugeLowCriticalUpperBound
+                                \.$zone2Status
+                            }
+                        } otherwise: {
+                            When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.one) {
+                                Summary {
+                                    \.$sensor
+                                    \.$display
+                                    \.$gaugeMinimum
+                                    \.$gaugeMaximum
+                                    \.$zoneCount
+                                    \.$zone1Status
+                                }
+                            } otherwise: {
+                                Summary {
+                                    \.$sensor
+                                    \.$display
+                                    \.$gaugeMinimum
+                                    \.$gaugeMaximum
+                                    \.$zoneCount
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } otherwise: {
+            Summary {
+                \.$sensor
+                \.$display
+            }
+        }
+    }
+}
+
+enum HomesteadGaugeZoneCount: Int, AppEnum {
+    case automatic = 0
+    case one = 1
+    case two = 2
+    case three = 3
+    case four = 4
+    case five = 5
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Zones")
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+        .automatic: "Automatic",
+        .one: "1",
+        .two: "2",
+        .three: "3",
+        .four: "4",
+        .five: "5"
+    ]
+}
+
+enum HomesteadGaugeZoneStatus: String, AppEnum {
+    case normal
+    case low
+    case high
+    case warning
+    case critical
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Zone Status")
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+        .normal: "Normal",
+        .low: "Low",
+        .high: "High",
+        .warning: "Warning",
+        .critical: "Critical"
+    ]
+
+    var widgetStatus: WidgetGaugeStatus {
+        switch self {
+        case .normal: .nominal
+        case .low: .low
+        case .high: .high
+        case .warning: .warning
+        case .critical: .critical
+        }
+    }
 }
 
 enum HomesteadSensorWidgetDisplay: String, AppEnum {
@@ -318,26 +478,60 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         configuration: HomesteadSensorGraphWidgetConfigurationIntent
     ) -> WidgetGaugePresentation {
         guard [.circularGauge, .segmentedGauge, .barGauge].contains(display) else { return gauge }
-        let overrides = [
-            configuration.gaugeMinimum,
+        let lowerBound = configuration.gaugeMinimum ?? gauge.lowerBound
+        let upperBound = configuration.gaugeMaximum ?? gauge.upperBound
+        guard lowerBound < upperBound else { return gauge }
+
+        let legacyBoundaries = [
             configuration.gaugeLowCriticalUpperBound,
             configuration.gaugeLowWarningUpperBound,
             configuration.gaugeComfortableUpperBound,
-            configuration.gaugeHighWarningUpperBound,
-            configuration.gaugeMaximum
+            configuration.gaugeHighWarningUpperBound
         ]
-        guard overrides.contains(where: { $0 != nil }) else { return gauge }
+        let usesLegacyFiveZones = configuration.zoneCount == .automatic
+            && legacyBoundaries.contains(where: { $0 != nil })
+        if configuration.zoneCount == .automatic, !usesLegacyFiveZones {
+            let clippedSections = gauge.sections.compactMap { section -> WidgetGaugeSection? in
+                let lower = max(section.lowerBound, lowerBound)
+                let upper = min(section.upperBound, upperBound)
+                guard lower < upper else { return nil }
+                return WidgetGaugeSection(lowerBound: lower, upperBound: upper, status: section.status)
+            }
+            let sections = clippedSections.isEmpty
+                ? [WidgetGaugeSection(lowerBound: lowerBound, upperBound: upperBound, status: .nominal)]
+                : clippedSections
+            return gauge.applyingConfiguration(
+                lowerBound: lowerBound,
+                boundaries: sections.dropLast().map(\.upperBound),
+                upperBound: upperBound,
+                statuses: sections.map(\.status)
+            )
+        }
 
-        let defaults = gauge.fiveZoneValues
-        return gauge.applyingFiveZoneConfiguration(
-            lowerBound: configuration.gaugeMinimum ?? defaults[0],
-            boundaries: [
-                configuration.gaugeLowCriticalUpperBound ?? defaults[1],
-                configuration.gaugeLowWarningUpperBound ?? defaults[2],
-                configuration.gaugeComfortableUpperBound ?? defaults[3],
-                configuration.gaugeHighWarningUpperBound ?? defaults[4]
-            ],
-            upperBound: configuration.gaugeMaximum ?? defaults[5]
+        let zoneCount = usesLegacyFiveZones ? 5 : configuration.zoneCount.rawValue
+        let configuredBoundaries = legacyBoundaries.prefix(zoneCount - 1)
+        let span = upperBound - lowerBound
+        let boundaries = configuredBoundaries.enumerated().map { index, value in
+            value ?? lowerBound + (span * Double(index + 1) / Double(zoneCount))
+        }
+        let statuses: [WidgetGaugeStatus]
+        if usesLegacyFiveZones {
+            statuses = [.critical, .warning, .nominal, .warning, .critical]
+        } else {
+            statuses = [
+                configuration.zone1Status.widgetStatus,
+                configuration.zone2Status.widgetStatus,
+                configuration.zone3Status.widgetStatus,
+                configuration.zone4Status.widgetStatus,
+                configuration.zone5Status.widgetStatus
+            ].prefix(zoneCount).map { $0 }
+        }
+
+        return gauge.applyingConfiguration(
+            lowerBound: lowerBound,
+            boundaries: boundaries,
+            upperBound: upperBound,
+            statuses: statuses
         )
     }
 

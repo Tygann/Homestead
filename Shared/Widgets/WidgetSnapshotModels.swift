@@ -149,23 +149,24 @@ nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
         ]
     }
 
-    func applyingFiveZoneConfiguration(
+    func applyingConfiguration(
         lowerBound: Double,
         boundaries: [Double],
-        upperBound: Double
+        upperBound: Double,
+        statuses: [WidgetGaugeStatus]
     ) -> WidgetGaugePresentation {
         let values = [lowerBound] + boundaries + [upperBound]
-        guard boundaries.count == 4,
+        guard statuses.count == boundaries.count + 1,
+              !statuses.isEmpty,
               zip(values, values.dropFirst()).allSatisfy({ $0.0 < $0.1 }) else { return self }
 
-        let statuses: [WidgetGaugeStatus] = [.critical, .warning, .nominal, .warning, .critical]
         var lower = lowerBound
         let sections = zip(boundaries + [upperBound], statuses).map { upper, status in
             defer { lower = upper }
             return WidgetGaugeSection(lowerBound: lower, upperBound: upper, status: status)
         }
         let resolvedStatus = sections.first(where: { value >= $0.lowerBound && value <= $0.upperBound })?.status
-            ?? .critical
+            ?? (value < lowerBound ? sections[0].status : sections[sections.count - 1].status)
 
         return WidgetGaugePresentation(
             value: value,
@@ -178,6 +179,19 @@ nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
             sections: sections,
             accessibilityLabel: accessibilityLabel,
             accessibilityValue: Self.accessibilityValue(valueText: valueText, status: resolvedStatus)
+        )
+    }
+
+    func applyingFiveZoneConfiguration(
+        lowerBound: Double,
+        boundaries: [Double],
+        upperBound: Double
+    ) -> WidgetGaugePresentation {
+        applyingConfiguration(
+            lowerBound: lowerBound,
+            boundaries: boundaries,
+            upperBound: upperBound,
+            statuses: [.critical, .warning, .nominal, .warning, .critical]
         )
     }
 

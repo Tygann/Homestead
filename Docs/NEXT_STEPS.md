@@ -14,6 +14,8 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Replaced the fixed gauge-boundary editor with a native Gauge Setup flow: every dashboard card independently edits min/max, starts with its resolved Home Assistant/device-class/fallback scale, adds up to five zones by splitting the widest interval, assigns each zone a semantic status, and removes zones with standard list deletion. Neutral generic sensors such as Alk now expose Add Zone instead of an empty section.
+- Reworked each Sensor widget configuration to remain fully standalone: Automatic preserves resolved sensor zones, optional minimum/maximum fields override either endpoint, a one-to-five Zones choice conditionally reveals only the required thresholds and statuses, and legacy populated five-boundary configurations retain their prior critical/warning/normal/warning/critical behavior.
 - Added a shared entity-capability layer with explicit available/configurable/unavailable presentation results and semantic affordances, keeping Home Assistant service and sensor metadata out of SwiftUI decisions.
 - Expanded gauges to generic numeric measurements such as aquarium alkalinity: recognized device classes retain semantic defaults, unknown measurements receive neutral reviewable bounds, total-style sensors remain excluded, and dashboard/widget overrides apply across circular, segmented, and bar styles.
 - Added a native generic action fallback for unspecialized entity details, backed by the cached Home Assistant service catalog and schema-driven boolean, number, select, and text fields. Specialized domain details remain preferred.

@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated enum GaugePresentationStatus: String, Codable, Equatable, Sendable {
+nonisolated enum GaugePresentationStatus: String, CaseIterable, Codable, Equatable, Sendable {
     case nominal
     case low
     case high
@@ -22,6 +22,8 @@ struct GaugePresentationSection: Equatable, Sendable {
 }
 
 nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
+    static let maximumZoneCount = 5
+
     var lowerBound: Double
     var upperBound: Double
     var boundaries: [Double]
@@ -41,6 +43,38 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
         return zip(upperBounds, statuses).map { upper, status in
             defer { lower = upper }
             return GaugePresentationSection(range: lower...upper, status: status)
+        }
+    }
+
+    func range(forZoneAt index: Int) -> ClosedRange<Double>? {
+        guard statuses.indices.contains(index) else { return nil }
+        let lower = index == 0 ? lowerBound : boundaries[index - 1]
+        let upper = index == boundaries.count ? upperBound : boundaries[index]
+        guard lower < upper else { return nil }
+        return lower...upper
+    }
+
+    mutating func addZone() {
+        guard isValid, statuses.count < Self.maximumZoneCount else { return }
+        let widestIndex = statuses.indices.max { lhs, rhs in
+            let lhsRange = range(forZoneAt: lhs)
+            let rhsRange = range(forZoneAt: rhs)
+            return (lhsRange?.upperBound ?? 0) - (lhsRange?.lowerBound ?? 0)
+                < (rhsRange?.upperBound ?? 0) - (rhsRange?.lowerBound ?? 0)
+        }
+        guard let widestIndex, let range = range(forZoneAt: widestIndex) else { return }
+        boundaries.insert((range.lowerBound + range.upperBound) / 2, at: widestIndex)
+        statuses.insert(statuses[widestIndex], at: widestIndex + 1)
+    }
+
+    mutating func removeZone(at index: Int) {
+        guard statuses.count > 1, statuses.indices.contains(index) else { return }
+        if index == 0 {
+            boundaries.removeFirst()
+            statuses.removeFirst()
+        } else {
+            boundaries.remove(at: index - 1)
+            statuses.remove(at: index)
         }
     }
 

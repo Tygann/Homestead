@@ -569,6 +569,60 @@ final class DashboardConfigurationXCTests: XCTestCase {
         )
     }
 
+    func testGaugeConfigurationAddsAndRemovesZonesFromNeutralAlkRange() throws {
+        var configuration = GaugeZoneConfiguration(
+            lowerBound: 0,
+            upperBound: 12,
+            boundaries: [],
+            statuses: [.nominal]
+        )
+
+        configuration.addZone()
+        XCTAssertEqual(configuration.boundaries, [6])
+        XCTAssertEqual(configuration.statuses, [.nominal, .nominal])
+        XCTAssertEqual(configuration.range(forZoneAt: 0), 0...6)
+        XCTAssertEqual(configuration.range(forZoneAt: 1), 6...12)
+
+        configuration.statuses[0] = .low
+        configuration.statuses[1] = .high
+        configuration.addZone()
+        XCTAssertEqual(configuration.statuses.count, 3)
+        XCTAssertTrue(configuration.isValid)
+
+        configuration.removeZone(at: 1)
+        XCTAssertEqual(configuration.statuses.count, 2)
+        XCTAssertEqual(configuration.boundaries.count, 1)
+        XCTAssertTrue(configuration.isValid)
+    }
+
+    func testWidgetGaugeAppliesIndependentThreeZoneConfiguration() {
+        let gauge = WidgetGaugePresentation(
+            value: 9.7,
+            lowerBound: 0,
+            upperBound: 12,
+            valueText: "9.7",
+            unitText: "dKH",
+            status: .nominal,
+            statusDisplayText: "Normal",
+            sections: [WidgetGaugeSection(lowerBound: 0, upperBound: 12, status: .nominal)],
+            accessibilityLabel: "Alk gauge",
+            accessibilityValue: "9.7 dKH"
+        )
+
+        let resolved = gauge.applyingConfiguration(
+            lowerBound: 5,
+            boundaries: [7, 11],
+            upperBound: 13,
+            statuses: [.low, .nominal, .high]
+        )
+
+        XCTAssertEqual(resolved.lowerBound, 5)
+        XCTAssertEqual(resolved.upperBound, 13)
+        XCTAssertEqual(resolved.sections.map(\.upperBound), [7, 11, 13])
+        XCTAssertEqual(resolved.sections.map(\.status), [.low, .nominal, .high])
+        XCTAssertEqual(resolved.status, .nominal)
+    }
+
     func testTotalIncreasingSensorDoesNotOfferGauge() throws {
         let store = HAStateStore()
         store.applyInitialStates([

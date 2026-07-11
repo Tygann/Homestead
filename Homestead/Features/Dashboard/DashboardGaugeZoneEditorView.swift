@@ -39,45 +39,75 @@ struct DashboardGaugeZoneEditorView: View {
                     .listRowBackground(Color.clear)
                 }
 
-                Section("Range") {
+                Section {
                     valueField("Minimum", value: $configuration.lowerBound)
                     valueField("Maximum", value: $configuration.upperBound)
+                } header: {
+                    Text("Scale")
+                } footer: {
+                    Text(scaleFooter)
                 }
 
                 Section {
-                    ForEach(configuration.boundaries.indices, id: \.self) { index in
-                        HStack(spacing: AppSpacing.medium) {
-                            Circle()
-                                .fill(statusColor(configuration.statuses[index]))
-                                .frame(width: 10, height: 10)
+                    ForEach(configuration.statuses.indices, id: \.self) { index in
+                        VStack(alignment: .leading, spacing: AppSpacing.small) {
+                            HStack(spacing: AppSpacing.medium) {
+                                Circle()
+                                    .fill(statusColor(configuration.statuses[index]))
+                                    .frame(width: 10, height: 10)
 
-                            Text(boundaryTitle(index))
+                                Picker("Zone \(index + 1)", selection: $configuration.statuses[index]) {
+                                    ForEach(GaugePresentationStatus.allCases, id: \.self) { status in
+                                        Text(status.displayName).tag(status)
+                                    }
+                                }
+                                .pickerStyle(.menu)
 
-                            Spacer()
+                                Spacer()
 
-                            TextField("Value", value: $configuration.boundaries[index], format: .number)
-                                .multilineTextAlignment(.trailing)
-                                .keyboardType(.numbersAndPunctuation)
-                                .frame(maxWidth: 100)
+                                Text(zoneRangeText(index))
+                                    .font(.subheadline.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            if index > 0 {
+                                LabeledContent("Starts At") {
+                                    TextField("Value", value: $configuration.boundaries[index - 1], format: .number)
+                                        .multilineTextAlignment(.trailing)
+                                        .keyboardType(.numbersAndPunctuation)
+                                        .frame(maxWidth: 110)
+                                }
+                                .font(.subheadline)
+                            }
                         }
                     }
+                    .onDelete(perform: deleteZones)
+
+                    Button {
+                        withAnimation(.snappy) {
+                            configuration.addZone()
+                        }
+                    } label: {
+                        Label("Add Zone", systemImage: "plus.circle.fill")
+                    }
+                    .disabled(!configuration.isValid || configuration.statuses.count >= GaugeZoneConfiguration.maximumZoneCount)
                 } header: {
-                    Text("Zone Boundaries")
+                    Text("Zones")
                 } footer: {
                     Text(configuration.isValid
-                         ? "Each boundary is the upper value of its colored zone."
-                         : "Values must increase from the minimum to the maximum.")
+                         ? zoneFooter
+                         : validationMessage)
                         .foregroundStyle(configuration.isValid ? Color.secondary : Color.red)
                 }
 
                 Section {
-                    Button("Use Recommended Zones", role: .destructive) {
+                    Button("Restore Automatic Setup") {
                         onReset()
                         dismiss()
                     }
                 }
             }
-            .navigationTitle("Gauge Zones")
+            .navigationTitle("Gauge Setup")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -96,27 +126,72 @@ struct DashboardGaugeZoneEditorView: View {
     }
 
     private func valueField(_ title: String, value: Binding<Double>) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
+        LabeledContent(title) {
             TextField("Value", value: value, format: .number)
                 .multilineTextAlignment(.trailing)
                 .keyboardType(.numbersAndPunctuation)
-                .frame(maxWidth: 100)
+                .font(.body.monospacedDigit())
+                .frame(maxWidth: 110)
         }
     }
 
-    private func boundaryTitle(_ index: Int) -> String {
-        switch configuration.statuses[index] {
-        case .critical: index == 0 ? "Low Critical" : "High Critical"
-        case .warning: index < configuration.boundaries.count / 2 ? "Low Warning" : "High Warning"
-        case .nominal: "Comfortable"
-        case .low: "Low"
-        case .high: "High"
+    private var scaleFooter: String {
+        let source: String = switch context.presentation.rangeSource {
+        case .homeAssistant: "Home Assistant"
+        case .deviceClass, .percentageUnit: "the sensor type"
+        case .valueSuggested: "the current value"
+        case .userConfigured: "your saved setup"
+        }
+        return "The initial scale came from \(source). You can override either endpoint for this card."
+    }
+
+    private var zoneFooter: String {
+        configuration.statuses.count == 1
+            ? "Add a zone to split the scale at a new threshold."
+            : "Swipe a zone to remove it. Each threshold must stay inside the scale."
+    }
+
+    private var validationMessage: String {
+        guard configuration.lowerBound < configuration.upperBound else {
+            return "Maximum must be greater than minimum."
+        }
+        return "Thresholds must increase and remain inside the scale."
+    }
+
+    private func zoneRangeText(_ index: Int) -> String {
+        guard let range = configuration.range(forZoneAt: index) else { return "Check values" }
+        return "\(formatted(range.lowerBound))–\(formatted(range.upperBound))\(unitSuffix)"
+    }
+
+    private var unitSuffix: String {
+        context.presentation.unitText.map { " \($0)" } ?? ""
+    }
+
+    private func formatted(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...2)))
+    }
+
+    private func deleteZones(at offsets: IndexSet) {
+        withAnimation(.snappy) {
+            for index in offsets.sorted(by: >) {
+                configuration.removeZone(at: index)
+            }
         }
     }
 
     private func statusColor(_ status: GaugePresentationStatus) -> Color {
         gaugeVisualStatusColor(for: status.visualStatus)
+    }
+}
+
+private extension GaugePresentationStatus {
+    var displayName: String {
+        switch self {
+        case .nominal: "Normal"
+        case .low: "Low"
+        case .high: "High"
+        case .warning: "Warning"
+        case .critical: "Critical"
+        }
     }
 }
