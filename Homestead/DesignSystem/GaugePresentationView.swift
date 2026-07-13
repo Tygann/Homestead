@@ -172,7 +172,7 @@ struct GaugePresentationView: View {
                 fontSize: valueFontSize
             )
             .frame(width: readoutWidth)
-            .position(x: diameter / 2, y: diameter * 0.39)
+            .position(x: diameter / 2, y: diameter * 0.45)
 
             instrumentLegend(diameter: diameter)
                 .frame(width: legendWidth)

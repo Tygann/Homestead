@@ -210,7 +210,7 @@ struct WidgetGaugeInstrumentView: View {
                 fontSize: valueFontSize
             )
             .frame(width: readoutWidth)
-            .position(x: diameter / 2, y: diameter * 0.39)
+            .position(x: diameter / 2, y: diameter * 0.45)
 
             instrumentLegend(diameter: diameter)
                 .frame(width: legendWidth)
@@ -272,52 +272,30 @@ struct GaugeInstrumentReadoutView: View {
     var body: some View {
         let parts = gaugeValueParts(from: valueText, unitText: unitText)
 
-        Group {
-            if let unit = parts.unit {
-                ViewThatFits(in: .horizontal) {
-                    inlineReadout(value: parts.value, unit: unit)
-                        .fixedSize(horizontal: true, vertical: false)
+        VStack(spacing: -2) {
+            valueLabel(parts.value)
 
-                    stackedReadout(value: parts.value, unit: unit)
-                }
-            } else {
-                valueLabel(parts.value)
-            }
+            unitLabel(parts.unit)
         }
         .monospacedDigit()
         .contentTransition(.numericText(value: value))
         .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: value)
     }
 
-    private func inlineReadout(value: String, unit: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 1) {
-            Text(value)
-                .font(.system(size: fontSize, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
-
-            Text(unit)
-                .font(.system(size: fontSize * 0.5, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
-                .baselineOffset(fontSize * 0.08)
+    @ViewBuilder
+    private func unitLabel(_ unit: String?) -> some View {
+        Group {
+            if let unit {
+                Text(unit)
+            } else {
+                Text(" ")
+                    .hidden()
+            }
         }
+        .font(.system(size: fontSize * 0.32, weight: .semibold, design: .rounded))
+        .foregroundStyle(.secondary)
         .lineLimit(1)
-    }
-
-    private func stackedReadout(value: String, unit: String) -> some View {
-        VStack(spacing: -2) {
-            Text(unit)
-                .font(.system(size: fontSize * 0.32, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            Text(value)
-                .font(.system(size: fontSize, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-                .frame(maxWidth: .infinity)
-        }
+        .minimumScaleFactor(0.7)
     }
 
     private func valueLabel(_ value: String) -> some View {
