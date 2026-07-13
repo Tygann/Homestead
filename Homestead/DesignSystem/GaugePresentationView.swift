@@ -88,7 +88,7 @@ struct GaugePresentationView: View {
                     inset: lineWidth / 2
                 )
                     .stroke(
-                        statusColor(for: section.status),
+                        sectionColor(for: section),
                         style: StrokeStyle(
                             lineWidth: lineWidth,
                             lineCap: .butt,
@@ -100,7 +100,7 @@ struct GaugePresentationView: View {
             if let first = presentation.sections.first {
                 instrumentEndpointCap(
                     value: first.range.lowerBound,
-                    color: statusColor(for: first.status),
+                    color: sectionColor(for: first),
                     diameter: diameter,
                     lineWidth: lineWidth
                 )
@@ -109,7 +109,7 @@ struct GaugePresentationView: View {
             if let last = presentation.sections.last {
                 instrumentEndpointCap(
                     value: last.range.upperBound,
-                    color: statusColor(for: last.status),
+                    color: sectionColor(for: last),
                     diameter: diameter,
                     lineWidth: lineWidth
                 )
@@ -293,7 +293,7 @@ struct GaugePresentationView: View {
                             horizontalScale: horizontalArcScale
                         )
                         .stroke(
-                            statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)),
+                            sectionColor(for: section).opacity(sectionBackgroundOpacity(for: section)),
                             style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
                         )
                     }
@@ -344,7 +344,7 @@ struct GaugePresentationView: View {
                         let segmentWidth = max(CGFloat(end - start) * width, 0)
 
                         Capsule()
-                            .fill(statusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)))
+                            .fill(sectionColor(for: section).opacity(sectionBackgroundOpacity(for: section)))
                             .frame(width: segmentWidth)
                             .offset(x: CGFloat(start) * width)
                     }
@@ -426,8 +426,14 @@ struct GaugePresentationView: View {
         return (min(max(start, 0), 1), min(max(end, start), 1))
     }
 
-    private func sectionBackgroundOpacity(for status: GaugePresentationStatus) -> Double {
-        gaugeSectionBackgroundOpacity(current: presentation.status.visualStatus, section: status.visualStatus)
+    private func sectionBackgroundOpacity(for section: GaugePresentationSection) -> Double {
+        section.color == nil
+            ? gaugeSectionBackgroundOpacity(current: presentation.status.visualStatus, section: section.status.visualStatus)
+            : 1
+    }
+
+    private func sectionColor(for section: GaugePresentationSection) -> Color {
+        section.color?.color ?? statusColor(for: section.status)
     }
 
     private var horizontalArcScale: CGFloat {

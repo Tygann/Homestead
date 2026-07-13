@@ -50,7 +50,7 @@ struct DashboardGaugeZoneEditorView: View {
                 }
 
                 Section {
-                    ForEach(configuration.statuses.indices, id: \.self) { index in
+                    ForEach(configuration.colors.indices, id: \.self) { index in
                         NavigationLink {
                             DashboardGaugeZoneDetailView(
                                 configuration: $configuration,
@@ -60,20 +60,16 @@ struct DashboardGaugeZoneEditorView: View {
                         } label: {
                             HStack(spacing: AppSpacing.medium) {
                                 Circle()
-                                    .fill(statusColor(configuration.statuses[index]))
+                                    .fill(configuration.colors[index].color)
                                     .frame(width: 10, height: 10)
 
                                 Text("Zone \(index + 1)")
 
                                 Spacer()
 
-                                VStack(alignment: .trailing, spacing: 2) {
-                                    Text(configuration.statuses[index].displayName)
-                                        .foregroundStyle(Color.accentColor)
-                                    Text(zoneRangeText(index))
-                                        .font(.subheadline.monospacedDigit())
-                                        .foregroundStyle(.secondary)
-                                }
+                                Text(zoneRangeText(index))
+                                    .font(.subheadline.monospacedDigit())
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -86,7 +82,7 @@ struct DashboardGaugeZoneEditorView: View {
                     } label: {
                         Label("Add Zone", systemImage: "plus.circle.fill")
                     }
-                    .disabled(!configuration.isValid || configuration.statuses.count >= GaugeZoneConfiguration.maximumZoneCount)
+                    .disabled(!configuration.isValid || configuration.colors.count >= GaugeZoneConfiguration.maximumZoneCount)
                 } header: {
                     Text("Zones")
                 } footer: {
@@ -150,7 +146,7 @@ struct DashboardGaugeZoneEditorView: View {
     }
 
     private var zoneFooter: String {
-        configuration.statuses.count == 1
+        configuration.colors.count == 1
             ? "Add a zone to split the scale at a new threshold."
             : "Swipe a zone to remove it. Each threshold must stay inside the scale."
     }
@@ -183,9 +179,6 @@ struct DashboardGaugeZoneEditorView: View {
         }
     }
 
-    private func statusColor(_ status: GaugePresentationStatus) -> Color {
-        gaugeVisualStatusColor(for: status.visualStatus)
-    }
 }
 
 private struct DashboardGaugeZoneDetailView: View {
@@ -197,11 +190,7 @@ private struct DashboardGaugeZoneDetailView: View {
     var body: some View {
         Form {
             Section {
-                Picker("Status", selection: $configuration.statuses[zoneIndex]) {
-                    ForEach(GaugePresentationStatus.allCases, id: \.self) { status in
-                        Text(status.displayName).tag(status)
-                    }
-                }
+                ColorPicker("Color", selection: colorBinding, supportsOpacity: false)
             } header: {
                 Text("Appearance")
             }
@@ -230,19 +219,14 @@ private struct DashboardGaugeZoneDetailView: View {
         unitText.map { " \($0)" } ?? ""
     }
 
+    private var colorBinding: Binding<Color> {
+        Binding(
+            get: { configuration.colors[zoneIndex].color },
+            set: { configuration.colors[zoneIndex] = GaugeZoneColor(color: $0) }
+        )
+    }
+
     private func formatted(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(0...2)))
-    }
-}
-
-private extension GaugePresentationStatus {
-    var displayName: String {
-        switch self {
-        case .nominal: "Normal"
-        case .low: "Low"
-        case .high: "High"
-        case .warning: "Warning"
-        case .critical: "Critical"
-        }
     }
 }

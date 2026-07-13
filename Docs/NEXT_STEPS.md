@@ -16,6 +16,7 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Replaced dashboard Gauge Setup's indirect per-zone status selection with native SwiftUI ColorPicker controls. Per-card zone colors persist as RGBA values, migrate existing semantic status colors without losing dashboard configurations, render at full selected color, and leave Home Assistant's overall sensor status independent from the chosen visual bands.
 - Completed a focused scrolling/search performance pass: Entity Browser parent work no longer reads every entity during ordinary scrolling, row detail/accessory observation is leaf-scoped, and stable display-name/domain/device indexes preserve existing grouping and ordering.
 - Consolidated Items-first Add to Dashboard candidates and summary values into one presentation pass per render, reused the dashboard summary workspace, and replaced per-row linear membership checks with `DashboardPresentationIdentity` set lookup while keeping source + family + style duplicate behavior unchanged.
 - Cached the dashboard summary workspace across ordinary state updates, invalidating it only for membership inputs; Security issue state remains live rather than being frozen in the cache. Device label menus now reuse their current summary list, and camera cards decode/downsample received snapshots before their render body.

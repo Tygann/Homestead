@@ -3195,7 +3195,10 @@ struct HomesteadTests {
             lowerBound: 10,
             upperBound: 90,
             boundaries: [25, 35, 55, 65],
-            statuses: [.critical, .warning, .nominal, .warning, .critical]
+            colors: [
+                .standard(for: .critical), .standard(for: .warning), .standard(for: .nominal),
+                .standard(for: .warning), .standard(for: .critical)
+            ]
         )
         let resolved = presentation.applying(zoneConfiguration: custom)
 
@@ -3203,13 +3206,14 @@ struct HomesteadTests {
         #expect(resolved.range == 10...90)
         #expect(resolved.rangeSource == .userConfigured)
         #expect(resolved.sections.map(\.range.upperBound) == [25, 35, 55, 65, 90])
-        #expect(resolved.status == .critical)
+        #expect(resolved.status == presentation.status)
+        #expect(resolved.sections.map(\.color) == custom.colors)
 
         let invalid = GaugeZoneConfiguration(
             lowerBound: 0,
             upperBound: 100,
             boundaries: [30, 20],
-            statuses: [.warning, .nominal, .warning]
+            colors: [.standard(for: .warning), .standard(for: .nominal), .standard(for: .warning)]
         )
         #expect(!invalid.isValid)
         let invalidResolved = presentation.applying(zoneConfiguration: invalid)

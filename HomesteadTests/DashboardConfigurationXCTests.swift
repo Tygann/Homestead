@@ -109,7 +109,10 @@ final class DashboardConfigurationXCTests: XCTestCase {
             lowerBound: 0,
             upperBound: 100,
             boundaries: [15, 30, 70, 85],
-            statuses: [.critical, .warning, .nominal, .warning, .critical]
+            colors: [
+                .standard(for: .critical), .standard(for: .warning), .standard(for: .nominal),
+                .standard(for: .warning), .standard(for: .critical)
+            ]
         )
         configuration.setGaugeZoneConfiguration(zoneConfiguration, forItemID: segmentedID)
         _ = configuration.add(
@@ -604,23 +607,23 @@ final class DashboardConfigurationXCTests: XCTestCase {
             lowerBound: 0,
             upperBound: 12,
             boundaries: [],
-            statuses: [.nominal]
+            colors: [.standard(for: .nominal)]
         )
 
         configuration.addZone()
         XCTAssertEqual(configuration.boundaries, [6])
-        XCTAssertEqual(configuration.statuses, [.nominal, .nominal])
+        XCTAssertEqual(configuration.colors, [.standard(for: .nominal), .standard(for: .nominal)])
         XCTAssertEqual(configuration.range(forZoneAt: 0), 0...6)
         XCTAssertEqual(configuration.range(forZoneAt: 1), 6...12)
 
-        configuration.statuses[0] = .low
-        configuration.statuses[1] = .high
+        configuration.colors[0] = .standard(for: .low)
+        configuration.colors[1] = .standard(for: .high)
         configuration.addZone()
-        XCTAssertEqual(configuration.statuses.count, 3)
+        XCTAssertEqual(configuration.colors.count, 3)
         XCTAssertTrue(configuration.isValid)
 
         configuration.removeZone(at: 1)
-        XCTAssertEqual(configuration.statuses.count, 2)
+        XCTAssertEqual(configuration.colors.count, 2)
         XCTAssertEqual(configuration.boundaries.count, 1)
         XCTAssertTrue(configuration.isValid)
     }

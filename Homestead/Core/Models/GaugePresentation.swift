@@ -1,4 +1,6 @@
 import Foundation
+import SwiftUI
+import UIKit
 
 nonisolated enum GaugePresentationStatus: String, CaseIterable, Codable, Equatable, Sendable {
     case nominal
@@ -19,6 +21,49 @@ nonisolated enum GaugeRangeSource: String, Equatable, Sendable {
 struct GaugePresentationSection: Equatable, Sendable {
     let range: ClosedRange<Double>
     let status: GaugePresentationStatus
+    let color: GaugeZoneColor?
+
+    init(range: ClosedRange<Double>, status: GaugePresentationStatus, color: GaugeZoneColor? = nil) {
+        self.range = range
+        self.status = status
+        self.color = color
+    }
+}
+
+nonisolated struct GaugeZoneColor: Codable, Equatable, Sendable {
+    let red: Double
+    let green: Double
+    let blue: Double
+    let opacity: Double
+
+    init(red: Double, green: Double, blue: Double, opacity: Double = 1) {
+        self.red = min(max(red, 0), 1)
+        self.green = min(max(green, 0), 1)
+        self.blue = min(max(blue, 0), 1)
+        self.opacity = min(max(opacity, 0), 1)
+    }
+
+    init(color: Color) {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var opacity: CGFloat = 1
+        UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &opacity)
+        self.init(red: Double(red), green: Double(green), blue: Double(blue), opacity: Double(opacity))
+    }
+
+    var color: Color {
+        Color(.sRGB, red: red, green: green, blue: blue, opacity: opacity)
+    }
+
+    static func standard(for status: GaugePresentationStatus) -> Self {
+        switch status {
+        case .nominal: Self(red: 0.19, green: 0.82, blue: 0.35)
+        case .low: Self(red: 0.0, green: 0.57, blue: 0.96)
+        case .high, .warning: Self(red: 1.0, green: 0.56, blue: 0.15)
+        case .critical: Self(red: 1.0, green: 0.23, blue: 0.27)
+        }
+    }
 }
 
 nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
@@ -27,11 +72,47 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
     var lowerBound: Double
     var upperBound: Double
     var boundaries: [Double]
-    var statuses: [GaugePresentationStatus]
+    var colors: [GaugeZoneColor]
+
+    private enum CodingKeys: String, CodingKey {
+        case lowerBound
+        case upperBound
+        case boundaries
+        case colors
+        case statuses
+    }
+
+    init(lowerBound: Double, upperBound: Double, boundaries: [Double], colors: [GaugeZoneColor]) {
+        self.lowerBound = lowerBound
+        self.upperBound = upperBound
+        self.boundaries = boundaries
+        self.colors = colors
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        lowerBound = try container.decode(Double.self, forKey: .lowerBound)
+        upperBound = try container.decode(Double.self, forKey: .upperBound)
+        boundaries = try container.decode([Double].self, forKey: .boundaries)
+        if let decodedColors = try container.decodeIfPresent([GaugeZoneColor].self, forKey: .colors) {
+            colors = decodedColors
+        } else {
+            let legacyStatuses = try container.decodeIfPresent([GaugePresentationStatus].self, forKey: .statuses) ?? []
+            colors = legacyStatuses.map(GaugeZoneColor.standard)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(lowerBound, forKey: .lowerBound)
+        try container.encode(upperBound, forKey: .upperBound)
+        try container.encode(boundaries, forKey: .boundaries)
+        try container.encode(colors, forKey: .colors)
+    }
 
     var isValid: Bool {
         guard lowerBound < upperBound,
-              statuses.count == boundaries.count + 1 else { return false }
+              colors.count == boundaries.count + 1 else { return false }
         let values = [lowerBound] + boundaries + [upperBound]
         return zip(values, values.dropFirst()).allSatisfy { $0.0 < $0.1 }
     }
@@ -40,14 +121,14 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
         guard isValid else { return nil }
         let upperBounds = boundaries + [upperBound]
         var lower = lowerBound
-        return zip(upperBounds, statuses).map { upper, status in
+        return zip(upperBounds, colors).map { upper, color in
             defer { lower = upper }
-            return GaugePresentationSection(range: lower...upper, status: status)
+            return GaugePresentationSection(range: lower...upper, status: .nominal, color: color)
         }
     }
 
     func range(forZoneAt index: Int) -> ClosedRange<Double>? {
-        guard statuses.indices.contains(index) else { return nil }
+        guard colors.indices.contains(index) else { return nil }
         let lower = index == 0 ? lowerBound : boundaries[index - 1]
         let upper = index == boundaries.count ? upperBound : boundaries[index]
         guard lower < upper else { return nil }
@@ -55,8 +136,8 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
     }
 
     mutating func addZone() {
-        guard isValid, statuses.count < Self.maximumZoneCount else { return }
-        let widestIndex = statuses.indices.max { lhs, rhs in
+        guard isValid, colors.count < Self.maximumZoneCount else { return }
+        let widestIndex = colors.indices.max { lhs, rhs in
             let lhsRange = range(forZoneAt: lhs)
             let rhsRange = range(forZoneAt: rhs)
             return (lhsRange?.upperBound ?? 0) - (lhsRange?.lowerBound ?? 0)
@@ -64,17 +145,17 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
         }
         guard let widestIndex, let range = range(forZoneAt: widestIndex) else { return }
         boundaries.insert((range.lowerBound + range.upperBound) / 2, at: widestIndex)
-        statuses.insert(statuses[widestIndex], at: widestIndex + 1)
+        colors.insert(colors[widestIndex], at: widestIndex + 1)
     }
 
     mutating func removeZone(at index: Int) {
-        guard statuses.count > 1, statuses.indices.contains(index) else { return }
+        guard colors.count > 1, colors.indices.contains(index) else { return }
         if index == 0 {
             boundaries.removeFirst()
-            statuses.removeFirst()
+            colors.removeFirst()
         } else {
             boundaries.remove(at: index - 1)
-            statuses.remove(at: index)
+            colors.remove(at: index)
         }
     }
 
@@ -83,7 +164,7 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
             lowerBound: presentation.range.lowerBound,
             upperBound: presentation.range.upperBound,
             boundaries: presentation.sections.dropLast().map(\.range.upperBound),
-            statuses: presentation.sections.map(\.status)
+            colors: presentation.sections.map { $0.color ?? GaugeZoneColor.standard(for: $0.status) }
         )
     }
 }
@@ -136,21 +217,18 @@ struct GaugePresentation: Equatable, Sendable {
     func applying(zoneConfiguration: GaugeZoneConfiguration?) -> Self {
         guard let zoneConfiguration,
               let resolvedSections = zoneConfiguration.sections() else { return self }
-        let resolvedStatus = resolvedSections.first(where: { $0.range.contains(value) })?.status
-            ?? (value < zoneConfiguration.lowerBound ? resolvedSections[0].status : resolvedSections[resolvedSections.count - 1].status)
-
         return GaugePresentation(
             value: value,
             range: zoneConfiguration.lowerBound...zoneConfiguration.upperBound,
             valueText: valueText,
             unitText: unitText,
-            status: resolvedStatus,
-            statusDisplayText: Self.genericStatusDisplayText(for: resolvedStatus),
+            status: status,
+            statusDisplayText: statusDisplayText,
             rangeSource: .userConfigured,
             isDashboardFeatureEligible: isDashboardFeatureEligible,
             sections: resolvedSections,
             accessibilityLabel: accessibilityLabel,
-            accessibilityValue: Self.accessibilityValue(valueText: valueText, status: resolvedStatus)
+            accessibilityValue: accessibilityValue
         )
     }
 
@@ -472,7 +550,7 @@ private extension GaugePresentation {
             let lowerBound = max(section.range.lowerBound, range.lowerBound)
             let upperBound = min(section.range.upperBound, range.upperBound)
             guard lowerBound < upperBound else { return nil }
-            return GaugePresentationSection(range: lowerBound...upperBound, status: section.status)
+            return GaugePresentationSection(range: lowerBound...upperBound, status: section.status, color: section.color)
         }
     }
 
