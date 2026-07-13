@@ -10,6 +10,7 @@ struct ContentView: View {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(HomesteadTabSettings.self) private var tabSettings
     @Environment(NativeNotificationService.self) private var nativeNotificationService
+    @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("homestead.notificationSetupPromptHandled") private var hasHandledNotificationSetupPrompt = false
@@ -83,7 +84,7 @@ struct ContentView: View {
                         }
                     }
             }
-            .preferredColorScheme(appearanceSettings.appearanceMode.colorScheme)
+            .preferredColorScheme(settingsSheetColorScheme)
         }
         .alert("Finish Notification Setup", isPresented: $isShowingNotificationSetupPrompt) {
             Button("Not Now", role: .cancel) {
@@ -148,6 +149,17 @@ struct ContentView: View {
                 appearanceSettings: appearanceSettings,
                 homeAssistantService: homeAssistantService
             )
+        }
+    }
+
+    private var settingsSheetColorScheme: ColorScheme {
+        switch appearanceSettings.appearanceMode {
+        case .system:
+            systemColorScheme
+        case .light:
+            .light
+        case .dark:
+            .dark
         }
     }
 
