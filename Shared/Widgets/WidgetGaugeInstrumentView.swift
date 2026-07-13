@@ -75,7 +75,7 @@ struct WidgetGaugeInstrumentView: View {
                         } else if gauge.normalizedValue > 0 {
                             WidgetGaugeInstrumentArcShape(start: 0, end: gauge.normalizedValue, inset: lineWidth / 2)
                                 .stroke(
-                                    widgetGaugeStatusColor(for: gauge.status),
+                                    widgetGaugeColor(for: gauge.currentColor),
                                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
                                 )
                         }
@@ -107,7 +107,7 @@ struct WidgetGaugeInstrumentView: View {
                     inset: lineWidth / 2
                 )
                     .stroke(
-                        widgetGaugeStatusColor(for: section.status),
+                        widgetGaugeColor(for: section.color),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
                     )
             }
@@ -115,7 +115,7 @@ struct WidgetGaugeInstrumentView: View {
             if let first = gauge.sections.first {
                 instrumentEndpointCap(
                     value: first.lowerBound,
-                    color: widgetGaugeStatusColor(for: first.status),
+                    color: widgetGaugeColor(for: first.color),
                     diameter: diameter,
                     lineWidth: lineWidth
                 )
@@ -124,7 +124,7 @@ struct WidgetGaugeInstrumentView: View {
             if let last = gauge.sections.last {
                 instrumentEndpointCap(
                     value: last.upperBound,
-                    color: widgetGaugeStatusColor(for: last.status),
+                    color: widgetGaugeColor(for: last.color),
                     diameter: diameter,
                     lineWidth: lineWidth
                 )
@@ -191,8 +191,8 @@ struct WidgetGaugeInstrumentView: View {
         return (rawStart, max(rawEnd, rawStart))
     }
 
-    private func sectionBackgroundOpacity(for status: WidgetGaugeStatus) -> Double {
-        gaugeSectionBackgroundOpacity(current: gauge.status.visualStatus, section: status.visualStatus)
+    private func sectionBackgroundOpacity(for color: WidgetGaugeColor) -> Double {
+        color == gauge.currentColor ? 0.34 : 0.22
     }
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
@@ -320,8 +320,21 @@ func gaugeVisualStatusColor(for status: GaugeVisualStatus) -> Color {
     }
 }
 
-func widgetGaugeStatusColor(for status: WidgetGaugeStatus) -> Color {
-    gaugeVisualStatusColor(for: status.visualStatus)
+func widgetGaugeColor(for color: WidgetGaugeColor) -> Color {
+    switch color {
+    case .blue:
+        .blue
+    case .green:
+        .green
+    case .orange:
+        .orange
+    case .red:
+        .red
+    case .purple:
+        .purple
+    case .gray:
+        .gray
+    }
 }
 
 func gaugeSectionBackgroundOpacity(current: GaugeVisualStatus, section: GaugeVisualStatus) -> Double {
@@ -389,14 +402,14 @@ struct WidgetGaugeBarView: View {
                         let segmentWidth = max(CGFloat(segment.end - segment.start) * width, 0)
 
                         Capsule()
-                            .fill(widgetGaugeStatusColor(for: section.status).opacity(sectionBackgroundOpacity(for: section.status)))
+                            .fill(widgetGaugeColor(for: section.color).opacity(sectionBackgroundOpacity(for: section.color)))
                             .frame(width: segmentWidth)
                             .offset(x: CGFloat(segment.start) * width)
                     }
 
                     if gauge.normalizedValue > 0 {
                         Capsule()
-                            .fill(widgetGaugeStatusColor(for: gauge.status))
+                            .fill(widgetGaugeColor(for: gauge.currentColor))
                             .frame(width: fillWidth)
                     }
 
@@ -438,8 +451,8 @@ struct WidgetGaugeBarView: View {
         return min(max(normalizedValue, 0), 1)
     }
 
-    private func sectionBackgroundOpacity(for status: WidgetGaugeStatus) -> Double {
-        gaugeSectionBackgroundOpacity(current: gauge.status.visualStatus, section: status.visualStatus)
+    private func sectionBackgroundOpacity(for color: WidgetGaugeColor) -> Double {
+        color == gauge.currentColor ? 0.34 : 0.22
     }
 
     private func rangeText(_ value: Double) -> String {
@@ -516,9 +529,9 @@ extension WidgetGaugePresentation {
         status: .nominal,
         statusDisplayText: "Normal",
         sections: [
-            WidgetGaugeSection(lowerBound: 0, upperBound: 10, status: .critical),
-            WidgetGaugeSection(lowerBound: 10, upperBound: 20, status: .warning),
-            WidgetGaugeSection(lowerBound: 20, upperBound: 100, status: .nominal)
+            WidgetGaugeSection(lowerBound: 0, upperBound: 10, color: .red),
+            WidgetGaugeSection(lowerBound: 10, upperBound: 20, color: .orange),
+            WidgetGaugeSection(lowerBound: 20, upperBound: 100, color: .green)
         ],
         accessibilityLabel: "Battery gauge",
         accessibilityValue: "100%"
@@ -533,9 +546,9 @@ extension WidgetGaugePresentation {
         status: .warning,
         statusDisplayText: "Warning",
         sections: [
-            WidgetGaugeSection(lowerBound: 0, upperBound: 10, status: .critical),
-            WidgetGaugeSection(lowerBound: 10, upperBound: 20, status: .warning),
-            WidgetGaugeSection(lowerBound: 20, upperBound: 100, status: .nominal)
+            WidgetGaugeSection(lowerBound: 0, upperBound: 10, color: .red),
+            WidgetGaugeSection(lowerBound: 10, upperBound: 20, color: .orange),
+            WidgetGaugeSection(lowerBound: 20, upperBound: 100, color: .green)
         ],
         accessibilityLabel: "Battery gauge",
         accessibilityValue: "18%, warning"

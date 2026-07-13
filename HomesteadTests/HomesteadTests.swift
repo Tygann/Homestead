@@ -3230,7 +3230,7 @@ struct HomesteadTests {
             unitText: "%",
             status: .nominal,
             statusDisplayText: "Normal",
-            sections: [WidgetGaugeSection(lowerBound: 0, upperBound: 100, status: .nominal)],
+            sections: [WidgetGaugeSection(lowerBound: 0, upperBound: 100, color: .green)],
             accessibilityLabel: "Humidity gauge",
             accessibilityValue: "56.25%"
         )
@@ -3243,7 +3243,7 @@ struct HomesteadTests {
         #expect(resolved.lowerBound == 5.5)
         #expect(resolved.upperBound == 95.5)
         #expect(resolved.sections.map(\.upperBound) == [20.25, 30.5, 60.75, 70.125, 95.5])
-        #expect(resolved.sections.map(\.status) == [.critical, .warning, .nominal, .warning, .critical])
+        #expect(resolved.sections.map(\.color) == [.red, .orange, .green, .orange, .red])
         #expect(resolved.status == .nominal)
 
         let invalid = gauge.applyingFiveZoneConfiguration(
@@ -4017,9 +4017,9 @@ struct HomesteadTests {
                     status: .warning,
                     statusDisplayText: "Warning",
                     sections: [
-                        WidgetGaugeSection(lowerBound: 0, upperBound: 10, status: .critical),
-                        WidgetGaugeSection(lowerBound: 10, upperBound: 20, status: .warning),
-                        WidgetGaugeSection(lowerBound: 20, upperBound: 100, status: .nominal)
+                        WidgetGaugeSection(lowerBound: 0, upperBound: 10, color: .red),
+                        WidgetGaugeSection(lowerBound: 10, upperBound: 20, color: .orange),
+                        WidgetGaugeSection(lowerBound: 20, upperBound: 100, color: .green)
                     ],
                     accessibilityLabel: "Battery gauge",
                     accessibilityValue: "18%, warning"

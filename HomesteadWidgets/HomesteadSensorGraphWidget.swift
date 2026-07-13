@@ -37,32 +37,32 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Zones", default: .automatic)
     var zoneCount: HomesteadGaugeZoneCount
 
-    @Parameter(title: "Zone 1 Status", default: .normal)
-    var zone1Status: HomesteadGaugeZoneStatus
+    @Parameter(title: "Zone 1 Color", default: .blue)
+    var zone1Color: HomesteadGaugeZoneColor
 
     @Parameter(title: "Zone 2 Begins At")
-    var gaugeLowCriticalUpperBound: Double?
+    var zone2BeginsAt: Double?
 
-    @Parameter(title: "Zone 2 Status", default: .normal)
-    var zone2Status: HomesteadGaugeZoneStatus
+    @Parameter(title: "Zone 2 Color", default: .green)
+    var zone2Color: HomesteadGaugeZoneColor
 
     @Parameter(title: "Zone 3 Begins At")
-    var gaugeLowWarningUpperBound: Double?
+    var zone3BeginsAt: Double?
 
-    @Parameter(title: "Zone 3 Status", default: .normal)
-    var zone3Status: HomesteadGaugeZoneStatus
+    @Parameter(title: "Zone 3 Color", default: .orange)
+    var zone3Color: HomesteadGaugeZoneColor
 
     @Parameter(title: "Zone 4 Begins At")
-    var gaugeComfortableUpperBound: Double?
+    var zone4BeginsAt: Double?
 
-    @Parameter(title: "Zone 4 Status", default: .normal)
-    var zone4Status: HomesteadGaugeZoneStatus
+    @Parameter(title: "Zone 4 Color", default: .red)
+    var zone4Color: HomesteadGaugeZoneColor
 
     @Parameter(title: "Zone 5 Begins At")
-    var gaugeHighWarningUpperBound: Double?
+    var zone5BeginsAt: Double?
 
-    @Parameter(title: "Zone 5 Status", default: .normal)
-    var zone5Status: HomesteadGaugeZoneStatus
+    @Parameter(title: "Zone 5 Color", default: .purple)
+    var zone5Color: HomesteadGaugeZoneColor
 
     static var parameterSummary: some ParameterSummary {
         When(
@@ -77,15 +77,15 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                     \.$gaugeMinimum
                     \.$gaugeMaximum
                     \.$zoneCount
-                    \.$zone1Status
-                    \.$gaugeLowCriticalUpperBound
-                    \.$zone2Status
-                    \.$gaugeLowWarningUpperBound
-                    \.$zone3Status
-                    \.$gaugeComfortableUpperBound
-                    \.$zone4Status
-                    \.$gaugeHighWarningUpperBound
-                    \.$zone5Status
+                    \.$zone1Color
+                    \.$zone2BeginsAt
+                    \.$zone2Color
+                    \.$zone3BeginsAt
+                    \.$zone3Color
+                    \.$zone4BeginsAt
+                    \.$zone4Color
+                    \.$zone5BeginsAt
+                    \.$zone5Color
                 }
             } otherwise: {
                 When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.four) {
@@ -95,13 +95,13 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$gaugeMinimum
                         \.$gaugeMaximum
                         \.$zoneCount
-                        \.$zone1Status
-                        \.$gaugeLowCriticalUpperBound
-                        \.$zone2Status
-                        \.$gaugeLowWarningUpperBound
-                        \.$zone3Status
-                        \.$gaugeComfortableUpperBound
-                        \.$zone4Status
+                        \.$zone1Color
+                        \.$zone2BeginsAt
+                        \.$zone2Color
+                        \.$zone3BeginsAt
+                        \.$zone3Color
+                        \.$zone4BeginsAt
+                        \.$zone4Color
                     }
                 } otherwise: {
                     When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.three) {
@@ -111,11 +111,11 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                             \.$gaugeMinimum
                             \.$gaugeMaximum
                             \.$zoneCount
-                            \.$zone1Status
-                            \.$gaugeLowCriticalUpperBound
-                            \.$zone2Status
-                            \.$gaugeLowWarningUpperBound
-                            \.$zone3Status
+                            \.$zone1Color
+                            \.$zone2BeginsAt
+                            \.$zone2Color
+                            \.$zone3BeginsAt
+                            \.$zone3Color
                         }
                     } otherwise: {
                         When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.two) {
@@ -125,9 +125,9 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$gaugeMinimum
                                 \.$gaugeMaximum
                                 \.$zoneCount
-                                \.$zone1Status
-                                \.$gaugeLowCriticalUpperBound
-                                \.$zone2Status
+                                \.$zone1Color
+                                \.$zone2BeginsAt
+                                \.$zone2Color
                             }
                         } otherwise: {
                             When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.one) {
@@ -137,7 +137,7 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                                     \.$gaugeMinimum
                                     \.$gaugeMaximum
                                     \.$zoneCount
-                                    \.$zone1Status
+                                    \.$zone1Color
                                 }
                             } otherwise: {
                                 Summary {
@@ -180,29 +180,32 @@ enum HomesteadGaugeZoneCount: Int, AppEnum {
     ]
 }
 
-enum HomesteadGaugeZoneStatus: String, AppEnum {
-    case normal
-    case low
-    case high
-    case warning
-    case critical
+enum HomesteadGaugeZoneColor: String, AppEnum {
+    case blue
+    case green
+    case orange
+    case red
+    case purple
+    case gray
 
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Zone Status")
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Zone Color")
     static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
-        .normal: "Normal",
-        .low: "Low",
-        .high: "High",
-        .warning: "Warning",
-        .critical: "Critical"
+        .blue: "Blue",
+        .green: "Green",
+        .orange: "Orange",
+        .red: "Red",
+        .purple: "Purple",
+        .gray: "Gray"
     ]
 
-    var widgetStatus: WidgetGaugeStatus {
+    var widgetColor: WidgetGaugeColor {
         switch self {
-        case .normal: .nominal
-        case .low: .low
-        case .high: .high
-        case .warning: .warning
-        case .critical: .critical
+        case .blue: .blue
+        case .green: .green
+        case .orange: .orange
+        case .red: .red
+        case .purple: .purple
+        case .gray: .gray
         }
     }
 }
@@ -482,56 +485,49 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         let upperBound = configuration.gaugeMaximum ?? gauge.upperBound
         guard lowerBound < upperBound else { return gauge }
 
-        let legacyBoundaries = [
-            configuration.gaugeLowCriticalUpperBound,
-            configuration.gaugeLowWarningUpperBound,
-            configuration.gaugeComfortableUpperBound,
-            configuration.gaugeHighWarningUpperBound
+        let configuredBeginsAt = [
+            configuration.zone2BeginsAt,
+            configuration.zone3BeginsAt,
+            configuration.zone4BeginsAt,
+            configuration.zone5BeginsAt
         ]
-        let usesLegacyFiveZones = configuration.zoneCount == .automatic
-            && legacyBoundaries.contains(where: { $0 != nil })
-        if configuration.zoneCount == .automatic, !usesLegacyFiveZones {
+        if configuration.zoneCount == .automatic {
             let clippedSections = gauge.sections.compactMap { section -> WidgetGaugeSection? in
                 let lower = max(section.lowerBound, lowerBound)
                 let upper = min(section.upperBound, upperBound)
                 guard lower < upper else { return nil }
-                return WidgetGaugeSection(lowerBound: lower, upperBound: upper, status: section.status)
+                return WidgetGaugeSection(lowerBound: lower, upperBound: upper, color: section.color)
             }
             let sections = clippedSections.isEmpty
-                ? [WidgetGaugeSection(lowerBound: lowerBound, upperBound: upperBound, status: .nominal)]
+                ? [WidgetGaugeSection(lowerBound: lowerBound, upperBound: upperBound, color: .green)]
                 : clippedSections
             return gauge.applyingConfiguration(
                 lowerBound: lowerBound,
                 boundaries: sections.dropLast().map(\.upperBound),
                 upperBound: upperBound,
-                statuses: sections.map(\.status)
+                colors: sections.map(\.color)
             )
         }
 
-        let zoneCount = usesLegacyFiveZones ? 5 : configuration.zoneCount.rawValue
-        let configuredBoundaries = legacyBoundaries.prefix(zoneCount - 1)
+        let zoneCount = configuration.zoneCount.rawValue
+        let configuredBoundaries = configuredBeginsAt.prefix(zoneCount - 1)
         let span = upperBound - lowerBound
         let boundaries = configuredBoundaries.enumerated().map { index, value in
             value ?? lowerBound + (span * Double(index + 1) / Double(zoneCount))
         }
-        let statuses: [WidgetGaugeStatus]
-        if usesLegacyFiveZones {
-            statuses = [.critical, .warning, .nominal, .warning, .critical]
-        } else {
-            statuses = [
-                configuration.zone1Status.widgetStatus,
-                configuration.zone2Status.widgetStatus,
-                configuration.zone3Status.widgetStatus,
-                configuration.zone4Status.widgetStatus,
-                configuration.zone5Status.widgetStatus
-            ].prefix(zoneCount).map { $0 }
-        }
+        let colors = [
+            configuration.zone1Color.widgetColor,
+            configuration.zone2Color.widgetColor,
+            configuration.zone3Color.widgetColor,
+            configuration.zone4Color.widgetColor,
+            configuration.zone5Color.widgetColor
+        ].prefix(zoneCount).map { $0 }
 
         return gauge.applyingConfiguration(
             lowerBound: lowerBound,
             boundaries: boundaries,
             upperBound: upperBound,
-            statuses: statuses
+            colors: colors
         )
     }
 
@@ -824,7 +820,7 @@ struct HomesteadSensorGraphWidgetView: View {
     ) -> some View {
         WidgetGaugeInstrumentView(
             gauge: gauge,
-            tint: widgetGaugeStatusColor(for: gauge.status),
+            tint: widgetGaugeColor(for: gauge.currentColor),
             title: entry.displayName,
             icon: entry.resolvedIcon,
             style: style
@@ -932,7 +928,7 @@ private struct HomesteadSensorCircularGaugeWidgetView: View {
     var body: some View {
         WidgetGaugeInstrumentView(
             gauge: gauge,
-            tint: entry.isAvailable ? widgetGaugeStatusColor(for: gauge.status) : .secondary,
+            tint: entry.isAvailable ? widgetGaugeColor(for: gauge.currentColor) : .secondary,
             title: entry.displayName,
             icon: entry.gaugeIcon,
             style: style
@@ -951,7 +947,7 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
             HStack(alignment: .top, spacing: GaugeVisualMetrics.compactHeaderSpacing) {
                 HomesteadWidgetIconBadge(
                     content: .resolved(entry.gaugeIcon),
-                    color: widgetGaugeStatusColor(for: gauge.status),
+                    color: widgetGaugeColor(for: gauge.currentColor),
                     pointSize: GaugeVisualMetrics.compactHeaderIconPointSize,
                     size: GaugeVisualMetrics.compactHeaderIconSize,
                     cornerRadius: GaugeVisualMetrics.compactHeaderIconCornerRadius,
@@ -963,12 +959,6 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
                         .font(GaugeVisualMetrics.compactHeaderTitleFont)
                         .lineLimit(1)
                         .minimumScaleFactor(GaugeVisualMetrics.compactHeaderTitleMinimumScale)
-
-                    Text(gauge.statusDisplayText)
-                        .font(GaugeVisualMetrics.compactHeaderStatusFont)
-                        .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
-                        .lineLimit(1)
-                        .minimumScaleFactor(GaugeVisualMetrics.compactHeaderStatusMinimumScale)
                 }
 
                 Spacer(minLength: 0)
@@ -1002,7 +992,7 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
                     .padding(.leading, -1)
             }
         }
-        .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
+        .foregroundStyle(widgetGaugeColor(for: gauge.currentColor))
         .lineLimit(1)
         .minimumScaleFactor(0.58)
         .monospacedDigit()
@@ -1113,11 +1103,11 @@ private extension WidgetGaugePresentation {
         status: .nominal,
         statusDisplayText: "Comfortable",
         sections: [
-            WidgetGaugeSection(lowerBound: 0, upperBound: 40, status: .warning),
-            WidgetGaugeSection(lowerBound: 40, upperBound: 60, status: .low),
-            WidgetGaugeSection(lowerBound: 60, upperBound: 80, status: .nominal),
-            WidgetGaugeSection(lowerBound: 80, upperBound: 100, status: .high),
-            WidgetGaugeSection(lowerBound: 100, upperBound: 120, status: .warning)
+            WidgetGaugeSection(lowerBound: 0, upperBound: 40, color: .orange),
+            WidgetGaugeSection(lowerBound: 40, upperBound: 60, color: .blue),
+            WidgetGaugeSection(lowerBound: 60, upperBound: 80, color: .green),
+            WidgetGaugeSection(lowerBound: 80, upperBound: 100, color: .orange),
+            WidgetGaugeSection(lowerBound: 100, upperBound: 120, color: .orange)
         ],
         accessibilityLabel: "Living Room gauge",
         accessibilityValue: "72°F"

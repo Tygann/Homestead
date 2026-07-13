@@ -364,7 +364,7 @@ enum WidgetSharedStore {
                 WidgetGaugeSection(
                     lowerBound: section.range.lowerBound,
                     upperBound: section.range.upperBound,
-                    status: widgetGaugeStatus(from: section.status)
+                    color: WidgetGaugeColor.standard(for: widgetGaugeStatus(from: section.status))
                 )
             },
             accessibilityLabel: gauge.accessibilityLabel,

@@ -109,10 +109,28 @@ nonisolated enum WidgetGaugeStatus: String, Codable, Equatable, Sendable {
     case critical
 }
 
+nonisolated enum WidgetGaugeColor: String, Codable, Equatable, Sendable {
+    case blue
+    case green
+    case orange
+    case red
+    case purple
+    case gray
+
+    static func standard(for status: WidgetGaugeStatus) -> Self {
+        switch status {
+        case .nominal: .green
+        case .low: .blue
+        case .high, .warning: .orange
+        case .critical: .red
+        }
+    }
+}
+
 nonisolated struct WidgetGaugeSection: Codable, Equatable, Sendable {
     let lowerBound: Double
     let upperBound: Double
-    let status: WidgetGaugeStatus
+    let color: WidgetGaugeColor
 }
 
 nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
@@ -131,6 +149,12 @@ nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
         guard upperBound > lowerBound else { return 0 }
         let normalized = (value - lowerBound) / (upperBound - lowerBound)
         return min(max(normalized, 0), 1)
+    }
+
+    var currentColor: WidgetGaugeColor {
+        sections.first(where: { value >= $0.lowerBound && value <= $0.upperBound })?.color
+            ?? (value < lowerBound ? sections.first?.color : sections.last?.color)
+            ?? .green
     }
 
     var fiveZoneValues: [Double] {
@@ -153,20 +177,18 @@ nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
         lowerBound: Double,
         boundaries: [Double],
         upperBound: Double,
-        statuses: [WidgetGaugeStatus]
+        colors: [WidgetGaugeColor]
     ) -> WidgetGaugePresentation {
         let values = [lowerBound] + boundaries + [upperBound]
-        guard statuses.count == boundaries.count + 1,
-              !statuses.isEmpty,
+        guard colors.count == boundaries.count + 1,
+              !colors.isEmpty,
               zip(values, values.dropFirst()).allSatisfy({ $0.0 < $0.1 }) else { return self }
 
         var lower = lowerBound
-        let sections = zip(boundaries + [upperBound], statuses).map { upper, status in
+        let sections = zip(boundaries + [upperBound], colors).map { upper, color in
             defer { lower = upper }
-            return WidgetGaugeSection(lowerBound: lower, upperBound: upper, status: status)
+            return WidgetGaugeSection(lowerBound: lower, upperBound: upper, color: color)
         }
-        let resolvedStatus = sections.first(where: { value >= $0.lowerBound && value <= $0.upperBound })?.status
-            ?? (value < lowerBound ? sections[0].status : sections[sections.count - 1].status)
 
         return WidgetGaugePresentation(
             value: value,
@@ -174,11 +196,11 @@ nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
             upperBound: upperBound,
             valueText: valueText,
             unitText: unitText,
-            status: resolvedStatus,
-            statusDisplayText: Self.statusDisplayText(for: resolvedStatus),
+            status: status,
+            statusDisplayText: statusDisplayText,
             sections: sections,
             accessibilityLabel: accessibilityLabel,
-            accessibilityValue: Self.accessibilityValue(valueText: valueText, status: resolvedStatus)
+            accessibilityValue: accessibilityValue
         )
     }
 
@@ -191,61 +213,23 @@ nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
             lowerBound: lowerBound,
             boundaries: boundaries,
             upperBound: upperBound,
-            statuses: [.critical, .warning, .nominal, .warning, .critical]
+            colors: [.red, .orange, .green, .orange, .red]
         )
     }
 
     func updating(value newValue: Double, valueText newValueText: String) -> WidgetGaugePresentation {
-        let newStatus = status(for: newValue)
-        let newStatusDisplayText = newStatus == status ? statusDisplayText : Self.statusDisplayText(for: newStatus)
         return WidgetGaugePresentation(
             value: newValue,
             lowerBound: lowerBound,
             upperBound: upperBound,
             valueText: newValueText,
             unitText: unitText,
-            status: newStatus,
-            statusDisplayText: newStatusDisplayText,
+            status: status,
+            statusDisplayText: statusDisplayText,
             sections: sections,
             accessibilityLabel: accessibilityLabel,
-            accessibilityValue: Self.accessibilityValue(valueText: newValueText, status: newStatus)
+            accessibilityValue: newValueText
         )
-    }
-
-    private func status(for value: Double) -> WidgetGaugeStatus {
-        sections.first { section in
-            value >= section.lowerBound && value <= section.upperBound
-        }?.status ?? status
-    }
-
-    private static func statusDisplayText(for status: WidgetGaugeStatus) -> String {
-        switch status {
-        case .nominal:
-            "Normal"
-        case .low:
-            "Low"
-        case .high:
-            "High"
-        case .warning:
-            "Warning"
-        case .critical:
-            "Critical"
-        }
-    }
-
-    private static func accessibilityValue(valueText: String, status: WidgetGaugeStatus) -> String {
-        switch status {
-        case .nominal:
-            valueText
-        case .low:
-            "\(valueText), low"
-        case .high:
-            "\(valueText), high"
-        case .warning:
-            "\(valueText), warning"
-        case .critical:
-            "\(valueText), critical"
-        }
     }
 }
 

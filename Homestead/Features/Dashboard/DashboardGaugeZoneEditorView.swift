@@ -190,7 +190,11 @@ private struct DashboardGaugeZoneDetailView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Name", text: nameBinding)
+                LabeledContent("Name") {
+                    TextField("Name", text: nameBinding)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 220)
+                }
                 ColorPicker("Color", selection: colorBinding, supportsOpacity: false)
             } header: {
                 Text("Appearance")

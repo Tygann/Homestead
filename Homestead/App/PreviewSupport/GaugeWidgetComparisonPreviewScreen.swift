@@ -16,11 +16,11 @@ struct GaugeWidgetComparisonPreviewScreen: View {
         status: .nominal,
         statusDisplayText: "Comfortable",
         sections: [
-            WidgetGaugeSection(lowerBound: 0, upperBound: 20, status: .critical),
-            WidgetGaugeSection(lowerBound: 20, upperBound: 30, status: .warning),
-            WidgetGaugeSection(lowerBound: 30, upperBound: 60, status: .nominal),
-            WidgetGaugeSection(lowerBound: 60, upperBound: 70, status: .warning),
-            WidgetGaugeSection(lowerBound: 70, upperBound: 100, status: .critical)
+            WidgetGaugeSection(lowerBound: 0, upperBound: 20, color: .red),
+            WidgetGaugeSection(lowerBound: 20, upperBound: 30, color: .orange),
+            WidgetGaugeSection(lowerBound: 30, upperBound: 60, color: .green),
+            WidgetGaugeSection(lowerBound: 60, upperBound: 70, color: .orange),
+            WidgetGaugeSection(lowerBound: 70, upperBound: 100, color: .red)
         ],
         accessibilityLabel: "Living Room Humidity gauge",
         accessibilityValue: "56%, comfortable"
@@ -74,7 +74,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                 previewColumn("Widget") {
                     WidgetGaugeInstrumentView(
                         gauge: gauge,
-                        tint: widgetGaugeStatusColor(for: gauge.status),
+                        tint: widgetGaugeColor(for: gauge.currentColor),
                         title: "Front Door Battery",
                         icon: gaugeIcon
                     )
@@ -137,7 +137,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                 previewColumn("Widget") {
                     WidgetGaugeInstrumentView(
                         gauge: segmentedGauge,
-                        tint: widgetGaugeStatusColor(for: segmentedGauge.status),
+                        tint: widgetGaugeColor(for: segmentedGauge.currentColor),
                         title: "Living Room Humidity",
                         icon: segmentedGaugeIcon,
                         style: .segmented
@@ -177,7 +177,7 @@ private struct WidgetGaugeBarComparisonFace: View {
                         .fill(.fill.tertiary)
 
                     HomesteadIconView(icon: icon, pointSize: GaugeVisualMetrics.compactHeaderIconPointSize, weight: .semibold)
-                        .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
+                        .foregroundStyle(widgetGaugeColor(for: gauge.currentColor))
                 }
                 .frame(width: GaugeVisualMetrics.compactHeaderIconSize, height: GaugeVisualMetrics.compactHeaderIconSize)
 
@@ -187,11 +187,6 @@ private struct WidgetGaugeBarComparisonFace: View {
                         .lineLimit(1)
                         .minimumScaleFactor(GaugeVisualMetrics.compactHeaderTitleMinimumScale)
 
-                    Text(gauge.statusDisplayText)
-                        .font(GaugeVisualMetrics.compactHeaderStatusFont)
-                        .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
-                        .lineLimit(1)
-                        .minimumScaleFactor(GaugeVisualMetrics.compactHeaderStatusMinimumScale)
                 }
 
                 Spacer(minLength: 0)
@@ -221,7 +216,7 @@ private struct WidgetGaugeBarComparisonFace: View {
                     .padding(.leading, -1)
             }
         }
-        .foregroundStyle(widgetGaugeStatusColor(for: gauge.status))
+        .foregroundStyle(widgetGaugeColor(for: gauge.currentColor))
         .lineLimit(1)
         .minimumScaleFactor(0.58)
         .monospacedDigit()

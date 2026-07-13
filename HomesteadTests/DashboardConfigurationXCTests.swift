@@ -660,7 +660,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
             unitText: "dKH",
             status: .nominal,
             statusDisplayText: "Normal",
-            sections: [WidgetGaugeSection(lowerBound: 0, upperBound: 12, status: .nominal)],
+            sections: [WidgetGaugeSection(lowerBound: 0, upperBound: 12, color: .green)],
             accessibilityLabel: "Alk gauge",
             accessibilityValue: "9.7 dKH"
         )
@@ -669,13 +669,14 @@ final class DashboardConfigurationXCTests: XCTestCase {
             lowerBound: 5,
             boundaries: [7, 11],
             upperBound: 13,
-            statuses: [.low, .nominal, .high]
+            colors: [.blue, .green, .orange]
         )
 
         XCTAssertEqual(resolved.lowerBound, 5)
         XCTAssertEqual(resolved.upperBound, 13)
         XCTAssertEqual(resolved.sections.map(\.upperBound), [7, 11, 13])
-        XCTAssertEqual(resolved.sections.map(\.status), [.low, .nominal, .high])
+        XCTAssertEqual(resolved.sections.map(\.color), [.blue, .green, .orange])
+        XCTAssertEqual(resolved.currentColor, .orange)
         XCTAssertEqual(resolved.status, .nominal)
     }
 
