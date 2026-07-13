@@ -1999,11 +1999,14 @@ struct HomesteadTests {
             config: [
                 "sequence": .array([
                     .object([
-                        "condition": .string("not"),
+                        "condition": .string("and"),
                         "conditions": .array([.object([
-                            "condition": .string("zone"),
-                            "entity_id": .array([.string("person.tyler"), .string("person.melissa")]),
-                            "zone": .string("zone.home")
+                            "condition": .string("not"),
+                            "conditions": .array([.object([
+                                "condition": .string("zone"),
+                                "entity_id": .array([.string("person.tyler"), .string("person.melissa")]),
+                                "zone": .string("zone.home")
+                            ])])
                         ])])
                     ]),
                     .object([

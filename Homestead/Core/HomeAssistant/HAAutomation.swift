@@ -441,12 +441,29 @@ nonisolated enum HAAutomationOverviewBuilder {
         guard let condition = item["condition"] else { return [] }
 
         if let values = condition.arrayValue {
-            return values.enumerated().map {
-                conditionStep($0.element, index: $0.offset, entityName: entityName)
+            return values.enumerated().flatMap {
+                flattenedConditionSteps($0.element, index: $0.offset, entityName: entityName)
             }
         }
 
-        return [conditionStep(.object(item), index: 0, entityName: entityName)]
+        return flattenedConditionSteps(.object(item), index: 0, entityName: entityName)
+    }
+
+    private static func flattenedConditionSteps(
+        _ value: JSONValue,
+        index: Int,
+        entityName: (String) -> String
+    ) -> [HAAutomationStep] {
+        let item = value.objectValue ?? [:]
+        let type = string(item, "condition") ?? inferredConditionType(item)
+
+        if type == "and" || type == "or" {
+            return (item["conditions"]?.arrayValue ?? []).enumerated().flatMap {
+                flattenedConditionSteps($0.element, index: $0.offset, entityName: entityName)
+            }
+        }
+
+        return [conditionStep(value, index: index, entityName: entityName)]
     }
 
     private static func entityIDs(in item: [String: JSONValue]) -> [String] {
