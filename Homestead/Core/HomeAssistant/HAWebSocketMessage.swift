@@ -29,6 +29,7 @@ enum HAWebSocketMessageType {
     nonisolated static var cameraCapabilities: String { "camera/capabilities" }
     nonisolated static var supervisorAPI: String { "supervisor/api" }
     nonisolated static var automationConfig: String { "automation/config" }
+    nonisolated static var scriptConfig: String { "script/config" }
     nonisolated static var traceList: String { "trace/list" }
 }
 
@@ -113,6 +114,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case cameraCapabilities(id: Int, entityID: String)
     case supervisorAPI(id: Int, endpoint: String, method: String)
     case automationConfig(id: Int, entityID: String)
+    case scriptConfig(id: Int, entityID: String)
     case traceList(id: Int, domain: String, itemID: String)
     case callService(
         id: Int,
@@ -205,6 +207,10 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case .automationConfig(let id, let entityID):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.automationConfig, forKey: .type)
+            try container.encode(entityID, forKey: .entityID)
+        case .scriptConfig(let id, let entityID):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.scriptConfig, forKey: .type)
             try container.encode(entityID, forKey: .entityID)
         case .traceList(let id, let domain, let itemID):
             try container.encode(id, forKey: .id)

@@ -4,6 +4,7 @@ struct ActionEntityDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
     @State private var confirmationRequest: ActionConfirmationRequest?
+    @State private var scriptOverviewPhase: ScriptOverviewPhase = .loading
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -20,7 +21,12 @@ struct ActionEntityDetailView: View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
             actionPanel
+            scriptOverviewPanel
             stateDetails
+        }
+        .task(id: entity.entityID) {
+            guard entity.domain == .script else { return }
+            await refreshScriptOverview()
         }
         .actionConfirmationDialog(request: $confirmationRequest)
     }
@@ -60,6 +66,25 @@ struct ActionEntityDetailView: View {
                 EntityMetadataRow(title: "Service", value: actionServiceName)
             ]
         )
+    }
+
+    @ViewBuilder
+    private var scriptOverviewPanel: some View {
+        if entity.domain == .script {
+            switch scriptOverviewPhase {
+            case .loading:
+                EntityControlPanel(title: "Script Logic", systemImage: "list.bullet.rectangle") {
+                    ProgressView("Loading script logic")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            case .loaded(let overview):
+                AutomationLogicOverviewView(overview: overview, kind: .script)
+            case .unavailable:
+                EmptyView()
+            }
+        } else {
+            EmptyView()
+        }
     }
 
     private var navigationTitle: String {
@@ -160,6 +185,16 @@ struct ActionEntityDetailView: View {
         }
     }
 
+    @MainActor
+    private func refreshScriptOverview() async {
+        scriptOverviewPhase = .loading
+        do {
+            scriptOverviewPhase = .loaded(try await homeAssistantService.fetchScriptOverview(entityID: entity.entityID))
+        } catch {
+            scriptOverviewPhase = .unavailable
+        }
+    }
+
     private func confirmOrPerform(
         domain: String,
         service: String,
@@ -181,6 +216,12 @@ struct ActionEntityDetailView: View {
                 Task { await perform() }
             }
         )
+    }
+
+    private enum ScriptOverviewPhase: Equatable {
+        case loading
+        case loaded(HAAutomationOverview)
+        case unavailable
     }
 }
 

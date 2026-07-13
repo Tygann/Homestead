@@ -1974,6 +1974,27 @@ struct HomesteadTests {
         #expect(choose.children[0].groups[1].steps.map(\.title) == ["Turn on light"])
         #expect(choose.children[0].groups[1].steps.map(\.subtitle) == ["Entryway Lamp • Hallway Chandelier"])
 
+        let scriptOverview = HAAutomationOverviewBuilder.makeScript(config: [
+            "sequence": .array([.object([
+                "if": .array([.object([
+                    "condition": .string("state"),
+                    "entity_id": .string("person.tyler"),
+                    "state": .string("not_home")
+                ])]),
+                "then": .array([.object([
+                    "action": .string("light.turn_off"),
+                    "target": .object(["entity_id": .string("light.entryway_lamp")])
+                ])])
+            ])])
+        ]) { id in
+            ["person.tyler": "Tyler", "light.entryway_lamp": "Entryway Lamp"][id] ?? id
+        }
+        let conditional = try #require(scriptOverview.actions.first)
+        #expect(conditional.title == "If a condition matches")
+        #expect(conditional.groups.map(\.title) == ["Conditions", "Then Do"])
+        #expect(conditional.groups[0].steps.map(\.title) == ["Only if Tyler is not home"])
+        #expect(conditional.groups[1].steps.map(\.title) == ["Turn off light"])
+
         let traces = try JSONDecoder().decode([HAAutomationTraceDTO].self, from: Data(#"""
         [
           {"run_id":"finished","state":"stopped","script_execution":"finished","timestamp":{"start":"2026-06-05T15:10:00Z"}},
@@ -10452,6 +10473,10 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func fetchAutomationConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO {
+        automationConfiguration
+    }
+
+    func fetchScriptConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO {
         automationConfiguration
     }
 

@@ -23,6 +23,7 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func fetchSupervisorInfo() async throws -> HASupervisorInfoDTO
     func fetchOperatingSystemInfo() async throws -> HAOperatingSystemInfoDTO
     func fetchAutomationConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO
+    func fetchScriptConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO
     func fetchAutomationTraces(itemID: String) async throws -> [HAAutomationTraceDTO]
     func subscribeToStateChanges() async throws
     func subscribeToRegistryChanges() async throws
@@ -325,6 +326,13 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     func fetchAutomationConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO {
         let id = makeRequestID()
         let response = try await sendRequest(.automationConfig(id: id, entityID: entityID), id: id)
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return try result.decoded(HAAutomationConfigurationResponseDTO.self)
+    }
+
+    func fetchScriptConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO {
+        let id = makeRequestID()
+        let response = try await sendRequest(.scriptConfig(id: id, entityID: entityID), id: id)
         guard let result = response.result else { throw HAWebSocketError.missingResult }
         return try result.decoded(HAAutomationConfigurationResponseDTO.self)
     }

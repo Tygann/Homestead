@@ -66,7 +66,7 @@ struct AutomationDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         case .loaded(let overview):
-            AutomationOverviewView(overview: overview)
+            AutomationLogicOverviewView(overview: overview)
         case .unavailable:
             EmptyView()
         }
@@ -162,12 +162,18 @@ struct AutomationDetailView: View {
     }
 }
 
-private struct AutomationOverviewView: View {
+struct AutomationLogicOverviewView: View {
+    enum Kind: Equatable {
+        case automation
+        case script
+    }
+
     let overview: HAAutomationOverview
+    var kind: Kind = .automation
     @State private var collapsedChoiceIDs: Set<String> = []
 
     var body: some View {
-        EntityControlPanel(title: "Automation", systemImage: "point.3.connected.trianglepath.dotted") {
+        EntityControlPanel(title: panelTitle, systemImage: panelIcon) {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(sections.enumerated()), id: \.offset) { index, section in
                     if index > 0 { sectionDivider }
@@ -178,11 +184,24 @@ private struct AutomationOverviewView: View {
     }
 
     private var sections: [(title: String, systemImage: String, steps: [HAAutomationStep])] {
-        [
+        switch kind {
+        case .automation:
+            [
             ("When", "bolt.fill", overview.triggers),
             ("And If", "checkmark.seal.fill", overview.conditions),
             ("Then Do", "play.fill", overview.actions)
-        ].filter { !$0.steps.isEmpty }
+            ].filter { !$0.steps.isEmpty }
+        case .script:
+            [("Sequence", "play.fill", overview.actions)]
+        }
+    }
+
+    private var panelTitle: String {
+        kind == .automation ? "Automation" : "Script Logic"
+    }
+
+    private var panelIcon: String {
+        kind == .automation ? "point.3.connected.trianglepath.dotted" : "list.bullet.rectangle"
     }
 
     private var sectionDivider: some View {
@@ -202,6 +221,10 @@ private struct AutomationOverviewView: View {
 
                     if !step.children.isEmpty {
                         choiceOutline(step.children)
+                    }
+
+                    if !step.groups.isEmpty {
+                        inlineGroups(step.groups)
                     }
 
                     if index < steps.count - 1 {
@@ -257,6 +280,16 @@ private struct AutomationOverviewView: View {
                 if index < options.count - 1 {
                     Divider().padding(.leading, 30)
                 }
+            }
+        }
+        .padding(.leading, 40)
+        .padding(.top, AppSpacing.small)
+    }
+
+    private func inlineGroups(_ groups: [HAAutomationStepGroup]) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            ForEach(groups) { group in
+                choiceGroup(group)
             }
         }
         .padding(.leading, 40)

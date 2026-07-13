@@ -923,6 +923,13 @@ final class HomeAssistantService {
         }
     }
 
+    func fetchScriptOverview(entityID: String) async throws -> HAAutomationOverview {
+        let response = try await client.fetchScriptConfiguration(entityID: entityID)
+        return HAAutomationOverviewBuilder.makeScript(config: response.config) { [stateStore] targetID in
+            stateStore.entity(for: targetID)?.displayName ?? targetID
+        }
+    }
+
     func fetchAutomationTimeline(
         entityID: String,
         range: HAHistoryRangePreset

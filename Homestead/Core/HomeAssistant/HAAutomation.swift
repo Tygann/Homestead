@@ -97,6 +97,19 @@ nonisolated enum HAAutomationOverviewBuilder {
         )
     }
 
+    static func makeScript(
+        config: [String: JSONValue],
+        entityName: (String) -> String
+    ) -> HAAutomationOverview {
+        HAAutomationOverview(
+            triggers: [],
+            conditions: [],
+            actions: steps(in: config, plural: "sequence", legacy: "action").enumerated().map {
+                actionStep($0.element, index: $0.offset, entityName: entityName)
+            }
+        )
+    }
+
     private static func triggerStep(_ value: JSONValue, index: Int, entityName: (String) -> String) -> HAAutomationStep {
         let item = value.objectValue ?? [:]
         let type = string(item, "trigger") ?? string(item, "platform") ?? ""
@@ -207,11 +220,13 @@ nonisolated enum HAAutomationOverviewBuilder {
         let title: String
         let icon: String
         let children: [HAAutomationStep]
+        let groups: [HAAutomationStepGroup]
 
         if let service {
             title = serviceTitle(service)
             icon = serviceIcon(service)
             children = []
+            groups = []
         } else if item["choose"] != nil {
             let count = item["choose"]?.arrayValue?.count ?? 0
             title = "Choose between \(max(count, 1)) option\(count == 1 ? "" : "s")"
@@ -221,38 +236,47 @@ nonisolated enum HAAutomationOverviewBuilder {
                 actionIndex: index,
                 entityName: entityName
             )
+            groups = []
         } else if item["if"] != nil {
             title = "If a condition matches"
             icon = "arrow.triangle.branch"
             children = []
+            groups = conditionalGroups(in: item, actionIndex: index, entityName: entityName)
         } else if item["repeat"] != nil {
             title = "Repeat actions"
             icon = "repeat"
             children = []
+            groups = []
         } else if let delay = string(item, "delay") {
             title = "Wait \(delay)"
             icon = "clock.fill"
             children = []
+            groups = []
         } else if item["wait_for_trigger"] != nil {
             title = "Wait for a trigger"
             icon = "hourglass"
             children = []
+            groups = []
         } else if item["wait_template"] != nil {
             title = "Wait for a template"
             icon = "hourglass"
             children = []
+            groups = []
         } else if item["event"] != nil {
             title = "Fire \(string(item, "event") ?? "an event")"
             icon = "bolt.horizontal.fill"
             children = []
+            groups = []
         } else if item["stop"] != nil {
             title = "Stop automation"
             icon = "stop.fill"
             children = []
+            groups = []
         } else {
             title = string(item, "alias") ?? "Run an action"
             icon = "play.fill"
             children = []
+            groups = []
         }
 
         return step(
@@ -260,8 +284,31 @@ nonisolated enum HAAutomationOverviewBuilder {
             title: title,
             subtitle: entities.isEmpty ? detail(for: item, excluding: []) : entities.joined(separator: " • "),
             icon: icon,
-            children: children
+            children: children,
+            groups: groups
         )
+    }
+
+    private static func conditionalGroups(
+        in item: [String: JSONValue],
+        actionIndex: Int,
+        entityName: (String) -> String
+    ) -> [HAAutomationStepGroup] {
+        let conditions = steps(in: item, plural: "if", legacy: "if").enumerated().map {
+            conditionStep($0.element, index: $0.offset, entityName: entityName)
+        }
+        let thenActions = steps(in: item, plural: "then", legacy: "then").enumerated().map {
+            actionStep($0.element, index: $0.offset, entityName: entityName)
+        }
+        let elseActions = steps(in: item, plural: "else", legacy: "else").enumerated().map {
+            actionStep($0.element, index: $0.offset, entityName: entityName)
+        }
+
+        return [
+            HAAutomationStepGroup(id: "if-\(actionIndex)-conditions", title: "Conditions", steps: conditions),
+            HAAutomationStepGroup(id: "if-\(actionIndex)-then", title: "Then Do", steps: thenActions),
+            HAAutomationStepGroup(id: "if-\(actionIndex)-else", title: "Otherwise", steps: elseActions)
+        ].filter { !$0.steps.isEmpty }
     }
 
     private static func choiceOptions(

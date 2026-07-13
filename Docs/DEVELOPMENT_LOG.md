@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-13
 
+### Script Logic Detail
+
+- Added a read-only native Script Logic panel to script detail surfaces using Home Assistant's `script/config` WebSocket command and the existing app-facing automation-step mapper.
+- Script sequences now show mapped service actions and inline conditional Conditions, Then Do, and Otherwise branches without exposing transport DTOs to SwiftUI; script editing remains in Home Assistant.
+
 ### SwiftUI Scrolling And Search Performance Cleanup
 
 - Kept `EntityBrowserList` parent rendering on stable structural indexes for ordinary scrolling and moved row-specific detail/accessory observation into the row boundary; live entity state still updates the affected row, while filters and search retain their existing dynamic behavior.
