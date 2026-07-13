@@ -154,14 +154,7 @@ struct GaugePresentationView: View {
     private func instrumentSegment(for section: GaugePresentationSection) -> (start: Double, end: Double) {
         let rawStart = normalized(section.range.lowerBound)
         let rawEnd = normalized(section.range.upperBound)
-        guard style == .segmentedInstrument else {
-            return (rawStart, max(rawEnd, rawStart))
-        }
-
-        let gap = 0.012
-        let start = section.range.lowerBound == presentation.range.lowerBound ? rawStart : rawStart + (gap / 2)
-        let end = section.range.upperBound == presentation.range.upperBound ? rawEnd : rawEnd - (gap / 2)
-        return (min(max(start, 0), 1), max(end, start))
+        return (rawStart, max(rawEnd, rawStart))
     }
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {

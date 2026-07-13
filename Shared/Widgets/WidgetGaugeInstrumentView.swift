@@ -226,7 +226,7 @@ struct WidgetGaugeInstrumentView: View {
             if let icon {
                 HomesteadIconView(
                     icon: icon,
-                    pointSize: iconSize,
+                    pointSize: 21,
                     weight: .semibold
                 )
                 .foregroundStyle(tint)
@@ -248,7 +248,7 @@ struct WidgetGaugeInstrumentView: View {
     }
 
     private func instrumentIconSize(diameter: CGFloat) -> CGFloat {
-        min(max(diameter * 0.19, 20), 34)
+        min(max(diameter * 0.16, 26), 28)
     }
 
     private func instrumentReadout(fontSize: CGFloat) -> some View {
