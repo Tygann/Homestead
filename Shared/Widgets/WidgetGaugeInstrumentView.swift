@@ -277,7 +277,7 @@ struct GaugeInstrumentReadoutView: View {
         ZStack {
             valueLabel(parts.value)
                 .frame(width: readoutWidth)
-                .position(x: diameter / 2, y: diameter * 0.34)
+                .position(x: diameter / 2, y: diameter * 0.37)
 
             if let unit = parts.unit {
                 unitLabel(unit)
