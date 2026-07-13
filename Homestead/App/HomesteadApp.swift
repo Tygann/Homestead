@@ -223,7 +223,7 @@ struct HomesteadApp: App {
 #endif
 }
 
-private extension HomesteadAppearanceMode {
+extension HomesteadAppearanceMode {
     var colorScheme: ColorScheme? {
         switch self {
         case .system:

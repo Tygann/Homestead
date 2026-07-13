@@ -29,7 +29,7 @@ struct HomeAssistantAvatarView: View {
         [
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
             homeAssistantService.authState.title,
-            homeAssistantService.connectionStatus.title
+            homeAssistantService.currentUserEntityPicturePath ?? "none"
         ].joined(separator: "|")
     }
 

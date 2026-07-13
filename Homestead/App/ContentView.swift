@@ -83,6 +83,7 @@ struct ContentView: View {
                         }
                     }
             }
+            .preferredColorScheme(appearanceSettings.appearanceMode.colorScheme)
         }
         .alert("Finish Notification Setup", isPresented: $isShowingNotificationSetupPrompt) {
             Button("Not Now", role: .cancel) {
