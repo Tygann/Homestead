@@ -157,7 +157,6 @@ struct GaugePresentationView: View {
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let valueFontSize = min(max(diameter * 0.25, 28), 58)
-        let readoutWidth = max(diameter - (lineWidth * 3.6), diameter * 0.45)
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
         let endpointY = (diameter / 2) + (radius * 0.5)
         let endpointBottomY = endpointY + (lineWidth / 2)
@@ -169,10 +168,10 @@ struct GaugePresentationView: View {
                 valueText: presentation.valueText,
                 unitText: presentation.unitText,
                 value: presentation.value,
-                fontSize: valueFontSize
+                fontSize: valueFontSize,
+                diameter: diameter,
+                lineWidth: lineWidth
             )
-            .frame(width: readoutWidth)
-            .position(x: diameter / 2, y: diameter * 0.45)
 
             instrumentLegend(diameter: diameter)
                 .frame(width: legendWidth)

@@ -195,7 +195,6 @@ struct WidgetGaugeInstrumentView: View {
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let valueFontSize = min(max(diameter * 0.25, 28), 58)
-        let readoutWidth = max(diameter - (lineWidth * 3.6), diameter * 0.45)
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
         let endpointY = (diameter / 2) + (radius * 0.5)
         let endpointBottomY = endpointY + (lineWidth / 2)
@@ -207,10 +206,10 @@ struct WidgetGaugeInstrumentView: View {
                 valueText: gauge.valueText,
                 unitText: gauge.unitText,
                 value: gauge.value,
-                fontSize: valueFontSize
+                fontSize: valueFontSize,
+                diameter: diameter,
+                lineWidth: lineWidth
             )
-            .frame(width: readoutWidth)
-            .position(x: diameter / 2, y: diameter * 0.45)
 
             instrumentLegend(diameter: diameter)
                 .frame(width: legendWidth)
@@ -268,34 +267,36 @@ struct GaugeInstrumentReadoutView: View {
     let unitText: String?
     let value: Double
     let fontSize: CGFloat
+    let diameter: CGFloat
+    let lineWidth: CGFloat
 
     var body: some View {
         let parts = gaugeValueParts(from: valueText, unitText: unitText)
+        let readoutWidth = max(diameter - (lineWidth * 3.6), diameter * 0.45)
 
-        VStack(spacing: -2) {
+        ZStack {
             valueLabel(parts.value)
+                .frame(width: readoutWidth)
+                .position(x: diameter / 2, y: diameter * 0.34)
 
-            unitLabel(parts.unit)
+            if let unit = parts.unit {
+                unitLabel(unit)
+                    .frame(width: readoutWidth)
+                    .position(x: diameter / 2, y: diameter * 0.53)
+            }
         }
+        .frame(width: diameter, height: diameter)
         .monospacedDigit()
         .contentTransition(.numericText(value: value))
         .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: value)
     }
 
-    @ViewBuilder
-    private func unitLabel(_ unit: String?) -> some View {
-        Group {
-            if let unit {
-                Text(unit)
-            } else {
-                Text(" ")
-                    .hidden()
-            }
-        }
-        .font(.system(size: fontSize * 0.32, weight: .semibold, design: .rounded))
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
+    private func unitLabel(_ unit: String) -> some View {
+        Text(unit)
+            .font(.system(size: fontSize * 0.28, weight: .semibold, design: .rounded))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
     }
 
     private func valueLabel(_ value: String) -> some View {
