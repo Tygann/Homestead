@@ -18,7 +18,7 @@ nonisolated enum GaugeRangeSource: String, Equatable, Sendable {
     case valueSuggested
 }
 
-struct GaugePresentationSection: Equatable, Sendable {
+nonisolated struct GaugePresentationSection: Equatable, Sendable {
     let range: ClosedRange<Double>
     let status: GaugePresentationStatus
     let color: GaugeZoneColor?
