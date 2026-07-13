@@ -73,20 +73,29 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
     var upperBound: Double
     var boundaries: [Double]
     var colors: [GaugeZoneColor]
+    var names: [String]
 
     private enum CodingKeys: String, CodingKey {
         case lowerBound
         case upperBound
         case boundaries
         case colors
+        case names
         case statuses
     }
 
-    init(lowerBound: Double, upperBound: Double, boundaries: [Double], colors: [GaugeZoneColor]) {
+    init(
+        lowerBound: Double,
+        upperBound: Double,
+        boundaries: [Double],
+        colors: [GaugeZoneColor],
+        names: [String]? = nil
+    ) {
         self.lowerBound = lowerBound
         self.upperBound = upperBound
         self.boundaries = boundaries
         self.colors = colors
+        self.names = Self.resolvedNames(names, count: colors.count)
     }
 
     init(from decoder: Decoder) throws {
@@ -100,6 +109,7 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
             let legacyStatuses = try container.decodeIfPresent([GaugePresentationStatus].self, forKey: .statuses) ?? []
             colors = legacyStatuses.map(GaugeZoneColor.standard)
         }
+        names = Self.resolvedNames(try container.decodeIfPresent([String].self, forKey: .names), count: colors.count)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -108,11 +118,13 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
         try container.encode(upperBound, forKey: .upperBound)
         try container.encode(boundaries, forKey: .boundaries)
         try container.encode(colors, forKey: .colors)
+        try container.encode(names, forKey: .names)
     }
 
     var isValid: Bool {
         guard lowerBound < upperBound,
-              colors.count == boundaries.count + 1 else { return false }
+              colors.count == boundaries.count + 1,
+              names.count == colors.count else { return false }
         let values = [lowerBound] + boundaries + [upperBound]
         return zip(values, values.dropFirst()).allSatisfy { $0.0 < $0.1 }
     }
@@ -135,8 +147,15 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
         return lower...upper
     }
 
+    func name(forZoneAt index: Int) -> String {
+        guard names.indices.contains(index) else { return Self.defaultName(for: index) }
+        let name = names[index].trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? Self.defaultName(for: index) : name
+    }
+
     mutating func addZone() {
         guard isValid, colors.count < Self.maximumZoneCount else { return }
+        let usesDefaultNames = names == Self.defaultNames(count: names.count)
         let widestIndex = colors.indices.max { lhs, rhs in
             let lhsRange = range(forZoneAt: lhs)
             let rhsRange = range(forZoneAt: rhs)
@@ -146,16 +165,27 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
         guard let widestIndex, let range = range(forZoneAt: widestIndex) else { return }
         boundaries.insert((range.lowerBound + range.upperBound) / 2, at: widestIndex)
         colors.insert(colors[widestIndex], at: widestIndex + 1)
+        if usesDefaultNames {
+            names = Self.defaultNames(count: colors.count)
+        } else {
+            names.insert(Self.defaultName(for: colors.count - 1), at: widestIndex + 1)
+        }
     }
 
     mutating func removeZone(at index: Int) {
         guard colors.count > 1, colors.indices.contains(index) else { return }
+        let usesDefaultNames = names == Self.defaultNames(count: names.count)
         if index == 0 {
             boundaries.removeFirst()
             colors.removeFirst()
+            names.removeFirst()
         } else {
             boundaries.remove(at: index - 1)
             colors.remove(at: index)
+            names.remove(at: index)
+        }
+        if usesDefaultNames {
+            names = Self.defaultNames(count: colors.count)
         }
     }
 
@@ -164,8 +194,22 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
             lowerBound: presentation.range.lowerBound,
             upperBound: presentation.range.upperBound,
             boundaries: presentation.sections.dropLast().map(\.range.upperBound),
-            colors: presentation.sections.map { $0.color ?? GaugeZoneColor.standard(for: $0.status) }
+            colors: presentation.sections.map { $0.color ?? GaugeZoneColor.standard(for: $0.status) },
+            names: Self.defaultNames(count: presentation.sections.count)
         )
+    }
+
+    private static func resolvedNames(_ names: [String]?, count: Int) -> [String] {
+        guard let names, names.count == count else { return defaultNames(count: count) }
+        return names
+    }
+
+    private static func defaultNames(count: Int) -> [String] {
+        (0..<count).map(defaultName)
+    }
+
+    private static func defaultName(for index: Int) -> String {
+        "Zone \(index + 1)"
     }
 }
 

@@ -613,6 +613,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         configuration.addZone()
         XCTAssertEqual(configuration.boundaries, [6])
         XCTAssertEqual(configuration.colors, [.standard(for: .nominal), .standard(for: .nominal)])
+        XCTAssertEqual(configuration.names, ["Zone 1", "Zone 2"])
         XCTAssertEqual(configuration.range(forZoneAt: 0), 0...6)
         XCTAssertEqual(configuration.range(forZoneAt: 1), 6...12)
 
@@ -625,6 +626,28 @@ final class DashboardConfigurationXCTests: XCTestCase {
         configuration.removeZone(at: 1)
         XCTAssertEqual(configuration.colors.count, 2)
         XCTAssertEqual(configuration.boundaries.count, 1)
+        XCTAssertEqual(configuration.names, ["Zone 1", "Zone 2"])
+        XCTAssertTrue(configuration.isValid)
+    }
+
+    func testGaugeConfigurationPreservesCustomZoneNamesWhenEditingZones() {
+        var configuration = GaugeZoneConfiguration(
+            lowerBound: 0,
+            upperBound: 100,
+            boundaries: [50],
+            colors: [.standard(for: .low), .standard(for: .high)],
+            names: ["Too Low", "Too High"]
+        )
+
+        configuration.addZone()
+
+        XCTAssertEqual(configuration.names, ["Too Low", "Zone 3", "Too High"])
+        XCTAssertEqual(configuration.name(forZoneAt: 1), "Zone 3")
+
+        configuration.names[1] = "Preferred"
+        configuration.removeZone(at: 0)
+
+        XCTAssertEqual(configuration.names, ["Preferred", "Too High"])
         XCTAssertTrue(configuration.isValid)
     }
 

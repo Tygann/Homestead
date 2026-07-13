@@ -63,7 +63,7 @@ struct DashboardGaugeZoneEditorView: View {
                                     .fill(configuration.colors[index].color)
                                     .frame(width: 10, height: 10)
 
-                                Text("Zone \(index + 1)")
+                                Text(configuration.name(forZoneAt: index))
 
                                 Spacer()
 
@@ -190,6 +190,7 @@ private struct DashboardGaugeZoneDetailView: View {
     var body: some View {
         Form {
             Section {
+                TextField("Name", text: nameBinding)
                 ColorPicker("Color", selection: colorBinding, supportsOpacity: false)
             } header: {
                 Text("Appearance")
@@ -211,7 +212,7 @@ private struct DashboardGaugeZoneDetailView: View {
                 }
             }
         }
-        .navigationTitle("Zone \(zoneIndex + 1)")
+        .navigationTitle(configuration.name(forZoneAt: zoneIndex))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -223,6 +224,13 @@ private struct DashboardGaugeZoneDetailView: View {
         Binding(
             get: { configuration.colors[zoneIndex].color },
             set: { configuration.colors[zoneIndex] = GaugeZoneColor(color: $0) }
+        )
+    }
+
+    private var nameBinding: Binding<String> {
+        Binding(
+            get: { configuration.names[zoneIndex] },
+            set: { configuration.names[zoneIndex] = $0 }
         )
     }
 
