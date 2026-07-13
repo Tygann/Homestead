@@ -136,6 +136,13 @@ final class HAStateStore {
         deviceRegistryByID[deviceID]
     }
 
+    func deviceName(forDeviceID deviceID: String) -> String? {
+        guard let device = deviceRegistryByID[deviceID] else { return nil }
+        return device.nameByUser?.nonEmptyValue
+            ?? device.name?.nonEmptyValue
+            ?? device.manufacturer?.nonEmptyValue
+    }
+
     func deviceRegistryMetadata(forEntityID entityID: String) -> HADeviceRegistryDTO? {
         entityRegistryByID[entityID]?.deviceID.flatMap { deviceRegistryByID[$0] }
     }

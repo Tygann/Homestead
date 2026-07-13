@@ -81,7 +81,8 @@ nonisolated enum HAAutomationOverviewBuilder {
     static func make(
         config: [String: JSONValue],
         entityName: (String) -> String,
-        areaName: (String) -> String? = { _ in nil }
+        areaName: (String) -> String? = { _ in nil },
+        deviceName: (String) -> String? = { _ in nil }
     ) -> HAAutomationOverview {
         let rawTriggers = steps(in: config, plural: "triggers", legacy: "trigger")
         let triggers = rawTriggers.enumerated().map {
@@ -93,7 +94,7 @@ nonisolated enum HAAutomationOverviewBuilder {
                 conditionStep($0.element, index: $0.offset, entityName: entityName)
             },
             actions: steps(in: config, plural: "actions", legacy: "action").enumerated().map {
-                actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
+                actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName, deviceName: deviceName)
             }
         )
     }
@@ -101,7 +102,8 @@ nonisolated enum HAAutomationOverviewBuilder {
     static func makeScript(
         config: [String: JSONValue],
         entityName: (String) -> String,
-        areaName: (String) -> String? = { _ in nil }
+        areaName: (String) -> String? = { _ in nil },
+        deviceName: (String) -> String? = { _ in nil }
     ) -> HAAutomationOverview {
         HAAutomationOverview(
             triggers: [],
@@ -109,7 +111,7 @@ nonisolated enum HAAutomationOverviewBuilder {
                 conditionStep($0.element, index: $0.offset, entityName: entityName)
             },
             actions: steps(in: config, plural: "sequence", legacy: "action").enumerated().map {
-                actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
+                actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName, deviceName: deviceName)
             }
         )
     }
@@ -231,11 +233,17 @@ nonisolated enum HAAutomationOverviewBuilder {
         _ value: JSONValue,
         index: Int,
         entityName: (String) -> String,
-        areaName: (String) -> String?
+        areaName: (String) -> String?,
+        deviceName: (String) -> String?
     ) -> HAAutomationStep {
         let item = value.objectValue ?? [:]
         let service = string(item, "action") ?? string(item, "service")
-        let targets = resolvedActionTargetNames(in: item, entityName: entityName, areaName: areaName)
+        let targets = resolvedActionTargetNames(
+            in: item,
+            entityName: entityName,
+            areaName: areaName,
+            deviceName: deviceName
+        )
         let title: String
         let icon: String
         let children: [HAAutomationStep]
@@ -254,7 +262,8 @@ nonisolated enum HAAutomationOverviewBuilder {
                 in: item,
                 actionIndex: index,
                 entityName: entityName,
-                areaName: areaName
+                areaName: areaName,
+                deviceName: deviceName
             )
             groups = []
         } else if item["condition"] != nil {
@@ -267,7 +276,13 @@ nonisolated enum HAAutomationOverviewBuilder {
             title = "If a condition matches"
             icon = "arrow.triangle.branch"
             children = []
-            groups = conditionalGroups(in: item, actionIndex: index, entityName: entityName, areaName: areaName)
+            groups = conditionalGroups(
+                in: item,
+                actionIndex: index,
+                entityName: entityName,
+                areaName: areaName,
+                deviceName: deviceName
+            )
         } else if item["repeat"] != nil {
             title = "Repeat actions"
             icon = "repeat"
@@ -308,7 +323,7 @@ nonisolated enum HAAutomationOverviewBuilder {
         return step(
             id: "action-\(index)",
             title: title,
-            subtitle: targets.isEmpty ? detail(for: item, excluding: []) : targets.joined(separator: " • "),
+            subtitle: actionSubtitle(service: service, targets: targets, item: item),
             icon: icon,
             children: children,
             groups: groups
@@ -319,16 +334,17 @@ nonisolated enum HAAutomationOverviewBuilder {
         in item: [String: JSONValue],
         actionIndex: Int,
         entityName: (String) -> String,
-        areaName: (String) -> String?
+        areaName: (String) -> String?,
+        deviceName: (String) -> String?
     ) -> [HAAutomationStepGroup] {
         let conditions = steps(in: item, plural: "if", legacy: "if").enumerated().map {
             conditionStep($0.element, index: $0.offset, entityName: entityName)
         }
         let thenActions = steps(in: item, plural: "then", legacy: "then").enumerated().map {
-            actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
+            actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName, deviceName: deviceName)
         }
         let elseActions = steps(in: item, plural: "else", legacy: "else").enumerated().map {
-            actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
+            actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName, deviceName: deviceName)
         }
 
         return [
@@ -342,7 +358,8 @@ nonisolated enum HAAutomationOverviewBuilder {
         in item: [String: JSONValue],
         actionIndex: Int,
         entityName: (String) -> String,
-        areaName: (String) -> String?
+        areaName: (String) -> String?,
+        deviceName: (String) -> String?
     ) -> [HAAutomationStep] {
         let options = item["choose"]?.arrayValue ?? []
         var result = options.enumerated().map { optionIndex, value in
@@ -359,7 +376,8 @@ nonisolated enum HAAutomationOverviewBuilder {
                     $0.element,
                     index: $0.offset,
                     entityName: entityName,
-                    areaName: areaName
+                    areaName: areaName,
+                    deviceName: deviceName
                 )
             }
             let triggerDescription = conditions.first?.title.replacingOccurrences(of: "If triggered by ", with: "")
@@ -380,7 +398,7 @@ nonisolated enum HAAutomationOverviewBuilder {
 
         if let defaultActions = item["default"]?.arrayValue, !defaultActions.isEmpty {
             let actions = defaultActions.enumerated().map {
-                actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
+                actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName, deviceName: deviceName)
             }
             result.append(step(
                 id: "choice-\(actionIndex)-default",
@@ -427,11 +445,13 @@ nonisolated enum HAAutomationOverviewBuilder {
     private static func resolvedActionTargetNames(
         in item: [String: JSONValue],
         entityName: (String) -> String,
-        areaName: (String) -> String?
+        areaName: (String) -> String?,
+        deviceName: (String) -> String?
     ) -> [String] {
         let entityTargets = resolvedEntityNames(in: item, entityName: entityName)
         let areaTargets = targetIDs(in: item, key: "area_id").compactMap(areaName)
-        return uniqueValues(entityTargets + areaTargets)
+        let deviceTargets = targetIDs(in: item, key: "device_id").compactMap(deviceName)
+        return uniqueValues(entityTargets + areaTargets + deviceTargets)
     }
 
     private static func conditionActionSteps(
@@ -467,21 +487,48 @@ nonisolated enum HAAutomationOverviewBuilder {
     }
 
     private static func entityIDs(in item: [String: JSONValue]) -> [String] {
-        var ids: [String] = []
-        for key in ["entity_id", "entity"] {
-            if let value = item[key] {
-                ids.append(contentsOf: strings(in: value))
-            }
-        }
-        if let target = item["target"]?.objectValue, let value = target["entity_id"] {
-            ids.append(contentsOf: strings(in: value))
-        }
-        return ids.filter { $0.contains(".") }
+        targetIDs(in: item, key: "entity_id")
+            + targetIDs(in: item, key: "entity")
     }
 
     private static func targetIDs(in item: [String: JSONValue], key: String) -> [String] {
-        guard let target = item["target"]?.objectValue else { return [] }
-        return strings(in: target[key] ?? .null)
+        serviceConfigurationObjects(in: item).flatMap { strings(in: $0[key] ?? .null) }
+    }
+
+    private static func serviceConfigurationObjects(in item: [String: JSONValue]) -> [[String: JSONValue]] {
+        [item, item["target"]?.objectValue, item["data"]?.objectValue, item["service_data"]?.objectValue]
+            .compactMap { $0 }
+    }
+
+    private static func actionSubtitle(
+        service: String?,
+        targets: [String],
+        item: [String: JSONValue]
+    ) -> String? {
+        let details = actionSettingDetails(service: service, item: item)
+        let values = uniqueValues(targets + details)
+        return values.nonEmptyAutomationValue?.joined(separator: " • ") ?? detail(for: item, excluding: [])
+    }
+
+    private static func actionSettingDetails(service: String?, item: [String: JSONValue]) -> [String] {
+        guard let service else { return [] }
+        let settings = serviceConfigurationObjects(in: item)
+
+        if service == "climate.set_preset_mode", let preset = firstSetting("preset_mode", in: settings) {
+            return ["Preset: \(displayValue(preset))"]
+        }
+        if service == "climate.set_hvac_mode", let mode = firstSetting("hvac_mode", in: settings) {
+            return ["Mode: \(displayValue(mode))"]
+        }
+        return []
+    }
+
+    private static func firstSetting(_ key: String, in settings: [[String: JSONValue]]) -> String? {
+        settings.lazy.compactMap { string($0, key) }.first
+    }
+
+    private static func displayValue(_ value: String) -> String {
+        value.replacingOccurrences(of: "_", with: " ").capitalized
     }
 
     private static func uniqueValues(_ values: [String]) -> [String] {

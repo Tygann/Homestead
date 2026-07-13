@@ -7,7 +7,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### Script Logic Detail
 
 - Added a read-only native Script Logic panel to script detail surfaces using Home Assistant's `script/config` WebSocket command and the existing app-facing automation-step mapper.
-- Script sequences now show mapped service actions, legacy condition blocks, inline Conditions / Then Do / Otherwise branches, and named entity or area targets without exposing transport DTOs to SwiftUI; script editing remains in Home Assistant.
+- Script sequences now show mapped service actions, legacy condition blocks, inline Conditions / Then Do / Otherwise branches, and named entity, area, or device targets sourced from Home Assistant's modern `target` and legacy `data` / `service_data` shapes. Climate actions also show their selected preset or HVAC mode. Script editing remains in Home Assistant.
 
 ### SwiftUI Scrolling And Search Performance Cleanup
 

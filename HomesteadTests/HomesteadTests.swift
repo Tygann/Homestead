@@ -2011,18 +2011,30 @@ struct HomesteadTests {
                     ]),
                     .object([
                         "action": .string("light.turn_off"),
-                        "target": .object(["area_id": .array([.string("upstairs"), .string("downstairs")])])
+                        "data": .object(["area_id": .array([.string("upstairs"), .string("downstairs")])])
+                    ]),
+                    .object([
+                        "action": .string("media_player.turn_off"),
+                        "service_data": .object(["entity_id": .string("media_player.living_room")])
+                    ]),
+                    .object([
+                        "action": .string("climate.set_preset_mode"),
+                        "target": .object(["device_id": .string("thermostat")]),
+                        "data": .object(["preset_mode": .string("away")])
                     ])
                 ])
             ],
-            entityName: { id in ["person.tyler": "Tyler", "person.melissa": "Melissa"][id] ?? id },
-            areaName: { id in ["upstairs": "Upstairs", "downstairs": "Downstairs"][id] }
+            entityName: { id in ["person.tyler": "Tyler", "person.melissa": "Melissa", "media_player.living_room": "Living Room TV"][id] ?? id },
+            areaName: { id in ["upstairs": "Upstairs", "downstairs": "Downstairs"][id] },
+            deviceName: { id in ["thermostat": "Hall Thermostat"][id] }
         )
         let conditionAction = try #require(legacyScriptOverview.actions.first)
         #expect(conditionAction.title == "Test if 1 condition matches")
         #expect(conditionAction.groups[0].steps.map(\.title) == ["Is not in zone"])
         #expect(conditionAction.groups[0].steps.map(\.subtitle) == ["Tyler • Melissa"])
         #expect(legacyScriptOverview.actions[1].subtitle == "Upstairs • Downstairs")
+        #expect(legacyScriptOverview.actions[2].subtitle == "Living Room TV")
+        #expect(legacyScriptOverview.actions[3].subtitle == "Hall Thermostat • Preset: Away")
 
         let traces = try JSONDecoder().decode([HAAutomationTraceDTO].self, from: Data(#"""
         [

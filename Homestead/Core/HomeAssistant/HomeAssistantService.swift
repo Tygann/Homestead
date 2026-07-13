@@ -925,6 +925,9 @@ final class HomeAssistantService {
             },
             areaName: { [stateStore] areaID in
                 stateStore.areaName(forAreaID: areaID)
+            },
+            deviceName: { [stateStore] deviceID in
+                stateStore.deviceName(forDeviceID: deviceID)
             }
         )
     }
@@ -938,6 +941,9 @@ final class HomeAssistantService {
             },
             areaName: { [stateStore] areaID in
                 stateStore.areaName(forAreaID: areaID)
+            },
+            deviceName: { [stateStore] deviceID in
+                stateStore.deviceName(forDeviceID: deviceID)
             }
         )
     }
