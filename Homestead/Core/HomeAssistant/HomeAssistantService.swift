@@ -918,16 +918,28 @@ final class HomeAssistantService {
 
     func fetchAutomationOverview(entityID: String) async throws -> HAAutomationOverview {
         let response = try await client.fetchAutomationConfiguration(entityID: entityID)
-        return HAAutomationOverviewBuilder.make(config: response.config) { [stateStore] targetID in
-            stateStore.entity(for: targetID)?.displayName ?? targetID
-        }
+        return HAAutomationOverviewBuilder.make(
+            config: response.config,
+            entityName: { [stateStore] targetID in
+                stateStore.entity(for: targetID)?.displayName ?? targetID
+            },
+            areaName: { [stateStore] areaID in
+                stateStore.areaName(forAreaID: areaID)
+            }
+        )
     }
 
     func fetchScriptOverview(entityID: String) async throws -> HAAutomationOverview {
         let response = try await client.fetchScriptConfiguration(entityID: entityID)
-        return HAAutomationOverviewBuilder.makeScript(config: response.config) { [stateStore] targetID in
-            stateStore.entity(for: targetID)?.displayName ?? targetID
-        }
+        return HAAutomationOverviewBuilder.makeScript(
+            config: response.config,
+            entityName: { [stateStore] targetID in
+                stateStore.entity(for: targetID)?.displayName ?? targetID
+            },
+            areaName: { [stateStore] areaID in
+                stateStore.areaName(forAreaID: areaID)
+            }
+        )
     }
 
     func fetchAutomationTimeline(

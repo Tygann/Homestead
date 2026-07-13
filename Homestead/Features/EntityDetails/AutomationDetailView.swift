@@ -192,7 +192,10 @@ struct AutomationLogicOverviewView: View {
             ("Then Do", "play.fill", overview.actions)
             ].filter { !$0.steps.isEmpty }
         case .script:
-            [("Sequence", "play.fill", overview.actions)]
+            [
+                ("And If", "checkmark.seal.fill", overview.conditions),
+                ("Sequence", "play.fill", overview.actions)
+            ].filter { !$0.steps.isEmpty }
         }
     }
 

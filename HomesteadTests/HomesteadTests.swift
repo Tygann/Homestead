@@ -1995,6 +1995,32 @@ struct HomesteadTests {
         #expect(conditional.groups[0].steps.map(\.title) == ["Only if Tyler is not home"])
         #expect(conditional.groups[1].steps.map(\.title) == ["Turn off light"])
 
+        let legacyScriptOverview = HAAutomationOverviewBuilder.makeScript(
+            config: [
+                "sequence": .array([
+                    .object([
+                        "condition": .string("not"),
+                        "conditions": .array([.object([
+                            "condition": .string("zone"),
+                            "entity_id": .array([.string("person.tyler"), .string("person.melissa")]),
+                            "zone": .string("zone.home")
+                        ])])
+                    ]),
+                    .object([
+                        "action": .string("light.turn_off"),
+                        "target": .object(["area_id": .array([.string("upstairs"), .string("downstairs")])])
+                    ])
+                ])
+            ],
+            entityName: { id in ["person.tyler": "Tyler", "person.melissa": "Melissa"][id] ?? id },
+            areaName: { id in ["upstairs": "Upstairs", "downstairs": "Downstairs"][id] }
+        )
+        let conditionAction = try #require(legacyScriptOverview.actions.first)
+        #expect(conditionAction.title == "Test if 1 condition matches")
+        #expect(conditionAction.groups[0].steps.map(\.title) == ["Is not in zone"])
+        #expect(conditionAction.groups[0].steps.map(\.subtitle) == ["Tyler • Melissa"])
+        #expect(legacyScriptOverview.actions[1].subtitle == "Upstairs • Downstairs")
+
         let traces = try JSONDecoder().decode([HAAutomationTraceDTO].self, from: Data(#"""
         [
           {"run_id":"finished","state":"stopped","script_execution":"finished","timestamp":{"start":"2026-06-05T15:10:00Z"}},

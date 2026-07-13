@@ -80,7 +80,8 @@ nonisolated struct HAAutomationStepGroup: Identifiable, Equatable, Sendable {
 nonisolated enum HAAutomationOverviewBuilder {
     static func make(
         config: [String: JSONValue],
-        entityName: (String) -> String
+        entityName: (String) -> String,
+        areaName: (String) -> String? = { _ in nil }
     ) -> HAAutomationOverview {
         let rawTriggers = steps(in: config, plural: "triggers", legacy: "trigger")
         let triggers = rawTriggers.enumerated().map {
@@ -92,20 +93,23 @@ nonisolated enum HAAutomationOverviewBuilder {
                 conditionStep($0.element, index: $0.offset, entityName: entityName)
             },
             actions: steps(in: config, plural: "actions", legacy: "action").enumerated().map {
-                actionStep($0.element, index: $0.offset, entityName: entityName)
+                actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
             }
         )
     }
 
     static func makeScript(
         config: [String: JSONValue],
-        entityName: (String) -> String
+        entityName: (String) -> String,
+        areaName: (String) -> String? = { _ in nil }
     ) -> HAAutomationOverview {
         HAAutomationOverview(
             triggers: [],
-            conditions: [],
+            conditions: steps(in: config, plural: "conditions", legacy: "condition").enumerated().map {
+                conditionStep($0.element, index: $0.offset, entityName: entityName)
+            },
             actions: steps(in: config, plural: "sequence", legacy: "action").enumerated().map {
-                actionStep($0.element, index: $0.offset, entityName: entityName)
+                actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
             }
         )
     }
@@ -167,6 +171,20 @@ nonisolated enum HAAutomationOverviewBuilder {
         let item = value.objectValue ?? [:]
         let type = string(item, "condition") ?? inferredConditionType(item) ?? ""
         let entities = resolvedEntityNames(in: item, entityName: entityName)
+
+        if type == "not",
+           let nestedCondition = item["conditions"]?.arrayValue?.only,
+           let nestedType = nestedCondition.objectValue.flatMap({ string($0, "condition") ?? inferredConditionType($0) }),
+           nestedType == "zone" {
+            let nested = conditionStep(nestedCondition, index: index, entityName: entityName)
+            return step(
+                id: "condition-\(index)",
+                title: "Is not in zone",
+                subtitle: nested.subtitle,
+                icon: "mdi:map-marker-off"
+            )
+        }
+
         let title: String
 
         switch type {
@@ -212,11 +230,12 @@ nonisolated enum HAAutomationOverviewBuilder {
     private static func actionStep(
         _ value: JSONValue,
         index: Int,
-        entityName: (String) -> String
+        entityName: (String) -> String,
+        areaName: (String) -> String?
     ) -> HAAutomationStep {
         let item = value.objectValue ?? [:]
         let service = string(item, "action") ?? string(item, "service")
-        let entities = resolvedEntityNames(in: item, entityName: entityName)
+        let targets = resolvedActionTargetNames(in: item, entityName: entityName, areaName: areaName)
         let title: String
         let icon: String
         let children: [HAAutomationStep]
@@ -234,14 +253,21 @@ nonisolated enum HAAutomationOverviewBuilder {
             children = choiceOptions(
                 in: item,
                 actionIndex: index,
-                entityName: entityName
+                entityName: entityName,
+                areaName: areaName
             )
             groups = []
+        } else if item["condition"] != nil {
+            let conditions = conditionActionSteps(in: item, entityName: entityName)
+            title = "Test if \(conditions.count) condition\(conditions.count == 1 ? "" : "s") match\(conditions.count == 1 ? "es" : "")"
+            icon = "arrow.triangle.branch"
+            children = []
+            groups = [HAAutomationStepGroup(id: "condition-action-\(index)", title: "Conditions", steps: conditions)]
         } else if item["if"] != nil {
             title = "If a condition matches"
             icon = "arrow.triangle.branch"
             children = []
-            groups = conditionalGroups(in: item, actionIndex: index, entityName: entityName)
+            groups = conditionalGroups(in: item, actionIndex: index, entityName: entityName, areaName: areaName)
         } else if item["repeat"] != nil {
             title = "Repeat actions"
             icon = "repeat"
@@ -282,7 +308,7 @@ nonisolated enum HAAutomationOverviewBuilder {
         return step(
             id: "action-\(index)",
             title: title,
-            subtitle: entities.isEmpty ? detail(for: item, excluding: []) : entities.joined(separator: " • "),
+            subtitle: targets.isEmpty ? detail(for: item, excluding: []) : targets.joined(separator: " • "),
             icon: icon,
             children: children,
             groups: groups
@@ -292,16 +318,17 @@ nonisolated enum HAAutomationOverviewBuilder {
     private static func conditionalGroups(
         in item: [String: JSONValue],
         actionIndex: Int,
-        entityName: (String) -> String
+        entityName: (String) -> String,
+        areaName: (String) -> String?
     ) -> [HAAutomationStepGroup] {
         let conditions = steps(in: item, plural: "if", legacy: "if").enumerated().map {
             conditionStep($0.element, index: $0.offset, entityName: entityName)
         }
         let thenActions = steps(in: item, plural: "then", legacy: "then").enumerated().map {
-            actionStep($0.element, index: $0.offset, entityName: entityName)
+            actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
         }
         let elseActions = steps(in: item, plural: "else", legacy: "else").enumerated().map {
-            actionStep($0.element, index: $0.offset, entityName: entityName)
+            actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
         }
 
         return [
@@ -314,7 +341,8 @@ nonisolated enum HAAutomationOverviewBuilder {
     private static func choiceOptions(
         in item: [String: JSONValue],
         actionIndex: Int,
-        entityName: (String) -> String
+        entityName: (String) -> String,
+        areaName: (String) -> String?
     ) -> [HAAutomationStep] {
         let options = item["choose"]?.arrayValue ?? []
         var result = options.enumerated().map { optionIndex, value in
@@ -330,7 +358,8 @@ nonisolated enum HAAutomationOverviewBuilder {
                 actionStep(
                     $0.element,
                     index: $0.offset,
-                    entityName: entityName
+                    entityName: entityName,
+                    areaName: areaName
                 )
             }
             let triggerDescription = conditions.first?.title.replacingOccurrences(of: "If triggered by ", with: "")
@@ -351,7 +380,7 @@ nonisolated enum HAAutomationOverviewBuilder {
 
         if let defaultActions = item["default"]?.arrayValue, !defaultActions.isEmpty {
             let actions = defaultActions.enumerated().map {
-                actionStep($0.element, index: $0.offset, entityName: entityName)
+                actionStep($0.element, index: $0.offset, entityName: entityName, areaName: areaName)
             }
             result.append(step(
                 id: "choice-\(actionIndex)-default",
@@ -395,6 +424,31 @@ nonisolated enum HAAutomationOverviewBuilder {
         return Array(Set(ids)).sorted().map(entityName)
     }
 
+    private static func resolvedActionTargetNames(
+        in item: [String: JSONValue],
+        entityName: (String) -> String,
+        areaName: (String) -> String?
+    ) -> [String] {
+        let entityTargets = resolvedEntityNames(in: item, entityName: entityName)
+        let areaTargets = targetIDs(in: item, key: "area_id").compactMap(areaName)
+        return uniqueValues(entityTargets + areaTargets)
+    }
+
+    private static func conditionActionSteps(
+        in item: [String: JSONValue],
+        entityName: (String) -> String
+    ) -> [HAAutomationStep] {
+        guard let condition = item["condition"] else { return [] }
+
+        if let values = condition.arrayValue {
+            return values.enumerated().map {
+                conditionStep($0.element, index: $0.offset, entityName: entityName)
+            }
+        }
+
+        return [conditionStep(.object(item), index: 0, entityName: entityName)]
+    }
+
     private static func entityIDs(in item: [String: JSONValue]) -> [String] {
         var ids: [String] = []
         for key in ["entity_id", "entity"] {
@@ -406,6 +460,19 @@ nonisolated enum HAAutomationOverviewBuilder {
             ids.append(contentsOf: strings(in: value))
         }
         return ids.filter { $0.contains(".") }
+    }
+
+    private static func targetIDs(in item: [String: JSONValue], key: String) -> [String] {
+        guard let target = item["target"]?.objectValue else { return [] }
+        return strings(in: target[key] ?? .null)
+    }
+
+    private static func uniqueValues(_ values: [String]) -> [String] {
+        values.reduce(into: []) { result, value in
+            if !result.contains(value) {
+                result.append(value)
+            }
+        }
     }
 
     private static func strings(in value: JSONValue) -> [String] {
@@ -521,6 +588,12 @@ nonisolated enum HAAutomationOverviewBuilder {
 private extension Array where Element == String {
     nonisolated var nonEmptyAutomationValue: [String]? {
         isEmpty ? nil : self
+    }
+}
+
+private extension Array {
+    nonisolated var only: Element? {
+        count == 1 ? first : nil
     }
 }
 

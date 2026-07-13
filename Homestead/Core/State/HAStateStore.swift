@@ -331,6 +331,10 @@ final class HAStateStore {
         areaContext(for: entityID)?.name
     }
 
+    func areaName(forAreaID areaID: String) -> String? {
+        areaRegistryByID[areaID]?.name.nonEmptyValue
+    }
+
     func areaContext(for entityID: String) -> DashboardAreaContext? {
         guard let areaID = areaID(for: entityID),
               let areaName = areaRegistryByID[areaID]?.name.nonEmptyValue else {
