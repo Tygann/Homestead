@@ -53,6 +53,29 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 104)
+
+- Release Date: 2026-07-13
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build refines gauge widgets and dashboard readouts for a cleaner, more legible glance at your Home Assistant data.
+
+- Easier-to-read gauge values and units with improved spacing and hierarchy
+- Better handling of longer gauge readouts across dashboard and widget layouts
+- Corrected the activity icon shown in presence history
+
+Please test:
+
+- Checking short and long gauge values and units in dashboard cards and widgets
+- Reviewing gauges at different sizes and with different zone configurations
+- Opening presence history and confirming the activity icon is correct
+
+### Internal Summary
+
+Build 104 covers the gauge readout layout and spacing pass across `GaugePresentationView` and `WidgetGaugeInstrumentView`, plus the presence-history activity icon fix.
+
 ## Version 1 (Build 103)
 
 - Release Date: 2026-07-13
