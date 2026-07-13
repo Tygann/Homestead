@@ -272,30 +272,61 @@ struct GaugeInstrumentReadoutView: View {
     var body: some View {
         let parts = gaugeValueParts(from: valueText, unitText: unitText)
 
-        VStack(spacing: -2) {
-            Group {
-                if let unit = parts.unit {
-                    Text(unit)
-                } else {
-                    Text(" ")
-                        .hidden()
-                }
-            }
-            .font(.system(size: fontSize * 0.32, weight: .semibold, design: .rounded))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
+        Group {
+            if let unit = parts.unit {
+                ViewThatFits(in: .horizontal) {
+                    inlineReadout(value: parts.value, unit: unit)
+                        .fixedSize(horizontal: true, vertical: false)
 
-            Text(parts.value)
+                    stackedReadout(value: parts.value, unit: unit)
+                }
+            } else {
+                valueLabel(parts.value)
+            }
+        }
+        .monospacedDigit()
+        .contentTransition(.numericText(value: value))
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: value)
+    }
+
+    private func inlineReadout(value: String, unit: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 1) {
+            Text(value)
+                .font(.system(size: fontSize, weight: .medium, design: .rounded))
+                .foregroundStyle(.primary)
+
+            Text(unit)
+                .font(.system(size: fontSize * 0.5, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+                .baselineOffset(fontSize * 0.08)
+        }
+        .lineLimit(1)
+    }
+
+    private func stackedReadout(value: String, unit: String) -> some View {
+        VStack(spacing: -2) {
+            Text(unit)
+                .font(.system(size: fontSize * 0.32, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Text(value)
                 .font(.system(size: fontSize, weight: .medium, design: .rounded))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.55)
                 .frame(maxWidth: .infinity)
         }
-        .monospacedDigit()
-        .contentTransition(.numericText(value: value))
-        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: value)
+    }
+
+    private func valueLabel(_ value: String) -> some View {
+        Text(value)
+            .font(.system(size: fontSize, weight: .medium, design: .rounded))
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.55)
+            .frame(maxWidth: .infinity)
     }
 }
 
