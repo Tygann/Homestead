@@ -38,8 +38,6 @@ enum GaugeVisualMetrics {
 }
 
 struct WidgetGaugeInstrumentView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     let gauge: WidgetGaugePresentation
     let tint: Color
     var title: String? = nil
@@ -197,6 +195,7 @@ struct WidgetGaugeInstrumentView: View {
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let valueFontSize = min(max(diameter * 0.25, 28), 58)
+        let readoutWidth = max(diameter - (lineWidth * 3.6), diameter * 0.45)
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
         let endpointY = (diameter / 2) + (radius * 0.5)
         let endpointBottomY = endpointY + (lineWidth / 2)
@@ -204,8 +203,14 @@ struct WidgetGaugeInstrumentView: View {
         let iconSize = instrumentIconSize(diameter: diameter)
 
         return AnyView(ZStack {
-            instrumentReadout(fontSize: valueFontSize)
-                .position(x: diameter / 2, y: diameter * 0.43)
+            GaugeInstrumentReadoutView(
+                valueText: gauge.valueText,
+                unitText: gauge.unitText,
+                value: gauge.value,
+                fontSize: valueFontSize
+            )
+            .frame(width: readoutWidth)
+            .position(x: diameter / 2, y: diameter * 0.39)
 
             instrumentLegend(diameter: diameter)
                 .frame(width: legendWidth)
@@ -251,31 +256,46 @@ struct WidgetGaugeInstrumentView: View {
         min(max(diameter * 0.16, 26), 28)
     }
 
-    private func instrumentReadout(fontSize: CGFloat) -> some View {
-        let parts = gaugeValueParts(from: gauge.valueText, unitText: gauge.unitText)
+    private func rangeText(_ value: Double) -> String {
+        widgetGaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+}
 
-        return HStack(alignment: .firstTextBaseline, spacing: 0) {
+struct GaugeInstrumentReadoutView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let valueText: String
+    let unitText: String?
+    let value: Double
+    let fontSize: CGFloat
+
+    var body: some View {
+        let parts = gaugeValueParts(from: valueText, unitText: unitText)
+
+        VStack(spacing: -2) {
+            Group {
+                if let unit = parts.unit {
+                    Text(unit)
+                } else {
+                    Text(" ")
+                        .hidden()
+                }
+            }
+            .font(.system(size: fontSize * 0.32, weight: .semibold, design: .rounded))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+
             Text(parts.value)
                 .font(.system(size: fontSize, weight: .medium, design: .rounded))
                 .foregroundStyle(.primary)
-
-            if let unit = parts.unit {
-                Text(unit)
-                    .font(.system(size: fontSize * 0.5, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .baselineOffset(fontSize * 0.08)
-                    .padding(.leading, -1)
-            }
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .frame(maxWidth: .infinity)
         }
-        .lineLimit(1)
-        .minimumScaleFactor(0.55)
         .monospacedDigit()
-        .contentTransition(.numericText(value: gauge.value))
-        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: gauge.value)
-    }
-
-    private func rangeText(_ value: Double) -> String {
-        widgetGaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        .contentTransition(.numericText(value: value))
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: value)
     }
 }
 

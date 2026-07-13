@@ -9,8 +9,6 @@ enum GaugePresentationStyle: Equatable, Sendable {
 }
 
 struct GaugePresentationView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     let presentation: GaugePresentation
     let style: GaugePresentationStyle
     let tint: Color
@@ -159,6 +157,7 @@ struct GaugePresentationView: View {
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
         let valueFontSize = min(max(diameter * 0.25, 28), 58)
+        let readoutWidth = max(diameter - (lineWidth * 3.6), diameter * 0.45)
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
         let endpointY = (diameter / 2) + (radius * 0.5)
         let endpointBottomY = endpointY + (lineWidth / 2)
@@ -166,38 +165,20 @@ struct GaugePresentationView: View {
         let iconSize = instrumentIconSize(diameter: diameter)
 
         return AnyView(ZStack {
-            instrumentReadout(fontSize: valueFontSize)
-                .position(x: diameter / 2, y: diameter * 0.43)
+            GaugeInstrumentReadoutView(
+                valueText: presentation.valueText,
+                unitText: presentation.unitText,
+                value: presentation.value,
+                fontSize: valueFontSize
+            )
+            .frame(width: readoutWidth)
+            .position(x: diameter / 2, y: diameter * 0.39)
 
             instrumentLegend(diameter: diameter)
                 .frame(width: legendWidth)
                 .frame(height: iconSize, alignment: .bottom)
                 .position(x: diameter / 2, y: endpointBottomY - (iconSize / 2))
         })
-    }
-
-    private func instrumentReadout(fontSize: CGFloat) -> some View {
-        let parts = gaugeValueParts(from: presentation.valueText, unitText: presentation.unitText)
-
-        return HStack(alignment: .firstTextBaseline, spacing: 0) {
-            Text(parts.value)
-                .font(.system(size: fontSize, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-
-            if let unitText = parts.unit {
-                Text(unitText)
-                    .font(.system(size: fontSize * 0.5, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .baselineOffset(2)
-                    .padding(.leading, -1)
-                    .lineLimit(1)
-            }
-        }
-        .minimumScaleFactor(0.55)
-        .monospacedDigit()
-        .contentTransition(.numericText(value: presentation.value))
-        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: presentation.value)
     }
 
     private func instrumentLegend(diameter: CGFloat) -> some View {
