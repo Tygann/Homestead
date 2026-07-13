@@ -53,6 +53,31 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 103)
+
+- Release Date: 2026-07-13
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build adds more control and context to dashboards, widgets, and Home Assistant automation details.
+
+- Give individual sensor widgets their own display names for clearer at-a-glance information
+- Customize gauge zone names and colors, with automatic mode keeping the presentation focused
+- See clearer script targets, automation conditions, actions, and choice branches
+- Smoother dashboard browsing and more reliable Appearance and avatar refresh behavior
+
+Please test:
+
+- Renaming sensor widgets and checking the names in dashboard and widget views
+- Editing gauge zone names and colors in both manual and automatic modes
+- Opening automations and scripts with grouped conditions, actions, and targets
+- Switching Appearance settings and refreshing account/avatar content
+
+### Internal Summary
+
+Build 103 covers per-widget sensor display names, custom gauge zone names and colors with automatic-mode handling, expanded automation/script target and branch presentation, SwiftUI browsing/dashboard update optimization, and appearance/avatar refresh fixes after Build 101.
+
 ## Version 1 (Build 101)
 
 - Release Date: 2026-07-10
