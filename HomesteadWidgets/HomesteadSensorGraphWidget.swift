@@ -25,6 +25,9 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Sensor")
     var sensor: HomesteadSensorEntity?
 
+    @Parameter(title: "Display Name")
+    var customDisplayName: String?
+
     @Parameter(title: "Display")
     var display: HomesteadSensorWidgetDisplay?
 
@@ -77,6 +80,7 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                 When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.automatic) {
                     Summary {
                         \.$sensor
+                        \.$customDisplayName
                         \.$display
                         \.$gaugeScale
                         \.$gaugeMinimum
@@ -86,6 +90,7 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                 } otherwise: {
                     Summary {
                         \.$sensor
+                        \.$customDisplayName
                         \.$display
                         \.$gaugeScale
                         \.$gaugeMinimum
@@ -106,6 +111,7 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                 When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.automatic) {
                     Summary {
                         \.$sensor
+                        \.$customDisplayName
                         \.$display
                         \.$gaugeScale
                         \.$zoneCount
@@ -113,6 +119,7 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                 } otherwise: {
                     Summary {
                         \.$sensor
+                        \.$customDisplayName
                         \.$display
                         \.$gaugeScale
                         \.$zoneCount
@@ -131,6 +138,7 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
         } otherwise: {
             Summary {
                 \.$sensor
+                \.$customDisplayName
                 \.$display
             }
         }
@@ -455,12 +463,21 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         let cachedGauge = latestConfiguredSnapshot?.gauge.map {
             resolvedGauge($0, display: display, configuration: configuration)
         }
+        let displayName = Self.resolvedDisplayName(
+            configuration.customDisplayName,
+            fallback: selectedSensor.displayName
+        )
 
         if display == .trend {
-            return await trendEntry(for: selectedSensor, cachedGauge: cachedGauge)
+            return await trendEntry(for: selectedSensor, displayName: displayName, cachedGauge: cachedGauge)
         }
 
-        return await stateEntry(for: selectedSensor, display: display, cachedGauge: cachedGauge)
+        return await stateEntry(
+            for: selectedSensor,
+            displayName: displayName,
+            display: display,
+            cachedGauge: cachedGauge
+        )
     }
 
     private func resolvedGauge(
@@ -525,13 +542,14 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
 
     private func trendEntry(
         for selectedSensor: HomesteadSensorEntity,
+        displayName: String,
         cachedGauge: WidgetGaugePresentation?
     ) async -> HomesteadSensorGraphEntry {
         guard selectedSensor.isNumeric else {
             return HomesteadSensorGraphEntry(
                 date: Date(),
                 entityID: selectedSensor.id,
-                displayName: selectedSensor.displayName,
+                displayName: displayName,
                 valueText: selectedSensor.valueText,
                 subtitle: selectedSensor.subtitle,
                 systemImage: selectedSensor.systemImage,
@@ -556,7 +574,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             return HomesteadSensorGraphEntry(
                 date: Date(),
                 entityID: selectedSensor.id,
-                displayName: series.displayName,
+                displayName: displayName,
                 valueText: series.latestValueText ?? selectedSensor.valueText,
                 subtitle: "6H Trend",
                 systemImage: selectedSensor.systemImage,
@@ -574,7 +592,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             return HomesteadSensorGraphEntry(
                 date: Date(),
                 entityID: selectedSensor.id,
-                displayName: selectedSensor.displayName,
+                displayName: displayName,
                 valueText: selectedSensor.valueText,
                 subtitle: "Needs connection",
                 systemImage: selectedSensor.systemImage,
@@ -593,6 +611,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
 
     private func stateEntry(
         for selectedSensor: HomesteadSensorEntity,
+        displayName: String,
         display: HomesteadSensorWidgetDisplay,
         cachedGauge: WidgetGaugePresentation?
     ) async -> HomesteadSensorGraphEntry {
@@ -605,7 +624,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             return HomesteadSensorGraphEntry(
                 date: Date(),
                 entityID: state.entityID,
-                displayName: state.displayName,
+                displayName: displayName,
                 valueText: state.valueText,
                 subtitle: state.subtitle,
                 systemImage: state.systemImage,
@@ -623,7 +642,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             return HomesteadSensorGraphEntry(
                 date: Date(),
                 entityID: selectedSensor.id,
-                displayName: selectedSensor.displayName,
+                displayName: displayName,
                 valueText: selectedSensor.valueText,
                 subtitle: "Needs connection",
                 systemImage: selectedSensor.systemImage,
@@ -656,6 +675,11 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             hasGauge: snapshot.gauge != nil,
             icon: snapshot.resolvedIcon
         )
+    }
+
+    private static func resolvedDisplayName(_ customDisplayName: String?, fallback: String) -> String {
+        let trimmedName = customDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedName.isEmpty ? fallback : trimmedName
     }
 
     private static func placeholderSamples() -> [HAWidgetHistorySample] {
