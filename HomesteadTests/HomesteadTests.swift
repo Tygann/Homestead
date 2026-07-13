@@ -9976,6 +9976,24 @@ struct HomesteadTests {
         #expect(registry.sourceIdentifier == "mdi:router-wireless")
     }
 
+    @Test func iconResolverUsesValidActiveSymbolsForPresenceBinarySensors() {
+        for deviceClass in ["motion", "occupancy", "presence"] {
+            let active = IconResolver.resolveEntity(EntityIconResolutionInput(
+                domain: "binary_sensor",
+                deviceClass: deviceClass,
+                state: "on"
+            ))
+            let inactive = IconResolver.resolveEntity(EntityIconResolutionInput(
+                domain: "binary_sensor",
+                deviceClass: deviceClass,
+                state: "off"
+            ))
+
+            #expect(active.sfSymbolName == "figure.walk.motion")
+            #expect(inactive.sfSymbolName == "figure.stand")
+        }
+    }
+
     @Test func iconResolverUsesNativeFirstHybridRendering() throws {
         let mapped = IconResolver.resolveEntity(EntityIconResolutionInput(
             domain: "light",

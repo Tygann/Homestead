@@ -375,7 +375,7 @@ nonisolated enum IconResolver {
         case "garage_door": return isActive ? "door.garage.open" : "door.garage.closed"
         case "opening": return isActive ? "rectangle.portrait.and.arrow.right" : "rectangle.portrait"
         case "lock": return isActive ? "lock.open.fill" : "lock.fill"
-        case "motion", "occupancy", "presence": return isActive ? "figure.motion" : "figure.stand"
+        case "motion", "occupancy", "presence": return isActive ? "figure.walk.motion" : "figure.stand"
         case "tamper", "safety", "problem": return isActive ? "exclamationmark.triangle.fill" : "checkmark.shield"
         case "smoke": return isActive ? "smoke.fill" : "smoke"
         case "gas": return isActive ? "flame.fill" : "flame"
