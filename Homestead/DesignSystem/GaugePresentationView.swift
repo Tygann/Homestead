@@ -91,7 +91,7 @@ struct GaugePresentationView: View {
                         statusColor(for: section.status),
                         style: StrokeStyle(
                             lineWidth: lineWidth,
-                            lineCap: style == .segmentedInstrument ? .round : .butt,
+                            lineCap: .butt,
                             lineJoin: .round
                         )
                     )
@@ -217,12 +217,14 @@ struct GaugePresentationView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if let icon {
-                HomesteadIconView(
+                CardIconView(
                     icon: icon,
-                    pointSize: iconSize,
-                    weight: .semibold
+                    isActive: true,
+                    accentColor: statusColor(for: presentation.status),
+                    size: iconSize,
+                    symbolSize: 21,
+                    showsBackground: false
                 )
-                .foregroundStyle(statusColor(for: presentation.status))
                 .frame(width: iconSize, height: iconSize)
                 .accessibilityHidden(true)
             } else {
@@ -241,7 +243,7 @@ struct GaugePresentationView: View {
     }
 
     private func instrumentIconSize(diameter: CGFloat) -> CGFloat {
-        min(max(diameter * 0.19, 20), 34)
+        min(max(diameter * 0.16, 26), 28)
     }
 
     private var detailGauge: some View {

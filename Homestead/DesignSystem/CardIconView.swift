@@ -9,6 +9,7 @@ struct CardIconView: View {
     var accentColor = Color.accentColor
     var size: CGFloat = 44
     var symbolSize: CGFloat = 21
+    var showsBackground = true
 
     init(
         icon: ResolvedIcon,
@@ -16,7 +17,8 @@ struct CardIconView: View {
         isAvailable: Bool = true,
         accentColor: Color = .accentColor,
         size: CGFloat = 44,
-        symbolSize: CGFloat = 21
+        symbolSize: CGFloat = 21,
+        showsBackground: Bool = true
     ) {
         self.icon = icon
         self.isActive = isActive
@@ -24,6 +26,7 @@ struct CardIconView: View {
         self.accentColor = accentColor
         self.size = size
         self.symbolSize = symbolSize
+        self.showsBackground = showsBackground
     }
 
     init(
@@ -32,7 +35,8 @@ struct CardIconView: View {
         isAvailable: Bool = true,
         accentColor: Color = .accentColor,
         size: CGFloat = 44,
-        symbolSize: CGFloat = 21
+        symbolSize: CGFloat = 21,
+        showsBackground: Bool = true
     ) {
         self.init(
             icon: .sfSymbol(systemName, provenance: .homesteadSemanticMapping),
@@ -40,7 +44,8 @@ struct CardIconView: View {
             isAvailable: isAvailable,
             accentColor: accentColor,
             size: size,
-            symbolSize: symbolSize
+            symbolSize: symbolSize,
+            showsBackground: showsBackground
         )
     }
 
@@ -48,7 +53,12 @@ struct CardIconView: View {
         HomesteadIconView(icon: icon, pointSize: symbolSize)
             .foregroundStyle(iconForeground)
             .frame(width: size, height: size)
-            .background(iconBackground, in: RoundedRectangle(cornerRadius: iconRadius, style: .continuous))
+            .background {
+                if showsBackground {
+                    iconBackground
+                        .clipShape(RoundedRectangle(cornerRadius: iconRadius, style: .continuous))
+                }
+            }
             .accessibilityHidden(true)
     }
 
