@@ -11,6 +11,7 @@ final class HAStateStore {
     private(set) var entitiesByDomain: [(domain: EntityDomain, entities: [HomeEntity])] = []
     private(set) var entityIDGroupsByDomain: [EntityDomainGroup] = []
     private(set) var entityIDGroupsByDevice: [EntityDeviceGroup] = []
+    private(set) var entityIDsByDisplayName: [String] = []
     private(set) var availableEntityIDs: Set<String> = []
     private(set) var entityCatalogSignature = ""
     private(set) var hasEntities = false
@@ -41,6 +42,7 @@ final class HAStateStore {
     @ObservationIgnored private var categoryRegistryByKey: [String: HACategoryRegistryDTO] = [:]
     @ObservationIgnored private var floorSortOrderByID: [String: Int] = [:]
     @ObservationIgnored private var cachedDashboardSummaryMembershipContext: DashboardSummaryMembershipContext?
+    @ObservationIgnored private var cachedDashboardSummaryWorkspace: DashboardSummaryWorkspace?
     @ObservationIgnored private var isApplyingSnapshotBatch = false
     @ObservationIgnored private var snapshotBatchNeedsWidgetSave = false
 
@@ -60,6 +62,10 @@ final class HAStateStore {
 
     func entity(for entityID: String) -> HomeEntity? {
         entitiesByID[entityID]
+    }
+
+    func displayName(for entityID: String) -> String? {
+        entitiesByID[entityID]?.displayName
     }
 
     func entityBox(for entityID: String) -> HAEntityState? {
@@ -399,10 +405,16 @@ final class HAStateStore {
     }
 
     func dashboardSummaryWorkspace() -> DashboardSummaryWorkspace {
-        DashboardSummaryWorkspace(
+        if let cachedDashboardSummaryWorkspace {
+            return cachedDashboardSummaryWorkspace
+        }
+
+        let workspace = DashboardSummaryWorkspace(
             entityBoxes: allEntityBoxes(),
             membershipContext: dashboardSummaryMembershipContext()
         )
+        cachedDashboardSummaryWorkspace = workspace
+        return workspace
     }
 
     func lightEntity(for entityID: String) -> LightEntity? {
@@ -792,6 +804,7 @@ final class HAStateStore {
         entitiesByDomain.removeAll()
         entityIDGroupsByDomain.removeAll()
         entityIDGroupsByDevice.removeAll()
+        entityIDsByDisplayName.removeAll()
         availableEntityIDs.removeAll()
         entityCatalogSignature = ""
         hasEntities = false
@@ -906,7 +919,12 @@ final class HAStateStore {
             return false
         }
 
-        invalidateDashboardSummaryMembershipContext()
+        if dashboardSummaryMembershipChanged(
+            from: rawEntitiesByID[dto.entityID],
+            to: dto
+        ) {
+            invalidateDashboardSummaryMembershipContext()
+        }
         rawEntitiesByID[dto.entityID] = dto
         apply(dto: dto)
         return true
@@ -1013,6 +1031,7 @@ final class HAStateStore {
         allEntities = entitiesByID.values.sorted { lhs, rhs in
             lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
         }
+        entityIDsByDisplayName = allEntities.map(\.entityID)
         entitiesByDomain = Dictionary(grouping: allEntities, by: \.domain)
             .map { domain, entities in
                 (domain: domain, entities: entities)
@@ -1060,6 +1079,30 @@ final class HAStateStore {
 
     private func invalidateDashboardSummaryMembershipContext() {
         cachedDashboardSummaryMembershipContext = nil
+        cachedDashboardSummaryWorkspace = nil
+    }
+
+    private func dashboardSummaryMembershipChanged(
+        from previous: HAEntityDTO?,
+        to current: HAEntityDTO
+    ) -> Bool {
+        dashboardSummaryMembershipSignature(for: previous) !=
+            dashboardSummaryMembershipSignature(for: current)
+    }
+
+    private func dashboardSummaryMembershipSignature(
+        for dto: HAEntityDTO?
+    ) -> DashboardSummaryMembershipSignature? {
+        guard let dto else {
+            return nil
+        }
+
+        let deviceClass = dto.attributes["device_class"]?.stringValue
+        return DashboardSummaryMembershipSignature(
+            domain: EntityDomain(entityID: dto.entityID),
+            deviceClass: deviceClass,
+            isCharging: deviceClass == "battery_charging" && dto.state == "on"
+        )
     }
 
     private func updateEntityBox(
@@ -1202,6 +1245,12 @@ struct EntityDeviceGroup: Equatable, Identifiable, Sendable {
     let id: String
     let title: String
     let entityIDs: [String]
+}
+
+private struct DashboardSummaryMembershipSignature: Equatable {
+    let domain: EntityDomain?
+    let deviceClass: String?
+    let isCharging: Bool
 }
 
 // MARK: - Management Summaries

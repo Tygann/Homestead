@@ -203,7 +203,6 @@ struct DashboardSummaryWorkspace {
     let entityBoxes: [HAEntityState]
     let membershipContext: DashboardSummaryMembershipContext
     private let entityBoxesByKind: [DashboardSummaryKind: [HAEntityState]]
-    private let securityContextsByEntityID: [String: SecurityContext]
 
     init(
         entityBoxes: [HAEntityState],
@@ -213,8 +212,6 @@ struct DashboardSummaryWorkspace {
         self.membershipContext = membershipContext
 
         var entityBoxesByKind: [DashboardSummaryKind: [HAEntityState]] = [:]
-        var securityContextsByEntityID: [String: SecurityContext] = [:]
-
         for entityBox in entityBoxes {
             for kind in DashboardSummaryKind.allCases where HomeAssistantSummaryClassifier.contains(
                 entityBox,
@@ -223,17 +220,9 @@ struct DashboardSummaryWorkspace {
             ) {
                 entityBoxesByKind[kind, default: []].append(entityBox)
             }
-
-            if let securityContext = DashboardSummaryProvider.securityContext(
-                for: entityBox,
-                membershipContext: membershipContext
-            ) {
-                securityContextsByEntityID[entityBox.entityID] = securityContext
-            }
         }
 
         self.entityBoxesByKind = entityBoxesByKind
-        self.securityContextsByEntityID = securityContextsByEntityID
     }
 
     func entityBoxes(in kind: DashboardSummaryKind) -> [HAEntityState] {
@@ -241,11 +230,23 @@ struct DashboardSummaryWorkspace {
     }
 
     fileprivate func securityContexts() -> [SecurityContext] {
-        entityBoxes.compactMap { securityContextsByEntityID[$0.entityID] }
+        entityBoxes(in: .security).compactMap {
+            DashboardSummaryProvider.securityContext(
+                for: $0,
+                membershipContext: membershipContext
+            )
+        }
     }
 
     fileprivate func securityContext(for entityID: String) -> SecurityContext? {
-        securityContextsByEntityID[entityID]
+        guard let entityBox = entityBoxes(in: .security).first(where: { $0.entityID == entityID }) else {
+            return nil
+        }
+
+        return DashboardSummaryProvider.securityContext(
+            for: entityBox,
+            membershipContext: membershipContext
+        )
     }
 }
 
@@ -437,6 +438,13 @@ enum DashboardSummaryProvider {
             entityBoxes: entityBoxes,
             membershipContext: membershipContext
         )
+        return makeSummaries(kinds: kinds, workspace: workspace)
+    }
+
+    static func makeSummaries(
+        kinds: [DashboardSummaryKind],
+        workspace: DashboardSummaryWorkspace
+    ) -> [DashboardSummaryKind: DashboardChipPresentation] {
         return Dictionary(
             uniqueKeysWithValues: kinds.compactMap { kind in
                 makeSummary(kind: kind, workspace: workspace).map { (kind, $0) }

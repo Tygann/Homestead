@@ -32,7 +32,7 @@ struct EntityBrowserList<Accessory: View>: View {
     let showsAutomationStateFilter: Bool
     let rowAction: (HAEntityState) -> Void
     let rowDetail: (HAEntityState) -> String?
-    private let typeGroup: ((HAEntityState) -> EntityBrowserGroup?)?
+    private let typeGroup: ((String) -> EntityBrowserGroup?)?
     private let rowDestination: ((HAEntityState) -> AnyView)?
     private let accessory: (HAEntityState) -> Accessory
 
@@ -59,7 +59,7 @@ struct EntityBrowserList<Accessory: View>: View {
         initialGrouping: EntityBrowserGrouping = .device,
         rowAction: @escaping (HAEntityState) -> Void,
         rowDetail: @escaping (HAEntityState) -> String? = { _ in nil },
-        typeGroup: ((HAEntityState) -> EntityBrowserGroup?)? = nil,
+        typeGroup: ((String) -> EntityBrowserGroup?)? = nil,
         rowDestination: ((HAEntityState) -> AnyView)? = nil,
         @ViewBuilder accessory: @escaping (HAEntityState) -> Accessory
     ) {
@@ -194,11 +194,11 @@ struct EntityBrowserList<Accessory: View>: View {
     }
 
     private func entityRow(_ entityBox: HAEntityState, entityID: String) -> some View {
-        EntityBrowserRow(
+        EntityBrowserListRow(
             entityBox: entityBox,
             displayNameOverride: displayNameOverride(for: entityID),
-            detailText: rowDetail(entityBox),
-            accessory: accessory(entityBox)
+            rowDetail: rowDetail,
+            accessory: accessory
         )
     }
 
@@ -407,35 +407,34 @@ struct EntityBrowserList<Accessory: View>: View {
 
     private var entityBrowserPresentation: EntityBrowserPresentation {
         let query = currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let allowedDomainEntityIDs = allowedDomains.map { allowedDomains in
+            Set(
+                stateStore.entityIDGroupsByDomain
+                    .filter { allowedDomains.contains($0.domain) }
+                    .flatMap(\.entityIDs)
+            )
+        }
         let visibleCandidateEntityIDs = stateStore.availableEntityIDs
             .subtracting(hiddenEntityIDs)
-            .filter { entityID in
-                if let allowedEntityIDs, !allowedEntityIDs.contains(entityID) {
-                    return false
-                }
-
-                guard let allowedDomains else {
-                    return true
-                }
-
-                return stateStore.entityBox(for: entityID).map { allowedDomains.contains($0.homeEntity.domain) } ?? false
-            }
+            .intersection(allowedEntityIDs ?? stateStore.availableEntityIDs)
+            .intersection(allowedDomainEntityIDs ?? stateStore.availableEntityIDs)
         let filterDomains = EntityDomain.allCases.filter { domain in
             if let allowedDomains, !allowedDomains.contains(domain) {
                 return false
             }
 
-            return visibleCandidateEntityIDs.contains { entityID in
-                stateStore.entityBox(for: entityID)?.homeEntity.domain == domain
-            }
+            return stateStore.entityIDGroupsByDomain
+                .first(where: { $0.domain == domain })?
+                .entityIDs
+                .contains(where: visibleCandidateEntityIDs.contains) == true
         }
 
         let unfilteredGroups: [EntityBrowserGroup]
         switch grouping {
         case .name:
-            let entityIDs = visibleCandidateEntityIDs
+            let entityIDs = stateStore.entityIDsByDisplayName
+                .filter(visibleCandidateEntityIDs.contains)
                 .filter(entityPassesVisibility)
-                .sortedByEntityDisplayName(in: stateStore)
 
             unfilteredGroups = entityIDs.isEmpty ? [] : [
                 EntityBrowserGroup(
@@ -474,7 +473,7 @@ struct EntityBrowserList<Accessory: View>: View {
         case .type:
             if let typeGroup {
                 unfilteredGroups = Dictionary(grouping: visibleCandidateEntityIDs.filter(entityPassesVisibility)) { entityID in
-                    stateStore.entityBox(for: entityID).flatMap(typeGroup) ?? EntityBrowserGroup(
+                    typeGroup(entityID) ?? EntityBrowserGroup(
                         id: "type-other",
                         title: "Other",
                         systemImage: "square.grid.2x2",
@@ -544,8 +543,8 @@ struct EntityBrowserList<Accessory: View>: View {
                 let lhsDate = stateStore.managementActivityDate(for: lhs) ?? .distantPast
                 let rhsDate = stateStore.managementActivityDate(for: rhs) ?? .distantPast
                 if lhsDate != rhsDate { return lhsDate > rhsDate }
-                return (stateStore.entityBox(for: lhs)?.homeEntity.displayName ?? lhs)
-                    .localizedCaseInsensitiveCompare(stateStore.entityBox(for: rhs)?.homeEntity.displayName ?? rhs) == .orderedAscending
+                return (stateStore.displayName(for: lhs) ?? lhs)
+                    .localizedCaseInsensitiveCompare(stateStore.displayName(for: rhs) ?? rhs) == .orderedAscending
             }
             unfilteredGroups = entityIDs.isEmpty ? [] : [
                 EntityBrowserGroup(id: "recent", title: "Recently Used", systemImage: "clock", entityIDs: entityIDs)
@@ -606,8 +605,7 @@ struct EntityBrowserList<Accessory: View>: View {
     }
 
     private func entityPassesVisibility(_ entityID: String) -> Bool {
-        guard !hiddenEntityIDs.contains(entityID),
-              let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
+        guard !hiddenEntityIDs.contains(entityID) else {
             return false
         }
 
@@ -615,7 +613,17 @@ struct EntityBrowserList<Accessory: View>: View {
             return false
         }
 
-        if let allowedDomains, !allowedDomains.contains(entity.domain) {
+        if let allowedDomains,
+           let domain = stateStore.entityIDGroupsByDomain.first(where: { $0.entityIDs.contains(entityID) })?.domain,
+           !allowedDomains.contains(domain) {
+            return false
+        }
+
+        guard selectedDomain != nil || !includesUnavailable || selectedLabelID != nil || automationEnabledFilter != nil else {
+            return true
+        }
+
+        guard let entity = stateStore.entityBox(for: entityID)?.homeEntity else {
             return false
         }
 
@@ -792,8 +800,8 @@ private extension Array where Element == EntityBrowserGroup {
 private extension Set where Element == String {
     func sortedByEntityDisplayName(in stateStore: HAStateStore) -> [String] {
         sorted { lhs, rhs in
-            let lhsName = stateStore.entityBox(for: lhs)?.homeEntity.displayName ?? lhs
-            let rhsName = stateStore.entityBox(for: rhs)?.homeEntity.displayName ?? rhs
+            let lhsName = stateStore.displayName(for: lhs) ?? lhs
+            let rhsName = stateStore.displayName(for: rhs) ?? rhs
             return lhsName.localizedCaseInsensitiveCompare(rhsName) == .orderedAscending
         }
     }
@@ -802,8 +810,8 @@ private extension Set where Element == String {
 private extension Array where Element == String {
     func sortedByEntityDisplayName(in stateStore: HAStateStore) -> [String] {
         sorted { lhs, rhs in
-            let lhsName = stateStore.entityBox(for: lhs)?.homeEntity.displayName ?? lhs
-            let rhsName = stateStore.entityBox(for: rhs)?.homeEntity.displayName ?? rhs
+            let lhsName = stateStore.displayName(for: lhs) ?? lhs
+            let rhsName = stateStore.displayName(for: rhs) ?? rhs
             return lhsName.localizedCaseInsensitiveCompare(rhsName) == .orderedAscending
         }
     }
@@ -813,4 +821,20 @@ private struct EntityBrowserPresentation {
     let groups: [EntityBrowserGroup]
     let filterDomains: [EntityDomain]
     let visibleCandidateEntityIDs: Set<String>
+}
+
+private struct EntityBrowserListRow<Accessory: View>: View {
+    let entityBox: HAEntityState
+    let displayNameOverride: String?
+    let rowDetail: (HAEntityState) -> String?
+    let accessory: (HAEntityState) -> Accessory
+
+    var body: some View {
+        EntityBrowserRow(
+            entityBox: entityBox,
+            displayNameOverride: displayNameOverride,
+            detailText: rowDetail(entityBox),
+            accessory: accessory(entityBox)
+        )
+    }
 }

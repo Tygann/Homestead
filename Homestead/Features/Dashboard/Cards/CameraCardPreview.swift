@@ -1,5 +1,8 @@
 import SwiftUI
 import os
+#if canImport(ImageIO)
+import ImageIO
+#endif
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -13,6 +16,9 @@ struct CameraCardPreview: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(\.scenePhase) private var scenePhase
     @State private var snapshotPhase: CameraCardSnapshotPhase = .idle
+    #if canImport(UIKit)
+    @State private var snapshotImage: UIImage?
+    #endif
 
     let entityID: String
     let isAvailable: Bool
@@ -87,10 +93,10 @@ struct CameraCardPreview: View {
         case .idle, .loading:
             cameraPlaceholder(status: placeholderStatus)
                 .frame(width: width, height: height)
-        case .loaded(let data, _):
+        case .loaded:
             #if canImport(UIKit)
-            if let image = UIImage(data: data) {
-                Image(uiImage: image)
+            if let snapshotImage {
+                Image(uiImage: snapshotImage)
                     .resizable()
                     .scaledToFill()
                     .frame(width: width, height: height)
@@ -117,7 +123,7 @@ struct CameraCardPreview: View {
         switch snapshotPhase {
         case .idle, .loading:
             return "Loading preview"
-        case .loaded(_, let isStale):
+        case .loaded(let isStale):
             return isStale ? "Showing last view" : ""
         case .failed:
             return "Preview unavailable"
@@ -197,7 +203,7 @@ struct CameraCardPreview: View {
     @MainActor
     private func loadSnapshotWithRetry() async {
         if let cachedSnapshot = await CameraSnapshotStore.shared.snapshot(for: entityID) {
-            snapshotPhase = .loaded(
+            _ = await presentSnapshot(
                 cachedSnapshot.data,
                 isStale: !cachedSnapshot.isFresh(
                     freshnessInterval: CameraSnapshotStore.freshnessInterval
@@ -234,9 +240,7 @@ struct CameraCardPreview: View {
                 try await homeAssistantService.fetchCameraSnapshot(entityID: entityID)
             }
             await CameraSnapshotStore.shared.store(snapshot, for: entityID)
-            guard !Task.isCancelled else { return false }
-            snapshotPhase = .loaded(snapshot, isStale: false)
-            return true
+            return await presentSnapshot(snapshot, isStale: false)
         } catch {
             guard !Task.isCancelled else { return false }
             cameraPreviewLogger.debug(
@@ -244,11 +248,35 @@ struct CameraCardPreview: View {
             )
             if shouldShowLoadingState {
                 snapshotPhase = .failed
-            } else if case .loaded(let data, _) = snapshotPhase {
-                snapshotPhase = .loaded(data, isStale: true)
+            } else if case .loaded = snapshotPhase {
+                snapshotPhase = .loaded(isStale: true)
             }
             return false
         }
+    }
+
+    @MainActor
+    private func presentSnapshot(_ data: Data, isStale: Bool) async -> Bool {
+        #if canImport(UIKit) && canImport(ImageIO)
+        let image = await Task.detached(priority: .utility) { [data] in
+            CameraSnapshotImageDecoder.image(from: data, maximumPixelSize: 1_280)
+        }.value
+        guard !Task.isCancelled else { return false }
+        guard let image else {
+            snapshotImage = nil
+            snapshotPhase = .failed
+            return false
+        }
+
+        snapshotImage = UIImage(cgImage: image)
+        snapshotPhase = .loaded(isStale: isStale)
+        return true
+        #else
+        _ = data
+        _ = isStale
+        snapshotPhase = .failed
+        return false
+        #endif
     }
 
     private var retryDelays: [Duration] {
@@ -271,7 +299,7 @@ struct CameraCardPreview: View {
 private enum CameraCardSnapshotPhase: Equatable {
     case idle
     case loading
-    case loaded(Data, isStale: Bool)
+    case loaded(isStale: Bool)
     case failed
 
     var hasLoadedSnapshot: Bool {
@@ -283,12 +311,30 @@ private enum CameraCardSnapshotPhase: Equatable {
     }
 
     var isStale: Bool {
-        if case .loaded(_, let isStale) = self {
+        if case .loaded(let isStale) = self {
             return isStale
         }
         return false
     }
 }
+
+#if canImport(UIKit) && canImport(ImageIO)
+private enum CameraSnapshotImageDecoder {
+    nonisolated static func image(from data: Data, maximumPixelSize: Int) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+            return nil
+        }
+
+        let options = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maximumPixelSize
+        ] as CFDictionary
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options)
+    }
+}
+#endif
 
 private enum CameraCardPlaceholderStatus {
     case loading

@@ -10,9 +10,16 @@ Automation details now use Home Assistant's `automation/config` and `trace/list`
 
 Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, multiple saved dashboards, camera snapshot hardening, the first service/dashboard performance cleanup, the deployed Cloudflare Worker push relay, Worker-hosted OAuth/connect page, and app-side APNs push registration are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
 
+The second SwiftUI performance cleanup is implemented: entity-browser rows now observe at the leaf while ordinary list structure uses stable store indexes; Add to Dashboard derives its candidate snapshot once per render and checks membership through the existing source/style duplicate identity; dashboard summary membership/workspace reuse survives ordinary live state updates; and camera snapshots are decoded/downsampled before SwiftUI rendering. Follow up with a physical-device Animation Hitches + SwiftUI timeline baseline for Browse scrolling/search, Add to Dashboard search, Dashboard/Areas/Devices/Settings scrolling with live updates, and camera-heavy dashboards.
+
 Recommended reasoning level: High.
 
 ## Completed Chunk
+
+- Completed a focused scrolling/search performance pass: Entity Browser parent work no longer reads every entity during ordinary scrolling, row detail/accessory observation is leaf-scoped, and stable display-name/domain/device indexes preserve existing grouping and ordering.
+- Consolidated Items-first Add to Dashboard candidates and summary values into one presentation pass per render, reused the dashboard summary workspace, and replaced per-row linear membership checks with `DashboardPresentationIdentity` set lookup while keeping source + family + style duplicate behavior unchanged.
+- Cached the dashboard summary workspace across ordinary state updates, invalidating it only for membership inputs; Security issue state remains live rather than being frozen in the cache. Device label menus now reuse their current summary list, and camera cards decode/downsample received snapshots before their render body.
+- Verified the change with generic simulator build plus 25 passing `DashboardConfigurationXCTests`; `Scripts/xcode_storage_hygiene.sh` cleared only `XCTestDevices` after it crossed its 5 GB limit. Physical-device performance evidence is still outstanding.
 
 - Completed the gauge configuration parity pass: circular, segmented, and bar dashboard gauges now render their saved zone configurations; the setup preview matches the selected style; and the card action is consistently named Gauge Setup. Circular gauge tracks are continuous while segmented gauges use visible inter-zone separation.
 - Reworked Gauge Setup into a scale overview plus native drill-in zone rows. Each zone now presents its status and resolved range at a glance; its detail screen owns the Status and Begins At fields, avoiding the former detached inline Starts At controls.

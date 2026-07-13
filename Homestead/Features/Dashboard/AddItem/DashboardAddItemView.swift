@@ -64,28 +64,38 @@ struct DashboardAddItemView: View {
     }
 
     private var itemsContent: some View {
-        List {
-            if !filteredSummaries.isEmpty {
+        let presentation = DashboardAddItemPresentation.make(
+            stateStore: stateStore,
+            searchText: searchText
+        )
+        let addedPresentationIdentities = dashboardConfiguration.presentationIdentities
+
+        return List {
+            if !presentation.summaryCandidates.isEmpty {
                 Section("Summaries") {
-                    ForEach(filteredSummaries) { candidate in
+                    ForEach(presentation.summaryCandidates) { candidate in
                         sourceRow(
                             source: .summary(candidate.kind),
                             title: candidate.title,
                             subtitle: candidate.value,
-                            icon: .sfSymbol(candidate.systemImage, provenance: .homesteadSemanticMapping)
+                            icon: .sfSymbol(candidate.systemImage, provenance: .homesteadSemanticMapping),
+                            recommendation: .chip,
+                            addedPresentationIdentities: addedPresentationIdentities
                         )
                     }
                 }
             }
 
-            ForEach(filteredEntityGroups) { group in
+            ForEach(presentation.entityGroups) { group in
                 Section {
                     ForEach(group.candidates) { candidate in
                         sourceRow(
                             source: .entity(candidate.entityID),
                             title: candidate.displayName,
                             subtitle: candidate.entityID,
-                            icon: candidate.icon
+                            icon: candidate.icon,
+                            recommendation: candidate.suggestedPresentation,
+                            addedPresentationIdentities: addedPresentationIdentities
                         )
                     }
                 } header: {
@@ -96,7 +106,7 @@ struct DashboardAddItemView: View {
         .overlay {
             if !stateStore.hasEntities {
                 ContentUnavailableView("No Items Available", systemImage: "square.grid.2x2")
-            } else if filteredSummaries.isEmpty && filteredEntityGroups.isEmpty {
+            } else if presentation.summaryCandidates.isEmpty && presentation.entityGroups.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
         }
@@ -160,12 +170,15 @@ struct DashboardAddItemView: View {
         source: DashboardAddSource,
         title: String,
         subtitle: String,
-        icon: ResolvedIcon
+        icon: ResolvedIcon,
+        recommendation: DashboardPresentationConfiguration,
+        addedPresentationIdentities: Set<DashboardPresentationIdentity>
     ) -> some View {
-        let recommendation = recommendation(for: source)
-        let isAdded = recommendation.map {
-            dashboardConfiguration.contains(source: source.reference, presentation: $0)
-        } ?? false
+        let identity = DashboardPresentationIdentity(
+            source: source.reference,
+            presentation: recommendation
+        )
+        let isAdded = addedPresentationIdentities.contains(identity)
 
         return HStack(spacing: AppSpacing.medium) {
             NavigationLink(value: DashboardAddRoute.styles(source)) {
@@ -181,7 +194,6 @@ struct DashboardAddItemView: View {
             .accessibilityHint("Choose a style")
 
             Button {
-                guard let recommendation else { return }
                 add(source, recommendation)
             } label: {
                 Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
@@ -190,11 +202,11 @@ struct DashboardAddItemView: View {
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
-            .disabled(isAdded || recommendation == nil)
+            .disabled(isAdded)
             .accessibilityLabel(
                 isAdded
-                    ? "\(recommendation.map { DashboardPresentationCatalog.descriptor(for: $0.kind).title } ?? "Suggested style") added"
-                    : "Add \(title) as \(recommendation.map { DashboardPresentationCatalog.descriptor(for: $0.kind).title } ?? "suggested style")"
+                    ? "\(DashboardPresentationCatalog.descriptor(for: recommendation.kind).title) added"
+                    : "Add \(title) as \(DashboardPresentationCatalog.descriptor(for: recommendation.kind).title)"
             )
             .accessibilityHint(isAdded ? "" : "Adds the suggested style")
         }
@@ -216,79 +228,8 @@ struct DashboardAddItemView: View {
         }
     }
 
-    private var filteredSummaries: [DashboardAddSummaryCandidate] {
-        let presentations = DashboardSummaryProvider.makeSummaries(
-            kinds: DashboardSummaryKind.allCases,
-            entityBoxes: stateStore.allEntityBoxes(),
-            membershipContext: stateStore.dashboardSummaryMembershipContext()
-        )
-        return DashboardSummaryKind.allCases.compactMap { kind in
-            guard let presentation = presentations[kind] else { return nil }
-            let candidate = DashboardAddSummaryCandidate(
-                kind: kind,
-                title: presentation.title,
-                value: presentation.value,
-                systemImage: presentation.systemImage
-            )
-            guard normalizedSearch.isEmpty || candidate.title.localizedCaseInsensitiveContains(normalizedSearch)
-                    || candidate.value.localizedCaseInsensitiveContains(normalizedSearch) else { return nil }
-            return candidate
-        }
-    }
-
-    private var filteredEntityGroups: [DashboardAddEntityCandidateGroup] {
-        let candidatesByID = Dictionary(uniqueKeysWithValues: stateStore.allEntityBoxes().compactMap { entityBox -> (String, DashboardAddEntityCandidate)? in
-            guard entityBox.homeEntity.isAvailable else { return nil }
-            let candidate = DashboardAddEntityCandidate(
-                entityID: entityBox.entityID,
-                displayName: stateStore.displayNameForDeviceGroupedEntity(entityID: entityBox.entityID) ?? entityBox.homeEntity.displayName,
-                state: entityBox.homeEntity.state,
-                domain: entityBox.domain,
-                icon: entityBox.homeEntity.resolvedIcon
-            )
-            guard normalizedSearch.isEmpty
-                    || candidate.displayName.localizedCaseInsensitiveContains(normalizedSearch)
-                    || candidate.entityID.localizedCaseInsensitiveContains(normalizedSearch)
-                    || candidate.state.localizedCaseInsensitiveContains(normalizedSearch) else { return nil }
-            return (entityBox.entityID, candidate)
-        })
-
-        if !stateStore.entityIDGroupsByDevice.isEmpty {
-            return stateStore.entityIDGroupsByDevice.compactMap { group in
-                let candidates = group.entityIDs.compactMap { candidatesByID[$0] }
-                guard !candidates.isEmpty else { return nil }
-                return DashboardAddEntityCandidateGroup(
-                    id: "item-device-\(group.id)",
-                    title: group.title,
-                    systemImage: "laptopcomputer.and.iphone",
-                    candidates: candidates
-                )
-            }
-        }
-
-        return stateStore.entityIDGroupsByDomain.compactMap { group in
-            let candidates = group.entityIDs.compactMap { candidatesByID[$0] }
-            guard !candidates.isEmpty else { return nil }
-            return DashboardAddEntityCandidateGroup(
-                id: "item-domain-\(group.domain.rawValue)",
-                title: group.domain.displayName,
-                systemImage: group.domain.systemImage,
-                candidates: candidates
-            )
-        }
-    }
-
     private var normalizedSearch: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func recommendation(for source: DashboardAddSource) -> DashboardPresentationConfiguration? {
-        switch source {
-        case .summary:
-            .chip
-        case .entity(let entityID):
-            stateStore.entityBox(for: entityID).map(DashboardPresentationCatalog.recommendation(for:))
-        }
     }
 
     private func add(_ source: DashboardAddSource, _ presentation: DashboardPresentationConfiguration) {
@@ -575,35 +516,41 @@ private struct DashboardCompatibleSourcesView: View {
     let add: (DashboardAddSource, DashboardPresentationConfiguration) -> Void
 
     var body: some View {
+        let summaryCandidates = filteredSummaryCandidates
+        let entityBoxes = filteredEntityBoxes
+        let addedPresentationIdentities = dashboardConfiguration.presentationIdentities
+
         List {
-            if !filteredSummaryCandidates.isEmpty {
+            if !summaryCandidates.isEmpty {
                 Section("Summaries") {
-                    ForEach(filteredSummaryCandidates) { candidate in
+                    ForEach(summaryCandidates) { candidate in
                         sourceLink(
                             .summary(candidate.kind),
                             title: candidate.title,
                             subtitle: candidate.value,
-                            icon: .sfSymbol(candidate.systemImage, provenance: .homesteadSemanticMapping)
+                            icon: .sfSymbol(candidate.systemImage, provenance: .homesteadSemanticMapping),
+                            addedPresentationIdentities: addedPresentationIdentities
                         )
                     }
                 }
             }
 
-            if !filteredEntityBoxes.isEmpty {
+            if !entityBoxes.isEmpty {
                 Section("Entities") {
-                    ForEach(filteredEntityBoxes, id: \.entityID) { entityBox in
+                    ForEach(entityBoxes, id: \.entityID) { entityBox in
                         sourceLink(
                             .entity(entityBox.entityID),
                             title: entityBox.homeEntity.displayName,
                             subtitle: entityBox.entityID,
-                            icon: entityBox.homeEntity.resolvedIcon
+                            icon: entityBox.homeEntity.resolvedIcon,
+                            addedPresentationIdentities: addedPresentationIdentities
                         )
                     }
                 }
             }
         }
         .overlay {
-            if filteredSummaryCandidates.isEmpty && filteredEntityBoxes.isEmpty {
+            if summaryCandidates.isEmpty && entityBoxes.isEmpty {
                 if normalizedSearch.isEmpty {
                     ContentUnavailableView("No Compatible Items", systemImage: "square.grid.2x2")
                 } else {
@@ -662,11 +609,14 @@ private struct DashboardCompatibleSourcesView: View {
         _ source: DashboardAddSource,
         title: String,
         subtitle: String,
-        icon: ResolvedIcon
+        icon: ResolvedIcon,
+        addedPresentationIdentities: Set<DashboardPresentationIdentity>
     ) -> some View {
         let presentation = source.defaultPresentation(kind: kind, stateStore: stateStore)
-        let isAdded = presentation.map {
-            dashboardConfiguration.contains(source: source.reference, presentation: $0)
+        let isAdded = presentation.map { presentation in
+            addedPresentationIdentities.contains(
+                DashboardPresentationIdentity(source: source.reference, presentation: presentation)
+            )
         } ?? false
         let hasMultipleStyles = source.styleDescriptors(kind: kind, stateStore: stateStore).count > 1
 

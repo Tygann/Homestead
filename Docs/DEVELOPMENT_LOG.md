@@ -2,6 +2,16 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-13
+
+### SwiftUI Scrolling And Search Performance Cleanup
+
+- Kept `EntityBrowserList` parent rendering on stable structural indexes for ordinary scrolling and moved row-specific detail/accessory observation into the row boundary; live entity state still updates the affected row, while filters and search retain their existing dynamic behavior.
+- Consolidated Add to Dashboard source derivation into one app-facing presentation pass per render, reused the existing summary workspace, and replaced repeated linear dashboard-membership scans with a source/presentation identity set that preserves the existing style-aware duplicate rule.
+- Cached dashboard summary membership classification and its workspace across ordinary live state updates, invalidating only when registry, entity membership, device-class, charging, or entity-collection inputs change; Security detail status remains dynamically recomputed from its per-entity state.
+- Removed the repeated device-summary pass used only to build the Devices label menu and moved camera snapshot decoding/downsampling out of the SwiftUI render path before image presentation.
+- Verified with a generic simulator build and 25 focused `DashboardConfigurationXCTests`; physical-device scrolling/search profiling remains the next evidence step.
+
 ## 2026-07-10
 
 ### Configurable Segmented Zone Gauges

@@ -566,6 +566,15 @@ final class DashboardConfiguration {
     var selectedDashboard: SavedDashboardConfiguration { dashboards.first { $0.id == selectedDashboardID } ?? dashboards[0] }
     var items: [DashboardItemConfiguration] { selectedDashboard.items }
     var setupState: DashboardSetupState { selectedDashboard.setupState }
+    var presentationIdentities: Set<DashboardPresentationIdentity> {
+        Set(items.compactMap { item in
+            guard let source = item.source,
+                  let presentation = item.presentation else {
+                return nil
+            }
+            return DashboardPresentationIdentity(source: source, presentation: presentation)
+        })
+    }
 
     // MARK: Lifecycle
 

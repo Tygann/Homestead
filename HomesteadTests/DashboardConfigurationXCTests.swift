@@ -174,6 +174,36 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(configuration.items.count, 4)
     }
 
+    func testPresentationIdentitiesMatchDashboardDuplicateRules() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        _ = configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.status(layout: .compact))
+        )
+        _ = configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.status(layout: .wide))
+        )
+        _ = configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.gauge(style: .bar, layout: .wide))
+        )
+
+        XCTAssertEqual(configuration.presentationIdentities.count, 2)
+        XCTAssertTrue(configuration.presentationIdentities.contains(
+            DashboardPresentationIdentity(
+                source: .entity("sensor.temperature"),
+                presentation: .card(.status(layout: .square))
+            )
+        ))
+        XCTAssertTrue(configuration.presentationIdentities.contains(
+            DashboardPresentationIdentity(
+                source: .entity("sensor.temperature"),
+                presentation: .card(.gauge(style: .bar, layout: .compact))
+            )
+        ))
+    }
+
     func testSummaryCardAndInvalidLayoutAreRejected() {
         let configuration = DashboardConfiguration(defaults: makeDefaults())
 

@@ -318,8 +318,8 @@ private struct HelperRegistryManagementList: View {
                 stateStore.managementOrganizationDetail(for: entityBox.entityID, scope: .helper)
                     ?? helperDetail(for: entityBox.entityID)
             },
-            typeGroup: { entityBox in
-                helperGroup(for: entityBox.entityID)
+            typeGroup: { entityID in
+                helperGroup(for: entityID)
             },
             rowDestination: { entityBox in
                 AnyView(EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation))
@@ -363,6 +363,7 @@ private struct DeviceRegistryManagementList: View {
             guard let selectedLabel else { return true }
             return device.labels.contains(selectedLabel)
         }
+        let availableLabels = availableLabels(in: allDevices)
         let presentation = DeviceManagementPresentation.make(
             devices: devices,
             searchText: searchText,
@@ -397,7 +398,7 @@ private struct DeviceRegistryManagementList: View {
         .toolbar {
             if !devices.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    groupingMenu
+                    groupingMenu(availableLabels: availableLabels)
                 }
             }
         }
@@ -429,7 +430,7 @@ private struct DeviceRegistryManagementList: View {
         }
     }
 
-    private var groupingMenu: some View {
+    private func groupingMenu(availableLabels: [String]) -> some View {
         Menu {
             Section("Group By") {
                 ForEach(DeviceManagementGrouping.allCases) { option in
@@ -463,8 +464,8 @@ private struct DeviceRegistryManagementList: View {
         .accessibilityLabel("Group devices")
     }
 
-    private var availableLabels: [String] {
-        Set(stateStore.deviceManagementSummaries().flatMap(\.labels)).sorted {
+    private func availableLabels(in devices: [HADeviceManagementSummary]) -> [String] {
+        Set(devices.flatMap(\.labels)).sorted {
             $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
         }
     }

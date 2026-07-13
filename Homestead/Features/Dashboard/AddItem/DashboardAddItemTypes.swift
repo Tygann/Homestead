@@ -152,6 +152,7 @@ struct DashboardAddEntityCandidate: Identifiable, Equatable {
     let state: String
     let domain: EntityDomain
     let icon: ResolvedIcon
+    let suggestedPresentation: DashboardPresentationConfiguration
 
     var id: String { entityID }
     var iconName: String { icon.sfSymbolName }
@@ -162,4 +163,80 @@ struct DashboardAddEntityCandidateGroup: Identifiable, Equatable {
     let title: String
     let systemImage: String
     let candidates: [DashboardAddEntityCandidate]
+}
+
+@MainActor
+struct DashboardAddItemPresentation {
+    let summaryCandidates: [DashboardAddSummaryCandidate]
+    let entityGroups: [DashboardAddEntityCandidateGroup]
+
+    static func make(stateStore: HAStateStore, searchText: String) -> Self {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let workspace = stateStore.dashboardSummaryWorkspace()
+        let summaries = DashboardSummaryProvider.makeSummaries(
+            kinds: DashboardSummaryKind.allCases,
+            workspace: workspace
+        )
+        let summaryCandidates: [DashboardAddSummaryCandidate] = DashboardSummaryKind.allCases.compactMap { kind in
+            guard let presentation = summaries[kind] else { return nil }
+            let candidate = DashboardAddSummaryCandidate(
+                kind: kind,
+                title: presentation.title,
+                value: presentation.value,
+                systemImage: presentation.systemImage
+            )
+            guard query.isEmpty
+                    || candidate.title.localizedCaseInsensitiveContains(query)
+                    || candidate.value.localizedCaseInsensitiveContains(query) else {
+                return nil
+            }
+            return candidate
+        }
+
+        let candidatesByID = Dictionary(uniqueKeysWithValues: workspace.entityBoxes.compactMap { entityBox -> (String, DashboardAddEntityCandidate)? in
+            guard entityBox.homeEntity.isAvailable else { return nil }
+            let candidate = DashboardAddEntityCandidate(
+                entityID: entityBox.entityID,
+                displayName: stateStore.displayNameForDeviceGroupedEntity(entityID: entityBox.entityID) ?? entityBox.homeEntity.displayName,
+                state: entityBox.homeEntity.state,
+                domain: entityBox.domain,
+                icon: entityBox.homeEntity.resolvedIcon,
+                suggestedPresentation: DashboardPresentationCatalog.recommendation(for: entityBox)
+            )
+            guard query.isEmpty
+                    || candidate.displayName.localizedCaseInsensitiveContains(query)
+                    || candidate.entityID.localizedCaseInsensitiveContains(query)
+                    || candidate.state.localizedCaseInsensitiveContains(query) else {
+                return nil
+            }
+            return (entityBox.entityID, candidate)
+        })
+
+        let entityGroups: [DashboardAddEntityCandidateGroup]
+        if !stateStore.entityIDGroupsByDevice.isEmpty {
+            entityGroups = stateStore.entityIDGroupsByDevice.compactMap { group in
+                let candidates = group.entityIDs.compactMap { candidatesByID[$0] }
+                guard !candidates.isEmpty else { return nil }
+                return DashboardAddEntityCandidateGroup(
+                    id: "item-device-\(group.id)",
+                    title: group.title,
+                    systemImage: "laptopcomputer.and.iphone",
+                    candidates: candidates
+                )
+            }
+        } else {
+            entityGroups = stateStore.entityIDGroupsByDomain.compactMap { group in
+                let candidates = group.entityIDs.compactMap { candidatesByID[$0] }
+                guard !candidates.isEmpty else { return nil }
+                return DashboardAddEntityCandidateGroup(
+                    id: "item-domain-\(group.domain.rawValue)",
+                    title: group.domain.displayName,
+                    systemImage: group.domain.systemImage,
+                    candidates: candidates
+                )
+            }
+        }
+
+        return Self(summaryCandidates: summaryCandidates, entityGroups: entityGroups)
+    }
 }
