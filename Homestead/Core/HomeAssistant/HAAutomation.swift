@@ -449,9 +449,11 @@ nonisolated enum HAAutomationOverviewBuilder {
         deviceName: (String) -> String?
     ) -> [String] {
         let entityTargets = resolvedEntityNames(in: item, entityName: entityName)
-        let areaTargets = targetIDs(in: item, key: "area_id").compactMap(areaName)
+        let registryTargets = ["area_id", "floor_id", "label_id"]
+            .flatMap { targetIDs(in: item, key: $0) }
+            .compactMap(areaName)
         let deviceTargets = targetIDs(in: item, key: "device_id").compactMap(deviceName)
-        return uniqueValues(entityTargets + areaTargets + deviceTargets)
+        return uniqueValues(entityTargets + registryTargets + deviceTargets)
     }
 
     private static func conditionActionSteps(

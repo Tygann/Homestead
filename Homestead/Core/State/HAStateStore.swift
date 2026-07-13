@@ -342,6 +342,12 @@ final class HAStateStore {
         areaRegistryByID[areaID]?.name.nonEmptyValue
     }
 
+    func automationTargetName(for registryID: String) -> String? {
+        areaRegistryByID[registryID]?.name.nonEmptyValue
+            ?? floorRegistryByID[registryID]?.name.nonEmptyValue
+            ?? labelRegistryByID[registryID]?.name.nonEmptyValue
+    }
+
     func areaContext(for entityID: String) -> DashboardAreaContext? {
         guard let areaID = areaID(for: entityID),
               let areaName = areaRegistryByID[areaID]?.name.nonEmptyValue else {

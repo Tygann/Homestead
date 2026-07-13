@@ -923,8 +923,8 @@ final class HomeAssistantService {
             entityName: { [stateStore] targetID in
                 stateStore.entity(for: targetID)?.displayName ?? targetID
             },
-            areaName: { [stateStore] areaID in
-                stateStore.areaName(forAreaID: areaID)
+            areaName: { [stateStore] registryID in
+                stateStore.automationTargetName(for: registryID)
             },
             deviceName: { [stateStore] deviceID in
                 stateStore.deviceName(forDeviceID: deviceID)
@@ -939,8 +939,8 @@ final class HomeAssistantService {
             entityName: { [stateStore] targetID in
                 stateStore.entity(for: targetID)?.displayName ?? targetID
             },
-            areaName: { [stateStore] areaID in
-                stateStore.areaName(forAreaID: areaID)
+            areaName: { [stateStore] registryID in
+                stateStore.automationTargetName(for: registryID)
             },
             deviceName: { [stateStore] deviceID in
                 stateStore.deviceName(forDeviceID: deviceID)
