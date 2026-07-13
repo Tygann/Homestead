@@ -28,6 +28,9 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Display")
     var display: HomesteadSensorWidgetDisplay?
 
+    @Parameter(title: "Scale", default: .automatic)
+    var gaugeScale: HomesteadGaugeScale
+
     @Parameter(title: "Minimum")
     var gaugeMinimum: Double?
 
@@ -70,10 +73,11 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
             .oneOf,
             [HomesteadSensorWidgetDisplay.circularGauge, .segmentedGauge, .barGauge]
         ) {
-            When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.five) {
+            When(\.$gaugeScale, .equalTo, HomesteadGaugeScale.custom) {
                 Summary {
                     \.$sensor
                     \.$display
+                    \.$gaugeScale
                     \.$gaugeMinimum
                     \.$gaugeMaximum
                     \.$zoneCount
@@ -88,68 +92,20 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
                     \.$zone5Color
                 }
             } otherwise: {
-                When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.four) {
-                    Summary {
-                        \.$sensor
-                        \.$display
-                        \.$gaugeMinimum
-                        \.$gaugeMaximum
-                        \.$zoneCount
-                        \.$zone1Color
-                        \.$zone2BeginsAt
-                        \.$zone2Color
-                        \.$zone3BeginsAt
-                        \.$zone3Color
-                        \.$zone4BeginsAt
-                        \.$zone4Color
-                    }
-                } otherwise: {
-                    When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.three) {
-                        Summary {
-                            \.$sensor
-                            \.$display
-                            \.$gaugeMinimum
-                            \.$gaugeMaximum
-                            \.$zoneCount
-                            \.$zone1Color
-                            \.$zone2BeginsAt
-                            \.$zone2Color
-                            \.$zone3BeginsAt
-                            \.$zone3Color
-                        }
-                    } otherwise: {
-                        When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.two) {
-                            Summary {
-                                \.$sensor
-                                \.$display
-                                \.$gaugeMinimum
-                                \.$gaugeMaximum
-                                \.$zoneCount
-                                \.$zone1Color
-                                \.$zone2BeginsAt
-                                \.$zone2Color
-                            }
-                        } otherwise: {
-                            When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.one) {
-                                Summary {
-                                    \.$sensor
-                                    \.$display
-                                    \.$gaugeMinimum
-                                    \.$gaugeMaximum
-                                    \.$zoneCount
-                                    \.$zone1Color
-                                }
-                            } otherwise: {
-                                Summary {
-                                    \.$sensor
-                                    \.$display
-                                    \.$gaugeMinimum
-                                    \.$gaugeMaximum
-                                    \.$zoneCount
-                                }
-                            }
-                        }
-                    }
+                Summary {
+                    \.$sensor
+                    \.$display
+                    \.$gaugeScale
+                    \.$zoneCount
+                    \.$zone1Color
+                    \.$zone2BeginsAt
+                    \.$zone2Color
+                    \.$zone3BeginsAt
+                    \.$zone3Color
+                    \.$zone4BeginsAt
+                    \.$zone4Color
+                    \.$zone5BeginsAt
+                    \.$zone5Color
                 }
             }
         } otherwise: {
@@ -159,6 +115,18 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
             }
         }
     }
+
+}
+
+enum HomesteadGaugeScale: String, AppEnum {
+    case automatic
+    case custom
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Scale")
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+        .automatic: "Automatic",
+        .custom: "Custom"
+    ]
 }
 
 enum HomesteadGaugeZoneCount: Int, AppEnum {
@@ -481,8 +449,12 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         configuration: HomesteadSensorGraphWidgetConfigurationIntent
     ) -> WidgetGaugePresentation {
         guard [.circularGauge, .segmentedGauge, .barGauge].contains(display) else { return gauge }
-        let lowerBound = configuration.gaugeMinimum ?? gauge.lowerBound
-        let upperBound = configuration.gaugeMaximum ?? gauge.upperBound
+        let lowerBound = configuration.gaugeScale == .custom
+            ? configuration.gaugeMinimum ?? gauge.lowerBound
+            : gauge.lowerBound
+        let upperBound = configuration.gaugeScale == .custom
+            ? configuration.gaugeMaximum ?? gauge.upperBound
+            : gauge.upperBound
         guard lowerBound < upperBound else { return gauge }
 
         let configuredBeginsAt = [
