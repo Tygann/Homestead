@@ -74,38 +74,58 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
             [HomesteadSensorWidgetDisplay.circularGauge, .segmentedGauge, .barGauge]
         ) {
             When(\.$gaugeScale, .equalTo, HomesteadGaugeScale.custom) {
-                Summary {
-                    \.$sensor
-                    \.$display
-                    \.$gaugeScale
-                    \.$gaugeMinimum
-                    \.$gaugeMaximum
-                    \.$zoneCount
-                    \.$zone1Color
-                    \.$zone2BeginsAt
-                    \.$zone2Color
-                    \.$zone3BeginsAt
-                    \.$zone3Color
-                    \.$zone4BeginsAt
-                    \.$zone4Color
-                    \.$zone5BeginsAt
-                    \.$zone5Color
+                When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.automatic) {
+                    Summary {
+                        \.$sensor
+                        \.$display
+                        \.$gaugeScale
+                        \.$gaugeMinimum
+                        \.$gaugeMaximum
+                        \.$zoneCount
+                    }
+                } otherwise: {
+                    Summary {
+                        \.$sensor
+                        \.$display
+                        \.$gaugeScale
+                        \.$gaugeMinimum
+                        \.$gaugeMaximum
+                        \.$zoneCount
+                        \.$zone1Color
+                        \.$zone2BeginsAt
+                        \.$zone2Color
+                        \.$zone3BeginsAt
+                        \.$zone3Color
+                        \.$zone4BeginsAt
+                        \.$zone4Color
+                        \.$zone5BeginsAt
+                        \.$zone5Color
+                    }
                 }
             } otherwise: {
-                Summary {
-                    \.$sensor
-                    \.$display
-                    \.$gaugeScale
-                    \.$zoneCount
-                    \.$zone1Color
-                    \.$zone2BeginsAt
-                    \.$zone2Color
-                    \.$zone3BeginsAt
-                    \.$zone3Color
-                    \.$zone4BeginsAt
-                    \.$zone4Color
-                    \.$zone5BeginsAt
-                    \.$zone5Color
+                When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.automatic) {
+                    Summary {
+                        \.$sensor
+                        \.$display
+                        \.$gaugeScale
+                        \.$zoneCount
+                    }
+                } otherwise: {
+                    Summary {
+                        \.$sensor
+                        \.$display
+                        \.$gaugeScale
+                        \.$zoneCount
+                        \.$zone1Color
+                        \.$zone2BeginsAt
+                        \.$zone2Color
+                        \.$zone3BeginsAt
+                        \.$zone3Color
+                        \.$zone4BeginsAt
+                        \.$zone4Color
+                        \.$zone5BeginsAt
+                        \.$zone5Color
+                    }
                 }
             }
         } otherwise: {
