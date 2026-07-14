@@ -101,6 +101,48 @@ nonisolated struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     }
 }
 
+nonisolated enum HomesteadWidgetItemKind: String, Codable, Equatable, Sendable {
+    case sensorGauge
+}
+
+nonisolated struct HomesteadWidgetItem: Identifiable, Codable, Equatable, Sendable {
+    let id: String
+    let kind: HomesteadWidgetItemKind
+    let displayName: String
+    let icon: ResolvedIcon
+    let valueText: String
+    let unitText: String?
+    let isAvailable: Bool
+    let gauge: WidgetGaugePresentation?
+    let accessibilityLabel: String
+    let accessibilityValue: String
+
+    static func sensorGauge(from snapshot: WidgetSensorSnapshot) -> Self? {
+        guard let gauge = snapshot.gauge else { return nil }
+
+        return Self(
+            id: snapshot.entityID,
+            kind: .sensorGauge,
+            displayName: snapshot.displayName,
+            icon: snapshot.resolvedIcon,
+            valueText: gauge.valueText,
+            unitText: gauge.unitText,
+            isAvailable: snapshot.isAvailable,
+            gauge: gauge,
+            accessibilityLabel: gauge.accessibilityLabel,
+            accessibilityValue: gauge.accessibilityValue
+        )
+    }
+}
+
+nonisolated enum HomesteadWidgetGridSelection {
+    static let maximumItemCount = 6
+
+    static func compacted(_ items: [HomesteadWidgetItem?]) -> [HomesteadWidgetItem] {
+        Array(items.compactMap { $0 }.prefix(maximumItemCount))
+    }
+}
+
 nonisolated enum WidgetGaugeStatus: String, Codable, Equatable, Sendable {
     case nominal
     case low

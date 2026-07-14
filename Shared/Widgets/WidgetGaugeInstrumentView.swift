@@ -309,7 +309,7 @@ struct GaugeInstrumentReadoutView: View {
     }
 }
 
-private struct WidgetGaugeInstrumentArcShape: Shape {
+struct WidgetGaugeInstrumentArcShape: Shape {
     let start: Double
     let end: Double
     let inset: CGFloat
@@ -334,6 +334,52 @@ private struct WidgetGaugeInstrumentArcShape: Shape {
         )
 
         return path
+    }
+}
+
+struct WidgetGaugeCompactInstrumentView: View {
+    let gauge: WidgetGaugePresentation
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { proxy in
+            let diameter = min(proxy.size.width, proxy.size.height)
+            let lineWidth = min(max(diameter * 0.095, 5), 9)
+
+            ZStack {
+                WidgetGaugeInstrumentArcShape(start: 0, end: 1, inset: lineWidth / 2)
+                    .stroke(
+                        Color.secondary.opacity(0.16),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                    )
+
+                if gauge.normalizedValue > 0 {
+                    WidgetGaugeInstrumentArcShape(
+                        start: 0,
+                        end: gauge.normalizedValue,
+                        inset: lineWidth / 2
+                    )
+                    .stroke(
+                        tint,
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                    )
+                }
+
+                GaugeInstrumentReadoutView(
+                    valueText: gauge.valueText,
+                    unitText: gauge.unitText,
+                    value: gauge.value,
+                    fontSize: min(max(diameter * 0.23, 14), 24),
+                    diameter: diameter,
+                    lineWidth: lineWidth
+                )
+            }
+            .frame(width: diameter, height: diameter)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(gauge.accessibilityLabel)
+        .accessibilityValue(gauge.accessibilityValue)
     }
 }
 
