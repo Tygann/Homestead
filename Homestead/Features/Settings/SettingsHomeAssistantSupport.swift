@@ -11,15 +11,21 @@ struct HomeAssistantAvatarView: View {
                 await homeAssistantService.homeAssistantProfileImageRequest(settings: connectionSettings)
             }
         ) { image in
-            if let image {
-                image
-                    .resizable()
-                    .scaledToFit()
-            } else {
-                Image(systemName: "person.crop.circle.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(.gray)
+            ZStack {
+                Circle()
+                    .fill(Color(.tertiarySystemFill))
+
+                if let image {
+                    image
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    Image(systemName: "person.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .padding(8)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .clipShape(Circle())

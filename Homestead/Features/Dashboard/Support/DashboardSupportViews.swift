@@ -65,20 +65,7 @@ struct DashboardRestoringSnapshotView: View {
         VStack(spacing: AppSpacing.medium) {
             DashboardSkeletonCard(size: .wide)
 
-            CardGrid {
-                DashboardSkeletonCard(size: .square)
-                    .cardGridSpan(DashboardCardSize.square.layoutMetadata)
-                DashboardSkeletonCard(size: .compact)
-                    .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
-                DashboardSkeletonCard(size: .compact)
-                    .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
-                DashboardSkeletonCard(size: .square)
-                    .cardGridSpan(DashboardCardSize.square.layoutMetadata)
-                DashboardSkeletonCard(size: .compact)
-                    .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
-                DashboardSkeletonCard(size: .square)
-                    .cardGridSpan(DashboardCardSize.square.layoutMetadata)
-            }
+            DashboardSkeletonGrid()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(skeletonOpacity)
@@ -129,20 +116,7 @@ private struct DashboardLoadingPlaceholderView: View {
             VStack(spacing: AppSpacing.medium) {
                 DashboardSkeletonCard(size: .wide)
 
-                CardGrid {
-                    DashboardSkeletonCard(size: .square)
-                        .cardGridSpan(DashboardCardSize.square.layoutMetadata)
-                    DashboardSkeletonCard(size: .compact)
-                        .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
-                    DashboardSkeletonCard(size: .compact)
-                        .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
-                    DashboardSkeletonCard(size: .square)
-                        .cardGridSpan(DashboardCardSize.square.layoutMetadata)
-                    DashboardSkeletonCard(size: .compact)
-                        .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
-                    DashboardSkeletonCard(size: .square)
-                        .cardGridSpan(DashboardCardSize.square.layoutMetadata)
-                }
+                DashboardSkeletonGrid()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .opacity(skeletonOpacity)
@@ -186,6 +160,25 @@ private struct DashboardLoadingPlaceholderView: View {
             "Preparing"
         case .preparing, .connecting, .connected, .failed:
             "Fetching latest state"
+        }
+    }
+}
+
+private struct DashboardSkeletonGrid: View {
+    var body: some View {
+        CardGrid {
+            DashboardSkeletonCard(size: .square)
+                .cardGridSpan(DashboardCardSize.square.layoutMetadata)
+            DashboardSkeletonCard(size: .compact)
+                .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+            DashboardSkeletonCard(size: .square)
+                .cardGridSpan(DashboardCardSize.square.layoutMetadata)
+            DashboardSkeletonCard(size: .compact)
+                .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+            DashboardSkeletonCard(size: .compact)
+                .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+            DashboardSkeletonCard(size: .square)
+                .cardGridSpan(DashboardCardSize.square.layoutMetadata)
         }
     }
 }
