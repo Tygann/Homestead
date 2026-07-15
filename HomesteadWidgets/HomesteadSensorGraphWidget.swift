@@ -435,7 +435,8 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
     }
 
     private func entry(for configuration: HomesteadSensorGraphWidgetConfigurationIntent) async -> HomesteadSensorGraphEntry {
-        let display = configuration.display ?? .trend
+        let gaugeConfiguration = configuration.gaugeWidgetConfiguration
+        let display = gaugeConfiguration.display
         let configuredSensor = configuration.sensor
         let latestConfiguredSnapshot = configuredSensor.flatMap { sensor in
             HomesteadWidgetSharedStore.sensorSnapshot(entityID: sensor.id)
@@ -461,7 +462,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         }
 
         let cachedGauge = latestConfiguredSnapshot?.gauge.map {
-            resolvedGauge($0, display: display, configuration: configuration)
+            gaugeConfiguration.resolvedGauge($0)
         }
         let displayName = Self.resolvedDisplayName(
             configuration.customDisplayName,
@@ -477,66 +478,6 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             displayName: displayName,
             display: display,
             cachedGauge: cachedGauge
-        )
-    }
-
-    private func resolvedGauge(
-        _ gauge: WidgetGaugePresentation,
-        display: HomesteadSensorWidgetDisplay,
-        configuration: HomesteadSensorGraphWidgetConfigurationIntent
-    ) -> WidgetGaugePresentation {
-        guard [.circularGauge, .segmentedGauge, .barGauge].contains(display) else { return gauge }
-        let lowerBound = configuration.gaugeScale == .custom
-            ? configuration.gaugeMinimum ?? gauge.lowerBound
-            : gauge.lowerBound
-        let upperBound = configuration.gaugeScale == .custom
-            ? configuration.gaugeMaximum ?? gauge.upperBound
-            : gauge.upperBound
-        guard lowerBound < upperBound else { return gauge }
-
-        let configuredBeginsAt = [
-            configuration.zone2BeginsAt,
-            configuration.zone3BeginsAt,
-            configuration.zone4BeginsAt,
-            configuration.zone5BeginsAt
-        ]
-        if configuration.zoneCount == .automatic {
-            let clippedSections = gauge.sections.compactMap { section -> WidgetGaugeSection? in
-                let lower = max(section.lowerBound, lowerBound)
-                let upper = min(section.upperBound, upperBound)
-                guard lower < upper else { return nil }
-                return WidgetGaugeSection(lowerBound: lower, upperBound: upper, color: section.color)
-            }
-            let sections = clippedSections.isEmpty
-                ? [WidgetGaugeSection(lowerBound: lowerBound, upperBound: upperBound, color: .green)]
-                : clippedSections
-            return gauge.applyingConfiguration(
-                lowerBound: lowerBound,
-                boundaries: sections.dropLast().map(\.upperBound),
-                upperBound: upperBound,
-                colors: sections.map(\.color)
-            )
-        }
-
-        let zoneCount = configuration.zoneCount.rawValue
-        let configuredBoundaries = configuredBeginsAt.prefix(zoneCount - 1)
-        let span = upperBound - lowerBound
-        let boundaries = configuredBoundaries.enumerated().map { index, value in
-            value ?? lowerBound + (span * Double(index + 1) / Double(zoneCount))
-        }
-        let colors = [
-            configuration.zone1Color.widgetColor,
-            configuration.zone2Color.widgetColor,
-            configuration.zone3Color.widgetColor,
-            configuration.zone4Color.widgetColor,
-            configuration.zone5Color.widgetColor
-        ].prefix(zoneCount).map { $0 }
-
-        return gauge.applyingConfiguration(
-            lowerBound: lowerBound,
-            boundaries: boundaries,
-            upperBound: upperBound,
-            colors: colors
         )
     }
 
