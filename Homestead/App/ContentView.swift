@@ -73,7 +73,6 @@ struct ContentView: View {
         }
         .environment(\.openSettings, { presentedAppSheet = .settings })
         .environment(\.openAddServer, { presentedAppSheet = .addServer })
-        .environment(\.switchServer, switchServer)
         .sheet(item: $presentedAppSheet) { destination in
             switch destination {
             case .settings:
@@ -394,18 +393,6 @@ struct ContentView: View {
         isShowingNotificationSetupPrompt = true
     }
 
-    private func switchServer(_ profileID: UUID) {
-        guard profileID != connectionSettings.activeProfileID else { return }
-        presentedAppSheet = nil
-        widgetEntityDestination = nil
-        Task {
-            _ = await homeAssistantService.switchActiveProfile(
-                to: profileID,
-                settings: connectionSettings,
-                dashboardConfiguration: dashboardConfiguration
-            )
-        }
-    }
 }
 
 private enum AppSheetDestination: String, Identifiable {
@@ -448,10 +435,6 @@ private struct OpenAddServerKey: EnvironmentKey {
     static let defaultValue: () -> Void = {}
 }
 
-private struct SwitchServerKey: EnvironmentKey {
-    static let defaultValue: (UUID) -> Void = { _ in }
-}
-
 extension EnvironmentValues {
     var openSettings: () -> Void {
         get { self[OpenSettingsKey.self] }
@@ -463,10 +446,6 @@ extension EnvironmentValues {
         set { self[OpenAddServerKey.self] = newValue }
     }
 
-    var switchServer: (UUID) -> Void {
-        get { self[SwitchServerKey.self] }
-        set { self[SwitchServerKey.self] = newValue }
-    }
 }
 
 struct SettingsAccountButton: View {

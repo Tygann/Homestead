@@ -4,8 +4,11 @@ import SwiftUI
 
 struct HomeAssistantServersView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(\.openAddServer) private var openAddServer
-    @Environment(\.switchServer) private var switchServer
+    @State private var switchingProfileID: UUID?
+    @State private var switchErrorMessage: String?
 
     var body: some View {
         List {
@@ -22,7 +25,7 @@ struct HomeAssistantServersView: View {
                     .swipeActions(edge: .leading) {
                         if profile.id != connectionSettings.activeProfileID {
                             Button("Use", systemImage: "checkmark") {
-                                switchServer(profile.id)
+                                switchToServer(profile.id)
                             }
                             .tint(.accentColor)
                         }
@@ -37,8 +40,37 @@ struct HomeAssistantServersView: View {
                     Label("Add Server", systemImage: "plus")
                 }
             }
+
+            if let switchErrorMessage {
+                Section {
+                    Label(switchErrorMessage, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                }
+            }
         }
         .navigationTitle("Servers")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if switchingProfileID != nil { ProgressView() }
+            }
+        }
+    }
+
+    private func switchToServer(_ profileID: UUID) {
+        guard switchingProfileID == nil else { return }
+        switchingProfileID = profileID
+        switchErrorMessage = nil
+        Task {
+            let switched = await homeAssistantService.switchActiveProfile(
+                to: profileID,
+                settings: connectionSettings,
+                dashboardConfiguration: dashboardConfiguration
+            )
+            switchingProfileID = nil
+            if !switched {
+                switchErrorMessage = homeAssistantService.serverOperationErrorMessage ?? "Homestead couldn’t switch servers."
+            }
+        }
     }
 }
 
@@ -81,7 +113,6 @@ private struct HomeAssistantServerDetailView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @Environment(\.switchServer) private var switchServer
     @Environment(\.dismiss) private var dismiss
 
     let profileID: UUID
@@ -90,6 +121,8 @@ private struct HomeAssistantServerDetailView: View {
     @State private var isConfirmingRemoval = false
     @State private var isRemoving = false
     @State private var isReauthenticating = false
+    @State private var isSwitching = false
+    @State private var switchErrorMessage: String?
     @State private var removalFailureMessage: String?
 
     var body: some View {
@@ -110,7 +143,15 @@ private struct HomeAssistantServerDetailView: View {
 
                 if !isActive {
                     Section {
-                        Button("Use This Server") { switchServer(profileID) }
+                        Button("Use This Server") { switchToServer() }
+                            .disabled(isSwitching)
+                    }
+                }
+
+                if let switchErrorMessage {
+                    Section {
+                        Label(switchErrorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
                     }
                 }
 
@@ -133,7 +174,7 @@ private struct HomeAssistantServerDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if isRemoving || isReauthenticating { ProgressView() }
+                if isRemoving || isReauthenticating || isSwitching { ProgressView() }
             }
         }
         .onAppear { draftName = profile?.displayName ?? "" }
@@ -201,6 +242,24 @@ private struct HomeAssistantServerDetailView: View {
         Task {
             _ = await homeAssistantService.reauthenticateServer(profileID: profileID, settings: connectionSettings)
             isReauthenticating = false
+        }
+    }
+
+    private func switchToServer() {
+        isSwitching = true
+        switchErrorMessage = nil
+        Task {
+            let switched = await homeAssistantService.switchActiveProfile(
+                to: profileID,
+                settings: connectionSettings,
+                dashboardConfiguration: dashboardConfiguration
+            )
+            isSwitching = false
+            if switched {
+                dismiss()
+            } else {
+                switchErrorMessage = homeAssistantService.serverOperationErrorMessage ?? "Homestead couldn’t switch servers."
+            }
         }
     }
 }
