@@ -1168,6 +1168,10 @@ final class HAStateStore {
     }
 
     private func saveWidgetSnapshots() {
+        if let legacyProfileID = WidgetSharedStore.legacyWidgetProfileID,
+           dataSourceID != "profile-\(legacyProfileID.uuidString.lowercased())" {
+            return
+        }
         let contextForEntityID: (String) -> WidgetEntityContext = { entityID in
             WidgetEntityContext(
                 areaName: self.areaName(for: entityID),

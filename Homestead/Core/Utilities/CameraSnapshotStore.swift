@@ -34,6 +34,10 @@ actor CameraSnapshotStore {
         snapshotsByEntityID[entityID] = CameraSnapshot(data: data, capturedAt: now)
     }
 
+    func removeAll() {
+        snapshotsByEntityID.removeAll()
+    }
+
 }
 
 actor CameraSnapshotRequestGate {

@@ -3,23 +3,29 @@ import Foundation
 nonisolated struct HAConnectionConfiguration: Equatable, Sendable {
     var baseURLString: String
     var accessToken: String
+    var profileID: UUID?
     var serverIdentityBaseURLString: String?
     var authenticationBaseURLString: String?
 
     init(
         baseURLString: String,
         accessToken: String,
+        profileID: UUID? = nil,
         serverIdentityBaseURLString: String? = nil,
         authenticationBaseURLString: String? = nil
     ) {
         self.baseURLString = baseURLString
         self.accessToken = accessToken
+        self.profileID = profileID
         self.serverIdentityBaseURLString = serverIdentityBaseURLString
         self.authenticationBaseURLString = authenticationBaseURLString
     }
 
     nonisolated var dataSourceID: String {
-        HAStateCache.cacheScopeIdentifier(for: self)
+        if let profileID {
+            return "profile-\(profileID.uuidString.lowercased())"
+        }
+        return HAStateCache.cacheScopeIdentifier(for: self)
     }
 
     nonisolated var dataSourceBaseURLString: String {
@@ -44,6 +50,7 @@ nonisolated struct HAConnectionConfiguration: Equatable, Sendable {
         HAConnectionConfiguration(
             baseURLString: activeBaseURLString,
             accessToken: accessToken,
+            profileID: profileID,
             serverIdentityBaseURLString: dataSourceBaseURLString,
             authenticationBaseURLString: tokenRefreshBaseURLString
         )

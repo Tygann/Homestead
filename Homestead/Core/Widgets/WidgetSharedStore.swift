@@ -5,6 +5,9 @@ enum WidgetSharedStore {
     nonisolated static let keychainAccessGroup = "XKQ424HQ33.com.tyler.Homestead.shared"
 
     private static let baseURLKey = "homeAssistantBaseURL"
+    private static let serverProfilesKey = "homeAssistantServerProfiles"
+    private static let activeProfileIDKey = "homeAssistantActiveProfileID"
+    private static let legacyWidgetProfileIDKey = "homeAssistantLegacyWidgetProfileID"
     private static let lightSnapshotsKey = "widgetLightSnapshots"
     private static let switchSnapshotsKey = "widgetSwitchSnapshots"
     private static let coverSnapshotsKey = "widgetCoverSnapshots"
@@ -16,6 +19,26 @@ enum WidgetSharedStore {
 
     static func saveBaseURL(_ baseURL: String) {
         sharedDefaults?.set(baseURL, forKey: baseURLKey)
+    }
+
+    static func saveActiveProfileID(_ profileID: UUID) {
+        sharedDefaults?.set(profileID.uuidString, forKey: activeProfileIDKey)
+    }
+
+    static func saveServerProfiles(_ profiles: [HAConnectionProfile], activeProfileID: UUID) {
+        let widgetProfiles = profiles.filter(\.hasServerURL).map {
+            WidgetServerProfile(id: $0.id, displayName: $0.resolvedDisplayName, baseURLString: $0.baseURL)
+        }
+        guard let data = try? JSONEncoder().encode(widgetProfiles) else { return }
+        sharedDefaults?.set(data, forKey: serverProfilesKey)
+        if sharedDefaults?.string(forKey: legacyWidgetProfileIDKey) == nil {
+            sharedDefaults?.set(activeProfileID.uuidString, forKey: legacyWidgetProfileIDKey)
+        }
+        saveActiveProfileID(activeProfileID)
+    }
+
+    static var legacyWidgetProfileID: UUID? {
+        sharedDefaults?.string(forKey: legacyWidgetProfileIDKey).flatMap(UUID.init(uuidString:))
     }
 
     static func saveLightSnapshots(

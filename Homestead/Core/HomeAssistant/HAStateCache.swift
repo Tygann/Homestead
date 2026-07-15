@@ -117,6 +117,18 @@ actor HAStateCache {
         }
     }
 
+    func remove(for configuration: HAConnectionConfiguration) async {
+        do {
+            let url = try cacheURL(for: configuration)
+            guard FileManager.default.fileExists(atPath: url.path) else { return }
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            #if DEBUG
+            print("Home Assistant state cache removal failed: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
     private func cacheURL(for configuration: HAConnectionConfiguration) throws -> URL {
         try cacheDirectoryURL()
             .appendingPathComponent(Self.cacheFileName(for: configuration), isDirectory: false)
@@ -171,6 +183,9 @@ actor HAStateCache {
     }
 
     static func cacheScopeIdentifier(for configuration: HAConnectionConfiguration) -> String {
+        if let profileID = configuration.profileID {
+            return "profile-\(profileID.uuidString.lowercased())"
+        }
         let normalizedBaseURL = normalizedBaseURLString(configuration.dataSourceBaseURLString)
         return SHA256.hash(data: Data(normalizedBaseURL.utf8))
             .map { String(format: "%02x", $0) }

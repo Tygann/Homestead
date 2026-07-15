@@ -15,7 +15,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("homestead.notificationSetupPromptHandled") private var hasHandledNotificationSetupPrompt = false
-    @State private var isShowingSettings = false
+    @State private var presentedAppSheet: AppSheetDestination?
     @State private var isShowingNotificationSetupPrompt = false
     @State private var widgetEntityDestination: WidgetEntityDestination?
 
@@ -71,14 +71,18 @@ struct ContentView: View {
                 mainTabs(chrome: chrome)
             }
         }
-        .environment(\.openSettings, { isShowingSettings = true })
-        .sheet(isPresented: $isShowingSettings) {
+        .environment(\.openSettings, { presentedAppSheet = .settings })
+        .environment(\.openAddServer, { presentedAppSheet = .addServer })
+        .environment(\.switchServer, switchServer)
+        .sheet(item: $presentedAppSheet) { destination in
+            switch destination {
+            case .settings:
             NavigationStack {
                 SettingsView()
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button {
-                                isShowingSettings = false
+                                presentedAppSheet = nil
                             } label: {
                                 Image(systemName: "xmark")
                             }
@@ -87,6 +91,12 @@ struct ContentView: View {
                     }
             }
             .preferredColorScheme(settingsSheetColorScheme)
+            case .addServer:
+                NavigationStack {
+                    AddHomeAssistantServerView()
+                }
+                .preferredColorScheme(settingsSheetColorScheme)
+            }
         }
         .sheet(item: $widgetEntityDestination) { destination in
             if let entityBox = stateStore.entityBox(for: destination.entityID) {
@@ -128,11 +138,37 @@ struct ContentView: View {
             }
         }
         .onOpenURL { url in
-            guard let entityID = HomesteadWidgetDeepLink.entityID(from: url) else {
+            guard let reference = HomesteadWidgetDeepLink.entityReference(
+                from: url,
+                fallbackProfileID: connectionSettings.activeProfileID
+            ) else {
                 return
             }
-
-            widgetEntityDestination = WidgetEntityDestination(entityID: entityID)
+            Task {
+                if reference.profileID != connectionSettings.activeProfileID {
+                    _ = await homeAssistantService.switchActiveProfile(
+                        to: reference.profileID,
+                        settings: connectionSettings,
+                        dashboardConfiguration: dashboardConfiguration
+                    )
+                }
+                widgetEntityDestination = WidgetEntityDestination(entityID: reference.entityID)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .homesteadNotificationDestination)) { notification in
+            guard let profileString = notification.userInfo?["profile_id"] as? String,
+                  let profileID = UUID(uuidString: profileString) else { return }
+            let entityID = notification.userInfo?["entity_id"] as? String
+            Task {
+                if profileID != connectionSettings.activeProfileID {
+                    _ = await homeAssistantService.switchActiveProfile(
+                        to: profileID,
+                        settings: connectionSettings,
+                        dashboardConfiguration: dashboardConfiguration
+                    )
+                }
+                if let entityID { widgetEntityDestination = WidgetEntityDestination(entityID: entityID) }
+            }
         }
         .onChange(of: homeAssistantService.serviceFeedback?.id) { _, _ in
             playServiceFeedbackHaptic()
@@ -159,6 +195,13 @@ struct ContentView: View {
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: chrome.statusAccessoryState)
         .tabBarMinimizeBehavior(.onScrollDown)
+        .overlay {
+            if homeAssistantService.isSwitchingServer {
+                ServerSwitchingOverlay(serverName: connectionSettings.activeProfile.resolvedDisplayName)
+                    .transition(.opacity)
+            }
+        }
+        .allowsHitTesting(!homeAssistantService.isSwitchingServer)
     }
 
     private func restoreFromICloud() {
@@ -237,6 +280,7 @@ struct ContentView: View {
                 }
             }
         }
+        .id(connectionSettings.activeProfileID)
     }
 
     private func tabContent<Content: View>(
@@ -283,7 +327,7 @@ struct ContentView: View {
             mobileAppRegistrationPromptID,
             nativeNotificationService.status.authorizationStatus.promptID,
             hasHandledNotificationSetupPrompt.description,
-            isShowingSettings.description,
+            (presentedAppSheet != nil).description,
             onboarding.shouldShow.description
         ].joined(separator: "|")
     }
@@ -342,13 +386,33 @@ struct ContentView: View {
             mobileAppRegistrationState: homeAssistantService.mobileAppRegistrationState,
             notificationStatus: nativeNotificationService.status.authorizationStatus,
             hasHandledPrompt: hasHandledNotificationSetupPrompt,
-            isShowingSettings: isShowingSettings || onboarding.shouldShow
+            isShowingSettings: presentedAppSheet != nil || onboarding.shouldShow
         ) else {
             return
         }
 
         isShowingNotificationSetupPrompt = true
     }
+
+    private func switchServer(_ profileID: UUID) {
+        guard profileID != connectionSettings.activeProfileID else { return }
+        presentedAppSheet = nil
+        widgetEntityDestination = nil
+        Task {
+            _ = await homeAssistantService.switchActiveProfile(
+                to: profileID,
+                settings: connectionSettings,
+                dashboardConfiguration: dashboardConfiguration
+            )
+        }
+    }
+}
+
+private enum AppSheetDestination: String, Identifiable {
+    case settings
+    case addServer
+
+    var id: String { rawValue }
 }
 
 private struct WidgetEntityDestination: Identifiable {
@@ -380,24 +444,87 @@ private struct OpenSettingsKey: EnvironmentKey {
     static let defaultValue: () -> Void = {}
 }
 
+private struct OpenAddServerKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+private struct SwitchServerKey: EnvironmentKey {
+    static let defaultValue: (UUID) -> Void = { _ in }
+}
+
 extension EnvironmentValues {
     var openSettings: () -> Void {
         get { self[OpenSettingsKey.self] }
         set { self[OpenSettingsKey.self] = newValue }
     }
+
+    var openAddServer: () -> Void {
+        get { self[OpenAddServerKey.self] }
+        set { self[OpenAddServerKey.self] = newValue }
+    }
+
+    var switchServer: (UUID) -> Void {
+        get { self[SwitchServerKey.self] }
+        set { self[SwitchServerKey.self] = newValue }
+    }
 }
 
 struct SettingsAccountButton: View {
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openAddServer) private var openAddServer
+    @Environment(\.switchServer) private var switchServer
+    @Environment(HAConnectionSettings.self) private var connectionSettings
 
     var body: some View {
-        Button(action: openSettings) {
+        Menu {
+            Section("Servers") {
+                ForEach(connectionSettings.profiles) { profile in
+                    Button {
+                        switchServer(profile.id)
+                    } label: {
+                        Label(
+                            profile.resolvedDisplayName,
+                            systemImage: profile.id == connectionSettings.activeProfileID ? "checkmark" : "server.rack"
+                        )
+                    }
+                    .disabled(profile.id == connectionSettings.activeProfileID)
+                }
+            }
+
+            Button(action: openAddServer) {
+                Label("Add Server", systemImage: "plus")
+            }
+
+            Button(action: openSettings) {
+                Label("Settings", systemImage: "gearshape")
+            }
+        } label: {
             HomeAssistantAvatarView()
                 .frame(width: 44, height: 44)
                 .padding(-6)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Settings")
+        .accessibilityLabel("Servers and Settings")
+    }
+}
+
+private struct ServerSwitchingOverlay: View {
+    let serverName: String
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.12)
+                .ignoresSafeArea()
+
+            VStack(spacing: AppSpacing.medium) {
+                ProgressView()
+                Text("Switching to \(serverName)")
+                    .font(.headline)
+            }
+            .padding(28)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

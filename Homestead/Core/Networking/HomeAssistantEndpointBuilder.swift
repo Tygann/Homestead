@@ -47,6 +47,20 @@ enum HomeAssistantEndpointBuilder {
         return url
     }
 
+    nonisolated static func authRevokeURL(from baseURLString: String) throws -> URL {
+        var components = try baseComponents(from: baseURLString)
+        components.scheme = try httpScheme(from: components.scheme)
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathParts = [basePath, "auth", "revoke"].filter { !$0.isEmpty }
+        components.path = "/" + pathParts.joined(separator: "/")
+        components.query = nil
+        components.fragment = nil
+
+        guard let url = components.url else { throw HAWebSocketError.invalidURL }
+        return url
+    }
+
     nonisolated static func webSocketURL(from baseURLString: String) throws -> URL {
         var components = try baseComponents(from: baseURLString)
         components.scheme = try webSocketScheme(from: components.scheme)

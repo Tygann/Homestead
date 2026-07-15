@@ -183,6 +183,14 @@ nonisolated protocol HAOAuthClientProtocol {
         refreshToken: String,
         clientID: String
     ) async throws -> HAOAuthTokenResponseDTO
+
+    func revokeRefreshToken(baseURLString: String, refreshToken: String) async throws
+}
+
+extension HAOAuthClientProtocol {
+    func revokeRefreshToken(baseURLString: String, refreshToken: String) async throws {
+        throw HAOAuthError.invalidTokenResponse
+    }
 }
 
 actor HAOAuthClient: HAOAuthClientProtocol {
@@ -214,6 +222,22 @@ actor HAOAuthClient: HAOAuthClientProtocol {
             baseURLString: baseURLString,
             request: HAOAuthTokenRequest(grant: .refreshToken(refreshToken), clientID: clientID)
         )
+    }
+
+    func revokeRefreshToken(baseURLString: String, refreshToken: String) async throws {
+        let url = try HomeAssistantEndpointBuilder.authRevokeURL(from: baseURLString)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        var components = URLComponents()
+        components.queryItems = [URLQueryItem(name: "token", value: refreshToken)]
+        request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
+
+        let (_, response) = try await session.data(for: request)
+        guard let response = response as? HTTPURLResponse,
+              (200..<300).contains(response.statusCode) else {
+            throw HAWebSocketError.authenticationFailed("Home Assistant could not revoke this sign-in.")
+        }
     }
 
     private func sendTokenRequest(
@@ -249,6 +273,7 @@ actor HAOAuthManager {
     private let tokenStore: any HAOAuthTokenStore
     private let clientID: String
     private let redirectURI: String
+    private let profileID: UUID?
     private let now: @Sendable () -> Date
 
     init(
@@ -256,12 +281,14 @@ actor HAOAuthManager {
         tokenStore: (any HAOAuthTokenStore)? = nil,
         clientID: String = HAOAuthClientMetadata.clientID,
         redirectURI: String = HAOAuthClientMetadata.redirectURI,
+        profileID: UUID? = nil,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.client = client ?? HAOAuthClient()
         self.tokenStore = tokenStore ?? KeychainHAOAuthTokenStore()
         self.clientID = clientID
         self.redirectURI = redirectURI
+        self.profileID = profileID
         self.now = now
     }
 
@@ -307,7 +334,8 @@ actor HAOAuthManager {
 
         return HAConnectionConfiguration(
             baseURLString: credential.baseURLString,
-            accessToken: credential.accessToken
+            accessToken: credential.accessToken,
+            profileID: profileID
         )
     }
 
@@ -336,7 +364,8 @@ actor HAOAuthManager {
 
         return HAConnectionConfiguration(
             baseURLString: credential.baseURLString,
-            accessToken: credential.accessToken
+            accessToken: credential.accessToken,
+            profileID: profileID
         )
     }
 
@@ -349,7 +378,8 @@ actor HAOAuthManager {
 
         return HAConnectionConfiguration(
             baseURLString: credential.baseURLString,
-            accessToken: credential.accessToken
+            accessToken: credential.accessToken,
+            profileID: profileID
         )
     }
 
@@ -371,11 +401,21 @@ actor HAOAuthManager {
 
         return HAConnectionConfiguration(
             baseURLString: refreshedCredential.baseURLString,
-            accessToken: refreshedCredential.accessToken
+            accessToken: refreshedCredential.accessToken,
+            profileID: profileID
         )
     }
 
     func signOut() throws {
+        try tokenStore.deleteCredential()
+    }
+
+    func revokeAndSignOut() async throws {
+        guard let credential = try tokenStore.readCredential() else { return }
+        try await client.revokeRefreshToken(
+            baseURLString: credential.baseURLString,
+            refreshToken: credential.refreshToken
+        )
         try tokenStore.deleteCredential()
     }
 

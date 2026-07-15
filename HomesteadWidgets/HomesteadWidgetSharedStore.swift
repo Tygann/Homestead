@@ -7,6 +7,8 @@ enum HomesteadWidgetSharedStore {
     static let keychainAccessGroup = "XKQ424HQ33.com.tyler.Homestead.shared"
 
     private static let baseURLKey = "homeAssistantBaseURL"
+    private static let serverProfilesKey = "homeAssistantServerProfiles"
+    private static let legacyWidgetProfileIDKey = "homeAssistantLegacyWidgetProfileID"
     private static let lightSnapshotsKey = "widgetLightSnapshots"
     private static let switchSnapshotsKey = "widgetSwitchSnapshots"
     private static let coverSnapshotsKey = "widgetCoverSnapshots"
@@ -23,8 +25,20 @@ enum HomesteadWidgetSharedStore {
     private static let oauthClientID = "https://connect.homesteadcontrol.com"
     private static let tokenRefreshLeeway: TimeInterval = 60
 
+    static var legacyWidgetProfileID: UUID? {
+        sharedDefaults?.string(forKey: legacyWidgetProfileIDKey).flatMap(UUID.init(uuidString:))
+    }
+
+    static var serverProfiles: [WidgetServerProfile] {
+        guard let data = sharedDefaults?.data(forKey: serverProfilesKey) else { return [] }
+        return (try? JSONDecoder().decode([WidgetServerProfile].self, from: data)) ?? []
+    }
+
     static var baseURL: String? {
-        sharedDefaults?.string(forKey: baseURLKey)
+        guard let profileID = legacyWidgetProfileID else {
+            return sharedDefaults?.string(forKey: baseURLKey)
+        }
+        return serverProfiles.first(where: { $0.id == profileID })?.baseURLString
     }
 
     static func validAccessToken() async throws -> String {
@@ -410,10 +424,13 @@ enum HomesteadWidgetSharedStore {
     }
 
     private static var baseOAuthCredentialQuery: [String: Any] {
-        [
+        let account = legacyWidgetProfileID.map {
+            "\(oauthCredentialAccount).\($0.uuidString.lowercased())"
+        } ?? oauthCredentialAccount
+        return [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: tokenService,
-            kSecAttrAccount as String: oauthCredentialAccount,
+            kSecAttrAccount as String: account,
             kSecAttrAccessGroup as String: keychainAccessGroup
         ]
     }

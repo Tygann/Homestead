@@ -27,6 +27,8 @@ final class HomeAssistantService {
     private(set) var stateCacheMetadata: HAStateCacheMetadata?
     private(set) var activeRouteSummary: HAConnectionRouteSummary?
     private(set) var lastAuthenticationErrorMessage: String?
+    private(set) var isSwitchingServer = false
+    private(set) var serverOperationErrorMessage: String?
 
     var activityCacheUserIdentifier: String {
         currentUserID ?? currentUserDisplayName ?? "current-user"
@@ -35,11 +37,13 @@ final class HomeAssistantService {
     @ObservationIgnored private let client: any HAWebSocketClientProtocol
     @ObservationIgnored private let httpClient: any HAHTTPClientProtocol
     @ObservationIgnored private let mobileAppClient: any HAMobileAppClientProtocol
-    @ObservationIgnored private let mobileAppRegistrationStore: any HAMobileAppRegistrationStore
+    @ObservationIgnored private var mobileAppRegistrationStore: any HAMobileAppRegistrationStore
     @ObservationIgnored private let mobileAppDeviceIDStore: any HAMobileAppDeviceIDStore
     @ObservationIgnored private let pushRelayTokenStore: any PushRelayTokenStore
     @ObservationIgnored private let nativeNotificationService: NativeNotificationService
-    @ObservationIgnored private let authManager: HAOAuthManager
+    @ObservationIgnored private var authManager: HAOAuthManager
+    @ObservationIgnored private let authManagerProvider: (UUID) -> HAOAuthManager
+    @ObservationIgnored private let mobileAppRegistrationStoreProvider: (UUID) -> any HAMobileAppRegistrationStore
     @ObservationIgnored private let oauthAuthorizer: any HAOAuthAuthorizing
     @ObservationIgnored private let currentWiFiNetworkProvider: any CurrentWiFiNetworkProviding
     @ObservationIgnored private let stateStore: HAStateStore
@@ -58,6 +62,7 @@ final class HomeAssistantService {
     @ObservationIgnored private var isBufferingStateChanges = false
     @ObservationIgnored private var lastSuspendedAt: Date?
     @ObservationIgnored private var shouldReconnect = false
+    @ObservationIgnored private var connectionGeneration: UInt = 0
     @ObservationIgnored private weak var currentConnectionSettings: HAConnectionSettings?
     @ObservationIgnored private var networkContext: HAConnectionNetworkContext
     @ObservationIgnored private var reachabilityMonitor: NWPathMonitor?
@@ -81,6 +86,8 @@ final class HomeAssistantService {
         pushRelayTokenStore: (any PushRelayTokenStore)? = nil,
         nativeNotificationService: NativeNotificationService? = nil,
         authManager: HAOAuthManager? = nil,
+        authManagerProvider: ((UUID) -> HAOAuthManager)? = nil,
+        mobileAppRegistrationStoreProvider: ((UUID) -> any HAMobileAppRegistrationStore)? = nil,
         oauthAuthorizer: (any HAOAuthAuthorizing)? = nil,
         currentWiFiNetworkProvider: (any CurrentWiFiNetworkProviding)? = nil,
         dashboardHistoryCache: DashboardHistoryCache = DashboardHistoryCache(),
@@ -96,6 +103,12 @@ final class HomeAssistantService {
         self.pushRelayTokenStore = pushRelayTokenStore ?? KeychainPushRelayTokenStore()
         self.nativeNotificationService = nativeNotificationService ?? NativeNotificationService()
         self.authManager = authManager ?? HAOAuthManager()
+        self.authManagerProvider = authManagerProvider ?? { profileID in
+            HAOAuthManager(tokenStore: KeychainHAOAuthTokenStore(profileID: profileID), profileID: profileID)
+        }
+        self.mobileAppRegistrationStoreProvider = mobileAppRegistrationStoreProvider ?? { profileID in
+            KeychainHAMobileAppRegistrationStore(profileID: profileID)
+        }
         self.oauthAuthorizer = oauthAuthorizer ?? HAWebAuthenticationSession()
         self.currentWiFiNetworkProvider = currentWiFiNetworkProvider ?? SystemCurrentWiFiNetworkProvider()
         self.dashboardHistoryCache = dashboardHistoryCache
@@ -227,6 +240,7 @@ final class HomeAssistantService {
     }
 
     private func connect(routeSelection: HAConnectionRouteSelection) async {
+        let generation = connectionGeneration
         reconnectTask?.cancel()
         reconnectTask = nil
         stateSyncTask?.cancel()
@@ -251,6 +265,7 @@ final class HomeAssistantService {
             baseConfiguration = try await validConfiguration(
                 baseURLString: routeSelection.authenticationBaseURLString
             )
+            guard generation == connectionGeneration else { return }
         } catch {
             failConnection(with: error)
             return
@@ -281,6 +296,10 @@ final class HomeAssistantService {
                     configuration: routeConfiguration,
                     timeout: candidate.route == .internalURL ? .seconds(4) : nil
                 )
+                guard generation == connectionGeneration else {
+                    await client.disconnect()
+                    return
+                }
                 activeConfiguration = connectedConfiguration
                 activeRouteSummary = HAConnectionRouteSummary(
                     route: candidate.route,
@@ -334,6 +353,7 @@ final class HomeAssistantService {
     }
 
     func disconnect() async {
+        connectionGeneration &+= 1
         shouldReconnect = false
         endConnectionHealthGrace()
         reconnectTask?.cancel()
@@ -446,6 +466,201 @@ final class HomeAssistantService {
         } catch {
             authState = .refreshFailed(error.localizedDescription)
             lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    @discardableResult
+    func switchActiveProfile(
+        to profileID: UUID,
+        settings: HAConnectionSettings,
+        dashboardConfiguration: DashboardConfiguration? = nil
+    ) async -> Bool {
+        guard profileID != settings.activeProfileID,
+              settings.profileStore.profile(id: profileID)?.hasServerURL == true else {
+            return profileID == settings.activeProfileID
+        }
+
+        isSwitchingServer = true
+        serverOperationErrorMessage = nil
+        defer { isSwitchingServer = false }
+
+        await disconnect()
+        guard settings.activateProfile(id: profileID) else { return false }
+        dashboardConfiguration?.activateProfile(profileID)
+        stateStore.replaceDataSourceIfNeeded("profile-\(profileID.uuidString.lowercased())")
+        await CameraSnapshotStore.shared.removeAll()
+
+        authManager = authManagerProvider(profileID)
+        mobileAppRegistrationStore = mobileAppRegistrationStoreProvider(profileID)
+        authState = await authManager.status()
+        hasKnownSession = authState.isSignedIn
+        refreshMobileAppRegistrationState()
+
+        guard authState.isSignedIn else {
+            connectionStatus = .disconnected
+            dataFreshness = .empty
+            return true
+        }
+
+        connectionStatus = .preparing
+        await loadCachedStatesIfPossible(settings: settings)
+        await connectIfPossible(settings: settings)
+        return true
+    }
+
+    @discardableResult
+    func addServer(
+        baseURLString: String,
+        displayName: String = "",
+        settings: HAConnectionSettings,
+        dashboardConfiguration: DashboardConfiguration? = nil
+    ) async -> UUID? {
+        let trimmedBaseURL = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedBaseURL.isEmpty else {
+            serverOperationErrorMessage = HAWebSocketError.invalidURL.localizedDescription
+            return nil
+        }
+
+        if let existing = settings.profileStore.profile(matchingBaseURL: trimmedBaseURL) {
+            _ = await switchActiveProfile(
+                to: existing.id,
+                settings: settings,
+                dashboardConfiguration: dashboardConfiguration
+            )
+            return existing.id
+        }
+
+        let profileID = UUID()
+        let tokenStore = KeychainHAOAuthTokenStore(profileID: profileID)
+        let pendingAuthManager = HAOAuthManager(tokenStore: tokenStore, profileID: profileID)
+        let state = UUID().uuidString
+        serverOperationErrorMessage = nil
+
+        do {
+            let authorizationURL = try await pendingAuthManager.authorizeURL(
+                baseURLString: trimmedBaseURL,
+                state: state
+            )
+            let callbackURL = try await oauthAuthorizer.authorize(
+                authorizationURL: authorizationURL,
+                callbackScheme: HAOAuthClientMetadata.callbackScheme
+            )
+            let authorizationCode = try authorizationCode(from: callbackURL, expectedState: state)
+            _ = try await pendingAuthManager.signIn(
+                baseURLString: trimmedBaseURL,
+                authorizationCode: authorizationCode
+            )
+
+            settings.profileStore.addProfile(
+                id: profileID,
+                displayName: displayName,
+                baseURL: trimmedBaseURL
+            )
+            _ = await switchActiveProfile(
+                to: profileID,
+                settings: settings,
+                dashboardConfiguration: dashboardConfiguration
+            )
+            return profileID
+        } catch {
+            try? tokenStore.deleteCredential()
+            if !isUserCancelledSignIn(error) {
+                serverOperationErrorMessage = signInFailureMessage(for: error)
+            }
+            return nil
+        }
+    }
+
+    @discardableResult
+    func removeServer(
+        profileID: UUID,
+        removeFromDeviceAnyway: Bool = false,
+        settings: HAConnectionSettings,
+        dashboardConfiguration: DashboardConfiguration? = nil
+    ) async -> Bool {
+        guard settings.profileStore.profile(id: profileID) != nil else { return true }
+        serverOperationErrorMessage = nil
+
+        let manager = authManagerProvider(profileID)
+        if !removeFromDeviceAnyway {
+            do {
+                try await manager.revokeAndSignOut()
+            } catch {
+                serverOperationErrorMessage = error.localizedDescription
+                return false
+            }
+        } else {
+            try? KeychainHAOAuthTokenStore(profileID: profileID).deleteCredential()
+        }
+        try? mobileAppRegistrationStoreProvider(profileID).deleteRegistration()
+        if let profile = settings.profileStore.profile(id: profileID) {
+            let cacheConfiguration = HAConnectionConfiguration(
+                baseURLString: profile.baseURL,
+                accessToken: "",
+                profileID: profileID
+            )
+            await stateCache.remove(for: cacheConfiguration)
+        }
+        dashboardConfiguration?.removeProfileData(profileID)
+
+        let wasActive = settings.activeProfileID == profileID
+        if wasActive { await disconnect() }
+        let fallbackID = settings.profileStore.removeProfile(id: profileID)
+
+        guard wasActive, let fallbackID else { return true }
+        guard settings.profileStore.profile(id: fallbackID)?.hasServerURL == true else {
+            _ = settings.activateProfile(id: fallbackID)
+            dashboardConfiguration?.activateProfile(fallbackID)
+            authManager = authManagerProvider(fallbackID)
+            mobileAppRegistrationStore = mobileAppRegistrationStoreProvider(fallbackID)
+            authState = .signedOut
+            hasKnownSession = false
+            connectionStatus = .disconnected
+            dataFreshness = .empty
+            stateStore.replaceDataSourceIfNeeded("profile-\(fallbackID.uuidString.lowercased())")
+            return true
+        }
+
+        let target = fallbackID
+        _ = settings.activateProfile(id: target)
+        dashboardConfiguration?.activateProfile(target)
+        authManager = authManagerProvider(target)
+        mobileAppRegistrationStore = mobileAppRegistrationStoreProvider(target)
+        authState = await authManager.status()
+        hasKnownSession = authState.isSignedIn
+        stateStore.replaceDataSourceIfNeeded("profile-\(target.uuidString.lowercased())")
+        await loadCachedStatesIfPossible(settings: settings)
+        if authState.isSignedIn { await connectIfPossible(settings: settings) }
+        return true
+    }
+
+    @discardableResult
+    func reauthenticateServer(
+        profileID: UUID,
+        settings: HAConnectionSettings
+    ) async -> Bool {
+        guard let profile = settings.profileStore.profile(id: profileID) else { return false }
+        let manager = authManagerProvider(profileID)
+        let state = UUID().uuidString
+        serverOperationErrorMessage = nil
+        do {
+            let authorizationURL = try await manager.authorizeURL(baseURLString: profile.baseURL, state: state)
+            let callbackURL = try await oauthAuthorizer.authorize(
+                authorizationURL: authorizationURL,
+                callbackScheme: HAOAuthClientMetadata.callbackScheme
+            )
+            let code = try authorizationCode(from: callbackURL, expectedState: state)
+            _ = try await manager.signIn(baseURLString: profile.baseURL, authorizationCode: code)
+            if profileID == settings.activeProfileID {
+                authManager = manager
+                authState = await manager.status()
+                hasKnownSession = authState.isSignedIn
+                await connectIfPossible(settings: settings)
+            }
+            return true
+        } catch {
+            if !isUserCancelledSignIn(error) { serverOperationErrorMessage = signInFailureMessage(for: error) }
+            return false
         }
     }
 
@@ -1039,6 +1254,7 @@ final class HomeAssistantService {
             serverConfiguration = snapshot
             serverEnvironment = environment
             currentConnectionSettings?.adoptServerRoutes(from: snapshot)
+            currentConnectionSettings?.updateDiscoveredServerName(snapshot.locationName)
             serverConfigurationStatus = .loaded(snapshot.loadedAt)
         } catch {
             serverConfigurationStatus = .failed(error.localizedDescription)
@@ -1955,11 +2171,13 @@ final class HomeAssistantService {
         let selection = routeSelection(for: settings)
         let authenticationConfiguration = HAConnectionConfiguration(
             baseURLString: credential.baseURLString,
-            accessToken: credential.accessToken
+            accessToken: credential.accessToken,
+            profileID: settings.activeProfileID
         )
         let selectedAuthenticationConfiguration = HAConnectionConfiguration(
             baseURLString: selection.authenticationBaseURLString,
-            accessToken: credential.accessToken
+            accessToken: credential.accessToken,
+            profileID: settings.activeProfileID
         )
         guard authenticationConfiguration.dataSourceID == selectedAuthenticationConfiguration.dataSourceID else {
             return nil
@@ -2472,6 +2690,7 @@ final class HomeAssistantService {
             serverConfiguration = snapshot
             serverEnvironment = environment
             currentConnectionSettings?.adoptServerRoutes(from: snapshot)
+            currentConnectionSettings?.updateDiscoveredServerName(snapshot.locationName)
             serverConfigurationStatus = .loaded(snapshot.loadedAt)
         } catch {
             guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
@@ -2563,7 +2782,9 @@ final class HomeAssistantService {
 
         do {
             let registration = try currentMobileAppRegistration(for: activeConfiguration)
-            try await nativeNotificationService.presentNotification(event.notificationRequest)
+            try await nativeNotificationService.presentNotification(
+                event.notificationRequest(profileID: currentConnectionSettings?.activeProfileID)
+            )
 
             if let confirmID = event.hassConfirmID {
                 try await client.confirmMobileAppPushNotification(

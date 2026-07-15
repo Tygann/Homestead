@@ -521,16 +521,26 @@ nonisolated struct DashboardPresentationIdentity: Hashable, Sendable {
 @Observable
 final class DashboardConfiguration {
     private(set) var dashboards: [SavedDashboardConfiguration] {
-        didSet { saveDashboards() }
+        didSet {
+            if !isSwitchingProfile { saveDashboards() }
+        }
     }
 
     private(set) var selectedDashboardID: UUID {
-        didSet { saveSelectedDashboardID() }
+        didSet {
+            if !isSwitchingProfile { saveSelectedDashboardID() }
+        }
     }
 
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let documentKey = "homestead.dashboard.configuration.v3"
-    @ObservationIgnored private let selectedDashboardIDKey = "homestead.dashboard.selectedDashboardID.v3"
+    @ObservationIgnored private var activeProfileID: UUID?
+    @ObservationIgnored private var isSwitchingProfile = false
+    @ObservationIgnored private var documentKey: String {
+        Self.documentKey(profileID: activeProfileID)
+    }
+    @ObservationIgnored private var selectedDashboardIDKey: String {
+        Self.selectedDashboardIDKey(profileID: activeProfileID)
+    }
     @ObservationIgnored private let obsoleteKeys = [
         "dashboardItems",
         "entityDisplayNameOverrides",
@@ -540,29 +550,54 @@ final class DashboardConfiguration {
         "homestead.dashboard.selectedDashboardID.v2"
     ]
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, profileID: UUID? = nil) {
         self.defaults = defaults
-        let loaded = Self.loadDocument(from: defaults, key: documentKey)
+        activeProfileID = profileID
+        let profileDocumentKey = Self.documentKey(profileID: profileID)
+        let profileSelectedKey = Self.selectedDashboardIDKey(profileID: profileID)
+        let loaded = Self.loadDocument(from: defaults, key: profileDocumentKey)
+            ?? (profileID == nil ? nil : Self.loadDocument(from: defaults, key: Self.legacyDocumentKey))
         obsoleteKeys.forEach(defaults.removeObject(forKey:))
         let normalizedDashboards = Self.normalizedDashboards(loaded?.dashboards ?? [])
         dashboards = normalizedDashboards
         selectedDashboardID = Self.loadSelectedDashboardID(
             from: defaults,
-            key: selectedDashboardIDKey,
+            key: defaults.data(forKey: profileDocumentKey) == nil && profileID != nil
+                ? Self.legacySelectedDashboardIDKey
+                : profileSelectedKey,
             dashboards: normalizedDashboards
         )
 
         if loaded == nil {
-            defaults.removeObject(forKey: documentKey)
-            defaults.removeObject(forKey: selectedDashboardIDKey)
+            defaults.removeObject(forKey: profileDocumentKey)
+            defaults.removeObject(forKey: profileSelectedKey)
             selectedDashboardID = dashboards[0].id
-            saveDashboards()
-            saveSelectedDashboardID()
         }
+        saveDashboards()
+        saveSelectedDashboardID()
     }
 
     var hasCustomLayout: Bool { !items.isEmpty }
     var syncSnapshot: DashboardConfigurationSyncSnapshot { DashboardConfigurationSyncSnapshot(dashboards: dashboards) }
+
+    func syncSnapshots(profileIDs: [UUID]) -> [UUID: DashboardConfigurationSyncSnapshot] {
+        Dictionary(uniqueKeysWithValues: profileIDs.map { profileID in
+            let document = Self.loadDocument(from: defaults, key: Self.documentKey(profileID: profileID))
+            let dashboards = Self.normalizedDashboards(document?.dashboards ?? [])
+            return (profileID, DashboardConfigurationSyncSnapshot(dashboards: dashboards))
+        })
+    }
+
+    func applyProfileSyncSnapshots(_ snapshots: [UUID: DashboardConfigurationSyncSnapshot]) {
+        for (profileID, snapshot) in snapshots {
+            let document = DashboardConfigurationDocument(dashboards: Self.normalizedDashboards(snapshot.dashboards))
+            guard let data = try? JSONEncoder().encode(document) else { continue }
+            defaults.set(data, forKey: Self.documentKey(profileID: profileID))
+        }
+        if let activeProfileID, let active = snapshots[activeProfileID] {
+            applySyncSnapshot(active)
+        }
+    }
     var selectedDashboard: SavedDashboardConfiguration { dashboards.first { $0.id == selectedDashboardID } ?? dashboards[0] }
     var items: [DashboardItemConfiguration] { selectedDashboard.items }
     var setupState: DashboardSetupState { selectedDashboard.setupState }
@@ -577,6 +612,28 @@ final class DashboardConfiguration {
     }
 
     // MARK: Lifecycle
+
+    func activateProfile(_ profileID: UUID) {
+        guard activeProfileID != profileID else { return }
+        isSwitchingProfile = true
+        activeProfileID = profileID
+        let loaded = Self.loadDocument(from: defaults, key: documentKey)
+        let normalized = Self.normalizedDashboards(loaded?.dashboards ?? [])
+        dashboards = normalized
+        selectedDashboardID = Self.loadSelectedDashboardID(
+            from: defaults,
+            key: selectedDashboardIDKey,
+            dashboards: normalized
+        )
+        isSwitchingProfile = false
+        saveDashboards()
+        saveSelectedDashboardID()
+    }
+
+    func removeProfileData(_ profileID: UUID) {
+        defaults.removeObject(forKey: Self.documentKey(profileID: profileID))
+        defaults.removeObject(forKey: Self.selectedDashboardIDKey(profileID: profileID))
+    }
 
     func reconcile(with entityBoxes: [HAEntityState]) {
         let boxesByID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
@@ -936,6 +993,19 @@ final class DashboardConfiguration {
               let document = try? JSONDecoder().decode(DashboardConfigurationDocument.self, from: data),
               document.isCurrentSchema else { return nil }
         return DashboardConfigurationDocument(dashboards: normalizedDashboards(document.dashboards))
+    }
+
+    private static let legacyDocumentKey = "homestead.dashboard.configuration.v3"
+    private static let legacySelectedDashboardIDKey = "homestead.dashboard.selectedDashboardID.v3"
+
+    private static func documentKey(profileID: UUID?) -> String {
+        guard let profileID else { return legacyDocumentKey }
+        return "\(legacyDocumentKey).\(profileID.uuidString.lowercased())"
+    }
+
+    private static func selectedDashboardIDKey(profileID: UUID?) -> String {
+        guard let profileID else { return legacySelectedDashboardIDKey }
+        return "\(legacySelectedDashboardIDKey).\(profileID.uuidString.lowercased())"
     }
 
     private static func loadSelectedDashboardID(from defaults: UserDefaults, key: String, dashboards: [SavedDashboardConfiguration]) -> UUID {

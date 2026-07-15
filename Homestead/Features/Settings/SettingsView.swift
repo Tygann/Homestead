@@ -30,6 +30,12 @@ struct SettingsView: View {
                 } label: {
                     PeopleSettingsRow(records: visiblePeopleRecords)
                 }
+
+                NavigationLink {
+                    HomeAssistantServersView()
+                } label: {
+                    Label("Servers", systemImage: "server.rack")
+                }
             }
 
             Section("Home Assistant") {

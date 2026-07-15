@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-15
 
+### Multiple Home Assistant Servers
+
+- Added app-owned server profiles with one active WebSocket, profile-scoped OAuth/mobile-app Keychain records, transactional generation-guarded switching, isolated dashboards/state caches, and legacy single-server migration without a new sign-in.
+- Added the avatar Servers menu and Settings management for discovery/manual add, rename, reauthentication, switching, inspection, and revoking removal with a force-local recovery path.
+- Added profile-aware widget/deep-link and notification routing, kept existing widgets pinned to their original migrated profile, and extended iCloud v2 with optional credential-free server metadata and per-server dashboard bundles.
+- Verified with a generic simulator build and five focused multi-server migration/isolation tests.
+
 ### Card And Widget Catalog Hardening
 
 - Added shared feature relationships for dashboard presentations and all WidgetKit kinds, including gallery metadata, supported-family metadata, required configuration, and related widget kinds without changing stable WidgetKit identifiers.

@@ -26,6 +26,7 @@ enum HAMobileAppRegistrationStoreError: LocalizedError {
 }
 
 nonisolated struct KeychainHAMobileAppRegistrationStore: HAMobileAppRegistrationStore {
+    private static let baseAccount = "mobileAppRegistration"
     private let service: String
     private let account: String
     private let accessGroup: String?
@@ -34,7 +35,7 @@ nonisolated struct KeychainHAMobileAppRegistrationStore: HAMobileAppRegistration
 
     init(
         service: String = "com.tyler.Homestead.homeAssistant",
-        account: String = "mobileAppRegistration",
+        account: String = Self.baseAccount,
         accessGroup: String? = WidgetSharedStore.keychainAccessGroup
     ) {
         self.service = service
@@ -46,6 +47,20 @@ nonisolated struct KeychainHAMobileAppRegistrationStore: HAMobileAppRegistration
 
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+    }
+
+    init(profileID: UUID) {
+        self.init(account: "\(Self.baseAccount).\(profileID.uuidString.lowercased())")
+    }
+
+    static func migrateLegacyRegistrationIfNeeded(to profileID: UUID) throws {
+        let legacyStore = KeychainHAMobileAppRegistrationStore()
+        let profileStore = KeychainHAMobileAppRegistrationStore(profileID: profileID)
+        guard try profileStore.readRegistration() == nil,
+              let legacyRegistration = try legacyStore.readRegistration() else {
+            return
+        }
+        try profileStore.saveRegistration(legacyRegistration)
     }
 
     func readRegistration() throws -> HAMobileAppRegistrationInfo? {

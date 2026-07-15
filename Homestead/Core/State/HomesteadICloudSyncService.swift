@@ -75,6 +75,7 @@ struct HomesteadConnectionSyncSnapshot: Codable, Equatable {
     var internalURL: String
     var externalURL: String
     var internalNetworkSSIDs: [String]? = nil
+    var profiles: HAConnectionProfilesSyncSnapshot? = nil
 }
 
 struct HomesteadICloudSyncPayload: Codable, Equatable {
@@ -82,6 +83,7 @@ struct HomesteadICloudSyncPayload: Codable, Equatable {
     var sourceDeviceID: String
     var connection: HomesteadSyncRecord<HomesteadConnectionSyncSnapshot>
     var dashboard: HomesteadSyncRecord<DashboardConfigurationSyncSnapshot>
+    var profileDashboards: [UUID: DashboardConfigurationSyncSnapshot]? = nil
     var actionConfirmations: HomesteadSyncRecord<ActionConfirmationSettingsSyncSnapshot>
     var appearance: HomesteadSyncRecord<HomesteadAppearanceSettingsSyncSnapshot>
 
@@ -461,10 +463,14 @@ final class HomesteadICloudSyncService {
                     ),
                     internalURL: connectionSettings.internalURL,
                     externalURL: connectionSettings.externalURL,
-                    internalNetworkSSIDs: connectionSettings.internalNetworkSSIDs
+                    internalNetworkSSIDs: connectionSettings.internalNetworkSSIDs,
+                    profiles: connectionSettings.profileStore.syncSnapshot
                 )
             ),
             dashboard: HomesteadSyncRecord(updatedAt: dates[.dashboard] ?? .distantPast, value: dashboardConfiguration.syncSnapshot),
+            profileDashboards: dashboardConfiguration.syncSnapshots(
+                profileIDs: connectionSettings.profileStore.configuredProfiles.map(\.id)
+            ),
             actionConfirmations: HomesteadSyncRecord(updatedAt: dates[.actionConfirmations] ?? .distantPast, value: actionConfirmationSettings.syncSnapshot),
             appearance: HomesteadSyncRecord(updatedAt: dates[.appearance] ?? .distantPast, value: appearanceSettings.syncSnapshot)
         )
@@ -594,13 +600,20 @@ final class HomesteadICloudSyncService {
             )
             if allowServerReplacement || localServer.isEmpty || normalized(localServer) == normalized(remoteServer) {
                 connectionSettings.applySyncSnapshot(remote.connection.value)
+                if let profiles = remote.connection.value.profiles {
+                    connectionSettings.profileStore.mergeSyncSnapshot(profiles)
+                }
                 recordRemoteDate(remote.connection.updatedAt, section: .connection)
             } else {
                 connectionSettings.applyRoutingSyncSnapshot(remote.connection.value)
             }
         }
         if remote.dashboard.updatedAt > localDate(.dashboard) {
-            dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
+            if let profileDashboards = remote.profileDashboards {
+                dashboardConfiguration.applyProfileSyncSnapshots(profileDashboards)
+            } else {
+                dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
+            }
             recordRemoteDate(remote.dashboard.updatedAt, section: .dashboard)
         }
         if remote.actionConfirmations.updatedAt > localDate(.actionConfirmations) {
@@ -625,7 +638,14 @@ final class HomesteadICloudSyncService {
     ) {
         isApplyingRemote = true
         connectionSettings.applySyncSnapshot(remote.connection.value)
-        dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
+        if let profiles = remote.connection.value.profiles {
+            connectionSettings.profileStore.mergeSyncSnapshot(profiles)
+        }
+        if let profileDashboards = remote.profileDashboards {
+            dashboardConfiguration.applyProfileSyncSnapshots(profileDashboards)
+        } else {
+            dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
+        }
         actionConfirmationSettings.applySyncSnapshot(remote.actionConfirmations.value)
         appearanceSettings.applySyncSnapshot(remote.appearance.value)
         isApplyingRemote = false

@@ -8,18 +8,21 @@ final class HAConnectionSettings {
         didSet {
             defaults.set(baseURL, forKey: Keys.baseURL)
             WidgetSharedStore.saveBaseURL(baseURL)
+            profileStore.updateActiveProfile { $0.baseURL = baseURL }
         }
     }
 
     var internalURL: String {
         didSet {
             defaults.set(internalURL, forKey: Keys.internalURL)
+            profileStore.updateActiveProfile { $0.internalURL = internalURL }
         }
     }
 
     var externalURL: String {
         didSet {
             defaults.set(externalURL, forKey: Keys.externalURL)
+            profileStore.updateActiveProfile { $0.externalURL = externalURL }
         }
     }
 
@@ -31,7 +34,9 @@ final class HAConnectionSettings {
 
     var internalNetworkSSIDs: [String] {
         didSet {
-            defaults.set(Self.normalizedSSIDs(internalNetworkSSIDs), forKey: Keys.internalNetworkSSIDs)
+            let normalized = Self.normalizedSSIDs(internalNetworkSSIDs)
+            defaults.set(normalized, forKey: Keys.internalNetworkSSIDs)
+            profileStore.updateActiveProfile { $0.internalNetworkSSIDs = normalized }
         }
     }
 
@@ -39,6 +44,11 @@ final class HAConnectionSettings {
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let tokenStore: any HAOAuthTokenStore
+    let profileStore: HAConnectionProfileStore
+
+    var activeProfileID: UUID { profileStore.activeProfileID }
+    var activeProfile: HAConnectionProfile { profileStore.activeProfile }
+    var profiles: [HAConnectionProfile] { profileStore.configuredProfiles }
 
     var hasServerURL: Bool {
         !baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -70,7 +80,8 @@ final class HAConnectionSettings {
     init(
         baseURL: String? = nil,
         defaults: UserDefaults = .standard,
-        tokenStore: (any HAOAuthTokenStore)? = nil
+        tokenStore: (any HAOAuthTokenStore)? = nil,
+        profileStore: HAConnectionProfileStore? = nil
     ) {
         self.defaults = defaults
         self.tokenStore = tokenStore ?? KeychainHAOAuthTokenStore()
@@ -84,21 +95,52 @@ final class HAConnectionSettings {
             authStorageErrorMessage = error.localizedDescription
         }
 
-        self.baseURL = baseURL ??
+        let legacyBaseURL = baseURL ??
             storedCredentialBaseURL ??
             defaults.string(forKey: Keys.baseURL) ??
             UserDefaults(suiteName: WidgetSharedStore.appGroupID)?.string(forKey: Keys.baseURL) ??
             ""
-        internalURL = defaults.string(forKey: Keys.internalURL) ?? ""
-        externalURL = defaults.string(forKey: Keys.externalURL) ?? ""
-        let storedHomeNetworkName = defaults.string(forKey: Keys.homeNetworkName) ?? ""
-        let storedSSIDs = defaults.stringArray(forKey: Keys.internalNetworkSSIDs) ?? []
-        homeNetworkName = storedHomeNetworkName
-        internalNetworkSSIDs = Self.normalizedSSIDs(
-            storedSSIDs.isEmpty && !storedHomeNetworkName.isEmpty ? [storedHomeNetworkName] : storedSSIDs
+        let resolvedProfileStore = profileStore ?? HAConnectionProfileStore(
+            defaults: defaults,
+            legacyBaseURL: legacyBaseURL
         )
+        self.profileStore = resolvedProfileStore
+        let activeProfile = resolvedProfileStore.activeProfile
+
+        self.baseURL = baseURL ?? activeProfile.baseURL
+        internalURL = activeProfile.internalURL
+        externalURL = activeProfile.externalURL
+        homeNetworkName = activeProfile.internalNetworkSSIDs.first ?? defaults.string(forKey: Keys.homeNetworkName) ?? ""
+        internalNetworkSSIDs = Self.normalizedSSIDs(activeProfile.internalNetworkSSIDs)
+
+        if let baseURL {
+            resolvedProfileStore.updateActiveProfile { $0.baseURL = baseURL }
+        }
 
         WidgetSharedStore.saveBaseURL(self.baseURL)
+    }
+
+    @discardableResult
+    func activateProfile(id: UUID) -> Bool {
+        guard profileStore.setActiveProfile(id: id), let profile = profileStore.profile(id: id) else {
+            return false
+        }
+
+        baseURL = profile.baseURL
+        internalURL = profile.internalURL
+        externalURL = profile.externalURL
+        internalNetworkSSIDs = Self.normalizedSSIDs(profile.internalNetworkSSIDs)
+        homeNetworkName = internalNetworkSSIDs.first ?? ""
+        return true
+    }
+
+    @discardableResult
+    func addProfile(displayName: String = "", baseURL: String) -> UUID {
+        profileStore.addProfile(displayName: displayName, baseURL: baseURL)
+    }
+
+    func updateDiscoveredServerName(_ name: String?) {
+        profileStore.updateActiveProfile { $0.discoveredName = name }
     }
 
     func applySyncSnapshot(_ snapshot: HAConnectionSettingsSyncSnapshot) {

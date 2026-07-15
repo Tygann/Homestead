@@ -25,6 +25,10 @@ nonisolated enum HAOAuthKeychainCredentialContract {
     static let service = "com.tyler.Homestead.homeAssistant"
     static let account = "oauthCredential"
     static let accessGroup = WidgetSharedStore.keychainAccessGroup
+
+    static func account(profileID: UUID) -> String {
+        "\(account).\(profileID.uuidString.lowercased())"
+    }
 }
 
 nonisolated struct KeychainHAOAuthTokenStore: HAOAuthTokenStore {
@@ -48,6 +52,21 @@ nonisolated struct KeychainHAOAuthTokenStore: HAOAuthTokenStore {
 
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+    }
+
+    init(profileID: UUID) {
+        self.init(account: HAOAuthKeychainCredentialContract.account(profileID: profileID))
+    }
+
+    static func migrateLegacyCredentialIfNeeded(to profileID: UUID) throws {
+        let legacyStore = KeychainHAOAuthTokenStore()
+        let profileStore = KeychainHAOAuthTokenStore(profileID: profileID)
+        guard try profileStore.readCredential() == nil,
+              let legacyCredential = try legacyStore.readCredential() else {
+            return
+        }
+
+        try profileStore.saveCredential(legacyCredential)
     }
 
     func readCredential() throws -> HAOAuthCredential? {

@@ -6,6 +6,7 @@ import UserNotifications
 struct HomesteadApp: App {
     @UIApplicationDelegateAdaptor(HomesteadAppDelegate.self) private var appDelegate
     @State private var stateStore: HAStateStore
+    @State private var connectionProfileStore: HAConnectionProfileStore
     @State private var connectionSettings: HAConnectionSettings
     @State private var homeAssistantService: HomeAssistantService
     @State private var nativeNotificationService: NativeNotificationService
@@ -25,6 +26,7 @@ struct HomesteadApp: App {
             let dependencies = PreviewDependencies.sample
             HomesteadAppDelegate.nativeNotificationService = dependencies.nativeNotificationService
             _stateStore = State(initialValue: dependencies.stateStore)
+            _connectionProfileStore = State(initialValue: dependencies.connectionSettings.profileStore)
             _connectionSettings = State(initialValue: dependencies.connectionSettings)
             _homeAssistantService = State(initialValue: dependencies.homeAssistantService)
             _nativeNotificationService = State(initialValue: dependencies.nativeNotificationService)
@@ -47,6 +49,7 @@ struct HomesteadApp: App {
             }
             HomesteadAppDelegate.nativeNotificationService = dependencies.nativeNotificationService
             _stateStore = State(initialValue: dependencies.stateStore)
+            _connectionProfileStore = State(initialValue: dependencies.connectionSettings.profileStore)
             _connectionSettings = State(initialValue: dependencies.connectionSettings)
             _homeAssistantService = State(initialValue: dependencies.homeAssistantService)
             _nativeNotificationService = State(initialValue: dependencies.nativeNotificationService)
@@ -63,23 +66,33 @@ struct HomesteadApp: App {
         }
 #endif
 
-        let tokenStore = KeychainHAOAuthTokenStore()
+        let legacyTokenStore = KeychainHAOAuthTokenStore()
         let stateStore = HAStateStore()
-        let connectionSettings = HAConnectionSettings(tokenStore: tokenStore)
+        let connectionSettings = HAConnectionSettings(tokenStore: legacyTokenStore)
+        let connectionProfileStore = connectionSettings.profileStore
+        try? KeychainHAOAuthTokenStore.migrateLegacyCredentialIfNeeded(to: connectionProfileStore.activeProfileID)
+        try? KeychainHAMobileAppRegistrationStore.migrateLegacyRegistrationIfNeeded(to: connectionProfileStore.activeProfileID)
+        let tokenStore = KeychainHAOAuthTokenStore(profileID: connectionProfileStore.activeProfileID)
         let nativeNotificationService = NativeNotificationService()
         HomesteadAppDelegate.nativeNotificationService = nativeNotificationService
         let nativePermissionService = NativePermissionService()
         let actionConfirmationSettings = ActionConfirmationSettings()
         let appearanceSettings = HomesteadAppearanceSettings()
         let tabSettings = HomesteadTabSettings()
-        let dashboardConfiguration = DashboardConfiguration()
+        let dashboardConfiguration = DashboardConfiguration(profileID: connectionProfileStore.activeProfileID)
         let iCloudSyncService = HomesteadICloudSyncService()
         let setupCoordinator = HomesteadSetupCoordinator()
         let homeAssistantService = HomeAssistantService(
             stateStore: stateStore,
             authState: HAOAuthManager.status(tokenStore: tokenStore),
+            mobileAppRegistrationStore: KeychainHAMobileAppRegistrationStore(
+                profileID: connectionProfileStore.activeProfileID
+            ),
             nativeNotificationService: nativeNotificationService,
-            authManager: HAOAuthManager(tokenStore: tokenStore)
+            authManager: HAOAuthManager(
+                tokenStore: tokenStore,
+                profileID: connectionProfileStore.activeProfileID
+            )
         )
         if connectionSettings.hasServerURL, homeAssistantService.hasKnownSession {
             homeAssistantService.restoreCachedStatesSynchronouslyIfPossible(
@@ -97,6 +110,7 @@ struct HomesteadApp: App {
         }
 
         _stateStore = State(initialValue: stateStore)
+        _connectionProfileStore = State(initialValue: connectionProfileStore)
         _connectionSettings = State(initialValue: connectionSettings)
         _homeAssistantService = State(initialValue: homeAssistantService)
         _nativeNotificationService = State(initialValue: nativeNotificationService)
@@ -115,6 +129,7 @@ struct HomesteadApp: App {
         WindowGroup {
             rootView
                 .environment(stateStore)
+                .environment(connectionProfileStore)
                 .environment(connectionSettings)
                 .environment(homeAssistantService)
                 .environment(nativeNotificationService)
@@ -254,6 +269,22 @@ final class HomesteadAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         [.banner, .list, .sound, .badge]
     }
 
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let userInfo = response.notification.request.content.userInfo
+        let profileID = userInfo["profile_id"] as? String
+        let entityID = userInfo["entity_id"] as? String
+        await MainActor.run {
+            NotificationCenter.default.post(
+                name: .homesteadNotificationDestination,
+                object: nil,
+                userInfo: ["profile_id": profileID, "entity_id": entityID].compactMapValues { $0 }
+            )
+        }
+    }
+
     func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
@@ -271,4 +302,8 @@ final class HomesteadAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
             Self.nativeNotificationService?.handleRemoteNotificationRegistrationFailure(error)
         }
     }
+}
+
+extension Notification.Name {
+    static let homesteadNotificationDestination = Notification.Name("homestead.notificationDestination")
 }

@@ -56,13 +56,15 @@ nonisolated struct HAMobileAppPushNotificationEventDTO: Decodable, Sendable {
         data = nestedPayload["data"] ?? payloadData
     }
 
-    var notificationRequest: NativeNotificationRequest {
+    func notificationRequest(profileID: UUID?) -> NativeNotificationRequest {
         NativeNotificationRequest(
             title: title?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty ?? "Home Assistant",
             body: message,
             userInfo: [
                 "source": "home_assistant",
-                "hass_confirm_id": hassConfirmID
+                "hass_confirm_id": hassConfirmID,
+                "profile_id": profileID?.uuidString,
+                "entity_id": data?.objectValue?["entity_id"]?.stringValue
             ].compactMapValues { $0 }
         )
     }
