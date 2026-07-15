@@ -145,10 +145,15 @@ struct DashboardCardView: View {
                     kind: resolvedPresentationKind,
                     for: entityBox
                 )?.style
+            let sharedFeaturePresentation = DashboardFeaturePresentationAdapter.sensorPresentation(
+                for: entityBox,
+                titleOverride: resolvedDisplayNameOverride(for: entityBox)
+            )
             let presentation = DashboardEntityPresentation(
                 entityBox: entityBox,
                 displayNameOverride: resolvedDisplayNameOverride(for: entityBox),
-                iconNameOverride: iconNameOverride
+                iconNameOverride: iconNameOverride,
+                sharedFeaturePresentation: sharedFeaturePresentation
             )
 
             DashboardEntityCard(

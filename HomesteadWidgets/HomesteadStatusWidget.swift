@@ -5,7 +5,7 @@ import WidgetKit
 struct HomesteadStatusWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
-            kind: "HomesteadStatusWidget",
+            kind: HomesteadWidgetKind.status.rawValue,
             intent: HomesteadStatusWidgetConfigurationIntent.self,
             provider: HomesteadStatusTimelineProvider()
         ) { entry in
@@ -330,6 +330,13 @@ struct HomesteadStatusWidgetView: View {
     let entry: HomesteadStatusEntry
 
     var body: some View {
+        deepLinkedContent {
+            familyContent
+        }
+    }
+
+    @ViewBuilder
+    private var familyContent: some View {
         switch family {
         case .accessoryCircular:
             accessoryCircular
@@ -337,6 +344,16 @@ struct HomesteadStatusWidgetView: View {
             accessoryRectangular
         default:
             systemSmall
+        }
+    }
+
+    @ViewBuilder
+    private func deepLinkedContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if let entityID = entry.entityID {
+            content()
+                .widgetURL(HomesteadWidgetDeepLink.entityURL(entityID: entityID))
+        } else {
+            content()
         }
     }
 

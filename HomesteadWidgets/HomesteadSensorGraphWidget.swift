@@ -5,7 +5,7 @@ import WidgetKit
 struct HomesteadSensorGraphWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
-            kind: "HomesteadSensorGraphWidget",
+            kind: HomesteadWidgetKind.sensor.rawValue,
             intent: HomesteadSensorGraphWidgetConfigurationIntent.self,
             provider: HomesteadSensorGraphTimelineProvider()
         ) { entry in
@@ -643,6 +643,13 @@ struct HomesteadSensorGraphWidgetView: View {
     let entry: HomesteadSensorGraphEntry
 
     var body: some View {
+        deepLinkedContent {
+            familyContent
+        }
+    }
+
+    @ViewBuilder
+    private var familyContent: some View {
         switch family {
         case .accessoryCircular:
             accessoryCircular
@@ -652,6 +659,16 @@ struct HomesteadSensorGraphWidgetView: View {
             systemMedium
         default:
             systemSmall
+        }
+    }
+
+    @ViewBuilder
+    private func deepLinkedContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if let entityID = entry.entityID {
+            content()
+                .widgetURL(HomesteadWidgetDeepLink.entityURL(entityID: entityID))
+        } else {
+            content()
         }
     }
 

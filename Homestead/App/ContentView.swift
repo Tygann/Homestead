@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(HAStateStore.self) private var stateStore
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(HomesteadICloudSyncService.self) private var iCloudSyncService
@@ -16,6 +17,7 @@ struct ContentView: View {
     @AppStorage("homestead.notificationSetupPromptHandled") private var hasHandledNotificationSetupPrompt = false
     @State private var isShowingSettings = false
     @State private var isShowingNotificationSetupPrompt = false
+    @State private var widgetEntityDestination: WidgetEntityDestination?
 
     var body: some View {
         let chrome = AppChromePresentation.make(
@@ -86,6 +88,19 @@ struct ContentView: View {
             }
             .preferredColorScheme(settingsSheetColorScheme)
         }
+        .sheet(item: $widgetEntityDestination) { destination in
+            if let entityBox = stateStore.entityBox(for: destination.entityID) {
+                NavigationStack {
+                    EntityDetailSheet(entityBox: entityBox)
+                }
+            } else {
+                ContentUnavailableView(
+                    "Entity Unavailable",
+                    systemImage: "questionmark.circle",
+                    description: Text(destination.entityID)
+                )
+            }
+        }
         .alert("Finish Notification Setup", isPresented: $isShowingNotificationSetupPrompt) {
             Button("Not Now", role: .cancel) {
                 hasHandledNotificationSetupPrompt = true
@@ -111,6 +126,13 @@ struct ContentView: View {
             @unknown default:
                 break
             }
+        }
+        .onOpenURL { url in
+            guard let entityID = HomesteadWidgetDeepLink.entityID(from: url) else {
+                return
+            }
+
+            widgetEntityDestination = WidgetEntityDestination(entityID: entityID)
         }
         .onChange(of: homeAssistantService.serviceFeedback?.id) { _, _ in
             playServiceFeedbackHaptic()
@@ -327,6 +349,12 @@ struct ContentView: View {
 
         isShowingNotificationSetupPrompt = true
     }
+}
+
+private struct WidgetEntityDestination: Identifiable {
+    let entityID: String
+
+    var id: String { entityID }
 }
 
 private extension NativeNotificationAuthorizationStatus {

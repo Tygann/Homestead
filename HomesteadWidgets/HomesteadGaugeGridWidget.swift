@@ -5,7 +5,7 @@ import WidgetKit
 struct HomesteadGaugeGridWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
-            kind: "HomesteadGaugeGridWidget",
+            kind: HomesteadWidgetKind.gaugeGrid.rawValue,
             intent: HomesteadGaugeGridWidgetConfigurationIntent.self,
             provider: HomesteadGaugeGridTimelineProvider()
         ) { entry in
@@ -21,6 +21,12 @@ struct HomesteadGaugeGridWidget: Widget {
 
 struct HomesteadGaugeGridWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Gauge Grid"
+
+    // App Intents replaces the whole summary per branch, so this keeps the default form compact
+    // without creating a combinatorial branch tree for three independently configured slots.
+    @Parameter(title: "Advanced Gauge Settings", default: false)
+    var showAdvancedGaugeSettings: Bool
+
     static var description = IntentDescription("Choose up to three Home Assistant gauges.")
 
     @Parameter(title: "Gauge 1")
@@ -81,8 +87,10 @@ struct HomesteadGaugeGridWidgetConfigurationIntent: WidgetConfigurationIntent {
     @Parameter(title: "Gauge 3 Zone 5 Color", default: .purple) var zone5Color3: HomesteadGaugeZoneColor
 
     static var parameterSummary: some ParameterSummary {
-        Summary {
-            \.$item1
+        When(\.$showAdvancedGaugeSettings, .equalTo, true) {
+            Summary {
+                \.$showAdvancedGaugeSettings
+                \.$item1
             \.$customDisplayName1
             \.$display1
             \.$gaugeScale1
@@ -129,10 +137,29 @@ struct HomesteadGaugeGridWidgetConfigurationIntent: WidgetConfigurationIntent {
             \.$zone4BeginsAt3
             \.$zone4Color3
             \.$zone5BeginsAt3
-            \.$zone5Color3
+                \.$zone5Color3
+            }
+        } otherwise: {
+            Summary {
+                \.$showAdvancedGaugeSettings
+                \.$item1
+                \.$customDisplayName1
+                \.$display1
+                \.$gaugeScale1
+                \.$zoneCount1
+                \.$item2
+                \.$customDisplayName2
+                \.$display2
+                \.$gaugeScale2
+                \.$zoneCount2
+                \.$item3
+                \.$customDisplayName3
+                \.$display3
+                \.$gaugeScale3
+                \.$zoneCount3
+            }
         }
     }
-
     var selectedSlots: [HomesteadGaugeGridSlot] {
         [
             HomesteadGaugeGridSlot(item: item1, configuration: .init(customDisplayName: customDisplayName1, display: display1, gaugeScale: gaugeScale1, gaugeMinimum: gaugeMinimum1, gaugeMaximum: gaugeMaximum1, zoneCount: zoneCount1, zone1Color: zone1Color1, zone2BeginsAt: zone2BeginsAt1, zone2Color: zone2Color1, zone3BeginsAt: zone3BeginsAt1, zone3Color: zone3Color1, zone4BeginsAt: zone4BeginsAt1, zone4Color: zone4Color1, zone5BeginsAt: zone5BeginsAt1, zone5Color: zone5Color1)),
@@ -599,7 +626,10 @@ struct HomesteadGaugeGridWidgetView: View {
                                 let index = (row * layout.columnCount) + column
 
                                 if index < entry.items.count {
-                                    HomesteadGaugeGridTile(item: entry.items[index])
+                                    let item = entry.items[index]
+                                    Link(destination: HomesteadWidgetDeepLink.entityURL(entityID: item.id)) {
+                                        HomesteadGaugeGridTile(item: item)
+                                    }
                                         .frame(width: tileSize, height: tileSize)
                                 } else {
                                     Color.clear

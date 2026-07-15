@@ -7,6 +7,41 @@ enum DashboardAddItemMode: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
+enum DashboardAddGalleryFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case controls = "Controls"
+    case status = "Status"
+    case sensors = "Sensors"
+    case media = "Media"
+    case actions = "Actions"
+    case layout = "Layout"
+
+    var id: Self { self }
+
+    func matches(_ item: DashboardAddGalleryItem) -> Bool {
+        guard let kind = item.presentationKind else {
+            return self == .all || self == .layout
+        }
+
+        switch self {
+        case .all:
+            return true
+        case .controls:
+            return kind == .control
+        case .status:
+            return [.status, .chip].contains(kind)
+        case .sensors:
+            return [.gauge, .graph].contains(kind)
+        case .media:
+            return [.camera, .weather, .media].contains(kind)
+        case .actions:
+            return kind == .action
+        case .layout:
+            return false
+        }
+    }
+}
+
 enum DashboardAddSource: Hashable, Identifiable {
     case entity(String)
     case summary(DashboardSummaryKind)
@@ -63,6 +98,11 @@ enum DashboardAddGalleryItem: Identifiable {
     var isPlanned: Bool {
         if case .planned = self { return true }
         return false
+    }
+
+    var presentationKind: DashboardPresentationKind? {
+        guard case .presentation(let descriptor) = self else { return nil }
+        return descriptor.kind
     }
 }
 
@@ -127,8 +167,8 @@ enum DashboardAddGallerySection: String, CaseIterable, Identifiable {
 }
 
 enum DashboardAddGalleryCatalog {
-    // Keep planned roadmap metadata easy to hide before a public release.
-    static let showsPlannedCards = true
+    // Roadmap concepts stay out of the production add flow until they are usable.
+    static let showsPlannedCards = false
 
     static var sections: [DashboardAddGallerySection] {
         DashboardAddGallerySection.allCases.filter {

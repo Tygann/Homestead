@@ -5,7 +5,7 @@ import WidgetKit
 struct HomesteadActionWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
-            kind: "HomesteadActionWidget",
+            kind: HomesteadWidgetKind.action.rawValue,
             intent: HomesteadActionWidgetConfigurationIntent.self,
             provider: HomesteadActionTimelineProvider()
         ) { entry in
@@ -45,7 +45,7 @@ struct RunHomesteadActionIntent: AppIntent {
 
     func perform() async throws -> some IntentResult {
         try await HAWidgetActionClient().triggerAction(domain: domain, entityID: entityID)
-        WidgetCenter.shared.reloadTimelines(ofKind: "HomesteadActionWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.action.rawValue)
         return .result()
     }
 }
@@ -248,6 +248,13 @@ struct HomesteadActionWidgetView: View {
     let entry: HomesteadActionEntry
 
     var body: some View {
+        deepLinkedContent {
+            familyContent
+        }
+    }
+
+    @ViewBuilder
+    private var familyContent: some View {
         switch family {
         case .accessoryCircular:
             accessoryCircular
@@ -255,6 +262,16 @@ struct HomesteadActionWidgetView: View {
             accessoryRectangular
         default:
             systemSmall
+        }
+    }
+
+    @ViewBuilder
+    private func deepLinkedContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if let entityID = entry.entityID {
+            content()
+                .widgetURL(HomesteadWidgetDeepLink.entityURL(entityID: entityID))
+        } else {
+            content()
         }
     }
 

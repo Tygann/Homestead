@@ -99,6 +99,25 @@ nonisolated struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     var resolvedIcon: ResolvedIcon {
         icon ?? legacyIcon(fallback: "gauge.medium")
     }
+
+    var sharedPresentation: SharedFeaturePresentation {
+        SharedFeaturePresentation(
+            subjectID: entityID,
+            subjectKind: .sensor,
+            title: displayName,
+            subtitle: subtitle,
+            valueText: valueText,
+            statusText: isAvailable ? subtitle : "Unavailable",
+            icon: resolvedIcon,
+            availability: isAvailable ? .available : .unavailable(reason: "Sensor unavailable"),
+            affordances: Set([
+                .read,
+                gauge == nil ? nil : .gauge
+            ].compactMap { $0 }),
+            accessibilityLabel: gauge?.accessibilityLabel ?? "\(displayName) sensor",
+            accessibilityValue: gauge?.accessibilityValue ?? valueText
+        )
+    }
 }
 
 nonisolated enum HomesteadWidgetItemKind: String, Codable, Equatable, Sendable {
@@ -119,18 +138,19 @@ nonisolated struct HomesteadWidgetItem: Identifiable, Codable, Equatable, Sendab
 
     static func sensorGauge(from snapshot: WidgetSensorSnapshot) -> Self? {
         guard let gauge = snapshot.gauge else { return nil }
+        let presentation = snapshot.sharedPresentation
 
         return Self(
             id: snapshot.entityID,
             kind: .sensorGauge,
-            displayName: snapshot.displayName,
-            icon: snapshot.resolvedIcon,
+            displayName: presentation.title,
+            icon: presentation.icon,
             valueText: gauge.valueText,
             unitText: gauge.unitText,
-            isAvailable: snapshot.isAvailable,
+            isAvailable: presentation.isAvailable,
             gauge: gauge,
-            accessibilityLabel: gauge.accessibilityLabel,
-            accessibilityValue: gauge.accessibilityValue
+            accessibilityLabel: presentation.accessibilityLabel,
+            accessibilityValue: presentation.accessibilityValue ?? gauge.accessibilityValue
         )
     }
 }

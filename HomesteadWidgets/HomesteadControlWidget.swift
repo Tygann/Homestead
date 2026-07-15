@@ -5,7 +5,7 @@ import WidgetKit
 struct HomesteadControlWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
-            kind: "HomesteadControlWidget",
+            kind: HomesteadWidgetKind.control.rawValue,
             intent: HomesteadControlWidgetConfigurationIntent.self,
             provider: HomesteadControlTimelineProvider()
         ) { entry in
@@ -72,10 +72,10 @@ struct RunHomesteadControlIntent: AppIntent {
             )
         case ("cover", "open_cover"), ("cover", "close_cover"), ("cover", "stop_cover"):
             try await HAWidgetActionClient().runCoverService(entityID: entityID, service: action)
-            WidgetCenter.shared.reloadTimelines(ofKind: "HomesteadControlWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.control.rawValue)
         case ("lock", "lock"):
             try await HAWidgetActionClient().lock(entityID: entityID)
-            WidgetCenter.shared.reloadTimelines(ofKind: "HomesteadControlWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.control.rawValue)
         default:
             throw HAWidgetActionError.serviceCallFailed
         }
@@ -90,14 +90,14 @@ struct RunHomesteadControlIntent: AppIntent {
         serviceCall: (Bool) async throws -> Void
     ) async throws {
         update(turnOn)
-        WidgetCenter.shared.reloadTimelines(ofKind: "HomesteadControlWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.control.rawValue)
 
         do {
             try await serviceCall(turnOn)
         } catch {
             if let currentState {
                 update(currentState)
-                WidgetCenter.shared.reloadTimelines(ofKind: "HomesteadControlWidget")
+                WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.control.rawValue)
             }
 
             throw error
@@ -616,6 +616,13 @@ struct HomesteadControlWidgetView: View {
     let entry: HomesteadControlEntry
 
     var body: some View {
+        deepLinkedContent {
+            familyContent
+        }
+    }
+
+    @ViewBuilder
+    private var familyContent: some View {
         switch family {
         case .accessoryCircular:
             accessoryCircular
@@ -623,6 +630,16 @@ struct HomesteadControlWidgetView: View {
             accessoryRectangular
         default:
             systemSmall
+        }
+    }
+
+    @ViewBuilder
+    private func deepLinkedContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if let entityID = entry.entityID {
+            content()
+                .widgetURL(HomesteadWidgetDeepLink.entityURL(entityID: entityID))
+        } else {
+            content()
         }
     }
 

@@ -439,6 +439,7 @@ struct DashboardEntityPresentation {
     let isAvailable: Bool
     let accentColor: Color
     let isPending: Bool
+    let sharedFeaturePresentation: SharedFeaturePresentation?
     let primaryAction: DashboardEntityPrimaryAction?
     let primaryServiceIntent: DashboardEntityServiceIntent?
     let detailKind: DashboardEntityDetailKind
@@ -448,15 +449,17 @@ struct DashboardEntityPresentation {
     init(
         entityBox: HAEntityState,
         displayNameOverride: String? = nil,
-        iconNameOverride: String? = nil
+        iconNameOverride: String? = nil,
+        sharedFeaturePresentation: SharedFeaturePresentation? = nil
     ) {
         let resolvedDisplayNameOverride = displayNameOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
         let overrideTitle = resolvedDisplayNameOverride?.isEmpty == false ? resolvedDisplayNameOverride : nil
         let resolvedIconNameOverride = iconNameOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
         let overrideIconName = resolvedIconNameOverride?.isEmpty == false ? resolvedIconNameOverride : nil
+        self.sharedFeaturePresentation = sharedFeaturePresentation
         icon = IconResolver.applyingDashboardOverride(
             overrideIconName,
-            to: entityBox.homeEntity.resolvedIcon
+            to: sharedFeaturePresentation?.icon ?? entityBox.homeEntity.resolvedIcon
         )
         let pendingCommand = entityBox.pendingCommand
         let capability = DashboardEntityDomainRegistry.capability(for: entityBox.domain)
@@ -484,15 +487,11 @@ struct DashboardEntityPresentation {
             isAvailable = entityBox.homeEntity.isAvailable
             accentColor = Self.accentColor(for: effectiveIsOn, behavior: capability.iconAccentBehavior)
         } else if let sensor = entityBox.sensorEntity {
-            title = overrideTitle ?? sensor.displayName
-            if let gauge = sensor.gaugePresentation {
-                subtitle = Self.sensorGaugeSubtitle(sensor: sensor, gauge: gauge)
-            } else {
-                subtitle = sensor.displaySubtitle
-            }
-            headline = sensor.formattedValue
+            title = overrideTitle ?? sharedFeaturePresentation?.title ?? sensor.displayName
+            subtitle = sharedFeaturePresentation?.subtitle ?? sensor.displaySubtitle
+            headline = sharedFeaturePresentation?.valueText ?? sensor.formattedValue
             isActive = sensor.isAlerting
-            isAvailable = sensor.isAvailable
+            isAvailable = sharedFeaturePresentation?.isAvailable ?? sensor.isAvailable
             accentColor = Self.sensorAccentColor(for: sensor, behavior: capability.iconAccentBehavior)
         } else if let binarySensor = entityBox.binarySensorEntity {
             title = overrideTitle ?? binarySensor.displayName

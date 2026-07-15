@@ -6,6 +6,7 @@ struct DashboardAddItemView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var mode: DashboardAddItemMode
     @State private var searchText = ""
+    @State private var galleryFilter: DashboardAddGalleryFilter = .all
     @State private var plannedCardNotice: DashboardPlannedGalleryCard?
     private let onAddItem: (UUID) -> Void
 
@@ -113,7 +114,10 @@ struct DashboardAddItemView: View {
     }
 
     private var cardsContent: some View {
-        ScrollView {
+        VStack(spacing: 0) {
+            galleryFilters
+
+            ScrollView {
             LazyVStack(alignment: .leading, spacing: AppSpacing.xxLarge) {
                 ForEach(filteredGallerySections) { section in
                     VStack(alignment: .leading, spacing: AppSpacing.large) {
@@ -137,12 +141,41 @@ struct DashboardAddItemView: View {
             if filteredGallerySections.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
+            }
         }
         .alert("Not Available Yet", isPresented: plannedNoticeIsPresented) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(plannedNoticeMessage)
         }
+    }
+
+    private var galleryFilters: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.small) {
+                ForEach(DashboardAddGalleryFilter.allCases) { filter in
+                    Button {
+                        galleryFilter = filter
+                        HapticFeedback.selection()
+                    } label: {
+                        Text(filter.rawValue)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(galleryFilter == filter ? .white : .primary)
+                            .padding(.horizontal, AppSpacing.medium)
+                            .frame(minHeight: 36)
+                            .background(
+                                galleryFilter == filter ? Color.accentColor : Color(.secondarySystemGroupedBackground),
+                                in: Capsule()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(galleryFilter == filter ? "Selected" : "")
+                }
+            }
+            .padding(.horizontal, AppSpacing.large)
+            .padding(.vertical, AppSpacing.small)
+        }
+        .background(Color(.systemGroupedBackground))
     }
 
     @ViewBuilder
@@ -221,7 +254,8 @@ struct DashboardAddItemView: View {
         let query = normalizedSearch
         return DashboardAddGalleryCatalog.sections.compactMap { section in
             let items = section.items.filter {
-                query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
+                galleryFilter.matches($0)
+                    && (query.isEmpty || $0.title.localizedCaseInsensitiveContains(query))
             }
             guard !items.isEmpty else { return nil }
             return DashboardAddGallerySectionContent(section: section, items: items)
