@@ -54,226 +54,31 @@ struct WidgetGaugeInstrumentView: View {
     var style: WidgetGaugeInstrumentStyle = .standard
 
     var body: some View {
-        GeometryReader { proxy in
-            let titleHeight: CGFloat = title == nil ? 0 : 17
-            let titleSpacing: CGFloat = title == nil ? 0 : 2
-            let bodyHeight = max(proxy.size.height - titleHeight - titleSpacing, 0)
-
-            VStack(spacing: titleSpacing) {
-                GeometryReader { bodyProxy in
-                    let heightRatio = style.isCompact ? 0.82 : 0.79
-                    let diameter = min(bodyProxy.size.width, bodyProxy.size.height / heightRatio)
-                    let lineWidth = style.isCompact
-                        ? min(max(diameter * 0.08, 5), 7)
-                        : min(max(diameter * 0.085, 10), 17)
-
-                    ZStack {
-                        instrumentTrack(diameter: diameter, lineWidth: lineWidth)
-
-                        if style.isSegmented {
-                            instrumentValueIndicator(diameter: diameter, lineWidth: lineWidth)
-                        } else if gauge.normalizedValue > 0 {
-                            WidgetGaugeInstrumentArcShape(start: 0, end: gauge.normalizedValue, inset: lineWidth / 2)
-                                .stroke(
-                                    widgetGaugeColor(for: gauge.currentColor),
-                                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                                )
-                        }
-
-                        instrumentContent(diameter: diameter, lineWidth: lineWidth)
-                    }
-                    .frame(width: diameter, height: diameter)
-                    .position(
-                        x: bodyProxy.size.width / 2,
-                        y: title == nil ? diameter / 2 : max(diameter / 2, bodyProxy.size.height - (diameter / 2))
-                    )
-                }
-                .frame(height: bodyHeight)
-
-                if let title {
-                    Text(title)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                        .padding(.horizontal, 6)
-                        .frame(height: titleHeight)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(gauge.accessibilityLabel)
-        .accessibilityValue(gauge.accessibilityValue)
-    }
-
-    @ViewBuilder
-    private func instrumentTrack(diameter: CGFloat, lineWidth: CGFloat) -> some View {
-        if style.isSegmented {
-            ForEach(gauge.sections.indices, id: \.self) { index in
-                let section = gauge.sections[index]
-                let segment = instrumentSegment(for: section)
-
-                WidgetGaugeInstrumentArcShape(
-                    start: segment.start,
-                    end: segment.end,
-                    inset: lineWidth / 2
-                )
-                    .stroke(
-                        widgetGaugeColor(for: section.color),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
-                    )
-            }
-
-            if let first = gauge.sections.first {
-                instrumentEndpointCap(
-                    value: first.lowerBound,
-                    color: widgetGaugeColor(for: first.color),
-                    diameter: diameter,
-                    lineWidth: lineWidth
-                )
-            }
-
-            if let last = gauge.sections.last {
-                instrumentEndpointCap(
-                    value: last.upperBound,
-                    color: widgetGaugeColor(for: last.color),
-                    diameter: diameter,
-                    lineWidth: lineWidth
-                )
-            }
-        } else {
-            WidgetGaugeInstrumentArcShape(start: 0, end: 1, inset: lineWidth / 2)
-                .stroke(
-                    Color.secondary.opacity(0.16),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                )
-        }
-    }
-
-    private func instrumentValueIndicator(diameter: CGFloat, lineWidth: CGFloat) -> some View {
-        let radius = max((diameter / 2) - (lineWidth / 2), 0)
-        let angle = Angle.degrees(150 + (240 * gauge.normalizedValue))
-        let dotDiameter = lineWidth + 1
-
-        return Circle()
-            .fill(Color.white)
-            .overlay(Circle().stroke(Color.black.opacity(0.14), lineWidth: 0.75))
-            .shadow(color: .black.opacity(0.28), radius: 2, y: 1)
-            .frame(width: dotDiameter, height: dotDiameter)
-            .position(
-                x: (diameter / 2) + (radius * CGFloat(cos(angle.radians))),
-                y: (diameter / 2) + (radius * CGFloat(sin(angle.radians)))
-            )
-    }
-
-    private func instrumentEndpointCap(
-        value: Double,
-        color: Color,
-        diameter: CGFloat,
-        lineWidth: CGFloat
-    ) -> some View {
-        let radius = max((diameter / 2) - (lineWidth / 2), 0)
-        let angle = Angle.degrees(150 + (240 * normalized(value)))
-
-        return Circle()
-            .fill(color)
-            .frame(width: lineWidth, height: lineWidth)
-            .position(
-                x: (diameter / 2) + (radius * CGFloat(cos(angle.radians))),
-                y: (diameter / 2) + (radius * CGFloat(sin(angle.radians)))
-            )
-    }
-
-    private func normalized(_ value: Double) -> Double {
-        guard gauge.upperBound > gauge.lowerBound else { return 0 }
-        return min(max((value - gauge.lowerBound) / (gauge.upperBound - gauge.lowerBound), 0), 1)
-    }
-
-    private func visualSegment(for section: WidgetGaugeSection, at index: Int) -> (start: Double, end: Double) {
-        let rawStart = normalized(section.lowerBound)
-        let rawEnd = normalized(section.upperBound)
-        let start = index == 0 ? rawStart : rawStart + (GaugeVisualMetrics.barSectionGap / 2)
-        let end = index == gauge.sections.indices.last ? rawEnd : rawEnd - (GaugeVisualMetrics.barSectionGap / 2)
-        return (min(max(start, 0), 1), min(max(end, start), 1))
-    }
-
-    private func instrumentSegment(for section: WidgetGaugeSection) -> (start: Double, end: Double) {
-        let rawStart = normalized(section.lowerBound)
-        let rawEnd = normalized(section.upperBound)
-        return (rawStart, max(rawEnd, rawStart))
-    }
-
-    private func sectionBackgroundOpacity(for color: WidgetGaugeColor) -> Double {
-        color == gauge.currentColor ? 0.34 : 0.22
-    }
-
-    private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
-        let valueFontSize = style.isCompact
-            ? min(max(diameter * 0.24, 15), 22)
-            : min(max(diameter * 0.25, 28), 58)
-        let radius = max((diameter / 2) - (lineWidth / 2), 0)
-        let endpointY = (diameter / 2) + (radius * 0.5)
-        let endpointBottomY = endpointY + (lineWidth / 2)
-        let legendInset = style.isCompact ? lineWidth * 0.9 : lineWidth * 1.8
-        let legendWidth = max((sqrt(3) * radius) - legendInset, 0)
-        let iconSize = instrumentIconSize(diameter: diameter)
-
-        return AnyView(ZStack {
-            GaugeInstrumentReadoutView(
+        GaugeInstrumentCanvas(
+            presentation: GaugeInstrumentVisualPresentation(
+                value: gauge.value,
+                lowerBound: gauge.lowerBound,
+                upperBound: gauge.upperBound,
                 valueText: gauge.valueText,
                 unitText: gauge.unitText,
-                value: gauge.value,
-                fontSize: valueFontSize,
-                diameter: diameter,
-                lineWidth: lineWidth
-            )
-
-            instrumentLegend(diameter: diameter)
-                .frame(width: legendWidth)
-                .frame(height: iconSize, alignment: .bottom)
-                .position(x: diameter / 2, y: endpointBottomY - (iconSize / 2))
-        })
-    }
-
-    private func instrumentLegend(diameter: CGFloat) -> some View {
-        let iconSize = instrumentIconSize(diameter: diameter)
-
-        return HStack(alignment: .bottom, spacing: 0) {
-            Text(rangeText(gauge.lowerBound))
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if let icon {
-                HomesteadIconView(
-                    icon: icon,
-                    pointSize: style.isCompact ? 13 : 21,
-                    weight: .semibold
-                )
-                .foregroundStyle(tint)
-                .frame(width: iconSize, height: iconSize)
-                .accessibilityHidden(true)
-            } else {
-                Color.clear
-                    .frame(width: iconSize, height: iconSize)
-            }
-
-            Text(rangeText(gauge.upperBound))
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-        .font(style.isCompact ? .system(size: 8, weight: .semibold) : .caption2.weight(.semibold))
-        .foregroundStyle(Color.secondary.opacity(0.72))
-        .monospacedDigit()
-    }
-
-    private func instrumentIconSize(diameter: CGFloat) -> CGFloat {
-        if style.isCompact {
-            return min(max(diameter * 0.18, 12), 16)
-        }
-        return min(max(diameter * 0.16, 26), 28)
+                lowerBoundText: rangeText(gauge.lowerBound),
+                upperBoundText: rangeText(gauge.upperBound),
+                sections: gauge.sections.map { section in
+                    GaugeInstrumentVisualSection(
+                        lowerBound: section.lowerBound,
+                        upperBound: section.upperBound,
+                        color: widgetGaugeColor(for: section.color)
+                    )
+                },
+                accessibilityLabel: gauge.accessibilityLabel,
+                accessibilityValue: gauge.accessibilityValue
+            ),
+            tint: tint,
+            title: title,
+            icon: icon,
+            trackStyle: style.isSegmented ? .segmented : .continuous,
+            density: style.isCompact ? .compact : .standard
+        )
     }
 
     private func rangeText(_ value: Double) -> String {

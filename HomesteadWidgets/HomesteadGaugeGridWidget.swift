@@ -452,18 +452,29 @@ struct HomesteadGaugeGridWidgetView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            HStack(spacing: 8) {
-                ForEach(0..<3, id: \.self) { index in
-                    if index < entry.items.count {
-                        HomesteadGaugeGridTile(item: entry.items[index])
-                    } else {
-                        Color.clear
+            GeometryReader { proxy in
+                let horizontalPadding: CGFloat = 8
+                let columnSpacing: CGFloat = 8
+                let availableWidth = max(
+                    proxy.size.width - (horizontalPadding * 2) - (columnSpacing * 2),
+                    0
+                )
+                let tileSize = availableWidth / 3
+
+                HStack(spacing: columnSpacing) {
+                    ForEach(0..<3, id: \.self) { index in
+                        if index < entry.items.count {
+                            HomesteadGaugeGridTile(item: entry.items[index])
+                                .frame(width: tileSize, height: tileSize)
+                        } else {
+                            Color.clear
+                                .frame(width: tileSize, height: tileSize)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .padding(.horizontal, horizontalPadding)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
         }
     }
 }
