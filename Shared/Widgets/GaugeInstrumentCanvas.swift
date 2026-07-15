@@ -51,6 +51,9 @@ struct GaugeInstrumentCanvas: View {
     let density: GaugeInstrumentDensity
 
     private let visibleInstrumentHeightRatio = 0.82
+    // The lower legend and icon add visual weight beneath the readout. Keep the
+    // lockup together and lower it slightly without moving the instrument bounds.
+    private let readoutVerticalOffsetRatio: CGFloat = 0.03
 
     var body: some View {
         GeometryReader { proxy in
@@ -193,7 +196,13 @@ struct GaugeInstrumentCanvas: View {
         let radius = max((diameter / 2) - (metrics.lineWidth / 2), 0)
         let endpointY = (diameter / 2) + (radius * 0.5)
         let endpointBottomY = endpointY + (metrics.lineWidth / 2)
-        let legendWidth = max((sqrt(3) * radius) - (metrics.lineWidth * 1.1), 0)
+        // Pull the range labels slightly inward so they have horizontal clearance
+        // from the arc endpoint caps while remaining aligned to the instrument.
+        let rangeLabelHorizontalInset = min(max(diameter * 0.025, 2), 4)
+        let legendWidth = max(
+            (sqrt(3) * radius) - (metrics.lineWidth * 1.1) - (rangeLabelHorizontalInset * 2),
+            0
+        )
 
         return ZStack {
             readout(diameter: diameter, metrics: metrics)
@@ -207,6 +216,7 @@ struct GaugeInstrumentCanvas: View {
     private func readout(diameter: CGFloat, metrics: Metrics) -> some View {
         let parts = gaugeValueParts(from: presentation.valueText, unitText: presentation.unitText)
         let readoutWidth = max(diameter - (metrics.lineWidth * 3.6), diameter * 0.45)
+        let readoutOffset = diameter * readoutVerticalOffsetRatio
 
         return ZStack {
             Text(parts.value)
@@ -215,7 +225,7 @@ struct GaugeInstrumentCanvas: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.55)
                 .frame(width: readoutWidth)
-                .position(x: diameter / 2, y: diameter * 0.39)
+                .position(x: diameter / 2, y: (diameter * 0.39) + readoutOffset)
 
             if let unit = parts.unit {
                 Text(unit)
@@ -224,7 +234,7 @@ struct GaugeInstrumentCanvas: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .frame(width: readoutWidth)
-                    .position(x: diameter / 2, y: diameter * 0.55)
+                    .position(x: diameter / 2, y: (diameter * 0.55) + readoutOffset)
             }
         }
         .frame(width: diameter, height: diameter)
