@@ -296,7 +296,7 @@ struct DashboardEmptyStateView: View {
             Text(
                 style == .setup
                     ? "Start with suggested controls or build your own."
-                    : "Add controls, summaries, and sections for quick access to your home."
+                    : "Add your favorite controls for quick access to your home."
             )
         } actions: {
             VStack(spacing: AppSpacing.small) {
@@ -309,17 +309,19 @@ struct DashboardEmptyStateView: View {
                 } else {
                     Button(
                         "Add to Dashboard",
-                        systemImage: "rectangle.stack.badge.plus",
+                        systemImage: "plus",
                         action: addToDashboard
                     )
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
 
                     Button("Restore Suggested Setup", action: useSuggestedSetup)
                         .buttonStyle(.plain)
+                        .foregroundStyle(.tint)
                 }
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, AppSpacing.xxLarge)
+        .containerRelativeFrame(.vertical, alignment: .center)
     }
 }
