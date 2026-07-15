@@ -67,6 +67,11 @@ Prefer focused tests over broad simulator test suites unless the change truly ne
 
 For repeatable physical-device performance profiling, use `Docs/PERFORMANCE_PROFILING.md`.
 
+## Release Notes
+
+- When providing TestFlight or App Store update notes, put the pasteable user-facing copy in a fenced plain-text code block so the user can copy it directly instead of extracting it from rendered Markdown.
+- Log uploaded builds in `Docs/releases/ReleaseHistory.md` using the latest entry as the published-build boundary.
+
 ## Git Hygiene
 
 - Preserve user-made asset changes unless explicitly asked to modify them.
