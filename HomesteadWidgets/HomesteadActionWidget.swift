@@ -12,8 +12,8 @@ struct HomesteadActionWidget: Widget {
             HomesteadActionWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Homestead Action")
-        .description("Run a Home Assistant scene, script, or button from your Home Screen.")
+        .configurationDisplayName(SharedFeatureCatalog.widgetDescriptor(for: .action)!.displayName)
+        .description(SharedFeatureCatalog.widgetDescriptor(for: .action)!.description)
         .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular])
     }
 }
@@ -133,11 +133,12 @@ struct HomesteadActionEntityQuery: EntityQuery, EntityStringQuery, EnumerableEnt
 
     private func flatEntities() -> [HomesteadActionEntity] {
         HomesteadWidgetSharedStore.actionSnapshots.map { snapshot in
-            HomesteadActionEntity(
+            let presentation = snapshot.sharedPresentation
+            return HomesteadActionEntity(
                 id: snapshot.entityID,
-                displayName: snapshot.displayName,
+                displayName: presentation.title,
                 domain: snapshot.domain,
-                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName
             )
@@ -231,11 +232,12 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
     }
 
     private static func entity(from snapshot: WidgetActionSnapshot) -> HomesteadActionEntity {
-        HomesteadActionEntity(
+        let presentation = snapshot.sharedPresentation
+        return HomesteadActionEntity(
             id: snapshot.entityID,
-            displayName: snapshot.displayName,
+            displayName: presentation.title,
             domain: snapshot.domain,
-            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+            systemImage: presentation.icon.fallbackSFSymbol,
             areaName: snapshot.areaName,
             deviceName: snapshot.deviceName
         )

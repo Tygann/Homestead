@@ -44,4 +44,49 @@ final class SharedFeaturePresentationTests: XCTestCase {
         XCTAssertEqual(dashboardPresentation.subjectID, widgetPresentation.subjectID)
         XCTAssertEqual(dashboardPresentation.valueText, widgetPresentation.valueText)
     }
+
+    func testFeatureDescriptorsCoverEveryWidgetKind() {
+        let descriptors = SharedFeatureCatalog.widgetDescriptors
+        let kinds = descriptors.map(\.kind)
+
+        XCTAssertEqual(Set(kinds).count, HomesteadWidgetKind.allCases.count)
+        XCTAssertEqual(Set(kinds), Set(HomesteadWidgetKind.allCases))
+        XCTAssertTrue(descriptors.allSatisfy { !$0.displayName.isEmpty && !$0.description.isEmpty })
+    }
+
+    @MainActor
+    func testDashboardDescriptorsDeclareSharedFeatureRelationships() {
+        let dashboardDescriptors = DashboardPresentationCatalog.descriptors
+
+        for descriptor in dashboardDescriptors {
+            guard let sharedFeatureID = descriptor.sharedFeatureID else { continue }
+            XCTAssertNotNil(SharedFeatureCatalog.descriptor(id: sharedFeatureID))
+        }
+    }
+
+    func testControlAndActionSnapshotsExposeSharedDefaults() {
+        let light = WidgetLightSnapshot(
+            entityID: "light.kitchen",
+            displayName: "Kitchen Light",
+            isOn: true,
+            brightnessPercentage: 60,
+            areaName: "Kitchen",
+            deviceName: "Kitchen Lights"
+        )
+        let action = WidgetActionSnapshot(
+            entityID: "scene.movie_time",
+            displayName: "Movie Time",
+            domain: "scene",
+            systemImage: "sparkles",
+            areaName: nil,
+            deviceName: nil
+        )
+
+        XCTAssertEqual(light.sharedPresentation.subjectKind, .control)
+        XCTAssertEqual(light.sharedPresentation.title, "Kitchen Light")
+        XCTAssertTrue(light.sharedPresentation.affordances.contains(.primaryAction))
+        XCTAssertEqual(action.sharedPresentation.subjectKind, .action)
+        XCTAssertEqual(action.sharedPresentation.title, "Movie Time")
+        XCTAssertTrue(action.sharedPresentation.affordances.contains(.primaryAction))
+    }
 }

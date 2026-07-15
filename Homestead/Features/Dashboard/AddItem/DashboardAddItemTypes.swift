@@ -8,6 +8,7 @@ enum DashboardAddItemMode: String, CaseIterable, Identifiable {
 }
 
 enum DashboardAddGalleryFilter: String, CaseIterable, Identifiable {
+    case suggested = "Suggested"
     case all = "All"
     case controls = "Controls"
     case status = "Status"
@@ -24,6 +25,8 @@ enum DashboardAddGalleryFilter: String, CaseIterable, Identifiable {
         }
 
         switch self {
+        case .suggested:
+            return item.isSuggested
         case .all:
             return true
         case .controls:
@@ -100,6 +103,15 @@ enum DashboardAddGalleryItem: Identifiable {
         return false
     }
 
+    var isSuggested: Bool {
+        guard let kind = presentationKind else {
+            if case .header = self { return true }
+            return false
+        }
+
+        return [.control, .status, .gauge, .graph].contains(kind)
+    }
+
     var presentationKind: DashboardPresentationKind? {
         guard case .presentation(let descriptor) = self else { return nil }
         return descriptor.kind
@@ -167,13 +179,17 @@ enum DashboardAddGallerySection: String, CaseIterable, Identifiable {
 }
 
 enum DashboardAddGalleryCatalog {
-    // Roadmap concepts stay out of the production add flow until they are usable.
+    // Roadmap concepts are debug-only metadata and stay out of production discovery.
     static let showsPlannedCards = false
 
     static var sections: [DashboardAddGallerySection] {
-        DashboardAddGallerySection.allCases.filter {
-            showsPlannedCards || $0 != .planned
+        var sections: [DashboardAddGallerySection] = [.elements, .cards]
+#if DEBUG
+        if showsPlannedCards {
+            sections.append(.planned)
         }
+#endif
+        return sections
     }
 }
 
@@ -191,11 +207,19 @@ struct DashboardAddEntityCandidate: Identifiable, Equatable {
     let displayName: String
     let state: String
     let domain: EntityDomain
+    let areaName: String?
+    let deviceName: String?
     let icon: ResolvedIcon
     let suggestedPresentation: DashboardPresentationConfiguration
 
     var id: String { entityID }
     var iconName: String { icon.sfSymbolName }
+
+    var searchableText: String {
+        [entityID, displayName, state, domain.rawValue, areaName, deviceName]
+            .compactMap { $0 }
+            .joined(separator: " ")
+    }
 }
 
 struct DashboardAddEntityCandidateGroup: Identifiable, Equatable {
@@ -240,13 +264,13 @@ struct DashboardAddItemPresentation {
                 displayName: stateStore.displayNameForDeviceGroupedEntity(entityID: entityBox.entityID) ?? entityBox.homeEntity.displayName,
                 state: entityBox.homeEntity.state,
                 domain: entityBox.domain,
+                areaName: stateStore.areaName(for: entityBox.entityID),
+                deviceName: stateStore.entityRegistryMetadata(for: entityBox.entityID)?.deviceID
+                    .flatMap { stateStore.deviceName(forDeviceID: $0) },
                 icon: entityBox.homeEntity.resolvedIcon,
                 suggestedPresentation: DashboardPresentationCatalog.recommendation(for: entityBox)
             )
-            guard query.isEmpty
-                    || candidate.displayName.localizedCaseInsensitiveContains(query)
-                    || candidate.entityID.localizedCaseInsensitiveContains(query)
-                    || candidate.state.localizedCaseInsensitiveContains(query) else {
+            guard query.isEmpty || candidate.searchableText.localizedCaseInsensitiveContains(query) else {
                 return nil
             }
             return (entityBox.entityID, candidate)

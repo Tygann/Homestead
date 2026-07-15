@@ -12,8 +12,8 @@ struct HomesteadSensorGraphWidget: Widget {
             HomesteadSensorGraphWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Homestead Sensor")
-        .description("Show a Home Assistant sensor reading, trend, or gauge.")
+        .configurationDisplayName(SharedFeatureCatalog.widgetDescriptor(for: .sensor)!.displayName)
+        .description(SharedFeatureCatalog.widgetDescriptor(for: .sensor)!.description)
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
     }
 }

@@ -12,8 +12,8 @@ struct HomesteadStatusWidget: Widget {
             HomesteadStatusWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Homestead Status")
-        .description("Show a Home Assistant sensor or person status.")
+        .configurationDisplayName(SharedFeatureCatalog.widgetDescriptor(for: .status)!.displayName)
+        .description(SharedFeatureCatalog.widgetDescriptor(for: .status)!.description)
         .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular])
     }
 }
@@ -287,38 +287,40 @@ private enum HomesteadStatusSnapshotBuilder {
 
     private static func sensorEntities() -> [HomesteadStatusEntity] {
         HomesteadWidgetSharedStore.sensorSnapshots.map { snapshot in
-            HomesteadStatusEntity(
+            let presentation = snapshot.sharedPresentation
+            return HomesteadStatusEntity(
                 id: snapshot.entityID,
                 domain: "sensor",
-                displayName: snapshot.displayName,
-                valueText: snapshot.valueText,
-                subtitle: snapshot.subtitle,
-                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                displayName: presentation.title,
+                valueText: presentation.valueText ?? "",
+                subtitle: presentation.subtitle ?? "",
+                systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isHighlighted: false,
                 isAlerting: snapshot.isAlerting,
-                isAvailable: snapshot.isAvailable,
-                icon: snapshot.resolvedIcon
+                isAvailable: presentation.isAvailable,
+                icon: presentation.icon
             )
         }
     }
 
     private static func presenceEntities() -> [HomesteadStatusEntity] {
         HomesteadWidgetSharedStore.presenceSnapshots.map { snapshot in
-            HomesteadStatusEntity(
+            let presentation = snapshot.sharedPresentation
+            return HomesteadStatusEntity(
                 id: snapshot.entityID,
                 domain: "person",
-                displayName: snapshot.displayName,
-                valueText: snapshot.statusText,
-                subtitle: "Presence",
-                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                displayName: presentation.title,
+                valueText: presentation.valueText ?? "",
+                subtitle: presentation.subtitle ?? "",
+                systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isHighlighted: snapshot.isHome,
                 isAlerting: false,
-                isAvailable: snapshot.isAvailable,
-                icon: snapshot.resolvedIcon
+                isAvailable: presentation.isAvailable,
+                icon: presentation.icon
             )
         }
     }
@@ -350,10 +352,19 @@ struct HomesteadStatusWidgetView: View {
     @ViewBuilder
     private func deepLinkedContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         if let entityID = entry.entityID {
-            content()
+            linkedContent(content())
                 .widgetURL(HomesteadWidgetDeepLink.entityURL(entityID: entityID))
         } else {
-            content()
+            linkedContent(content())
+        }
+    }
+
+    @ViewBuilder
+    private func linkedContent<Content: View>(_ content: Content) -> some View {
+        if entry.domain == "person" {
+            content.privacySensitive()
+        } else {
+            content
         }
     }
 

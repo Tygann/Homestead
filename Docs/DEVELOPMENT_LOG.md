@@ -2,6 +2,16 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-15
+
+### Card And Widget Catalog Hardening
+
+- Added shared feature relationships for dashboard presentations and all WidgetKit kinds, including gallery metadata, supported-family metadata, required configuration, and related widget kinds without changing stable WidgetKit identifiers.
+- Extended shared presentation defaults through dashboard control/status/action adapters and widget light/switch/fan/cover/lock/presence/action snapshot adapters while keeping surface-specific names, layouts, families, actions, ranges, and zones independent.
+- Added Suggested dashboard catalog filtering, entity search across domain, area, device, ID, display name, and state, and made planned gallery metadata debug-only rather than production-discoverable.
+- Centralized widget gallery display names and descriptions, added privacy-sensitive handling for person status, and retained explicit WidgetBundle registration and family-specific rendering.
+- Verified with generic simulator build-for-testing plus focused shared-presentation, deep-link, and Gauge Grid tests. Manual widget-gallery/device verification remains the next validation step.
+
 ## 2026-07-14
 
 ### Medium And Large Gauge Grid Widgets

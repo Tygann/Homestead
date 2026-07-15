@@ -4,6 +4,7 @@ nonisolated struct DashboardPresentationDescriptor: Identifiable, Equatable, Sen
     let kind: DashboardPresentationKind
     let title: String
     let systemImage: String
+    let sharedFeatureID: String?
 
     var id: DashboardPresentationKind { kind }
     var supportedLayouts: [DashboardCardSize] { kind.supportedLayouts }
@@ -24,23 +25,23 @@ enum DashboardPresentationCatalog {
     static func descriptor(for kind: DashboardPresentationKind) -> DashboardPresentationDescriptor {
         return switch kind {
         case .chip:
-            DashboardPresentationDescriptor(kind: kind, title: "Chip", systemImage: "capsule")
+            DashboardPresentationDescriptor(kind: kind, title: "Chip", systemImage: "capsule", sharedFeatureID: nil)
         case .control:
-            DashboardPresentationDescriptor(kind: kind, title: "Control", systemImage: "switch.2")
+            DashboardPresentationDescriptor(kind: kind, title: "Control", systemImage: "switch.2", sharedFeatureID: "control")
         case .status:
-            DashboardPresentationDescriptor(kind: kind, title: "Status", systemImage: "circle.lefthalf.filled")
+            DashboardPresentationDescriptor(kind: kind, title: "Status", systemImage: "circle.lefthalf.filled", sharedFeatureID: "status")
         case .gauge:
-            DashboardPresentationDescriptor(kind: kind, title: "Sensor Gauge", systemImage: "gauge.with.dots.needle.33percent")
+            DashboardPresentationDescriptor(kind: kind, title: "Sensor Gauge", systemImage: "gauge.with.dots.needle.33percent", sharedFeatureID: "sensor-gauge")
         case .graph:
-            DashboardPresentationDescriptor(kind: kind, title: "Graph", systemImage: "chart.xyaxis.line")
+            DashboardPresentationDescriptor(kind: kind, title: "Graph", systemImage: "chart.xyaxis.line", sharedFeatureID: "sensor")
         case .camera:
-            DashboardPresentationDescriptor(kind: kind, title: "Camera", systemImage: "camera.fill")
+            DashboardPresentationDescriptor(kind: kind, title: "Camera", systemImage: "camera.fill", sharedFeatureID: nil)
         case .weather:
-            DashboardPresentationDescriptor(kind: kind, title: "Weather", systemImage: "cloud.sun.fill")
+            DashboardPresentationDescriptor(kind: kind, title: "Weather", systemImage: "cloud.sun.fill", sharedFeatureID: nil)
         case .media:
-            DashboardPresentationDescriptor(kind: kind, title: "Media", systemImage: "play.tv.fill")
+            DashboardPresentationDescriptor(kind: kind, title: "Media", systemImage: "play.tv.fill", sharedFeatureID: nil)
         case .action:
-            DashboardPresentationDescriptor(kind: kind, title: "Action", systemImage: "sparkles")
+            DashboardPresentationDescriptor(kind: kind, title: "Action", systemImage: "sparkles", sharedFeatureID: "action")
         }
     }
 

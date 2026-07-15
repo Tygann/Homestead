@@ -12,8 +12,8 @@ struct HomesteadGaugeGridWidget: Widget {
             HomesteadGaugeGridWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Homestead Gauge Grid")
-        .description("Show up to three Home Assistant gauges.")
+        .configurationDisplayName(SharedFeatureCatalog.widgetDescriptor(for: .gaugeGrid)!.displayName)
+        .description(SharedFeatureCatalog.widgetDescriptor(for: .gaugeGrid)!.description)
         .supportedFamilies([.systemMedium])
         .contentMarginsDisabled()
     }

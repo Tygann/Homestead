@@ -12,8 +12,8 @@ struct HomesteadControlWidget: Widget {
             HomesteadControlWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Homestead Control")
-        .description("Control a Home Assistant light, switch, fan, cover, or lock.")
+        .configurationDisplayName(SharedFeatureCatalog.widgetDescriptor(for: .control)!.displayName)
+        .description(SharedFeatureCatalog.widgetDescriptor(for: .control)!.description)
         .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular])
     }
 }
@@ -509,90 +509,95 @@ private enum HomesteadControlSnapshotBuilder {
 
     private static func lightEntities() -> [HomesteadControlEntity] {
         HomesteadWidgetSharedStore.lightSnapshots.map { snapshot in
-            HomesteadControlEntity(
+            let presentation = snapshot.sharedPresentation
+            return HomesteadControlEntity(
                 id: snapshot.entityID,
                 domain: "light",
-                displayName: snapshot.displayName,
-                statusText: lightStatusText(isOn: snapshot.isOn, brightnessPercentage: snapshot.brightnessPercentage),
-                systemImage: "lightbulb.fill",
+                displayName: presentation.title,
+                statusText: presentation.subtitle ?? "",
+                systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isOn,
                 isMoving: false,
-                isAvailable: true,
-                icon: snapshot.resolvedIcon
+                isAvailable: presentation.isAvailable,
+                icon: presentation.icon
             )
         }
     }
 
     private static func switchEntities() -> [HomesteadControlEntity] {
         HomesteadWidgetSharedStore.switchSnapshots.map { snapshot in
-            HomesteadControlEntity(
+            let presentation = snapshot.sharedPresentation
+            return HomesteadControlEntity(
                 id: snapshot.entityID,
                 domain: "switch",
-                displayName: snapshot.displayName,
-                statusText: snapshot.isOn ? "On" : "Off",
-                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                displayName: presentation.title,
+                statusText: presentation.statusText ?? "",
+                systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isOn,
                 isMoving: false,
-                isAvailable: true,
-                icon: snapshot.resolvedIcon
+                isAvailable: presentation.isAvailable,
+                icon: presentation.icon
             )
         }
     }
 
     private static func fanEntities() -> [HomesteadControlEntity] {
         HomesteadWidgetSharedStore.fanSnapshots.map { snapshot in
-            HomesteadControlEntity(
+            let presentation = snapshot.sharedPresentation
+            return HomesteadControlEntity(
                 id: snapshot.entityID,
                 domain: "fan",
-                displayName: snapshot.displayName,
-                statusText: snapshot.statusText,
-                systemImage: "fan.fill",
+                displayName: presentation.title,
+                statusText: presentation.statusText ?? "",
+                systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isOn,
                 isMoving: false,
-                isAvailable: snapshot.isAvailable,
-                icon: snapshot.resolvedIcon
+                isAvailable: presentation.isAvailable,
+                icon: presentation.icon
             )
         }
     }
 
     private static func coverEntities() -> [HomesteadControlEntity] {
         HomesteadWidgetSharedStore.coverSnapshots.map { snapshot in
-            HomesteadControlEntity(
+            let presentation = snapshot.sharedPresentation
+            return HomesteadControlEntity(
                 id: snapshot.entityID,
                 domain: "cover",
-                displayName: snapshot.displayName,
-                statusText: snapshot.statusText,
-                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                displayName: presentation.title,
+                statusText: presentation.statusText ?? "",
+                systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isOpen,
                 isMoving: snapshot.isMoving,
-                isAvailable: snapshot.isAvailable,
-                icon: snapshot.resolvedIcon
+                isAvailable: presentation.isAvailable,
+                icon: presentation.icon
             )
         }
     }
 
     private static func lockEntities() -> [HomesteadControlEntity] {
         HomesteadWidgetSharedStore.lockSnapshots.map { snapshot in
-            HomesteadControlEntity(
+            let presentation = snapshot.sharedPresentation
+            return HomesteadControlEntity(
                 id: snapshot.entityID,
                 domain: "lock",
-                displayName: snapshot.displayName,
-                statusText: snapshot.statusText,
-                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
+                displayName: presentation.title,
+                statusText: presentation.statusText ?? "",
+                systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
                 isActive: snapshot.isLocked,
                 isMoving: false,
-                isAvailable: snapshot.isAvailable,
-                icon: snapshot.resolvedIcon
+                isAvailable: presentation.isAvailable,
+                icon: presentation.icon
             )
         }
     }

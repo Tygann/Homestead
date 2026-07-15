@@ -145,7 +145,7 @@ struct DashboardCardView: View {
                     kind: resolvedPresentationKind,
                     for: entityBox
                 )?.style
-            let sharedFeaturePresentation = DashboardFeaturePresentationAdapter.sensorPresentation(
+            let sharedFeaturePresentation = DashboardFeaturePresentationAdapter.presentation(
                 for: entityBox,
                 titleOverride: resolvedDisplayNameOverride(for: entityBox)
             )
