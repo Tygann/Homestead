@@ -155,7 +155,7 @@ struct EntityHistoryTimelinePanel: View {
 
     private func timelineRow(_ entry: HAHistoryTimelineEntry, showsConnector: Bool) -> some View {
         HStack(alignment: .top, spacing: AppSpacing.medium) {
-            VStack(spacing: AppSpacing.xSmall) {
+            VStack(spacing: 0) {
                 HomesteadIconView(icon: entry.resolvedIcon, pointSize: 12, weight: .bold)
                     .foregroundStyle(timelineToneColor(entry.tone))
                     .frame(width: 28, height: 28)
@@ -182,7 +182,6 @@ struct EntityHistoryTimelinePanel: View {
                     .minimumScaleFactor(0.82)
             }
             .padding(.bottom, showsConnector ? AppSpacing.small : 0)
-
             Spacer(minLength: AppSpacing.small)
         }
         .accessibilityElement(children: .ignore)

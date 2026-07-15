@@ -9989,7 +9989,7 @@ struct HomesteadTests {
                 state: "off"
             ))
 
-            #expect(active.sfSymbolName == "figure.walk.motion")
+            #expect(active.sfSymbolName == "figure.walk")
             #expect(inactive.sfSymbolName == "figure.stand")
         }
     }

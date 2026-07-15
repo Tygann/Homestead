@@ -77,7 +77,7 @@ struct EntityDiagnosticsView: View {
                 }
             }
         }
-        .entityDetailPresentation(title: "Diagnostics", style: presentationStyle)
+        .entityDetailPresentation(title: "Entity Details", style: presentationStyle)
     }
 
     private func displayState(for entityBox: HAEntityState) -> String {

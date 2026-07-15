@@ -526,41 +526,43 @@ struct EntityMetadataDisclosure: View {
     }
 
     var body: some View {
-        DisclosureGroup {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                ForEach(rows) { row in
-                    row
-                }
+        Group {
+            if let entityBox {
+                NavigationLink {
+                    EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation)
+                } label: {
+                    HStack(spacing: AppSpacing.medium) {
+                        Label("Entity Details", systemImage: "info.circle")
+                            .font(.subheadline.weight(.semibold))
 
-                if let entityBox {
-                    Divider()
+                        Spacer()
 
-                    NavigationLink {
-                        EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation)
-                    } label: {
-                        HStack(spacing: AppSpacing.medium) {
-                            Label("Diagnostics", systemImage: "stethoscope")
-                                .font(.subheadline.weight(.semibold))
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .foregroundStyle(.primary)
-                        .padding(.vertical, AppSpacing.xSmall)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
                     }
-                    .buttonStyle(.plain)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, AppSpacing.large)
+                    .frame(height: 52)
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
                 }
+                .buttonStyle(.plain)
+            } else {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                        ForEach(rows) { row in
+                            row
+                        }
+                    }
+                    .padding(.top, AppSpacing.medium)
+                } label: {
+                    Label(title, systemImage: systemImage)
+                        .font(.headline)
+                }
+                .padding(AppSpacing.large)
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             }
-            .padding(.top, AppSpacing.medium)
-        } label: {
-            Label(title, systemImage: systemImage)
-                .font(.headline)
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 }
 
@@ -607,23 +609,48 @@ struct EntityMetadataRow: View, Identifiable {
     var id: String { title }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
+        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .frame(width: 92, alignment: .leading)
 
-            Spacer(minLength: AppSpacing.medium)
-
-            Text(value)
-                .font(.body.weight(.medium))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.trailing)
-                .textSelection(.enabled)
+            valueText
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, AppSpacing.xSmall)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title), \(value)")
+    }
+
+    @ViewBuilder
+    private var valueText: some View {
+        if title == "Entity ID" {
+            Text(value)
+                .font(.caption.monospaced().weight(.medium))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .multilineTextAlignment(.trailing)
+                .foregroundStyle(.primary)
+                .textSelection(.enabled)
+        } else if title == "Last Updated" {
+            Text(value)
+                .font(.subheadline.weight(.medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.trailing)
+                .foregroundStyle(.primary)
+                .textSelection(.enabled)
+        } else {
+            Text(value)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .textSelection(.enabled)
+        }
     }
 }
 
