@@ -372,6 +372,57 @@ struct HomesteadGaugeGridEntry: TimelineEntry {
                     .init(lowerBound: 37, upperBound: 40, color: .orange)
                 ]
             )
+        ),
+        previewItem(
+            id: "nitrate",
+            name: "Nitrate",
+            icon: "leaf",
+            gauge: .gaugeGridPreview(
+                value: 12,
+                lowerBound: 0,
+                upperBound: 30,
+                valueText: "12 ppm",
+                unitText: "ppm",
+                sections: [
+                    .init(lowerBound: 0, upperBound: 20, color: .green),
+                    .init(lowerBound: 20, upperBound: 25, color: .orange),
+                    .init(lowerBound: 25, upperBound: 30, color: .red)
+                ]
+            )
+        ),
+        previewItem(
+            id: "phosphate",
+            name: "Phosphate",
+            icon: "drop.triangle",
+            gauge: .gaugeGridPreview(
+                value: 0.08,
+                lowerBound: 0,
+                upperBound: 0.2,
+                valueText: "0.08 ppm",
+                unitText: "ppm",
+                sections: [
+                    .init(lowerBound: 0, upperBound: 0.12, color: .green),
+                    .init(lowerBound: 0.12, upperBound: 0.16, color: .orange),
+                    .init(lowerBound: 0.16, upperBound: 0.2, color: .red)
+                ]
+            )
+        ),
+        previewItem(
+            id: "orp",
+            name: "ORP",
+            icon: "bolt",
+            gauge: .gaugeGridPreview(
+                value: 340,
+                lowerBound: 200,
+                upperBound: 450,
+                valueText: "340 mV",
+                unitText: "mV",
+                sections: [
+                    .init(lowerBound: 200, upperBound: 280, color: .blue),
+                    .init(lowerBound: 280, upperBound: 400, color: .green),
+                    .init(lowerBound: 400, upperBound: 450, color: .orange)
+                ]
+            )
         )
     ]
 
@@ -574,7 +625,7 @@ enum HomesteadGaugeGridLayout {
     var rowCount: Int {
         switch self {
         case .medium: 1
-        case .large: 2
+        case .large: 3
         }
     }
 
