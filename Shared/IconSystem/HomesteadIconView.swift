@@ -2,6 +2,8 @@ import CoreText
 import SwiftUI
 
 struct HomesteadIconView: View {
+    private static let materialDesignOpticalScale: CGFloat = 1.50
+
     let icon: ResolvedIcon
     var pointSize: CGFloat
     var weight: Font.Weight = .semibold
@@ -25,7 +27,12 @@ struct HomesteadIconView: View {
             if MaterialDesignIconFont.registerIfNeeded(),
                let glyph = MaterialDesignIconCatalog.glyph(for: name) {
                 Text(glyph)
-                    .font(.custom(MaterialDesignIconFont.postScriptName, fixedSize: pointSize * 1.50))
+                    .font(
+                        .custom(
+                            MaterialDesignIconFont.postScriptName,
+                            fixedSize: pointSize * Self.materialDesignOpticalScale
+                        )
+                    )
                     .baselineOffset(-pointSize * 0.035)
             } else {
                 fallbackImage
