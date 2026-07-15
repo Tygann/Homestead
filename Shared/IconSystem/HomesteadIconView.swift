@@ -25,7 +25,7 @@ struct HomesteadIconView: View {
             if MaterialDesignIconFont.registerIfNeeded(),
                let glyph = MaterialDesignIconCatalog.glyph(for: name) {
                 Text(glyph)
-                    .font(.custom(MaterialDesignIconFont.postScriptName, fixedSize: pointSize * 1.35))
+                    .font(.custom(MaterialDesignIconFont.postScriptName, fixedSize: pointSize * 1.50))
                     .baselineOffset(-pointSize * 0.035)
             } else {
                 fallbackImage
