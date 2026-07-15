@@ -9,6 +9,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added app-owned server profiles with one active WebSocket, profile-scoped OAuth/mobile-app Keychain records, transactional generation-guarded switching, isolated dashboards/state caches, and legacy single-server migration without a new sign-in.
 - Kept the toolbar avatar as a direct Settings button and placed discovery/manual add, rename, reauthentication, switching, inspection, and revoking removal under Settings > Servers.
 - Extended the ignored Debug `PreviewCredentials.json` format to accept multiple named servers and long-lived preview tokens, with stable preview profile identities and backward compatibility for the original single-server shape.
+- Polished the native Settings hierarchy by moving Servers into the Home Assistant section, separating active and other server rows, middle-truncating long hosts, consolidating detail actions, adding explicit connection status, and moving rename/full-route information into focused interactions.
 - Added profile-aware widget/deep-link and notification routing, kept existing widgets pinned to their original migrated profile, and extended iCloud v2 with optional credential-free server metadata and per-server dashboard bundles.
 - Verified with a generic simulator build and five focused multi-server migration/isolation tests.
 

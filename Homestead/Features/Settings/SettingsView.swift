@@ -30,15 +30,20 @@ struct SettingsView: View {
                 } label: {
                     PeopleSettingsRow(records: visiblePeopleRecords)
                 }
-
-                NavigationLink {
-                    HomeAssistantServersView()
-                } label: {
-                    Label("Servers", systemImage: "server.rack")
-                }
             }
 
             Section("Home Assistant") {
+                NavigationLink {
+                    HomeAssistantServersView()
+                } label: {
+                    LabeledContent {
+                        Text(connectionSettings.profiles.count, format: .number)
+                            .foregroundStyle(.secondary)
+                    } label: {
+                        Label("Servers", systemImage: "server.rack")
+                    }
+                }
+
                 NavigationLink {
                     DevicesAndServicesManagementView()
                 } label: {

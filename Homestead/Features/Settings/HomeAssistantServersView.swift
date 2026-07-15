@@ -12,18 +12,32 @@ struct HomeAssistantServersView: View {
 
     var body: some View {
         List {
-            Section {
-                ForEach(connectionSettings.profiles) { profile in
+            if let activeProfile {
+                Section("Active Server") {
+                    NavigationLink {
+                        HomeAssistantServerDetailView(profileID: activeProfile.id)
+                    } label: {
+                        ServerProfileRow(
+                            profile: activeProfile,
+                            isSwitching: switchingProfileID == activeProfile.id
+                        )
+                    }
+                }
+            }
+
+            Section("Other Servers") {
+                ForEach(otherProfiles) { profile in
                     NavigationLink {
                         HomeAssistantServerDetailView(profileID: profile.id)
                     } label: {
                         ServerProfileRow(
                             profile: profile,
-                            isActive: profile.id == connectionSettings.activeProfileID
+                            isSwitching: switchingProfileID == profile.id
                         )
                     }
-                    .swipeActions(edge: .leading) {
-                        if profile.id != connectionSettings.activeProfileID {
+                    .disabled(switchingProfileID != nil)
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        if switchingProfileID == nil {
                             Button("Use", systemImage: "checkmark") {
                                 switchToServer(profile.id)
                             }
@@ -31,14 +45,11 @@ struct HomeAssistantServersView: View {
                         }
                     }
                 }
-            } footer: {
-                Text("Homestead keeps one server active at a time. Saved servers stay signed in until you remove them.")
-            }
 
-            Section {
                 Button(action: openAddServer) {
                     Label("Add Server", systemImage: "plus")
                 }
+                .disabled(switchingProfileID != nil)
             }
 
             if let switchErrorMessage {
@@ -54,6 +65,14 @@ struct HomeAssistantServersView: View {
                 if switchingProfileID != nil { ProgressView() }
             }
         }
+    }
+
+    private var activeProfile: HAConnectionProfile? {
+        connectionSettings.profiles.first { $0.id == connectionSettings.activeProfileID }
+    }
+
+    private var otherProfiles: [HAConnectionProfile] {
+        connectionSettings.profiles.filter { $0.id != connectionSettings.activeProfileID }
     }
 
     private func switchToServer(_ profileID: UUID) {
@@ -76,7 +95,7 @@ struct HomeAssistantServersView: View {
 
 private struct ServerProfileRow: View {
     let profile: HAConnectionProfile
-    let isActive: Bool
+    let isSwitching: Bool
 
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
@@ -90,14 +109,15 @@ private struct ServerProfileRow: View {
                 Text(profileHost)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
             Spacer()
 
-            if isActive {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.tint)
-                    .accessibilityLabel("Active Server")
+            if isSwitching {
+                ProgressView()
+                    .controlSize(.small)
             }
         }
     }
@@ -118,6 +138,7 @@ private struct HomeAssistantServerDetailView: View {
     let profileID: UUID
 
     @State private var draftName = ""
+    @State private var isRenaming = false
     @State private var isConfirmingRemoval = false
     @State private var isRemoving = false
     @State private var isReauthenticating = false
@@ -128,25 +149,8 @@ private struct HomeAssistantServerDetailView: View {
     var body: some View {
         Form {
             if let profile {
-                Section("Server") {
-                    TextField("Name", text: $draftName)
-                        .onSubmit(saveName)
-
-                    LabeledContent("Address", value: profile.baseURL)
-                    if !profile.internalURL.isEmpty {
-                        LabeledContent("Internal URL", value: profile.internalURL)
-                    }
-                    if !profile.externalURL.isEmpty {
-                        LabeledContent("External URL", value: profile.externalURL)
-                    }
-                }
-
-                if !isActive {
-                    Section {
-                        Button("Use This Server") { switchToServer() }
-                            .disabled(isSwitching)
-                    }
-                }
+                overviewSection(profile)
+                actionsSection
 
                 if let switchErrorMessage {
                     Section {
@@ -155,19 +159,7 @@ private struct HomeAssistantServerDetailView: View {
                     }
                 }
 
-                Section {
-                    Button("Sign In Again") { reauthenticate() }
-                        .disabled(isRemoving || isReauthenticating)
-                }
-
-                Section {
-                    Button("Remove Server", role: .destructive) {
-                        isConfirmingRemoval = true
-                    }
-                    .disabled(isRemoving)
-                } footer: {
-                    Text("Removing signs this device out of this server and deletes its local Homestead data.")
-                }
+                removeSection
             }
         }
         .navigationTitle(profile?.resolvedDisplayName ?? "Server")
@@ -177,8 +169,13 @@ private struct HomeAssistantServerDetailView: View {
                 if isRemoving || isReauthenticating || isSwitching { ProgressView() }
             }
         }
-        .onAppear { draftName = profile?.displayName ?? "" }
-        .onDisappear { saveName() }
+        .alert("Rename Server", isPresented: $isRenaming) {
+            TextField("Name", text: $draftName)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") { saveName() }
+        } message: {
+            Text("Choose the name Homestead uses for this server.")
+        }
         .confirmationDialog(
             "Remove \(profile?.resolvedDisplayName ?? "Server")?",
             isPresented: $isConfirmingRemoval,
@@ -208,6 +205,30 @@ private struct HomeAssistantServerDetailView: View {
 
     private var isActive: Bool { connectionSettings.activeProfileID == profileID }
 
+    private var statusText: String {
+        guard isActive else { return "Inactive" }
+        switch homeAssistantService.connectionStatus {
+        case .connected:
+            return "Active · Connected"
+        case .preparing, .connecting, .reconnecting:
+            return "Active · Connecting"
+        case .disconnected, .failed:
+            return "Active · Offline"
+        }
+    }
+
+    private var statusTint: Color {
+        guard isActive else { return .secondary }
+        switch homeAssistantService.connectionStatus {
+        case .connected:
+            return .green
+        case .preparing, .connecting, .reconnecting:
+            return .accentColor
+        case .disconnected, .failed:
+            return .orange
+        }
+    }
+
     private var removalFailureBinding: Binding<Bool> {
         Binding(
             get: { removalFailureMessage != nil },
@@ -215,8 +236,78 @@ private struct HomeAssistantServerDetailView: View {
         )
     }
 
+    private func overviewSection(_ profile: HAConnectionProfile) -> some View {
+        Section("Overview") {
+            Button {
+                draftName = profile.displayName
+                isRenaming = true
+            } label: {
+                LabeledContent("Name") {
+                    Text(profile.resolvedDisplayName)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+
+            LabeledContent("Address") {
+                Text(profileHost(profile))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            LabeledContent("Status") {
+                Text(statusText)
+                    .foregroundStyle(statusTint)
+            }
+
+            if showsConnectionDetails(profile) {
+                NavigationLink("Connection Details") {
+                    HomeAssistantServerConnectionDetailsView(profile: profile)
+                }
+            }
+        }
+    }
+
+    private var actionsSection: some View {
+        Section("Actions") {
+            if !isActive {
+                Button(isSwitching ? "Switching…" : "Use This Server") { switchToServer() }
+                    .disabled(isSwitching)
+            }
+
+            Button("Sign In Again") { reauthenticate() }
+                .disabled(isRemoving || isReauthenticating || isSwitching)
+        }
+    }
+
+    private var removeSection: some View {
+        Section {
+            Button("Remove Server", role: .destructive) {
+                isConfirmingRemoval = true
+            }
+            .disabled(isRemoving)
+        } header: {
+            Text("Remove")
+        } footer: {
+            Text("This removes the server and its local Homestead data from this device.")
+        }
+    }
+
     private func saveName() {
         connectionSettings.profileStore.renameProfile(id: profileID, name: draftName)
+    }
+
+    private func profileHost(_ profile: HAConnectionProfile) -> String {
+        URL(string: profile.baseURL)?.host(percentEncoded: false) ?? profile.baseURL
+    }
+
+    private func showsConnectionDetails(_ profile: HAConnectionProfile) -> Bool {
+        let baseURL = profile.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let internalURL = profile.internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let externalURL = profile.externalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (!internalURL.isEmpty && internalURL != baseURL) ||
+            (!externalURL.isEmpty && externalURL != baseURL)
     }
 
     private func removeServer(forceLocal: Bool) {
@@ -261,6 +352,40 @@ private struct HomeAssistantServerDetailView: View {
                 switchErrorMessage = homeAssistantService.serverOperationErrorMessage ?? "Homestead couldn’t switch servers."
             }
         }
+    }
+}
+
+// MARK: - Connection Details
+
+private struct HomeAssistantServerConnectionDetailsView: View {
+    let profile: HAConnectionProfile
+
+    var body: some View {
+        Form {
+            Section("Sign-In Address") {
+                addressText(profile.baseURL)
+            }
+
+            if !profile.internalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Section("Internal URL") {
+                    addressText(profile.internalURL)
+                }
+            }
+
+            if !profile.externalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Section("External URL") {
+                    addressText(profile.externalURL)
+                }
+            }
+        }
+        .navigationTitle("Connection Details")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func addressText(_ address: String) -> some View {
+        Text(address)
+            .font(.footnote.monospaced())
+            .textSelection(.enabled)
     }
 }
 
