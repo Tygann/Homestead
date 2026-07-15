@@ -53,13 +53,9 @@ struct DashboardView: View {
                     } else if visibleItemsSnapshot.isEmpty {
                         DashboardEmptyStateView(
                             style: dashboardConfiguration.setupState == .notChosen ? .setup : .empty,
-                            addCards: {
+                            addToDashboard: {
                                 dashboardConfiguration.chooseManualSetup()
                                 addSheetMode = .items
-                            },
-                            addHeader: {
-                                dashboardConfiguration.chooseManualSetup()
-                                addHeaderAndRename()
                             },
                             useSuggestedSetup: {
                                 requestSuggestedSetup()
@@ -1320,7 +1316,7 @@ struct DashboardView: View {
                 dashboardConfiguration.chooseManualSetup()
                 addSheetMode = .items
             } label: {
-                Label("Add Cards", systemImage: "rectangle.stack.badge.plus")
+                Label("Add to Dashboard", systemImage: "rectangle.stack.badge.plus")
             }
             
             Divider()

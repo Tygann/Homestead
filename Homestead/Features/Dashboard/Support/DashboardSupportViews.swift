@@ -282,61 +282,44 @@ struct DashboardEmptyStateView: View {
     }
 
     let style: Style
-    let addCards: () -> Void
-    let addHeader: () -> Void
+    let addToDashboard: () -> Void
     let useSuggestedSetup: () -> Void
     let buildManually: () -> Void
 
     var body: some View {
-        CardContainer {
-            VStack(alignment: .leading, spacing: AppSpacing.large) {
-                CardIconView(systemName: "square.grid.2x2")
+        ContentUnavailableView {
+            Label(
+                style == .setup ? "Set Up Your Dashboard" : "Your Dashboard Is Empty",
+                systemImage: "square.grid.2x2"
+            )
+        } description: {
+            Text(
+                style == .setup
+                    ? "Start with suggested controls or build your own."
+                    : "Add controls, summaries, and sections for quick access to your home."
+            )
+        } actions: {
+            VStack(spacing: AppSpacing.small) {
+                if style == .setup {
+                    Button("Use Suggested Setup", systemImage: "wand.and.stars", action: useSuggestedSetup)
+                        .buttonStyle(.borderedProminent)
 
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(style == .setup ? "Set Up Your Dashboard" : "Dashboard Empty")
-                        .font(.title3.weight(.semibold))
-                    Text(
-                        style == .setup
-                            ? "Start with suggested controls or build your own."
-                            : "Add controls to quickly access your home."
+                    Button("Build My Own", systemImage: "plus", action: buildManually)
+                        .buttonStyle(.bordered)
+                } else {
+                    Button(
+                        "Add to Dashboard",
+                        systemImage: "rectangle.stack.badge.plus",
+                        action: addToDashboard
                     )
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Restore Suggested Setup", action: useSuggestedSetup)
+                        .buttonStyle(.plain)
                 }
-
-                VStack(spacing: AppSpacing.small) {
-                    if style == .setup {
-                        Button(action: useSuggestedSetup) {
-                            Label("Use Suggested Setup", systemImage: "wand.and.stars")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-
-                        Button(action: buildManually) {
-                            Label("Build My Own", systemImage: "plus")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                    } else {
-                        Button(action: addCards) {
-                            Label("Add Cards", systemImage: "rectangle.stack.badge.plus")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-
-                        Button(action: addHeader) {
-                            Label("Add Section", systemImage: "textformat.size")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button("Restore Suggested Setup", action: useSuggestedSetup)
-                            .buttonStyle(.plain)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .controlSize(.large)
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, AppSpacing.xxLarge)
     }
 }
