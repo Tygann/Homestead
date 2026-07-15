@@ -122,33 +122,9 @@ struct GaugeInstrumentCanvas: View {
         if trackStyle == .segmented {
             ForEach(presentation.sections.indices, id: \.self) { index in
                 let section = presentation.sections[index]
-                let segment = instrumentSegment(for: section, at: index)
-
-                GaugeInstrumentCanvasArcShape(
-                    start: segment.start,
-                    end: segment.end,
-                    inset: lineWidth / 2
-                )
-                .stroke(
-                    sectionColor(for: section, at: index),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
-                )
-            }
-
-            if let first = presentation.sections.first {
-                endpointCap(
-                    value: first.lowerBound,
-                    color: sectionColor(for: first, at: 0),
-                    diameter: diameter,
-                    lineWidth: lineWidth
-                )
-            }
-
-            if let last = presentation.sections.last {
-                let lastIndex = presentation.sections.index(before: presentation.sections.endIndex)
-                endpointCap(
-                    value: last.upperBound,
-                    color: sectionColor(for: last, at: lastIndex),
+                instrumentSection(
+                    section,
+                    at: index,
                     diameter: diameter,
                     lineWidth: lineWidth
                 )
@@ -159,6 +135,75 @@ struct GaugeInstrumentCanvas: View {
                     Color.secondary.opacity(0.16),
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
                 )
+        }
+    }
+
+    @ViewBuilder
+    private func instrumentSection(
+        _ section: GaugeInstrumentVisualSection,
+        at index: Int,
+        diameter: CGFloat,
+        lineWidth: CGFloat
+    ) -> some View {
+        if renderingStyle == .accented {
+            instrumentSectionGeometry(
+                section,
+                at: index,
+                diameter: diameter,
+                lineWidth: lineWidth
+            )
+            // Flatten the translucent arc and endpoint before applying opacity
+            // so their overlap reads as one continuous rounded stroke.
+            .compositingGroup()
+            .opacity(sectionOpacity(for: section, at: index))
+        } else {
+            instrumentSectionGeometry(
+                section,
+                at: index,
+                diameter: diameter,
+                lineWidth: lineWidth
+            )
+        }
+    }
+
+    private func instrumentSectionGeometry(
+        _ section: GaugeInstrumentVisualSection,
+        at index: Int,
+        diameter: CGFloat,
+        lineWidth: CGFloat
+    ) -> some View {
+        let segment = instrumentSegment(for: section, at: index)
+        let isFirstSection = index == presentation.sections.startIndex
+        let isLastSection = index == presentation.sections.index(before: presentation.sections.endIndex)
+
+        return ZStack {
+            GaugeInstrumentCanvasArcShape(
+                start: segment.start,
+                end: segment.end,
+                inset: lineWidth / 2
+            )
+            .stroke(
+                section.color,
+                style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
+            )
+
+            if isFirstSection {
+                endpointCap(
+                    value: section.lowerBound,
+                    color: section.color,
+                    diameter: diameter,
+                    lineWidth: lineWidth
+                )
+            }
+
+            if isLastSection {
+                endpointCap(
+                    value: section.upperBound,
+                    color: section.color,
+                    diameter: diameter,
+                    lineWidth: lineWidth
+                )
+            }
         }
     }
 
@@ -218,13 +263,12 @@ struct GaugeInstrumentCanvas: View {
         return (start, max(end, start))
     }
 
-    private func sectionColor(for section: GaugeInstrumentVisualSection, at index: Int) -> Color {
-        guard renderingStyle == .accented else { return section.color }
+    private func sectionOpacity(for section: GaugeInstrumentVisualSection, at index: Int) -> Double {
+        guard renderingStyle == .accented else { return 1 }
 
-        let opacity = isCurrentSection(section, at: index)
+        return isCurrentSection(section, at: index)
             ? accentedCurrentSectionOpacity
             : accentedSectionOpacity
-        return section.color.opacity(opacity)
     }
 
     private func isCurrentSection(_ section: GaugeInstrumentVisualSection, at index: Int) -> Bool {
