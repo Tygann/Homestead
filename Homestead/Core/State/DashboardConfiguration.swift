@@ -773,10 +773,6 @@ final class DashboardConfiguration {
         moveVisibleItems(id: id, before: targetID, visibleItemIDs: visibleChipItemIDs)
     }
 
-    func chooseManualSetup() {
-        updateSelectedDashboard { $0.setupState = .manual }
-    }
-
     @discardableResult
     func applySuggestedSetup(using candidates: [DashboardSuggestionCandidate]) -> Bool {
         let suggestedItems = DashboardSuggestedSetup.items(from: candidates)

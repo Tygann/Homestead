@@ -52,17 +52,14 @@ struct DashboardView: View {
                         EmptyDashboardCard()
                     } else if visibleItemsSnapshot.isEmpty {
                         DashboardEmptyStateView(
-                            style: dashboardConfiguration.setupState == .notChosen ? .setup : .empty,
+                            suggestedSetupActionTitle: dashboardConfiguration.setupState == .notChosen
+                                ? "Use Suggested Setup"
+                                : "Restore Suggested Setup",
                             addToDashboard: {
-                                dashboardConfiguration.chooseManualSetup()
                                 addSheetMode = .items
                             },
                             useSuggestedSetup: {
                                 requestSuggestedSetup()
-                            },
-                            buildManually: {
-                                dashboardConfiguration.chooseManualSetup()
-                                addSheetMode = .items
                             }
                         )
                     } else {
@@ -265,7 +262,6 @@ struct DashboardView: View {
             using: stateStore.dashboardSuggestionCandidates()
         )
         if !applied {
-            dashboardConfiguration.chooseManualSetup()
             addSheetMode = .items
         }
     }
@@ -1313,7 +1309,6 @@ struct DashboardView: View {
     private var optionsMenu: some View {
         Menu {
             Button {
-                dashboardConfiguration.chooseManualSetup()
                 addSheetMode = .items
             } label: {
                 Label("Add to Dashboard", systemImage: "rectangle.stack.badge.plus")

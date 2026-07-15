@@ -276,49 +276,28 @@ struct EmptyDashboardCard: View {
 }
 
 struct DashboardEmptyStateView: View {
-    enum Style {
-        case setup
-        case empty
-    }
-
-    let style: Style
+    let suggestedSetupActionTitle: String
     let addToDashboard: () -> Void
     let useSuggestedSetup: () -> Void
-    let buildManually: () -> Void
 
     var body: some View {
         ContentUnavailableView {
-            Label(
-                style == .setup ? "Set Up Your Dashboard" : "Your Dashboard Is Empty",
-                systemImage: "square.grid.2x2"
-            )
+            Label("Your Dashboard Is Empty", systemImage: "square.grid.2x2")
         } description: {
-            Text(
-                style == .setup
-                    ? "Start with suggested controls or build your own."
-                    : "Add your favorite controls for quick access to your home."
-            )
+            Text("Add your favorite controls for quick access to your home.")
         } actions: {
             VStack(spacing: AppSpacing.small) {
-                if style == .setup {
-                    Button("Use Suggested Setup", systemImage: "wand.and.stars", action: useSuggestedSetup)
-                        .buttonStyle(.borderedProminent)
+                Button(
+                    "Add to Dashboard",
+                    systemImage: "plus",
+                    action: addToDashboard
+                )
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
 
-                    Button("Build My Own", systemImage: "plus", action: buildManually)
-                        .buttonStyle(.bordered)
-                } else {
-                    Button(
-                        "Add to Dashboard",
-                        systemImage: "plus",
-                        action: addToDashboard
-                    )
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-
-                    Button("Restore Suggested Setup", action: useSuggestedSetup)
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.tint)
-                }
+                Button(suggestedSetupActionTitle, action: useSuggestedSetup)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tint)
             }
         }
         .frame(maxWidth: .infinity)

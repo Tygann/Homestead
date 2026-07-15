@@ -401,7 +401,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(configuration.setupState, .manual)
     }
 
-    func testNewDashboardWaitsForAnExplicitSetupChoice() throws {
+    func testNewDashboardWaitsForFirstAddedItemBeforeRecordingManualSetup() throws {
         let defaults = makeDefaults()
         let configuration = DashboardConfiguration(defaults: defaults)
         let store = HAStateStore()
@@ -414,10 +414,14 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(configuration.setupState, .notChosen)
         XCTAssertTrue(configuration.items.isEmpty)
 
-        configuration.chooseManualSetup()
+        let restoredBeforeAdding = DashboardConfiguration(defaults: defaults)
+        XCTAssertEqual(restoredBeforeAdding.setupState, .notChosen)
+        XCTAssertTrue(restoredBeforeAdding.items.isEmpty)
+
+        _ = restoredBeforeAdding.add(source: .entity("light.kitchen"), presentation: .chip)
         let restored = DashboardConfiguration(defaults: defaults)
         XCTAssertEqual(restored.setupState, .manual)
-        XCTAssertTrue(restored.items.isEmpty)
+        XCTAssertEqual(restored.items.count, 1)
     }
 
     func testRemovingLastSuggestedItemPersistsIntentionalEmptyStateWithoutReseeding() throws {
