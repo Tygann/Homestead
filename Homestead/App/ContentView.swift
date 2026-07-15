@@ -471,40 +471,15 @@ extension EnvironmentValues {
 
 struct SettingsAccountButton: View {
     @Environment(\.openSettings) private var openSettings
-    @Environment(\.openAddServer) private var openAddServer
-    @Environment(\.switchServer) private var switchServer
-    @Environment(HAConnectionSettings.self) private var connectionSettings
 
     var body: some View {
-        Menu {
-            Section("Servers") {
-                ForEach(connectionSettings.profiles) { profile in
-                    Button {
-                        switchServer(profile.id)
-                    } label: {
-                        Label(
-                            profile.resolvedDisplayName,
-                            systemImage: profile.id == connectionSettings.activeProfileID ? "checkmark" : "server.rack"
-                        )
-                    }
-                    .disabled(profile.id == connectionSettings.activeProfileID)
-                }
-            }
-
-            Button(action: openAddServer) {
-                Label("Add Server", systemImage: "plus")
-            }
-
-            Button(action: openSettings) {
-                Label("Settings", systemImage: "gearshape")
-            }
-        } label: {
+        Button(action: openSettings) {
             HomeAssistantAvatarView()
                 .frame(width: 44, height: 44)
                 .padding(-6)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Servers and Settings")
+        .accessibilityLabel("Settings")
     }
 }
 

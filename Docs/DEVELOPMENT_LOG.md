@@ -7,7 +7,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### Multiple Home Assistant Servers
 
 - Added app-owned server profiles with one active WebSocket, profile-scoped OAuth/mobile-app Keychain records, transactional generation-guarded switching, isolated dashboards/state caches, and legacy single-server migration without a new sign-in.
-- Added the avatar Servers menu and Settings management for discovery/manual add, rename, reauthentication, switching, inspection, and revoking removal with a force-local recovery path.
+- Kept the toolbar avatar as a direct Settings button and placed discovery/manual add, rename, reauthentication, switching, inspection, and revoking removal under Settings > Servers.
+- Extended the ignored Debug `PreviewCredentials.json` format to accept multiple named servers and long-lived preview tokens, with stable preview profile identities and backward compatibility for the original single-server shape.
 - Added profile-aware widget/deep-link and notification routing, kept existing widgets pinned to their original migrated profile, and extended iCloud v2 with optional credential-free server metadata and per-server dashboard bundles.
 - Verified with a generic simulator build and five focused multi-server migration/isolation tests.
 

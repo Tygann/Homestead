@@ -1,4 +1,5 @@
 #if DEBUG
+import CryptoKit
 import SwiftUI
 
 @MainActor
@@ -69,19 +70,34 @@ struct PreviewDependencies {
     static var liveHomeAssistant: PreviewDependencies? {
         let previewDefaults = UserDefaults.livePreview
         let stateStore = HAStateStore()
-        let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         let actionConfirmationSettings = ActionConfirmationSettings(defaults: previewDefaults)
         let appearanceSettings = HomesteadAppearanceSettings(defaults: previewDefaults)
         let tabSettings = HomesteadTabSettings(defaults: previewDefaults)
         let iCloudSyncService = HomesteadICloudSyncService(defaults: previewDefaults)
 
-        if let credential = PreviewCredentialProvider.liveCredential() {
-            let tokenStore = InMemoryHAOAuthTokenStore(credential: credential)
-            let settings = HAConnectionSettings(
-                baseURL: credential.baseURLString,
+        let previewCredentials = PreviewCredentialProvider.liveCredentials()
+        if !previewCredentials.isEmpty {
+            let profiles = previewCredentials.map(\.profile)
+            let profileStore = HAConnectionProfileStore(
                 defaults: previewDefaults,
-                tokenStore: tokenStore
+                legacyBaseURL: profiles[0].baseURL
             )
+            profileStore.replaceForPreview(profiles)
+            let tokenStores = Dictionary(uniqueKeysWithValues: previewCredentials.map {
+                ($0.profile.id, InMemoryHAOAuthTokenStore(credential: $0.credential))
+            })
+            let settings = HAConnectionSettings(
+                defaults: previewDefaults,
+                tokenStore: tokenStores[profileStore.activeProfileID],
+                profileStore: profileStore
+            )
+            let dashboardConfiguration = DashboardConfiguration(
+                defaults: previewDefaults,
+                profileID: profileStore.activeProfileID
+            )
+            let activeCredential = previewCredentials.first {
+                $0.profile.id == profileStore.activeProfileID
+            }?.credential ?? previewCredentials[0].credential
             let nativeNotificationService = NativeNotificationService(
                 client: PreviewNativeNotificationPermissionClient(status: .previewAuthorized)
             )
@@ -90,12 +106,18 @@ struct PreviewDependencies {
             )
             let service = HomeAssistantService(
                 stateStore: stateStore,
-                authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+                authState: .signedIn(HAAuthSessionSummary(credential: activeCredential)),
                 mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
                 mobileAppDeviceIDStore: InMemoryHAMobileAppDeviceIDStore(),
                 pushRelayTokenStore: InMemoryPushRelayTokenStore(),
                 nativeNotificationService: nativeNotificationService,
-                authManager: HAOAuthManager(tokenStore: tokenStore),
+                authManager: HAOAuthManager(
+                    tokenStore: tokenStores[profileStore.activeProfileID],
+                    profileID: profileStore.activeProfileID
+                ),
+                authManagerProvider: { profileID in
+                    HAOAuthManager(tokenStore: tokenStores[profileID], profileID: profileID)
+                },
                 automaticallyRegistersMobileApp: false
             )
 
@@ -113,6 +135,7 @@ struct PreviewDependencies {
             )
         }
 
+        let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         let settings = HAConnectionSettings(defaults: previewDefaults)
 
         guard settings.hasServerURL else {
@@ -482,24 +505,45 @@ struct MissingLivePreviewCredentialsView: View {
 private enum PreviewCredentialProvider {
     private static let bundledCredentialsResource = "PreviewCredentials"
 
-    static func liveCredential() -> HAOAuthCredential? {
-        bundledCredential()
+    struct LiveCredential {
+        let profile: HAConnectionProfile
+        let credential: HAOAuthCredential
     }
 
-    private static func bundledCredential() -> HAOAuthCredential? {
+    static func liveCredentials() -> [LiveCredential] {
         guard let url = Bundle.main.url(forResource: bundledCredentialsResource, withExtension: "json"),
-              let data = try? Data(contentsOf: url),
-              let credentials = try? JSONDecoder().decode(PreviewCredentialsFile.self, from: data) else {
-            return nil
+              let data = try? Data(contentsOf: url) else {
+            return []
         }
 
-        let baseURL = credentials.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let accessToken = credentials.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !baseURL.isEmpty, !accessToken.isEmpty else {
-            return nil
-        }
+        let decoder = JSONDecoder()
+        let entries = (try? decoder.decode(PreviewCredentialsCollection.self, from: data).servers)
+            ?? (try? decoder.decode(PreviewCredentialsFile.self, from: data)).map { [$0] }
+            ?? []
 
-        return sampleCredential(baseURL: baseURL, accessToken: accessToken)
+        return entries.compactMap { credentials in
+            let baseURL = credentials.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let accessToken = credentials.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !baseURL.isEmpty, !accessToken.isEmpty else { return nil }
+            let profileID = deterministicProfileID(for: baseURL)
+            return LiveCredential(
+                profile: HAConnectionProfile(
+                    id: profileID,
+                    displayName: credentials.name ?? "",
+                    baseURL: baseURL
+                ),
+                credential: sampleCredential(baseURL: baseURL, accessToken: accessToken)
+            )
+        }
+    }
+
+    private static func deterministicProfileID(for baseURL: String) -> UUID {
+        let digest = SHA256.hash(data: Data(baseURL.lowercased().utf8))
+        let bytes = Array(digest.prefix(16))
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
     }
 
     static func sampleCredential(baseURL: String, accessToken: String) -> HAOAuthCredential {
@@ -515,8 +559,13 @@ private enum PreviewCredentialProvider {
     }
 
     private struct PreviewCredentialsFile: Decodable {
+        let name: String?
         let baseURL: String
         let accessToken: String
+    }
+
+    private struct PreviewCredentialsCollection: Decodable {
+        let servers: [PreviewCredentialsFile]
     }
 }
 

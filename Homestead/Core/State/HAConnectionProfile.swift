@@ -220,6 +220,18 @@ final class HAConnectionProfileStore {
         publishWidgetProfiles()
     }
 
+    #if DEBUG
+    func replaceForPreview(_ previewProfiles: [HAConnectionProfile]) {
+        guard !previewProfiles.isEmpty else { return }
+        let previousActiveID = activeProfileID
+        profiles = previewProfiles
+        activeProfileID = previewProfiles.contains(where: { $0.id == previousActiveID })
+            ? previousActiveID
+            : previewProfiles[0].id
+        publishWidgetProfiles()
+    }
+    #endif
+
     private func save() {
         guard let data = try? JSONEncoder().encode(profiles) else { return }
         defaults.set(data, forKey: Keys.profiles)
