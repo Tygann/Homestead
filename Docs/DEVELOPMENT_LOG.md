@@ -2,6 +2,15 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-14
+
+### Medium And Large Gauge Grid Widgets
+
+- Added separate stable WidgetKit kinds for a three-gauge medium grid and six-gauge large grid so existing installed configurations remain isolated and safe.
+- Kept all per-gauge App Intent controls, including custom names, display style, automatic/custom scale, endpoints, and up to five configurable color zones.
+- Shared the app-group snapshot entry builder, ordered item mapping, adaptive 3-column grid, gauge tile, and gauge canvas across both sizes; Large renders the same instruments in a 3×2 layout rather than introducing a second visual implementation.
+- Verified with a generic simulator build and the focused `WidgetGaugeGridTests` suite.
+
 ## 2026-07-13
 
 ### Script Logic Detail

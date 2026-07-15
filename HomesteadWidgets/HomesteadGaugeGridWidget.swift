@@ -321,6 +321,60 @@ struct HomesteadGaugeGridEntry: TimelineEntry {
         )
     ]
 
+    static let largePreviewItems: [HomesteadWidgetItem] = previewItems + [
+        previewItem(
+            id: "alkalinity",
+            name: "Alkalinity",
+            icon: "testtube.2",
+            gauge: .gaugeGridPreview(
+                value: 8.3,
+                lowerBound: 7,
+                upperBound: 11,
+                valueText: "8.3 dKH",
+                unitText: "dKH",
+                sections: [
+                    .init(lowerBound: 7, upperBound: 8, color: .red),
+                    .init(lowerBound: 8, upperBound: 10, color: .green),
+                    .init(lowerBound: 10, upperBound: 11, color: .orange)
+                ]
+            )
+        ),
+        previewItem(
+            id: "ph",
+            name: "pH",
+            icon: "drop",
+            gauge: .gaugeGridPreview(
+                value: 8.1,
+                lowerBound: 7.5,
+                upperBound: 8.5,
+                valueText: "8.1",
+                unitText: nil,
+                sections: [
+                    .init(lowerBound: 7.5, upperBound: 7.8, color: .orange),
+                    .init(lowerBound: 7.8, upperBound: 8.4, color: .green),
+                    .init(lowerBound: 8.4, upperBound: 8.5, color: .red)
+                ]
+            )
+        ),
+        previewItem(
+            id: "salinity",
+            name: "Salinity",
+            icon: "water.waves",
+            gauge: .gaugeGridPreview(
+                value: 35,
+                lowerBound: 30,
+                upperBound: 40,
+                valueText: "35 ppt",
+                unitText: "ppt",
+                sections: [
+                    .init(lowerBound: 30, upperBound: 33, color: .blue),
+                    .init(lowerBound: 33, upperBound: 37, color: .green),
+                    .init(lowerBound: 37, upperBound: 40, color: .orange)
+                ]
+            )
+        )
+    ]
+
     private static func previewItem(
         id: String,
         name: String,
@@ -355,21 +409,36 @@ struct HomesteadGaugeGridTimelineProvider: AppIntentTimelineProvider {
             return placeholder(in: context)
         }
 
-        return entry(for: configuration)
+        return HomesteadGaugeGridEntryBuilder.entry(
+            slots: configuration.selectedSlots,
+            maximumItemCount: 3
+        )
     }
 
     func timeline(
         for configuration: HomesteadGaugeGridWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadGaugeGridEntry> {
-        Timeline(entries: [entry(for: configuration)], policy: .after(.now.addingTimeInterval(30 * 60)))
+        let entry = HomesteadGaugeGridEntryBuilder.entry(
+            slots: configuration.selectedSlots,
+            maximumItemCount: 3
+        )
+        return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(30 * 60)))
     }
+}
 
-    private func entry(for configuration: HomesteadGaugeGridWidgetConfigurationIntent) -> HomesteadGaugeGridEntry {
-        let items: [HomesteadWidgetItem?] = configuration.selectedSlots.compactMap { slot in
+enum HomesteadGaugeGridEntryBuilder {
+    static func entry(
+        slots: [HomesteadGaugeGridSlot],
+        maximumItemCount: Int
+    ) -> HomesteadGaugeGridEntry {
+        let snapshotsByEntityID = HomesteadWidgetSharedStore.sensorSnapshots.reduce(into: [:]) { result, snapshot in
+            result[snapshot.entityID] = snapshot
+        }
+        let items: [HomesteadWidgetItem?] = slots.compactMap { slot in
             guard let configuredItem = slot.item else { return nil }
 
-            let item = HomesteadWidgetSharedStore.sensorSnapshot(entityID: configuredItem.id)
+            let item = snapshotsByEntityID[configuredItem.id]
                 .flatMap(HomesteadWidgetItem.sensorGauge(from:))
                 ?? configuredItem.item()
 
@@ -378,7 +447,7 @@ struct HomesteadGaugeGridTimelineProvider: AppIntentTimelineProvider {
 
         return HomesteadGaugeGridEntry(
             date: .now,
-            items: HomesteadWidgetGridSelection.compacted(items, maximumItemCount: 3),
+            items: HomesteadWidgetGridSelection.compacted(items, maximumItemCount: maximumItemCount),
             isConfigured: !items.isEmpty
         )
     }
@@ -417,7 +486,7 @@ private extension WidgetGaugePresentation {
         lowerBound: Double,
         upperBound: Double,
         valueText: String,
-        unitText: String,
+        unitText: String?,
         sections: [WidgetGaugeSection]
     ) -> Self {
         Self(
@@ -437,6 +506,7 @@ private extension WidgetGaugePresentation {
 
 struct HomesteadGaugeGridWidgetView: View {
     let entry: HomesteadGaugeGridEntry
+    var layout: HomesteadGaugeGridLayout = .medium
 
     var body: some View {
         if entry.items.isEmpty {
@@ -453,23 +523,38 @@ struct HomesteadGaugeGridWidgetView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             GeometryReader { proxy in
-                let usesEqualThreeGaugeGutters = entry.items.count == 3
-                let horizontalPadding: CGFloat = usesEqualThreeGaugeGutters ? 12 : 8
-                let columnSpacing: CGFloat = usesEqualThreeGaugeGutters ? 12 : 8
+                let horizontalPadding = layout.horizontalPadding(itemCount: entry.items.count)
+                let columnSpacing = layout.columnSpacing(itemCount: entry.items.count)
+                let rowSpacing = layout.rowSpacing
                 let availableWidth = max(
-                    proxy.size.width - (horizontalPadding * 2) - (columnSpacing * 2),
+                    proxy.size.width
+                        - (horizontalPadding * 2)
+                        - (columnSpacing * CGFloat(layout.columnCount - 1)),
                     0
                 )
-                let tileSize = availableWidth / 3
+                let availableHeight = max(
+                    proxy.size.height - (rowSpacing * CGFloat(layout.rowCount - 1)),
+                    0
+                )
+                let tileSize = min(
+                    availableWidth / CGFloat(layout.columnCount),
+                    availableHeight / CGFloat(layout.rowCount)
+                )
 
-                HStack(spacing: columnSpacing) {
-                    ForEach(0..<3, id: \.self) { index in
-                        if index < entry.items.count {
-                            HomesteadGaugeGridTile(item: entry.items[index])
-                                .frame(width: tileSize, height: tileSize)
-                        } else {
-                            Color.clear
-                                .frame(width: tileSize, height: tileSize)
+                VStack(spacing: rowSpacing) {
+                    ForEach(0..<layout.rowCount, id: \.self) { row in
+                        HStack(spacing: columnSpacing) {
+                            ForEach(0..<layout.columnCount, id: \.self) { column in
+                                let index = (row * layout.columnCount) + column
+
+                                if index < entry.items.count {
+                                    HomesteadGaugeGridTile(item: entry.items[index])
+                                        .frame(width: tileSize, height: tileSize)
+                                } else {
+                                    Color.clear
+                                        .frame(width: tileSize, height: tileSize)
+                                }
+                            }
                         }
                     }
                 }
@@ -480,7 +565,42 @@ struct HomesteadGaugeGridWidgetView: View {
     }
 }
 
-private struct HomesteadGaugeGridTile: View {
+enum HomesteadGaugeGridLayout {
+    case medium
+    case large
+
+    var columnCount: Int { 3 }
+
+    var rowCount: Int {
+        switch self {
+        case .medium: 1
+        case .large: 2
+        }
+    }
+
+    var rowSpacing: CGFloat {
+        switch self {
+        case .medium: 0
+        case .large: 12
+        }
+    }
+
+    func horizontalPadding(itemCount: Int) -> CGFloat {
+        switch self {
+        case .medium: itemCount == 3 ? 12 : 8
+        case .large: 12
+        }
+    }
+
+    func columnSpacing(itemCount: Int) -> CGFloat {
+        switch self {
+        case .medium: itemCount == 3 ? 12 : 8
+        case .large: 12
+        }
+    }
+}
+
+struct HomesteadGaugeGridTile: View {
     let item: HomesteadWidgetItem
 
     var body: some View {

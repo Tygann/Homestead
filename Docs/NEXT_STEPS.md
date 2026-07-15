@@ -16,6 +16,7 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added independent medium and large Gauge Grid widgets backed by stable WidgetKit kinds and App Intent configurations. Medium retains three fully configurable gauges; Large supports six in a 3×2 grid. Both load one app-group snapshot batch, preserve explicit slot ordering, and share the same item mapping, zone/scale customization, adaptive gauge canvas, tile renderer, and unavailable-state behavior.
 - Replaced dashboard Gauge Setup's indirect per-zone status selection with native SwiftUI ColorPicker controls. Per-card zone colors persist as RGBA values, migrate existing semantic status colors without losing dashboard configurations, render at full selected color, and leave Home Assistant's overall sensor status independent from the chosen visual bands.
 - Gauge Setup now also gives every dashboard zone a user-editable name, preserving meaningful custom labels while keeping `Zone 1`, `Zone 2`, and so on as the tidy defaults when zones are added or removed.
 - Sensor widget gauge setup now uses a concise `Zone N Color` App Intent palette rather than status choices. The widget renders those selected visual bands directly and keeps Home Assistant's sensor status separate from the configured colors.

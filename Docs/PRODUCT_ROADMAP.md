@@ -42,21 +42,20 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Settings > Privacy & Permissions page for native iOS capabilities, including Local Network, Location, and Camera, backed by public platform APIs or app-owned status where iOS does not expose direct status. Notification permission and Home Assistant delivery setup live in Settings > Notifications.
 - User-facing service-call and reconnect recovery feedback through `HomeAssistantService` and app chrome, including tappable reconnecting state and clearer action-failure copy.
 - Authenticated camera snapshot support.
-- Experience-first Home Screen widgets: Control for lights, switches, covers, fans, and lock-only lock actions; Status for sensors and people; Sensor for readings, trends, and gauges; and Action for scenes/scripts/buttons. They use shared OAuth credentials, app-group state, WebSocket state refresh, documented REST history, and official WebSocket service calls where actions are available.
+- Experience-first Home Screen widgets: Control for lights, switches, covers, fans, and lock-only lock actions; Status for sensors and people; Sensor for readings, trends, and gauges; Action for scenes/scripts/buttons; and configurable Gauge Grid widgets showing three gauges at medium size or six gauges at large size. They use shared OAuth credentials, app-group state, WebSocket state refresh, documented REST history, and official WebSocket service calls where actions are available.
 - Cloud-first setup bootstrap and opt-in automatic iCloud key-value sync for small Homestead-owned preferences. Clean devices can explicitly restore server metadata and saved dashboard definitions before OAuth; each device keeps its current dashboard selection local. Section-level conflict resolution prevents unrelated or default changes from replacing newer data. Credentials and generated/device data stay local.
 - User-initiated local Home Assistant discovery through the advertised `_home-assistant._tcp` Bonjour service, with manual sign-in address entry as fallback.
 - App-facing model mapping through `EntityMapper`, with SwiftUI avoiding direct Home Assistant DTO use.
 
 ## Near-Term Priorities
 
-- Device-test dashboard mini accessory tiles in real dense dashboards, then use that tile language only where it helps future medium/large multi-entity widget work.
+- Device-test the medium and large Gauge Grid layouts with real sensor names, ranges, icons, and unavailable states, then use that shared tile architecture for future multi-entity widget types where it remains readable.
 - Polish and device-test the expanded WidgetKit/App Intents surface, then consider Control Center controls for the safest common actions.
 - Maintain existing entity history/timeline surfaces and polish them only when concrete visual issues or clearly useful state-only domains appear.
 - Continue dashboard organization, filtering, and add-card polish only when user testing or new card types expose concrete friction.
 
 ## Later Candidates
 
-- Multi-entity Home Screen widgets for medium/large families, likely as a separate Accessories-style widget using compact tile layouts and multiple App Intent entity parameters.
 - Per-dashboard or per-area wallpaper choices if the single global wallpaper proves too limiting.
 - Control Center controls and App Intents for common Home Assistant actions.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.
