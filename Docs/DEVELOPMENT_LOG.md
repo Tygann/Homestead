@@ -10,6 +10,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Kept the toolbar avatar as a direct Settings button and placed discovery/manual add, rename, reauthentication, switching, inspection, and revoking removal under Settings > Servers.
 - Extended the ignored Debug `PreviewCredentials.json` format to accept multiple named servers and long-lived preview tokens, with stable preview profile identities and backward compatibility for the original single-server shape.
 - Polished the native Settings hierarchy by moving Servers into the Home Assistant section, separating active and other server rows, middle-truncating long hosts, consolidating detail actions, adding explicit connection status, and moving rename/full-route information into focused interactions.
+- Made server details authentication-aware with concise Connected, Connecting, Offline, Ready to Switch, and Sign-In Required states; actions now appear only when relevant, and the switch action uses explicit wording.
+- Fixed Add Server on physical devices by presenting its flow from the Servers screen instead of attempting to replace the already-presented Settings sheet destination.
 - Added profile-aware widget/deep-link and notification routing, kept existing widgets pinned to their original migrated profile, and extended iCloud v2 with optional credential-free server metadata and per-server dashboard bundles.
 - Verified with a generic simulator build and five focused multi-server migration/isolation tests.
 

@@ -72,7 +72,6 @@ struct ContentView: View {
             }
         }
         .environment(\.openSettings, { presentedAppSheet = .settings })
-        .environment(\.openAddServer, { presentedAppSheet = .addServer })
         .sheet(item: $presentedAppSheet) { destination in
             switch destination {
             case .settings:
@@ -90,11 +89,6 @@ struct ContentView: View {
                     }
             }
             .preferredColorScheme(settingsSheetColorScheme)
-            case .addServer:
-                NavigationStack {
-                    AddHomeAssistantServerView()
-                }
-                .preferredColorScheme(settingsSheetColorScheme)
             }
         }
         .sheet(item: $widgetEntityDestination) { destination in
@@ -397,7 +391,6 @@ struct ContentView: View {
 
 private enum AppSheetDestination: String, Identifiable {
     case settings
-    case addServer
 
     var id: String { rawValue }
 }
@@ -431,19 +424,10 @@ private struct OpenSettingsKey: EnvironmentKey {
     static let defaultValue: () -> Void = {}
 }
 
-private struct OpenAddServerKey: EnvironmentKey {
-    static let defaultValue: () -> Void = {}
-}
-
 extension EnvironmentValues {
     var openSettings: () -> Void {
         get { self[OpenSettingsKey.self] }
         set { self[OpenSettingsKey.self] = newValue }
-    }
-
-    var openAddServer: () -> Void {
-        get { self[OpenAddServerKey.self] }
-        set { self[OpenAddServerKey.self] = newValue }
     }
 
 }

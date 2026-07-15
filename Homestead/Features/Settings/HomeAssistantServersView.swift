@@ -6,9 +6,9 @@ struct HomeAssistantServersView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @Environment(\.openAddServer) private var openAddServer
     @State private var switchingProfileID: UUID?
     @State private var switchErrorMessage: String?
+    @State private var presentedSheet: ServerSheetDestination?
 
     var body: some View {
         List {
@@ -38,7 +38,7 @@ struct HomeAssistantServersView: View {
                     .disabled(switchingProfileID != nil)
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
                         if switchingProfileID == nil {
-                            Button("Use", systemImage: "checkmark") {
+                            Button("Switch", systemImage: "checkmark") {
                                 switchToServer(profile.id)
                             }
                             .tint(.accentColor)
@@ -46,7 +46,9 @@ struct HomeAssistantServersView: View {
                     }
                 }
 
-                Button(action: openAddServer) {
+                Button {
+                    presentedSheet = .addServer
+                } label: {
                     Label("Add Server", systemImage: "plus")
                 }
                 .disabled(switchingProfileID != nil)
@@ -65,6 +67,14 @@ struct HomeAssistantServersView: View {
                 if switchingProfileID != nil { ProgressView() }
             }
         }
+        .sheet(item: $presentedSheet) { destination in
+            switch destination {
+            case .addServer:
+                NavigationStack {
+                    AddHomeAssistantServerView()
+                }
+            }
+        }
     }
 
     private var activeProfile: HAConnectionProfile? {
@@ -80,6 +90,12 @@ struct HomeAssistantServersView: View {
         switchingProfileID = profileID
         switchErrorMessage = nil
         Task {
+            let authenticationState = await homeAssistantService.authenticationState(for: profileID)
+            guard authenticationState.isSignedIn else {
+                switchingProfileID = nil
+                switchErrorMessage = "Sign in to this server again before switching."
+                return
+            }
             let switched = await homeAssistantService.switchActiveProfile(
                 to: profileID,
                 settings: connectionSettings,
@@ -91,6 +107,12 @@ struct HomeAssistantServersView: View {
             }
         }
     }
+}
+
+private enum ServerSheetDestination: String, Identifiable {
+    case addServer
+
+    var id: String { rawValue }
 }
 
 private struct ServerProfileRow: View {
@@ -145,12 +167,15 @@ private struct HomeAssistantServerDetailView: View {
     @State private var isSwitching = false
     @State private var switchErrorMessage: String?
     @State private var removalFailureMessage: String?
+    @State private var profileAuthState: HAAuthState?
 
     var body: some View {
         Form {
             if let profile {
                 overviewSection(profile)
-                actionsSection
+                if showsActionsSection {
+                    actionsSection
+                }
 
                 if let switchErrorMessage {
                     Section {
@@ -197,6 +222,9 @@ private struct HomeAssistantServerDetailView: View {
         } message: {
             Text(removalFailureMessage ?? "Home Assistant could not be reached.")
         }
+        .task(id: profileID) {
+            await refreshProfileAuthState()
+        }
     }
 
     private var profile: HAConnectionProfile? {
@@ -205,19 +233,41 @@ private struct HomeAssistantServerDetailView: View {
 
     private var isActive: Bool { connectionSettings.activeProfileID == profileID }
 
+    private var authenticationState: HAAuthState? {
+        isActive ? homeAssistantService.authState : profileAuthState
+    }
+
+    private var isAuthenticationReady: Bool {
+        authenticationState?.isSignedIn == true
+    }
+
+    private var requiresSignIn: Bool {
+        guard let authenticationState else { return false }
+        return !authenticationState.isSignedIn
+    }
+
+    private var showsActionsSection: Bool {
+        if isActive { return requiresSignIn }
+        return authenticationState != nil
+    }
+
     private var statusText: String {
-        guard isActive else { return "Inactive" }
+        if requiresSignIn { return "Sign-In Required" }
+        guard isActive else {
+            return authenticationState == nil ? "Checking…" : "Ready to Switch"
+        }
         switch homeAssistantService.connectionStatus {
         case .connected:
-            return "Active · Connected"
+            return "Connected"
         case .preparing, .connecting, .reconnecting:
-            return "Active · Connecting"
+            return "Connecting"
         case .disconnected, .failed:
-            return "Active · Offline"
+            return "Offline"
         }
     }
 
     private var statusTint: Color {
+        if requiresSignIn { return .orange }
         guard isActive else { return .secondary }
         switch homeAssistantService.connectionStatus {
         case .connected:
@@ -271,13 +321,15 @@ private struct HomeAssistantServerDetailView: View {
 
     private var actionsSection: some View {
         Section("Actions") {
-            if !isActive {
-                Button(isSwitching ? "Switching…" : "Use This Server") { switchToServer() }
+            if !isActive, isAuthenticationReady {
+                Button(isSwitching ? "Switching…" : "Switch to This Server") { switchToServer() }
                     .disabled(isSwitching)
             }
 
-            Button("Sign In Again") { reauthenticate() }
-                .disabled(isRemoving || isReauthenticating || isSwitching)
+            if requiresSignIn {
+                Button("Sign In Again") { reauthenticate() }
+                    .disabled(isRemoving || isReauthenticating || isSwitching)
+            }
         }
     }
 
@@ -287,8 +339,6 @@ private struct HomeAssistantServerDetailView: View {
                 isConfirmingRemoval = true
             }
             .disabled(isRemoving)
-        } header: {
-            Text("Remove")
         } footer: {
             Text("This removes the server and its local Homestead data from this device.")
         }
@@ -331,9 +381,19 @@ private struct HomeAssistantServerDetailView: View {
     private func reauthenticate() {
         isReauthenticating = true
         Task {
-            _ = await homeAssistantService.reauthenticateServer(profileID: profileID, settings: connectionSettings)
+            let succeeded = await homeAssistantService.reauthenticateServer(
+                profileID: profileID,
+                settings: connectionSettings
+            )
+            if succeeded {
+                await refreshProfileAuthState()
+            }
             isReauthenticating = false
         }
+    }
+
+    private func refreshProfileAuthState() async {
+        profileAuthState = await homeAssistantService.authenticationState(for: profileID)
     }
 
     private func switchToServer() {

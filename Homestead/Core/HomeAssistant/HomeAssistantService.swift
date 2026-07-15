@@ -401,6 +401,13 @@ final class HomeAssistantService {
         }
     }
 
+    func authenticationState(for profileID: UUID) async -> HAAuthState {
+        if currentConnectionSettings?.activeProfileID == profileID {
+            return authState
+        }
+        return await authManagerProvider(profileID).status()
+    }
+
     func signInWithHomeAssistant(settings: HAConnectionSettings) async {
         currentConnectionSettings = settings
         await refreshCurrentWiFiSSIDIfNeeded(settings: settings)
