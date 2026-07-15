@@ -42,7 +42,7 @@ struct DashboardAddItemView: View {
                 case .sources(let kind):
                     DashboardCompatibleSourcesView(kind: kind, add: add)
                 case .review(let source, let kind):
-                    DashboardPresentationReviewView(source: source, kind: kind, add: add)
+                    DashboardPresentationReviewView(source: source, kind: kind, add: addAndDismiss)
                 case .header:
                     DashboardAddHeaderView(add: addHeader)
                 }
@@ -270,6 +270,15 @@ struct DashboardAddItemView: View {
         guard let itemID = dashboardConfiguration.add(source: source.reference, presentation: presentation) else { return }
         HapticFeedback.selection()
         onAddItem(itemID)
+    }
+
+    private func addAndDismiss(
+        _ source: DashboardAddSource,
+        _ presentation: DashboardPresentationConfiguration
+    ) {
+        guard dashboardConfiguration.add(source: source.reference, presentation: presentation) != nil else { return }
+        HapticFeedback.selection()
+        dismiss()
     }
 
     private func addHeader(_ title: String) {
