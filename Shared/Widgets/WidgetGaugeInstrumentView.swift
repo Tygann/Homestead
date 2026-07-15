@@ -11,6 +11,15 @@ enum GaugeVisualStatus: Equatable, Sendable {
 enum WidgetGaugeInstrumentStyle: Equatable, Sendable {
     case standard
     case segmented
+    case compactSegmented
+
+    var isSegmented: Bool {
+        self != .standard
+    }
+
+    var isCompact: Bool {
+        self == .compactSegmented
+    }
 }
 
 enum GaugeVisualMetrics {
@@ -62,13 +71,16 @@ struct WidgetGaugeInstrumentView: View {
                 }
 
                 GeometryReader { bodyProxy in
-                    let diameter = min(bodyProxy.size.width, bodyProxy.size.height / 0.79)
-                    let lineWidth = min(max(diameter * 0.085, 10), 17)
+                    let heightRatio = style.isCompact ? 0.82 : 0.79
+                    let diameter = min(bodyProxy.size.width, bodyProxy.size.height / heightRatio)
+                    let lineWidth = style.isCompact
+                        ? min(max(diameter * 0.08, 5), 7)
+                        : min(max(diameter * 0.085, 10), 17)
 
                     ZStack {
                         instrumentTrack(diameter: diameter, lineWidth: lineWidth)
 
-                        if style == .segmented {
+                        if style.isSegmented {
                             instrumentValueIndicator(diameter: diameter, lineWidth: lineWidth)
                         } else if gauge.normalizedValue > 0 {
                             WidgetGaugeInstrumentArcShape(start: 0, end: gauge.normalizedValue, inset: lineWidth / 2)
@@ -94,7 +106,7 @@ struct WidgetGaugeInstrumentView: View {
 
     @ViewBuilder
     private func instrumentTrack(diameter: CGFloat, lineWidth: CGFloat) -> some View {
-        if style == .segmented {
+        if style.isSegmented {
             ForEach(gauge.sections.indices, id: \.self) { index in
                 let section = gauge.sections[index]
                 let segment = instrumentSegment(for: section)
@@ -194,11 +206,14 @@ struct WidgetGaugeInstrumentView: View {
     }
 
     private func instrumentContent(diameter: CGFloat, lineWidth: CGFloat) -> some View {
-        let valueFontSize = min(max(diameter * 0.25, 28), 58)
+        let valueFontSize = style.isCompact
+            ? min(max(diameter * 0.24, 15), 22)
+            : min(max(diameter * 0.25, 28), 58)
         let radius = max((diameter / 2) - (lineWidth / 2), 0)
         let endpointY = (diameter / 2) + (radius * 0.5)
         let endpointBottomY = endpointY + (lineWidth / 2)
-        let legendWidth = max((sqrt(3) * radius) - (lineWidth * 1.8), 0)
+        let legendInset = style.isCompact ? lineWidth * 0.9 : lineWidth * 1.8
+        let legendWidth = max((sqrt(3) * radius) - legendInset, 0)
         let iconSize = instrumentIconSize(diameter: diameter)
 
         return AnyView(ZStack {
@@ -230,7 +245,7 @@ struct WidgetGaugeInstrumentView: View {
             if let icon {
                 HomesteadIconView(
                     icon: icon,
-                    pointSize: 21,
+                    pointSize: style.isCompact ? 13 : 21,
                     weight: .semibold
                 )
                 .foregroundStyle(tint)
@@ -246,13 +261,16 @@ struct WidgetGaugeInstrumentView: View {
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .font(.caption2.weight(.semibold))
+        .font(style.isCompact ? .system(size: 8, weight: .semibold) : .caption2.weight(.semibold))
         .foregroundStyle(Color.secondary.opacity(0.72))
         .monospacedDigit()
     }
 
     private func instrumentIconSize(diameter: CGFloat) -> CGFloat {
-        min(max(diameter * 0.16, 26), 28)
+        if style.isCompact {
+            return min(max(diameter * 0.18, 12), 16)
+        }
+        return min(max(diameter * 0.16, 26), 28)
     }
 
     private func rangeText(_ value: Double) -> String {

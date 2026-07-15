@@ -15,6 +15,7 @@ struct HomesteadGaugeGridWidget: Widget {
         .configurationDisplayName("Homestead Gauge Grid")
         .description("Show up to six Home Assistant gauges.")
         .supportedFamilies([.systemMedium])
+        .contentMarginsDisabled()
     }
 }
 
@@ -376,31 +377,78 @@ struct HomesteadGaugeGridEntry: TimelineEntry {
     let isConfigured: Bool
 
     static let previewItems: [HomesteadWidgetItem] = [
-        previewItem("Living Room", value: "72°F", icon: "thermometer.medium", gauge: .gaugeGridPreview),
-        previewItem("Magnesium", value: "1,640 ppm", icon: "testtube.2", gauge: .gaugeGridPreview),
-        previewItem("Calcium", value: "593 ppm", icon: "drop", gauge: .gaugeGridPreview),
-        previewItem("Alkalinity", value: "8.3 dKH", icon: "flask", gauge: .gaugeGridPreview),
-        previewItem("Alkalinity", value: "8.3 dKH", icon: "flask", gauge: .gaugeGridPreview),
-        previewItem("Alkalinity", value: "8.3 dKH", icon: "flask", gauge: .gaugeGridPreview)
+        previewItem(
+            id: "temperature",
+            name: "Living Room",
+            icon: "thermometer.medium",
+            gauge: .gaugeGridPreview(
+                value: 76.6,
+                lowerBound: 70,
+                upperBound: 86,
+                valueText: "76.6°F",
+                unitText: "°F",
+                sections: [
+                    .init(lowerBound: 70, upperBound: 72, color: .red),
+                    .init(lowerBound: 72, upperBound: 84, color: .green),
+                    .init(lowerBound: 84, upperBound: 86, color: .red)
+                ]
+            )
+        ),
+        previewItem(
+            id: "magnesium",
+            name: "Magnesium",
+            icon: "testtube.2",
+            gauge: .gaugeGridPreview(
+                value: 1_640,
+                lowerBound: 1_000,
+                upperBound: 1_700,
+                valueText: "1,640 ppm",
+                unitText: "ppm",
+                sections: [
+                    .init(lowerBound: 1_000, upperBound: 1_300, color: .purple),
+                    .init(lowerBound: 1_300, upperBound: 1_550, color: .green),
+                    .init(lowerBound: 1_550, upperBound: 1_700, color: .purple)
+                ]
+            )
+        ),
+        previewItem(
+            id: "calcium",
+            name: "Calcium",
+            icon: "drop",
+            gauge: .gaugeGridPreview(
+                value: 593,
+                lowerBound: 300,
+                upperBound: 600,
+                valueText: "593 ppm",
+                unitText: "ppm",
+                sections: [
+                    .init(lowerBound: 300, upperBound: 450, color: .blue),
+                    .init(lowerBound: 450, upperBound: 600, color: .green)
+                ]
+            )
+        ),
+        previewItem(id: "alkalinity-1", name: "Alkalinity", icon: "flask", gauge: .alkalinityGridPreview),
+        previewItem(id: "alkalinity-2", name: "Alkalinity", icon: "flask", gauge: .alkalinityGridPreview),
+        previewItem(id: "alkalinity-3", name: "Alkalinity", icon: "flask", gauge: .alkalinityGridPreview)
     ]
 
     private static func previewItem(
-        _ name: String,
-        value: String,
+        id: String,
+        name: String,
         icon: String,
         gauge: WidgetGaugePresentation
     ) -> HomesteadWidgetItem {
         HomesteadWidgetItem(
-            id: name,
+            id: id,
             kind: .sensorGauge,
             displayName: name,
             icon: .sfSymbol(icon, provenance: .homesteadSemanticMapping),
-            valueText: value,
+            valueText: gauge.valueText,
             unitText: gauge.unitText,
             isAvailable: true,
             gauge: gauge,
             accessibilityLabel: "\(name) gauge",
-            accessibilityValue: value
+            accessibilityValue: gauge.accessibilityValue
         )
     }
 }
@@ -475,23 +523,41 @@ private extension HomesteadWidgetItem {
 }
 
 private extension WidgetGaugePresentation {
-    static let gaugeGridPreview = WidgetGaugePresentation(
-        value: 72,
-        lowerBound: 0,
-        upperBound: 120,
-        valueText: "72°F",
-        unitText: "°F",
-        status: .nominal,
-        statusDisplayText: "Comfortable",
+    static let alkalinityGridPreview = gaugeGridPreview(
+        value: 8.3,
+        lowerBound: 8,
+        upperBound: 11,
+        valueText: "8.3 dKH",
+        unitText: "dKH",
         sections: [
-            WidgetGaugeSection(lowerBound: 0, upperBound: 40, color: .orange),
-            WidgetGaugeSection(lowerBound: 40, upperBound: 60, color: .blue),
-            WidgetGaugeSection(lowerBound: 60, upperBound: 80, color: .green),
-            WidgetGaugeSection(lowerBound: 80, upperBound: 120, color: .orange)
-        ],
-        accessibilityLabel: "Gauge",
-        accessibilityValue: "72°F"
+            .init(lowerBound: 8, upperBound: 8.5, color: .red),
+            .init(lowerBound: 8.5, upperBound: 9, color: .orange),
+            .init(lowerBound: 9, upperBound: 10.5, color: .green),
+            .init(lowerBound: 10.5, upperBound: 11, color: .orange)
+        ]
     )
+
+    static func gaugeGridPreview(
+        value: Double,
+        lowerBound: Double,
+        upperBound: Double,
+        valueText: String,
+        unitText: String,
+        sections: [WidgetGaugeSection]
+    ) -> Self {
+        Self(
+            value: value,
+            lowerBound: lowerBound,
+            upperBound: upperBound,
+            valueText: valueText,
+            unitText: unitText,
+            status: .nominal,
+            statusDisplayText: "Available",
+            sections: sections,
+            accessibilityLabel: "Gauge",
+            accessibilityValue: valueText
+        )
+    }
 }
 
 struct HomesteadGaugeGridWidgetView: View {
@@ -524,8 +590,8 @@ struct HomesteadGaugeGridWidgetView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.horizontal, 1)
-            .padding(.vertical, 1)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
         }
     }
 
@@ -548,18 +614,19 @@ private struct HomesteadGaugeGridTile: View {
     let item: HomesteadWidgetItem
 
     var body: some View {
-        VStack(spacing: 1) {
+        VStack(spacing: 0) {
             Text(item.displayName)
-                .font(.caption2.weight(.medium))
+                .font(.system(size: 10, weight: .medium))
                 .lineLimit(1)
-                .minimumScaleFactor(0.68)
+                .minimumScaleFactor(0.72)
+                .frame(height: 12)
 
             if let gauge = item.gauge {
                 WidgetGaugeInstrumentView(
                     gauge: item.isAvailable ? gauge : gauge.updating(value: gauge.value, valueText: "—"),
                     tint: widgetGaugeColor(for: gauge.currentColor),
                     icon: item.icon,
-                    style: .segmented
+                    style: .compactSegmented
                 )
             } else {
                 Image(systemName: "questionmark.circle")
