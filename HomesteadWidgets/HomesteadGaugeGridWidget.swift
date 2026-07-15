@@ -13,7 +13,7 @@ struct HomesteadGaugeGridWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Homestead Gauge Grid")
-        .description("Show up to six Home Assistant gauges.")
+        .description("Show up to three Home Assistant gauges.")
         .supportedFamilies([.systemMedium])
         .contentMarginsDisabled()
     }
@@ -21,7 +21,7 @@ struct HomesteadGaugeGridWidget: Widget {
 
 struct HomesteadGaugeGridWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Gauge Grid"
-    static var description = IntentDescription("Choose up to six Home Assistant gauges.")
+    static var description = IntentDescription("Choose up to three Home Assistant gauges.")
 
     @Parameter(title: "Gauge 1")
     var item1: HomesteadWidgetItemEntity?
@@ -80,63 +80,6 @@ struct HomesteadGaugeGridWidgetConfigurationIntent: WidgetConfigurationIntent {
     @Parameter(title: "Gauge 3 Zone 5 Begins At") var zone5BeginsAt3: Double?
     @Parameter(title: "Gauge 3 Zone 5 Color", default: .purple) var zone5Color3: HomesteadGaugeZoneColor
 
-    @Parameter(title: "Gauge 4")
-    var item4: HomesteadWidgetItemEntity?
-
-    @Parameter(title: "Gauge 4 Display Name") var customDisplayName4: String?
-    @Parameter(title: "Gauge 4 Display", default: .segmentedGauge) var display4: HomesteadSensorWidgetDisplay
-    @Parameter(title: "Gauge 4 Scale", default: .automatic) var gaugeScale4: HomesteadGaugeScale
-    @Parameter(title: "Gauge 4 Minimum") var gaugeMinimum4: Double?
-    @Parameter(title: "Gauge 4 Maximum") var gaugeMaximum4: Double?
-    @Parameter(title: "Gauge 4 Zones", default: .automatic) var zoneCount4: HomesteadGaugeZoneCount
-    @Parameter(title: "Gauge 4 Zone 1 Color", default: .blue) var zone1Color4: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 4 Zone 2 Begins At") var zone2BeginsAt4: Double?
-    @Parameter(title: "Gauge 4 Zone 2 Color", default: .green) var zone2Color4: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 4 Zone 3 Begins At") var zone3BeginsAt4: Double?
-    @Parameter(title: "Gauge 4 Zone 3 Color", default: .orange) var zone3Color4: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 4 Zone 4 Begins At") var zone4BeginsAt4: Double?
-    @Parameter(title: "Gauge 4 Zone 4 Color", default: .red) var zone4Color4: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 4 Zone 5 Begins At") var zone5BeginsAt4: Double?
-    @Parameter(title: "Gauge 4 Zone 5 Color", default: .purple) var zone5Color4: HomesteadGaugeZoneColor
-
-    @Parameter(title: "Gauge 5")
-    var item5: HomesteadWidgetItemEntity?
-
-    @Parameter(title: "Gauge 5 Display Name") var customDisplayName5: String?
-    @Parameter(title: "Gauge 5 Display", default: .segmentedGauge) var display5: HomesteadSensorWidgetDisplay
-    @Parameter(title: "Gauge 5 Scale", default: .automatic) var gaugeScale5: HomesteadGaugeScale
-    @Parameter(title: "Gauge 5 Minimum") var gaugeMinimum5: Double?
-    @Parameter(title: "Gauge 5 Maximum") var gaugeMaximum5: Double?
-    @Parameter(title: "Gauge 5 Zones", default: .automatic) var zoneCount5: HomesteadGaugeZoneCount
-    @Parameter(title: "Gauge 5 Zone 1 Color", default: .blue) var zone1Color5: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 5 Zone 2 Begins At") var zone2BeginsAt5: Double?
-    @Parameter(title: "Gauge 5 Zone 2 Color", default: .green) var zone2Color5: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 5 Zone 3 Begins At") var zone3BeginsAt5: Double?
-    @Parameter(title: "Gauge 5 Zone 3 Color", default: .orange) var zone3Color5: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 5 Zone 4 Begins At") var zone4BeginsAt5: Double?
-    @Parameter(title: "Gauge 5 Zone 4 Color", default: .red) var zone4Color5: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 5 Zone 5 Begins At") var zone5BeginsAt5: Double?
-    @Parameter(title: "Gauge 5 Zone 5 Color", default: .purple) var zone5Color5: HomesteadGaugeZoneColor
-
-    @Parameter(title: "Gauge 6")
-    var item6: HomesteadWidgetItemEntity?
-
-    @Parameter(title: "Gauge 6 Display Name") var customDisplayName6: String?
-    @Parameter(title: "Gauge 6 Display", default: .segmentedGauge) var display6: HomesteadSensorWidgetDisplay
-    @Parameter(title: "Gauge 6 Scale", default: .automatic) var gaugeScale6: HomesteadGaugeScale
-    @Parameter(title: "Gauge 6 Minimum") var gaugeMinimum6: Double?
-    @Parameter(title: "Gauge 6 Maximum") var gaugeMaximum6: Double?
-    @Parameter(title: "Gauge 6 Zones", default: .automatic) var zoneCount6: HomesteadGaugeZoneCount
-    @Parameter(title: "Gauge 6 Zone 1 Color", default: .blue) var zone1Color6: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 6 Zone 2 Begins At") var zone2BeginsAt6: Double?
-    @Parameter(title: "Gauge 6 Zone 2 Color", default: .green) var zone2Color6: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 6 Zone 3 Begins At") var zone3BeginsAt6: Double?
-    @Parameter(title: "Gauge 6 Zone 3 Color", default: .orange) var zone3Color6: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 6 Zone 4 Begins At") var zone4BeginsAt6: Double?
-    @Parameter(title: "Gauge 6 Zone 4 Color", default: .red) var zone4Color6: HomesteadGaugeZoneColor
-    @Parameter(title: "Gauge 6 Zone 5 Begins At") var zone5BeginsAt6: Double?
-    @Parameter(title: "Gauge 6 Zone 5 Color", default: .purple) var zone5Color6: HomesteadGaugeZoneColor
-
     static var parameterSummary: some ParameterSummary {
         Summary {
             \.$item1
@@ -187,54 +130,6 @@ struct HomesteadGaugeGridWidgetConfigurationIntent: WidgetConfigurationIntent {
             \.$zone4Color3
             \.$zone5BeginsAt3
             \.$zone5Color3
-            \.$item4
-            \.$customDisplayName4
-            \.$display4
-            \.$gaugeScale4
-            \.$gaugeMinimum4
-            \.$gaugeMaximum4
-            \.$zoneCount4
-            \.$zone1Color4
-            \.$zone2BeginsAt4
-            \.$zone2Color4
-            \.$zone3BeginsAt4
-            \.$zone3Color4
-            \.$zone4BeginsAt4
-            \.$zone4Color4
-            \.$zone5BeginsAt4
-            \.$zone5Color4
-            \.$item5
-            \.$customDisplayName5
-            \.$display5
-            \.$gaugeScale5
-            \.$gaugeMinimum5
-            \.$gaugeMaximum5
-            \.$zoneCount5
-            \.$zone1Color5
-            \.$zone2BeginsAt5
-            \.$zone2Color5
-            \.$zone3BeginsAt5
-            \.$zone3Color5
-            \.$zone4BeginsAt5
-            \.$zone4Color5
-            \.$zone5BeginsAt5
-            \.$zone5Color5
-            \.$item6
-            \.$customDisplayName6
-            \.$display6
-            \.$gaugeScale6
-            \.$gaugeMinimum6
-            \.$gaugeMaximum6
-            \.$zoneCount6
-            \.$zone1Color6
-            \.$zone2BeginsAt6
-            \.$zone2Color6
-            \.$zone3BeginsAt6
-            \.$zone3Color6
-            \.$zone4BeginsAt6
-            \.$zone4Color6
-            \.$zone5BeginsAt6
-            \.$zone5Color6
         }
     }
 
@@ -242,10 +137,7 @@ struct HomesteadGaugeGridWidgetConfigurationIntent: WidgetConfigurationIntent {
         [
             HomesteadGaugeGridSlot(item: item1, configuration: .init(customDisplayName: customDisplayName1, display: display1, gaugeScale: gaugeScale1, gaugeMinimum: gaugeMinimum1, gaugeMaximum: gaugeMaximum1, zoneCount: zoneCount1, zone1Color: zone1Color1, zone2BeginsAt: zone2BeginsAt1, zone2Color: zone2Color1, zone3BeginsAt: zone3BeginsAt1, zone3Color: zone3Color1, zone4BeginsAt: zone4BeginsAt1, zone4Color: zone4Color1, zone5BeginsAt: zone5BeginsAt1, zone5Color: zone5Color1)),
             HomesteadGaugeGridSlot(item: item2, configuration: .init(customDisplayName: customDisplayName2, display: display2, gaugeScale: gaugeScale2, gaugeMinimum: gaugeMinimum2, gaugeMaximum: gaugeMaximum2, zoneCount: zoneCount2, zone1Color: zone1Color2, zone2BeginsAt: zone2BeginsAt2, zone2Color: zone2Color2, zone3BeginsAt: zone3BeginsAt2, zone3Color: zone3Color2, zone4BeginsAt: zone4BeginsAt2, zone4Color: zone4Color2, zone5BeginsAt: zone5BeginsAt2, zone5Color: zone5Color2)),
-            HomesteadGaugeGridSlot(item: item3, configuration: .init(customDisplayName: customDisplayName3, display: display3, gaugeScale: gaugeScale3, gaugeMinimum: gaugeMinimum3, gaugeMaximum: gaugeMaximum3, zoneCount: zoneCount3, zone1Color: zone1Color3, zone2BeginsAt: zone2BeginsAt3, zone2Color: zone2Color3, zone3BeginsAt: zone3BeginsAt3, zone3Color: zone3Color3, zone4BeginsAt: zone4BeginsAt3, zone4Color: zone4Color3, zone5BeginsAt: zone5BeginsAt3, zone5Color: zone5Color3)),
-            HomesteadGaugeGridSlot(item: item4, configuration: .init(customDisplayName: customDisplayName4, display: display4, gaugeScale: gaugeScale4, gaugeMinimum: gaugeMinimum4, gaugeMaximum: gaugeMaximum4, zoneCount: zoneCount4, zone1Color: zone1Color4, zone2BeginsAt: zone2BeginsAt4, zone2Color: zone2Color4, zone3BeginsAt: zone3BeginsAt4, zone3Color: zone3Color4, zone4BeginsAt: zone4BeginsAt4, zone4Color: zone4Color4, zone5BeginsAt: zone5BeginsAt4, zone5Color: zone5Color4)),
-            HomesteadGaugeGridSlot(item: item5, configuration: .init(customDisplayName: customDisplayName5, display: display5, gaugeScale: gaugeScale5, gaugeMinimum: gaugeMinimum5, gaugeMaximum: gaugeMaximum5, zoneCount: zoneCount5, zone1Color: zone1Color5, zone2BeginsAt: zone2BeginsAt5, zone2Color: zone2Color5, zone3BeginsAt: zone3BeginsAt5, zone3Color: zone3Color5, zone4BeginsAt: zone4BeginsAt5, zone4Color: zone4Color5, zone5BeginsAt: zone5BeginsAt5, zone5Color: zone5Color5)),
-            HomesteadGaugeGridSlot(item: item6, configuration: .init(customDisplayName: customDisplayName6, display: display6, gaugeScale: gaugeScale6, gaugeMinimum: gaugeMinimum6, gaugeMaximum: gaugeMaximum6, zoneCount: zoneCount6, zone1Color: zone1Color6, zone2BeginsAt: zone2BeginsAt6, zone2Color: zone2Color6, zone3BeginsAt: zone3BeginsAt6, zone3Color: zone3Color6, zone4BeginsAt: zone4BeginsAt6, zone4Color: zone4Color6, zone5BeginsAt: zone5BeginsAt6, zone5Color: zone5Color6))
+            HomesteadGaugeGridSlot(item: item3, configuration: .init(customDisplayName: customDisplayName3, display: display3, gaugeScale: gaugeScale3, gaugeMinimum: gaugeMinimum3, gaugeMaximum: gaugeMaximum3, zoneCount: zoneCount3, zone1Color: zone1Color3, zone2BeginsAt: zone2BeginsAt3, zone2Color: zone2Color3, zone3BeginsAt: zone3BeginsAt3, zone3Color: zone3Color3, zone4BeginsAt: zone4BeginsAt3, zone4Color: zone4Color3, zone5BeginsAt: zone5BeginsAt3, zone5Color: zone5Color3))
         ]
     }
 }
@@ -426,10 +318,7 @@ struct HomesteadGaugeGridEntry: TimelineEntry {
                     .init(lowerBound: 450, upperBound: 600, color: .green)
                 ]
             )
-        ),
-        previewItem(id: "alkalinity-1", name: "Alkalinity", icon: "flask", gauge: .alkalinityGridPreview),
-        previewItem(id: "alkalinity-2", name: "Alkalinity", icon: "flask", gauge: .alkalinityGridPreview),
-        previewItem(id: "alkalinity-3", name: "Alkalinity", icon: "flask", gauge: .alkalinityGridPreview)
+        )
     ]
 
     private static func previewItem(
@@ -489,7 +378,7 @@ struct HomesteadGaugeGridTimelineProvider: AppIntentTimelineProvider {
 
         return HomesteadGaugeGridEntry(
             date: .now,
-            items: HomesteadWidgetGridSelection.compacted(items),
+            items: HomesteadWidgetGridSelection.compacted(items, maximumItemCount: 3),
             isConfigured: !items.isEmpty
         )
     }
@@ -523,20 +412,6 @@ private extension HomesteadWidgetItem {
 }
 
 private extension WidgetGaugePresentation {
-    static let alkalinityGridPreview = gaugeGridPreview(
-        value: 8.3,
-        lowerBound: 8,
-        upperBound: 11,
-        valueText: "8.3 dKH",
-        unitText: "dKH",
-        sections: [
-            .init(lowerBound: 8, upperBound: 8.5, color: .red),
-            .init(lowerBound: 8.5, upperBound: 9, color: .orange),
-            .init(lowerBound: 9, upperBound: 10.5, color: .green),
-            .init(lowerBound: 10.5, upperBound: 11, color: .orange)
-        ]
-    )
-
     static func gaugeGridPreview(
         value: Double,
         lowerBound: Double,
@@ -577,36 +452,19 @@ struct HomesteadGaugeGridWidgetView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            GeometryReader { proxy in
-                let rowSpacing: CGFloat = 1
-                let rowHeight = max((proxy.size.height - rowSpacing) / 2, 0)
-
-                VStack(spacing: rowSpacing) {
-                    gaugeRow(items: entry.items, range: 0..<3)
-                        .frame(height: rowHeight)
-
-                    gaugeRow(items: entry.items, range: 3..<6)
-                        .frame(height: rowHeight)
+            HStack(spacing: 8) {
+                ForEach(0..<3, id: \.self) { index in
+                    if index < entry.items.count {
+                        HomesteadGaugeGridTile(item: entry.items[index])
+                    } else {
+                        Color.clear
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
         }
-    }
-
-    @ViewBuilder
-    private func gaugeRow(items: [HomesteadWidgetItem], range: Range<Int>) -> some View {
-        HStack(spacing: 4) {
-            ForEach(range, id: \.self) { index in
-                if index < items.count {
-                    HomesteadGaugeGridTile(item: items[index])
-                } else {
-                    Color.clear
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -614,25 +472,30 @@ private struct HomesteadGaugeGridTile: View {
     let item: HomesteadWidgetItem
 
     var body: some View {
-        VStack(spacing: 0) {
-            Text(item.displayName)
-                .font(.system(size: 10, weight: .medium))
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .frame(height: 12)
-
+        Group {
             if let gauge = item.gauge {
                 WidgetGaugeInstrumentView(
                     gauge: item.isAvailable ? gauge : gauge.updating(value: gauge.value, valueText: "—"),
                     tint: widgetGaugeColor(for: gauge.currentColor),
+                    title: item.displayName,
                     icon: item.icon,
-                    style: .compactSegmented
+                    style: .segmented
                 )
             } else {
-                Image(systemName: "questionmark.circle")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(maxHeight: .infinity)
+                VStack(spacing: 4) {
+                    Spacer(minLength: 0)
+
+                    Image(systemName: "questionmark.circle")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+
+                    Spacer(minLength: 0)
+
+                    Text(item.displayName)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

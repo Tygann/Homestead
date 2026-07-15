@@ -60,16 +60,6 @@ struct WidgetGaugeInstrumentView: View {
             let bodyHeight = max(proxy.size.height - titleHeight - titleSpacing, 0)
 
             VStack(spacing: titleSpacing) {
-                if let title {
-                    Text(title)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                        .padding(.horizontal, 6)
-                        .frame(height: titleHeight)
-                }
-
                 GeometryReader { bodyProxy in
                     let heightRatio = style.isCompact ? 0.82 : 0.79
                     let diameter = min(bodyProxy.size.width, bodyProxy.size.height / heightRatio)
@@ -93,9 +83,22 @@ struct WidgetGaugeInstrumentView: View {
                         instrumentContent(diameter: diameter, lineWidth: lineWidth)
                     }
                     .frame(width: diameter, height: diameter)
-                    .position(x: bodyProxy.size.width / 2, y: diameter / 2)
+                    .position(
+                        x: bodyProxy.size.width / 2,
+                        y: title == nil ? diameter / 2 : max(diameter / 2, bodyProxy.size.height - (diameter / 2))
+                    )
                 }
                 .frame(height: bodyHeight)
+
+                if let title {
+                    Text(title)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .padding(.horizontal, 6)
+                        .frame(height: titleHeight)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }

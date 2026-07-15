@@ -29,6 +29,23 @@ struct WidgetGaugeGridTests {
         ])
     }
 
+    @Test func gridSelectionHonorsWidgetItemLimit() {
+        let items = (1...5).map { index in
+            makeItem(id: "sensor.gauge_\(index)", name: "Gauge \(index)")
+        }
+
+        let selected = HomesteadWidgetGridSelection.compacted(
+            items.map(Optional.some),
+            maximumItemCount: 3
+        )
+
+        #expect(selected.map(\.id) == [
+            "sensor.gauge_1",
+            "sensor.gauge_2",
+            "sensor.gauge_3"
+        ])
+    }
+
     @Test func sensorGaugeItemMapsSnapshotPresentationAndAccessibility() {
         let gauge = makeGauge(value: 72, valueText: "72°F")
         let snapshot = WidgetSensorSnapshot(
