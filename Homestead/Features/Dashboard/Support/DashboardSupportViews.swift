@@ -167,18 +167,11 @@ private struct DashboardLoadingPlaceholderView: View {
 private struct DashboardSkeletonGrid: View {
     var body: some View {
         CardGrid {
-            DashboardSkeletonCard(size: .square)
-                .cardGridSpan(DashboardCardSize.square.layoutMetadata)
-            DashboardSkeletonCard(size: .compact)
-                .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
-            DashboardSkeletonCard(size: .square)
-                .cardGridSpan(DashboardCardSize.square.layoutMetadata)
-            DashboardSkeletonCard(size: .compact)
-                .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
-            DashboardSkeletonCard(size: .compact)
-                .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
-            DashboardSkeletonCard(size: .square)
-                .cardGridSpan(DashboardCardSize.square.layoutMetadata)
+            // Keep loading geometry regular; the live dashboard can use varied spans once its layout is known.
+            ForEach(0..<6, id: \.self) { _ in
+                DashboardSkeletonCard(size: .compact)
+                    .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+            }
         }
     }
 }
