@@ -215,7 +215,7 @@ struct GaugeInstrumentCanvas: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.55)
                 .frame(width: readoutWidth)
-                .position(x: diameter / 2, y: diameter * 0.37)
+                .position(x: diameter / 2, y: diameter * 0.39)
 
             if let unit = parts.unit {
                 Text(unit)
@@ -224,7 +224,7 @@ struct GaugeInstrumentCanvas: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .frame(width: readoutWidth)
-                    .position(x: diameter / 2, y: diameter * 0.53)
+                    .position(x: diameter / 2, y: diameter * 0.55)
             }
         }
         .frame(width: diameter, height: diameter)
