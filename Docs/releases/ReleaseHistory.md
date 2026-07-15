@@ -53,6 +53,30 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 107)
+
+- Release Date: 2026-07-15
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build adds multi-gauge Home Screen widgets and brings more consistent presentation across Homestead's dashboards and widgets.
+
+- New medium widget for monitoring three gauges at a glance
+- New large widget with room for up to nine gauges
+- Tap supported widgets to open the related content in Homestead
+- Cleaner dashboard loading and empty states, refined entity details, and better icon sizing
+
+Please test:
+
+- Adding and configuring the new medium and large gauge widgets with different gauge counts
+- Tapping widgets to open Homestead and confirming the expected destination appears
+- Reviewing dashboard loading, empty states, entity details, and the add-to-dashboard flow
+
+### Internal Summary
+
+Build 107 covers the medium and large gauge-grid widgets, shared app/widget feature presentation and deep links, dashboard skeleton and empty-state polish, entity-detail refinements, Material Design icon optical sizing, add-confirmation dismissal, and final gauge readout alignment work after Build 104.
+
 ## Version 1 (Build 104)
 
 - Release Date: 2026-07-13
