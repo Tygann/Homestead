@@ -38,6 +38,11 @@ enum GaugeInstrumentDensity {
     case compact
 }
 
+enum GaugeInstrumentRenderingStyle {
+    case fullColor
+    case accented
+}
+
 /// The single instrument canvas used by app cards and widgets. Callers only adapt
 /// their presentation model and choose the track style.
 struct GaugeInstrumentCanvas: View {
@@ -49,8 +54,12 @@ struct GaugeInstrumentCanvas: View {
     let icon: ResolvedIcon?
     let trackStyle: GaugeInstrumentTrackStyle
     let density: GaugeInstrumentDensity
+    var renderingStyle: GaugeInstrumentRenderingStyle = .fullColor
 
     private let visibleInstrumentHeightRatio = 0.82
+    private let accentedSectionGap = 0.012
+    private let accentedSectionOpacity = 0.34
+    private let accentedCurrentSectionOpacity = 0.58
     // The lower legend and icon add visual weight beneath the readout. Keep the
     // lockup together and lower it slightly without moving the instrument bounds.
     private let readoutVerticalOffsetRatio: CGFloat = 0.03
@@ -113,7 +122,7 @@ struct GaugeInstrumentCanvas: View {
         if trackStyle == .segmented {
             ForEach(presentation.sections.indices, id: \.self) { index in
                 let section = presentation.sections[index]
-                let segment = instrumentSegment(for: section)
+                let segment = instrumentSegment(for: section, at: index)
 
                 GaugeInstrumentCanvasArcShape(
                     start: segment.start,
@@ -121,7 +130,7 @@ struct GaugeInstrumentCanvas: View {
                     inset: lineWidth / 2
                 )
                 .stroke(
-                    section.color,
+                    sectionColor(for: section, at: index),
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt, lineJoin: .round)
                 )
             }
@@ -129,16 +138,17 @@ struct GaugeInstrumentCanvas: View {
             if let first = presentation.sections.first {
                 endpointCap(
                     value: first.lowerBound,
-                    color: first.color,
+                    color: sectionColor(for: first, at: 0),
                     diameter: diameter,
                     lineWidth: lineWidth
                 )
             }
 
             if let last = presentation.sections.last {
+                let lastIndex = presentation.sections.index(before: presentation.sections.endIndex)
                 endpointCap(
                     value: last.upperBound,
-                    color: last.color,
+                    color: sectionColor(for: last, at: lastIndex),
                     diameter: diameter,
                     lineWidth: lineWidth
                 )
@@ -186,10 +196,42 @@ struct GaugeInstrumentCanvas: View {
             )
     }
 
-    private func instrumentSegment(for section: GaugeInstrumentVisualSection) -> (start: Double, end: Double) {
-        let start = presentation.normalized(section.lowerBound)
-        let end = presentation.normalized(section.upperBound)
+    private func instrumentSegment(
+        for section: GaugeInstrumentVisualSection,
+        at index: Int
+    ) -> (start: Double, end: Double) {
+        let rawStart = presentation.normalized(section.lowerBound)
+        let rawEnd = presentation.normalized(section.upperBound)
+
+        guard renderingStyle == .accented else {
+            return (rawStart, max(rawEnd, rawStart))
+        }
+
+        // Accented rendering collapses every zone to white, so preserve the
+        // segmentation structurally instead of depending on hue alone.
+        let start = index == presentation.sections.startIndex
+            ? rawStart
+            : rawStart + (accentedSectionGap / 2)
+        let end = index == presentation.sections.index(before: presentation.sections.endIndex)
+            ? rawEnd
+            : rawEnd - (accentedSectionGap / 2)
         return (start, max(end, start))
+    }
+
+    private func sectionColor(for section: GaugeInstrumentVisualSection, at index: Int) -> Color {
+        guard renderingStyle == .accented else { return section.color }
+
+        let opacity = isCurrentSection(section, at: index)
+            ? accentedCurrentSectionOpacity
+            : accentedSectionOpacity
+        return section.color.opacity(opacity)
+    }
+
+    private func isCurrentSection(_ section: GaugeInstrumentVisualSection, at index: Int) -> Bool {
+        let isLastSection = index == presentation.sections.index(before: presentation.sections.endIndex)
+        return presentation.value >= section.lowerBound
+            && (presentation.value < section.upperBound
+                || (isLastSection && presentation.value <= section.upperBound))
     }
 
     private func instrumentContent(diameter: CGFloat, metrics: Metrics) -> some View {

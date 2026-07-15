@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 enum GaugeVisualStatus: Equatable, Sendable {
     case nominal
@@ -47,6 +48,8 @@ enum GaugeVisualMetrics {
 }
 
 struct WidgetGaugeInstrumentView: View {
+    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
+
     let gauge: WidgetGaugePresentation
     let tint: Color
     var title: String? = nil
@@ -77,7 +80,8 @@ struct WidgetGaugeInstrumentView: View {
             title: title,
             icon: icon,
             trackStyle: style.isSegmented ? .segmented : .continuous,
-            density: style.isCompact ? .compact : .standard
+            density: style.isCompact ? .compact : .standard,
+            renderingStyle: widgetRenderingMode == .accented ? .accented : .fullColor
         )
     }
 
