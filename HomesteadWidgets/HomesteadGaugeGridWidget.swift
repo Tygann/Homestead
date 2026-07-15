@@ -454,8 +454,8 @@ struct HomesteadGaugeGridWidgetView: View {
         } else {
             GeometryReader { proxy in
                 let usesEqualThreeGaugeGutters = entry.items.count == 3
-                let horizontalPadding: CGFloat = usesEqualThreeGaugeGutters ? 10 : 8
-                let columnSpacing: CGFloat = usesEqualThreeGaugeGutters ? 10 : 8
+                let horizontalPadding: CGFloat = usesEqualThreeGaugeGutters ? 12 : 8
+                let columnSpacing: CGFloat = usesEqualThreeGaugeGutters ? 12 : 8
                 let availableWidth = max(
                     proxy.size.width - (horizontalPadding * 2) - (columnSpacing * 2),
                     0
