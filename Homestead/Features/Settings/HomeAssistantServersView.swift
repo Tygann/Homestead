@@ -319,23 +319,37 @@ private struct HomeAssistantServerDetailView: View {
     }
 
     private var actionsSection: some View {
-        Section("Actions") {
+        Section {
             if !isActive, isAuthenticationReady {
-                Button(isSwitching ? "Switching…" : "Switch to This Server") { switchToServer() }
-                    .disabled(isSwitching)
+                Button {
+                    switchToServer()
+                } label: {
+                    Text(isSwitching ? "Making Active…" : "Make Active")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .accessibilityLabel("Make \(profile?.resolvedDisplayName ?? "this server") the active server")
+                .disabled(isSwitching)
             }
 
             if requiresSignIn {
-                Button("Sign In Again") { reauthenticate() }
-                    .disabled(isRemoving || isReauthenticating || isSwitching)
+                Button {
+                    reauthenticate()
+                } label: {
+                    Text("Sign In Again")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .disabled(isRemoving || isReauthenticating || isSwitching)
             }
         }
     }
 
     private var removeSection: some View {
         Section {
-            Button("Remove Server", role: .destructive) {
+            Button(role: .destructive) {
                 isConfirmingRemoval = true
+            } label: {
+                Text("Remove Server")
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
             .disabled(isRemoving)
         } footer: {
