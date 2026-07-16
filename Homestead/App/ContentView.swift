@@ -88,6 +88,7 @@ struct ContentView: View {
                         }
                     }
             }
+            .accentColor(Color(appearanceSettings.appColor.uiColor))
             .preferredColorScheme(settingsSheetColorScheme)
             }
         }
