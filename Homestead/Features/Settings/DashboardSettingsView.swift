@@ -231,6 +231,15 @@ private struct DashboardSettingsRow<Detail: View>: View {
             }
             .accessibilityLabel("Delete")
         }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            if !isSelected {
+                Button(action: useOnThisDevice) {
+                    Image(systemName: "checkmark.circle")
+                }
+                .tint(.accentColor)
+                .accessibilityLabel("Use on This Device")
+            }
+        }
     }
 
     @ViewBuilder
