@@ -16,7 +16,7 @@ struct HomeAssistantServersView: View {
     @State private var removalFailureProfileID: UUID?
     @State private var removalFailureMessage: String?
     @State private var presentedSheet: ServerSheetDestination?
-    @State private var selectedRoute: ServerSettingsRoute?
+    @State private var editMode: EditMode = .inactive
 
     var body: some View {
         List {
@@ -61,6 +61,9 @@ struct HomeAssistantServersView: View {
                         }
                     }
                 }
+                .onMove { source, destination in
+                    connectionSettings.profileStore.moveProfiles(from: source, to: destination)
+                }
             }
 
             if let switchErrorMessage {
@@ -70,16 +73,24 @@ struct HomeAssistantServersView: View {
                 }
             }
         }
+        .environment(\.editMode, $editMode)
         .navigationTitle("Servers")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    presentedSheet = .addServer
-                } label: {
-                    Label("Add Server", systemImage: "plus")
+                if editMode.isEditing {
+                    Button("Done") {
+                        editMode = .inactive
+                    }
+                    .fontWeight(.semibold)
+                } else {
+                    Button {
+                        presentedSheet = .addServer
+                    } label: {
+                        Label("Add Server", systemImage: "plus")
+                    }
+                    .disabled(isOperationInProgress)
                 }
-                .disabled(isOperationInProgress)
             }
         }
         .sheet(item: $presentedSheet) { destination in
@@ -88,12 +99,6 @@ struct HomeAssistantServersView: View {
                 NavigationStack {
                     AddHomeAssistantServerView()
                 }
-            }
-        }
-        .navigationDestination(item: $selectedRoute) { route in
-            switch route {
-            case .reorder:
-                ServerReorderSettingsView()
             }
         }
         .alert("Rename Server", isPresented: isRenamingServer) {
@@ -195,7 +200,7 @@ struct HomeAssistantServersView: View {
         if connectionSettings.profiles.count > 1 {
             Section {
                 Button {
-                    selectedRoute = .reorder
+                    editMode = .active
                 } label: {
                     Label("Reorder Servers", systemImage: "line.3.horizontal")
                 }
@@ -289,44 +294,6 @@ struct HomeAssistantServersView: View {
             }
         }
     }
-}
-
-private struct ServerReorderSettingsView: View {
-    @Environment(HAConnectionSettings.self) private var connectionSettings
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        List {
-            ForEach(connectionSettings.profiles) { profile in
-                ServerProfileRow(
-                    profile: profile,
-                    isActive: profile.id == connectionSettings.activeProfileID,
-                    isSwitching: false,
-                    isRemoving: false
-                )
-            }
-            .onMove { source, destination in
-                connectionSettings.profileStore.moveProfiles(from: source, to: destination)
-            }
-        }
-        .environment(\.editMode, .constant(.active))
-        .navigationTitle("Reorder Servers")
-        .toolbarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-                .fontWeight(.semibold)
-            }
-        }
-    }
-}
-
-private enum ServerSettingsRoute: String, Identifiable {
-    case reorder
-
-    var id: String { rawValue }
 }
 
 private enum ServerSheetDestination: String, Identifiable {

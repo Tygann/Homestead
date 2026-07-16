@@ -6,7 +6,7 @@ struct DashboardSettingsView: View {
     @State private var namingAction: DashboardNamingAction?
     @State private var dashboardNameDraft = ""
     @State private var deletingDashboardID: UUID?
-    @State private var selectedRoute: DashboardSettingsRoute?
+    @State private var editMode: EditMode = .inactive
 
     var body: some View {
         List {
@@ -25,7 +25,7 @@ struct DashboardSettingsView: View {
                             beginDuplicating(dashboard)
                         },
                         reorder: {
-                            selectedRoute = .reorder
+                            editMode = .active
                         },
                         delete: {
                             deletingDashboardID = dashboard.id
@@ -36,27 +36,30 @@ struct DashboardSettingsView: View {
                         }
                     )
                 }
+                .onMove { source, destination in
+                    dashboardConfiguration.moveDashboards(from: source, to: destination)
+                }
             } footer: {
                 Text("Dashboards sync with iCloud. This device keeps its own current dashboard.")
             }
         }
+        .environment(\.editMode, $editMode)
         .navigationTitle("Dashboards")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    createDashboard()
-                } label: {
-                    Label("New Dashboard", systemImage: "plus")
+                if editMode.isEditing {
+                    Button("Done") {
+                        editMode = .inactive
+                    }
+                    .fontWeight(.semibold)
+                } else {
+                    Button {
+                        createDashboard()
+                    } label: {
+                        Label("New Dashboard", systemImage: "plus")
+                    }
                 }
-            }
-        }
-        .navigationDestination(item: $selectedRoute) { route in
-            switch route {
-            case .detail(let dashboardID):
-                dashboardDetail(for: dashboardID)
-            case .reorder:
-                DashboardReorderSettingsView()
             }
         }
         .alert(namingDialogTitle, isPresented: isNamingDashboard) {
@@ -519,54 +522,6 @@ private struct DashboardDetailEditableRow: View {
                 .foregroundStyle(.tertiary)
         }
         .contentShape(Rectangle())
-    }
-}
-
-private struct DashboardReorderSettingsView: View {
-    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        List {
-            ForEach(dashboardConfiguration.dashboards) { dashboard in
-                HStack(spacing: AppSpacing.medium) {
-                    Image(systemName: "checkmark")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(dashboard.id == dashboardConfiguration.selectedDashboardID ? Color.accentColor : Color.clear)
-                        .frame(width: 24)
-
-                    Text(dashboard.resolvedName)
-                }
-            }
-            .onMove { source, destination in
-                dashboardConfiguration.moveDashboards(from: source, to: destination)
-            }
-        }
-        .environment(\.editMode, .constant(.active))
-        .navigationTitle("Reorder Dashboards")
-        .toolbarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-                .fontWeight(.semibold)
-            }
-        }
-    }
-}
-
-private enum DashboardSettingsRoute: Hashable, Identifiable {
-    case detail(UUID)
-    case reorder
-
-    var id: String {
-        switch self {
-        case .detail(let dashboardID):
-            "detail-\(dashboardID.uuidString)"
-        case .reorder:
-            "reorder"
-        }
     }
 }
 
