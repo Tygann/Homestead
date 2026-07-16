@@ -298,12 +298,17 @@ private struct HomeAssistantServerDetailView: View {
             }
             .buttonStyle(.plain)
 
-            LabeledContent("Address") {
+            HStack(spacing: AppSpacing.medium) {
+                Text("Address")
+                    .layoutPriority(1)
+
                 Text(profileHost(profile))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .accessibilityElement(children: .combine)
 
             LabeledContent("Status") {
                 Text(statusText)
