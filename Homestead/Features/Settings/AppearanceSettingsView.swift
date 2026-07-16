@@ -65,6 +65,7 @@ struct AppearanceSettingsView: View {
                             .foregroundStyle(.primary)
                     } icon: {
                         Image(systemName: tab.systemImage)
+                            .foregroundStyle(.primary)
                     }
                         .tag(tab)
                 }
