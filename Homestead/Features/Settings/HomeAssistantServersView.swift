@@ -120,10 +120,6 @@ private struct ServerProfileRow: View {
 
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
-            Image(systemName: "server.rack")
-                .foregroundStyle(.tint)
-                .frame(width: 28)
-
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.resolvedDisplayName)
                     .foregroundStyle(.primary)
@@ -258,7 +254,7 @@ private struct HomeAssistantServerDetailView: View {
     }
 
     private func overviewSection(_ profile: HAConnectionProfile) -> some View {
-        Section("Overview") {
+        Section {
             Button {
                 draftName = profile.displayName
                 isRenaming = true
