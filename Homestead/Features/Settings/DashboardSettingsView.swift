@@ -201,6 +201,8 @@ struct DashboardSettingsView: View {
 }
 
 private struct DashboardSettingsRow<Detail: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let dashboard: SavedDashboardConfiguration
     let isSelected: Bool
     let useOnThisDevice: () -> Void
@@ -221,11 +223,13 @@ private struct DashboardSettingsRow<Detail: View>: View {
         .accessibilityHint("Opens dashboard settings")
         .contextMenu {
             dashboardActions
+                .preferredColorScheme(colorScheme)
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive, action: delete) {
-                Label("Delete", systemImage: "trash")
+                Image(systemName: "trash")
             }
+            .accessibilityLabel("Delete")
         }
     }
 
