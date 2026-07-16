@@ -42,7 +42,7 @@ struct AppearanceSettingsView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(.primary)
+            .tint(.secondary)
 
             Picker("Accent Color", selection: $appearanceSettings.appColor) {
                 ForEach(HomesteadAppColor.allCases) { appColor in
@@ -56,7 +56,7 @@ struct AppearanceSettingsView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(.primary)
+            .tint(.secondary)
 
             Picker("Start Page", selection: $tabSettings.primaryTab) {
                 ForEach(HomesteadPrimaryTab.allCases) { tab in
@@ -70,7 +70,7 @@ struct AppearanceSettingsView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(.primary)
+            .tint(.secondary)
         }
     }
 
