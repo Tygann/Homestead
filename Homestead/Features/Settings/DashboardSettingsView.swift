@@ -376,8 +376,8 @@ private struct DashboardDetailSettingsView: View {
                 }
             }
 
-            if !isSelected {
-                Section {
+            Section {
+                if !isSelected {
                     Button(action: useOnThisDevice) {
                         Label("Use on This Device", systemImage: "checkmark.circle")
                             .fontWeight(.semibold)
@@ -389,9 +389,7 @@ private struct DashboardDetailSettingsView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 }
-            }
 
-            Section {
                 Button {
                     beginDuplicating()
                 } label: {
