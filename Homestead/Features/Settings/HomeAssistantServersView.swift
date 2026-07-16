@@ -6,8 +6,15 @@ struct HomeAssistantServersView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(\.colorScheme) private var colorScheme
     @State private var switchingProfileID: UUID?
     @State private var switchErrorMessage: String?
+    @State private var renamingProfileID: UUID?
+    @State private var profileNameDraft = ""
+    @State private var removalCandidateID: UUID?
+    @State private var removingProfileID: UUID?
+    @State private var removalFailureProfileID: UUID?
+    @State private var removalFailureMessage: String?
     @State private var presentedSheet: ServerSheetDestination?
 
     var body: some View {
@@ -20,13 +27,19 @@ struct HomeAssistantServersView: View {
                         ServerProfileRow(
                             profile: profile,
                             isActive: profile.id == connectionSettings.activeProfileID,
-                            isSwitching: switchingProfileID == profile.id
+                            isSwitching: switchingProfileID == profile.id,
+                            isRemoving: removingProfileID == profile.id
                         )
                     }
-                    .disabled(switchingProfileID != nil)
+                    .disabled(isOperationInProgress)
+                    .contextMenu {
+                        serverActions(for: profile)
+                            .disabled(isOperationInProgress)
+                            .preferredColorScheme(colorScheme)
+                    }
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
                         if profile.id != connectionSettings.activeProfileID,
-                           switchingProfileID == nil {
+                           !isOperationInProgress {
                             Button {
                                 switchToServer(profile.id)
                             } label: {
@@ -34,6 +47,16 @@ struct HomeAssistantServersView: View {
                             }
                             .tint(.accentColor)
                             .accessibilityLabel("Use This Server")
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if !isOperationInProgress {
+                            Button(role: .destructive) {
+                                beginRemoving(profile)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .accessibilityLabel("Remove Server")
                         }
                     }
                 }
@@ -55,7 +78,7 @@ struct HomeAssistantServersView: View {
                 } label: {
                     Label("Add Server", systemImage: "plus")
                 }
-                .disabled(switchingProfileID != nil)
+                .disabled(isOperationInProgress)
             }
         }
         .sheet(item: $presentedSheet) { destination in
@@ -66,10 +89,169 @@ struct HomeAssistantServersView: View {
                 }
             }
         }
+        .alert("Rename Server", isPresented: isRenamingServer) {
+            TextField("Name", text: $profileNameDraft)
+            Button("Cancel", role: .cancel) {
+                resetRenamingState()
+            }
+            Button("Save") {
+                saveProfileName()
+            }
+        } message: {
+            Text("Choose the name Homestead uses for this server.")
+        }
+        .confirmationDialog(
+            removalDialogTitle,
+            isPresented: isConfirmingRemoval,
+            titleVisibility: .visible
+        ) {
+            Button("Remove Server", role: .destructive) {
+                if let profileID = removalCandidateID {
+                    removeServer(profileID, forceLocal: false)
+                }
+                removalCandidateID = nil
+            }
+            Button("Cancel", role: .cancel) {
+                removalCandidateID = nil
+            }
+        } message: {
+            Text("Homestead will ask Home Assistant to revoke this sign-in before removing its local data.")
+        }
+        .alert("Couldn’t Revoke Sign-In", isPresented: removalFailureBinding) {
+            Button("Retry") {
+                retryRemoval(forceLocal: false)
+            }
+            Button("Remove From This Device Anyway", role: .destructive) {
+                retryRemoval(forceLocal: true)
+            }
+            Button("Cancel", role: .cancel) {
+                resetRemovalFailure()
+            }
+        } message: {
+            Text(removalFailureMessage ?? "Home Assistant could not be reached.")
+        }
+    }
+
+    private var isOperationInProgress: Bool {
+        switchingProfileID != nil || removingProfileID != nil
+    }
+
+    private var isRenamingServer: Binding<Bool> {
+        Binding(
+            get: { renamingProfileID != nil },
+            set: { if !$0 { resetRenamingState() } }
+        )
+    }
+
+    private var isConfirmingRemoval: Binding<Bool> {
+        Binding(
+            get: { removalCandidateID != nil },
+            set: { if !$0 { removalCandidateID = nil } }
+        )
+    }
+
+    private var removalFailureBinding: Binding<Bool> {
+        Binding(
+            get: { removalFailureMessage != nil },
+            set: { if !$0 { resetRemovalFailure() } }
+        )
+    }
+
+    private var removalDialogTitle: String {
+        guard let removalCandidateID,
+              let profile = connectionSettings.profileStore.profile(id: removalCandidateID) else {
+            return "Remove Server?"
+        }
+        return "Remove \(profile.resolvedDisplayName)?"
+    }
+
+    @ViewBuilder
+    private func serverActions(for profile: HAConnectionProfile) -> some View {
+        if profile.id != connectionSettings.activeProfileID {
+            Section {
+                Button {
+                    switchToServer(profile.id)
+                } label: {
+                    Label("Use This Server", systemImage: "checkmark.circle")
+                }
+            }
+        }
+
+        Section {
+            Button {
+                beginRenaming(profile)
+            } label: {
+                Label("Rename", systemImage: "pencil")
+            }
+        }
+
+        Section {
+            Button(role: .destructive) {
+                beginRemoving(profile)
+            } label: {
+                Label("Remove Server", systemImage: "trash")
+            }
+        }
+    }
+
+    private func beginRenaming(_ profile: HAConnectionProfile) {
+        profileNameDraft = profile.displayName
+        renamingProfileID = profile.id
+    }
+
+    private func saveProfileName() {
+        if let renamingProfileID {
+            connectionSettings.profileStore.renameProfile(id: renamingProfileID, name: profileNameDraft)
+        }
+        resetRenamingState()
+    }
+
+    private func resetRenamingState() {
+        renamingProfileID = nil
+        profileNameDraft = ""
+    }
+
+    private func beginRemoving(_ profile: HAConnectionProfile) {
+        removalCandidateID = profile.id
+    }
+
+    private func removeServer(_ profileID: UUID, forceLocal: Bool) {
+        guard !isOperationInProgress else { return }
+        removingProfileID = profileID
+        switchErrorMessage = nil
+        resetRemovalFailure()
+        Task {
+            let removed = await homeAssistantService.removeServer(
+                profileID: profileID,
+                removeFromDeviceAnyway: forceLocal,
+                settings: connectionSettings,
+                dashboardConfiguration: dashboardConfiguration
+            )
+            removingProfileID = nil
+            if !removed {
+                removalFailureProfileID = profileID
+                removalFailureMessage = homeAssistantService.serverOperationErrorMessage
+                    ?? "Home Assistant could not be reached."
+            }
+        }
+    }
+
+    private func retryRemoval(forceLocal: Bool) {
+        guard let profileID = removalFailureProfileID else {
+            resetRemovalFailure()
+            return
+        }
+        resetRemovalFailure()
+        removeServer(profileID, forceLocal: forceLocal)
+    }
+
+    private func resetRemovalFailure() {
+        removalFailureProfileID = nil
+        removalFailureMessage = nil
     }
 
     private func switchToServer(_ profileID: UUID) {
-        guard switchingProfileID == nil else { return }
+        guard !isOperationInProgress else { return }
         switchingProfileID = profileID
         switchErrorMessage = nil
         Task {
@@ -102,14 +284,15 @@ private struct ServerProfileRow: View {
     let profile: HAConnectionProfile
     let isActive: Bool
     let isSwitching: Bool
+    let isRemoving: Bool
 
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
-            if isSwitching {
+            if isSwitching || isRemoving {
                 ProgressView()
                     .controlSize(.small)
                     .frame(width: 22)
-                    .accessibilityLabel("Switching Servers")
+                    .accessibilityLabel(isRemoving ? "Removing Server" : "Switching Servers")
             } else {
                 Image(systemName: "checkmark")
                     .font(.body.weight(.semibold))

@@ -258,7 +258,7 @@ private struct DashboardSettingsRow<Detail: View>: View {
             }
 
             Button(action: duplicate) {
-                Label("Duplicate", systemImage: "square.on.square")
+                Label("Duplicate", systemImage: "plus.square.on.square")
             }
         }
 
@@ -374,7 +374,7 @@ private struct DashboardDetailSettingsView: View {
                 Button {
                     beginDuplicating()
                 } label: {
-                    Label("Duplicate", systemImage: "square.on.square")
+                    Label("Duplicate", systemImage: "plus.square.on.square")
                 }
 
                 Button(role: .destructive) {
