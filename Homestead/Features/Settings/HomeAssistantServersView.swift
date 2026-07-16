@@ -250,34 +250,6 @@ private struct HomeAssistantServerDetailView: View {
         return authenticationState != nil
     }
 
-    private var statusText: String {
-        if requiresSignIn { return "Sign-In Required" }
-        guard isActive else {
-            return authenticationState == nil ? "Checking…" : "Ready to Switch"
-        }
-        switch homeAssistantService.connectionStatus {
-        case .connected:
-            return "Connected"
-        case .preparing, .connecting, .reconnecting:
-            return "Connecting"
-        case .disconnected, .failed:
-            return "Offline"
-        }
-    }
-
-    private var statusTint: Color {
-        if requiresSignIn { return .orange }
-        guard isActive else { return .secondary }
-        switch homeAssistantService.connectionStatus {
-        case .connected:
-            return .green
-        case .preparing, .connecting, .reconnecting:
-            return .accentColor
-        case .disconnected, .failed:
-            return .orange
-        }
-    }
-
     private var removalFailureBinding: Binding<Bool> {
         Binding(
             get: { removalFailureMessage != nil },
@@ -309,11 +281,6 @@ private struct HomeAssistantServerDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .accessibilityElement(children: .combine)
-
-            LabeledContent("Status") {
-                Text(statusText)
-                    .foregroundStyle(statusTint)
-            }
 
             if showsConnectionDetails(profile) {
                 NavigationLink("Connection Details") {
