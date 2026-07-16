@@ -377,27 +377,30 @@ private struct DashboardDetailSettingsView: View {
             }
 
             Section {
-                if !isSelected {
-                    Button(action: useOnThisDevice) {
-                        Label("Use on This Device", systemImage: "checkmark.circle")
-                            .fontWeight(.semibold)
+                VStack {
+                    if !isSelected {
+                        Button(action: useOnThisDevice) {
+                            Label("Use on This Device", systemImage: "checkmark.circle")
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                    }
+
+                    Button {
+                        beginDuplicating()
+                    } label: {
+                        Text("Duplicate")
                             .frame(maxWidth: .infinity, alignment: .center)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
                     .controlSize(.large)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                    .tint(.primary)
                 }
-
-                Button {
-                    beginDuplicating()
-                } label: {
-                    Text("Duplicate")
-                        .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             Section {
