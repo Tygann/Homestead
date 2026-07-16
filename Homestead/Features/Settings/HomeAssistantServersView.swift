@@ -22,42 +22,51 @@ struct HomeAssistantServersView: View {
         List {
             Section {
                 ForEach(connectionSettings.profiles) { profile in
-                    NavigationLink {
-                        HomeAssistantServerDetailView(profileID: profile.id)
-                    } label: {
+                    if editMode.isEditing {
                         ServerProfileRow(
                             profile: profile,
                             isActive: profile.id == connectionSettings.activeProfileID,
                             isSwitching: switchingProfileID == profile.id,
                             isRemoving: removingProfileID == profile.id
                         )
-                    }
-                    .disabled(isOperationInProgress)
-                    .contextMenu {
-                        serverActions(for: profile)
-                            .disabled(isOperationInProgress)
-                            .preferredColorScheme(colorScheme)
-                    }
-                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        if profile.id != connectionSettings.activeProfileID,
-                           !isOperationInProgress {
-                            Button {
-                                switchToServer(profile.id)
-                            } label: {
-                                Image(systemName: "checkmark.circle")
-                            }
-                            .tint(.accentColor)
-                            .accessibilityLabel("Use This Server")
+                    } else {
+                        NavigationLink {
+                            HomeAssistantServerDetailView(profileID: profile.id)
+                        } label: {
+                            ServerProfileRow(
+                                profile: profile,
+                                isActive: profile.id == connectionSettings.activeProfileID,
+                                isSwitching: switchingProfileID == profile.id,
+                                isRemoving: removingProfileID == profile.id
+                            )
                         }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if !isOperationInProgress {
-                            Button(role: .destructive) {
-                                beginRemoving(profile)
-                            } label: {
-                                Image(systemName: "trash")
+                        .disabled(isOperationInProgress)
+                        .contextMenu {
+                            serverActions(for: profile)
+                                .disabled(isOperationInProgress)
+                                .preferredColorScheme(colorScheme)
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            if profile.id != connectionSettings.activeProfileID,
+                               !isOperationInProgress {
+                                Button {
+                                    switchToServer(profile.id)
+                                } label: {
+                                    Image(systemName: "checkmark.circle")
+                                }
+                                .tint(.accentColor)
+                                .accessibilityLabel("Use This Server")
                             }
-                            .accessibilityLabel("Remove Server")
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            if !isOperationInProgress {
+                                Button(role: .destructive) {
+                                    beginRemoving(profile)
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .accessibilityLabel("Remove Server")
+                            }
                         }
                     }
                 }

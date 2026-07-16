@@ -30,6 +30,7 @@ struct DashboardSettingsView: View {
                         delete: {
                             deletingDashboardID = dashboard.id
                         },
+                        isReordering: editMode.isEditing,
                         showsReorder: dashboardConfiguration.dashboards.count > 1,
                         detail: {
                             dashboardDetail(for: dashboard.id)
@@ -213,34 +214,42 @@ private struct DashboardSettingsRow<Detail: View>: View {
     let duplicate: () -> Void
     let reorder: () -> Void
     let delete: () -> Void
+    let isReordering: Bool
     let showsReorder: Bool
     let detail: () -> Detail
 
     var body: some View {
-        NavigationLink(destination: detail) {
+        if isReordering {
             DashboardSettingsRowLabel(
                 name: dashboard.resolvedName,
                 isSelected: isSelected
             )
-        }
-        .accessibilityHint("Opens dashboard settings")
-        .contextMenu {
-            dashboardActions
-                .preferredColorScheme(colorScheme)
-        }
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive, action: delete) {
-                Image(systemName: "trash")
+        } else {
+            NavigationLink(destination: detail) {
+                DashboardSettingsRowLabel(
+                    name: dashboard.resolvedName,
+                    isSelected: isSelected
+                )
             }
-            .accessibilityLabel("Delete")
-        }
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            if !isSelected {
-                Button(action: useOnThisDevice) {
-                    Image(systemName: "checkmark.circle")
+            .accessibilityHint("Opens dashboard settings")
+            .contextMenu {
+                dashboardActions
+                    .preferredColorScheme(colorScheme)
+            }
+            .swipeActions(edge: .trailing) {
+                Button(role: .destructive, action: delete) {
+                    Image(systemName: "trash")
                 }
-                .tint(.accentColor)
-                .accessibilityLabel("Use on This Device")
+                .accessibilityLabel("Delete")
+            }
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                if !isSelected {
+                    Button(action: useOnThisDevice) {
+                        Image(systemName: "checkmark.circle")
+                    }
+                    .tint(.accentColor)
+                    .accessibilityLabel("Use on This Device")
+                }
             }
         }
     }
