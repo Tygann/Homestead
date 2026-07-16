@@ -45,13 +45,6 @@ struct HomeAssistantServersView: View {
                         }
                     }
                 }
-
-                Button {
-                    presentedSheet = .addServer
-                } label: {
-                    Label("Add Server", systemImage: "plus")
-                }
-                .disabled(switchingProfileID != nil)
             }
 
             if let switchErrorMessage {
@@ -62,9 +55,15 @@ struct HomeAssistantServersView: View {
             }
         }
         .navigationTitle("Servers")
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if switchingProfileID != nil { ProgressView() }
+                Button {
+                    presentedSheet = .addServer
+                } label: {
+                    Label("Add Server", systemImage: "plus")
+                }
+                .disabled(switchingProfileID != nil)
             }
         }
         .sheet(item: $presentedSheet) { destination in
