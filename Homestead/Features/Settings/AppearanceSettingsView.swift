@@ -37,7 +37,6 @@ struct AppearanceSettingsView: View {
             Picker("Appearance", selection: $appearanceSettings.appearanceMode) {
                 ForEach(HomesteadAppearanceMode.allCases) { mode in
                     Text(mode.displayName)
-                        .foregroundStyle(.primary)
                         .tag(mode)
                 }
             }
@@ -48,7 +47,6 @@ struct AppearanceSettingsView: View {
                 ForEach(HomesteadAppColor.allCases) { appColor in
                     Label {
                         Text(appColor.displayName)
-                            .foregroundStyle(.primary)
                     } icon: {
                         AppColorMenuSwatch(appColor: appColor)
                     }
@@ -58,39 +56,14 @@ struct AppearanceSettingsView: View {
             .pickerStyle(.menu)
             .tint(.secondary)
 
-            Menu {
-                Picker("Start Page", selection: $tabSettings.primaryTab) {
-                    ForEach(HomesteadPrimaryTab.allCases) { tab in
-                        Label {
-                            Text(tab.displayName)
-                                .foregroundStyle(.primary)
-                        } icon: {
-                            Image(systemName: tab.systemImage)
-                                .foregroundStyle(.primary)
-                        }
-                            .tag(tab)
-                    }
-                }
-            } label: {
-                HStack {
-                    Text("Start Page")
-                        .foregroundStyle(.primary)
-
-                    Spacer()
-
-                    Image(systemName: tabSettings.primaryTab.systemImage)
-                        .foregroundStyle(.primary)
-
-                    Text(tabSettings.primaryTab.displayName)
-                        .foregroundStyle(.secondary)
-
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
+            Picker("Start Page", selection: $tabSettings.primaryTab) {
+                ForEach(HomesteadPrimaryTab.allCases) { tab in
+                    Text(tab.displayName)
+                        .tag(tab)
                 }
             }
-            .accessibilityLabel("Start Page")
-            .accessibilityValue(tabSettings.primaryTab.displayName)
+            .pickerStyle(.menu)
+            .tint(.secondary)
         }
     }
 
