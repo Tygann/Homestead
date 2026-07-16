@@ -393,7 +393,7 @@ private struct HomeAssistantServerDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if isRemoving || isReauthenticating || isSwitching { ProgressView() }
+                if isRemoving { ProgressView() }
             }
         }
         .alert("Rename Server", isPresented: $isRenaming) {
@@ -495,27 +495,57 @@ private struct HomeAssistantServerDetailView: View {
 
     private var actionsSection: some View {
         Section {
-            if !isActive, isAuthenticationReady {
-                Button {
-                    switchToServer()
-                } label: {
-                    Text(isSwitching ? "Making Active…" : "Make Active")
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .accessibilityLabel("Make \(profile?.resolvedDisplayName ?? "this server") the active server")
-                .disabled(isSwitching)
+            primaryActionButton
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private var primaryActionButton: some View {
+        if !isActive, isAuthenticationReady {
+            Button {
+                switchToServer()
+            } label: {
+                primaryActionLabel(
+                    title: isSwitching ? "Making Active…" : "Make Active",
+                    isLoading: isSwitching
+                )
+            }
+            .accessibilityLabel(
+                isSwitching
+                    ? "Making \(profile?.resolvedDisplayName ?? "this server") active"
+                    : "Make \(profile?.resolvedDisplayName ?? "this server") the active server"
+            )
+            .disabled(isSwitching)
+        } else if requiresSignIn {
+            Button {
+                reauthenticate()
+            } label: {
+                primaryActionLabel(
+                    title: isReauthenticating ? "Signing In…" : "Sign In Again",
+                    isLoading: isReauthenticating
+                )
+            }
+            .disabled(isRemoving || isReauthenticating || isSwitching)
+        }
+    }
+
+    private func primaryActionLabel(title: String, isLoading: Bool) -> some View {
+        HStack(spacing: AppSpacing.small) {
+            if isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityHidden(true)
             }
 
-            if requiresSignIn {
-                Button {
-                    reauthenticate()
-                } label: {
-                    Text("Sign In Again")
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .disabled(isRemoving || isReauthenticating || isSwitching)
-            }
+            Text(title)
+                .fontWeight(.semibold)
         }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var removeSection: some View {
