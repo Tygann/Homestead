@@ -82,7 +82,7 @@ struct SettingsView: View {
                 NavigationLink {
                     AppearanceSettingsView()
                 } label: {
-                    Label("Appearance", systemImage: "paintpalette")
+                    Label("Appearance", systemImage: "circle.lefthalf.filled")
                 }
 
                 NavigationLink {
