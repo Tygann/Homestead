@@ -376,25 +376,38 @@ private struct DashboardDetailSettingsView: View {
                 }
             }
 
-            Section {
-                if !isSelected {
+            if !isSelected {
+                Section {
                     Button(action: useOnThisDevice) {
                         Label("Use on This Device", systemImage: "checkmark.circle")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
+            }
 
+            Section {
                 Button {
                     beginDuplicating()
                 } label: {
                     Label("Duplicate", systemImage: "plus.square.on.square")
+                        .foregroundStyle(.primary)
                 }
+            }
 
+            Section {
                 Button(role: .destructive) {
                     isConfirmingDelete = true
                 } label: {
                     Label("Delete Dashboard", systemImage: "trash")
-                        .foregroundStyle(.red)
                 }
+            } footer: {
+                Text("This permanently deletes this dashboard and its layout.")
             }
         }
         .navigationTitle(dashboard.resolvedName)
