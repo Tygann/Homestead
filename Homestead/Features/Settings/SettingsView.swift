@@ -36,11 +36,14 @@ struct SettingsView: View {
                 NavigationLink {
                     HomeAssistantServersView()
                 } label: {
-                    LabeledContent {
-                        Text(connectionSettings.profiles.count, format: .number)
-                            .foregroundStyle(.secondary)
-                    } label: {
+                    HStack {
                         Label("Servers", systemImage: "server.rack")
+                        Spacer()
+
+                        if connectionSettings.profiles.count > 1 {
+                            Text(connectionSettings.profiles.count, format: .number)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
