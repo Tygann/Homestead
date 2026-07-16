@@ -212,38 +212,55 @@ private struct DashboardSettingsRow<Detail: View>: View {
     let detail: () -> Detail
 
     var body: some View {
-        HStack(spacing: AppSpacing.medium) {
-            NavigationLink(destination: detail) {
-                DashboardSettingsRowLabel(
-                    name: dashboard.resolvedName,
-                    isSelected: isSelected
-                )
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityHint("Opens dashboard settings")
-
-            DashboardActionsMenu(
-                isSelected: isSelected,
-                useOnThisDevice: useOnThisDevice,
-                rename: rename,
-                duplicate: duplicate,
-                reorder: reorder,
-                delete: delete,
-                showsReorder: showsReorder
+        NavigationLink(destination: detail) {
+            DashboardSettingsRowLabel(
+                name: dashboard.resolvedName,
+                isSelected: isSelected
             )
         }
-        // TODO: Move menu items to swipe actions instead
+        .accessibilityHint("Opens dashboard settings")
+        .contextMenu {
+            dashboardActions
+        }
         .swipeActions(edge: .trailing) {
-            Button {
-//                favoritesManager.toggleFavorite(for: festival.id)
-            } label: {
-                Label(
-//                    favoritesManager.isFavorite(festivalID: festival.id) ? "Unfavorite" : "Favorite",
-//                    systemImage: favoritesManager.isFavorite(festivalID: festival.id) ? "star.slash" : "star"
-                    "hi", systemImage: "star"
-                )
+            Button(role: .destructive, action: delete) {
+                Label("Delete", systemImage: "trash")
             }
-            .tint(.yellow)
+        }
+    }
+
+    @ViewBuilder
+    private var dashboardActions: some View {
+        if !isSelected {
+            Section {
+                Button(action: useOnThisDevice) {
+                    Label("Use on This Device", systemImage: "checkmark.circle")
+                }
+            }
+        }
+
+        Section {
+            Button(action: rename) {
+                Label("Rename", systemImage: "pencil")
+            }
+
+            Button(action: duplicate) {
+                Label("Duplicate", systemImage: "square.on.square")
+            }
+        }
+
+        if showsReorder {
+            Section {
+                Button(action: reorder) {
+                    Label("Reorder Dashboards", systemImage: "line.3.horizontal")
+                }
+            }
+        }
+
+        Section {
+            Button(role: .destructive, action: delete) {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 }
@@ -264,58 +281,6 @@ private struct DashboardSettingsRowLabel: View {
                 .foregroundStyle(.primary)
         }
         .padding(.vertical, AppSpacing.xSmall)
-    }
-}
-
-private struct DashboardActionsMenu: View {
-    let isSelected: Bool
-    let useOnThisDevice: () -> Void
-    let rename: () -> Void
-    let duplicate: () -> Void
-    let reorder: () -> Void
-    let delete: () -> Void
-    let showsReorder: Bool
-
-    var body: some View {
-        Menu {
-            if !isSelected {
-                Section {
-                    Button(action: useOnThisDevice) {
-                        Label("Use on This Device", systemImage: "checkmark.circle")
-                    }
-                }
-            }
-
-            Section {
-                Button(action: rename) {
-                    Label("Rename", systemImage: "pencil")
-                }
-
-                Button(action: duplicate) {
-                    Label("Duplicate", systemImage: "square.on.square")
-                }
-            }
-
-            if showsReorder {
-                Section {
-                    Button(action: reorder) {
-                        Label("Reorder Dashboards", systemImage: "line.3.horizontal")
-                    }
-                }
-            }
-
-            Section {
-                Button(role: .destructive, action: delete) {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-        } label: {
-            Image(systemName: "ellipsis.circle")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: 32, height: 32)
-        }
-        .accessibilityLabel("Dashboard Options")
     }
 }
 
