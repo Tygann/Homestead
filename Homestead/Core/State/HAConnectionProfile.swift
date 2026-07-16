@@ -173,6 +173,16 @@ final class HAConnectionProfileStore {
         }
     }
 
+    func moveProfiles(from source: IndexSet, to destination: Int) {
+        var updated = profiles
+        let moving = source.sorted().map { updated[$0] }
+        for index in source.sorted(by: >) { updated.remove(at: index) }
+        let target = destination - source.filter { $0 < destination }.count
+        updated.insert(contentsOf: moving, at: target)
+        profiles = updated
+        publishWidgetProfiles()
+    }
+
     @discardableResult
     func removeProfile(id: UUID) -> UUID? {
         guard profiles.contains(where: { $0.id == id }) else { return activeProfileID }

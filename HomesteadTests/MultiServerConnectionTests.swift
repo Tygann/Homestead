@@ -78,6 +78,34 @@ struct MultiServerConnectionTests {
         #expect(!json.localizedCaseInsensitiveContains("credential"))
     }
 
+    @Test func movingProfilesPersistsOrderWithoutChangingActiveProfile() throws {
+        let defaults = try makeDefaults()
+        let settings = HAConnectionSettings(
+            baseURL: "https://primary.example.com",
+            defaults: defaults,
+            tokenStore: EmptyTokenStore()
+        )
+        let primaryID = settings.activeProfileID
+        let secondID = settings.profileStore.addProfile(
+            displayName: "Second",
+            baseURL: "https://second.example.com"
+        )
+        let thirdID = settings.profileStore.addProfile(
+            displayName: "Third",
+            baseURL: "https://third.example.com"
+        )
+        #expect(settings.activateProfile(id: secondID))
+
+        settings.profileStore.moveProfiles(from: IndexSet(integer: 0), to: 3)
+
+        #expect(settings.profiles.map(\.id) == [secondID, thirdID, primaryID])
+        #expect(settings.activeProfileID == secondID)
+
+        let restored = HAConnectionSettings(defaults: defaults, tokenStore: EmptyTokenStore())
+        #expect(restored.profiles.map(\.id) == [secondID, thirdID, primaryID])
+        #expect(restored.activeProfileID == secondID)
+    }
+
     private func makeDefaults() throws -> UserDefaults {
         let suiteName = "MultiServerConnectionTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
