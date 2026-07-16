@@ -58,20 +58,39 @@ struct AppearanceSettingsView: View {
             .pickerStyle(.menu)
             .tint(.secondary)
 
-            Picker("Start Page", selection: $tabSettings.primaryTab) {
-                ForEach(HomesteadPrimaryTab.allCases) { tab in
-                    Label {
-                        Text(tab.displayName)
-                            .foregroundStyle(.primary)
-                    } icon: {
-                        Image(systemName: tab.systemImage)
-                            .foregroundStyle(.primary)
+            Menu {
+                Picker("Start Page", selection: $tabSettings.primaryTab) {
+                    ForEach(HomesteadPrimaryTab.allCases) { tab in
+                        Label {
+                            Text(tab.displayName)
+                                .foregroundStyle(.primary)
+                        } icon: {
+                            Image(systemName: tab.systemImage)
+                                .foregroundStyle(.primary)
+                        }
+                            .tag(tab)
                     }
-                        .tag(tab)
+                }
+            } label: {
+                HStack {
+                    Text("Start Page")
+                        .foregroundStyle(.primary)
+
+                    Spacer()
+
+                    Image(systemName: tabSettings.primaryTab.systemImage)
+                        .foregroundStyle(.primary)
+
+                    Text(tabSettings.primaryTab.displayName)
+                        .foregroundStyle(.secondary)
+
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .pickerStyle(.menu)
-            .tint(.secondary)
+            .accessibilityLabel("Start Page")
+            .accessibilityValue(tabSettings.primaryTab.displayName)
         }
     }
 
