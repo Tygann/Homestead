@@ -381,6 +381,7 @@ private struct DashboardDetailSettingsView: View {
                     isConfirmingDelete = true
                 } label: {
                     Label("Delete Dashboard", systemImage: "trash")
+                        .foregroundStyle(.red)
                 }
             }
         }
