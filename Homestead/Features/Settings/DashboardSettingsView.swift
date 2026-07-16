@@ -395,16 +395,19 @@ private struct DashboardDetailSettingsView: View {
                 Button {
                     beginDuplicating()
                 } label: {
-                    Label("Duplicate", systemImage: "plus.square.on.square")
+                    Text("Duplicate")
                         .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
+                .buttonStyle(.plain)
             }
 
             Section {
                 Button(role: .destructive) {
                     isConfirmingDelete = true
                 } label: {
-                    Label("Delete Dashboard", systemImage: "trash")
+                    Text("Delete Dashboard")
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
             } footer: {
                 Text("This permanently deletes this dashboard and its layout.")
