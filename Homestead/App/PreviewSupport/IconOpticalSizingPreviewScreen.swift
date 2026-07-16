@@ -151,6 +151,7 @@ private struct IconOpticalComparison: Identifiable {
 
 #Preview("Icon Optical Sizing") {
     IconOpticalSizingPreviewScreen()
+        .withPreviewAccentColor()
         .preferredColorScheme(.dark)
 }
 #endif

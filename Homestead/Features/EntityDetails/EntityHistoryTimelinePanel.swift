@@ -341,10 +341,12 @@ private struct EntityHistoryTimelinePreviewGallery: View {
 
 #Preview("Recent Activity Small Light") {
     EntityHistoryTimelinePreviewGallery(tint: .accentColor)
+        .withPreviewAccentColor()
 }
 
 #Preview("Recent Activity Small Dark") {
     EntityHistoryTimelinePreviewGallery(tint: .accentColor)
+        .withPreviewAccentColor()
         .preferredColorScheme(.dark)
 }
 #endif

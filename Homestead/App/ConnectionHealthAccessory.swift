@@ -331,18 +331,22 @@ struct AppStatusAccessory: View {
 #if DEBUG
 #Preview("Connection Accessory - Reconnecting") {
     AppStatusAccessoryPreview(state: .reconnecting)
+        .withPreviewAccentColor()
 }
 
 #Preview("Connection Accessory - Interrupted") {
     AppStatusAccessoryPreview(state: .interrupted)
+        .withPreviewAccentColor()
 }
 
 #Preview("Connection Accessory - Failed") {
     AppStatusAccessoryPreview(state: .failed)
+        .withPreviewAccentColor()
 }
 
 #Preview("Connection Accessory - Disconnected") {
     AppStatusAccessoryPreview(state: .disconnected)
+        .withPreviewAccentColor()
 }
 
 private struct AppStatusAccessoryPreview: View {

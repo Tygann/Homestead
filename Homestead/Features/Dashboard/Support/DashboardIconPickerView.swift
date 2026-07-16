@@ -192,4 +192,5 @@ struct DashboardIconPickerView: View {
         recommendation: .domain(.light),
         onSelectionChange: { _ in }
     )
+    .withPreviewAccentColor()
 }

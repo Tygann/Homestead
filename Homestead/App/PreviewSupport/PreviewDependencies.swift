@@ -174,6 +174,16 @@ struct PreviewDependencies {
 
 extension View {
     @MainActor
+    func withPreviewAccentColor() -> some View {
+        withPreviewAccentColor(HomesteadAppearanceSettings(defaults: .samplePreview))
+    }
+
+    @MainActor
+    func withPreviewAccentColor(_ appearanceSettings: HomesteadAppearanceSettings) -> some View {
+        PreviewAccentColorView(content: self, appearanceSettings: appearanceSettings)
+    }
+
+    @MainActor
     func withPreviewEnvironment() -> some View {
         withPreviewEnvironment(.sample)
     }
@@ -188,11 +198,22 @@ extension View {
             .environment(dependencies.nativePermissionService)
             .environment(dependencies.dashboardConfiguration)
             .environment(dependencies.actionConfirmationSettings)
-            .environment(dependencies.appearanceSettings)
             .environment(dependencies.tabSettings)
             .environment(dependencies.iCloudSyncService)
             .environment(setupCoordinator)
             .environment(setupCoordinator.discoveryService)
+            .withPreviewAccentColor(dependencies.appearanceSettings)
+    }
+}
+
+private struct PreviewAccentColorView<Content: View>: View {
+    let content: Content
+    let appearanceSettings: HomesteadAppearanceSettings
+
+    var body: some View {
+        content
+            .environment(appearanceSettings)
+            .accentColor(Color(appearanceSettings.appColor.uiColor))
     }
 }
 

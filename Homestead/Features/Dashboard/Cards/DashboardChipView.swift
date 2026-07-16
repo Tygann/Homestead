@@ -98,6 +98,7 @@ private struct DashboardChipPreviewContainer: View {
 
 #Preview("Chip States") {
     DashboardChipPreviewContainer()
+        .withPreviewAccentColor()
 }
 
 #Preview("Editing Mode") {
@@ -124,5 +125,6 @@ private struct DashboardChipPreviewContainer: View {
     }
     .padding()
     .background(Color(.systemGroupedBackground))
+    .withPreviewAccentColor()
 }
 #endif
