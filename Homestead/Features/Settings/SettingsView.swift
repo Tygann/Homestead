@@ -36,13 +36,15 @@ struct SettingsView: View {
                 NavigationLink {
                     HomeAssistantServersView()
                 } label: {
-                    HStack {
-                        Label("Servers", systemImage: "server.rack")
-                        Spacer()
+                    SettingsNavigationRowLabel(systemImage: "server.rack") {
+                        HStack {
+                            Text("Servers")
+                            Spacer()
 
-                        if connectionSettings.profiles.count > 1 {
-                            Text(connectionSettings.profiles.count, format: .number)
-                                .foregroundStyle(.secondary)
+                            if connectionSettings.profiles.count > 1 {
+                                Text(connectionSettings.profiles.count, format: .number)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -50,31 +52,31 @@ struct SettingsView: View {
                 NavigationLink {
                     DevicesAndServicesManagementView()
                 } label: {
-                    Label("Devices & Services", systemImage: "laptopcomputer.and.iphone")
+                    SettingsNavigationRowLabel("Devices & Services", systemImage: "laptopcomputer.and.iphone")
                 }
 
                 NavigationLink {
                     AutomationsAndScenesManagementView()
                 } label: {
-                    Label("Automations & Scenes", systemImage: "sparkles")
+                    SettingsNavigationRowLabel("Automations & Scenes", systemImage: "sparkles")
                 }
 
                 NavigationLink {
                     AppsSettingsView()
                 } label: {
-                    Label("Apps", systemImage: "puzzlepiece.extension")
+                    SettingsNavigationRowLabel("Apps", systemImage: "puzzlepiece.extension")
                 }
 
                 NavigationLink {
                     UpdatesSettingsView()
                 } label: {
-                    Label("Updates", systemImage: "arrow.triangle.2.circlepath.circle")
+                    SettingsNavigationRowLabel("Updates", systemImage: "arrow.triangle.2.circlepath.circle")
                 }
 
                 NavigationLink {
                     LogbookSettingsView()
                 } label: {
-                    Label("Logbook", systemImage: "list.bullet.clipboard")
+                    SettingsNavigationRowLabel("Logbook", systemImage: "list.bullet.clipboard")
                 }
             }
 
@@ -82,13 +84,13 @@ struct SettingsView: View {
                 NavigationLink {
                     AppearanceSettingsView()
                 } label: {
-                    Label("Appearance", systemImage: "circle.righthalf.filled")
+                    SettingsNavigationRowLabel("Appearance", systemImage: "circle.righthalf.filled")
                 }
 
                 NavigationLink {
                     DashboardSettingsView()
                 } label: {
-                    Label("Dashboards", systemImage: "rectangle.grid.2x2")
+                    SettingsNavigationRowLabel("Dashboards", systemImage: "rectangle.grid.2x2")
                 }
             }
 
@@ -96,31 +98,31 @@ struct SettingsView: View {
                 NavigationLink {
                     NativeNotificationSettingsView()
                 } label: {
-                    Label("Notifications", systemImage: "bell.badge")
+                    SettingsNavigationRowLabel("Notifications", systemImage: "bell.badge")
                 }
 
                 NavigationLink {
                     ActionConfirmationSettingsView()
                 } label: {
-                    Label("Safety", systemImage: "hand.raised.circle")
+                    SettingsNavigationRowLabel("Safety", systemImage: "hand.raised.circle")
                 }
 
                 NavigationLink {
                     NativePermissionsSettingsView()
                 } label: {
-                    Label("Privacy & Permissions", systemImage: "hand.raised")
+                    SettingsNavigationRowLabel("Privacy & Permissions", systemImage: "hand.raised")
                 }
 
                 NavigationLink {
                     ICloudSyncSettingsView()
                 } label: {
-                    Label("iCloud", systemImage: "icloud")
+                    SettingsNavigationRowLabel("iCloud", systemImage: "icloud")
                 }
             }
 
             Section {
                 NavigationLink(destination: AboutView()) {
-                    Label("About", systemImage: "info.circle")
+                    SettingsNavigationRowLabel("About", systemImage: "info.circle")
                 }
             }
         }

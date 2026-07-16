@@ -1,5 +1,31 @@
 import SwiftUI
 
+struct SettingsNavigationRowLabel<Title: View>: View {
+    let systemImage: String
+    @ViewBuilder let title: () -> Title
+
+    init(_ title: String, systemImage: String) where Title == Text {
+        self.systemImage = systemImage
+        self.title = { Text(title) }
+    }
+
+    init(systemImage: String, @ViewBuilder title: @escaping () -> Title) {
+        self.systemImage = systemImage
+        self.title = title
+    }
+
+    var body: some View {
+        Label {
+            title()
+                .foregroundStyle(.primary)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
+        }
+    }
+}
+
 struct SettingsManagementOverviewRow: View {
     let title: String
     let subtitle: String

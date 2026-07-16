@@ -206,7 +206,7 @@ private struct PeoplePresenceDetailSettingsView: View {
             NavigationLink {
                 PeoplePresenceActivitySettingsView(record: record)
             } label: {
-                Label("Recent Activity", systemImage: "clock.arrow.circlepath")
+                SettingsNavigationRowLabel("Recent Activity", systemImage: "clock.arrow.circlepath")
             }
         }
     }

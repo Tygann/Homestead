@@ -25,7 +25,7 @@ struct HomeAssistantSettingsView: View {
                     NavigationLink {
                         HomeAssistantDiagnosticsView()
                     } label: {
-                        Label("Diagnostics", systemImage: "stethoscope")
+                        SettingsNavigationRowLabel("Diagnostics", systemImage: "stethoscope")
                     }
                 } footer: {
                     Text("Support details are available if something is not working as expected.")
