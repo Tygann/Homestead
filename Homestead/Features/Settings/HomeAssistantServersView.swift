@@ -12,36 +12,28 @@ struct HomeAssistantServersView: View {
 
     var body: some View {
         List {
-            if let activeProfile {
-                Section("Active Server") {
-                    NavigationLink {
-                        HomeAssistantServerDetailView(profileID: activeProfile.id)
-                    } label: {
-                        ServerProfileRow(
-                            profile: activeProfile,
-                            isSwitching: switchingProfileID == activeProfile.id
-                        )
-                    }
-                }
-            }
-
-            Section("Other Servers") {
-                ForEach(otherProfiles) { profile in
+            Section {
+                ForEach(connectionSettings.profiles) { profile in
                     NavigationLink {
                         HomeAssistantServerDetailView(profileID: profile.id)
                     } label: {
                         ServerProfileRow(
                             profile: profile,
+                            isActive: profile.id == connectionSettings.activeProfileID,
                             isSwitching: switchingProfileID == profile.id
                         )
                     }
                     .disabled(switchingProfileID != nil)
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        if switchingProfileID == nil {
-                            Button("Switch", systemImage: "checkmark") {
+                        if profile.id != connectionSettings.activeProfileID,
+                           switchingProfileID == nil {
+                            Button {
                                 switchToServer(profile.id)
+                            } label: {
+                                Image(systemName: "checkmark.circle")
                             }
                             .tint(.accentColor)
+                            .accessibilityLabel("Use This Server")
                         }
                     }
                 }
@@ -76,14 +68,6 @@ struct HomeAssistantServersView: View {
         }
     }
 
-    private var activeProfile: HAConnectionProfile? {
-        connectionSettings.profiles.first { $0.id == connectionSettings.activeProfileID }
-    }
-
-    private var otherProfiles: [HAConnectionProfile] {
-        connectionSettings.profiles.filter { $0.id != connectionSettings.activeProfileID }
-    }
-
     private func switchToServer(_ profileID: UUID) {
         guard switchingProfileID == nil else { return }
         switchingProfileID = profileID
@@ -116,10 +100,24 @@ private enum ServerSheetDestination: String, Identifiable {
 
 private struct ServerProfileRow: View {
     let profile: HAConnectionProfile
+    let isActive: Bool
     let isSwitching: Bool
 
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
+            if isSwitching {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: 22)
+                    .accessibilityLabel("Switching Servers")
+            } else {
+                Image(systemName: "checkmark")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(isActive ? Color.accentColor : Color.clear)
+                    .frame(width: 22)
+                    .accessibilityHidden(!isActive)
+            }
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.resolvedDisplayName)
                     .foregroundStyle(.primary)
@@ -131,11 +129,6 @@ private struct ServerProfileRow: View {
             }
 
             Spacer()
-
-            if isSwitching {
-                ProgressView()
-                    .controlSize(.small)
-            }
         }
     }
 
