@@ -39,8 +39,8 @@ struct DashboardAddItemView: View {
                 switch route {
                 case .styles(let source):
                     DashboardChooseStyleView(source: source, add: add)
-                case .sources(let kind):
-                    DashboardCompatibleSourcesView(kind: kind, add: add)
+                case .configure(let kind):
+                    DashboardPresentationReviewView(kind: kind, add: addAndDismiss)
                 case .review(let source, let kind):
                     DashboardPresentationReviewView(source: source, kind: kind, add: addAndDismiss)
                 case .header:
@@ -290,7 +290,7 @@ struct DashboardAddItemView: View {
     private func route(for item: DashboardAddGalleryItem) -> DashboardAddRoute? {
         switch item {
         case .presentation(let descriptor):
-            .sources(descriptor.kind)
+            .configure(descriptor.kind)
         case .header:
             .header
         case .planned:
@@ -406,7 +406,7 @@ private extension DashboardAddGalleryItem {
 }
 
 @MainActor
-private enum DashboardPresentationGallerySamples {
+enum DashboardPresentationGallerySamples {
     static let stateStore: HAStateStore = {
         let store = HAStateStore()
         store.applyInitialStates([
@@ -548,157 +548,5 @@ private struct DashboardAddHeaderView: View {
 
     private var previewTitle: String {
         normalizedTitle.isEmpty ? "Header" : normalizedTitle
-    }
-}
-
-private struct DashboardCompatibleSourcesView: View {
-    @Environment(HAStateStore.self) private var stateStore
-    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @State private var searchText = ""
-    let kind: DashboardPresentationKind
-    let add: (DashboardAddSource, DashboardPresentationConfiguration) -> Void
-
-    var body: some View {
-        let summaryCandidates = filteredSummaryCandidates
-        let entityBoxes = filteredEntityBoxes
-        let addedPresentationIdentities = dashboardConfiguration.presentationIdentities
-
-        List {
-            if !summaryCandidates.isEmpty {
-                Section("Summaries") {
-                    ForEach(summaryCandidates) { candidate in
-                        sourceLink(
-                            .summary(candidate.kind),
-                            title: candidate.title,
-                            subtitle: candidate.value,
-                            icon: .sfSymbol(candidate.systemImage, provenance: .homesteadSemanticMapping),
-                            addedPresentationIdentities: addedPresentationIdentities
-                        )
-                    }
-                }
-            }
-
-            if !entityBoxes.isEmpty {
-                Section("Entities") {
-                    ForEach(entityBoxes, id: \.entityID) { entityBox in
-                        sourceLink(
-                            .entity(entityBox.entityID),
-                            title: entityBox.homeEntity.displayName,
-                            subtitle: entityBox.entityID,
-                            icon: entityBox.homeEntity.resolvedIcon,
-                            addedPresentationIdentities: addedPresentationIdentities
-                        )
-                    }
-                }
-            }
-        }
-        .overlay {
-            if summaryCandidates.isEmpty && entityBoxes.isEmpty {
-                if normalizedSearch.isEmpty {
-                    ContentUnavailableView("No Compatible Items", systemImage: "square.grid.2x2")
-                } else {
-                    ContentUnavailableView.search(text: searchText)
-                }
-            }
-        }
-//        .searchable(
-//            text: $searchText,
-//            placement: .navigationBarDrawer(displayMode: .automatic),
-//            prompt: "Search"
-//        )
-        .searchable(text: $searchText)
-        .navigationTitle(DashboardPresentationCatalog.descriptor(for: kind).title)
-    }
-
-    private var filteredEntityBoxes: [HAEntityState] {
-        stateStore.allEntityBoxes().filter { entityBox in
-            guard entityBox.homeEntity.isAvailable,
-                  DashboardPresentationCatalog.isCompatible(kind, with: entityBox) else { return false }
-            return normalizedSearch.isEmpty
-                || entityBox.homeEntity.displayName.localizedCaseInsensitiveContains(normalizedSearch)
-                || entityBox.entityID.localizedCaseInsensitiveContains(normalizedSearch)
-                || entityBox.homeEntity.state.localizedCaseInsensitiveContains(normalizedSearch)
-        }
-    }
-
-    private var filteredSummaryCandidates: [DashboardAddSummaryCandidate] {
-        guard kind == .chip else { return [] }
-        let summaries = DashboardSummaryProvider.makeSummaries(
-            kinds: DashboardSummaryKind.allCases,
-            entityBoxes: stateStore.allEntityBoxes(),
-            membershipContext: stateStore.dashboardSummaryMembershipContext()
-        )
-        return DashboardSummaryKind.allCases.compactMap { summaryKind in
-            guard let summary = summaries[summaryKind] else { return nil }
-            let candidate = DashboardAddSummaryCandidate(
-                kind: summaryKind,
-                title: summary.title,
-                value: summary.value,
-                systemImage: summary.systemImage
-            )
-            guard normalizedSearch.isEmpty
-                    || candidate.title.localizedCaseInsensitiveContains(normalizedSearch)
-                    || candidate.value.localizedCaseInsensitiveContains(normalizedSearch) else { return nil }
-            return candidate
-        }
-    }
-
-    private var normalizedSearch: String {
-        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    @ViewBuilder
-    private func sourceLink(
-        _ source: DashboardAddSource,
-        title: String,
-        subtitle: String,
-        icon: ResolvedIcon,
-        addedPresentationIdentities: Set<DashboardPresentationIdentity>
-    ) -> some View {
-        let presentation = source.defaultPresentation(kind: kind, stateStore: stateStore)
-        let isAdded = presentation.map { presentation in
-            addedPresentationIdentities.contains(
-                DashboardPresentationIdentity(source: source.reference, presentation: presentation)
-            )
-        } ?? false
-        let hasMultipleStyles = source.styleDescriptors(kind: kind, stateStore: stateStore).count > 1
-
-        if isAdded && !hasMultipleStyles {
-            HStack {
-                sourceLabel(title: title, subtitle: subtitle, icon: icon)
-                Spacer()
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityValue("Added")
-        } else {
-            NavigationLink(value: DashboardAddRoute.review(source, kind)) {
-                HStack {
-                    sourceLabel(title: title, subtitle: subtitle, icon: icon)
-                    Spacer()
-                    if isAdded {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
-                    }
-                }
-            }
-            .accessibilityValue(isAdded ? "Default style added" : "")
-            .accessibilityHint("Preview and add \(DashboardPresentationCatalog.descriptor(for: kind).title)")
-        }
-    }
-
-    private func sourceLabel(title: String, subtitle: String, icon: ResolvedIcon) -> some View {
-        Label {
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(title).foregroundStyle(.primary).lineLimit(1)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
-        } icon: {
-            HomesteadIconView(icon: icon, pointSize: 18)
-                .foregroundStyle(Color.accentColor)
-        }
     }
 }

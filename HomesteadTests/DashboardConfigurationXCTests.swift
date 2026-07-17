@@ -567,6 +567,11 @@ final class DashboardConfigurationXCTests: XCTestCase {
             [.gauge(.circular), .gauge(.segmented), .gauge(.bar)]
         )
         XCTAssertEqual(
+            DashboardPresentationCatalog.sourceIndependentStyleDescriptors(for: .gauge).map(\.style),
+            [.gauge(.circular), .gauge(.segmented), .gauge(.bar)]
+        )
+        XCTAssertTrue(DashboardPresentationCatalog.sourceIndependentStyleDescriptors(for: .control).isEmpty)
+        XCTAssertEqual(
             DashboardPresentationCatalog.styleDescriptors(for: .control, entityBox: thermostat).map(\.style),
             [.control(.thermostat)]
         )

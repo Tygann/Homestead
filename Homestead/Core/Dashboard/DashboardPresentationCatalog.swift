@@ -117,6 +117,19 @@ enum DashboardPresentationCatalog {
         }
     }
 
+    /// Styles that can be chosen before a source is selected because their
+    /// availability doesn't depend on entity capabilities.
+    static func sourceIndependentStyleDescriptors(
+        for kind: DashboardPresentationKind
+    ) -> [DashboardPresentationStyleDescriptor] {
+        guard kind == .gauge else { return [] }
+        return [
+            styleDescriptor(for: .gauge(.circular)),
+            styleDescriptor(for: .gauge(.segmented)),
+            styleDescriptor(for: .gauge(.bar))
+        ]
+    }
+
     static func styleDescriptor(for style: DashboardPresentationStyle) -> DashboardPresentationStyleDescriptor {
         switch style {
         case .control(.standard):

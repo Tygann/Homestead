@@ -66,7 +66,7 @@ enum DashboardAddSource: Hashable, Identifiable {
 
 enum DashboardAddRoute: Hashable {
     case styles(DashboardAddSource)
-    case sources(DashboardPresentationKind)
+    case configure(DashboardPresentationKind)
     case review(DashboardAddSource, DashboardPresentationKind)
     case header
 }

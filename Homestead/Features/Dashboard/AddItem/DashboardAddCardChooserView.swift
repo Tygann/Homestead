@@ -126,53 +126,73 @@ struct DashboardChooseStyleView: View {
 struct DashboardPresentationReviewView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @State private var source: DashboardAddSource?
     @State private var selectedStyle: DashboardPresentationStyle?
 
-    let source: DashboardAddSource
     let kind: DashboardPresentationKind
     let add: (DashboardAddSource, DashboardPresentationConfiguration) -> Void
+
+    init(
+        source: DashboardAddSource? = nil,
+        kind: DashboardPresentationKind,
+        add: @escaping (DashboardAddSource, DashboardPresentationConfiguration) -> Void
+    ) {
+        _source = State(initialValue: source)
+        self.kind = kind
+        self.add = add
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                sourceSelector
+
                 if styleDescriptors.count > 1 {
                     styleSelector
                 }
 
-                if let selectedPresentation {
-                    presentationPreview(selectedPresentation)
-                } else {
-                    ContentUnavailableView("Item Unavailable", systemImage: "questionmark.circle")
+                if let source, let selectedPresentation {
+                    presentationPreview(source: source, presentation: selectedPresentation)
                 }
             }
             .padding(AppSpacing.large)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Add \(DashboardPresentationCatalog.descriptor(for: kind).title) Card")
-        .navigationSubtitle(source.contextTitle(stateStore: stateStore))
+        .navigationSubtitle(source?.contextTitle(stateStore: stateStore) ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(role: .confirm) {
-                    guard let selectedPresentation else { return }
+                    guard let source, let selectedPresentation else { return }
                     add(source, selectedPresentation)
                 }
                 .disabled(selectedPresentation == nil || selectedPresentationIsAdded)
                 .accessibilityLabel(selectedPresentationIsAdded ? "Added" : "Add")
             }
         }
+        .onChange(of: source) { _, _ in
+            guard let selectedStyle,
+                  !styleDescriptors.contains(where: { $0.style == selectedStyle }) else { return }
+            self.selectedStyle = nil
+        }
     }
 
     private var styleDescriptors: [DashboardPresentationStyleDescriptor] {
-        source.styleDescriptors(kind: kind, stateStore: stateStore)
+        source?.styleDescriptors(kind: kind, stateStore: stateStore)
+            ?? DashboardPresentationCatalog.sourceIndependentStyleDescriptors(for: kind)
     }
 
     private var resolvedStyle: DashboardPresentationStyle? {
-        selectedStyle ?? styleDescriptors.first?.style
+        if let selectedStyle,
+           styleDescriptors.contains(where: { $0.style == selectedStyle }) {
+            return selectedStyle
+        }
+        return styleDescriptors.first?.style
     }
 
     private var defaultPresentation: DashboardPresentationConfiguration? {
-        source.defaultPresentation(
+        source?.defaultPresentation(
             kind: kind,
             style: resolvedStyle,
             stateStore: stateStore
@@ -184,11 +204,93 @@ struct DashboardPresentationReviewView: View {
     }
 
     private var selectedPresentationIsAdded: Bool {
-        guard let selectedPresentation else { return false }
+        guard let source, let selectedPresentation else { return false }
         return dashboardConfiguration.contains(
             source: source.reference,
             presentation: selectedPresentation
         )
+    }
+
+    private var sourceSelector: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Text(sourceSectionTitle)
+                .font(.headline)
+
+            NavigationLink {
+                DashboardSourcePickerView(selection: $source, kind: kind)
+            } label: {
+                HStack(spacing: AppSpacing.medium) {
+                    sourceSelectorIcon
+
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        Text(source?.contextTitle(stateStore: stateStore) ?? selectSourceTitle)
+                            .font(.body.weight(source == nil ? .semibold : .regular))
+                            .foregroundStyle(source == nil ? Color.accentColor : Color.primary)
+                            .lineLimit(1)
+
+                        if let sourceSubtitle {
+                            Text(sourceSubtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
+                .padding(AppSpacing.medium)
+                .frame(minHeight: 56)
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(source.map { "Selected \($0.contextTitle(stateStore: stateStore))" } ?? selectSourceTitle)
+            .accessibilityHint("Opens compatible \(sourceSectionTitle.lowercased())")
+        }
+    }
+
+    @ViewBuilder
+    private var sourceSelectorIcon: some View {
+        if case .some(.entity(let entityID)) = source,
+           let entityBox = stateStore.entityBox(for: entityID) {
+            HomesteadIconView(icon: entityBox.homeEntity.resolvedIcon, pointSize: 20)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 32, height: 32)
+        } else if case .some(.summary(let summaryKind)) = source {
+            Image(systemName: summaryKind.systemImage)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 32, height: 32)
+        } else {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 22, weight: .medium))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 32, height: 32)
+        }
+    }
+
+    private var sourceSectionTitle: String {
+        kind == .chip ? "Item" : "Entity"
+    }
+
+    private var selectSourceTitle: String {
+        "Select \(sourceSectionTitle)"
+    }
+
+    private var sourceSubtitle: String? {
+        switch source {
+        case .entity(let entityID):
+            entityID
+        case .summary(let summaryKind):
+            source?.chipPresentation(stateStore: stateStore)?.value ?? summaryKind.title
+        case nil:
+            nil
+        }
     }
 
     private var styleSelector: some View {
@@ -219,12 +321,7 @@ struct DashboardPresentationReviewView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
 
-                if let previewPresentation = stylePreviewPresentation(for: descriptor) {
-                    DashboardAddStylePreview(
-                        source: source,
-                        presentation: previewPresentation
-                    )
-                }
+                stylePreview(for: descriptor)
             }
             .frame(maxWidth: .infinity)
             .padding(AppSpacing.small)
@@ -255,23 +352,172 @@ struct DashboardPresentationReviewView: View {
         .accessibilityHint("Selects the \(descriptor.title) style")
     }
 
-    private func stylePreviewPresentation(
-        for descriptor: DashboardPresentationStyleDescriptor
-    ) -> DashboardPresentationConfiguration? {
-        guard case .card(let card) = source.defaultPresentation(
-            kind: kind,
-            style: descriptor.style,
-            stateStore: stateStore
-        ) else { return nil }
-
-        return .card(card)
+    @ViewBuilder
+    private func stylePreview(for descriptor: DashboardPresentationStyleDescriptor) -> some View {
+        if let source,
+           let presentation = source.defaultPresentation(
+               kind: kind,
+               style: descriptor.style,
+               stateStore: stateStore
+           ) {
+            DashboardAddStylePreview(source: source, presentation: presentation)
+        } else if let sampleEntityID = DashboardPresentationGallerySamples.entityID(for: kind),
+                  let sampleEntity = DashboardPresentationGallerySamples.stateStore.entityBox(for: sampleEntityID),
+                  let presentation = DashboardPresentationCatalog.defaultPresentation(
+                      kind: kind,
+                      style: descriptor.style,
+                      for: sampleEntity
+                  ) {
+            DashboardAddStylePreview(
+                source: .entity(sampleEntityID),
+                presentation: presentation
+            )
+            .environment(DashboardPresentationGallerySamples.stateStore)
+        }
     }
 
     @ViewBuilder
-    private func presentationPreview(_ presentation: DashboardPresentationConfiguration) -> some View {
+    private func presentationPreview(
+        source: DashboardAddSource,
+        presentation: DashboardPresentationConfiguration
+    ) -> some View {
         if styleDescriptors.count <= 1 {
             DashboardAddPresentationPreview(source: source, presentation: presentation)
         }
+    }
+}
+
+private struct DashboardSourcePickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(HAStateStore.self) private var stateStore
+    @Binding var selection: DashboardAddSource?
+    @State private var searchText = ""
+
+    let kind: DashboardPresentationKind
+
+    var body: some View {
+        let summaryCandidates = filteredSummaryCandidates
+        let entityBoxes = filteredEntityBoxes
+
+        List {
+            if !summaryCandidates.isEmpty {
+                Section("Summaries") {
+                    ForEach(summaryCandidates) { candidate in
+                        sourceButton(
+                            .summary(candidate.kind),
+                            title: candidate.title,
+                            subtitle: candidate.value,
+                            icon: .sfSymbol(candidate.systemImage, provenance: .homesteadSemanticMapping)
+                        )
+                    }
+                }
+            }
+
+            if !entityBoxes.isEmpty {
+                Section("Entities") {
+                    ForEach(entityBoxes, id: \.entityID) { entityBox in
+                        sourceButton(
+                            .entity(entityBox.entityID),
+                            title: entityBox.homeEntity.displayName,
+                            subtitle: entityBox.entityID,
+                            icon: entityBox.homeEntity.resolvedIcon
+                        )
+                    }
+                }
+            }
+        }
+        .overlay {
+            if summaryCandidates.isEmpty && entityBoxes.isEmpty {
+                if normalizedSearch.isEmpty {
+                    ContentUnavailableView("No Compatible Items", systemImage: "square.grid.2x2")
+                } else {
+                    ContentUnavailableView.search(text: searchText)
+                }
+            }
+        }
+        .searchable(text: $searchText)
+        .navigationTitle(kind == .chip ? "Select Item" : "Select Entity")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var filteredEntityBoxes: [HAEntityState] {
+        stateStore.allEntityBoxes().filter { entityBox in
+            guard entityBox.homeEntity.isAvailable,
+                  DashboardPresentationCatalog.isCompatible(kind, with: entityBox) else { return false }
+            return normalizedSearch.isEmpty
+                || entityBox.homeEntity.displayName.localizedCaseInsensitiveContains(normalizedSearch)
+                || entityBox.entityID.localizedCaseInsensitiveContains(normalizedSearch)
+                || entityBox.homeEntity.state.localizedCaseInsensitiveContains(normalizedSearch)
+        }
+    }
+
+    private var filteredSummaryCandidates: [DashboardAddSummaryCandidate] {
+        guard kind == .chip else { return [] }
+        let summaries = DashboardSummaryProvider.makeSummaries(
+            kinds: DashboardSummaryKind.allCases,
+            entityBoxes: stateStore.allEntityBoxes(),
+            membershipContext: stateStore.dashboardSummaryMembershipContext()
+        )
+        return DashboardSummaryKind.allCases.compactMap { summaryKind in
+            guard let summary = summaries[summaryKind] else { return nil }
+            let candidate = DashboardAddSummaryCandidate(
+                kind: summaryKind,
+                title: summary.title,
+                value: summary.value,
+                systemImage: summary.systemImage
+            )
+            guard normalizedSearch.isEmpty
+                    || candidate.title.localizedCaseInsensitiveContains(normalizedSearch)
+                    || candidate.value.localizedCaseInsensitiveContains(normalizedSearch) else { return nil }
+            return candidate
+        }
+    }
+
+    private var normalizedSearch: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func sourceButton(
+        _ source: DashboardAddSource,
+        title: String,
+        subtitle: String,
+        icon: ResolvedIcon
+    ) -> some View {
+        Button {
+            selection = source
+            HapticFeedback.selection()
+            dismiss()
+        } label: {
+            HStack(spacing: AppSpacing.medium) {
+                Label {
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        Text(title)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                } icon: {
+                    HomesteadIconView(icon: icon, pointSize: 18)
+                        .foregroundStyle(Color.accentColor)
+                }
+
+                Spacer()
+
+                if selection == source {
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(selection == source ? "Selected" : "")
+        .accessibilityHint("Selects \(title)")
     }
 }
 
