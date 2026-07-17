@@ -53,6 +53,30 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 109)
+
+- Release Date: 2026-07-17
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build adds multi-server support and streamlines dashboard card setup.
+
+- Add, switch, reorder, and manage multiple Home Assistant servers without repeatedly signing out
+- Keep dashboards and wallpaper settings tied to the correct server profile
+- Add and configure cards in one consistent flow, with circular and bar gauges as focused individual cards
+- See thermostat temperatures, available update counts, and smoother accented gauge visuals
+
+Please test:
+
+- Adding a second server and confirming each server keeps the correct dashboards and wallpaper
+- Reordering and switching servers from Account, including returning to the original server
+- Adding several dashboard card types, especially circular and bar gauges
+
+### Internal Summary
+
+Build 109 covers multi-server connection profiles and profile-scoped app, widget, dashboard, cache, registration, and appearance state; the Account-centered server-management flow; dashboard card configuration unification and atomic gauge cards; climate summary temperatures; Settings update counts; accented widget gauge refinements; and related Settings polish after Build 107.
+
 ## Version 1 (Build 107)
 
 - Release Date: 2026-07-15
