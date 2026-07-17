@@ -104,8 +104,16 @@ struct AppearanceSettingsView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppSpacing.small)
         } footer: {
-            Text("Used on Home and Areas for \(connectionSettings.activeProfile.resolvedDisplayName).")
+            Text(wallpaperFooterText)
         }
+    }
+
+    private var wallpaperFooterText: String {
+        guard connectionSettings.profiles.count > 1 else {
+            return "Used on Home and Areas."
+        }
+
+        return "Used on Home and Areas for \(connectionSettings.activeProfile.resolvedDisplayName)."
     }
 
     @ViewBuilder
