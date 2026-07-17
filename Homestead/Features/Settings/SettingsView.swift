@@ -14,6 +14,7 @@ struct SettingsView: View {
                 currentUserEntityPicturePath: homeAssistantService.currentUserEntityPicturePath
             )
         }
+        let availableUpdateCount = stateStore.updateEntities.count { $0.status == .available }
 
         Form {
             Section {
@@ -54,7 +55,20 @@ struct SettingsView: View {
                 NavigationLink {
                     UpdatesSettingsView()
                 } label: {
-                    SettingsNavigationRowLabel("Updates", systemImage: "arrow.triangle.2.circlepath.circle")
+                    SettingsNavigationRowLabel(systemImage: "arrow.triangle.2.circlepath.circle") {
+                        HStack {
+                            Text("Updates")
+                            Spacer()
+
+                            if availableUpdateCount > 0 {
+                                Text(availableUpdateCount, format: .number)
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityLabel(
+                                        "\(availableUpdateCount) \(availableUpdateCount == 1 ? "update" : "updates") available"
+                                    )
+                            }
+                        }
+                    }
                 }
 
                 NavigationLink {
