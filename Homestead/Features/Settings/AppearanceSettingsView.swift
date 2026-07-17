@@ -104,7 +104,7 @@ struct AppearanceSettingsView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppSpacing.small)
         } footer: {
-            Text("Wallpaper appears behind Home and Areas for \(connectionSettings.activeProfile.resolvedDisplayName).")
+            Text("Used on Home and Areas for \(connectionSettings.activeProfile.resolvedDisplayName).")
         }
     }
 
