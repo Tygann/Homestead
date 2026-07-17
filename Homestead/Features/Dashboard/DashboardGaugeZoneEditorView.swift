@@ -3,7 +3,7 @@ import SwiftUI
 struct DashboardGaugeZoneEditorContext: Identifiable {
     let id: UUID
     let presentation: GaugePresentation
-    let style: DashboardGaugeStyle
+    let kind: DashboardPresentationKind
     let configuration: GaugeZoneConfiguration
 }
 
@@ -128,10 +128,10 @@ struct DashboardGaugeZoneEditorView: View {
     }
 
     private var previewStyle: GaugePresentationStyle {
-        switch context.style {
-        case .circular: .instrument
-        case .segmented: .segmentedInstrument
-        case .bar: .row
+        switch context.kind {
+        case .segmentedGauge: .segmentedInstrument
+        case .barGauge: .row
+        default: .instrument
         }
     }
 

@@ -1,21 +1,24 @@
 import Foundation
 
+nonisolated enum DashboardSourceRequirement: Equatable, Sendable {
+    case anyItem
+    case anyEntity
+    case controllable
+    case boundedNumericSensor
+    case history
+    case domain(EntityDomain)
+    case trigger
+}
+
 nonisolated struct DashboardPresentationDescriptor: Identifiable, Equatable, Sendable {
     let kind: DashboardPresentationKind
     let title: String
     let systemImage: String
     let sharedFeatureID: String?
+    let sourceRequirement: DashboardSourceRequirement
 
     var id: DashboardPresentationKind { kind }
     var supportedLayouts: [DashboardCardSize] { kind.supportedLayouts }
-}
-
-nonisolated struct DashboardPresentationStyleDescriptor: Identifiable, Equatable, Sendable {
-    let style: DashboardPresentationStyle
-    let title: String
-    let systemImage: String
-
-    var id: DashboardPresentationStyle { style }
 }
 
 @MainActor
@@ -25,23 +28,27 @@ enum DashboardPresentationCatalog {
     static func descriptor(for kind: DashboardPresentationKind) -> DashboardPresentationDescriptor {
         return switch kind {
         case .chip:
-            DashboardPresentationDescriptor(kind: kind, title: "Chip", systemImage: "capsule", sharedFeatureID: nil)
+            DashboardPresentationDescriptor(kind: kind, title: "Chip", systemImage: "capsule", sharedFeatureID: nil, sourceRequirement: .anyItem)
         case .control:
-            DashboardPresentationDescriptor(kind: kind, title: "Control", systemImage: "switch.2", sharedFeatureID: "control")
+            DashboardPresentationDescriptor(kind: kind, title: "Control", systemImage: "switch.2", sharedFeatureID: "control", sourceRequirement: .controllable)
         case .status:
-            DashboardPresentationDescriptor(kind: kind, title: "Status", systemImage: "circle.lefthalf.filled", sharedFeatureID: "status")
-        case .gauge:
-            DashboardPresentationDescriptor(kind: kind, title: "Sensor Gauge", systemImage: "gauge.with.dots.needle.33percent", sharedFeatureID: "sensor-gauge")
+            DashboardPresentationDescriptor(kind: kind, title: "Status", systemImage: "circle.lefthalf.filled", sharedFeatureID: "status", sourceRequirement: .anyEntity)
+        case .circularGauge:
+            DashboardPresentationDescriptor(kind: kind, title: "Circular Gauge", systemImage: "circle.dotted", sharedFeatureID: "sensor-gauge", sourceRequirement: .boundedNumericSensor)
+        case .segmentedGauge:
+            DashboardPresentationDescriptor(kind: kind, title: "Segmented Gauge", systemImage: "gauge.with.dots.needle.50percent", sharedFeatureID: "sensor-gauge", sourceRequirement: .boundedNumericSensor)
+        case .barGauge:
+            DashboardPresentationDescriptor(kind: kind, title: "Bar Gauge", systemImage: "chart.bar.fill", sharedFeatureID: "sensor-gauge", sourceRequirement: .boundedNumericSensor)
         case .graph:
-            DashboardPresentationDescriptor(kind: kind, title: "Graph", systemImage: "chart.xyaxis.line", sharedFeatureID: "sensor")
+            DashboardPresentationDescriptor(kind: kind, title: "Graph", systemImage: "chart.xyaxis.line", sharedFeatureID: "sensor", sourceRequirement: .history)
         case .camera:
-            DashboardPresentationDescriptor(kind: kind, title: "Camera", systemImage: "camera.fill", sharedFeatureID: nil)
+            DashboardPresentationDescriptor(kind: kind, title: "Camera", systemImage: "camera.fill", sharedFeatureID: nil, sourceRequirement: .domain(.camera))
         case .weather:
-            DashboardPresentationDescriptor(kind: kind, title: "Weather", systemImage: "cloud.sun.fill", sharedFeatureID: nil)
+            DashboardPresentationDescriptor(kind: kind, title: "Weather", systemImage: "cloud.sun.fill", sharedFeatureID: nil, sourceRequirement: .domain(.weather))
         case .media:
-            DashboardPresentationDescriptor(kind: kind, title: "Media", systemImage: "play.tv.fill", sharedFeatureID: nil)
+            DashboardPresentationDescriptor(kind: kind, title: "Media", systemImage: "play.tv.fill", sharedFeatureID: nil, sourceRequirement: .domain(.mediaPlayer))
         case .action:
-            DashboardPresentationDescriptor(kind: kind, title: "Action", systemImage: "sparkles", sharedFeatureID: "action")
+            DashboardPresentationDescriptor(kind: kind, title: "Action", systemImage: "sparkles", sharedFeatureID: "action", sourceRequirement: .trigger)
         }
     }
 
@@ -54,15 +61,15 @@ enum DashboardPresentationCatalog {
         for entityBox: HAEntityState
     ) -> PresentationAvailability {
         let capabilities = EntityCapabilityResolver.capabilities(for: entityBox)
-        switch kind {
-        case .chip, .status:
+        switch descriptor(for: kind).sourceRequirement {
+        case .anyItem, .anyEntity:
             return .available
-        case .control:
+        case .controllable:
             let controlAffordances: Set<EntityAffordance> = [.primaryAction, .level, .setpoint, .options, .commands]
             return !capabilities.affordances.isDisjoint(with: controlAffordances)
                 ? .available
                 : .unavailable(.unsupportedDomain)
-        case .gauge:
+        case .boundedNumericSensor:
             guard entityBox.homeEntity.isAvailable else { return .unavailable(.requiresAvailableEntity) }
             guard let sensor = entityBox.sensorEntity, sensor.numericValue != nil else {
                 return .unavailable(.requiresNumericState)
@@ -71,17 +78,13 @@ enum DashboardPresentationCatalog {
             return gauge.rangeSource == .valueSuggested
                 ? .configurable("Review the suggested range and zones.")
                 : .available
-        case .graph:
+        case .history:
             return capabilities.affordances.contains(.history)
                 ? .available
                 : .unavailable(.requiresNumericState)
-        case .camera:
-            return entityBox.domain == .camera ? .available : .unavailable(.unsupportedDomain)
-        case .weather:
-            return entityBox.domain == .weather ? .available : .unavailable(.unsupportedDomain)
-        case .media:
-            return entityBox.domain == .mediaPlayer ? .available : .unavailable(.unsupportedDomain)
-        case .action:
+        case .domain(let domain):
+            return entityBox.domain == domain ? .available : .unavailable(.unsupportedDomain)
+        case .trigger:
             return capabilities.affordances.contains(.trigger)
                 ? .available
                 : .unavailable(.unsupportedDomain)
@@ -93,58 +96,7 @@ enum DashboardPresentationCatalog {
     }
 
     static func isCompatible(_ card: DashboardCardConfiguration, with entityBox: HAEntityState) -> Bool {
-        guard isCompatible(card.kind, with: entityBox) else { return false }
-        guard let style = card.style else { return true }
-        return styleDescriptors(for: card.kind, entityBox: entityBox).contains { $0.style == style }
-    }
-
-    static func styleDescriptors(
-        for kind: DashboardPresentationKind,
-        entityBox: HAEntityState
-    ) -> [DashboardPresentationStyleDescriptor] {
-        switch kind {
-        case .control:
-            let style = controlStyle(for: entityBox)
-            return [styleDescriptor(for: .control(style))]
-        case .gauge:
-            return [
-                styleDescriptor(for: .gauge(.circular)),
-                styleDescriptor(for: .gauge(.segmented)),
-                styleDescriptor(for: .gauge(.bar))
-            ]
-        default:
-            return []
-        }
-    }
-
-    /// Styles that can be chosen before a source is selected because their
-    /// availability doesn't depend on entity capabilities.
-    static func sourceIndependentStyleDescriptors(
-        for kind: DashboardPresentationKind
-    ) -> [DashboardPresentationStyleDescriptor] {
-        guard kind == .gauge else { return [] }
-        return [
-            styleDescriptor(for: .gauge(.circular)),
-            styleDescriptor(for: .gauge(.segmented)),
-            styleDescriptor(for: .gauge(.bar))
-        ]
-    }
-
-    static func styleDescriptor(for style: DashboardPresentationStyle) -> DashboardPresentationStyleDescriptor {
-        switch style {
-        case .control(.standard):
-            DashboardPresentationStyleDescriptor(style: style, title: "Standard", systemImage: "switch.2")
-        case .control(.slider):
-            DashboardPresentationStyleDescriptor(style: style, title: "Slider", systemImage: "slider.horizontal.3")
-        case .control(.thermostat):
-            DashboardPresentationStyleDescriptor(style: style, title: "Thermostat", systemImage: "thermometer.medium")
-        case .gauge(.circular):
-            DashboardPresentationStyleDescriptor(style: style, title: "Circular", systemImage: "gauge.with.dots.needle.33percent")
-        case .gauge(.segmented):
-            DashboardPresentationStyleDescriptor(style: style, title: "Segmented", systemImage: "gauge.with.dots.needle.50percent")
-        case .gauge(.bar):
-            DashboardPresentationStyleDescriptor(style: style, title: "Bar", systemImage: "chart.bar.fill")
-        }
+        isCompatible(card.kind, with: entityBox)
     }
 
     static func recommendation(for entityBox: HAEntityState) -> DashboardPresentationConfiguration {
@@ -172,7 +124,6 @@ enum DashboardPresentationCatalog {
             let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
             let layout: DashboardCardSize = features.isEmpty ? .compact : .square
             return .card(.control(
-                style: controlStyle(for: entityBox),
                 layout: layout,
                 featureVisibility: DashboardCardSize.defaultGeneratedFeatureVisibility(entityBox: entityBox, size: layout)
             ))
@@ -191,59 +142,26 @@ enum DashboardPresentationCatalog {
             || !actionableFeatures.isEmpty
     }
 
-    private static func controlStyle(for entityBox: HAEntityState) -> DashboardControlStyle {
-        let presentation = DashboardEntityPresentation(entityBox: entityBox)
-        let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
-
-        if features.contains(where: {
-            if case .setpoint = $0.content { return true }
-            return false
-        }) {
-            return .thermostat
-        }
-
-        if features.contains(where: {
-            if case .level = $0.content { return true }
-            return false
-        }) {
-            return .slider
-        }
-
-        return .standard
-    }
-
     static func defaultPresentation(
         kind: DashboardPresentationKind,
-        style: DashboardPresentationStyle? = nil,
         for entityBox: HAEntityState
     ) -> DashboardPresentationConfiguration? {
         guard isCompatible(kind, with: entityBox) else { return nil }
         if kind == .chip { return .chip }
 
-        let availableStyles = styleDescriptors(for: kind, entityBox: entityBox)
-        if let style {
-            guard style.kind == kind, availableStyles.contains(where: { $0.style == style }) else { return nil }
-        }
-        let resolvedStyle = style ?? availableStyles.first?.style
         let recommendation = recommendation(for: entityBox)
-        if recommendation.kind == kind, recommendation.style == resolvedStyle {
+        if recommendation.kind == kind {
             return recommendation
         }
 
-        let layout: DashboardCardSize?
-        if resolvedStyle == .gauge(.bar) {
-            layout = .wide
-        } else {
-            layout = kind.defaultLayout
-        }
+        let layout = kind.defaultLayout
         guard let layout else { return nil }
-        return cardConfiguration(kind: kind, style: resolvedStyle, layout: layout)
+        return cardConfiguration(kind: kind, layout: layout)
             .map(DashboardPresentationConfiguration.card)
     }
 
     static func cardConfiguration(
         kind: DashboardPresentationKind,
-        style: DashboardPresentationStyle? = nil,
         layout: DashboardCardSize,
         featureVisibility: DashboardCardFeatureVisibility = .automatic
     ) -> DashboardCardConfiguration? {
@@ -251,31 +169,25 @@ enum DashboardPresentationCatalog {
 
         return switch kind {
         case .control:
-            switch style ?? .control(.standard) {
-            case .control(let controlStyle):
-                .control(style: controlStyle, layout: layout, featureVisibility: featureVisibility)
-            case .gauge:
-                nil
-            }
+            .control(layout: layout, featureVisibility: featureVisibility)
         case .status:
-            style == nil ? .status(layout: layout) : nil
-        case .gauge:
-            switch style ?? .gauge(.circular) {
-            case .gauge(let gaugeStyle):
-                .gauge(style: gaugeStyle, layout: layout)
-            case .control:
-                nil
-            }
+            .status(layout: layout)
+        case .circularGauge:
+            .circularGauge(layout: layout)
+        case .segmentedGauge:
+            .segmentedGauge(layout: layout)
+        case .barGauge:
+            .barGauge(layout: layout)
         case .graph:
-            style == nil ? .graph(layout: layout) : nil
+            .graph(layout: layout)
         case .camera:
-            style == nil ? .camera(layout: layout) : nil
+            .camera(layout: layout)
         case .weather:
-            style == nil ? .weather(layout: layout) : nil
+            .weather(layout: layout)
         case .media:
-            style == nil ? .media(layout: layout, featureVisibility: featureVisibility) : nil
+            .media(layout: layout, featureVisibility: featureVisibility)
         case .action:
-            style == nil ? .action(layout: layout) : nil
+            .action(layout: layout)
         case .chip:
             nil
         }

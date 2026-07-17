@@ -12,7 +12,6 @@ struct DashboardEntityCard: View {
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
     let presentationKind: DashboardPresentationKind
-    let presentationStyle: DashboardPresentationStyle?
     let gaugeZoneConfiguration: GaugeZoneConfiguration?
     let features: [DashboardCardFeature]
     let featureVisibility: DashboardCardFeatureVisibility
@@ -456,7 +455,7 @@ struct DashboardEntityCard: View {
 
     @ViewBuilder
     private func gaugeFirstVisual(_ gauge: GaugePresentation) -> some View {
-        if presentationStyle == .gauge(.bar) {
+        if presentationKind == .barGauge {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
                 gaugeFeatureHeader(gauge)
 
@@ -475,7 +474,7 @@ struct DashboardEntityCard: View {
         } else {
             GaugePresentationView(
                 presentation: gauge,
-                style: presentationStyle == .gauge(.segmented) ? .segmentedInstrument : .instrument,
+                style: presentationKind == .segmentedGauge ? .segmentedInstrument : .instrument,
                 tint: iconColor,
                 title: presentation.title,
                 icon: gaugeIcon(for: gauge)
@@ -804,7 +803,7 @@ struct DashboardEntityCard: View {
         switch presentationKind {
         case .control, .media:
             compatibleFeatures = features
-        case .gauge:
+        case .circularGauge, .segmentedGauge, .barGauge:
             compatibleFeatures = features.filter { $0.key == .sensorGauge }
         default:
             compatibleFeatures = []

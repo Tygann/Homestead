@@ -56,7 +56,7 @@ struct GaugePresentationView: View {
             tint: statusColor(for: presentation.status),
             title: title,
             icon: icon,
-            trackStyle: .segmented,
+            trackStyle: style == .segmentedInstrument ? .segmented : .continuous,
             density: .standard
         )
     }
@@ -159,18 +159,6 @@ struct GaugePresentationView: View {
                     Capsule()
                         .fill(Color.secondary.opacity(0.16))
 
-                    ForEach(Array(presentation.sections.enumerated()), id: \.offset) { index, section in
-                        let segment = visualSegment(for: section, at: index)
-                        let start = segment.start
-                        let end = segment.end
-                        let segmentWidth = max(CGFloat(end - start) * width, 0)
-
-                        Capsule()
-                            .fill(sectionColor(for: section).opacity(sectionBackgroundOpacity(for: section)))
-                            .frame(width: segmentWidth)
-                            .offset(x: CGFloat(start) * width)
-                    }
-
                     if presentation.normalizedValue > 0 {
                         Capsule()
                             .fill(statusColor(for: presentation.status))
@@ -179,8 +167,6 @@ struct GaugePresentationView: View {
 
                     Capsule()
                         .strokeBorder(Color.white.opacity(GaugeVisualMetrics.barBorderOpacity), lineWidth: 1)
-
-                    sectionBoundaryTicks(width: width)
                 }
                 .frame(height: GaugeVisualMetrics.barTrackHeight)
                 .clipShape(Capsule())
@@ -270,22 +256,6 @@ struct GaugePresentationView: View {
             1
         case .detail:
             1.08
-        }
-    }
-
-    @ViewBuilder
-    private func sectionBoundaryTicks(width: CGFloat) -> some View {
-        ForEach(presentation.sections.indices.dropLast(), id: \.self) { index in
-            let boundary = normalized(presentation.sections[index].range.upperBound)
-            let xOffset = min(
-                max(CGFloat(boundary) * width, GaugeVisualMetrics.barTrackHeight / 2),
-                width - (GaugeVisualMetrics.barTrackHeight / 2)
-            )
-
-            Capsule()
-                .fill(Color.white.opacity(GaugeVisualMetrics.barBoundaryOpacity))
-                .frame(width: 1.5, height: GaugeVisualMetrics.barTrackHeight - 3)
-                .offset(x: xOffset - 0.75)
         }
     }
 

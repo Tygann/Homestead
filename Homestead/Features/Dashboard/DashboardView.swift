@@ -539,7 +539,6 @@ struct DashboardView: View {
                     entityID: item.entityID,
                     size: item.size,
                     presentationKind: item.presentationKind,
-                    presentationStyle: item.presentationStyle,
                     displayNameOverride: currentCardDisplayNameOverride(for: item),
                     iconNameOverride: item.iconNameOverride,
                     gaugeZoneConfiguration: item.gaugeZoneConfiguration,
@@ -556,7 +555,6 @@ struct DashboardView: View {
                 entityID: item.entityID,
                 size: item.size,
                 presentationKind: item.presentationKind,
-                presentationStyle: item.presentationStyle,
                 displayNameOverride: currentCardDisplayNameOverride(for: item),
                 iconNameOverride: item.iconNameOverride,
                 gaugeZoneConfiguration: item.gaugeZoneConfiguration,
@@ -665,7 +663,6 @@ struct DashboardView: View {
                 entityID: cardItem.entityID,
                 size: cardItem.size,
                 presentationKind: cardItem.presentationKind,
-                presentationStyle: cardItem.presentationStyle,
                 displayNameOverride: currentCardDisplayNameOverride(for: cardItem),
                 iconNameOverride: cardItem.iconNameOverride,
                 gaugeZoneConfiguration: cardItem.gaugeZoneConfiguration,
@@ -1154,7 +1151,7 @@ struct DashboardView: View {
             }
         }
 
-        if item.presentationKind == .gauge {
+        if [.circularGauge, .segmentedGauge, .barGauge].contains(item.presentationKind) {
             Button {
                 presentGaugeZoneEditor(for: item)
             } label: {
@@ -1216,7 +1213,7 @@ struct DashboardView: View {
         gaugeZoneEditorContext = DashboardGaugeZoneEditorContext(
             id: item.id,
             presentation: presentation,
-            style: item.presentationStyle?.gaugeStyle ?? .circular,
+            kind: item.presentationKind,
             configuration: storedConfiguration ?? .defaults(for: presentation)
         )
     }

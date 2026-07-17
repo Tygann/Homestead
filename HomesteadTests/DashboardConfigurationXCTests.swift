@@ -84,7 +84,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         let defaults = makeDefaults()
         let invalid = DashboardItemConfiguration.entityCard(
             entityID: "sensor.humidity",
-            configuration: .gauge(style: .circular, layout: .mini)
+            configuration: .circularGauge(layout: .mini)
         )
         let document = DashboardConfigurationDocument(dashboards: [makeDashboard(items: [invalid])])
         defaults.set(try JSONEncoder().encode(document), forKey: "homestead.dashboard.configuration.v3")
@@ -94,16 +94,16 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertTrue(configuration.items.isEmpty)
     }
 
-    func testCurrentDocumentRoundTripsPresentationStyles() throws {
+    func testCurrentDocumentRoundTripsAtomicGaugeCards() throws {
         let defaults = makeDefaults()
         let configuration = DashboardConfiguration(defaults: defaults)
         _ = configuration.add(
             source: .entity("sensor.battery"),
-            presentation: .card(.gauge(style: .circular, layout: .square))
+            presentation: .card(.circularGauge(layout: .square))
         )
         let segmentedID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.battery"),
-            presentation: .card(.gauge(style: .segmented, layout: .square))
+            presentation: .card(.segmentedGauge(layout: .square))
         ))
         let zoneConfiguration = GaugeZoneConfiguration(
             lowerBound: 0,
@@ -117,7 +117,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         configuration.setGaugeZoneConfiguration(zoneConfiguration, forItemID: segmentedID)
         _ = configuration.add(
             source: .entity("sensor.battery"),
-            presentation: .card(.gauge(style: .bar, layout: .wide))
+            presentation: .card(.barGauge(layout: .wide))
         )
 
         let restored = DashboardConfiguration(defaults: defaults)
@@ -125,15 +125,15 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(
             restored.items.compactMap(\.cardConfiguration),
             [
-                .gauge(style: .circular, layout: .square),
-                .gauge(style: .segmented, layout: .square),
-                .gauge(style: .bar, layout: .wide)
+                .circularGauge(layout: .square),
+                .segmentedGauge(layout: .square),
+                .barGauge(layout: .wide)
             ]
         )
         XCTAssertEqual(restored.items.first(where: { $0.id == segmentedID })?.gaugeZoneConfiguration, zoneConfiguration)
     }
 
-    func testDuplicateIdentityIncludesStyleButNotLayout() throws {
+    func testDuplicateIdentityIncludesCardTypeButNotLayout() throws {
         let configuration = DashboardConfiguration(defaults: makeDefaults())
         let statusID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
@@ -149,15 +149,15 @@ final class DashboardConfigurationXCTests: XCTestCase {
         ))
         let circularGaugeID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
-            presentation: .card(.gauge(style: .circular, layout: .square))
+            presentation: .card(.circularGauge(layout: .square))
         ))
         let duplicateCircularGaugeID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
-            presentation: .card(.gauge(style: .circular, layout: .wide))
+            presentation: .card(.circularGauge(layout: .wide))
         ))
         let barGaugeID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
-            presentation: .card(.gauge(style: .bar, layout: .wide))
+            presentation: .card(.barGauge(layout: .wide))
         ))
 
         XCTAssertEqual(
@@ -189,7 +189,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         )
         _ = configuration.add(
             source: .entity("sensor.temperature"),
-            presentation: .card(.gauge(style: .bar, layout: .wide))
+            presentation: .card(.barGauge(layout: .wide))
         )
 
         XCTAssertEqual(configuration.presentationIdentities.count, 2)
@@ -202,7 +202,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertTrue(configuration.presentationIdentities.contains(
             DashboardPresentationIdentity(
                 source: .entity("sensor.temperature"),
-                presentation: .card(.gauge(style: .bar, layout: .compact))
+                presentation: .card(.barGauge(layout: .compact))
             )
         ))
     }
@@ -216,7 +216,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         ))
         XCTAssertNil(configuration.add(
             source: .entity("sensor.humidity"),
-            presentation: .card(.gauge(style: .circular, layout: .mini))
+            presentation: .card(.circularGauge(layout: .mini))
         ))
         XCTAssertTrue(configuration.items.isEmpty)
     }
@@ -256,7 +256,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         }
         XCTAssertEqual(
             implementedKinds,
-            [.control, .status, .gauge, .graph, .camera, .weather, .media, .action]
+            [.control, .status, .circularGauge, .segmentedGauge, .barGauge, .graph, .camera, .weather, .media, .action]
         )
         XCTAssertEqual(implementedKinds.count, DashboardAddGallerySection.cards.items.count)
 
@@ -356,7 +356,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
                 name: "Phone",
                 items: [.entityCard(
                     entityID: "light.phone",
-                    configuration: .control(style: .slider, layout: .square, featureVisibility: .automatic)
+                    configuration: .control(layout: .square, featureVisibility: .automatic)
                 )]
             ),
             SavedDashboardConfiguration(
@@ -381,7 +381,6 @@ final class DashboardConfigurationXCTests: XCTestCase {
         _ = configuration.add(
             source: .entity("light.kitchen"),
             presentation: .card(.control(
-                style: .thermostat,
                 layout: .square,
                 featureVisibility: .automatic
             ))
@@ -398,8 +397,8 @@ final class DashboardConfigurationXCTests: XCTestCase {
         configuration.reconcile(with: store.allEntityBoxes())
 
         XCTAssertFalse(configuration.items.contains { $0.presentation?.kind == .camera })
-        XCTAssertFalse(configuration.items.contains { $0.presentation?.style == .control(.thermostat) })
-        XCTAssertTrue(configuration.items.isEmpty)
+        XCTAssertTrue(configuration.items.contains { $0.presentation?.kind == .control })
+        XCTAssertEqual(configuration.items.count, 1)
         XCTAssertEqual(configuration.setupState, .manual)
     }
 
@@ -538,12 +537,14 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: temperature).kind, .graph)
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: battery).kind, .status)
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: camera).kind, .camera)
-        XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: temperature).contains(.gauge))
+        XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: temperature).contains(.circularGauge))
+        XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: temperature).contains(.segmentedGauge))
+        XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: temperature).contains(.barGauge))
         XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: battery).contains(.control))
         XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: thermostat).contains(.control))
         XCTAssertEqual(
             DashboardPresentationCatalog.recommendation(for: thermostat),
-            .card(.control(style: .thermostat, layout: .square, featureVisibility: .automatic))
+            .card(.control(layout: .square, featureVisibility: .automatic))
         )
         XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: readOnlyClimate).contains(.control))
         XCTAssertEqual(
@@ -551,33 +552,15 @@ final class DashboardConfigurationXCTests: XCTestCase {
             .card(.status(layout: .compact))
         )
         XCTAssertEqual(
-            DashboardPresentationCatalog.defaultPresentation(kind: .gauge, for: temperature),
-            .card(.gauge(style: .circular, layout: .square))
+            DashboardPresentationCatalog.defaultPresentation(kind: .circularGauge, for: temperature),
+            .card(.circularGauge(layout: .square))
         )
         XCTAssertEqual(
             DashboardPresentationCatalog.defaultPresentation(
-                kind: .gauge,
-                style: .gauge(.bar),
+                kind: .barGauge,
                 for: temperature
             ),
-            .card(.gauge(style: .bar, layout: .wide))
-        )
-        XCTAssertEqual(
-            DashboardPresentationCatalog.styleDescriptors(for: .gauge, entityBox: battery).map(\.style),
-            [.gauge(.circular), .gauge(.segmented), .gauge(.bar)]
-        )
-        XCTAssertEqual(
-            DashboardPresentationCatalog.sourceIndependentStyleDescriptors(for: .gauge).map(\.style),
-            [.gauge(.circular), .gauge(.segmented), .gauge(.bar)]
-        )
-        XCTAssertTrue(DashboardPresentationCatalog.sourceIndependentStyleDescriptors(for: .control).isEmpty)
-        XCTAssertEqual(
-            DashboardPresentationCatalog.styleDescriptors(for: .control, entityBox: thermostat).map(\.style),
-            [.control(.thermostat)]
-        )
-        XCTAssertEqual(
-            DashboardPresentationCatalog.styleDescriptors(for: .control, entityBox: light).map(\.style),
-            [.control(.slider)]
+            .card(.barGauge(layout: .wide))
         )
         XCTAssertEqual(
             DashboardPresentationCatalog.defaultPresentation(kind: .status, for: temperature),
@@ -608,7 +591,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(gauge.rangeSource, .valueSuggested)
         XCTAssertEqual(gauge.sections.map(\.status), [.nominal])
         XCTAssertEqual(
-            DashboardPresentationCatalog.availability(of: .gauge, for: entityBox),
+            DashboardPresentationCatalog.availability(of: .circularGauge, for: entityBox),
             .configurable("Review the suggested range and zones.")
         )
     }
@@ -687,7 +670,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(resolved.upperBound, 13)
         XCTAssertEqual(resolved.sections.map(\.upperBound), [7, 11, 13])
         XCTAssertEqual(resolved.sections.map(\.color), [.blue, .green, .orange])
-        XCTAssertEqual(resolved.currentColor, .orange)
+        XCTAssertEqual(resolved.currentColor, .green)
         XCTAssertEqual(resolved.status, .nominal)
     }
 
@@ -707,7 +690,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         let entityBox = try XCTUnwrap(store.entityBox(for: "sensor.lifetime_energy"))
         XCTAssertNil(entityBox.sensorEntity?.gaugePresentation)
-        XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: entityBox).contains(.gauge))
+        XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: entityBox).contains(.circularGauge))
         XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: entityBox).contains(.graph))
     }
 

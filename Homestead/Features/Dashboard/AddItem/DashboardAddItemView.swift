@@ -36,8 +36,8 @@ struct DashboardAddItemView: View {
             }
             .navigationDestination(for: DashboardAddRoute.self) { route in
                 switch route {
-                case .styles(let source):
-                    DashboardChooseStyleView(source: source, add: add)
+                case .cards(let source):
+                    DashboardChooseCardView(source: source, add: add)
                 case .configure(let kind):
                     DashboardPresentationReviewView(kind: kind, add: addAndDismiss)
                 case .review(let source, let kind):
@@ -222,7 +222,7 @@ struct DashboardAddItemView: View {
         let isAdded = addedPresentationIdentities.contains(identity)
 
         return HStack(spacing: AppSpacing.medium) {
-            NavigationLink(value: DashboardAddRoute.styles(source)) {
+            NavigationLink(value: DashboardAddRoute.cards(source)) {
                 Label {
                     VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                         Text(title).font(.headline).foregroundStyle(.primary).lineLimit(1)
@@ -495,11 +495,31 @@ enum DashboardPresentationGallerySamples {
     )
 
     static let configurationGaugeEntityID = "sensor.configuration_example"
+    static let configurationControlEntityID = "climate.configuration_example"
+    static let configurationStatusEntityID = "sensor.configuration_status_example"
+    static let configurationCameraEntityID = "camera.configuration_example"
+    static let configurationWeatherEntityID = "weather.configuration_example"
+    static let configurationMediaEntityID = "media_player.configuration_example"
+    static let configurationActionEntityID = "scene.configuration_example"
 
     // Keep pre-selection previews synthetic so they can't be mistaken for entities in the user's home.
     static let configurationStateStore: HAStateStore = {
         let store = HAStateStore()
         store.applyInitialStates([
+            HAEntityDTO(
+                entityID: configurationControlEntityID,
+                state: "heat",
+                attributes: [
+                    "friendly_name": .string("Example Thermostat"),
+                    "current_temperature": .number(70),
+                    "temperature": .number(72),
+                    "temperature_unit": .string("°F"),
+                    "min_temp": .number(50),
+                    "max_temp": .number(90),
+                    "target_temp_step": .number(1),
+                    "hvac_modes": .array([.string("off"), .string("heat"), .string("cool")])
+                ]
+            ),
             HAEntityDTO(
                 entityID: configurationGaugeEntityID,
                 state: "74",
@@ -508,10 +528,69 @@ enum DashboardPresentationGallerySamples {
                     "device_class": .string("battery"),
                     "unit_of_measurement": .string("%")
                 ]
+            ),
+            HAEntityDTO(
+                entityID: configurationStatusEntityID,
+                state: "72",
+                attributes: [
+                    "friendly_name": .string("Example Sensor"),
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: configurationCameraEntityID,
+                state: "idle",
+                attributes: ["friendly_name": .string("Example Camera")]
+            ),
+            HAEntityDTO(
+                entityID: configurationWeatherEntityID,
+                state: "partlycloudy",
+                attributes: [
+                    "friendly_name": .string("Example Weather"),
+                    "temperature": .number(73),
+                    "temperature_unit": .string("°F"),
+                    "humidity": .number(56)
+                ]
+            ),
+            HAEntityDTO(
+                entityID: configurationMediaEntityID,
+                state: "playing",
+                attributes: [
+                    "friendly_name": .string("Example Media"),
+                    "volume_level": .number(0.42),
+                    "media_title": .string("Example Track")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: configurationActionEntityID,
+                state: "scening",
+                attributes: ["friendly_name": .string("Example Scene")]
             )
         ])
         return store
     }()
+
+    static func configurationEntityID(for kind: DashboardPresentationKind) -> String? {
+        switch kind {
+        case .chip:
+            nil
+        case .control:
+            configurationControlEntityID
+        case .status, .graph:
+            configurationStatusEntityID
+        case .circularGauge, .segmentedGauge, .barGauge:
+            configurationGaugeEntityID
+        case .camera:
+            configurationCameraEntityID
+        case .weather:
+            configurationWeatherEntityID
+        case .media:
+            configurationMediaEntityID
+        case .action:
+            configurationActionEntityID
+        }
+    }
 
     static func entityID(for kind: DashboardPresentationKind) -> String? {
         switch kind {
@@ -521,7 +600,7 @@ enum DashboardPresentationGallerySamples {
             "climate.gallery"
         case .status, .graph:
             "sensor.gallery_temperature"
-        case .gauge:
+        case .circularGauge, .segmentedGauge, .barGauge:
             "sensor.gallery_battery"
         case .camera:
             "camera.gallery"

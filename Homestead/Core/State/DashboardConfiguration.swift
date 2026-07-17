@@ -12,7 +12,9 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
     case chip
     case control
     case status
-    case gauge
+    case circularGauge
+    case segmentedGauge
+    case barGauge
     case graph
     case camera
     case weather
@@ -25,7 +27,7 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
             []
         case .control, .status:
             DashboardCardSize.allCases
-        case .gauge, .graph, .camera, .weather:
+        case .circularGauge, .segmentedGauge, .barGauge, .graph, .camera, .weather:
             [.square, .wide, .large]
         case .media:
             [.compact, .row, .square, .wide, .large]
@@ -40,49 +42,23 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
             nil
         case .control, .status, .media, .action:
             .compact
-        case .gauge, .graph, .camera, .weather:
+        case .circularGauge, .segmentedGauge, .graph, .camera, .weather:
             .square
+        case .barGauge:
+            .wide
         }
-    }
-}
-
-nonisolated enum DashboardControlStyle: String, Codable, Equatable, Hashable, Sendable {
-    case standard
-    case slider
-    case thermostat
-}
-
-nonisolated enum DashboardGaugeStyle: String, Codable, Equatable, Hashable, Sendable {
-    case circular
-    case segmented
-    case bar
-}
-
-nonisolated enum DashboardPresentationStyle: Codable, Equatable, Hashable, Sendable {
-    case control(DashboardControlStyle)
-    case gauge(DashboardGaugeStyle)
-
-    var kind: DashboardPresentationKind {
-        switch self {
-        case .control: .control
-        case .gauge: .gauge
-        }
-    }
-
-    var gaugeStyle: DashboardGaugeStyle? {
-        guard case .gauge(let style) = self else { return nil }
-        return style
     }
 }
 
 nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
     case control(
-        style: DashboardControlStyle,
         layout: DashboardCardSize,
         featureVisibility: DashboardCardFeatureVisibility
     )
     case status(layout: DashboardCardSize)
-    case gauge(style: DashboardGaugeStyle, layout: DashboardCardSize)
+    case circularGauge(layout: DashboardCardSize)
+    case segmentedGauge(layout: DashboardCardSize)
+    case barGauge(layout: DashboardCardSize)
     case graph(layout: DashboardCardSize)
     case camera(layout: DashboardCardSize)
     case weather(layout: DashboardCardSize)
@@ -93,7 +69,9 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
         switch self {
         case .control: .control
         case .status: .status
-        case .gauge: .gauge
+        case .circularGauge: .circularGauge
+        case .segmentedGauge: .segmentedGauge
+        case .barGauge: .barGauge
         case .graph: .graph
         case .camera: .camera
         case .weather: .weather
@@ -104,34 +82,29 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
 
     var layout: DashboardCardSize {
         switch self {
-        case .control(_, let layout, _), .media(let layout, _): layout
-        case .status(let layout), .gauge(_, let layout), .graph(let layout), .camera(let layout),
+        case .control(let layout, _), .media(let layout, _): layout
+        case .status(let layout), .circularGauge(let layout), .segmentedGauge(let layout),
+             .barGauge(let layout), .graph(let layout), .camera(let layout),
              .weather(let layout), .action(let layout): layout
-        }
-    }
-
-    var style: DashboardPresentationStyle? {
-        switch self {
-        case .control(let style, _, _): .control(style)
-        case .gauge(let style, _): .gauge(style)
-        default: nil
         }
     }
 
     var featureVisibility: DashboardCardFeatureVisibility {
         switch self {
-        case .control(_, _, let visibility), .media(_, let visibility): visibility
-        case .gauge: .automatic
+        case .control(_, let visibility), .media(_, let visibility): visibility
+        case .circularGauge, .segmentedGauge, .barGauge: .automatic
         default: .hidden
         }
     }
 
     func withLayout(_ layout: DashboardCardSize) -> Self {
         switch self {
-        case .control(let style, _, let visibility):
-            .control(style: style, layout: layout, featureVisibility: visibility)
+        case .control(_, let visibility):
+            .control(layout: layout, featureVisibility: visibility)
         case .status: .status(layout: layout)
-        case .gauge(let style, _): .gauge(style: style, layout: layout)
+        case .circularGauge: .circularGauge(layout: layout)
+        case .segmentedGauge: .segmentedGauge(layout: layout)
+        case .barGauge: .barGauge(layout: layout)
         case .graph: .graph(layout: layout)
         case .camera: .camera(layout: layout)
         case .weather: .weather(layout: layout)
@@ -142,8 +115,8 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
 
     func withFeatureVisibility(_ visibility: DashboardCardFeatureVisibility) -> Self {
         switch self {
-        case .control(let style, let layout, _):
-            .control(style: style, layout: layout, featureVisibility: visibility)
+        case .control(let layout, _):
+            .control(layout: layout, featureVisibility: visibility)
         case .media(let layout, _): .media(layout: layout, featureVisibility: visibility)
         default: self
         }
@@ -159,10 +132,6 @@ nonisolated enum DashboardPresentationConfiguration: Codable, Equatable, Sendabl
         case .chip: .chip
         case .card(let card): card.kind
         }
-    }
-
-    var style: DashboardPresentationStyle? {
-        cardConfiguration?.style
     }
 
     var cardConfiguration: DashboardCardConfiguration? {
@@ -480,7 +449,7 @@ nonisolated enum DashboardSuggestedSetup {
 }
 
 nonisolated struct DashboardConfigurationDocument: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 3
+    static let currentSchemaVersion = 4
 
     var schemaVersion: Int
     var dashboards: [SavedDashboardConfiguration]
@@ -506,12 +475,10 @@ nonisolated enum DashboardReorderGroup: Equatable, Sendable {
 nonisolated struct DashboardPresentationIdentity: Hashable, Sendable {
     let source: DashboardSourceReference
     let kind: DashboardPresentationKind
-    let style: DashboardPresentationStyle?
 
     init(source: DashboardSourceReference, presentation: DashboardPresentationConfiguration) {
         self.source = source
         kind = presentation.kind
-        style = presentation.style
     }
 }
 

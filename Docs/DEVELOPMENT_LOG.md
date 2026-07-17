@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-17
 
+### Atomic Dashboard Gauge Cards
+
+- Replaced the persisted Gauge style hierarchy with distinct Circular Gauge, Segmented Gauge, and Bar Gauge card types, and removed persisted Standard/Slider/Thermostat control styles in favor of capability-derived control rendering.
+- Centralized each gauge's catalog identity, compatibility, default layout, add flow, rendering dispatch, duplicate identity, and zone-editor behavior behind its atomic card kind. Dashboard schema v4 intentionally resets incompatible beta configurations instead of maintaining migration branches.
+- Standardized configuration screens around Entity plus a production-renderer Preview, backed by unmistakably synthetic fixtures until a real entity is selected.
+- Corrected visual semantics: circular and bar gauges now present active progress against a secondary track, while segmented gauges retain the full zone scale and current-position marker.
+
 ### Account-Centered Server Management
 
 - Made Account the canonical server-management entry and removed the duplicate top-level Settings > Servers row.

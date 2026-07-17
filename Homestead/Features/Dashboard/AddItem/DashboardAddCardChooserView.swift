@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct DashboardChooseStyleView: View {
+struct DashboardChooseCardView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
@@ -16,18 +16,18 @@ struct DashboardChooseStyleView: View {
                     .lineLimit(1)
 
                 ForEach(compatibleKinds, id: \.self) { kind in
-                    styleChoice(kind: kind)
+                    cardChoice(kind: kind)
                 }
             }
             .padding(AppSpacing.large)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Choose a Style")
+        .navigationTitle("Choose a Card")
         .navigationBarTitleDisplayMode(.inline)
     }
 
     @ViewBuilder
-    private func styleChoice(kind: DashboardPresentationKind) -> some View {
+    private func cardChoice(kind: DashboardPresentationKind) -> some View {
         if let presentation = source.defaultPresentation(kind: kind, stateStore: stateStore) {
             let descriptor = DashboardPresentationCatalog.descriptor(for: kind)
             let isRecommended = recommendation?.kind == kind
@@ -119,7 +119,7 @@ struct DashboardChooseStyleView: View {
     }
 
     private func customizeHint(descriptor: DashboardPresentationDescriptor) -> String {
-        "Choose a style and layout for \(descriptor.title)"
+        "Configure \(descriptor.title)"
     }
 }
 
@@ -127,7 +127,6 @@ struct DashboardPresentationReviewView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var source: DashboardAddSource?
-    @State private var selectedStyle: DashboardPresentationStyle?
 
     let kind: DashboardPresentationKind
     let add: (DashboardAddSource, DashboardPresentationConfiguration) -> Void
@@ -147,13 +146,7 @@ struct DashboardPresentationReviewView: View {
             VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                 sourceSelector
 
-                if styleDescriptors.count > 1 {
-                    styleSelector
-                }
-
-                if let source, let selectedPresentation {
-                    presentationPreview(source: source, presentation: selectedPresentation)
-                }
+                presentationPreview
             }
             .padding(AppSpacing.large)
         }
@@ -170,32 +163,10 @@ struct DashboardPresentationReviewView: View {
                 .accessibilityLabel(selectedPresentationIsAdded ? "Added" : "Add")
             }
         }
-        .onChange(of: source) { _, _ in
-            guard let selectedStyle,
-                  !styleDescriptors.contains(where: { $0.style == selectedStyle }) else { return }
-            self.selectedStyle = nil
-        }
-    }
-
-    private var styleDescriptors: [DashboardPresentationStyleDescriptor] {
-        source?.styleDescriptors(kind: kind, stateStore: stateStore)
-            ?? DashboardPresentationCatalog.sourceIndependentStyleDescriptors(for: kind)
-    }
-
-    private var resolvedStyle: DashboardPresentationStyle? {
-        if let selectedStyle,
-           styleDescriptors.contains(where: { $0.style == selectedStyle }) {
-            return selectedStyle
-        }
-        return styleDescriptors.first?.style
     }
 
     private var defaultPresentation: DashboardPresentationConfiguration? {
-        source?.defaultPresentation(
-            kind: kind,
-            style: resolvedStyle,
-            stateStore: stateStore
-        )
+        source?.defaultPresentation(kind: kind, stateStore: stateStore)
     }
 
     private var selectedPresentation: DashboardPresentationConfiguration? {
@@ -292,98 +263,20 @@ struct DashboardPresentationReviewView: View {
         }
     }
 
-    private var styleSelector: some View {
+    @ViewBuilder
+    private var presentationPreview: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Text("Style")
+            Text("Preview")
                 .font(.headline)
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 132), spacing: AppSpacing.medium)],
-                spacing: AppSpacing.medium
-            ) {
-                ForEach(styleDescriptors) { descriptor in
-                    styleButton(descriptor)
-                }
+            if let source, let selectedPresentation {
+                DashboardAddPresentationPreview(source: source, presentation: selectedPresentation)
+            } else if let entityID = DashboardPresentationGallerySamples.configurationEntityID(for: kind),
+                      let entityBox = DashboardPresentationGallerySamples.configurationStateStore.entityBox(for: entityID),
+                      let presentation = DashboardPresentationCatalog.defaultPresentation(kind: kind, for: entityBox) {
+                DashboardAddPresentationPreview(source: .entity(entityID), presentation: presentation)
+                    .environment(DashboardPresentationGallerySamples.configurationStateStore)
             }
-        }
-    }
-
-    private func styleButton(_ descriptor: DashboardPresentationStyleDescriptor) -> some View {
-        let isSelected = descriptor.style == resolvedStyle
-
-        return Button {
-            selectedStyle = descriptor.style
-            HapticFeedback.selection()
-        } label: {
-            VStack(spacing: AppSpacing.small) {
-                Text(descriptor.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-
-                stylePreview(for: descriptor)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(AppSpacing.small)
-            .background(
-                isSelected ? Color.accentColor.opacity(0.08) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(
-                        isSelected ? Color.accentColor : Color(.separator).opacity(0.28),
-                        lineWidth: isSelected ? 1.5 : 1
-                    )
-            }
-            .overlay(alignment: .topTrailing) {
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                        .padding(AppSpacing.small)
-                }
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(descriptor.title)
-        .accessibilityValue(isSelected ? "Selected" : "")
-        .accessibilityHint("Selects the \(descriptor.title) style")
-    }
-
-    @ViewBuilder
-    private func stylePreview(for descriptor: DashboardPresentationStyleDescriptor) -> some View {
-        if let source,
-           let presentation = source.defaultPresentation(
-               kind: kind,
-               style: descriptor.style,
-               stateStore: stateStore
-           ) {
-            DashboardAddStylePreview(source: source, presentation: presentation)
-        } else if kind == .gauge,
-                  let sampleEntity = DashboardPresentationGallerySamples.configurationStateStore.entityBox(
-                      for: DashboardPresentationGallerySamples.configurationGaugeEntityID
-                  ),
-                  let presentation = DashboardPresentationCatalog.defaultPresentation(
-                      kind: kind,
-                      style: descriptor.style,
-                      for: sampleEntity
-                  ) {
-            DashboardAddStylePreview(
-                source: .entity(DashboardPresentationGallerySamples.configurationGaugeEntityID),
-                presentation: presentation
-            )
-            .environment(DashboardPresentationGallerySamples.configurationStateStore)
-        }
-    }
-
-    @ViewBuilder
-    private func presentationPreview(
-        source: DashboardAddSource,
-        presentation: DashboardPresentationConfiguration
-    ) -> some View {
-        if styleDescriptors.count <= 1 {
-            DashboardAddPresentationPreview(source: source, presentation: presentation)
         }
     }
 }
@@ -522,44 +415,6 @@ private struct DashboardSourcePickerView: View {
     }
 }
 
-private struct DashboardAddStylePreview: View {
-    static let canvasHeight = DashboardCardSize.square.renderedHeight(
-        rowSpacing: AppSpacing.medium,
-        cardPadding: AppSpacing.medium
-    )
-
-    @Environment(HAStateStore.self) private var stateStore
-    let source: DashboardAddSource
-    let presentation: DashboardPresentationConfiguration
-
-    @ViewBuilder
-    var body: some View {
-        if case .card(let card) = presentation,
-           case .entity(let entityID) = source,
-           stateStore.entityBox(for: entityID) != nil {
-            let renderedHeight = card.layout.renderedHeight(
-                rowSpacing: AppSpacing.medium,
-                cardPadding: AppSpacing.medium
-            )
-            let scale = min(1, Self.canvasHeight / renderedHeight)
-
-            DashboardCardView(
-                entityID: entityID,
-                size: card.layout,
-                presentationKind: card.kind,
-                presentationStyle: card.style,
-                featureVisibility: card.featureVisibility,
-                isPreview: true
-            )
-            .frame(height: renderedHeight)
-            .scaleEffect(scale)
-            .frame(height: Self.canvasHeight)
-            .clipped()
-            .allowsHitTesting(false)
-        }
-    }
-}
-
 private struct DashboardAddPresentationPreview: View {
     @Environment(HAStateStore.self) private var stateStore
     let source: DashboardAddSource
@@ -582,7 +437,6 @@ private struct DashboardAddPresentationPreview: View {
                         entityID: entityID,
                         size: card.layout,
                         presentationKind: card.kind,
-                        presentationStyle: card.style,
                         featureVisibility: card.featureVisibility,
                         isPreview: true
                     )
@@ -606,7 +460,6 @@ extension DashboardAddSource {
 
     func defaultPresentation(
         kind: DashboardPresentationKind,
-        style: DashboardPresentationStyle? = nil,
         stateStore: HAStateStore
     ) -> DashboardPresentationConfiguration? {
         switch self {
@@ -614,20 +467,9 @@ extension DashboardAddSource {
             kind == .chip ? .chip : nil
         case .entity(let entityID):
             stateStore.entityBox(for: entityID).flatMap {
-                DashboardPresentationCatalog.defaultPresentation(kind: kind, style: style, for: $0)
+                DashboardPresentationCatalog.defaultPresentation(kind: kind, for: $0)
             }
         }
-    }
-
-    func styleDescriptors(
-        kind: DashboardPresentationKind,
-        stateStore: HAStateStore
-    ) -> [DashboardPresentationStyleDescriptor] {
-        guard case .entity(let entityID) = self,
-              let entityBox = stateStore.entityBox(for: entityID) else {
-            return []
-        }
-        return DashboardPresentationCatalog.styleDescriptors(for: kind, entityBox: entityBox)
     }
 
     func chipPresentation(stateStore: HAStateStore) -> DashboardChipPresentation? {

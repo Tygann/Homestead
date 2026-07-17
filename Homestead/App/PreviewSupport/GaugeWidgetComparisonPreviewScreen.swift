@@ -64,8 +64,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                     DashboardCardView(
                         entityID: "sensor.front_door_battery",
                         size: .square,
-                        presentationKind: .gauge,
-                        presentationStyle: .gauge(.circular),
+                        presentationKind: .circularGauge,
                         isPreview: true
                     )
                     .frame(width: dashboardWidth)
@@ -96,8 +95,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                     DashboardCardView(
                         entityID: "sensor.front_door_battery",
                         size: .square,
-                        presentationKind: .gauge,
-                        presentationStyle: .gauge(.bar),
+                        presentationKind: .barGauge,
                         isPreview: true
                     )
                     .frame(width: dashboardWidth)
@@ -127,8 +125,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                     DashboardCardView(
                         entityID: "sensor.living_room_humidity",
                         size: .square,
-                        presentationKind: .gauge,
-                        presentationStyle: .gauge(.segmented),
+                        presentationKind: .segmentedGauge,
                         isPreview: true
                     )
                     .frame(width: dashboardWidth)

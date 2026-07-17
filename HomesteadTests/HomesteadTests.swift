@@ -9977,7 +9977,6 @@ struct HomesteadTests {
         let dashboardItemID = try #require(dashboardConfiguration.add(
             source: .entity("light.kitchen"),
             presentation: .card(.control(
-                style: .slider,
                 layout: .square,
                 featureVisibility: .automatic
             ))
