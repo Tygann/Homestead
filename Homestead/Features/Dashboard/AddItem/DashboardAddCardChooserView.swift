@@ -427,7 +427,6 @@ private struct DashboardSourcePickerView: View {
                 }
             }
         }
-        .safeAreaPadding(.bottom, AppSpacing.xLarge)
         .overlay {
             if summaryCandidates.isEmpty && entityBoxes.isEmpty {
                 if normalizedSearch.isEmpty {

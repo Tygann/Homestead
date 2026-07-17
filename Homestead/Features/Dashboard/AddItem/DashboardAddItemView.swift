@@ -119,7 +119,6 @@ struct DashboardAddItemView: View {
                 ContentUnavailableView.search(text: searchText)
             }
         }
-        .safeAreaPadding(.bottom, AppSpacing.xLarge)
     }
 
     private var cardsContent: some View {
@@ -145,7 +144,6 @@ struct DashboardAddItemView: View {
                 }
                 .padding(AppSpacing.large)
             }
-            .safeAreaPadding(.bottom, AppSpacing.xLarge)
             .background(Color(.systemGroupedBackground))
             .overlay {
                 if filteredGallerySections.isEmpty {
