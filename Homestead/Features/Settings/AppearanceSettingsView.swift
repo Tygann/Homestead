@@ -73,6 +73,10 @@ struct AppearanceSettingsView: View {
         @Bindable var appearanceSettings = appearanceSettings
 
         return Section {
+            Toggle("Wallpaper", isOn: $appearanceSettings.isWallpaperEnabled)
+                .disabled(!appearanceSettings.hasWallpaper)
+                .accessibilityLabel("Use Wallpaper")
+
             VStack(spacing: AppSpacing.medium) {
                 SettingsDashboardPhonePreview(
                     items: dashboardConfiguration.selectedDashboard.items,
@@ -84,23 +88,19 @@ struct AppearanceSettingsView: View {
                 .frame(width: 162)
 
                 wallpaperPicker
+
+                if appearanceSettings.hasWallpaper {
+                    Button(role: .destructive) {
+                        appearanceSettings.removeWallpaper()
+                    } label: {
+                        Text("Remove Wallpaper")
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppSpacing.small)
-            .listRowSeparator(.hidden)
-
-            Toggle("Use Wallpaper", isOn: $appearanceSettings.isWallpaperEnabled)
-                .disabled(!appearanceSettings.hasWallpaper)
-
-            if appearanceSettings.hasWallpaper {
-                Button(role: .destructive) {
-                    appearanceSettings.removeWallpaper()
-                } label: {
-                    Label("Remove Wallpaper", systemImage: "trash")
-                }
-            }
-        } header: {
-            Text("Wallpaper")
         } footer: {
             Text("Wallpaper appears behind Home and Areas.")
         }
