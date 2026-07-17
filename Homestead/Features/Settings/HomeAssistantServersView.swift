@@ -34,6 +34,7 @@ struct HomeAssistantServersView: View {
                         )
                     }
                     .contentShape(Rectangle())
+                    .buttonStyle(.plain)
                     .disabled(isOperationInProgress)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         if !isOperationInProgress {
