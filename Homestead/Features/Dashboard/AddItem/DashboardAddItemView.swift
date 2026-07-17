@@ -28,8 +28,7 @@ struct DashboardAddItemView: View {
             .navigationTitle("Add to Dashboard")
             .toolbarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .top, spacing: 0) { modePicker }
-//            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
-            .searchable(text: $searchText)
+            .searchable(text: $searchText, prompt: searchPrompt)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", role: .confirm) { dismiss() }
@@ -62,6 +61,15 @@ struct DashboardAddItemView: View {
         .padding(.horizontal, AppSpacing.large)
         .padding(.vertical, AppSpacing.small)
         .background(Color(.systemGroupedBackground))
+    }
+
+    private var searchPrompt: String {
+        switch mode {
+        case .items:
+            "Search items"
+        case .cards:
+            "Search cards"
+        }
     }
 
     private var itemsContent: some View {
@@ -111,6 +119,7 @@ struct DashboardAddItemView: View {
                 ContentUnavailableView.search(text: searchText)
             }
         }
+        .safeAreaPadding(.bottom, AppSpacing.xLarge)
     }
 
     private var cardsContent: some View {
@@ -118,29 +127,30 @@ struct DashboardAddItemView: View {
             galleryFilters
 
             ScrollView {
-            LazyVStack(alignment: .leading, spacing: AppSpacing.xxLarge) {
-                ForEach(filteredGallerySections) { section in
-                    VStack(alignment: .leading, spacing: AppSpacing.large) {
-                        Text(section.title)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, AppSpacing.xSmall)
+                LazyVStack(alignment: .leading, spacing: AppSpacing.xxLarge) {
+                    ForEach(filteredGallerySections) { section in
+                        VStack(alignment: .leading, spacing: AppSpacing.large) {
+                            Text(section.title)
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, AppSpacing.xSmall)
 
-                        LazyVGrid(columns: galleryColumns, spacing: AppSpacing.xLarge) {
-                            ForEach(section.items) { item in
-                                galleryItem(item)
+                            LazyVGrid(columns: galleryColumns, spacing: AppSpacing.xLarge) {
+                                ForEach(section.items) { item in
+                                    galleryItem(item)
+                                }
                             }
                         }
                     }
                 }
+                .padding(AppSpacing.large)
             }
-            .padding(AppSpacing.large)
-        }
-        .background(Color(.systemGroupedBackground))
-        .overlay {
-            if filteredGallerySections.isEmpty {
-                ContentUnavailableView.search(text: searchText)
-            }
+            .safeAreaPadding(.bottom, AppSpacing.xLarge)
+            .background(Color(.systemGroupedBackground))
+            .overlay {
+                if filteredGallerySections.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
+                }
             }
         }
         .alert("Not Available Yet", isPresented: plannedNoticeIsPresented) {
@@ -485,6 +495,25 @@ enum DashboardPresentationGallerySamples {
         isActive: true,
         isAvailable: true
     )
+
+    static let configurationGaugeEntityID = "sensor.configuration_example"
+
+    // Keep pre-selection previews synthetic so they can't be mistaken for entities in the user's home.
+    static let configurationStateStore: HAStateStore = {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: configurationGaugeEntityID,
+                state: "74",
+                attributes: [
+                    "friendly_name": .string("Example Sensor"),
+                    "device_class": .string("battery"),
+                    "unit_of_measurement": .string("%")
+                ]
+            )
+        ])
+        return store
+    }()
 
     static func entityID(for kind: DashboardPresentationKind) -> String? {
         switch kind {

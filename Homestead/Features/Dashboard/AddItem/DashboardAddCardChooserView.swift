@@ -159,7 +159,6 @@ struct DashboardPresentationReviewView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Add \(DashboardPresentationCatalog.descriptor(for: kind).title) Card")
-        .navigationSubtitle(source?.contextTitle(stateStore: stateStore) ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -361,18 +360,20 @@ struct DashboardPresentationReviewView: View {
                stateStore: stateStore
            ) {
             DashboardAddStylePreview(source: source, presentation: presentation)
-        } else if let sampleEntityID = DashboardPresentationGallerySamples.entityID(for: kind),
-                  let sampleEntity = DashboardPresentationGallerySamples.stateStore.entityBox(for: sampleEntityID),
+        } else if kind == .gauge,
+                  let sampleEntity = DashboardPresentationGallerySamples.configurationStateStore.entityBox(
+                      for: DashboardPresentationGallerySamples.configurationGaugeEntityID
+                  ),
                   let presentation = DashboardPresentationCatalog.defaultPresentation(
                       kind: kind,
                       style: descriptor.style,
                       for: sampleEntity
                   ) {
             DashboardAddStylePreview(
-                source: .entity(sampleEntityID),
+                source: .entity(DashboardPresentationGallerySamples.configurationGaugeEntityID),
                 presentation: presentation
             )
-            .environment(DashboardPresentationGallerySamples.stateStore)
+            .environment(DashboardPresentationGallerySamples.configurationStateStore)
         }
     }
 
@@ -426,6 +427,7 @@ private struct DashboardSourcePickerView: View {
                 }
             }
         }
+        .safeAreaPadding(.bottom, AppSpacing.xLarge)
         .overlay {
             if summaryCandidates.isEmpty && entityBoxes.isEmpty {
                 if normalizedSearch.isEmpty {
@@ -435,7 +437,7 @@ private struct DashboardSourcePickerView: View {
                 }
             }
         }
-        .searchable(text: $searchText)
+        .searchable(text: $searchText, prompt: kind == .chip ? "Search items" : "Search entities")
         .navigationTitle(kind == .chip ? "Select Item" : "Select Entity")
         .navigationBarTitleDisplayMode(.inline)
     }
