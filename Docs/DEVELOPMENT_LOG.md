@@ -214,9 +214,10 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added fan percentage sliders as reusable dashboard card level features backed by Home Assistant `fan.set_percentage`, including off-as-0% presentation and percentage-step support.
 - Kept raw connection failure details out of the Account profile header; detailed errors remain available in server/diagnostic surfaces.
 
-### Global Wallpaper
+### Wallpaper
 
 - Added a local-only Homestead appearance setting for one optimized wallpaper image stored in Application Support, with no Home Assistant upload, API surface, or wallpaper image-file sync.
+- Scoped wallpaper images, enabled state, and revision metadata to Home Assistant server profiles so each server can have an independent wallpaper; switching or removing a server now activates or cleans up the matching wallpaper data while global appearance choices remain shared.
 - Added Settings > Appearance with photo picking, preview, enable/disable, and removal controls.
 - Applied the shared wallpaper background only behind Home, Areas, and area detail scroll surfaces, preserving opaque dashboard cards and avoiding material/blur effects in live scrolling grids.
 - Extended wallpaper support to dashboard summary views and replaced the flat settings preview with a phone-shaped preview using the same wallpaper crop/overlay behavior as daily-use surfaces.

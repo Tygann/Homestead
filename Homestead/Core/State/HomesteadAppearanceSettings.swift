@@ -110,12 +110,9 @@ final class HomesteadAppearanceSettings {
         didSet { defaults.set(appColor.rawValue, forKey: Keys.appColor) }
     }
 
-    var isWallpaperEnabled: Bool {
-        didSet { defaults.set(isWallpaperEnabled, forKey: Keys.isWallpaperEnabled) }
-    }
-
-    private(set) var wallpaperRevision: Int {
-        didSet { defaults.set(wallpaperRevision, forKey: Keys.wallpaperRevision) }
+    private(set) var activeProfileID: UUID
+    private var wallpaperProfiles: [UUID: WallpaperProfileState] {
+        didSet { saveWallpaperProfiles() }
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -125,6 +122,7 @@ final class HomesteadAppearanceSettings {
     @ObservationIgnored private let maximumWallpaperDimension: CGFloat = 2400
 
     init(
+        profileID: UUID,
         defaults: UserDefaults = .standard,
         fileManager: FileManager = .default,
         storageDirectory: URL? = nil
@@ -132,12 +130,25 @@ final class HomesteadAppearanceSettings {
         self.defaults = defaults
         self.fileManager = fileManager
         self.storageDirectory = storageDirectory ?? Self.defaultStorageDirectory(fileManager: fileManager)
+        activeProfileID = profileID
+        wallpaperProfiles = defaults.data(forKey: Keys.wallpaperProfiles).flatMap {
+            try? JSONDecoder().decode([UUID: WallpaperProfileState].self, from: $0)
+        } ?? [:]
         appearanceMode = defaults.string(forKey: Keys.appearanceMode).flatMap(HomesteadAppearanceMode.init(rawValue:)) ?? .system
         appColor = defaults.string(forKey: Keys.appColor).flatMap(HomesteadAppColor.init(rawValue:)) ?? .blue
-        isWallpaperEnabled = defaults.object(forKey: Keys.isWallpaperEnabled) == nil
-            ? false
-            : defaults.bool(forKey: Keys.isWallpaperEnabled)
-        wallpaperRevision = defaults.integer(forKey: Keys.wallpaperRevision)
+    }
+
+    var isWallpaperEnabled: Bool {
+        get { wallpaperProfiles[activeProfileID]?.isEnabled ?? false }
+        set {
+            updateActiveWallpaperState { state in
+                state.isEnabled = newValue
+            }
+        }
+    }
+
+    var wallpaperRevision: Int {
+        wallpaperProfiles[activeProfileID]?.revision ?? 0
     }
 
     var hasWallpaper: Bool {
@@ -160,8 +171,17 @@ final class HomesteadAppearanceSettings {
         HomesteadAppearanceSettingsSyncSnapshot(
             appearanceMode: appearanceMode,
             appColor: appColor,
-            isWallpaperEnabled: isWallpaperEnabled
+            wallpaperEnabledProfileIDs: Set(
+                wallpaperProfiles.compactMap { profileID, state in
+                    state.isEnabled ? profileID : nil
+                }
+            )
         )
+    }
+
+    func activateProfile(_ profileID: UUID) {
+        guard activeProfileID != profileID else { return }
+        activeProfileID = profileID
     }
 
     func importWallpaper(from imageData: Data) async throws {
@@ -178,7 +198,7 @@ final class HomesteadAppearanceSettings {
 
         do {
             try fileManager.createDirectory(
-                at: storageDirectory,
+                at: profileStorageDirectory(for: activeProfileID),
                 withIntermediateDirectories: true
             )
         } catch {
@@ -186,8 +206,10 @@ final class HomesteadAppearanceSettings {
         }
 
         try optimizedData.write(to: wallpaperURL, options: [.atomic])
-        isWallpaperEnabled = true
-        wallpaperRevision += 1
+        updateActiveWallpaperState { state in
+            state.isEnabled = true
+            state.revision += 1
+        }
     }
 
     func removeWallpaper() {
@@ -195,18 +217,57 @@ final class HomesteadAppearanceSettings {
             try? fileManager.removeItem(at: wallpaperURL)
         }
 
-        isWallpaperEnabled = false
-        wallpaperRevision += 1
+        updateActiveWallpaperState { state in
+            state.isEnabled = false
+            state.revision += 1
+        }
+    }
+
+    func removeProfileData(_ profileID: UUID) {
+        try? fileManager.removeItem(at: profileStorageDirectory(for: profileID))
+        wallpaperProfiles.removeValue(forKey: profileID)
     }
 
     func applySyncSnapshot(_ snapshot: HomesteadAppearanceSettingsSyncSnapshot) {
         appearanceMode = snapshot.appearanceMode
         appColor = snapshot.appColor
-        isWallpaperEnabled = snapshot.isWallpaperEnabled && hasWallpaper
+
+        let profileIDs = Set(wallpaperProfiles.keys).union(snapshot.wallpaperEnabledProfileIDs)
+        for profileID in profileIDs {
+            var state = wallpaperProfiles[profileID] ?? WallpaperProfileState()
+            state.isEnabled = snapshot.wallpaperEnabledProfileIDs.contains(profileID) && hasWallpaper(for: profileID)
+            wallpaperProfiles[profileID] = state
+        }
     }
 
     private var wallpaperURL: URL {
-        storageDirectory.appendingPathComponent(wallpaperFileName, isDirectory: false)
+        wallpaperURL(for: activeProfileID)
+    }
+
+    private func hasWallpaper(for profileID: UUID) -> Bool {
+        fileManager.fileExists(atPath: wallpaperURL(for: profileID).path)
+    }
+
+    private func wallpaperURL(for profileID: UUID) -> URL {
+        profileStorageDirectory(for: profileID)
+            .appendingPathComponent(wallpaperFileName, isDirectory: false)
+    }
+
+    private func profileStorageDirectory(for profileID: UUID) -> URL {
+        storageDirectory
+            .appendingPathComponent("Profiles", isDirectory: true)
+            .appendingPathComponent(profileID.uuidString.lowercased(), isDirectory: true)
+    }
+
+    private func updateActiveWallpaperState(_ update: (inout WallpaperProfileState) -> Void) {
+        var state = wallpaperProfiles[activeProfileID] ?? WallpaperProfileState()
+        update(&state)
+        wallpaperProfiles[activeProfileID] = state
+    }
+
+    private func saveWallpaperProfiles() {
+        guard let data = try? JSONEncoder().encode(wallpaperProfiles) else { return }
+        defaults.set(data, forKey: Keys.wallpaperProfiles)
     }
 
     private static func defaultStorageDirectory(fileManager: FileManager) -> URL {
@@ -243,30 +304,27 @@ final class HomesteadAppearanceSettings {
     private enum Keys {
         static let appearanceMode = "homestead.appearance.mode"
         static let appColor = "homestead.appearance.appColor"
-        static let isWallpaperEnabled = "homestead.appearance.isWallpaperEnabled"
-        static let wallpaperRevision = "homestead.appearance.wallpaperRevision"
+        static let wallpaperProfiles = "homestead.appearance.wallpaperProfiles.v1"
     }
 }
 
 nonisolated struct HomesteadAppearanceSettingsSyncSnapshot: Codable, Equatable, Sendable {
     var appearanceMode: HomesteadAppearanceMode
     var appColor: HomesteadAppColor
-    var isWallpaperEnabled: Bool
+    var wallpaperEnabledProfileIDs: Set<UUID>
 
     init(
         appearanceMode: HomesteadAppearanceMode = .system,
         appColor: HomesteadAppColor = .blue,
-        isWallpaperEnabled: Bool
+        wallpaperEnabledProfileIDs: Set<UUID> = []
     ) {
         self.appearanceMode = appearanceMode
         self.appColor = appColor
-        self.isWallpaperEnabled = isWallpaperEnabled
+        self.wallpaperEnabledProfileIDs = wallpaperEnabledProfileIDs
     }
+}
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        appearanceMode = try container.decodeIfPresent(HomesteadAppearanceMode.self, forKey: .appearanceMode) ?? .system
-        appColor = try container.decodeIfPresent(HomesteadAppColor.self, forKey: .appColor) ?? .blue
-        isWallpaperEnabled = try container.decode(Bool.self, forKey: .isWallpaperEnabled)
-    }
+private struct WallpaperProfileState: Codable, Equatable {
+    var isEnabled = false
+    var revision = 0
 }

@@ -21,7 +21,6 @@ struct PreviewDependencies {
         stateStore.applyInitialStates(PreviewData.entities)
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         let actionConfirmationSettings = ActionConfirmationSettings(defaults: previewDefaults)
-        let appearanceSettings = HomesteadAppearanceSettings(defaults: previewDefaults)
         let tabSettings = HomesteadTabSettings(defaults: previewDefaults)
         let iCloudSyncService = HomesteadICloudSyncService(defaults: previewDefaults)
         _ = dashboardConfiguration.applySuggestedSetup(using: stateStore.dashboardSuggestionCandidates())
@@ -35,6 +34,10 @@ struct PreviewDependencies {
             baseURL: "http://homeassistant.local:8123",
             defaults: previewDefaults,
             tokenStore: tokenStore
+        )
+        let appearanceSettings = HomesteadAppearanceSettings(
+            profileID: settings.activeProfileID,
+            defaults: previewDefaults
         )
 
         let nativeNotificationService = NativeNotificationService(
@@ -71,7 +74,6 @@ struct PreviewDependencies {
         let previewDefaults = UserDefaults.livePreview
         let stateStore = HAStateStore()
         let actionConfirmationSettings = ActionConfirmationSettings(defaults: previewDefaults)
-        let appearanceSettings = HomesteadAppearanceSettings(defaults: previewDefaults)
         let tabSettings = HomesteadTabSettings(defaults: previewDefaults)
         let iCloudSyncService = HomesteadICloudSyncService(defaults: previewDefaults)
 
@@ -94,6 +96,10 @@ struct PreviewDependencies {
             let dashboardConfiguration = DashboardConfiguration(
                 defaults: previewDefaults,
                 profileID: profileStore.activeProfileID
+            )
+            let appearanceSettings = HomesteadAppearanceSettings(
+                profileID: profileStore.activeProfileID,
+                defaults: previewDefaults
             )
             let activeCredential = previewCredentials.first {
                 $0.profile.id == profileStore.activeProfileID
@@ -137,6 +143,10 @@ struct PreviewDependencies {
 
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         let settings = HAConnectionSettings(defaults: previewDefaults)
+        let appearanceSettings = HomesteadAppearanceSettings(
+            profileID: settings.activeProfileID,
+            defaults: previewDefaults
+        )
 
         guard settings.hasServerURL else {
             return nil
@@ -175,7 +185,10 @@ struct PreviewDependencies {
 extension View {
     @MainActor
     func withPreviewAccentColor() -> some View {
-        withPreviewAccentColor(HomesteadAppearanceSettings(defaults: .samplePreview))
+        withPreviewAccentColor(HomesteadAppearanceSettings(
+            profileID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            defaults: .samplePreview
+        ))
     }
 
     @MainActor

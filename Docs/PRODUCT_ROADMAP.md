@@ -23,7 +23,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Multiple saved Home Assistant servers with one active foreground WebSocket, profile-scoped OAuth/mobile-app credentials, cached state, dashboards, routes, and server management. The avatar opens Settings directly; Settings > Servers supports switching, adding, renaming, reauthentication, inspection, and removal with refresh-token revocation.
 - WebSocket-first state sync, registry loading, service discovery, service calls, reconnect handling, automatic internal/external URL route selection with optional saved Wi-Fi names for local routing, and cached startup state.
 - Home dashboard with configurable saved dashboards, per-device current dashboard selection, an explicit opt-in starter setup, deterministic high-value suggested controls, direct empty-state and toolbar add actions, a source/presentation/layout configuration model, Items-first and Cards-first add flows, catalog-driven quick-add recommendations, entity cards, Apple Home-inspired mini accessory tiles, Home Assistant frontend-aligned summary chips/views with floor grouping and area navigation, an adaptive Security activity log including person presence changes, section headers, card layouts, card feature visibility, display names, searchable SF Symbols icon overrides with entity-aware recommendations, direct card/header drag editing, chip reordering, and edit mode.
-- Local-only Homestead appearance personalization with System/Light/Dark mode selection, Start Page selection for Home/Areas, and one optimized wallpaper image behind Home and Areas.
+- Local-only Homestead appearance personalization with System/Light/Dark mode selection, Start Page selection for Home/Areas, and one optimized wallpaper per configured Home Assistant server behind Home and Areas.
 - Native dashboard and area detail flows for common domains, including lights, switches, fans, locks, covers, climate, media players, cameras, vacuums, alarm panels, buttons, selects, numbers, sensors, scenes, scripts, and automations.
 - Areas browsing backed by Home Assistant area and floor registries, with area summaries and domain-grouped area detail pages.
 - Browse tab for searchable entity discovery and daily entity control, with dashboard membership editing.
@@ -56,7 +56,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Later Candidates
 
-- Per-dashboard or per-area wallpaper choices if the single global wallpaper proves too limiting.
+- Per-dashboard or per-area wallpaper choices if one wallpaper per server proves too limiting.
 - Control Center controls and App Intents for common Home Assistant actions.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.
 - True Home Assistant users/admin views if an official supported API path is confirmed for the signed-in user's permissions.

@@ -6,6 +6,7 @@ struct AppearanceSettingsView: View {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(HomesteadTabSettings.self) private var tabSettings
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(HAConnectionSettings.self) private var connectionSettings
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isImportingWallpaper = false
     @State private var importErrorMessage: String?
@@ -103,7 +104,7 @@ struct AppearanceSettingsView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppSpacing.small)
         } footer: {
-            Text("Wallpaper appears behind Home and Areas.")
+            Text("Wallpaper appears behind Home and Areas for \(connectionSettings.activeProfile.resolvedDisplayName).")
         }
     }
 

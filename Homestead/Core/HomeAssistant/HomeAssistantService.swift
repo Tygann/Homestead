@@ -583,7 +583,8 @@ final class HomeAssistantService {
         profileID: UUID,
         removeFromDeviceAnyway: Bool = false,
         settings: HAConnectionSettings,
-        dashboardConfiguration: DashboardConfiguration? = nil
+        dashboardConfiguration: DashboardConfiguration? = nil,
+        appearanceSettings: HomesteadAppearanceSettings? = nil
     ) async -> Bool {
         guard settings.profileStore.profile(id: profileID) != nil else { return true }
         serverOperationErrorMessage = nil
@@ -609,6 +610,7 @@ final class HomeAssistantService {
             await stateCache.remove(for: cacheConfiguration)
         }
         dashboardConfiguration?.removeProfileData(profileID)
+        appearanceSettings?.removeProfileData(profileID)
 
         let wasActive = settings.activeProfileID == profileID
         if wasActive { await disconnect() }

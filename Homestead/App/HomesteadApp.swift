@@ -77,7 +77,7 @@ struct HomesteadApp: App {
         HomesteadAppDelegate.nativeNotificationService = nativeNotificationService
         let nativePermissionService = NativePermissionService()
         let actionConfirmationSettings = ActionConfirmationSettings()
-        let appearanceSettings = HomesteadAppearanceSettings()
+        let appearanceSettings = HomesteadAppearanceSettings(profileID: connectionProfileStore.activeProfileID)
         let tabSettings = HomesteadTabSettings()
         let dashboardConfiguration = DashboardConfiguration(profileID: connectionProfileStore.activeProfileID)
         let iCloudSyncService = HomesteadICloudSyncService()
@@ -171,6 +171,9 @@ struct HomesteadApp: App {
                 }
                 .onChange(of: connectionSettings.syncSnapshot) { _, _ in
                     syncPreferencesToICloud(.connection)
+                }
+                .onChange(of: connectionProfileStore.activeProfileID) { _, profileID in
+                    appearanceSettings.activateProfile(profileID)
                 }
                 .onChange(of: dashboardConfiguration.syncSnapshot) { _, _ in
                     syncPreferencesToICloud(.dashboard)

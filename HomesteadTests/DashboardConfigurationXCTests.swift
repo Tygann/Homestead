@@ -323,7 +323,9 @@ final class DashboardConfigurationXCTests: XCTestCase {
             ),
             appearance: HomesteadSyncRecord(
                 updatedAt: updatedAt,
-                value: HomesteadAppearanceSettingsSyncSnapshot(isWallpaperEnabled: true)
+                value: HomesteadAppearanceSettingsSyncSnapshot(
+                    wallpaperEnabledProfileIDs: [UUID(uuidString: "11111111-1111-1111-1111-111111111111")!]
+                )
             )
         )
         let encoded = try JSONEncoder().encode(payload)
@@ -337,7 +339,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertEqual(decoded.connection.value.baseURL, "https://home.example")
         XCTAssertEqual(decoded.actionConfirmations.value.mode, .all)
-        XCTAssertTrue(decoded.appearance.value.isWallpaperEnabled)
+        XCTAssertEqual(decoded.appearance.value.wallpaperEnabledProfileIDs.count, 1)
         XCTAssertTrue(decoded.dashboard.value.dashboards.isEmpty)
     }
 

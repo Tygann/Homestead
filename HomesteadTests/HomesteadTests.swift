@@ -9841,7 +9841,11 @@ struct HomesteadTests {
         dashboardConfiguration.renameDisplayItem(id: dashboardItemID, displayNameOverride: "Kitchen")
         let actionSettings = ActionConfirmationSettings(defaults: defaults)
         actionSettings.mode = .all
-        let appearanceSettings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: try temporaryTestDirectory())
+        let appearanceSettings = HomesteadAppearanceSettings(
+            profileID: connectionSettings.activeProfileID,
+            defaults: defaults,
+            storageDirectory: try temporaryTestDirectory()
+        )
         let syncService = HomesteadICloudSyncService(defaults: defaults, store: FakeICloudKeyValueStore())
 
         let payload = syncService.makePayload(
@@ -9872,7 +9876,11 @@ struct HomesteadTests {
         let connectionSettings = HAConnectionSettings(baseURL: "", defaults: defaults, tokenStore: InMemoryHAOAuthTokenStore())
         let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
         let actionSettings = ActionConfirmationSettings(defaults: defaults)
-        let appearanceSettings = HomesteadAppearanceSettings(defaults: defaults, storageDirectory: try temporaryTestDirectory())
+        let appearanceSettings = HomesteadAppearanceSettings(
+            profileID: connectionSettings.activeProfileID,
+            defaults: defaults,
+            storageDirectory: try temporaryTestDirectory()
+        )
         let updatedAt = try testDate("2026-06-14T12:00:00Z")
         let payload = HomesteadICloudSyncPayload(
             version: HomesteadICloudSyncPayload.currentVersion,
@@ -9895,7 +9903,12 @@ struct HomesteadTests {
                 confirmsScripts: false,
                 confirmsOtherImpactfulActions: false
             )),
-            appearance: HomesteadSyncRecord(updatedAt: updatedAt, value: HomesteadAppearanceSettingsSyncSnapshot(isWallpaperEnabled: true))
+            appearance: HomesteadSyncRecord(
+                updatedAt: updatedAt,
+                value: HomesteadAppearanceSettingsSyncSnapshot(
+                    wallpaperEnabledProfileIDs: [connectionSettings.activeProfileID]
+                )
+            )
         )
         let originalData = try JSONEncoder().encode(payload)
         store.set(originalData, forKey: "homestead.preferences.v2")

@@ -6,6 +6,7 @@ struct HomeAssistantServersView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(\.colorScheme) private var colorScheme
     @State private var switchingProfileID: UUID?
     @State private var switchErrorMessage: String?
@@ -256,7 +257,8 @@ struct HomeAssistantServersView: View {
                 profileID: profileID,
                 removeFromDeviceAnyway: forceLocal,
                 settings: connectionSettings,
-                dashboardConfiguration: dashboardConfiguration
+                dashboardConfiguration: dashboardConfiguration,
+                appearanceSettings: appearanceSettings
             )
             removingProfileID = nil
             if !removed {
@@ -357,6 +359,7 @@ private struct HomeAssistantServerDetailView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(\.dismiss) private var dismiss
 
     let profileID: UUID
@@ -585,7 +588,8 @@ private struct HomeAssistantServerDetailView: View {
                 profileID: profileID,
                 removeFromDeviceAnyway: forceLocal,
                 settings: connectionSettings,
-                dashboardConfiguration: dashboardConfiguration
+                dashboardConfiguration: dashboardConfiguration,
+                appearanceSettings: appearanceSettings
             )
             isRemoving = false
             if removed {
