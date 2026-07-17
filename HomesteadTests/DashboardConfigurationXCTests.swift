@@ -560,7 +560,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
                 kind: .barGauge,
                 for: temperature
             ),
-            .card(.barGauge(layout: .wide))
+            .card(.barGauge(layout: .square))
         )
         XCTAssertEqual(
             DashboardPresentationCatalog.defaultPresentation(kind: .status, for: temperature),

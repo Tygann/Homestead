@@ -24,7 +24,7 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
-- Replaced the generic Gauge plus sub-style model with separate Circular Gauge, Segmented Gauge, and Bar Gauge card configurations. Removed persisted gauge/control styles, made duplicate identity source plus atomic card kind, gave Bar Gauge a wide default, and advanced dashboard persistence to schema v4 for an intentional beta reset.
+- Replaced the generic Gauge plus sub-style model with separate Circular Gauge, Segmented Gauge, and Bar Gauge card configurations. Removed persisted gauge/control styles, made duplicate identity source plus atomic card kind, gave every gauge a square default, and advanced dashboard persistence to schema v4 for an intentional beta reset.
 - Simplified card configuration to Entity plus Preview, using production renderers with synthetic entities before selection and live entity data afterward. Circular and bar gauges now use active progress over a secondary remainder; segmented gauges retain zone colors and the current-value marker.
 - Verified the atomic-card change with a generic simulator build and all 26 `DashboardConfigurationXCTests`; Xcode storage hygiene reported `XCTestDevices` below its cleanup threshold.
 - Reordered the Cards-first Add to Dashboard flow around one card configuration screen: choosing a card now reveals its Entity/Item selector and preview immediately, compatible source selection returns to that same screen, previews switch from synthetic samples to live selected-source data, and the final confirmation remains disabled until the configuration is valid. Items-first recommendations and quick-add behavior remain intact.

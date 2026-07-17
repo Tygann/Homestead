@@ -42,10 +42,8 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
             nil
         case .control, .status, .media, .action:
             .compact
-        case .circularGauge, .segmentedGauge, .graph, .camera, .weather:
+        case .circularGauge, .segmentedGauge, .barGauge, .graph, .camera, .weather:
             .square
-        case .barGauge:
-            .wide
         }
     }
 }
