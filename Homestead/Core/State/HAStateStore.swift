@@ -387,6 +387,18 @@ final class HAStateStore {
         })
     }
 
+    private func preferredClimateReadingEntityIDByAreaID() -> [String: String] {
+        Dictionary(uniqueKeysWithValues: areaRegistryByID.values.compactMap { area in
+            area.temperatureEntityID?.nonEmptyValue.map { (area.id, $0) }
+        })
+    }
+
+    private func areaIDByEntityID() -> [String: String] {
+        Dictionary(uniqueKeysWithValues: rawEntitiesByID.keys.compactMap { entityID in
+            areaID(for: entityID).map { (entityID, $0) }
+        })
+    }
+
     func dashboardSummaryMembershipContext() -> DashboardSummaryMembershipContext {
         if let cachedDashboardSummaryMembershipContext {
             return cachedDashboardSummaryMembershipContext
@@ -415,6 +427,8 @@ final class HAStateStore {
         let context = DashboardSummaryMembershipContext(
             entityMetadataByID: metadataByID,
             preferredClimateReadingEntityIDs: preferredClimateReadingEntityIDs(),
+            preferredClimateReadingEntityIDByAreaID: preferredClimateReadingEntityIDByAreaID(),
+            areaIDByEntityID: areaIDByEntityID(),
             chargingDeviceIDs: chargingDeviceIDs
         )
         cachedDashboardSummaryMembershipContext = context

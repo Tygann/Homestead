@@ -10,7 +10,23 @@ nonisolated struct DashboardSummaryEntityMetadata: Equatable, Sendable {
 nonisolated struct DashboardSummaryMembershipContext: Equatable, Sendable {
     let entityMetadataByID: [String: DashboardSummaryEntityMetadata]
     let preferredClimateReadingEntityIDs: Set<String>
+    let preferredClimateReadingEntityIDByAreaID: [String: String]
+    let areaIDByEntityID: [String: String]
     let chargingDeviceIDs: Set<String>
+
+    init(
+        entityMetadataByID: [String: DashboardSummaryEntityMetadata],
+        preferredClimateReadingEntityIDs: Set<String>,
+        preferredClimateReadingEntityIDByAreaID: [String: String] = [:],
+        areaIDByEntityID: [String: String] = [:],
+        chargingDeviceIDs: Set<String>
+    ) {
+        self.entityMetadataByID = entityMetadataByID
+        self.preferredClimateReadingEntityIDs = preferredClimateReadingEntityIDs
+        self.preferredClimateReadingEntityIDByAreaID = preferredClimateReadingEntityIDByAreaID
+        self.areaIDByEntityID = areaIDByEntityID
+        self.chargingDeviceIDs = chargingDeviceIDs
+    }
 
     static let empty = DashboardSummaryMembershipContext(
         entityMetadataByID: [:],

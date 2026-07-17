@@ -312,7 +312,7 @@ enum DashboardSummaryProvider {
                 title: title,
                 value: climateTemperatureRangeText(
                     from: climateItems,
-                    preferredEntityIDs: workspace.membershipContext.preferredClimateReadingEntityIDs
+                    membershipContext: workspace.membershipContext
                 ),
                 systemImage: defaultSystemImage,
                 isActive: activeCount > 0,
@@ -879,26 +879,76 @@ enum DashboardSummaryProvider {
 
     private static func climateTemperatureRangeText(
         from entityBoxes: [HAEntityState],
-        preferredEntityIDs: Set<String>
+        membershipContext: DashboardSummaryMembershipContext
     ) -> String {
-        let values = entityBoxes.compactMap { entityBox -> Double? in
-            guard preferredEntityIDs.contains(entityBox.entityID),
-                  entityBox.sensorEntity?.deviceClass == "temperature" else {
-                return nil
+        let boxesByEntityID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
+        var representativeValueByAreaID: [String: Double] = [:]
+
+        for (areaID, entityID) in membershipContext.preferredClimateReadingEntityIDByAreaID {
+            guard let entityBox = boxesByEntityID[entityID],
+                  entityBox.homeEntity.isAvailable,
+                  entityBox.sensorEntity?.deviceClass == "temperature",
+                  let value = entityBox.sensorEntity?.numericValue else {
+                continue
             }
-            return entityBox.sensorEntity?.numericValue
+            representativeValueByAreaID[areaID] = value
         }
+
+        // Preserve preferred readings supplied by callers that do not have Area registry metadata.
+        let mappedPreferredEntityIDs = Set(membershipContext.preferredClimateReadingEntityIDByAreaID.values)
+        for entityID in membershipContext.preferredClimateReadingEntityIDs.subtracting(mappedPreferredEntityIDs) {
+            guard let entityBox = boxesByEntityID[entityID],
+                  entityBox.homeEntity.isAvailable,
+                  entityBox.sensorEntity?.deviceClass == "temperature",
+                  let value = entityBox.sensorEntity?.numericValue else {
+                continue
+            }
+            representativeValueByAreaID["preferred:\(entityID)"] = value
+        }
+
+        var fallbackValuesByAreaID: [String: [Double]] = [:]
+        for entityBox in entityBoxes {
+            guard entityBox.homeEntity.isAvailable,
+                  let currentTemperature = entityBox.climateEntity?.currentTemperature else {
+                continue
+            }
+
+            let areaID = membershipContext.areaIDByEntityID[entityBox.entityID] ?? "entity:\(entityBox.entityID)"
+            guard representativeValueByAreaID[areaID] == nil else {
+                continue
+            }
+            fallbackValuesByAreaID[areaID, default: []].append(currentTemperature)
+        }
+
+        for (areaID, values) in fallbackValuesByAreaID {
+            representativeValueByAreaID[areaID] = median(of: values)
+        }
+
+        let values = Array(representativeValueByAreaID.values)
         guard let minimum = values.min(), let maximum = values.max() else {
-            return ""
+            return "No Readings"
         }
 
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 1
+        formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = 1
         let minimumText = formatter.string(from: NSNumber(value: minimum)) ?? String(format: "%.1f", minimum)
         let maximumText = formatter.string(from: NSNumber(value: maximum)) ?? String(format: "%.1f", maximum)
-        return minimumText == maximumText ? "\(minimumText)°" : "\(minimumText) - \(maximumText)°"
+        return minimumText == maximumText ? "\(minimumText)°" : "\(minimumText)–\(maximumText)°"
+    }
+
+    private static func median(of values: [Double]) -> Double? {
+        guard !values.isEmpty else {
+            return nil
+        }
+
+        let sortedValues = values.sorted()
+        let midpoint = sortedValues.count / 2
+        if sortedValues.count.isMultiple(of: 2) {
+            return (sortedValues[midpoint - 1] + sortedValues[midpoint]) / 2
+        }
+        return sortedValues[midpoint]
     }
 
 }

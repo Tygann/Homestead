@@ -8896,7 +8896,7 @@ struct HomesteadTests {
         #expect(security.value == "All Secure")
         #expect(security.systemImage == "lock.fill")
         #expect(security.iconTint == .security)
-        #expect(climate.value.isEmpty)
+        #expect(climate.value == "74.5°")
         #expect(climate.iconTint == .climate)
         #expect(maintenance.title == "Maintenance")
         #expect(maintenance.value == "1 Low Battery")
@@ -9299,9 +9299,136 @@ struct HomesteadTests {
             membershipContext: membershipContext
         ))
 
-        #expect(climate.value == "68.0 - 72.0°")
+        #expect(climate.value == "68–72°")
         #expect(maintenance.value == "All Good")
         #expect(!maintenance.isActive)
+    }
+
+    @MainActor
+    @Test func climateSummaryFallsBackToAreaThermostatTemperatures() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "climate.upstairs_primary",
+                state: "cool",
+                attributes: ["current_temperature": .number(66.3)]
+            ),
+            HAEntityDTO(
+                entityID: "climate.upstairs_secondary",
+                state: "cool",
+                attributes: ["current_temperature": .number(67.7)]
+            ),
+            HAEntityDTO(
+                entityID: "climate.downstairs",
+                state: "cool",
+                attributes: ["current_temperature": .number(70)]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "climate.upstairs_primary",
+                    deviceID: nil,
+                    areaID: "upstairs",
+                    originalName: "Upstairs Primary"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "climate.upstairs_secondary",
+                    deviceID: nil,
+                    areaID: "upstairs",
+                    originalName: "Upstairs Secondary"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "climate.downstairs",
+                    deviceID: nil,
+                    areaID: "downstairs",
+                    originalName: "Downstairs"
+                )
+            ],
+            devices: [],
+            areas: [
+                HAAreaRegistryDTO(id: "upstairs", name: "Upstairs"),
+                HAAreaRegistryDTO(id: "downstairs", name: "Downstairs")
+            ]
+        )
+
+        let climate = try #require(DashboardSummaryProvider.makeSummary(
+            kind: .climate,
+            entityBoxes: store.allEntityBoxes(),
+            membershipContext: store.dashboardSummaryMembershipContext()
+        ))
+
+        #expect(climate.value == "67–70°")
+    }
+
+    @MainActor
+    @Test func climateSummaryShowsExplicitEmptyStateWithoutTemperatureReadings() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "climate.upstairs", state: "cool")
+        ])
+
+        let climate = try #require(DashboardSummaryProvider.makeSummary(
+            kind: .climate,
+            entityBoxes: store.allEntityBoxes()
+        ))
+
+        #expect(climate.value == "No Readings")
+    }
+
+    @MainActor
+    @Test func climateSummaryPrefersConfiguredAreaReadingOverThermostatFallback() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.upstairs_temperature",
+                state: "68.5",
+                attributes: ["device_class": .string("temperature")]
+            ),
+            HAEntityDTO(
+                entityID: "climate.upstairs",
+                state: "cool",
+                attributes: ["current_temperature": .number(74)]
+            ),
+            HAEntityDTO(
+                entityID: "climate.downstairs",
+                state: "cool",
+                attributes: ["current_temperature": .number(66.3)]
+            )
+        ])
+        store.applyRegistryMetadata(
+            entities: [
+                HAEntityRegistryDisplayDTO(
+                    entityID: "climate.upstairs",
+                    deviceID: nil,
+                    areaID: "upstairs",
+                    originalName: "Upstairs"
+                ),
+                HAEntityRegistryDisplayDTO(
+                    entityID: "climate.downstairs",
+                    deviceID: nil,
+                    areaID: "downstairs",
+                    originalName: "Downstairs"
+                )
+            ],
+            devices: [],
+            areas: [
+                HAAreaRegistryDTO(
+                    id: "upstairs",
+                    name: "Upstairs",
+                    temperatureEntityID: "sensor.upstairs_temperature"
+                ),
+                HAAreaRegistryDTO(id: "downstairs", name: "Downstairs")
+            ]
+        )
+
+        let climate = try #require(DashboardSummaryProvider.makeSummary(
+            kind: .climate,
+            entityBoxes: store.allEntityBoxes(),
+            membershipContext: store.dashboardSummaryMembershipContext()
+        ))
+
+        #expect(climate.value == "66.3–68.5°")
     }
 
     @MainActor
