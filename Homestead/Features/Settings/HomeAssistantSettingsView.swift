@@ -104,14 +104,14 @@ struct HomeAssistantSettingsView: View {
     }
 
     private var serverSection: some View {
-        Section {
+        Section("Details") {
             NavigationLink {
                 HomeAssistantNameSettingsView(currentName: serverName)
             } label: {
                 SettingsServerAddressRow(
                     title: "Name",
                     value: serverName,
-                    systemImage: "tag"
+                    systemImage: "house"
                 )
             }
 
@@ -554,7 +554,7 @@ private struct InternalURLSettingsView: View {
     var body: some View {
         Form {
             Section("Internal URL") {
-                TextField("homeassistant.local:8123", text: $draftInternalURL, axis: .horizontal)
+                TextField("http://homeassistant.local:8123", text: $draftInternalURL, axis: .horizontal)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
                     .textContentType(.URL)
