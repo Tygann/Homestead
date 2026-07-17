@@ -10411,6 +10411,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         unitSystem: nil
     )
     private(set) var updatedLocationNames: [String] = []
+    var updateLocationNameError: Error?
     var serviceRegistry: HAServiceRegistry = .empty
     var servicesForTarget: [String] = []
     var supervisorAppsResponse = HASupervisorAppsResponseDTO(addons: [])
@@ -10517,6 +10518,9 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func updateLocationName(_ locationName: String) async throws {
+        if let updateLocationNameError {
+            throw updateLocationNameError
+        }
         updatedLocationNames.append(locationName)
         config = HAConfigDTO(
             version: config.version,

@@ -167,6 +167,11 @@ struct ContentView: View {
         .onChange(of: homeAssistantService.serviceFeedback?.id) { _, _ in
             playServiceFeedbackHaptic()
         }
+        .onChange(of: connectionSettings.hasServerURL) { hadServerURL, hasServerURL in
+            if hadServerURL, !hasServerURL {
+                presentedAppSheet = nil
+            }
+        }
         .onChange(of: notificationSetupPromptEvaluationID) { _, _ in
             presentNotificationSetupPromptIfNeeded()
         }

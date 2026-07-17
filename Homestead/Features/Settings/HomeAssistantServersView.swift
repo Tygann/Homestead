@@ -15,6 +15,7 @@ struct HomeAssistantServersView: View {
     @State private var removalFailureProfileID: UUID?
     @State private var removalFailureMessage: String?
     @State private var presentedSheet: ServerSheetDestination?
+    @State private var shouldDismissAfterAddingServer = false
 
     var body: some View {
         List {
@@ -32,18 +33,14 @@ struct HomeAssistantServersView: View {
                             isRemoving: removingProfileID == profile.id
                         )
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                     .disabled(isOperationInProgress)
-                    .contextMenu {
-                        serverActions(for: profile)
-                            .disabled(isOperationInProgress)
-                    }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         if !isOperationInProgress {
                             Button(role: .destructive) {
                                 beginRemoving(profile)
                             } label: {
-                                Image(systemName: "trash")
+                                Label("Remove", systemImage: "trash")
                             }
                             .accessibilityLabel("Remove Server")
                         }
@@ -70,11 +67,13 @@ struct HomeAssistantServersView: View {
                 .disabled(isOperationInProgress)
             }
         }
-        .sheet(item: $presentedSheet) { destination in
+        .sheet(item: $presentedSheet, onDismiss: handleSheetDismissal) { destination in
             switch destination {
             case .addServer:
                 NavigationStack {
-                    AddHomeAssistantServerView()
+                    AddHomeAssistantServerView {
+                        shouldDismissAfterAddingServer = true
+                    }
                 }
             }
         }
@@ -93,7 +92,7 @@ struct HomeAssistantServersView: View {
                 removalCandidateID = nil
             }
         } message: {
-            Text("Homestead will ask Home Assistant to revoke this sign-in before removing its local data.")
+            Text(removalPresentation.message)
         }
         .alert("Couldn’t Revoke Sign-In", isPresented: removalFailureBinding) {
             Button("Retry") {
@@ -129,32 +128,16 @@ struct HomeAssistantServersView: View {
     }
 
     private var removalDialogTitle: String {
-        guard let removalCandidateID,
-              let profile = connectionSettings.profileStore.profile(id: removalCandidateID) else {
-            return "Remove Server?"
-        }
-        return "Remove \(profile.resolvedDisplayName)?"
+        removalPresentation.title
     }
 
-    @ViewBuilder
-    private func serverActions(for profile: HAConnectionProfile) -> some View {
-        if profile.id != connectionSettings.activeProfileID {
-            Section {
-                Button {
-                    switchToServer(profile.id)
-                } label: {
-                    Label("Use This Server", systemImage: "checkmark.circle")
-                }
-            }
-        }
-
-        Section {
-            Button(role: .destructive) {
-                beginRemoving(profile)
-            } label: {
-                Label("Remove Server", systemImage: "trash")
-            }
-        }
+    private var removalPresentation: ServerRemovalPresentation {
+        let profile = removalCandidateID.flatMap { connectionSettings.profileStore.profile(id: $0) }
+        let configuredServerCount = connectionSettings.profiles.filter(\.hasServerURL).count
+        return ServerRemovalPresentation(
+            profile: profile,
+            isRemovingFinalServer: configuredServerCount == 1
+        )
     }
 
     private func beginRemoving(_ profile: HAConnectionProfile) {
@@ -163,6 +146,7 @@ struct HomeAssistantServersView: View {
 
     private func removeServer(_ profileID: UUID, forceLocal: Bool) {
         guard !isOperationInProgress else { return }
+        let wasActive = connectionSettings.activeProfileID == profileID
         removingProfileID = profileID
         switchErrorMessage = nil
         resetRemovalFailure()
@@ -179,6 +163,8 @@ struct HomeAssistantServersView: View {
                 removalFailureProfileID = profileID
                 removalFailureMessage = homeAssistantService.serverOperationErrorMessage
                     ?? "Home Assistant could not be reached."
+            } else if wasActive {
+                dismiss()
             }
         }
     }
@@ -220,6 +206,12 @@ struct HomeAssistantServersView: View {
                 switchErrorMessage = homeAssistantService.serverOperationErrorMessage ?? "Homestead couldn’t switch servers."
             }
         }
+    }
+
+    private func handleSheetDismissal() {
+        guard shouldDismissAfterAddingServer else { return }
+        shouldDismissAfterAddingServer = false
+        dismiss()
     }
 }
 
@@ -278,9 +270,15 @@ struct AddHomeAssistantServerView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(\.dismiss) private var dismiss
 
+    private let onServerAdded: () -> Void
+
     @State private var draftAddress = ""
     @State private var selectedInstance: HomeAssistantDiscoveredInstance?
     @State private var isAdding = false
+
+    init(onServerAdded: @escaping () -> Void = {}) {
+        self.onServerAdded = onServerAdded
+    }
 
     var body: some View {
         Form {
@@ -379,7 +377,36 @@ struct AddHomeAssistantServerView: View {
                     profile.externalURL = selectedInstance.externalURL ?? ""
                 }
             }
+            onServerAdded()
             dismiss()
         }
+    }
+}
+
+// MARK: - Removal Presentation
+
+struct ServerRemovalPresentation: Equatable {
+    let title: String
+    let message: String
+
+    init(profile: HAConnectionProfile?, isRemovingFinalServer: Bool) {
+        guard let profile else {
+            title = "Remove Server?"
+            message = "Homestead will ask Home Assistant to revoke this sign-in before removing its local data."
+            return
+        }
+
+        title = "Remove \(profile.resolvedDisplayName)?"
+        var resolvedMessage = "Homestead will ask Home Assistant to revoke the sign-in for \(profile.serverHostDisplayText) before removing its local data."
+        if isRemovingFinalServer {
+            resolvedMessage += " You’ll return to setup."
+        }
+        message = resolvedMessage
+    }
+}
+
+private extension HAConnectionProfile {
+    var serverHostDisplayText: String {
+        URL(string: baseURL)?.host(percentEncoded: false) ?? baseURL
     }
 }

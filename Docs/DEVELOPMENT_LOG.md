@@ -10,6 +10,9 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Simplified Servers into a direct selection/add/removal surface: rows no longer drill into duplicate details or expose Homestead-only Rename/Reorder actions, and a successful switch returns to the refreshed Account screen.
 - Removed local server aliases from connection profiles. Homestead now caches Home Assistant's own instance name per profile, ignores legacy local aliases during migration, and uses the server-derived name for Account, selection, switching, and widget presentation.
 - Renamed Account's `Server Name` row to `Name`, gave it a distinct tag icon, and added a focused editor backed by Home Assistant's admin-only WebSocket `config/core/update` command followed by a `get_config` refresh.
+- Made each Servers row a single native selection action and removed its duplicate long-press menu; removal remains available through a labeled, non-full-swipe destructive action.
+- Added host-disambiguated removal confirmation, kept inactive-server removal in place, and returns active-server removal or successful add to the refreshed Account screen after the app-wide context update.
+- Made final-server removal explicitly explain the setup transition and close Settings once the connection facade enters setup state; rename rejection remains recoverable without replacing Home Assistant's last confirmed name.
 
 ## 2026-07-15
 

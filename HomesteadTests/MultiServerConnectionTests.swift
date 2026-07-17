@@ -3,6 +3,7 @@ import Testing
 @testable import Homestead
 
 @MainActor
+@Suite(.serialized)
 struct MultiServerConnectionTests {
     @Test func legacyConnectionMigratesIntoActiveProfile() throws {
         let defaults = try makeDefaults()
@@ -143,11 +144,129 @@ struct MultiServerConnectionTests {
         #expect(restored.activeProfileID == secondID)
     }
 
+    @Test func removalPresentationDisambiguatesDuplicateNamesByHost() {
+        let profile = HAConnectionProfile(
+            serverName: "Home",
+            baseURL: "https://ha.keegan.me"
+        )
+
+        let presentation = ServerRemovalPresentation(
+            profile: profile,
+            isRemovingFinalServer: false
+        )
+
+        #expect(presentation.title == "Remove Home?")
+        #expect(presentation.message.contains("ha.keegan.me"))
+        #expect(!presentation.message.contains("return to setup"))
+    }
+
+    @Test func finalServerRemovalExplainsSetupTransition() {
+        let profile = HAConnectionProfile(
+            serverName: "Home",
+            baseURL: "https://home.example.com"
+        )
+
+        let presentation = ServerRemovalPresentation(
+            profile: profile,
+            isRemovingFinalServer: true
+        )
+
+        #expect(presentation.message.contains("home.example.com"))
+        #expect(presentation.message.contains("return to setup"))
+    }
+
+    @Test func removingActiveProfileSelectsConfiguredFallback() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "https://primary.example.com",
+            defaults: try makeDefaults(),
+            tokenStore: EmptyTokenStore()
+        )
+        let fallbackID = settings.profileStore.addProfile(
+            serverName: "Fallback",
+            baseURL: "https://fallback.example.com"
+        )
+        let removedID = settings.activeProfileID
+
+        let selectedID = settings.profileStore.removeProfile(id: removedID)
+
+        #expect(selectedID == fallbackID)
+        #expect(settings.activeProfileID == fallbackID)
+        #expect(settings.hasServerURL)
+    }
+
+    @Test func removingFinalProfileProducesSetupState() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "https://home.example.com",
+            defaults: try makeDefaults(),
+            tokenStore: EmptyTokenStore()
+        )
+
+        let setupProfileID = try #require(
+            settings.profileStore.removeProfile(id: settings.activeProfileID)
+        )
+        #expect(settings.activateProfile(id: setupProfileID))
+
+        #expect(settings.profiles.isEmpty)
+        #expect(!settings.hasServerURL)
+    }
+
+    @MainActor
+    @Test func nonAdminServerNameFailureRemainsRecoverable() async throws {
+        let tokenStore = InMemoryHAOAuthTokenStore(credential: makeCredential(accessToken: "non-admin-access"))
+        let webSocketClient = StubHAWebSocketClient(
+            currentUser: HACurrentUserDTO(
+                id: "non-admin",
+                name: "Guest",
+                isOwner: false,
+                isAdmin: false
+            )
+        )
+        webSocketClient.config = HAConfigDTO(
+            version: "2026.7.0",
+            locationName: "Home",
+            timeZone: "America/Chicago",
+            internalURL: nil,
+            externalURL: "https://home.example.com",
+            state: "RUNNING",
+            configSource: "storage",
+            unitSystem: nil
+        )
+        webSocketClient.updateLocationNameError = HAWebSocketError.requestFailed("Administrator access is required.")
+        let service = HomeAssistantService(
+            stateStore: HAStateStore(),
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(tokenStore: tokenStore)
+        )
+
+        await service.connect(baseURLString: "https://home.example.com")
+        await service.refreshServerConfiguration()
+        let updated = await service.updateServerName("Guest Home")
+
+        #expect(!updated)
+        #expect(service.serverConfiguration?.locationName == "Home")
+        #expect(service.serverOperationErrorMessage == "Administrator access is required.")
+        #expect(webSocketClient.updatedLocationNames.isEmpty)
+    }
+
     private func makeDefaults() throws -> UserDefaults {
         let suiteName = "MultiServerConnectionTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
         return defaults
+    }
+
+    private func makeCredential(accessToken: String) -> HAOAuthCredential {
+        HAOAuthCredential(
+            baseURLString: "https://home.example.com",
+            clientID: HAOAuthClientMetadata.clientID,
+            refreshToken: "refresh-token",
+            accessToken: accessToken,
+            accessTokenExpiresAt: Date(timeIntervalSince1970: 1_900_000_000),
+            tokenType: "Bearer",
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
     }
 }
 
