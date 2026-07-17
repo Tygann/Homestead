@@ -380,7 +380,7 @@ private struct DashboardDetailSettingsView: View {
                 VStack {
                     if !isSelected {
                         Button(action: useOnThisDevice) {
-                            Label("Use on This Device", systemImage: "checkmark.circle")
+                            Text("Use on This Device")
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity, alignment: .center)
                         }
