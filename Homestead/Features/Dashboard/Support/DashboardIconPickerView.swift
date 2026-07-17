@@ -185,6 +185,7 @@ struct DashboardIconPickerView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     DashboardIconPickerView(
         defaultSystemName: "lightbulb.fill",
@@ -194,3 +195,4 @@ struct DashboardIconPickerView: View {
     )
     .withPreviewAccentColor()
 }
+#endif
