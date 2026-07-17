@@ -9,7 +9,6 @@ struct DashboardCardItem: Identifiable, Equatable {
     let gaugeZoneConfiguration: GaugeZoneConfiguration?
 
     var size: DashboardCardSize { configuration.layout }
-    var featureVisibility: DashboardCardFeatureVisibility { configuration.featureVisibility }
     var presentationKind: DashboardPresentationKind { configuration.kind }
 }
 

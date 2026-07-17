@@ -542,7 +542,6 @@ struct DashboardView: View {
                     displayNameOverride: currentCardDisplayNameOverride(for: item),
                     iconNameOverride: item.iconNameOverride,
                     gaugeZoneConfiguration: item.gaugeZoneConfiguration,
-                    featureVisibility: item.featureVisibility,
                     cameraRefreshGeneration: cameraRefreshGeneration,
                     isEditing: true
                 )
@@ -558,7 +557,6 @@ struct DashboardView: View {
                 displayNameOverride: currentCardDisplayNameOverride(for: item),
                 iconNameOverride: item.iconNameOverride,
                 gaugeZoneConfiguration: item.gaugeZoneConfiguration,
-                featureVisibility: item.featureVisibility,
                 cameraRefreshGeneration: cameraRefreshGeneration,
                 openDetails: {
                     selectedEntityDetailRoute = DashboardEntityDetailRoute(
@@ -666,7 +664,6 @@ struct DashboardView: View {
                 displayNameOverride: currentCardDisplayNameOverride(for: cardItem),
                 iconNameOverride: cardItem.iconNameOverride,
                 gaugeZoneConfiguration: cardItem.gaugeZoneConfiguration,
-                featureVisibility: cardItem.featureVisibility,
                 cameraRefreshGeneration: cameraRefreshGeneration,
                 isEditing: true
             )
@@ -1132,30 +1129,11 @@ struct DashboardView: View {
             Label("Rename Card", systemImage: "pencil")
         }
 
-        if cardSupportsFeatures(item) {
-            Menu {
-                ForEach(DashboardCardFeatureVisibility.allCases, id: \.self) { option in
-                    Button {
-                        HapticFeedback.selection()
-                        dashboardConfiguration.setFeatureVisibility(option, forItemID: item.id)
-                    } label: {
-                        let selectedOption = dashboardConfiguration.featureVisibility(forItemID: item.id)
-                        Label(
-                            option.displayName,
-                            systemImage: selectedOption == option ? "checkmark" : option.systemImage
-                        )
-                    }
-                }
-            } label: {
-                Label("Card Features", systemImage: "slider.horizontal.3")
-            }
-        }
-
         if [.circularGauge, .segmentedGauge, .barGauge].contains(item.presentationKind) {
             Button {
                 presentGaugeZoneEditor(for: item)
             } label: {
-                Label("Gauge Setup", systemImage: "dial.medium")
+                Label("Gauge Settings", systemImage: "dial.medium")
             }
         }
 
@@ -1248,19 +1226,6 @@ struct DashboardView: View {
         currentCardDisplayNameOverride(for: item)
             ?? stateStore.entity(for: item.entityID)?.displayName
             ?? "Card"
-    }
-
-    private func cardSupportsFeatures(_ item: DashboardCardItem) -> Bool {
-        guard let entityBox = stateStore.entityBox(for: item.entityID) else {
-            return false
-        }
-
-        let presentation = DashboardEntityPresentation(
-            entityBox: entityBox,
-            displayNameOverride: currentCardDisplayNameOverride(for: item),
-            iconNameOverride: item.iconNameOverride
-        )
-        return !DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation).isEmpty
     }
 
     private func chipPresentation(

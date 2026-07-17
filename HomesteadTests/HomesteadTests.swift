@@ -6997,26 +6997,8 @@ struct HomesteadTests {
         let textSensor = try #require(store.entityBox(for: "sensor.mode"))
 
         #expect(DashboardCardSize.defaultGeneratedSize(entityBox: numericSensor) == .square)
-        #expect(
-            DashboardCardSize.defaultGeneratedFeatureVisibility(
-                entityBox: numericSensor,
-                size: .square
-            ) == .automatic
-        )
         #expect(DashboardCardSize.defaultGeneratedSize(entityBox: batterySensor) == .compact)
-        #expect(
-            DashboardCardSize.defaultGeneratedFeatureVisibility(
-                entityBox: batterySensor,
-                size: .compact
-            ) == .automatic
-        )
         #expect(DashboardCardSize.defaultGeneratedSize(entityBox: humiditySensor) == .square)
-        #expect(
-            DashboardCardSize.defaultGeneratedFeatureVisibility(
-                entityBox: humiditySensor,
-                size: .square
-            ) == .hidden
-        )
         #expect(DashboardCardSize.defaultGeneratedSize(entityBox: textSensor) == .compact)
     }
 
@@ -8832,8 +8814,6 @@ struct HomesteadTests {
         #expect(DashboardCardSize.row.visibleFeatures(from: features).map(\.key) == [.coverControls])
         #expect(DashboardCardSize.square.visibleFeatures(from: features).map(\.key) == [.coverControls])
         #expect(DashboardCardSize.large.visibleFeatures(from: features).map(\.key) == [.coverControls, .coverPosition, .selectOptions])
-        #expect(DashboardCardSize.large.visibleFeatures(from: features, visibility: .hidden).isEmpty)
-        #expect(DashboardCardSize.large.visibleFeatures(from: features, visibility: .automatic).map(\.key) == [.coverControls, .coverPosition, .selectOptions])
 
         let optionFeatures = [features[2]]
         #expect(DashboardCardSize.mini.visibleFeatures(from: optionFeatures).isEmpty)
@@ -9976,10 +9956,7 @@ struct HomesteadTests {
         let dashboardConfiguration = DashboardConfiguration(defaults: defaults)
         let dashboardItemID = try #require(dashboardConfiguration.add(
             source: .entity("light.kitchen"),
-            presentation: .card(.control(
-                layout: .square,
-                featureVisibility: .automatic
-            ))
+            presentation: .card(.control(layout: .square))
         ))
         dashboardConfiguration.renameDisplayItem(id: dashboardItemID, displayNameOverride: "Kitchen")
         let actionSettings = ActionConfirmationSettings(defaults: defaults)

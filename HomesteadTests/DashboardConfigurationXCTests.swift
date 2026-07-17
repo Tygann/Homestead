@@ -356,7 +356,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
                 name: "Phone",
                 items: [.entityCard(
                     entityID: "light.phone",
-                    configuration: .control(layout: .square, featureVisibility: .automatic)
+                    configuration: .control(layout: .square)
                 )]
             ),
             SavedDashboardConfiguration(
@@ -380,10 +380,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         )
         _ = configuration.add(
             source: .entity("light.kitchen"),
-            presentation: .card(.control(
-                layout: .square,
-                featureVisibility: .automatic
-            ))
+            presentation: .card(.control(layout: .square))
         )
         let store = HAStateStore()
         store.applyInitialStates([
@@ -544,7 +541,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: thermostat).contains(.control))
         XCTAssertEqual(
             DashboardPresentationCatalog.recommendation(for: thermostat),
-            .card(.control(layout: .square, featureVisibility: .automatic))
+            .card(.control(layout: .square))
         )
         XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: readOnlyClimate).contains(.control))
         XCTAssertEqual(

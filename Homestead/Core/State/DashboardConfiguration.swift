@@ -49,10 +49,7 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
 }
 
 nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
-    case control(
-        layout: DashboardCardSize,
-        featureVisibility: DashboardCardFeatureVisibility
-    )
+    case control(layout: DashboardCardSize)
     case status(layout: DashboardCardSize)
     case circularGauge(layout: DashboardCardSize)
     case segmentedGauge(layout: DashboardCardSize)
@@ -60,7 +57,7 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
     case graph(layout: DashboardCardSize)
     case camera(layout: DashboardCardSize)
     case weather(layout: DashboardCardSize)
-    case media(layout: DashboardCardSize, featureVisibility: DashboardCardFeatureVisibility)
+    case media(layout: DashboardCardSize)
     case action(layout: DashboardCardSize)
 
     var kind: DashboardPresentationKind {
@@ -80,25 +77,17 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
 
     var layout: DashboardCardSize {
         switch self {
-        case .control(let layout, _), .media(let layout, _): layout
-        case .status(let layout), .circularGauge(let layout), .segmentedGauge(let layout),
+        case .control(let layout), .status(let layout), .circularGauge(let layout),
+             .segmentedGauge(let layout), .media(let layout),
              .barGauge(let layout), .graph(let layout), .camera(let layout),
              .weather(let layout), .action(let layout): layout
         }
     }
 
-    var featureVisibility: DashboardCardFeatureVisibility {
-        switch self {
-        case .control(_, let visibility), .media(_, let visibility): visibility
-        case .circularGauge, .segmentedGauge, .barGauge: .automatic
-        default: .hidden
-        }
-    }
-
     func withLayout(_ layout: DashboardCardSize) -> Self {
         switch self {
-        case .control(_, let visibility):
-            .control(layout: layout, featureVisibility: visibility)
+        case .control:
+            .control(layout: layout)
         case .status: .status(layout: layout)
         case .circularGauge: .circularGauge(layout: layout)
         case .segmentedGauge: .segmentedGauge(layout: layout)
@@ -106,17 +95,8 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
         case .graph: .graph(layout: layout)
         case .camera: .camera(layout: layout)
         case .weather: .weather(layout: layout)
-        case .media(_, let visibility): .media(layout: layout, featureVisibility: visibility)
+        case .media: .media(layout: layout)
         case .action: .action(layout: layout)
-        }
-    }
-
-    func withFeatureVisibility(_ visibility: DashboardCardFeatureVisibility) -> Self {
-        switch self {
-        case .control(let layout, _):
-            .control(layout: layout, featureVisibility: visibility)
-        case .media(let layout, _): .media(layout: layout, featureVisibility: visibility)
-        default: self
         }
     }
 }
@@ -447,7 +427,7 @@ nonisolated enum DashboardSuggestedSetup {
 }
 
 nonisolated struct DashboardConfigurationDocument: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 4
+    static let currentSchemaVersion = 5
 
     var schemaVersion: Int
     var dashboards: [SavedDashboardConfiguration]
@@ -755,22 +735,6 @@ final class DashboardConfiguration {
               let card = items[index].cardConfiguration else { return }
         let updatedCard = card.withLayout(layout)
         guard DashboardConfigurationValidator.isValid(updatedCard) else { return }
-        var updated = items
-        updated[index].content = .sourced(DashboardSourcedItem(
-            source: updated[index].source!,
-            presentation: .card(updatedCard)
-        ))
-        updateSelectedDashboardItems(updated, setupState: .manual)
-    }
-
-    func featureVisibility(forItemID itemID: UUID) -> DashboardCardFeatureVisibility {
-        cardConfiguration(forItemID: itemID)?.featureVisibility ?? .hidden
-    }
-
-    func setFeatureVisibility(_ visibility: DashboardCardFeatureVisibility, forItemID itemID: UUID) {
-        guard let index = items.firstIndex(where: { $0.id == itemID }),
-              let card = items[index].cardConfiguration else { return }
-        let updatedCard = card.withFeatureVisibility(visibility)
         var updated = items
         updated[index].content = .sourced(DashboardSourcedItem(
             source: updated[index].source!,

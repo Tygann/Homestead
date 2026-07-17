@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-17
 
+### Atomic Dashboard Card Features
+
+- Removed the user-facing Card Features visibility override and its persisted state. Card kind, entity capabilities, and layout now fully determine which inline content renders; compact layouts naturally suppress feature content, while Status cards provide the explicit informational alternative to Control cards.
+- Kept `DashboardCardFeatureProvider` as the shared capability engine, removed the obsolete generated-view visibility workaround, renamed the dashboard action to Gauge Settings, and advanced dashboard persistence to schema v5 for the intentional beta model reset.
+
 ### Atomic Dashboard Gauge Cards
 
 - Replaced the persisted Gauge style hierarchy with distinct Circular Gauge, Segmented Gauge, and Bar Gauge card types, and removed persisted Standard/Slider/Thermostat control styles in favor of capability-derived control rendering.

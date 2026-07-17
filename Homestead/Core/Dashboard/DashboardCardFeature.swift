@@ -11,29 +11,6 @@ enum DashboardCardFeatureKey: String, Codable, Equatable, Sendable {
     case sensorGauge
 }
 
-enum DashboardCardFeatureVisibility: String, CaseIterable, Codable, Equatable, Sendable {
-    case automatic
-    case hidden
-
-    var displayName: String {
-        switch self {
-        case .automatic:
-            "Automatic"
-        case .hidden:
-            "Hidden"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .automatic:
-            "sparkles"
-        case .hidden:
-            "eye.slash"
-        }
-    }
-}
-
 enum DashboardCardFeatureContent: Equatable, Sendable {
     case level(DashboardCardLevelFeature)
     case setpoint(DashboardCardSetpointFeature)
@@ -544,14 +521,6 @@ extension DashboardCardSize {
         return Array(features.prefix(maximumVisibleFeatureCount))
     }
 
-    func visibleFeatures(
-        from features: [DashboardCardFeature],
-        visibility: DashboardCardFeatureVisibility
-    ) -> [DashboardCardFeature] {
-        guard visibility != .hidden else { return [] }
-        return visibleFeatures(from: features)
-    }
-
     static func defaultGeneratedSize(entityBox: HAEntityState) -> DashboardCardSize {
         guard entityBox.domain != .camera else {
             return .square
@@ -566,18 +535,6 @@ extension DashboardCardSize {
         }
 
         return .compact
-    }
-
-    static func defaultGeneratedFeatureVisibility(
-        entityBox: HAEntityState,
-        size: DashboardCardSize
-    ) -> DashboardCardFeatureVisibility {
-        guard DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size),
-              hasVisibleReadOnlySensorGauge(entityBox: entityBox, size: size) else {
-            return .automatic
-        }
-
-        return .hidden
     }
 
     private static func defaultsToDashboardHistory(_ entityBox: HAEntityState) -> Bool {
@@ -605,16 +562,4 @@ extension DashboardCardSize {
         return !DashboardCardSize.square.visibleFeatures(from: features).isEmpty
     }
 
-    private static func hasVisibleReadOnlySensorGauge(
-        entityBox: HAEntityState,
-        size: DashboardCardSize
-    ) -> Bool {
-        guard entityBox.domain == .sensor else {
-            return false
-        }
-
-        let presentation = DashboardEntityPresentation(entityBox: entityBox)
-        let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
-        return size.visibleFeatures(from: features).contains { $0.key == .sensorGauge }
-    }
 }

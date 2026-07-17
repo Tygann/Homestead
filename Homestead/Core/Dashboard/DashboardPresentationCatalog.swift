@@ -108,7 +108,7 @@ enum DashboardPresentationCatalog {
         case .weather:
             return .card(.weather(layout: .square))
         case .mediaPlayer:
-            return .card(.media(layout: .compact, featureVisibility: .automatic))
+            return .card(.media(layout: .compact))
         case .scene, .script, .button:
             return .card(.action(layout: .compact))
         default:
@@ -123,10 +123,7 @@ enum DashboardPresentationCatalog {
         if hasControls(entityBox) {
             let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
             let layout: DashboardCardSize = features.isEmpty ? .compact : .square
-            return .card(.control(
-                layout: layout,
-                featureVisibility: DashboardCardSize.defaultGeneratedFeatureVisibility(entityBox: entityBox, size: layout)
-            ))
+            return .card(.control(layout: layout))
         }
 
         return .card(.status(layout: .compact))
@@ -162,14 +159,13 @@ enum DashboardPresentationCatalog {
 
     static func cardConfiguration(
         kind: DashboardPresentationKind,
-        layout: DashboardCardSize,
-        featureVisibility: DashboardCardFeatureVisibility = .automatic
+        layout: DashboardCardSize
     ) -> DashboardCardConfiguration? {
         guard kind.supportedLayouts.contains(layout) else { return nil }
 
         return switch kind {
         case .control:
-            .control(layout: layout, featureVisibility: featureVisibility)
+            .control(layout: layout)
         case .status:
             .status(layout: layout)
         case .circularGauge:
@@ -185,7 +181,7 @@ enum DashboardPresentationCatalog {
         case .weather:
             .weather(layout: layout)
         case .media:
-            .media(layout: layout, featureVisibility: featureVisibility)
+            .media(layout: layout)
         case .action:
             .action(layout: layout)
         case .chip:

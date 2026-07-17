@@ -14,7 +14,6 @@ struct DashboardEntityCard: View {
     let presentationKind: DashboardPresentationKind
     let gaugeZoneConfiguration: GaugeZoneConfiguration?
     let features: [DashboardCardFeature]
-    let featureVisibility: DashboardCardFeatureVisibility
     let contextualAreaName: String?
     let cameraRefreshGeneration: Int
     let isPending: Bool
@@ -808,7 +807,7 @@ struct DashboardEntityCard: View {
         default:
             compatibleFeatures = []
         }
-        return size.visibleFeatures(from: compatibleFeatures, visibility: featureVisibility).filter { featureActions.canRender($0) }
+        return size.visibleFeatures(from: compatibleFeatures).filter { featureActions.canRender($0) }
     }
 
     private var shouldUseCameraPreviewCard: Bool {

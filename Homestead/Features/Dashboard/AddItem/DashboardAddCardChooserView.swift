@@ -437,7 +437,6 @@ private struct DashboardAddPresentationPreview: View {
                         entityID: entityID,
                         size: card.layout,
                         presentationKind: card.kind,
-                        featureVisibility: card.featureVisibility,
                         isPreview: true
                     )
                     .cardGridSpan(card.layout.layoutMetadata)

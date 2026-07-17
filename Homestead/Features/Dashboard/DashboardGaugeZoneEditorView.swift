@@ -99,7 +99,7 @@ struct DashboardGaugeZoneEditorView: View {
                     }
                 }
             }
-            .navigationTitle("Gauge Setup")
+            .navigationTitle("Gauge Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

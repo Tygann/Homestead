@@ -7,7 +7,6 @@ struct DashboardCardView: View {
     var displayNameOverride: String?
     var iconNameOverride: String?
     var gaugeZoneConfiguration: GaugeZoneConfiguration?
-    var featureVisibility: DashboardCardFeatureVisibility = .automatic
     var contextualAreaName: String?
     var cameraRefreshGeneration = 0
     var isEditing = false
@@ -21,7 +20,6 @@ struct DashboardCardView: View {
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
         gaugeZoneConfiguration: GaugeZoneConfiguration? = nil,
-        featureVisibility: DashboardCardFeatureVisibility = .automatic,
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
@@ -33,7 +31,6 @@ struct DashboardCardView: View {
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
         self.gaugeZoneConfiguration = gaugeZoneConfiguration
-        self.featureVisibility = featureVisibility
         self.contextualAreaName = contextualAreaName
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
@@ -48,7 +45,6 @@ struct DashboardCardView: View {
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
         gaugeZoneConfiguration: GaugeZoneConfiguration? = nil,
-        featureVisibility: DashboardCardFeatureVisibility = .automatic,
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
@@ -61,7 +57,6 @@ struct DashboardCardView: View {
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
         self.gaugeZoneConfiguration = gaugeZoneConfiguration
-        self.featureVisibility = featureVisibility
         self.contextualAreaName = contextualAreaName
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
@@ -96,7 +91,6 @@ struct DashboardCardView: View {
                 presentationKind: resolvedPresentationKind,
                 gaugeZoneConfiguration: gaugeZoneConfiguration,
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
-                featureVisibility: featureVisibility,
                 contextualAreaName: contextualAreaName,
                 cameraRefreshGeneration: cameraRefreshGeneration,
                 isPending: entityBox.pendingCommand != nil,

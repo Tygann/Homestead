@@ -370,7 +370,6 @@ private struct DashboardPresentationGalleryPreview: View {
                     entityID: entityID,
                     size: .square,
                     presentationKind: descriptor.kind,
-                    featureVisibility: .automatic,
                     isPreview: true
                 )
                 .environment(DashboardPresentationGallerySamples.stateStore)
