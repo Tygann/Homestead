@@ -135,12 +135,12 @@ final class HAConnectionSettings {
     }
 
     @discardableResult
-    func addProfile(displayName: String = "", baseURL: String) -> UUID {
-        profileStore.addProfile(displayName: displayName, baseURL: baseURL)
+    func addProfile(baseURL: String) -> UUID {
+        profileStore.addProfile(baseURL: baseURL)
     }
 
-    func updateDiscoveredServerName(_ name: String?) {
-        profileStore.updateActiveProfile { $0.discoveredName = name }
+    func updateServerName(_ name: String?) {
+        profileStore.updateServerName(id: activeProfileID, name: name)
     }
 
     func applySyncSnapshot(_ snapshot: HAConnectionSettingsSyncSnapshot) {

@@ -563,7 +563,7 @@ private enum PreviewCredentialProvider {
             return LiveCredential(
                 profile: HAConnectionProfile(
                     id: profileID,
-                    displayName: credentials.name ?? "",
+                    serverName: credentials.name,
                     baseURL: baseURL
                 ),
                 credential: sampleCredential(baseURL: baseURL, accessToken: accessToken)

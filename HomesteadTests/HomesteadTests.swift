@@ -892,6 +892,17 @@ struct HomesteadTests {
         #expect(object["type"] as? String == "get_config")
     }
 
+    @Test func updateCoreConfigRequestEncodesHomeAssistantLocationName() throws {
+        let request = HAWebSocketRequest.updateCoreConfig(id: 11, locationName: "Keegdom")
+
+        let data = try JSONEncoder().encode(request)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["id"] as? Int == 11)
+        #expect(object["type"] as? String == "config/core/update")
+        #expect(object["location_name"] as? String == "Keegdom")
+    }
+
     @Test func cameraCapabilitiesRequestEncodesHomeAssistantShape() throws {
         let request = HAWebSocketRequest.cameraCapabilities(
             id: 9,
@@ -5246,6 +5257,12 @@ struct HomesteadTests {
         } else {
             Issue.record("Expected loaded server config status.")
         }
+
+        let updated = await service.updateServerName("Keegdom")
+
+        #expect(updated)
+        #expect(webSocketClient.updatedLocationNames == ["Keegdom"])
+        #expect(service.serverConfiguration?.locationName == "Keegdom")
     }
 
     @MainActor
@@ -10393,6 +10410,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         configSource: nil,
         unitSystem: nil
     )
+    private(set) var updatedLocationNames: [String] = []
     var serviceRegistry: HAServiceRegistry = .empty
     var servicesForTarget: [String] = []
     var supervisorAppsResponse = HASupervisorAppsResponseDTO(addons: [])
@@ -10496,6 +10514,20 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func fetchConfig() async throws -> HAConfigDTO {
         config
+    }
+
+    func updateLocationName(_ locationName: String) async throws {
+        updatedLocationNames.append(locationName)
+        config = HAConfigDTO(
+            version: config.version,
+            locationName: locationName,
+            timeZone: config.timeZone,
+            internalURL: config.internalURL,
+            externalURL: config.externalURL,
+            state: config.state,
+            configSource: config.configSource,
+            unitSystem: config.unitSystem
+        )
     }
 
     func fetchServices() async throws -> HAServiceRegistry {

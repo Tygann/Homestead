@@ -34,22 +34,6 @@ struct SettingsView: View {
 
             Section("Home Assistant") {
                 NavigationLink {
-                    HomeAssistantServersView()
-                } label: {
-                    SettingsNavigationRowLabel(systemImage: "server.rack") {
-                        HStack {
-                            Text("Servers")
-                            Spacer()
-
-                            if connectionSettings.profiles.count > 1 {
-                                Text(connectionSettings.profiles.count, format: .number)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-
-                NavigationLink {
                     DevicesAndServicesManagementView()
                 } label: {
                     SettingsNavigationRowLabel("Devices & Services", systemImage: "laptopcomputer.and.iphone")

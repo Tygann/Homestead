@@ -92,11 +92,11 @@ struct HomeAssistantSettingsView: View {
     private var serverSelectionSection: some View {
         Section {
             NavigationLink {
-                HomeAssistantServersView(returnsToPreviousScreenAfterSwitch: true)
+                HomeAssistantServersView()
             } label: {
                 SettingsServerAddressRow(
                     title: "Server",
-                    value: connectionSettings.activeProfile.resolvedDisplayName,
+                    value: serverName,
                     systemImage: "server.rack"
                 )
             }
@@ -105,11 +105,15 @@ struct HomeAssistantSettingsView: View {
 
     private var serverSection: some View {
         Section {
-            SettingsServerAddressRow(
-                title: "Server Name",
-                value: serverName,
-                systemImage: "server.rack"
-            )
+            NavigationLink {
+                HomeAssistantNameSettingsView(currentName: serverName)
+            } label: {
+                SettingsServerAddressRow(
+                    title: "Name",
+                    value: serverName,
+                    systemImage: "tag"
+                )
+            }
 
             NavigationLink {
                 InternalURLSettingsView()
@@ -213,7 +217,8 @@ struct HomeAssistantSettingsView: View {
     // MARK: - Helpers
 
     private var serverName: String {
-        homeAssistantService.serverConfiguration?.locationName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue ?? "Home"
+        homeAssistantService.serverConfiguration?.locationName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+            ?? connectionSettings.activeProfile.resolvedDisplayName
     }
 
     private var accountTitle: String {
@@ -442,6 +447,90 @@ struct HomeAssistantSettingsView: View {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             .lowercased()
+    }
+}
+
+// MARK: - Home Assistant Name Settings View
+
+private struct HomeAssistantNameSettingsView: View {
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var isNameFocused: Bool
+    @State private var draftName: String
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    private let currentName: String
+
+    init(currentName: String) {
+        self.currentName = currentName
+        _draftName = State(initialValue: currentName)
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                TextField("Name", text: $draftName)
+                    .textContentType(.organizationName)
+                    .autocorrectionDisabled()
+                    .focused($isNameFocused)
+                    .submitLabel(.done)
+                    .onSubmit(save)
+            } footer: {
+                Text("This changes the instance name in Home Assistant. Administrator access is required.")
+            }
+
+            if let errorMessage {
+                Section {
+                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .navigationTitle("Name")
+        .toolbarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+                    .disabled(isSaving)
+            }
+
+            ToolbarItem(placement: .confirmationAction) {
+                if isSaving {
+                    ProgressView()
+                } else {
+                    Button("Save", action: save)
+                        .disabled(!canSave)
+                }
+            }
+        }
+        .task {
+            isNameFocused = true
+        }
+    }
+
+    private var trimmedName: String {
+        draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canSave: Bool {
+        !trimmedName.isEmpty && trimmedName != currentName && !isSaving
+    }
+
+    private func save() {
+        guard canSave else { return }
+        isSaving = true
+        errorMessage = nil
+        Task {
+            if await homeAssistantService.updateServerName(trimmedName) {
+                dismiss()
+            } else {
+                errorMessage = homeAssistantService.serverOperationErrorMessage
+                    ?? "Home Assistant couldn’t update the server name."
+                isSaving = false
+            }
+        }
     }
 }
 

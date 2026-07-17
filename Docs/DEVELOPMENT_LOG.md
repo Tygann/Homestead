@@ -4,10 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-17
 
-### Account Server Selection Trial
+### Account-Centered Server Management
 
-- Added an untitled Account section with a `Server` navigation row that displays the active Homestead saved-server name separately from Home Assistant's actual `Server Name`.
-- Reused the existing Servers management screen without changing its top-level behavior; when entered from Account, a successful server switch completes the existing app-wide context change and returns to the refreshed Account screen.
+- Made Account the canonical server-management entry and removed the duplicate top-level Settings > Servers row.
+- Simplified Servers into a direct selection/add/removal surface: rows no longer drill into duplicate details or expose Homestead-only Rename/Reorder actions, and a successful switch returns to the refreshed Account screen.
+- Removed local server aliases from connection profiles. Homestead now caches Home Assistant's own instance name per profile, ignores legacy local aliases during migration, and uses the server-derived name for Account, selection, switching, and widget presentation.
+- Renamed Account's `Server Name` row to `Name`, gave it a distinct tag icon, and added a focused editor backed by Home Assistant's admin-only WebSocket `config/core/update` command followed by a `get_config` refresh.
 
 ## 2026-07-15
 

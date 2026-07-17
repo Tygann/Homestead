@@ -14,6 +14,7 @@ enum HAWebSocketMessageType {
     nonisolated static var ping: String { "ping" }
     nonisolated static var callService: String { "call_service" }
     nonisolated static var getConfig: String { "get_config" }
+    nonisolated static var updateCoreConfig: String { "config/core/update" }
     nonisolated static var getServices: String { "get_services" }
     nonisolated static var getServicesForTarget: String { "get_services_for_target" }
     nonisolated static var mobileAppPushNotificationChannel: String { "mobile_app/push_notification_channel" }
@@ -105,6 +106,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case ping(id: Int)
     case currentUser(id: Int)
     case getConfig(id: Int)
+    case updateCoreConfig(id: Int, locationName: String)
     case getServices(id: Int)
     case getServicesForTarget(id: Int, entityID: String)
     case mobileAppPushNotificationChannel(id: Int, webhookID: String, supportConfirm: Bool)
@@ -142,6 +144,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case method
         case scope
         case itemID = "item_id"
+        case locationName = "location_name"
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -171,6 +174,10 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case .getConfig(let id):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.getConfig, forKey: .type)
+        case .updateCoreConfig(let id, let locationName):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.updateCoreConfig, forKey: .type)
+            try container.encode(locationName, forKey: .locationName)
         case .getServices(let id):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.getServices, forKey: .type)

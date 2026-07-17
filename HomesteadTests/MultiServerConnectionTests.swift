@@ -26,7 +26,7 @@ struct MultiServerConnectionTests {
             tokenStore: EmptyTokenStore()
         )
         let secondID = settings.profileStore.addProfile(
-            displayName: "Test Home",
+            serverName: "Test Home",
             baseURL: "https://test.example.com",
             internalURL: "http://test.local:8123",
             externalURL: "https://test.example.com",
@@ -47,15 +47,34 @@ struct MultiServerConnectionTests {
             defaults: defaults,
             tokenStore: EmptyTokenStore()
         )
-        settings.profileStore.renameProfile(id: settings.activeProfileID, name: "Keegdom")
+        settings.profileStore.updateServerName(id: settings.activeProfileID, name: "Keegdom")
         let secondID = settings.profileStore.addProfile(
-            displayName: "Peachdom",
+            serverName: "Peachdom",
             baseURL: "https://peachdom.example.com"
         )
 
         #expect(settings.activeProfile.resolvedDisplayName == "Keegdom")
         #expect(settings.activateProfile(id: secondID))
         #expect(settings.activeProfile.resolvedDisplayName == "Peachdom")
+    }
+
+    @Test func legacyLocalDisplayNameIsNotUsedAsServerName() throws {
+        let legacyObject: [String: Any] = [
+            "id": UUID().uuidString,
+            "displayName": "Homestead Alias",
+            "baseURL": "https://actual-home.example.com",
+            "internalURL": "",
+            "externalURL": "",
+            "internalNetworkSSIDs": [],
+            "createdAt": 0,
+            "lastUsedAt": 0
+        ]
+        let data = try JSONSerialization.data(withJSONObject: legacyObject)
+
+        let profile = try JSONDecoder().decode(HAConnectionProfile.self, from: data)
+
+        #expect(profile.serverName == nil)
+        #expect(profile.resolvedDisplayName == "actual-home.example.com")
     }
 
     @Test func dashboardDocumentsRemainIsolatedByProfile() throws {
@@ -85,7 +104,7 @@ struct MultiServerConnectionTests {
 
     @Test func profileSyncSnapshotContainsMetadataWithoutCredentials() throws {
         let profile = HAConnectionProfile(
-            displayName: "Home",
+            serverName: "Home",
             baseURL: "https://home.example.com"
         )
         let data = try JSONEncoder().encode(HAConnectionProfilesSyncSnapshot(profiles: [profile]))
@@ -105,11 +124,11 @@ struct MultiServerConnectionTests {
         )
         let primaryID = settings.activeProfileID
         let secondID = settings.profileStore.addProfile(
-            displayName: "Second",
+            serverName: "Second",
             baseURL: "https://second.example.com"
         )
         let thirdID = settings.profileStore.addProfile(
-            displayName: "Third",
+            serverName: "Third",
             baseURL: "https://third.example.com"
         )
         #expect(settings.activateProfile(id: secondID))

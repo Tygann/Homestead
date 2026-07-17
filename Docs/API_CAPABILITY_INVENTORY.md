@@ -30,7 +30,7 @@ Official references:
 | Live state updates | WebSocket `subscribe_events` for `state_changed` | Mapped | Batched before touching SwiftUI-observed state. |
 | Service calls | WebSocket `call_service` | Mapped | Domain-specific helpers live on `HomeAssistantService`. |
 | Service catalog | WebSocket `get_services` | Mapped | Feeds typed native controls and the generic entity-action fallback. Common boolean, numeric, select, and text field selectors map into a native action sheet; specialized controls remain preferred. |
-| Server config snapshot | WebSocket `get_config` plus read-only Supervisor bridge info when available | Mapped | Used by Settings > Account for Home Assistant instance name, Core version, official internal/external URL values, and optional Supervisor/OS versions returned through Core's `supervisor/api` bridge. |
+| Server configuration | WebSocket `get_config` and admin-only `config/core/update`, plus read-only Supervisor bridge info when available | Mapped | Settings > Account reads the Home Assistant instance name, Core version, and official internal/external URL values. Its Name editor updates Home Assistant's actual `location_name`, then refreshes `get_config`; optional Supervisor/OS versions remain read-only through Core's `supervisor/api` bridge. |
 | Current user | WebSocket `auth/current_user` | Mapped | Used for account display and matching person entity imagery. |
 | Entity registry display and organization | WebSocket `config/entity_registry/list_for_display` plus read-only `config/entity_registry/list` organization metadata | Mapped | The compact documented display feed remains the enabled-entity UI source. Homestead separately maps full-registry area, label, and scoped category assignments for Settings grouping/filtering without changing entity visibility. Registry update events trigger a debounced metadata refresh. |
 | Device registry | WebSocket registry command | Mapped | Used for device grouping, area context, label filtering, and Settings management. Registry update events trigger a debounced metadata refresh. |
@@ -71,7 +71,7 @@ These are the next API slices to map when the matching feature is implemented. D
 
 ### Server And Connection Routing
 
-- Typed WebSocket `get_config` support exists for the inline `Settings > Account` Server and Home Assistant sections.
+- Typed WebSocket `get_config` support exists for the inline Account server details, and the admin-only `config/core/update` command updates Home Assistant's actual `location_name`.
 - Home Assistant instance name, Core version, and internal/external URL metadata are displayed only if returned by the official config shape. Supervisor and OS versions are fetched opportunistically through Core's documented `supervisor/api` bridge and gracefully show unavailable on non-Supervisor installs.
 - Connection settings store a sign-in identity plus Homestead-owned local and remote route candidates. Optional saved Wi-Fi names gate Local Address preference when a Remote Address exists. The legacy single home-network field migrates to that list.
 - Automatic internal/external URL switching now lives in `HomeAssistantService` connection lifecycle code. SwiftUI displays the active route but does not choose URLs.

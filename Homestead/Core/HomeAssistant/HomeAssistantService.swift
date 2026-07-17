@@ -518,7 +518,6 @@ final class HomeAssistantService {
     @discardableResult
     func addServer(
         baseURLString: String,
-        displayName: String = "",
         settings: HAConnectionSettings,
         dashboardConfiguration: DashboardConfiguration? = nil
     ) async -> UUID? {
@@ -560,7 +559,6 @@ final class HomeAssistantService {
 
             settings.profileStore.addProfile(
                 id: profileID,
-                displayName: displayName,
                 baseURL: trimmedBaseURL
             )
             _ = await switchActiveProfile(
@@ -1263,10 +1261,37 @@ final class HomeAssistantService {
             serverConfiguration = snapshot
             serverEnvironment = environment
             currentConnectionSettings?.adoptServerRoutes(from: snapshot)
-            currentConnectionSettings?.updateDiscoveredServerName(snapshot.locationName)
+            currentConnectionSettings?.updateServerName(snapshot.locationName)
             serverConfigurationStatus = .loaded(snapshot.loadedAt)
         } catch {
             serverConfigurationStatus = .failed(error.localizedDescription)
+        }
+    }
+
+    @discardableResult
+    func updateServerName(_ name: String) async -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            serverOperationErrorMessage = "Enter a server name."
+            return false
+        }
+        guard connectionStatus == .connected else {
+            serverOperationErrorMessage = "Connect to Home Assistant before changing its name."
+            return false
+        }
+
+        serverOperationErrorMessage = nil
+        do {
+            try await client.updateLocationName(trimmedName)
+            await refreshServerConfiguration()
+            guard serverConfiguration?.locationName == trimmedName else {
+                serverOperationErrorMessage = "Home Assistant did not return the updated name."
+                return false
+            }
+            return true
+        } catch {
+            serverOperationErrorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -2699,7 +2724,7 @@ final class HomeAssistantService {
             serverConfiguration = snapshot
             serverEnvironment = environment
             currentConnectionSettings?.adoptServerRoutes(from: snapshot)
-            currentConnectionSettings?.updateDiscoveredServerName(snapshot.locationName)
+            currentConnectionSettings?.updateServerName(snapshot.locationName)
             serverConfigurationStatus = .loaded(snapshot.loadedAt)
         } catch {
             guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {

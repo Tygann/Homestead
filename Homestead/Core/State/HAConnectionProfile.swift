@@ -3,7 +3,7 @@ import Observation
 
 nonisolated struct HAConnectionProfile: Codable, Hashable, Identifiable, Sendable {
     let id: UUID
-    var displayName: String
+    var serverName: String?
     var discoveredName: String?
     var baseURL: String
     var internalURL: String
@@ -17,7 +17,7 @@ nonisolated struct HAConnectionProfile: Codable, Hashable, Identifiable, Sendabl
     }
 
     var resolvedDisplayName: String {
-        let preferredNames = [displayName, discoveredName ?? ""]
+        let preferredNames = [serverName ?? "", discoveredName ?? ""]
         if let name = preferredNames.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
             return name.trimmingCharacters(in: .whitespacesAndNewlines)
         }
@@ -30,7 +30,7 @@ nonisolated struct HAConnectionProfile: Codable, Hashable, Identifiable, Sendabl
 
     init(
         id: UUID = UUID(),
-        displayName: String = "",
+        serverName: String? = nil,
         discoveredName: String? = nil,
         baseURL: String = "",
         internalURL: String = "",
@@ -40,7 +40,7 @@ nonisolated struct HAConnectionProfile: Codable, Hashable, Identifiable, Sendabl
         lastUsedAt: Date = Date()
     ) {
         self.id = id
-        self.displayName = displayName
+        self.serverName = serverName
         self.discoveredName = discoveredName
         self.baseURL = baseURL
         self.internalURL = internalURL
@@ -126,7 +126,7 @@ final class HAConnectionProfileStore {
     @discardableResult
     func addProfile(
         id: UUID = UUID(),
-        displayName: String = "",
+        serverName: String? = nil,
         baseURL: String,
         internalURL: String = "",
         externalURL: String = "",
@@ -134,7 +134,7 @@ final class HAConnectionProfileStore {
     ) -> UUID {
         let profile = HAConnectionProfile(
             id: id,
-            displayName: displayName,
+            serverName: serverName,
             baseURL: baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
             internalURL: internalURL.trimmingCharacters(in: .whitespacesAndNewlines),
             externalURL: externalURL.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -167,9 +167,10 @@ final class HAConnectionProfileStore {
         publishWidgetProfiles()
     }
 
-    func renameProfile(id: UUID, name: String) {
+    func updateServerName(id: UUID, name: String?) {
         updateProfile(id: id) {
-            $0.displayName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+            $0.serverName = trimmedName?.isEmpty == false ? trimmedName : nil
         }
     }
 
@@ -216,7 +217,7 @@ final class HAConnectionProfileStore {
         var merged = profiles
         for remoteProfile in snapshot.profiles where remoteProfile.hasServerURL {
             if let index = merged.firstIndex(where: { $0.id == remoteProfile.id }) {
-                merged[index].displayName = remoteProfile.displayName
+                merged[index].serverName = remoteProfile.serverName
                 merged[index].discoveredName = remoteProfile.discoveredName
                 merged[index].baseURL = remoteProfile.baseURL
                 merged[index].internalURL = remoteProfile.internalURL

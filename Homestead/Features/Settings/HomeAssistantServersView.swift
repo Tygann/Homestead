@@ -7,81 +7,47 @@ struct HomeAssistantServersView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
-    private let returnsToPreviousScreenAfterSwitch: Bool
     @State private var switchingProfileID: UUID?
     @State private var switchErrorMessage: String?
-    @State private var renamingProfileID: UUID?
-    @State private var profileNameDraft = ""
     @State private var removalCandidateID: UUID?
     @State private var removingProfileID: UUID?
     @State private var removalFailureProfileID: UUID?
     @State private var removalFailureMessage: String?
     @State private var presentedSheet: ServerSheetDestination?
-    @State private var editMode: EditMode = .inactive
-
-    init(returnsToPreviousScreenAfterSwitch: Bool = false) {
-        self.returnsToPreviousScreenAfterSwitch = returnsToPreviousScreenAfterSwitch
-    }
 
     var body: some View {
         List {
             Section {
                 ForEach(connectionSettings.profiles) { profile in
-                    if editMode.isEditing {
+                    Button {
+                        if profile.id != connectionSettings.activeProfileID {
+                            switchToServer(profile.id)
+                        }
+                    } label: {
                         ServerProfileRow(
                             profile: profile,
                             isActive: profile.id == connectionSettings.activeProfileID,
                             isSwitching: switchingProfileID == profile.id,
                             isRemoving: removingProfileID == profile.id
                         )
-                    } else {
-                        NavigationLink {
-                            HomeAssistantServerDetailView(
-                                profileID: profile.id,
-                                onSwitchCompleted: returnsToPreviousScreenAfterSwitch ? { dismiss() } : nil
-                            )
-                        } label: {
-                            ServerProfileRow(
-                                profile: profile,
-                                isActive: profile.id == connectionSettings.activeProfileID,
-                                isSwitching: switchingProfileID == profile.id,
-                                isRemoving: removingProfileID == profile.id
-                            )
-                        }
-                        .disabled(isOperationInProgress)
-                        .contextMenu {
-                            serverActions(for: profile)
-                                .disabled(isOperationInProgress)
-                                .preferredColorScheme(colorScheme)
-                        }
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            if profile.id != connectionSettings.activeProfileID,
-                               !isOperationInProgress {
-                                Button {
-                                    switchToServer(profile.id)
-                                } label: {
-                                    Image(systemName: "checkmark.circle")
-                                }
-                                .tint(.accentColor)
-                                .accessibilityLabel("Use This Server")
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isOperationInProgress)
+                    .contextMenu {
+                        serverActions(for: profile)
+                            .disabled(isOperationInProgress)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if !isOperationInProgress {
+                            Button(role: .destructive) {
+                                beginRemoving(profile)
+                            } label: {
+                                Image(systemName: "trash")
                             }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            if !isOperationInProgress {
-                                Button(role: .destructive) {
-                                    beginRemoving(profile)
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .accessibilityLabel("Remove Server")
-                            }
+                            .accessibilityLabel("Remove Server")
                         }
                     }
-                }
-                .onMove { source, destination in
-                    connectionSettings.profileStore.moveProfiles(from: source, to: destination)
                 }
             }
 
@@ -92,24 +58,16 @@ struct HomeAssistantServersView: View {
                 }
             }
         }
-        .environment(\.editMode, $editMode)
         .navigationTitle("Servers")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if editMode.isEditing {
-                    Button("Done") {
-                        editMode = .inactive
-                    }
-                    .fontWeight(.semibold)
-                } else {
-                    Button {
-                        presentedSheet = .addServer
-                    } label: {
-                        Label("Add Server", systemImage: "plus")
-                    }
-                    .disabled(isOperationInProgress)
+                Button {
+                    presentedSheet = .addServer
+                } label: {
+                    Label("Add Server", systemImage: "plus")
                 }
+                .disabled(isOperationInProgress)
             }
         }
         .sheet(item: $presentedSheet) { destination in
@@ -119,17 +77,6 @@ struct HomeAssistantServersView: View {
                     AddHomeAssistantServerView()
                 }
             }
-        }
-        .alert("Rename Server", isPresented: isRenamingServer) {
-            TextField("Name", text: $profileNameDraft)
-            Button("Cancel", role: .cancel) {
-                resetRenamingState()
-            }
-            Button("Save") {
-                saveProfileName()
-            }
-        } message: {
-            Text("Choose the name Homestead uses for this server.")
         }
         .confirmationDialog(
             removalDialogTitle,
@@ -167,13 +114,6 @@ struct HomeAssistantServersView: View {
         switchingProfileID != nil || removingProfileID != nil
     }
 
-    private var isRenamingServer: Binding<Bool> {
-        Binding(
-            get: { renamingProfileID != nil },
-            set: { if !$0 { resetRenamingState() } }
-        )
-    }
-
     private var isConfirmingRemoval: Binding<Bool> {
         Binding(
             get: { removalCandidateID != nil },
@@ -209,47 +149,12 @@ struct HomeAssistantServersView: View {
         }
 
         Section {
-            Button {
-                beginRenaming(profile)
-            } label: {
-                Label("Rename", systemImage: "pencil")
-            }
-        }
-
-        if connectionSettings.profiles.count > 1 {
-            Section {
-                Button {
-                    editMode = .active
-                } label: {
-                    Label("Reorder Servers", systemImage: "line.3.horizontal")
-                }
-            }
-        }
-
-        Section {
             Button(role: .destructive) {
                 beginRemoving(profile)
             } label: {
                 Label("Remove Server", systemImage: "trash")
             }
         }
-    }
-
-    private func beginRenaming(_ profile: HAConnectionProfile) {
-        profileNameDraft = profile.displayName
-        renamingProfileID = profile.id
-    }
-
-    private func saveProfileName() {
-        if let renamingProfileID {
-            connectionSettings.profileStore.renameProfile(id: renamingProfileID, name: profileNameDraft)
-        }
-        resetRenamingState()
-    }
-
-    private func resetRenamingState() {
-        renamingProfileID = nil
-        profileNameDraft = ""
     }
 
     private func beginRemoving(_ profile: HAConnectionProfile) {
@@ -309,7 +214,7 @@ struct HomeAssistantServersView: View {
                 dashboardConfiguration: dashboardConfiguration
             )
             switchingProfileID = nil
-            if switched, returnsToPreviousScreenAfterSwitch {
+            if switched {
                 dismiss()
             } else if !switched {
                 switchErrorMessage = homeAssistantService.serverOperationErrorMessage ?? "Homestead couldn’t switch servers."
@@ -364,334 +269,6 @@ private struct ServerProfileRow: View {
     }
 }
 
-// MARK: - Server Detail
-
-private struct HomeAssistantServerDetailView: View {
-    @Environment(HAConnectionSettings.self) private var connectionSettings
-    @Environment(HomeAssistantService.self) private var homeAssistantService
-    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
-    @Environment(\.dismiss) private var dismiss
-
-    let profileID: UUID
-    let onSwitchCompleted: (() -> Void)?
-
-    init(profileID: UUID, onSwitchCompleted: (() -> Void)? = nil) {
-        self.profileID = profileID
-        self.onSwitchCompleted = onSwitchCompleted
-    }
-
-    @State private var draftName = ""
-    @State private var isRenaming = false
-    @State private var isConfirmingRemoval = false
-    @State private var isRemoving = false
-    @State private var isReauthenticating = false
-    @State private var isSwitching = false
-    @State private var switchErrorMessage: String?
-    @State private var removalFailureMessage: String?
-    @State private var profileAuthState: HAAuthState?
-
-    var body: some View {
-        Form {
-            if let profile {
-                overviewSection(profile)
-                if showsActionsSection {
-                    actionsSection
-                }
-
-                if let switchErrorMessage {
-                    Section {
-                        Label(switchErrorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-                    }
-                }
-
-                removeSection
-            }
-        }
-        .navigationTitle(profile?.resolvedDisplayName ?? "Server")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                if isRemoving { ProgressView() }
-            }
-        }
-        .alert("Rename Server", isPresented: $isRenaming) {
-            TextField("Name", text: $draftName)
-            Button("Cancel", role: .cancel) {}
-            Button("Save") { saveName() }
-        } message: {
-            Text("Choose the name Homestead uses for this server.")
-        }
-        .confirmationDialog(
-            "Remove \(profile?.resolvedDisplayName ?? "Server")?",
-            isPresented: $isConfirmingRemoval,
-            titleVisibility: .visible
-        ) {
-            Button("Remove Server", role: .destructive) {
-                removeServer(forceLocal: false)
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Homestead will ask Home Assistant to revoke this sign-in before removing its local data.")
-        }
-        .alert("Couldn’t Revoke Sign-In", isPresented: removalFailureBinding) {
-            Button("Retry") { removeServer(forceLocal: false) }
-            Button("Remove From This Device Anyway", role: .destructive) {
-                removeServer(forceLocal: true)
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(removalFailureMessage ?? "Home Assistant could not be reached.")
-        }
-        .task(id: profileID) {
-            await refreshProfileAuthState()
-        }
-    }
-
-    private var profile: HAConnectionProfile? {
-        connectionSettings.profileStore.profile(id: profileID)
-    }
-
-    private var isActive: Bool { connectionSettings.activeProfileID == profileID }
-
-    private var authenticationState: HAAuthState? {
-        isActive ? homeAssistantService.authState : profileAuthState
-    }
-
-    private var isAuthenticationReady: Bool {
-        authenticationState?.isSignedIn == true
-    }
-
-    private var requiresSignIn: Bool {
-        guard let authenticationState else { return false }
-        return !authenticationState.isSignedIn
-    }
-
-    private var showsActionsSection: Bool {
-        if isActive { return requiresSignIn }
-        return authenticationState != nil
-    }
-
-    private var removalFailureBinding: Binding<Bool> {
-        Binding(
-            get: { removalFailureMessage != nil },
-            set: { if !$0 { removalFailureMessage = nil } }
-        )
-    }
-
-    private func overviewSection(_ profile: HAConnectionProfile) -> some View {
-        Section {
-            Button {
-                draftName = profile.displayName
-                isRenaming = true
-            } label: {
-                LabeledContent("Name") {
-                    Text(profile.resolvedDisplayName)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .buttonStyle(.plain)
-
-            HStack(spacing: AppSpacing.medium) {
-                Text("Address")
-                    .layoutPriority(1)
-
-                Text(profileHost(profile))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .accessibilityElement(children: .combine)
-
-            if showsConnectionDetails(profile) {
-                NavigationLink("Connection Details") {
-                    HomeAssistantServerConnectionDetailsView(profile: profile)
-                }
-            }
-        }
-    }
-
-    private var actionsSection: some View {
-        Section {
-            primaryActionButton
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-        }
-    }
-
-    @ViewBuilder
-    private var primaryActionButton: some View {
-        if !isActive, isAuthenticationReady {
-            Button {
-                switchToServer()
-            } label: {
-                primaryActionLabel(
-                    title: isSwitching ? "Making Active…" : "Make Active",
-                    isLoading: isSwitching
-                )
-            }
-            .accessibilityLabel(
-                isSwitching
-                    ? "Making \(profile?.resolvedDisplayName ?? "this server") active"
-                    : "Make \(profile?.resolvedDisplayName ?? "this server") the active server"
-            )
-            .disabled(isSwitching)
-        } else if requiresSignIn {
-            Button {
-                reauthenticate()
-            } label: {
-                primaryActionLabel(
-                    title: isReauthenticating ? "Signing In…" : "Sign In Again",
-                    isLoading: isReauthenticating
-                )
-            }
-            .disabled(isRemoving || isReauthenticating || isSwitching)
-        }
-    }
-
-    private func primaryActionLabel(title: String, isLoading: Bool) -> some View {
-        HStack(spacing: AppSpacing.small) {
-            if isLoading {
-                ProgressView()
-                    .controlSize(.small)
-                    .accessibilityHidden(true)
-            }
-
-            Text(title)
-                .fontWeight(.semibold)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private var removeSection: some View {
-        Section {
-            Button(role: .destructive) {
-                isConfirmingRemoval = true
-            } label: {
-                Text("Remove Server")
-                    .frame(maxWidth: .infinity, alignment: .center)
-            }
-            .disabled(isRemoving)
-        } footer: {
-            Text("This removes the server and its local Homestead data from this device.")
-        }
-    }
-
-    private func saveName() {
-        connectionSettings.profileStore.renameProfile(id: profileID, name: draftName)
-    }
-
-    private func profileHost(_ profile: HAConnectionProfile) -> String {
-        URL(string: profile.baseURL)?.host(percentEncoded: false) ?? profile.baseURL
-    }
-
-    private func showsConnectionDetails(_ profile: HAConnectionProfile) -> Bool {
-        let baseURL = profile.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let internalURL = profile.internalURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let externalURL = profile.externalURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (!internalURL.isEmpty && internalURL != baseURL) ||
-            (!externalURL.isEmpty && externalURL != baseURL)
-    }
-
-    private func removeServer(forceLocal: Bool) {
-        isRemoving = true
-        Task {
-            let removed = await homeAssistantService.removeServer(
-                profileID: profileID,
-                removeFromDeviceAnyway: forceLocal,
-                settings: connectionSettings,
-                dashboardConfiguration: dashboardConfiguration,
-                appearanceSettings: appearanceSettings
-            )
-            isRemoving = false
-            if removed {
-                dismiss()
-            } else {
-                removalFailureMessage = homeAssistantService.serverOperationErrorMessage ?? "Home Assistant could not be reached."
-            }
-        }
-    }
-
-    private func reauthenticate() {
-        isReauthenticating = true
-        Task {
-            let succeeded = await homeAssistantService.reauthenticateServer(
-                profileID: profileID,
-                settings: connectionSettings
-            )
-            if succeeded {
-                await refreshProfileAuthState()
-            }
-            isReauthenticating = false
-        }
-    }
-
-    private func refreshProfileAuthState() async {
-        profileAuthState = await homeAssistantService.authenticationState(for: profileID)
-    }
-
-    private func switchToServer() {
-        isSwitching = true
-        switchErrorMessage = nil
-        Task {
-            let switched = await homeAssistantService.switchActiveProfile(
-                to: profileID,
-                settings: connectionSettings,
-                dashboardConfiguration: dashboardConfiguration
-            )
-            isSwitching = false
-            if switched {
-                if let onSwitchCompleted {
-                    onSwitchCompleted()
-                } else {
-                    dismiss()
-                }
-            } else {
-                switchErrorMessage = homeAssistantService.serverOperationErrorMessage ?? "Homestead couldn’t switch servers."
-            }
-        }
-    }
-}
-
-// MARK: - Connection Details
-
-private struct HomeAssistantServerConnectionDetailsView: View {
-    let profile: HAConnectionProfile
-
-    var body: some View {
-        Form {
-            Section("Sign-In Address") {
-                addressText(profile.baseURL)
-            }
-
-            if !profile.internalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Section("Internal URL") {
-                    addressText(profile.internalURL)
-                }
-            }
-
-            if !profile.externalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Section("External URL") {
-                    addressText(profile.externalURL)
-                }
-            }
-        }
-        .navigationTitle("Connection Details")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func addressText(_ address: String) -> some View {
-        Text(address)
-            .font(.footnote.monospaced())
-            .textSelection(.enabled)
-    }
-}
-
 // MARK: - Add Server
 
 struct AddHomeAssistantServerView: View {
@@ -701,7 +278,6 @@ struct AddHomeAssistantServerView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(\.dismiss) private var dismiss
 
-    @State private var draftName = ""
     @State private var draftAddress = ""
     @State private var selectedInstance: HomeAssistantDiscoveredInstance?
     @State private var isAdding = false
@@ -727,7 +303,6 @@ struct AddHomeAssistantServerView: View {
                 ForEach(discoveryService.instances) { instance in
                     Button {
                         selectedInstance = instance
-                        draftName = instance.name
                         draftAddress = instance.signInURL
                     } label: {
                         HStack {
@@ -748,8 +323,6 @@ struct AddHomeAssistantServerView: View {
             }
 
             Section("Server") {
-                TextField("Name (Optional)", text: $draftName)
-                    .textContentType(.organizationName)
                 TextField("Home Assistant Address", text: $draftAddress)
                     .textContentType(.URL)
                     .keyboardType(.URL)
@@ -792,7 +365,6 @@ struct AddHomeAssistantServerView: View {
         Task {
             guard let profileID = await homeAssistantService.addServer(
                 baseURLString: draftAddress,
-                displayName: draftName,
                 settings: connectionSettings,
                 dashboardConfiguration: dashboardConfiguration
             ) else {
