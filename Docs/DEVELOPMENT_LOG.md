@@ -2,6 +2,13 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-17
+
+### Account Server Selection Trial
+
+- Added an untitled Account section with a `Server` navigation row that displays the active Homestead saved-server name separately from Home Assistant's actual `Server Name`.
+- Reused the existing Servers management screen without changing its top-level behavior; when entered from Account, a successful server switch completes the existing app-wide context change and returns to the refreshed Account screen.
+
 ## 2026-07-15
 
 ### Multiple Home Assistant Servers

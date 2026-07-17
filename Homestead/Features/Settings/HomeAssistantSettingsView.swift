@@ -14,6 +14,8 @@ struct HomeAssistantSettingsView: View {
         Form {
             accountSection
 
+            serverSelectionSection
+
             serverSection
 
             homeAssistantSection
@@ -87,6 +89,20 @@ struct HomeAssistantSettingsView: View {
             .accessibilityLabel("Connection status, \(headerStatusTitle)")
     }
 
+    private var serverSelectionSection: some View {
+        Section {
+            NavigationLink {
+                HomeAssistantServersView(returnsToPreviousScreenAfterSwitch: true)
+            } label: {
+                SettingsServerAddressRow(
+                    title: "Server",
+                    value: connectionSettings.activeProfile.resolvedDisplayName,
+                    systemImage: "server.rack"
+                )
+            }
+        }
+    }
+
     private var serverSection: some View {
         Section {
             SettingsServerAddressRow(
@@ -120,8 +136,6 @@ struct HomeAssistantSettingsView: View {
                 value: activeConnectionValue,
                 systemImage: "arrow.triangle.branch"
             )
-        } header: {
-            Text("Server")
         }
     }
 

@@ -8,6 +8,8 @@ struct HomeAssistantServersView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
+    private let returnsToPreviousScreenAfterSwitch: Bool
     @State private var switchingProfileID: UUID?
     @State private var switchErrorMessage: String?
     @State private var renamingProfileID: UUID?
@@ -18,6 +20,10 @@ struct HomeAssistantServersView: View {
     @State private var removalFailureMessage: String?
     @State private var presentedSheet: ServerSheetDestination?
     @State private var editMode: EditMode = .inactive
+
+    init(returnsToPreviousScreenAfterSwitch: Bool = false) {
+        self.returnsToPreviousScreenAfterSwitch = returnsToPreviousScreenAfterSwitch
+    }
 
     var body: some View {
         List {
@@ -32,7 +38,10 @@ struct HomeAssistantServersView: View {
                         )
                     } else {
                         NavigationLink {
-                            HomeAssistantServerDetailView(profileID: profile.id)
+                            HomeAssistantServerDetailView(
+                                profileID: profile.id,
+                                onSwitchCompleted: returnsToPreviousScreenAfterSwitch ? { dismiss() } : nil
+                            )
                         } label: {
                             ServerProfileRow(
                                 profile: profile,
@@ -300,7 +309,9 @@ struct HomeAssistantServersView: View {
                 dashboardConfiguration: dashboardConfiguration
             )
             switchingProfileID = nil
-            if !switched {
+            if switched, returnsToPreviousScreenAfterSwitch {
+                dismiss()
+            } else if !switched {
                 switchErrorMessage = homeAssistantService.serverOperationErrorMessage ?? "Homestead couldn’t switch servers."
             }
         }
@@ -363,6 +374,12 @@ private struct HomeAssistantServerDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     let profileID: UUID
+    let onSwitchCompleted: (() -> Void)?
+
+    init(profileID: UUID, onSwitchCompleted: (() -> Void)? = nil) {
+        self.profileID = profileID
+        self.onSwitchCompleted = onSwitchCompleted
+    }
 
     @State private var draftName = ""
     @State private var isRenaming = false
@@ -629,7 +646,11 @@ private struct HomeAssistantServerDetailView: View {
             )
             isSwitching = false
             if switched {
-                dismiss()
+                if let onSwitchCompleted {
+                    onSwitchCompleted()
+                } else {
+                    dismiss()
+                }
             } else {
                 switchErrorMessage = homeAssistantService.serverOperationErrorMessage ?? "Homestead couldn’t switch servers."
             }

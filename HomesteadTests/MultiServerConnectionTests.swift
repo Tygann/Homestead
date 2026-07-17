@@ -40,6 +40,24 @@ struct MultiServerConnectionTests {
         #expect(settings.internalNetworkSSIDs == ["Test WiFi"])
     }
 
+    @Test func activeProfileNameTracksServerSelectionForAccount() throws {
+        let defaults = try makeDefaults()
+        let settings = HAConnectionSettings(
+            baseURL: "https://primary.example.com",
+            defaults: defaults,
+            tokenStore: EmptyTokenStore()
+        )
+        settings.profileStore.renameProfile(id: settings.activeProfileID, name: "Keegdom")
+        let secondID = settings.profileStore.addProfile(
+            displayName: "Peachdom",
+            baseURL: "https://peachdom.example.com"
+        )
+
+        #expect(settings.activeProfile.resolvedDisplayName == "Keegdom")
+        #expect(settings.activateProfile(id: secondID))
+        #expect(settings.activeProfile.resolvedDisplayName == "Peachdom")
+    }
+
     @Test func dashboardDocumentsRemainIsolatedByProfile() throws {
         let defaults = try makeDefaults()
         let primaryID = UUID()
