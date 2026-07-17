@@ -33,7 +33,6 @@ struct HomeAssistantServersView: View {
                             isRemoving: removingProfileID == profile.id
                         )
                     }
-                    .contentShape(Rectangle())
                     .buttonStyle(.plain)
                     .disabled(isOperationInProgress)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -255,6 +254,8 @@ private struct ServerProfileRow: View {
 
             Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private var profileHost: String {
