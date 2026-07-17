@@ -74,7 +74,7 @@ struct AppearanceSettingsView: View {
 
         return Section {
             Toggle("Wallpaper", isOn: $appearanceSettings.isWallpaperEnabled)
-                .disabled(!appearanceSettings.hasWallpaper)
+                .disabled(!appearanceSettings.hasWallpaper || isImportingWallpaper)
                 .accessibilityLabel("Use Wallpaper")
 
             VStack(spacing: AppSpacing.medium) {
@@ -97,6 +97,7 @@ struct AppearanceSettingsView: View {
                             .lineLimit(1)
                     }
                     .buttonStyle(.bordered)
+                    .disabled(isImportingWallpaper)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -108,7 +109,17 @@ struct AppearanceSettingsView: View {
 
     @ViewBuilder
     private var wallpaperPicker: some View {
-        if appearanceSettings.hasWallpaper {
+        if isImportingWallpaper {
+            HStack(spacing: AppSpacing.small) {
+                ProgressView()
+                    .controlSize(.small)
+
+                Text(appearanceSettings.hasWallpaper ? "Updating Wallpaper…" : "Adding Wallpaper…")
+            }
+            .foregroundStyle(.secondary)
+            .frame(minHeight: AppSpacing.xxLarge)
+            .accessibilityElement(children: .combine)
+        } else if appearanceSettings.hasWallpaper {
             PhotosPicker(
                 selection: $selectedPhoto,
                 matching: .images,
@@ -118,7 +129,6 @@ struct AppearanceSettingsView: View {
                     .lineLimit(1)
             }
             .buttonStyle(.bordered)
-            .disabled(isImportingWallpaper)
         } else {
             PhotosPicker(
                 selection: $selectedPhoto,
@@ -129,7 +139,6 @@ struct AppearanceSettingsView: View {
                     .lineLimit(1)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(isImportingWallpaper)
         }
     }
 
