@@ -30,6 +30,12 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func subscribeToRegistryChanges() async throws
     func unsubscribeFromStateChanges() async throws
     func subscribeToMobileAppPushNotifications(webhookID: String, supportConfirm: Bool) async throws
+    func subscribeToWeatherForecast(
+        entityID: String,
+        forecastType: WeatherForecastType,
+        handler: @escaping @Sendable (HAWeatherForecastEventDTO) async -> Void
+    ) async throws -> Int
+    func unsubscribe(subscriptionID: Int) async throws
     func confirmMobileAppPushNotification(webhookID: String, confirmID: String) async throws
     func callService(
         domain: String,
@@ -55,6 +61,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     private var stateChangeSubscriptionID: Int?
     private var registryChangeSubscriptionIDs: [String: Int] = [:]
     private var mobileAppPushNotificationSubscriptionID: Int?
+    private var weatherForecastHandlers: [Int: @Sendable (HAWeatherForecastEventDTO) async -> Void] = [:]
     private var isDisconnecting = false
 
     init(
@@ -130,6 +137,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         stateChangeSubscriptionID = nil
         registryChangeSubscriptionIDs.removeAll()
         mobileAppPushNotificationSubscriptionID = nil
+        weatherForecastHandlers.removeAll()
         resumeAllPending(throwing: HAWebSocketError.notConnected)
         resumeAllPongs(throwing: HAWebSocketError.notConnected)
     }
@@ -417,6 +425,35 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         )
     }
 
+    func subscribeToWeatherForecast(
+        entityID: String,
+        forecastType: WeatherForecastType,
+        handler: @escaping @Sendable (HAWeatherForecastEventDTO) async -> Void
+    ) async throws -> Int {
+        let id = makeRequestID()
+        weatherForecastHandlers[id] = handler
+
+        do {
+            _ = try await sendRequest(
+                .subscribeWeatherForecast(id: id, entityID: entityID, forecastType: forecastType),
+                id: id
+            )
+            return id
+        } catch {
+            weatherForecastHandlers.removeValue(forKey: id)
+            throw error
+        }
+    }
+
+    func unsubscribe(subscriptionID: Int) async throws {
+        weatherForecastHandlers.removeValue(forKey: subscriptionID)
+        let id = makeRequestID()
+        _ = try await sendRequest(
+            .unsubscribeEvents(id: id, subscription: subscriptionID),
+            id: id
+        )
+    }
+
     func callService(
         domain: String,
         service: String,
@@ -609,7 +646,11 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         case HAWebSocketMessageType.pong:
             handlePong(message)
         case HAWebSocketMessageType.event:
-            if let mobileAppPushNotificationEvent = message.mobileAppPushNotificationEvent {
+            if let id = message.id,
+               let weatherForecastEvent = message.weatherForecastEvent,
+               let handler = weatherForecastHandlers[id] {
+                await handler(weatherForecastEvent)
+            } else if let mobileAppPushNotificationEvent = message.mobileAppPushNotificationEvent {
                 await mobileAppPushNotificationHandler?(mobileAppPushNotificationEvent)
             } else if let event = message.event {
                 await eventHandler?(event)

@@ -201,6 +201,29 @@ final class EntityCapabilityProfileTests: XCTestCase {
         )
     }
 
+    func testFeatureProviderExposesForecastOnlyForSupportedWeatherEntities() throws {
+        let supportedDTO = HAEntityDTO(
+            entityID: "weather.home",
+            state: "sunny",
+            attributes: ["supported_features": .number(3)]
+        )
+        let unsupportedDTO = HAEntityDTO(
+            entityID: "weather.legacy",
+            state: "sunny"
+        )
+        let supportedBox = HAEntityState(
+            homeEntity: EntityMapper.homeEntity(from: supportedDTO),
+            weatherEntity: try XCTUnwrap(EntityMapper.weatherEntity(from: supportedDTO))
+        )
+        let unsupportedBox = HAEntityState(
+            homeEntity: EntityMapper.homeEntity(from: unsupportedDTO),
+            weatherEntity: try XCTUnwrap(EntityMapper.weatherEntity(from: unsupportedDTO))
+        )
+
+        XCTAssertTrue(EntityDetailFeatureProvider.features(for: supportedBox).supports(.forecast))
+        XCTAssertFalse(EntityDetailFeatureProvider.features(for: unsupportedBox).supports(.forecast))
+    }
+
     private func operationalStatePresentation(
         isAvailable: Bool = true,
         pendingCommand: HAEntityPendingCommand? = nil,

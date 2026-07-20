@@ -1644,6 +1644,9 @@ final class HAEntityState: Identifiable {
     var selectEntity: SelectEntity?
     var numberEntity: NumberEntity?
     var pendingCommand: HAEntityPendingCommand?
+    private(set) var weatherForecastsByType: [WeatherForecastType: WeatherForecastSnapshot] = [:]
+    private(set) var loadingWeatherForecastTypes: Set<WeatherForecastType> = []
+    private(set) var weatherForecastErrorsByType: [WeatherForecastType: String] = [:]
 
     var id: String { homeEntity.entityID }
     var entityID: String { homeEntity.entityID }
@@ -1703,5 +1706,25 @@ final class HAEntityState: Identifiable {
         self.selectEntity = selectEntity
         self.numberEntity = numberEntity
         self.pendingCommand = pendingCommand
+    }
+
+    func beginLoadingWeatherForecast(_ type: WeatherForecastType) {
+        loadingWeatherForecastTypes.insert(type)
+        weatherForecastErrorsByType.removeValue(forKey: type)
+    }
+
+    func applyWeatherForecast(_ snapshot: WeatherForecastSnapshot) {
+        weatherForecastsByType[snapshot.type] = snapshot
+        loadingWeatherForecastTypes.remove(snapshot.type)
+        weatherForecastErrorsByType.removeValue(forKey: snapshot.type)
+    }
+
+    func failLoadingWeatherForecast(_ type: WeatherForecastType, message: String) {
+        loadingWeatherForecastTypes.remove(type)
+        weatherForecastErrorsByType[type] = message
+    }
+
+    func clearWeatherForecastLoadingState() {
+        loadingWeatherForecastTypes.removeAll()
     }
 }

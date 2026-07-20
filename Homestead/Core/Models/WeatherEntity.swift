@@ -10,6 +10,7 @@ struct WeatherEntity: Identifiable, Equatable, Sendable {
     let windSpeed: Double?
     let windSpeedUnit: String?
     let windBearing: Double?
+    let supportedFeatures: Int
     let forecastCount: Int?
     let attribution: String?
     let lastUpdated: Date?
@@ -68,8 +69,17 @@ struct WeatherEntity: Identifiable, Equatable, Sendable {
     }
 
     var hasForecast: Bool {
-        guard let forecastCount else { return false }
-        return forecastCount > 0
+        !supportedForecastTypes.isEmpty || (forecastCount ?? 0) > 0
+    }
+
+    var supportedForecastTypes: [WeatherForecastType] {
+        WeatherForecastType.allCases.filter { type in
+            supportedFeatures & type.featureFlag != 0
+        }
+    }
+
+    var defaultForecastType: WeatherForecastType? {
+        supportedForecastTypes.first
     }
 
     var forecastAvailabilityText: String {
@@ -113,6 +123,57 @@ struct WeatherEntity: Identifiable, Equatable, Sendable {
         let separator = unit.hasPrefix("°") || unit == "%" ? "" : " "
         return "\(valueText)\(separator)\(unit)"
     }
+}
+
+nonisolated enum WeatherForecastType: String, CaseIterable, Codable, Hashable, Sendable {
+    case daily
+    case twiceDaily = "twice_daily"
+    case hourly
+
+    var featureFlag: Int {
+        switch self {
+        case .daily: 1
+        case .hourly: 2
+        case .twiceDaily: 4
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .daily: "Daily"
+        case .twiceDaily: "Day & Night"
+        case .hourly: "Hourly"
+        }
+    }
+
+    var itemLimit: Int {
+        switch self {
+        case .daily: 7
+        case .twiceDaily: 8
+        case .hourly: 12
+        }
+    }
+}
+
+nonisolated struct WeatherForecastSnapshot: Equatable, Sendable {
+    let type: WeatherForecastType
+    let entries: [WeatherForecastEntry]
+    let receivedAt: Date
+}
+
+nonisolated struct WeatherForecastEntry: Identifiable, Equatable, Sendable {
+    let datetime: Date
+    let condition: WeatherCondition
+    let temperature: Double?
+    let lowTemperature: Double?
+    let precipitation: Double?
+    let precipitationProbability: Double?
+    let humidity: Double?
+    let isDaytime: Bool?
+    let windSpeed: Double?
+    let windBearing: Double?
+
+    var id: Date { datetime }
 }
 
 nonisolated enum WeatherCondition: Equatable, Sendable {

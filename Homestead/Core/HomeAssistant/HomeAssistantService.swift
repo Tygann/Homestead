@@ -58,6 +58,8 @@ final class HomeAssistantService {
     @ObservationIgnored private var registryRefreshTask: Task<Void, Never>?
     @ObservationIgnored private var connectionHealthGraceTask: Task<Void, Never>?
     @ObservationIgnored private var pendingCommandTasksByID: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored private var weatherForecastSubscriptionIDsByEntityID: [String: [Int]] = [:]
+    @ObservationIgnored private var weatherForecastSessionIDsByEntityID: [String: UUID] = [:]
     @ObservationIgnored private var bufferedStateChangesByID: [String: HAStateChangedEventDTO] = [:]
     @ObservationIgnored private var isBufferingStateChanges = false
     @ObservationIgnored private var lastSuspendedAt: Date?
@@ -257,6 +259,7 @@ final class HomeAssistantService {
         await stateEventBatcher.discardPendingUpdates()
         let previousDataSourceID = activeConfiguration?.dataSourceID
         if activeConfiguration != nil {
+            discardWeatherForecastSubscriptions()
             await client.disconnect()
             activeConfiguration = nil
             mobileAppPushNotificationState = .unavailable
@@ -371,6 +374,7 @@ final class HomeAssistantService {
         discardBufferedStateChanges()
         await stateEventBatcher.discardPendingUpdates()
         cancelPendingCommandTasks()
+        discardWeatherForecastSubscriptions()
         await client.disconnect()
         await dashboardHistoryCache.removeAll()
         activeConfiguration = nil
@@ -386,6 +390,54 @@ final class HomeAssistantService {
         stateCacheMetadata = nil
         dataFreshness = staleFreshness(nil)
         connectionStatus = .disconnected
+    }
+
+    func startWeatherForecastUpdates(for entityBox: HAEntityState) async {
+        let entityID = entityBox.entityID
+        await stopWeatherForecastUpdates(entityID: entityID)
+
+        guard connectionStatus == .connected,
+              let weather = entityBox.weatherEntity else {
+            return
+        }
+
+        weatherForecastSubscriptionIDsByEntityID[entityID] = []
+        let sessionID = UUID()
+        weatherForecastSessionIDsByEntityID[entityID] = sessionID
+        var subscriptionIDs: [Int] = []
+        for type in weather.supportedForecastTypes {
+            entityBox.beginLoadingWeatherForecast(type)
+
+            do {
+                let subscriptionID = try await client.subscribeToWeatherForecast(
+                    entityID: entityID,
+                    forecastType: type
+                ) { [weak self] event in
+                    await self?.applyWeatherForecast(event, entityID: entityID, sessionID: sessionID)
+                }
+                guard weatherForecastSessionIDsByEntityID[entityID] == sessionID else {
+                    try? await client.unsubscribe(subscriptionID: subscriptionID)
+                    return
+                }
+                subscriptionIDs.append(subscriptionID)
+                weatherForecastSubscriptionIDsByEntityID[entityID] = subscriptionIDs
+            } catch {
+                if weatherForecastSessionIDsByEntityID[entityID] == sessionID {
+                    entityBox.failLoadingWeatherForecast(type, message: weatherForecastErrorMessage(error))
+                }
+            }
+        }
+
+    }
+
+    func stopWeatherForecastUpdates(entityID: String) async {
+        let subscriptionIDs = weatherForecastSubscriptionIDsByEntityID.removeValue(forKey: entityID) ?? []
+        weatherForecastSessionIDsByEntityID.removeValue(forKey: entityID)
+        stateStore.entityBox(for: entityID)?.clearWeatherForecastLoadingState()
+
+        for subscriptionID in subscriptionIDs {
+            try? await client.unsubscribe(subscriptionID: subscriptionID)
+        }
     }
 
     func refreshAuthState() async {
@@ -2908,6 +2960,36 @@ final class HomeAssistantService {
     private func discardBufferedStateChanges() {
         bufferedStateChangesByID.removeAll()
         isBufferingStateChanges = false
+    }
+
+    private func applyWeatherForecast(
+        _ event: HAWeatherForecastEventDTO,
+        entityID: String,
+        sessionID: UUID
+    ) {
+        guard weatherForecastSessionIDsByEntityID[entityID] == sessionID,
+              let entityBox = stateStore.entityBox(for: entityID) else {
+            return
+        }
+
+        entityBox.applyWeatherForecast(EntityMapper.weatherForecastSnapshot(from: event))
+    }
+
+    private func discardWeatherForecastSubscriptions() {
+        for entityID in weatherForecastSubscriptionIDsByEntityID.keys {
+            stateStore.entityBox(for: entityID)?.clearWeatherForecastLoadingState()
+        }
+        weatherForecastSubscriptionIDsByEntityID.removeAll()
+        weatherForecastSessionIDsByEntityID.removeAll()
+    }
+
+    private func weatherForecastErrorMessage(_ error: Error) -> String {
+        if case HAWebSocketError.requestFailed(let message) = error,
+           message?.localizedCaseInsensitiveContains("not support") == true {
+            return "This forecast is not available from the weather provider."
+        }
+
+        return "Couldn’t update the forecast."
     }
 
     private func handleUnexpectedDisconnect(_ error: Error) {

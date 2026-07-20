@@ -32,6 +32,7 @@ enum HAWebSocketMessageType {
     nonisolated static var automationConfig: String { "automation/config" }
     nonisolated static var scriptConfig: String { "script/config" }
     nonisolated static var traceList: String { "trace/list" }
+    nonisolated static var weatherSubscribeForecast: String { "weather/subscribe_forecast" }
 }
 
 struct HAWebSocketIncomingMessage: Decodable, Sendable {
@@ -41,6 +42,7 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
     let result: JSONValue?
     let event: HAEventDTO?
     let mobileAppPushNotificationEvent: HAMobileAppPushNotificationEventDTO?
+    let weatherForecastEvent: HAWeatherForecastEventDTO?
     let error: HAWebSocketErrorDTO?
     let message: String?
 
@@ -63,6 +65,7 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
         let eventValue = try container.decodeIfPresent(JSONValue.self, forKey: .event)
         event = try? eventValue?.decoded(HAEventDTO.self)
         mobileAppPushNotificationEvent = try? eventValue?.decoded(HAMobileAppPushNotificationEventDTO.self)
+        weatherForecastEvent = try? eventValue?.decoded(HAWeatherForecastEventDTO.self)
         error = try container.decodeIfPresent(HAWebSocketErrorDTO.self, forKey: .error)
         message = try container.decodeIfPresent(String.self, forKey: .message)
     }
@@ -118,6 +121,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case automationConfig(id: Int, entityID: String)
     case scriptConfig(id: Int, entityID: String)
     case traceList(id: Int, domain: String, itemID: String)
+    case subscribeWeatherForecast(id: Int, entityID: String, forecastType: WeatherForecastType)
     case callService(
         id: Int,
         domain: String,
@@ -145,6 +149,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case scope
         case itemID = "item_id"
         case locationName = "location_name"
+        case forecastType = "forecast_type"
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -224,6 +229,11 @@ enum HAWebSocketRequest: Encodable, Sendable {
             try container.encode(HAWebSocketMessageType.traceList, forKey: .type)
             try container.encode(domain, forKey: .domain)
             try container.encode(itemID, forKey: .itemID)
+        case .subscribeWeatherForecast(let id, let entityID, let forecastType):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.weatherSubscribeForecast, forKey: .type)
+            try container.encode(entityID, forKey: .entityID)
+            try container.encode(forecastType.rawValue, forKey: .forecastType)
         case .callService(let id, let domain, let service, let target, let serviceData):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.callService, forKey: .type)

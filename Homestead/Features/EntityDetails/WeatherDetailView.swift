@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WeatherDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var selectedForecastType: WeatherForecastType = .daily
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -22,15 +23,48 @@ struct WeatherDetailView: View {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
     }
 
+    private var features: EntityDetailFeatureSet {
+        EntityDetailFeatureProvider.features(for: entityBox)
+    }
+
     var body: some View {
         if let weather {
             EntityDetailScaffold(title: weather.displayName, presentationStyle: presentationStyle) {
                 hero(weather)
+                if features.supports(.forecast) {
+                    WeatherForecastPanel(
+                        weather: weather,
+                        entityBox: entityBox,
+                        isConnectionLive: homeAssistantService.connectionStatus == .connected,
+                        selectedType: $selectedForecastType,
+                        retry: retryForecast
+                    )
+                }
                 if !weatherRows(weather).isEmpty {
                     weatherDetails(weather)
                 }
-                sourceDetails(weather)
+                if weather.attributionText != nil {
+                    sourceDetails(weather)
+                }
                 contextDetails
+            }
+            .task(id: weather.supportedForecastTypes) {
+                if !weather.supportedForecastTypes.contains(selectedForecastType),
+                   let defaultType = weather.defaultForecastType {
+                    selectedForecastType = defaultType
+                }
+            }
+            .task(id: homeAssistantService.connectionStatus) {
+                if homeAssistantService.connectionStatus == .connected {
+                    await homeAssistantService.startWeatherForecastUpdates(for: entityBox)
+                } else {
+                    await homeAssistantService.stopWeatherForecastUpdates(entityID: entityBox.entityID)
+                }
+            }
+            .onDisappear {
+                Task {
+                    await homeAssistantService.stopWeatherForecastUpdates(entityID: entityBox.entityID)
+                }
             }
         } else {
             EntityUnavailableDetailView(
@@ -110,15 +144,7 @@ struct WeatherDetailView: View {
     }
 
     private func sourceRows(_ weather: WeatherEntity) -> [EntityMetadataRow] {
-        var rows = [
-            EntityMetadataRow(title: "Forecast", value: weather.forecastAvailabilityText)
-        ]
-
-        if let attribution = weather.attributionText {
-            rows.append(EntityMetadataRow(title: "Attribution", value: attribution))
-        }
-
-        return rows
+        weather.attributionText.map { [EntityMetadataRow(title: "Attribution", value: $0)] } ?? []
     }
 
     private var contextRows: [EntityMetadataRow] {
@@ -148,13 +174,68 @@ struct WeatherDetailView: View {
         return presentation.accentColor.opacity(0.12)
     }
 
+    private func retryForecast() {
+        Task {
+            await homeAssistantService.startWeatherForecastUpdates(for: entityBox)
+        }
+    }
+
 }
 
 #if DEBUG
 #Preview("Weather") {
-    if let entityBox = PreviewDependencies.sample.stateStore.entityBox(for: "weather.home") {
-        WeatherDetailView(entityBox: entityBox)
-            .withPreviewEnvironment()
-    }
+    weatherDetailPreview()
+}
+
+@MainActor
+private func weatherDetailPreview() -> some View {
+    let dependencies = PreviewDependencies.entityDetailSample(connectionStatus: .disconnected)
+    let entityBox = dependencies.stateStore.entityBox(for: "weather.home")!
+    entityBox.applyWeatherForecast(
+        WeatherForecastSnapshot(
+            type: .daily,
+            entries: [
+                WeatherForecastEntry(
+                    datetime: .now,
+                    condition: .partlyCloudy,
+                    temperature: 83,
+                    lowTemperature: 68,
+                    precipitation: nil,
+                    precipitationProbability: 20,
+                    humidity: 58,
+                    isDaytime: true,
+                    windSpeed: 8,
+                    windBearing: 225
+                ),
+                WeatherForecastEntry(
+                    datetime: .now.addingTimeInterval(86_400),
+                    condition: .rainy,
+                    temperature: 76,
+                    lowTemperature: 65,
+                    precipitation: nil,
+                    precipitationProbability: 70,
+                    humidity: 72,
+                    isDaytime: true,
+                    windSpeed: 11,
+                    windBearing: 180
+                ),
+                WeatherForecastEntry(
+                    datetime: .now.addingTimeInterval(172_800),
+                    condition: .sunny,
+                    temperature: 86,
+                    lowTemperature: 69,
+                    precipitation: nil,
+                    precipitationProbability: 5,
+                    humidity: 45,
+                    isDaytime: true,
+                    windSpeed: 6,
+                    windBearing: 270
+                )
+            ],
+            receivedAt: .now
+        )
+    )
+    return WeatherDetailView(entityBox: entityBox)
+        .withPreviewEnvironment(dependencies)
 }
 #endif

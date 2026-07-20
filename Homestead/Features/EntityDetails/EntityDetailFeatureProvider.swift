@@ -48,6 +48,9 @@ enum EntityDetailFeatureProvider {
         if supportsDomainInsights(entityBox) {
             features.insert(.domainInsights)
         }
+        if supportsForecast(entityBox) {
+            features.insert(.forecast)
+        }
 
         return EntityDetailFeatureSet(
             supportedFeatures: features,
@@ -104,5 +107,9 @@ enum EntityDetailFeatureProvider {
         default:
             false
         }
+    }
+
+    private static func supportsForecast(_ entityBox: HAEntityState) -> Bool {
+        entityBox.weatherEntity?.supportedForecastTypes.isEmpty == false
     }
 }

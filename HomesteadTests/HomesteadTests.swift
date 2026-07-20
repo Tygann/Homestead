@@ -958,6 +958,57 @@ struct HomesteadTests {
         #expect(confirmObject["confirm_id"] as? String == "confirm-123")
     }
 
+    @Test func weatherForecastSubscriptionRequestEncodesHomeAssistantShape() throws {
+        let request = HAWebSocketRequest.subscribeWeatherForecast(
+            id: 21,
+            entityID: "weather.home",
+            forecastType: .twiceDaily
+        )
+
+        let object = try #require(
+            JSONSerialization.jsonObject(with: try JSONEncoder().encode(request)) as? [String: Any]
+        )
+
+        #expect(object["id"] as? Int == 21)
+        #expect(object["type"] as? String == "weather/subscribe_forecast")
+        #expect(object["entity_id"] as? String == "weather.home")
+        #expect(object["forecast_type"] as? String == "twice_daily")
+    }
+
+    @Test func weatherForecastEventDecodesAndMapsIntoAppModel() throws {
+        let payload = """
+        {
+            "id": 21,
+            "type": "event",
+            "event": {
+                "type": "daily",
+                "forecast": [{
+                    "datetime": "2026-07-21T12:00:00+00:00",
+                    "condition": "rainy",
+                    "temperature": 81,
+                    "templow": 68,
+                    "precipitation_probability": 70
+                }]
+            }
+        }
+        """
+
+        let message = try JSONDecoder().decode(HAWebSocketIncomingMessage.self, from: Data(payload.utf8))
+        let event = try #require(message.weatherForecastEvent)
+        let snapshot = EntityMapper.weatherForecastSnapshot(
+            from: event,
+            receivedAt: Date(timeIntervalSince1970: 200)
+        )
+
+        #expect(snapshot.type == .daily)
+        #expect(snapshot.receivedAt == Date(timeIntervalSince1970: 200))
+        #expect(snapshot.entries.count == 1)
+        #expect(snapshot.entries[0].condition == .rainy)
+        #expect(snapshot.entries[0].temperature == 81)
+        #expect(snapshot.entries[0].lowTemperature == 68)
+        #expect(snapshot.entries[0].precipitationProbability == 70)
+    }
+
     @Test func mobileAppPushNotificationEventDecodesFromWebSocketEventEnvelope() throws {
         let payload = """
         {
@@ -2459,6 +2510,7 @@ struct HomesteadTests {
                 "wind_speed": .number(8.4),
                 "wind_speed_unit": .string("mph"),
                 "wind_bearing": .number(225),
+                "supported_features": .number(3),
                 "forecast": .array([
                     .object(["condition": .string("rainy")]),
                     .object(["condition": .string("sunny")])
@@ -2479,6 +2531,7 @@ struct HomesteadTests {
         #expect(weather.windDirectionText == "SW")
         #expect(weather.windText == "SW 8.4 mph")
         #expect(weather.hasForecast == true)
+        #expect(weather.supportedForecastTypes == [.daily, .hourly])
         #expect(weather.forecastAvailabilityText == "2 forecast items")
         #expect(weather.attributionText == "Weather Provider")
         #expect(weather.iconName == "cloud.sun.fill")
@@ -10562,6 +10615,9 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     private(set) var entityRegistryFetchCount = 0
     private var mobileAppPushNotificationHandler: (@Sendable (HAMobileAppPushNotificationEventDTO) async -> Void)?
     private var eventHandler: (@Sendable (HAEventDTO) async -> Void)?
+    private var weatherForecastHandlers: [Int: @Sendable (HAWeatherForecastEventDTO) async -> Void] = [:]
+    private var nextWeatherForecastSubscriptionID = 1_000
+    private(set) var weatherForecastSubscriptions: [(entityID: String, type: WeatherForecastType)] = []
     var callServiceError: Error?
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
@@ -10773,6 +10829,22 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         mobileAppPushNotificationSubscription = (webhookID, supportConfirm)
     }
 
+    func subscribeToWeatherForecast(
+        entityID: String,
+        forecastType: WeatherForecastType,
+        handler: @escaping @Sendable (HAWeatherForecastEventDTO) async -> Void
+    ) async throws -> Int {
+        let subscriptionID = nextWeatherForecastSubscriptionID
+        nextWeatherForecastSubscriptionID += 1
+        weatherForecastSubscriptions.append((entityID, forecastType))
+        weatherForecastHandlers[subscriptionID] = handler
+        return subscriptionID
+    }
+
+    func unsubscribe(subscriptionID: Int) async throws {
+        weatherForecastHandlers.removeValue(forKey: subscriptionID)
+    }
+
     func confirmMobileAppPushNotification(webhookID: String, confirmID: String) async throws {
         mobileAppPushNotificationConfirmations.append((webhookID, confirmID))
     }
@@ -10783,6 +10855,12 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
 
     func emitEvent(_ event: HAEventDTO) async {
         await eventHandler?(event)
+    }
+
+    func emitWeatherForecast(_ event: HAWeatherForecastEventDTO) async {
+        for handler in weatherForecastHandlers.values {
+            await handler(event)
+        }
     }
 
     func callService(

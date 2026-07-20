@@ -24,6 +24,9 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Upgraded Weather detail from legacy forecast-attribute availability text to Home Assistant's `weather/subscribe_forecast` WebSocket contract. Typed transport DTOs map into app-facing forecast snapshots stored on the entity-scoped observable state, while `HomeAssistantService` owns subscription lifecycle, retry/error policy, reconnect replacement, and teardown.
+- Added an adaptive forecast section with server-supported Daily, Day & Night, and Hourly modes, cached/stale/loading/empty/error states, compact horizontal cards, accessibility-size rows, localized dates and units, and forecast-specific VoiceOver summaries. Forecast is exposed through `EntityDetailFeatureProvider` only when `supported_features` advertises a usable mode.
+- Verified the app with a clean generic simulator build and compiled the complete test target with `build-for-testing`. Focused test execution and visual simulator inspection remain pending because no simulator was booted during this pass; live-server verification should cover providers exposing daily-only, hourly-only, and multiple forecast modes.
 - Added `EntityDetailFeatureProvider` as the implemented-feature truth for entity details. It combines semantic profiles with mapped entity state, exposes explicit numeric-history/editor/media support and Activity sources, and keeps unimplemented domains from rendering misleading sections.
 - Added mapped `NumberEntity` state for value, range, step, unit, and display mode, threaded it through `EntityMapper`, `HAStateStore`, and `HAEntityState`, and removed Number detail's direct raw-DTO attribute access.
 - Replaced repeated detail/activity loading state with `EntityActivityPanel`, which owns 1H/6H/24H selection, lifecycle cancellation, retry, documented state-history fetching, and Automation trace fetching. Binary Sensor, Switch, Cover, Lock, Automation, Person, Device Tracker, and Settings People activity now share it.
@@ -191,9 +194,9 @@ Recommended reasoning level: High.
 - Added typed history request/response models, authenticated HTTP/service handoff, app-facing chart series/range helpers, and a native Swift Charts history panel in the existing sensor detail surface with fixed 1H/6H/24H ranges.
 - Kept raw Home Assistant history DTOs out of SwiftUI and kept chart aggregation/formatting outside `HAStateStore`.
 - Added a focused native Weather pass for `.weather` entities.
-- Added typed app-facing weather state and presentation helpers for condition, temperature, humidity, wind, forecast availability, and attribution, mapped from Home Assistant entity state attributes.
+- Added typed app-facing weather state and presentation helpers for condition, temperature, humidity, wind, supported forecast modes, and attribution.
 - Added `HAStateStore` / `HAEntityState` weather accessors so SwiftUI dashboard cards and detail views do not read raw Home Assistant DTOs.
-- Added a native read-only Weather detail surface and richer dashboard card presentation while keeping weather service calls out of scope.
+- Added a native Weather detail surface and richer dashboard card presentation; live forecasts now use the dedicated Home Assistant forecast subscription rather than removed state attributes or a service-call workaround.
 - Added focused mapping, state-store, and dashboard presentation tests for weather behavior.
 - Added automatic internal/external URL route selection in the connection lifecycle using the saved Settings > Account > Server internal URL, external URL, and home-network metadata.
 - Kept route selection in `HomeAssistantService` instead of SwiftUI; Settings now displays the active route and still sends retry/register actions through the service.

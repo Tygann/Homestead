@@ -492,10 +492,7 @@ private enum PreviewData {
                 "wind_speed": .number(8),
                 "wind_speed_unit": .string("mph"),
                 "wind_bearing": .number(225),
-                "forecast": .array([
-                    .object(["condition": .string("rainy")]),
-                    .object(["condition": .string("sunny")])
-                ]),
+                "supported_features": .number(3),
                 "attribution": .string("Home Assistant weather provider")
             ],
             lastUpdated: .now

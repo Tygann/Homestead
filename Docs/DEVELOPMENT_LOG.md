@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-20
 
+### Live Weather Forecasts
+
+- Replaced legacy weather-state forecast availability with Home Assistant's dedicated `weather/subscribe_forecast` WebSocket subscription for server-advertised daily, twice-daily, and hourly modes.
+- Kept transport DTOs in `Core/HomeAssistant`, mapped forecast entries into app-facing models, and stored live snapshots on `HAEntityState` so forecast updates invalidate only the open entity detail.
+- Added an adaptive forecast section with explicit loading, empty, cached-stale, failure, and retry behavior; compact sizes use horizontally scrolling cards while accessibility Dynamic Type uses full-width rows.
+- Scoped subscriptions to the presented Weather detail and connection lifecycle, preserving the last successful snapshot across refresh failures while removing handlers on dismissal, disconnect, or server switching.
+
 ### Capability-Driven Entity Detail Grammar
 
 - Adopted one shared detail grammar with typed domain-family composition instead of either identical screens or a type-erased universal section schema.

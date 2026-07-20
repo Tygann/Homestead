@@ -155,9 +155,34 @@ enum EntityMapper {
             windSpeed: dto.attributes["wind_speed"]?.doubleValue,
             windSpeedUnit: dto.attributes["wind_speed_unit"]?.stringValue,
             windBearing: dto.attributes["wind_bearing"]?.doubleValue,
+            supportedFeatures: dto.attributes["supported_features"]?.intValue ?? 0,
             forecastCount: dto.attributes["forecast"]?.arrayValue?.count,
             attribution: dto.attributes["attribution"]?.stringValue ?? dto.attributes["_attr_attribution"]?.stringValue,
             lastUpdated: dto.lastUpdated
+        )
+    }
+
+    static func weatherForecastSnapshot(
+        from dto: HAWeatherForecastEventDTO,
+        receivedAt: Date = Date()
+    ) -> WeatherForecastSnapshot {
+        WeatherForecastSnapshot(
+            type: dto.type,
+            entries: (dto.forecast ?? []).map { entry in
+                WeatherForecastEntry(
+                    datetime: entry.datetime,
+                    condition: WeatherCondition(state: entry.condition ?? "unknown"),
+                    temperature: entry.temperature,
+                    lowTemperature: entry.lowTemperature,
+                    precipitation: entry.precipitation,
+                    precipitationProbability: entry.precipitationProbability,
+                    humidity: entry.humidity,
+                    isDaytime: entry.isDaytime,
+                    windSpeed: entry.windSpeed,
+                    windBearing: entry.windBearing
+                )
+            },
+            receivedAt: receivedAt
         )
     }
 
