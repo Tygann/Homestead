@@ -1,3 +1,4 @@
+import Accessibility
 import Charts
 import SwiftUI
 
@@ -14,6 +15,7 @@ struct DashboardChartCardContent: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let presentation: DashboardEntityPresentation
+    let sensor: SensorEntity?
     let state: DashboardChartCardState
     let size: DashboardCardSize
 
@@ -23,15 +25,15 @@ struct DashboardChartCardContent: View {
                 chartLayer
                     .frame(height: chartHeight(for: proxy.size.height))
 
-                VStack(alignment: .leading, spacing: chartHeaderSpacing) {
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                     HStack(spacing: AppSpacing.small) {
                         HomesteadIconView(icon: presentation.icon, pointSize: 18, weight: .semibold)
                             .foregroundStyle(presentation.accentColor)
                             .accessibilityHidden(true)
 
-                        Text(measurementTitle)
+                        Text(presentation.title)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(presentation.accentColor)
+                            .foregroundStyle(.primary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.78)
 
@@ -44,20 +46,38 @@ struct DashboardChartCardContent: View {
                         }
                     }
 
-                    if let headline = displayHeadline {
-                        Text(headline)
+                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        Text(displayValueText)
                             .font(.system(size: valueFontSize, weight: .semibold, design: .rounded))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.68)
+                            .minimumScaleFactor(0.72)
                             .monospacedDigit()
+
+                        if let displayUnitText {
+                            Text(displayUnitText)
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+
+                        Spacer(minLength: AppSpacing.small)
+
+                        if size != .square,
+                           let changeSummaryText {
+                            Text(changeSummaryText)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
 
-                    Text(presentation.title)
-                        .font(size == .large ? .subheadline.weight(.medium) : .caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
+                    if shouldShowContextSummary {
+                        Text(contextSummaryText)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(contextSummaryColor)
+                            .lineLimit(1)
+                    }
                 }
                 .padding(AppSpacing.medium)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -66,6 +86,7 @@ struct DashboardChartCardContent: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(accessibilityValue)
+        .modifier(DashboardChartAccessibilityModifier(state: state))
     }
 
     @ViewBuilder
@@ -89,12 +110,12 @@ struct DashboardChartCardContent: View {
                 yStart: .value("Baseline", chartPresentation.valueDomain.lowerBound),
                 yEnd: .value("Value", sample.value)
             )
-            .interpolationMethod(.monotone)
+            .interpolationMethod(.linear)
             .foregroundStyle(
                 LinearGradient(
                     colors: [
-                        presentation.accentColor.opacity(0.42),
-                        presentation.accentColor.opacity(0.08)
+                        presentation.accentColor.opacity(0.28),
+                        presentation.accentColor.opacity(0.04)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -105,7 +126,7 @@ struct DashboardChartCardContent: View {
                 x: .value("Time", sample.occurredAt),
                 y: .value("Value", sample.value)
             )
-            .interpolationMethod(.monotone)
+            .interpolationMethod(.linear)
             .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
             .foregroundStyle(presentation.accentColor)
 
@@ -119,6 +140,7 @@ struct DashboardChartCardContent: View {
             }
         }
         .chartYScale(domain: chartPresentation.valueDomain)
+        .chartXScale(range: .plotDimension(startPadding: 4, endPadding: 8))
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .chartPlotStyle { plotArea in
@@ -154,26 +176,65 @@ struct DashboardChartCardContent: View {
         presentation.subtitle == "Sensor unavailable" ? "Sensor" : presentation.subtitle
     }
 
-    private var displayHeadline: String? {
-        presentation.isAvailable ? presentation.headline : "—"
+    private var displayValueText: String {
+        guard presentation.isAvailable else { return "—" }
+        return sensor?.valueText ?? presentation.headline ?? presentation.subtitle
+    }
+
+    private var displayUnitText: String? {
+        guard presentation.isAvailable else { return nil }
+        return sensor?.unitText
+    }
+
+    private var changeSummaryText: String? {
+        guard case .loaded(let chartPresentation) = state else { return nil }
+        return chartPresentation.changeSummaryText
+    }
+
+    private var contextSummaryText: String {
+        if !presentation.isAvailable {
+            if case .loaded = state {
+                return "Unavailable · Last recorded trend"
+            }
+            return "Unavailable"
+        }
+
+        return switch state {
+        case .loaded(let chartPresentation):
+            size == .square
+                ? chartPresentation.rangeSummaryText
+                : "\(measurementTitle) · \(chartPresentation.rangeSummaryText)"
+        case .loading:
+            "\(measurementTitle) · Loading recent trend"
+        case .empty:
+            "\(measurementTitle) · No recent trend"
+        case .failed:
+            "\(measurementTitle) · Trend unavailable"
+        }
+    }
+
+    private var contextSummaryColor: Color {
+        presentation.isAvailable ? .secondary : .orange
+    }
+
+    private var shouldShowContextSummary: Bool {
+        !(size == .square && dynamicTypeSize >= .xxLarge)
     }
 
     private var valueFontSize: CGFloat {
         size == .large ? 48 : 36
     }
 
-    private var chartHeaderSpacing: CGFloat {
-        size == .large ? AppSpacing.small : AppSpacing.xSmall
-    }
-
     private func chartHeight(for availableHeight: CGFloat) -> CGFloat {
         switch size {
         case .large:
-            availableHeight * 0.52
-        case .square, .wide:
-            availableHeight * 0.45
+            availableHeight * 0.58
+        case .wide:
+            availableHeight * 0.42
+        case .square:
+            availableHeight * 0.36
         default:
-            availableHeight * 0.4
+            availableHeight * 0.34
         }
     }
 
@@ -194,9 +255,68 @@ struct DashboardChartCardContent: View {
     }
 }
 
+private struct DashboardChartAccessibilityModifier: ViewModifier {
+    let state: DashboardChartCardState
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if case .loaded(let presentation) = state {
+            content.accessibilityChartDescriptor(DashboardHistoryChartDescriptor(presentation: presentation))
+        } else {
+            content
+        }
+    }
+}
+
+private struct DashboardHistoryChartDescriptor: AXChartDescriptorRepresentable {
+    let presentation: DashboardHistoryCardPresentation
+
+    func makeChartDescriptor() -> AXChartDescriptor {
+        let firstTimestamp = presentation.samples.first?.occurredAt.timeIntervalSince1970 ?? 0
+        let lastTimestamp = presentation.samples.last?.occurredAt.timeIntervalSince1970 ?? firstTimestamp + 1
+        let xAxis = AXNumericDataAxisDescriptor(
+            title: "Time",
+            range: firstTimestamp...max(lastTimestamp, firstTimestamp + 1),
+            gridlinePositions: []
+        ) { timestamp in
+            Date(timeIntervalSince1970: timestamp).formatted(date: .abbreviated, time: .shortened)
+        }
+        let yAxis = AXNumericDataAxisDescriptor(
+            title: presentation.unit.map { "Value in \($0)" } ?? "Value",
+            range: presentation.valueDomain,
+            gridlinePositions: []
+        ) { value in
+            presentation.formatValue(value)
+        }
+        let dataPoints = presentation.samples.map { sample in
+            AXDataPoint(
+                x: sample.occurredAt.timeIntervalSince1970,
+                y: sample.value,
+                label: presentation.formatValue(sample.value)
+            )
+        }
+
+        return AXChartDescriptor(
+            title: "\(presentation.displayName) history",
+            summary: presentation.summaryText,
+            xAxis: xAxis,
+            yAxis: yAxis,
+            series: [
+                AXDataSeriesDescriptor(
+                    name: presentation.displayName,
+                    isContinuous: true,
+                    dataPoints: dataPoints
+                )
+            ]
+        )
+    }
+}
+
 // MARK: - Weather
 
 struct DashboardWeatherCardContent: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let weather: WeatherEntity
     let forecastsByType: [WeatherForecastType: WeatherForecastSnapshot]
     let loadingForecastTypes: Set<WeatherForecastType>
@@ -207,6 +327,13 @@ struct DashboardWeatherCardContent: View {
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
                 DashboardWeatherCardBackground(condition: weather.condition)
+
+                LinearGradient(
+                    colors: [Color.black.opacity(0.28), Color.black.opacity(0.18)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .accessibilityHidden(true)
 
                 Image(systemName: weather.iconName)
                     .symbolRenderingMode(.hierarchical)
@@ -220,9 +347,10 @@ struct DashboardWeatherCardContent: View {
 
                     Spacer(minLength: 0)
 
-                    forecastContent
+                    forecastContent(availableWidth: proxy.size.width)
                 }
-                .padding(AppSpacing.medium)
+                .padding(.horizontal, AppSpacing.medium)
+                .padding(.vertical, size == .wide ? AppSpacing.small : AppSpacing.medium)
             }
         }
         .foregroundStyle(.white)
@@ -241,10 +369,14 @@ struct DashboardWeatherCardContent: View {
     private var standardCurrentConditions: some View {
         HStack(alignment: .top, spacing: AppSpacing.medium) {
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(weather.displayName)
-                    .font(size == .large ? .headline.weight(.semibold) : .subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
+                HStack(spacing: AppSpacing.xSmall) {
+                    Text(weather.displayName)
+                        .font(size == .large ? .headline.weight(.semibold) : .subheadline.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+
+                    forecastUpdateIndicator
+                }
 
                 Text(weatherReadingText)
                     .font(.system(size: currentTemperatureFontSize, weight: .regular, design: .rounded))
@@ -276,6 +408,9 @@ struct DashboardWeatherCardContent: View {
                 weatherContext
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(weather.displayName)
+        .accessibilityValue(currentConditionsAccessibilityValue)
     }
 
     private var wideCurrentConditions: some View {
@@ -287,6 +422,8 @@ struct DashboardWeatherCardContent: View {
                     .minimumScaleFactor(0.78)
 
                 Spacer(minLength: AppSpacing.small)
+
+                forecastUpdateIndicator
 
                 Image(systemName: weather.iconName)
                     .symbolRenderingMode(.multicolor)
@@ -313,33 +450,48 @@ struct DashboardWeatherCardContent: View {
                 .lineLimit(1)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(weather.displayName)
+        .accessibilityValue(currentConditionsAccessibilityValue)
     }
 
     @ViewBuilder
-    private var forecastContent: some View {
-        if size == .square {
+    private func forecastContent(availableWidth: CGFloat) -> some View {
+        if size == .square || (size == .wide && dynamicTypeSize >= .xxxLarge) {
             EmptyView()
         } else if size == .large {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
                 if let hourlyForecast {
-                    forecastSection(hourlyForecast, limit: 6)
+                    forecastSection(
+                        hourlyForecast,
+                        limit: forecastLimit(for: hourlyForecast.type, availableWidth: availableWidth)
+                    )
                 }
 
                 if let dailyForecast,
                    dailyForecast.type != hourlyForecast?.type {
-                    forecastSection(dailyForecast, limit: 5)
+                    forecastSection(
+                        dailyForecast,
+                        limit: forecastLimit(for: dailyForecast.type, availableWidth: availableWidth)
+                    )
                 } else if hourlyForecast == nil, let fallbackForecast {
-                    forecastSection(fallbackForecast, limit: 5)
+                    forecastSection(
+                        fallbackForecast,
+                        limit: forecastLimit(for: fallbackForecast.type, availableWidth: availableWidth)
+                    )
                 }
 
                 if hourlyForecast == nil && dailyForecast == nil && fallbackForecast == nil {
-                    forecastStatus
+                    forecastStatus(placeholderCount: forecastLimit(for: .hourly, availableWidth: availableWidth))
                 }
             }
         } else if let wideForecast {
-            forecastStrip(wideForecast, limit: wideForecast.type == .hourly ? 6 : 5)
+            forecastStrip(
+                wideForecast,
+                limit: forecastLimit(for: wideForecast.type, availableWidth: availableWidth)
+            )
         } else {
-            forecastStatus
+            forecastStatus(placeholderCount: forecastLimit(for: .hourly, availableWidth: availableWidth))
         }
     }
 
@@ -366,8 +518,8 @@ struct DashboardWeatherCardContent: View {
     private func forecastItem(_ entry: WeatherForecastEntry, type: WeatherForecastType) -> some View {
         VStack(spacing: size == .wide ? 1 : 3) {
             Text(forecastDate(entry.datetime, type: type))
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.76))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white.opacity(0.82))
                 .lineLimit(1)
 
             Image(systemName: entry.condition.systemImage)
@@ -377,27 +529,36 @@ struct DashboardWeatherCardContent: View {
                 .accessibilityHidden(true)
 
             Text(forecastTemperature(entry))
-                .font(.caption2.weight(.semibold))
+                .font(.caption.monospacedDigit().weight(.semibold))
                 .lineLimit(1)
-                .minimumScaleFactor(0.64)
-                .monospacedDigit()
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(forecastDate(entry.datetime, type: type)), \(entry.condition.displayName)")
-        .accessibilityValue(forecastTemperature(entry))
+        .accessibilityValue(accessibilityForecastTemperature(entry))
     }
 
     @ViewBuilder
-    private var forecastStatus: some View {
+    private func forecastStatus(placeholderCount: Int) -> some View {
         if !loadingForecastTypes.isEmpty {
             HStack(spacing: AppSpacing.small) {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.white)
-                Text("Updating forecast")
+                ForEach(0..<placeholderCount, id: \.self) { _ in
+                    VStack(spacing: AppSpacing.xSmall) {
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(Color.white.opacity(0.20))
+                            .frame(width: 30, height: 8)
+                        Circle()
+                            .fill(Color.white.opacity(0.24))
+                            .frame(width: 16, height: 16)
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(Color.white.opacity(0.28))
+                            .frame(width: 24, height: 9)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             }
-            .font(.caption.weight(.medium))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Updating forecast")
         } else {
             Text(forecastErrorsByType.isEmpty ? "Forecast unavailable" : "Couldn’t update forecast")
                 .font(.caption.weight(.medium))
@@ -416,6 +577,21 @@ struct DashboardWeatherCardContent: View {
         .font(.caption.weight(.medium))
         .foregroundStyle(.white.opacity(0.84))
         .labelStyle(.titleAndIcon)
+    }
+
+    @ViewBuilder
+    private var forecastUpdateIndicator: some View {
+        if hasForecastData, !forecastErrorsByType.isEmpty {
+            Image(systemName: "exclamationmark.arrow.triangle.2.circlepath")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.88))
+                .accessibilityLabel("Forecast update failed. Showing the last forecast.")
+        } else if !loadingForecastTypes.isEmpty {
+            ProgressView()
+                .controlSize(.mini)
+                .tint(.white)
+                .accessibilityLabel("Updating forecast")
+        }
     }
 
     private var hourlyForecast: WeatherForecastSnapshot? {
@@ -445,6 +621,10 @@ struct DashboardWeatherCardContent: View {
         hourlyForecast ?? dailyForecast ?? fallbackForecast
     }
 
+    private var hasForecastData: Bool {
+        forecastsByType.values.contains { !$0.entries.isEmpty }
+    }
+
     private var highLowText: String? {
         guard let entry = dailyForecast?.entries.first else { return nil }
         let high = entry.temperature.map(weather.compactTemperatureText(for:))
@@ -461,7 +641,11 @@ struct DashboardWeatherCardContent: View {
     private func forecastDate(_ date: Date, type: WeatherForecastType) -> String {
         switch type {
         case .hourly:
-            date.formatted(date: .omitted, time: .shortened)
+            if Calendar.current.isDate(date, equalTo: Date(), toGranularity: .hour) {
+                "Now"
+            } else {
+                date.formatted(.dateTime.hour(.defaultDigits(amPM: .abbreviated)))
+            }
         case .daily, .twiceDaily:
             date.formatted(.dateTime.weekday(.abbreviated))
         }
@@ -476,6 +660,42 @@ struct DashboardWeatherCardContent: View {
         case let (nil, low?): low
         case (nil, nil): entry.condition.displayName
         }
+    }
+
+    private func accessibilityForecastTemperature(_ entry: WeatherForecastEntry) -> String {
+        let high = entry.temperature.map(weather.temperatureText(for:))
+        let low = entry.lowTemperature.map(weather.temperatureText(for:))
+        return switch (high, low) {
+        case let (high?, low?): "High \(high), low \(low)"
+        case let (high?, nil): high
+        case let (nil, low?): low
+        case (nil, nil): entry.condition.displayName
+        }
+    }
+
+    private var currentConditionsAccessibilityValue: String {
+        var components = [weather.temperatureText ?? weather.primaryReadingText, weather.displaySubtitle]
+        if let accessibilityHighLowText {
+            components.append(accessibilityHighLowText)
+        }
+        if hasForecastData, !forecastErrorsByType.isEmpty {
+            components.append("Forecast update failed. Showing the last forecast.")
+        } else if !loadingForecastTypes.isEmpty {
+            components.append("Updating forecast")
+        }
+        return components.joined(separator: ", ")
+    }
+
+    private var accessibilityHighLowText: String? {
+        guard let entry = dailyForecast?.entries.first else { return nil }
+        return accessibilityForecastTemperature(entry)
+    }
+
+    private func forecastLimit(for type: WeatherForecastType, availableWidth: CGFloat) -> Int {
+        let preferredLimit = type == .hourly ? 6 : 5
+        if dynamicTypeSize >= .xxLarge { return min(preferredLimit, 3) }
+        if availableWidth < 350 { return min(preferredLimit, 5) }
+        return preferredLimit
     }
 
     private var currentTemperatureFontSize: CGFloat {

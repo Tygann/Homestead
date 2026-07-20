@@ -2303,9 +2303,36 @@ struct HomesteadTests {
         #expect(presentation.samples.map(\.value) == [70, 71.5, 72])
         #expect(presentation.latestValueText == "72°F")
         #expect(presentation.latestTimeText?.isEmpty == false)
+        #expect(presentation.rangeSummaryText == "L 70° · H 72°")
+        #expect(presentation.changeSummaryText == "Up 2°")
+        #expect(presentation.valueDomain.upperBound - presentation.valueDomain.lowerBound >= 4)
         #expect(presentation.summaryText.contains("Now 72°F"))
         #expect(presentation.accessibilityLabel == "Kitchen Temperature dashboard history")
         #expect(presentation.accessibilityValue == presentation.summaryText)
+
+        let livePresentation = presentation.includingCurrentSample(
+            value: 73,
+            occurredAt: endDate.addingTimeInterval(60)
+        )
+        #expect(livePresentation.samples.count == 4)
+        #expect(livePresentation.samples.last?.value == 73)
+        #expect(livePresentation.changeSummaryText == "Up 3°")
+        #expect(
+            livePresentation.includingCurrentSample(value: 69, occurredAt: middleDate)
+                == livePresentation
+        )
+
+        let steadyPresentation = DashboardHistoryCardPresentation(series: HAHistoryChartSeries(
+            entityID: "sensor.kitchen_temperature",
+            displayName: "Kitchen Temperature",
+            unit: "°F",
+            range: .sixHours,
+            samples: [
+                HAHistorySample(occurredAt: startDate, value: 74.5),
+                HAHistorySample(occurredAt: endDate, value: 74.48)
+            ]
+        ))
+        #expect(steadyPresentation.changeSummaryText == "Steady")
     }
 
     @Test func mobileAppRegistrationStorePersistsRegistrationInfo() throws {
@@ -2561,6 +2588,8 @@ struct HomesteadTests {
         #expect(weather.forecastAvailabilityText == "2 forecast items")
         #expect(weather.attributionText == "Weather Provider")
         #expect(weather.iconName == "cloud.sun.fill")
+        #expect(WeatherCondition.unavailable.systemImage == "cloud.slash.fill")
+        #expect(WeatherCondition.unknown.systemImage == "questionmark.circle.fill")
     }
 
     @Test func entityMapperMapsLightBrightnessSupportForOffDimmableLights() {

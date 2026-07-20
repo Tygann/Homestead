@@ -5,12 +5,16 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
 
     let entityID: String
     let displayName: String
+    let unit: String?
     let range: HAHistoryRangePreset
     let samples: [HAHistorySample]
     let valueDomain: ClosedRange<Double>
     let summaryText: String
+    let rangeSummaryText: String
+    let changeSummaryText: String?
     let latestValueText: String?
     let latestTimeText: String?
+    private let requestedInterval: DateInterval?
 
     var isEmpty: Bool {
         samples.isEmpty
@@ -27,12 +31,111 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
     init(series: HAHistoryChartSeries) {
         entityID = series.entityID
         displayName = series.displayName
+        unit = series.unit
         range = series.range
         samples = series.samples
-        valueDomain = series.valueDomain
+        valueDomain = Self.dashboardValueDomain(for: series)
         summaryText = series.summaryText
+        rangeSummaryText = Self.rangeSummaryText(for: series)
+        changeSummaryText = Self.changeSummaryText(for: series)
         latestValueText = series.latestSample.map { series.formatValue($0.value) }
         latestTimeText = series.latestSample?.occurredAt.formatted(date: .omitted, time: .shortened)
+        requestedInterval = series.requestedInterval
+    }
+
+    func includingCurrentSample(value: Double?, occurredAt: Date?) -> DashboardHistoryCardPresentation {
+        guard let value,
+              value.isFinite,
+              let occurredAt,
+              samples.last.map({ occurredAt > $0.occurredAt }) ?? true else {
+            return self
+        }
+
+        return DashboardHistoryCardPresentation(series: HAHistoryChartSeries(
+            entityID: entityID,
+            displayName: displayName,
+            unit: unit,
+            range: range,
+            samples: samples + [HAHistorySample(occurredAt: occurredAt, value: value)],
+            requestedInterval: requestedInterval
+        ))
+    }
+
+    func formatValue(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = samples.contains(where: { abs($0.value.rounded() - $0.value) > 0.001 }) ? 2 : 0
+        formatter.minimumFractionDigits = 0
+
+        let numberText = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        guard let unit, !unit.isEmpty else { return numberText }
+
+        let separator = unit.hasPrefix("°") || unit == "%" ? "" : " "
+        return "\(numberText)\(separator)\(unit)"
+    }
+
+    private static func dashboardValueDomain(for series: HAHistoryChartSeries) -> ClosedRange<Double> {
+        guard let minimum = series.minimumValue,
+              let maximum = series.maximumValue else {
+            return 0...1
+        }
+
+        let midpoint = (minimum + maximum) / 2
+        let observedSpan = maximum - minimum
+        let minimumSpan: Double
+
+        switch series.unit {
+        case "°F", "F": minimumSpan = 4
+        case "°C", "C": minimumSpan = 2
+        case "%": minimumSpan = 10
+        default: minimumSpan = max(abs(midpoint) * 0.04, 1)
+        }
+
+        let displaySpan = max(observedSpan * 1.24, minimumSpan)
+        return (midpoint - (displaySpan / 2))...(midpoint + (displaySpan / 2))
+    }
+
+    private static func rangeSummaryText(for series: HAHistoryChartSeries) -> String {
+        guard let minimum = series.minimumValue,
+              let maximum = series.maximumValue else {
+            return "No recent range"
+        }
+
+        return "L \(compactValue(minimum, series: series)) · H \(compactValue(maximum, series: series))"
+    }
+
+    private static func changeSummaryText(for series: HAHistoryChartSeries) -> String? {
+        guard let first = series.samples.first,
+              let latest = series.samples.last else {
+            return nil
+        }
+
+        let change = latest.value - first.value
+        let displayTolerance = series.unit?.hasPrefix("°") == true ? 0.05 : 0.005
+        let tolerance = max(abs(first.value) * 0.0001, displayTolerance)
+        guard abs(change) > tolerance else { return "Steady" }
+
+        return "\(change > 0 ? "Up" : "Down") \(compactValue(abs(change), series: series))"
+    }
+
+    private static func compactValue(_ value: Double, series: HAHistoryChartSeries) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        if series.unit?.hasPrefix("°") == true {
+            formatter.maximumFractionDigits = 1
+        } else if series.unit == "%" {
+            formatter.maximumFractionDigits = 0
+        } else {
+            formatter.maximumFractionDigits = 2
+        }
+        let numberText = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+
+        guard let unit = series.unit, !unit.isEmpty else { return numberText }
+        if unit.hasPrefix("°") { return "\(numberText)°" }
+
+        let separator = unit == "%" ? "" : " "
+        return "\(numberText)\(separator)\(unit)"
     }
 
     @MainActor

@@ -75,7 +75,7 @@ Available sample screens are:
 | `entity-details` | The entity-detail family/state reference gallery, including Presence. |
 | `gauge-widget` | Dashboard and widget gauge comparison. |
 
-For focused dashboard-card gallery inspection, add `--preview-size square`, `wide`, or `large`. Use `--preview-card-state transient` for deterministic Chart loading/empty plus Weather loading states, or `--preview-card-state unavailable` for unavailable Chart and Weather cards.
+For focused dashboard-card gallery inspection, add `--preview-size square`, `wide`, or `large`. Use `--preview-card-state transient` for deterministic Chart loading/empty plus Weather loading and retained-data refresh-failure states, or `--preview-card-state unavailable` for unavailable Chart and Weather cards, including a Chart with retained recorded history.
 
 Entity-detail verification can launch a specific deterministic matrix cell:
 

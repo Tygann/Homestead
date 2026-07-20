@@ -327,7 +327,11 @@ nonisolated enum WeatherCondition: Equatable, Sendable {
             "cloud.hail.fill"
         case .exceptional:
             "exclamationmark.triangle.fill"
-        case .unavailable, .unknown, .other:
+        case .unavailable:
+            "cloud.slash.fill"
+        case .unknown:
+            "questionmark.circle.fill"
+        case .other:
             "cloud.sun.fill"
         }
     }

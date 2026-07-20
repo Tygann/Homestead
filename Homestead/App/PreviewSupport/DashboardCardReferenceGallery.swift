@@ -113,6 +113,25 @@ struct DashboardCardReferenceGallery: View {
                     kind: .weather,
                     size: .square
                 )
+
+                if let unavailableBox = dependencies.stateStore.entityBox(for: "sensor.chart_unavailable"),
+                   let historyBox = dependencies.stateStore.entityBox(for: "sensor.hallway_temperature"),
+                   let unavailableSensor = unavailableBox.sensorEntity,
+                   let recordedTrend = DashboardHistoryCardPresentation.preview(entityBox: historyBox) {
+                    let unavailableRecordedTrend = DashboardHistoryCardPresentation(series: HAHistoryChartSeries(
+                        entityID: unavailableBox.entityID,
+                        displayName: unavailableSensor.displayName,
+                        unit: unavailableSensor.unit,
+                        range: recordedTrend.range,
+                        samples: recordedTrend.samples
+                    ))
+                    chartStateCard(
+                        title: "Unavailable Chart With Recorded Trend",
+                        presentation: DashboardEntityPresentation(entityBox: unavailableBox),
+                        sensor: unavailableSensor,
+                        state: .loaded(unavailableRecordedTrend)
+                    )
+                }
             }
         }
     }
@@ -128,16 +147,19 @@ struct DashboardCardReferenceGallery: View {
                     chartStateCard(
                         title: "Loading Chart",
                         presentation: DashboardEntityPresentation(entityBox: entityBox),
+                        sensor: entityBox.sensorEntity,
                         state: .loading
                     )
                     chartStateCard(
                         title: "Empty Chart",
                         presentation: DashboardEntityPresentation(entityBox: entityBox),
+                        sensor: entityBox.sensorEntity,
                         state: .empty
                     )
                 }
 
-                if let weather = dependencies.stateStore.entityBox(for: "weather.home")?.weatherEntity {
+                if let weatherBox = dependencies.stateStore.entityBox(for: "weather.home"),
+                   let weather = weatherBox.weatherEntity {
                     specializedStateCard(size: .wide) {
                         DashboardWeatherCardContent(
                             weather: weather,
@@ -148,6 +170,17 @@ struct DashboardCardReferenceGallery: View {
                         )
                     }
                     .accessibilityLabel("Loading Weather")
+
+                    specializedStateCard(size: .wide) {
+                        DashboardWeatherCardContent(
+                            weather: weather,
+                            forecastsByType: weatherBox.weatherForecastsByType,
+                            loadingForecastTypes: [],
+                            forecastErrorsByType: [.hourly: "Preview refresh failed"],
+                            size: .wide
+                        )
+                    }
+                    .accessibilityLabel("Weather showing the last forecast")
                 }
             }
         }
@@ -156,11 +189,13 @@ struct DashboardCardReferenceGallery: View {
     private func chartStateCard(
         title: String,
         presentation: DashboardEntityPresentation,
+        sensor: SensorEntity?,
         state: DashboardChartCardState
     ) -> some View {
         specializedStateCard(size: .square) {
             DashboardChartCardContent(
                 presentation: presentation,
+                sensor: sensor,
                 state: state,
                 size: .square
             )

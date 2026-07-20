@@ -119,6 +119,7 @@ struct DashboardEntityCard: View {
         } else {
             DashboardChartCardContent(
                 presentation: presentation,
+                sensor: entityBox.sensorEntity,
                 state: chartCardState,
                 size: size
             )
@@ -855,13 +856,16 @@ struct DashboardEntityCard: View {
     }
 
     private var chartCardState: DashboardChartCardState {
-        guard presentation.isAvailable else { return .failed }
-
         switch resolvedHistoryPhase {
         case .idle, .loading:
-            return .loading
+            return presentation.isAvailable ? .loading : .failed
         case .loaded(let chartPresentation):
-            return chartPresentation.isEmpty ? .empty : .loaded(chartPresentation)
+            guard !chartPresentation.isEmpty else { return .empty }
+            let currentPresentation = chartPresentation.includingCurrentSample(
+                value: entityBox.sensorEntity?.numericValue,
+                occurredAt: entityBox.sensorEntity?.lastUpdated
+            )
+            return .loaded(currentPresentation)
         case .failed:
             return .failed
         }
@@ -870,6 +874,9 @@ struct DashboardEntityCard: View {
     @MainActor
     private func refreshDashboardHistoryIfNeeded() async {
         guard shouldLoadDashboardHistory else {
+            if case .loaded = historyPhase {
+                return
+            }
             historyPhase = .idle
             return
         }
