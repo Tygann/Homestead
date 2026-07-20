@@ -5,12 +5,9 @@ struct EntityDetailSheet: View {
     var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     var body: some View {
-        if entityBox.domain == .automation {
-            AutomationDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-        } else {
-            let detailKind = DashboardEntityPresentation(entityBox: entityBox).detailKind
+        let route = EntityCapabilityRegistry.profile(for: entityBox.domain).detailRoute
 
-            switch detailKind {
+        switch route {
             case .light:
                 LightDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .cover:
@@ -25,6 +22,8 @@ struct EntityDetailSheet: View {
                 ToggleEntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .action:
                 ActionEntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+            case .automation:
+                AutomationDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .sensor:
                 SensorDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .mediaPlayer:
@@ -43,9 +42,8 @@ struct EntityDetailSheet: View {
                 SelectDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .number:
                 NumberDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-            case .entity:
+            case .generic:
                 GenericEntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
-            }
         }
     }
 }

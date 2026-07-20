@@ -25,7 +25,7 @@ struct NumberDetailView: View {
     }
 
     var body: some View {
-        EntityDetailScaffold(title: "Number", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             valuePanel
             contextDetails
@@ -41,16 +41,21 @@ struct NumberDetailView: View {
     }
 
     private var header: some View {
-        EntityDetailHeader(
+        EntityDetailHeroCard(
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: formattedValue(draftValue),
+            title: "Number",
+            subtitle: EntityDetailHeroSubtitle.updated(entity),
+            status: EntityDetailStatusPresentation.resolved(entityBox: entityBox)?.text,
             iconColor: entity.isAvailable ? .accentColor : .secondary,
-            badgeColor: entity.isAvailable ? .accentColor : .red,
+            statusColor: entity.isAvailable ? .accentColor : .red,
             iconBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
-            badgeBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12)
-        )
+            statusBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12)
+        ) {
+            Text(formattedValue(draftValue))
+                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .foregroundStyle(entity.isAvailable ? Color.accentColor : Color.secondary)
+                .monospacedDigit()
+        }
     }
 
     private var valuePanel: some View {

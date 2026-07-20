@@ -19,7 +19,7 @@ struct AlarmControlPanelDetailView: View {
     }
 
     var body: some View {
-        EntityDetailScaffold(title: "Alarm", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             accessPanel
             if !availableArmActions.isEmpty {
@@ -32,14 +32,13 @@ struct AlarmControlPanelDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: entity.isAvailable ? entity.state.displayStateText : "Unavailable",
+            category: "Alarm",
+            summary: nil,
+            status: EntityDetailStatusPresentation(text: alarmSummary, tone: alarmStatusTone),
             iconColor: iconColor,
-            badgeColor: entity.isAvailable ? iconColor : .red,
-            iconBackground: iconBackground,
-            badgeBackground: badgeBackground
+            iconBackground: iconBackground
         )
     }
 
@@ -112,6 +111,15 @@ struct AlarmControlPanelDetailView: View {
             "Triggered"
         default:
             entity.state.displayStateText
+        }
+    }
+
+    private var alarmStatusTone: EntityDetailStatusTone {
+        switch entity.state {
+        case "triggered": .critical
+        case "arming", "pending": .warning
+        case "disarmed": .neutral
+        default: .accent
         }
     }
 

@@ -18,37 +18,34 @@ struct WeatherDetailView: View {
 
     var body: some View {
         if let weather {
-            EntityDetailScaffold(title: "Weather", presentationStyle: presentationStyle) {
-                header(weather)
-                currentConditions(weather)
-                weatherDetails(weather)
+            EntityDetailScaffold(title: weather.displayName, presentationStyle: presentationStyle) {
+                hero(weather)
+                if !weatherRows(weather).isEmpty {
+                    weatherDetails(weather)
+                }
                 sourceDetails(weather)
                 contextDetails
             }
         } else {
             EntityUnavailableDetailView(
-                title: "Weather",
+                title: entityBox.homeEntity.displayName,
                 systemImage: "cloud.sun.fill",
                 presentationStyle: presentationStyle
             )
         }
     }
 
-    private func header(_ weather: WeatherEntity) -> some View {
-        EntityDetailHeader(
+    private func hero(_ weather: WeatherEntity) -> some View {
+        EntityDetailHeroCard(
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: presentation.subtitle,
-            badge: statusBadgeText(weather),
+            title: "Weather",
+            subtitle: EntityDetailHeroSubtitle.updated(entity),
+            status: weather.isAvailable ? nil : "Unavailable",
             iconColor: iconColor(weather),
-            badgeColor: statusColor(weather),
+            statusColor: weather.isAvailable ? presentation.accentColor : .red,
             iconBackground: iconBackground(weather),
-            badgeBackground: statusBackground(weather)
-        )
-    }
-
-    private func currentConditions(_ weather: WeatherEntity) -> some View {
-        EntityControlPanel(title: "Current Conditions", systemImage: "cloud.sun.fill") {
+            statusBackground: weather.isAvailable ? nil : Color.red.opacity(0.12)
+        ) {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
                 Text(weather.primaryReadingText)
                     .font(.system(size: 44, weight: .bold, design: .rounded))
@@ -68,7 +65,7 @@ struct WeatherDetailView: View {
 
     private func weatherDetails(_ weather: WeatherEntity) -> some View {
         DashboardEntityContextPanel(
-            title: "Weather",
+            title: "Details",
             systemImage: "thermometer.medium",
             rows: weatherRows(weather)
         )
@@ -92,13 +89,7 @@ struct WeatherDetailView: View {
     }
 
     private func weatherRows(_ weather: WeatherEntity) -> [EntityMetadataRow] {
-        var rows = [
-            EntityMetadataRow(title: "Condition", value: weather.condition.displayName)
-        ]
-
-        if let temperatureText = weather.temperatureText {
-            rows.append(EntityMetadataRow(title: "Temperature", value: temperatureText))
-        }
+        var rows: [EntityMetadataRow] = []
 
         if let humidityText = weather.humidityText {
             rows.append(EntityMetadataRow(title: "Humidity", value: humidityText))
@@ -136,10 +127,6 @@ struct WeatherDetailView: View {
         return rows
     }
 
-    private func statusBadgeText(_ weather: WeatherEntity) -> String {
-        weather.isAvailable ? "Live" : "Unavailable"
-    }
-
     private func iconColor(_ weather: WeatherEntity) -> Color {
         guard weather.isAvailable else { return .secondary }
         return presentation.accentColor
@@ -154,10 +141,6 @@ struct WeatherDetailView: View {
         return presentation.accentColor.opacity(0.12)
     }
 
-    private func statusBackground(_ weather: WeatherEntity) -> Color {
-        guard weather.isAvailable else { return Color.red.opacity(0.12) }
-        return presentation.accentColor.opacity(0.12)
-    }
 }
 
 #if DEBUG

@@ -18,12 +18,8 @@ struct ClimateDetailView: View {
     @ViewBuilder
     var body: some View {
         if let climate = entityBox.climateEntity {
-            EntityDetailScaffold(title: "Climate", presentationStyle: presentationStyle) {
+            EntityDetailScaffold(title: climate.displayName, presentationStyle: presentationStyle) {
                 header(climate)
-
-                if climate.currentTemperatureText != nil {
-                    currentTemperaturePanel(climate)
-                }
 
                 if climate.usesTemperatureRange,
                    homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
@@ -62,7 +58,7 @@ struct ClimateDetailView: View {
             }
         } else {
             EntityUnavailableDetailView(
-                title: "Climate",
+                title: entityBox.homeEntity.displayName,
                 systemImage: "thermometer.medium",
                 presentationStyle: presentationStyle
             )
@@ -70,26 +66,33 @@ struct ClimateDetailView: View {
     }
 
     private func header(_ climate: ClimateEntity) -> some View {
-        EntityDetailHeader(
+        EntityDetailHeroCard(
             icon: entityBox.homeEntity.resolvedIcon,
-            title: climate.displayName,
-            subtitle: climate.displaySubtitle,
-            badge: climate.displayState,
+            title: "Climate",
+            subtitle: EntityDetailHeroSubtitle.updated(entityBox.homeEntity),
+            status: EntityDetailStatusPresentation.resolved(
+                entityBox: entityBox,
+                normal: EntityDetailStatusPresentation(text: climate.displayState, tone: .accent)
+            )?.text,
             iconColor: climateIconColor(climate),
-            badgeColor: climateBadgeColor(climate),
+            statusColor: climateBadgeColor(climate),
             iconBackground: climateStatusBackground(climate),
-            badgeBackground: climateStatusBackground(climate)
-        )
-    }
+            statusBackground: entityBox.homeEntity.isAvailable ? climateStatusBackground(climate) : Color.red.opacity(0.12)
+        ) {
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
+                if let currentTemperatureText = climate.currentTemperatureText {
+                    Text(currentTemperatureText)
+                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                }
 
-    private func currentTemperaturePanel(_ climate: ClimateEntity) -> some View {
-        DashboardEntityContextPanel(
-            title: "Current",
-            systemImage: "thermometer.medium",
-            rows: [
-                EntityMetadataRow(title: "Temperature", value: climate.currentTemperatureText ?? "-")
-            ]
-        )
+                if let target = climate.targetTemperatureRangeText ?? climate.targetTemperatureText {
+                    Text("Target \(target)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     private func temperatureControls(_ climate: ClimateEntity) -> some View {

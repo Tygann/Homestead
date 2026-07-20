@@ -17,7 +17,7 @@ struct MediaPlayerDetailView: View {
     }
 
     var body: some View {
-        EntityDetailScaffold(title: "Media Player", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             nowPlayingPanel
             playbackControls
@@ -45,14 +45,15 @@ struct MediaPlayerDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: mediaHeaderSubtitle,
-            badge: mediaHeaderBadge,
+            category: "Media Player",
+            summary: mediaHeaderSubtitle,
+            status: mediaHeaderBadge == "Playing"
+                ? EntityDetailStatusPresentation(text: "Playing", tone: .positive)
+                : nil,
             iconColor: iconColor,
-            badgeColor: statusColor,
-            iconBackground: iconBackground,
-            badgeBackground: statusBackground
+            iconBackground: iconBackground
         )
     }
 

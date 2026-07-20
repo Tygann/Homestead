@@ -36,14 +36,13 @@ struct ToggleEntityDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: presentation.subtitle,
+            category: entityCategory,
+            summary: nil,
+            status: nil,
             iconColor: presentation.isActive ? presentation.accentColor : Color.secondary,
-            badgeColor: presentation.isAvailable ? presentation.headlineColor : Color.red,
-            iconBackground: iconBackground,
-            badgeBackground: badgeBackground
+            iconBackground: iconBackground
         )
     }
 
@@ -84,22 +83,11 @@ struct ToggleEntityDetailView: View {
     }
 
     private var navigationTitle: String {
-        switch entity.domain {
-        case .switch:
-            "Switch"
-        case .fan:
-            "Fan"
-        case .lock:
-            "Lock"
-        case .automation:
-            "Automation"
-        default:
-            "Entity"
-        }
+        entity.displayName
     }
 
     private var statusSummary: String {
-        guard entity.isAvailable else { return "\(navigationTitle) unavailable" }
+        guard entity.isAvailable else { return "\(entityCategory) unavailable" }
 
         if entityBox.pendingCommand != nil {
             return "Waiting for Home Assistant confirmation"
@@ -113,6 +101,10 @@ struct ToggleEntityDetailView: View {
         default:
             return presentation.subtitle
         }
+    }
+
+    private var entityCategory: String {
+        EntityCapabilityRegistry.profile(for: entity.domain).categoryTitle
     }
 
     private var actionTitle: String {

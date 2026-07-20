@@ -13,7 +13,7 @@ struct FanDetailView: View {
     @ViewBuilder
     var body: some View {
         if let fan = entityBox.fanEntity {
-            EntityDetailScaffold(title: "Fan", presentationStyle: presentationStyle) {
+            EntityDetailScaffold(title: fan.displayName, presentationStyle: presentationStyle) {
                 header(fan)
                 powerControls(fan)
 
@@ -39,7 +39,7 @@ struct FanDetailView: View {
             .actionConfirmationDialog(request: $confirmationRequest)
         } else {
             EntityUnavailableDetailView(
-                title: "Fan",
+                title: entityBox.homeEntity.displayName,
                 systemImage: "fan.fill",
                 presentationStyle: presentationStyle
             )
@@ -48,14 +48,13 @@ struct FanDetailView: View {
 
     private func header(_ fan: FanEntity) -> some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: entityBox.homeEntity.resolvedIcon,
-            title: fan.displayName,
-            subtitle: statusSummary(fan),
-            badge: fan.displaySubtitle,
+            category: "Fan",
+            summary: nil,
+            status: nil,
             iconColor: fan.isOn ? Color.accentColor : Color.secondary,
-            badgeColor: fan.isAvailable ? (fan.isOn ? Color.accentColor : Color.secondary) : .red,
-            iconBackground: fan.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
-            badgeBackground: fan.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
+            iconBackground: fan.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
         )
     }
 

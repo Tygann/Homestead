@@ -21,8 +21,10 @@ struct EntityDetailScaffold<Content: View>: View {
                 content
             }
             .padding(.horizontal, AppSpacing.large)
-            .padding(.vertical, AppSpacing.large)
+            .padding(.top, AppSpacing.large)
+            .padding(.bottom, presentationStyle.scrollBottomClearance)
         }
+        .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
         .entityDetailPresentation(title: title, style: presentationStyle)
     }
@@ -117,6 +119,73 @@ struct EntityDetailHeroCard<Content: View>: View {
     }
 }
 
+enum EntityDetailOperationalState: Equatable {
+    case live
+    case pending
+    case stale
+    case unavailable
+    case failed
+    case unsupported
+}
+
+enum EntityDetailStatusTone {
+    case accent
+    case neutral
+    case positive
+    case warning
+    case critical
+
+    var foregroundColor: Color {
+        switch self {
+        case .accent: .accentColor
+        case .neutral: .secondary
+        case .positive: .green
+        case .warning: .orange
+        case .critical: .red
+        }
+    }
+
+    var backgroundColor: Color {
+        foregroundColor.opacity(0.12)
+    }
+}
+
+struct EntityDetailStatusPresentation {
+    let text: String
+    let tone: EntityDetailStatusTone
+
+    static func resolved(
+        entityBox: HAEntityState,
+        normal: EntityDetailStatusPresentation? = nil
+    ) -> EntityDetailStatusPresentation? {
+        guard entityBox.homeEntity.isAvailable else {
+            return EntityDetailStatusPresentation(text: "Unavailable", tone: .critical)
+        }
+        guard entityBox.pendingCommand == nil else {
+            return EntityDetailStatusPresentation(text: "Updating", tone: .accent)
+        }
+        return normal
+    }
+}
+
+enum EntityDetailHeroSubtitle {
+    static func updated(_ entity: HomeEntity, summary: String? = nil) -> Text? {
+        let trimmedSummary = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let lastUpdated = entity.lastUpdated {
+            if let trimmedSummary, !trimmedSummary.isEmpty {
+                return Text("\(trimmedSummary) · Updated \(lastUpdated, style: .relative)")
+            }
+            return Text("Updated \(lastUpdated, style: .relative)")
+        }
+
+        if let trimmedSummary, !trimmedSummary.isEmpty {
+            return Text(trimmedSummary)
+        }
+        return nil
+    }
+}
+
 struct EntityDetailHeader: View {
     let icon: ResolvedIcon
     let title: String
@@ -126,6 +195,33 @@ struct EntityDetailHeader: View {
     let badgeColor: Color
     let iconBackground: Color
     let badgeBackground: Color
+
+    init(
+        entityBox: HAEntityState,
+        icon: ResolvedIcon,
+        category: String? = nil,
+        summary: String? = nil,
+        status: EntityDetailStatusPresentation? = nil,
+        iconColor: Color,
+        iconBackground: Color? = nil
+    ) {
+        let resolvedStatus = EntityDetailStatusPresentation.resolved(
+            entityBox: entityBox,
+            normal: status
+        )
+
+        self.icon = icon
+        title = category ?? EntityCapabilityRegistry.profile(for: entityBox.domain).categoryTitle
+        subtitle = ""
+        badge = resolvedStatus?.text ?? ""
+        self.iconColor = iconColor
+        badgeColor = resolvedStatus?.tone.foregroundColor ?? iconColor
+        self.iconBackground = iconBackground ?? iconColor.opacity(0.12)
+        badgeBackground = resolvedStatus?.tone.backgroundColor ?? iconColor.opacity(0.12)
+        heroSubtitle = EntityDetailHeroSubtitle.updated(entityBox.homeEntity, summary: summary)
+    }
+
+    private var heroSubtitle: Text?
 
     init(
         icon: ResolvedIcon,
@@ -145,6 +241,7 @@ struct EntityDetailHeader: View {
         self.badgeColor = badgeColor ?? iconColor
         self.iconBackground = iconBackground ?? iconColor.opacity(0.12)
         self.badgeBackground = badgeBackground ?? iconColor.opacity(0.12)
+        heroSubtitle = Text(subtitle)
     }
 
     init(
@@ -173,7 +270,7 @@ struct EntityDetailHeader: View {
         EntityDetailHeroCard(
             icon: icon,
             title: title,
-            subtitle: Text(subtitle),
+            subtitle: heroSubtitle,
             status: badge,
             iconColor: iconColor,
             statusColor: badgeColor,
@@ -623,7 +720,7 @@ struct EntityMetadataDisclosure: View {
     }
 }
 
-struct EntityControlPanel<Content: View>: View {
+struct EntityDetailSection<Content: View>: View {
     let title: String
     let systemImage: String
     @ViewBuilder let content: Content
@@ -640,22 +737,29 @@ struct EntityControlPanel<Content: View>: View {
     }
 }
 
+struct EntityControlPanel<Content: View>: View {
+    let title: String
+    let systemImage: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        EntityDetailSection(title: title, systemImage: systemImage) {
+            content
+        }
+    }
+}
+
 struct DashboardEntityContextPanel: View {
     let title: String
     let systemImage: String
     let rows: [EntityMetadataRow]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label(title, systemImage: systemImage)
-                .font(.headline)
-
+        EntityDetailSection(title: title, systemImage: systemImage) {
             ForEach(rows) { row in
                 row
             }
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 }
 

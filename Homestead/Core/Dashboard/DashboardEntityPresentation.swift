@@ -135,13 +135,42 @@ struct DashboardEntityDomainCapability: Equatable, Sendable {
     let domain: EntityDomain
     let cardStyle: DashboardEntityCardStyle
     let primaryAction: DashboardEntityPrimaryAction?
-    let detailKind: DashboardEntityDetailKind
     let statusFormatter: DashboardEntityStatusFormatter
     let iconAccentBehavior: DashboardEntityIconAccentBehavior
     let secondaryActions: [DashboardEntitySecondaryAction]
 
+    var detailKind: DashboardEntityDetailKind {
+        DashboardEntityDetailKind(
+            EntityCapabilityRegistry.profile(for: domain).detailRoute
+        )
+    }
+
     var primaryServiceIntent: DashboardEntityServiceIntent? {
         primaryAction?.serviceIntent
+    }
+}
+
+private extension DashboardEntityDetailKind {
+    init(_ route: EntityDetailRoute) {
+        switch route {
+        case .light: self = .light
+        case .cover: self = .cover
+        case .climate: self = .climate
+        case .fan: self = .fan
+        case .lock: self = .lock
+        case .toggle, .automation: self = .toggle
+        case .action: self = .action
+        case .sensor: self = .sensor
+        case .mediaPlayer: self = .mediaPlayer
+        case .camera: self = .camera
+        case .vacuum: self = .vacuum
+        case .weather: self = .weather
+        case .alarmControlPanel: self = .alarmControlPanel
+        case .button: self = .button
+        case .select: self = .select
+        case .number: self = .number
+        case .generic: self = .entity
+        }
     }
 }
 
@@ -153,7 +182,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .control,
                 primaryAction: .toggleLight,
-                detailKind: .light,
                 statusFormatter: .light,
                 iconAccentBehavior: .activeAccent,
                 secondaryActions: [.setBrightness]
@@ -163,7 +191,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .control,
                 primaryAction: .toggleSwitch,
-                detailKind: .toggle,
                 statusFormatter: .onOff(unavailableTitle: "Switch unavailable"),
                 iconAccentBehavior: .activeAccent,
                 secondaryActions: []
@@ -173,7 +200,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .control,
                 primaryAction: .toggleFan,
-                detailKind: .fan,
                 statusFormatter: .onOff(unavailableTitle: "Fan unavailable"),
                 iconAccentBehavior: .activeAccent,
                 secondaryActions: [.setFanPercentage, .setFanPresetMode]
@@ -183,7 +209,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .control,
                 primaryAction: nil,
-                detailKind: .lock,
                 statusFormatter: .lock,
                 iconAccentBehavior: .lockState,
                 secondaryActions: []
@@ -193,7 +218,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .control,
                 primaryAction: .toggleCover,
-                detailKind: .cover,
                 statusFormatter: .cover,
                 iconAccentBehavior: .activeAccent,
                 secondaryActions: [.openCover, .closeCover, .stopCover, .setCoverPosition]
@@ -203,7 +227,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .status,
                 primaryAction: nil,
-                detailKind: .climate,
                 statusFormatter: .climate,
                 iconAccentBehavior: .climateMode,
                 secondaryActions: [
@@ -218,7 +241,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .value,
                 primaryAction: nil,
-                detailKind: .sensor,
                 statusFormatter: .sensor,
                 iconAccentBehavior: .sensorKind,
                 secondaryActions: []
@@ -228,7 +250,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .status,
                 primaryAction: nil,
-                detailKind: .sensor,
                 statusFormatter: .binarySensor,
                 iconAccentBehavior: .activeAccent,
                 secondaryActions: []
@@ -238,7 +259,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .media,
                 primaryAction: nil,
-                detailKind: .mediaPlayer,
                 statusFormatter: .mediaPlayer,
                 iconAccentBehavior: .mediaState,
                 secondaryActions: [.playPause, .setMediaVolume, .selectMediaSource]
@@ -248,7 +268,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .camera,
                 primaryAction: nil,
-                detailKind: .camera,
                 statusFormatter: .camera,
                 iconAccentBehavior: .camera,
                 secondaryActions: []
@@ -258,7 +277,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .action,
                 primaryAction: .activateScene,
-                detailKind: .action,
                 statusFormatter: .action(kind: "Scene", unavailableTitle: "Scene unavailable"),
                 iconAccentBehavior: .actionAccent,
                 secondaryActions: []
@@ -268,7 +286,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .action,
                 primaryAction: .runScript,
-                detailKind: .action,
                 statusFormatter: .action(kind: "Script", unavailableTitle: "Script unavailable"),
                 iconAccentBehavior: .actionAccent,
                 secondaryActions: []
@@ -278,7 +295,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .control,
                 primaryAction: .toggleAutomation,
-                detailKind: .toggle,
                 statusFormatter: .onOff(unavailableTitle: "Automation unavailable"),
                 iconAccentBehavior: .activeAccent,
                 secondaryActions: []
@@ -288,7 +304,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .status,
                 primaryAction: nil,
-                detailKind: .vacuum,
                 statusFormatter: .vacuum,
                 iconAccentBehavior: .vacuumState,
                 secondaryActions: [.startCleaning, .stopCleaning, .returnToBase]
@@ -303,7 +318,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .status,
                 primaryAction: nil,
-                detailKind: .button,
                 statusFormatter: .rawState,
                 iconAccentBehavior: .defaultAccent,
                 secondaryActions: []
@@ -313,7 +327,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .value,
                 primaryAction: nil,
-                detailKind: .select,
                 statusFormatter: .rawState,
                 iconAccentBehavior: .defaultAccent,
                 secondaryActions: []
@@ -323,7 +336,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .value,
                 primaryAction: nil,
-                detailKind: .number,
                 statusFormatter: .rawState,
                 iconAccentBehavior: .defaultAccent,
                 secondaryActions: []
@@ -347,7 +359,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .status,
                 primaryAction: nil,
-                detailKind: .alarmControlPanel,
                 statusFormatter: .rawState,
                 iconAccentBehavior: .defaultAccent,
                 secondaryActions: []
@@ -370,7 +381,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .value,
                 primaryAction: nil,
-                detailKind: .weather,
                 statusFormatter: .rawState,
                 iconAccentBehavior: .defaultAccent,
                 secondaryActions: []
@@ -392,7 +402,6 @@ enum DashboardEntityDomainRegistry {
                 domain: domain,
                 cardStyle: .generic,
                 primaryAction: nil,
-                detailKind: .entity,
                 statusFormatter: .rawState,
                 iconAccentBehavior: .defaultAccent,
                 secondaryActions: []
@@ -408,7 +417,6 @@ enum DashboardEntityDomainRegistry {
             domain: domain,
             cardStyle: .status,
             primaryAction: nil,
-            detailKind: .entity,
             statusFormatter: statusFormatter,
             iconAccentBehavior: .defaultAccent,
             secondaryActions: []
@@ -420,7 +428,6 @@ enum DashboardEntityDomainRegistry {
             domain: domain,
             cardStyle: .value,
             primaryAction: nil,
-            detailKind: .entity,
             statusFormatter: .rawState,
             iconAccentBehavior: .defaultAccent,
             secondaryActions: []

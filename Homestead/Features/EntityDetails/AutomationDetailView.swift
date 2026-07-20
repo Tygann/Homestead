@@ -15,7 +15,7 @@ struct AutomationDetailView: View {
     private var presentation: DashboardEntityPresentation { DashboardEntityPresentation(entityBox: entityBox) }
 
     var body: some View {
-        EntityDetailScaffold(title: "Automation", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             actionPanel
             overviewPanel
@@ -33,14 +33,13 @@ struct AutomationDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: statusLabel,
+            category: "Automation",
+            summary: nil,
+            status: EntityDetailStatusPresentation(text: statusLabel, tone: presentation.isActive ? .positive : .neutral),
             iconColor: presentation.isActive ? presentation.accentColor : Color.secondary,
-            badgeColor: entity.isAvailable ? (presentation.isActive ? presentation.accentColor : .secondary) : .red,
-            iconBackground: presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
-            badgeBackground: entity.isAvailable ? (presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)) : Color.red.opacity(0.12)
+            iconBackground: presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
         )
     }
 

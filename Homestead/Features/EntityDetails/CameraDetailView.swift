@@ -43,7 +43,7 @@ struct CameraDetailView: View {
                 .disabled(!entity.isAvailable || snapshotPhase.isLoading)
             }
         }
-        .entityDetailPresentation(title: "Camera", style: presentationStyle)
+        .entityDetailPresentation(title: entity.displayName, style: presentationStyle)
         .fullScreenCover(isPresented: $isShowingFullScreenPreview) {
             CameraFullScreenPreview(
                 title: presentation.title,
@@ -65,14 +65,13 @@ struct CameraDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: presentation.subtitle,
+            category: "Camera",
+            summary: nil,
+            status: nil,
             iconColor: iconColor,
-            badgeColor: statusColor,
-            iconBackground: iconBackground,
-            badgeBackground: statusBackground
+            iconBackground: iconBackground
         )
     }
 

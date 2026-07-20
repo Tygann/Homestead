@@ -33,13 +33,15 @@ struct ActionEntityDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: presentation.subtitle,
+            category: entityCategory,
+            summary: nil,
+            status: entity.state == "on"
+                ? EntityDetailStatusPresentation(text: "Running", tone: .positive)
+                : nil,
             iconColor: iconColor,
-            badgeColor: presentation.isAvailable ? iconColor : .red,
-            badgeBackground: badgeBackground
+            iconBackground: badgeBackground
         )
     }
 
@@ -88,18 +90,11 @@ struct ActionEntityDetailView: View {
     }
 
     private var navigationTitle: String {
-        switch entity.domain {
-        case .scene:
-            "Scene"
-        case .script:
-            "Script"
-        default:
-            "Action"
-        }
+        entity.displayName
     }
 
     private var statusSummary: String {
-        guard entity.isAvailable else { return "\(navigationTitle) unavailable" }
+        guard entity.isAvailable else { return "\(entityCategory) unavailable" }
         if entityBox.pendingCommand != nil { return "Waiting for Home Assistant confirmation" }
 
         switch entity.domain {
@@ -110,6 +105,10 @@ struct ActionEntityDetailView: View {
         default:
             return presentation.subtitle
         }
+    }
+
+    private var entityCategory: String {
+        EntityCapabilityRegistry.profile(for: entity.domain).categoryTitle
     }
 
     private var actionTitle: String {

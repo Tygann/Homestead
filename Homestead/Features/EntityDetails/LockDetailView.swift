@@ -20,7 +20,7 @@ struct LockDetailView: View {
     }
 
     var body: some View {
-        EntityDetailScaffold(title: "Lock", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             actionPanel
             timelinePanel
@@ -34,14 +34,15 @@ struct LockDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: presentation.subtitle,
+            category: "Lock",
+            summary: nil,
+            status: entity.state == "locked"
+                ? nil
+                : EntityDetailStatusPresentation(text: entity.state.displayStateText, tone: .warning),
             iconColor: iconColor,
-            badgeColor: statusColor,
-            iconBackground: iconBackground,
-            badgeBackground: statusBackground
+            iconBackground: iconBackground
         )
     }
 

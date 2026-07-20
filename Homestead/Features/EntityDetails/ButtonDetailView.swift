@@ -17,7 +17,7 @@ struct ButtonDetailView: View {
     }
 
     var body: some View {
-        EntityDetailScaffold(title: "Button", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             actionPanel
             contextDetails
@@ -27,14 +27,13 @@ struct ButtonDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: presentation.isAvailable ? "Ready" : "Unavailable",
+            category: "Button",
+            summary: nil,
+            status: nil,
             iconColor: presentation.isAvailable ? .accentColor : .secondary,
-            badgeColor: presentation.isAvailable ? .accentColor : .red,
-            iconBackground: presentation.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
-            badgeBackground: presentation.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12)
+            iconBackground: presentation.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
         )
     }
 

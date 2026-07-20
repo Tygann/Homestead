@@ -15,7 +15,7 @@ struct LightDetailView: View {
     @ViewBuilder
     var body: some View {
         if let light = entityBox.lightEntity {
-            EntityDetailScaffold(title: "Light", presentationStyle: presentationStyle) {
+            EntityDetailScaffold(title: light.displayName, presentationStyle: presentationStyle) {
                 header(light)
                 powerControls(light)
 
@@ -40,7 +40,7 @@ struct LightDetailView: View {
             .actionConfirmationDialog(request: $confirmationRequest)
         } else {
             EntityUnavailableDetailView(
-                title: "Light",
+                title: entityBox.homeEntity.displayName,
                 systemImage: "lightbulb.slash",
                 presentationStyle: presentationStyle
             )
@@ -49,14 +49,13 @@ struct LightDetailView: View {
 
     private func header(_ light: LightEntity) -> some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: entityBox.homeEntity.resolvedIcon,
-            title: light.displayName,
-            subtitle: lightStatusText(light),
-            badge: lightBadgeText(light),
+            category: "Light",
+            summary: nil,
+            status: nil,
             iconColor: lightIconColor(light),
-            badgeColor: lightBadgeColor(light),
-            iconBackground: lightIconBackground(light),
-            badgeBackground: lightBadgeBackground(light)
+            iconBackground: lightIconBackground(light)
         )
     }
 

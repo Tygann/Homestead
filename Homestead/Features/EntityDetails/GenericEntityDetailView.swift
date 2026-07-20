@@ -22,7 +22,6 @@ struct GenericEntityDetailView: View {
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
-            currentStatePanel
             if !availableActions.isEmpty {
                 actionsPanel
             }
@@ -43,20 +42,16 @@ struct GenericEntityDetailView: View {
     }
 
     private var header: some View {
-        EntityDetailHeader(
+        EntityDetailHeroCard(
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: entity.entityID,
-            badge: presentation.subtitle,
+            title: EntityCapabilityRegistry.profile(for: entity.domain).categoryTitle,
+            subtitle: EntityDetailHeroSubtitle.updated(entity),
+            status: EntityDetailStatusPresentation.resolved(entityBox: entityBox)?.text,
             iconColor: iconColor,
-            badgeColor: entity.isAvailable ? iconColor : .red,
+            statusColor: entity.isAvailable ? iconColor : .red,
             iconBackground: iconBackground,
-            badgeBackground: badgeBackground
-        )
-    }
-
-    private var currentStatePanel: some View {
-        EntityControlPanel(title: "Current State", systemImage: "waveform.path.ecg") {
+            statusBackground: entity.isAvailable ? iconBackground : Color.red.opacity(0.12)
+        ) {
             Text(presentation.subtitle)
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundStyle(stateColor)
@@ -131,7 +126,7 @@ struct GenericEntityDetailView: View {
     }
 
     private var navigationTitle: String {
-        entity.domain == .other ? "Entity" : entity.domain.displayName
+        entity.displayName
     }
 
     private var supportsTimeline: Bool {

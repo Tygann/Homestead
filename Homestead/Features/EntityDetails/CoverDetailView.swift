@@ -16,7 +16,7 @@ struct CoverDetailView: View {
     @ViewBuilder
     var body: some View {
         if let cover = entityBox.coverEntity {
-            EntityDetailScaffold(title: "Cover", presentationStyle: presentationStyle) {
+            EntityDetailScaffold(title: cover.displayName, presentationStyle: presentationStyle) {
                 header(cover)
                 movementControls(cover)
 
@@ -41,7 +41,7 @@ struct CoverDetailView: View {
             .actionConfirmationDialog(request: $confirmationRequest)
         } else {
             EntityUnavailableDetailView(
-                title: "Cover",
+                title: entityBox.homeEntity.displayName,
                 systemImage: "blinds.horizontal.closed",
                 presentationStyle: presentationStyle
             )
@@ -49,16 +49,34 @@ struct CoverDetailView: View {
     }
 
     private func header(_ cover: CoverEntity) -> some View {
-        EntityDetailHeader(
+        EntityDetailHeroCard(
             icon: entityBox.homeEntity.resolvedIcon,
-            title: cover.displayName,
-            subtitle: cover.displaySubtitle,
-            badge: statusBadgeText(for: cover),
+            title: "Cover",
+            subtitle: EntityDetailHeroSubtitle.updated(entityBox.homeEntity),
+            status: coverHeroStatus(cover),
             iconColor: coverIconColor(cover),
-            badgeColor: coverBadgeColor(cover),
+            statusColor: coverBadgeColor(cover),
             iconBackground: coverStatusBackground(cover),
-            badgeBackground: coverStatusBackground(cover)
-        )
+            statusBackground: coverHeroStatus(cover) == "Unavailable" ? Color.red.opacity(0.12) : coverStatusBackground(cover)
+        ) {
+            if let position = cover.positionPercentage {
+                VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                    Text("\(position)%")
+                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .foregroundStyle(coverIconColor(cover))
+                        .monospacedDigit()
+
+                    ProgressView(value: Double(position), total: 100)
+                        .tint(coverIconColor(cover))
+                        .accessibilityLabel("Position")
+                        .accessibilityValue("\(position) percent")
+                }
+            } else {
+                Text(cover.displayState)
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                    .foregroundStyle(coverIconColor(cover))
+            }
+        }
     }
 
     private func movementControls(_ cover: CoverEntity) -> some View {
@@ -170,6 +188,16 @@ struct CoverDetailView: View {
         }
 
         return cover.displayState
+    }
+
+    private func coverHeroStatus(_ cover: CoverEntity) -> String? {
+        if !entityBox.homeEntity.isAvailable { return "Unavailable" }
+        if entityBox.pendingCommand != nil { return "Updating" }
+        switch cover.state {
+        case "opening": return "Opening"
+        case "closing": return "Closing"
+        default: return nil
+        }
     }
 
     private func setPosition(_ updatedPosition: Double) {

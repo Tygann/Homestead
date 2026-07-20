@@ -2,6 +2,16 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-20
+
+### Capability-Driven Entity Detail Grammar
+
+- Adopted one shared detail grammar with typed domain-family composition instead of either identical screens or a type-erased universal section schema.
+- Added a surface-neutral entity capability profile for family, hero, route, and semantic capability classification; detail routing now consumes it directly and dashboard routing adapts it.
+- Standardized entity-name navigation, category/freshness heroes, exceptional-only status badges, grouped sections, final diagnostics, pending/unavailable behavior, and bottom chrome clearance across existing detail domains.
+- Made Sensor, Cover, Climate, and Weather deterministic reference screens; added a debug gallery, meaningful bounded chart domains, linear history interpolation, partial-coverage messaging, and Audio Graph descriptors.
+- Recorded the durable contract in `Docs/ENTITY_DETAIL_DESIGN.md` and ADR 2.
+
 ## 2026-07-17
 
 ### Atomic Dashboard Card Features

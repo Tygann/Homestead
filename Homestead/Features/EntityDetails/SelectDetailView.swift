@@ -26,30 +26,35 @@ struct SelectDetailView: View {
     }
 
     var body: some View {
-        EntityDetailScaffold(title: "Select", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
 
             if !options.isEmpty {
                 optionPanel
             }
 
-            currentPanel
             contextDetails
         }
         .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
-        EntityDetailHeader(
+        EntityDetailHeroCard(
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: entity.isAvailable ? entity.state.displayStateText : "Unavailable",
+            title: "Select",
+            subtitle: EntityDetailHeroSubtitle.updated(entity),
+            status: EntityDetailStatusPresentation.resolved(entityBox: entityBox)?.text,
             iconColor: entity.isAvailable ? .accentColor : .secondary,
-            badgeColor: entity.isAvailable ? .accentColor : .red,
+            statusColor: entity.isAvailable ? .accentColor : .red,
             iconBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
-            badgeBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12)
-        )
+            statusBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12)
+        ) {
+            Text(entity.state.displayStateText)
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .foregroundStyle(entity.isAvailable ? Color.accentColor : Color.secondary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.6)
+        }
     }
 
     private var optionPanel: some View {
@@ -76,17 +81,6 @@ struct SelectDetailView: View {
                 }
             }
         }
-    }
-
-    private var currentPanel: some View {
-        DashboardEntityContextPanel(
-            title: "Current Value",
-            systemImage: "text.word.spacing",
-            rows: [
-                EntityMetadataRow(title: "State", value: entity.state.displayStateText),
-                EntityMetadataRow(title: "Options", value: options.isEmpty ? "None" : "\(options.count)")
-            ]
-        )
     }
 
     private var contextDetails: some View {

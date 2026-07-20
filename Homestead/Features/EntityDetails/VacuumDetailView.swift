@@ -17,7 +17,7 @@ struct VacuumDetailView: View {
     }
 
     var body: some View {
-        EntityDetailScaffold(title: "Vacuum", presentationStyle: presentationStyle) {
+        EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             vacuumControls
             contextDetails
@@ -27,14 +27,13 @@ struct VacuumDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: statusSummary,
-            badge: presentation.subtitle,
+            category: "Vacuum",
+            summary: nil,
+            status: EntityDetailStatusPresentation(text: presentation.subtitle, tone: .accent),
             iconColor: iconColor,
-            badgeColor: statusColor,
-            iconBackground: iconBackground,
-            badgeBackground: statusBackground
+            iconBackground: iconBackground
         )
     }
 

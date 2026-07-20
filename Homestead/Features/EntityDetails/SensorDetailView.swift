@@ -1,3 +1,4 @@
+import Accessibility
 import Charts
 import SwiftUI
 
@@ -53,14 +54,13 @@ struct SensorDetailView: View {
 
     private var header: some View {
         EntityDetailHeader(
+            entityBox: entityBox,
             icon: presentation.icon,
-            title: presentation.title,
-            subtitle: presentation.subtitle,
-            badge: statusBadgeText,
+            category: EntityCapabilityRegistry.profile(for: entity.domain).categoryTitle,
+            summary: nil,
+            status: binarySensorStatus,
             iconColor: iconColor,
-            badgeColor: statusColor,
-            iconBackground: iconBackground,
-            badgeBackground: statusBackground
+            iconBackground: iconBackground
         )
     }
 
@@ -89,7 +89,7 @@ struct SensorDetailView: View {
             icon: presentation.icon,
             title: heroPresentation?.category ?? "Sensor",
             subtitle: sensorFreshnessText,
-            status: heroPresentation?.statusText,
+            status: resolvedSensorHeroStatus,
             iconColor: sensorHeroColor
         ) {
             if let gauge = entityBox.sensorEntity?.gaugePresentation {
@@ -112,11 +112,21 @@ struct SensorDetailView: View {
     }
 
     private var sensorFreshnessText: Text? {
-        if entity.isAvailable, let lastUpdated = entity.lastUpdated {
-            return Text("Updated \(lastUpdated, style: .relative)")
-        }
+        EntityDetailHeroSubtitle.updated(entity)
+    }
 
-        return nil
+    private var resolvedSensorHeroStatus: String? {
+        EntityDetailStatusPresentation.resolved(
+            entityBox: entityBox,
+            normal: heroPresentation?.statusText.map {
+                EntityDetailStatusPresentation(text: $0, tone: .warning)
+            }
+        )?.text
+    }
+
+    private var binarySensorStatus: EntityDetailStatusPresentation? {
+        guard entityBox.binarySensorEntity?.isActive == true else { return nil }
+        return EntityDetailStatusPresentation(text: statusBadgeText, tone: .warning)
     }
 
     private var detailMetrics: some View {
@@ -202,22 +212,26 @@ struct SensorDetailView: View {
     }
 
     private func historyChart(_ series: HAHistoryChartSeries) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
+        let valueDomain = series.valueDomain(
+            preferredRange: entityBox.sensorEntity?.gaugePresentation?.range
+        )
+
+        return VStack(alignment: .leading, spacing: AppSpacing.small) {
             Chart(series.chartSamples()) { sample in
                 LineMark(
                     x: .value("Time", sample.occurredAt),
                     y: .value("Value", sample.value)
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.linear)
                 .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 .foregroundStyle(presentation.accentColor)
 
                 AreaMark(
                     x: .value("Time", sample.occurredAt),
-                    yStart: .value("Baseline", series.valueDomain.lowerBound),
+                    yStart: .value("Baseline", valueDomain.lowerBound),
                     yEnd: .value("Value", sample.value)
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.linear)
                 .foregroundStyle(
                     LinearGradient(
                         colors: [
@@ -229,7 +243,7 @@ struct SensorDetailView: View {
                     )
                 )
             }
-            .chartYScale(domain: series.valueDomain)
+            .chartYScale(domain: valueDomain)
             .chartPlotStyle { plotArea in
                 plotArea.clipped()
             }
@@ -260,6 +274,9 @@ struct SensorDetailView: View {
             }
             .frame(height: 160)
             .clipped()
+            .accessibilityChartDescriptor(
+                SensorHistoryChartDescriptor(series: series, valueDomain: valueDomain)
+            )
             .accessibilityLabel("\(series.displayName) history")
             .accessibilityValue(series.summaryText)
 
@@ -279,8 +296,8 @@ struct SensorDetailView: View {
                 }
             }
 
-            if selectedHistoryRange == .month {
-                Text("Shows available Home Assistant history.")
+            if let coverageNotice = series.coverageNotice {
+                Text(coverageNotice)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -533,6 +550,51 @@ struct SensorDetailHeroPresentation: Equatable, Sendable {
         } else {
             statusText = nil
         }
+    }
+}
+
+private struct SensorHistoryChartDescriptor: AXChartDescriptorRepresentable {
+    let series: HAHistoryChartSeries
+    let valueDomain: ClosedRange<Double>
+
+    func makeChartDescriptor() -> AXChartDescriptor {
+        let samples = series.chartSamples()
+        let firstTimestamp = samples.first?.occurredAt.timeIntervalSince1970 ?? 0
+        let lastTimestamp = samples.last?.occurredAt.timeIntervalSince1970 ?? firstTimestamp + 1
+        let xAxis = AXNumericDataAxisDescriptor(
+            title: "Time",
+            range: firstTimestamp...max(lastTimestamp, firstTimestamp + 1),
+            gridlinePositions: []
+        ) { timestamp in
+            Date(timeIntervalSince1970: timestamp).formatted(date: .abbreviated, time: .shortened)
+        }
+        let yAxis = AXNumericDataAxisDescriptor(
+            title: series.unit.map { "Value in \($0)" } ?? "Value",
+            range: valueDomain,
+            gridlinePositions: []
+        ) { value in
+            series.formatValue(value)
+        }
+        let dataPoints = samples.map { sample in
+            AXDataPoint(
+                x: sample.occurredAt.timeIntervalSince1970,
+                y: sample.value,
+                label: series.formatValue(sample.value)
+            )
+        }
+        let dataSeries = AXDataSeriesDescriptor(
+            name: series.displayName,
+            isContinuous: true,
+            dataPoints: dataPoints
+        )
+
+        return AXChartDescriptor(
+            title: "\(series.displayName) history",
+            summary: series.summaryText,
+            xAxis: xAxis,
+            yAxis: yAxis,
+            series: [dataSeries]
+        )
     }
 }
 

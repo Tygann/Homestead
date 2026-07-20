@@ -172,6 +172,23 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
     let unit: String?
     let range: HAHistoryRangePreset
     let samples: [HAHistorySample]
+    let requestedInterval: DateInterval?
+
+    init(
+        entityID: String,
+        displayName: String,
+        unit: String?,
+        range: HAHistoryRangePreset,
+        samples: [HAHistorySample],
+        requestedInterval: DateInterval? = nil
+    ) {
+        self.entityID = entityID
+        self.displayName = displayName
+        self.unit = unit
+        self.range = range
+        self.samples = samples
+        self.requestedInterval = requestedInterval
+    }
 
     var isEmpty: Bool {
         samples.isEmpty
@@ -190,6 +207,14 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
     }
 
     var valueDomain: ClosedRange<Double> {
+        valueDomain(preferredRange: nil)
+    }
+
+    func valueDomain(preferredRange: ClosedRange<Double>?) -> ClosedRange<Double> {
+        if let preferredRange, preferredRange.lowerBound < preferredRange.upperBound {
+            return preferredRange
+        }
+
         guard let minimumValue, let maximumValue else {
             return 0...1
         }
@@ -201,6 +226,16 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
 
         let padding = (maximumValue - minimumValue) * 0.12
         return (minimumValue - padding)...(maximumValue + padding)
+    }
+
+    var coverageNotice: String? {
+        guard let requestedInterval,
+              let firstSample = samples.first,
+              firstSample.occurredAt > requestedInterval.start.addingTimeInterval(range.duration * 0.05) else {
+            return nil
+        }
+
+        return "Available samples begin \(firstSample.occurredAt.formatted(date: .abbreviated, time: .shortened))."
     }
 
     var summaryText: String {
@@ -280,7 +315,8 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
             displayName: displayName,
             unit: unit,
             range: range,
-            samples: samples
+            samples: samples,
+            requestedInterval: interval
         )
     }
 

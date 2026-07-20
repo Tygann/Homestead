@@ -30,6 +30,12 @@ Stable entity catalog data, such as sorted entities and grouped entity IDs, is k
 
 Views should not decode Home Assistant JSON or hold independent entity caches.
 
+## Entity capability and detail presentation
+
+`EntityCapabilityProfile` is the surface-neutral registry for an entity domain's interaction family, hero kind, detail route, and semantic capabilities. Entity-detail routing reads this profile directly. Dashboard presentation adapts the neutral route while retaining its own card style, action, status-formatting, and icon concerns.
+
+Entity detail views use a shared grammar rather than a universal type-erased layout. Typed family/domain views compose shared scaffold, hero, section, control, history/activity, and diagnostics components. The complete UI and extension contract is documented in `Docs/ENTITY_DETAIL_DESIGN.md` and ADR 2.
+
 ## Service layer
 
 SwiftUI views call `HomeAssistantService`, not `HAWebSocketClient`. The service exposes intent-level methods such as `toggleLight(entityID:)`, `turnOnLight(entityID:)`, `turnOffLight(entityID:)`, and `callService(domain:service:entityID:)`.
