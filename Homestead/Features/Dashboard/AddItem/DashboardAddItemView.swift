@@ -77,7 +77,7 @@ struct DashboardAddItemView: View {
             stateStore: stateStore,
             searchText: searchText
         )
-        let addedPresentationIdentities = dashboardConfiguration.presentationIdentities
+        let sourceCounts = dashboardConfiguration.sourceCounts
 
         return List {
             if !presentation.summaryCandidates.isEmpty {
@@ -89,7 +89,7 @@ struct DashboardAddItemView: View {
                             subtitle: candidate.value,
                             icon: .sfSymbol(candidate.systemImage, provenance: .homesteadSemanticMapping),
                             recommendation: .chip,
-                            addedPresentationIdentities: addedPresentationIdentities
+                            sourceCounts: sourceCounts
                         )
                     }
                 }
@@ -104,7 +104,7 @@ struct DashboardAddItemView: View {
                             subtitle: candidate.entityID,
                             icon: candidate.icon,
                             recommendation: candidate.suggestedPresentation,
-                            addedPresentationIdentities: addedPresentationIdentities
+                            sourceCounts: sourceCounts
                         )
                     }
                 } header: {
@@ -213,19 +213,26 @@ struct DashboardAddItemView: View {
         subtitle: String,
         icon: ResolvedIcon,
         recommendation: DashboardPresentationConfiguration,
-        addedPresentationIdentities: Set<DashboardPresentationIdentity>
+        sourceCounts: [DashboardSourceReference: Int]
     ) -> some View {
-        let identity = DashboardPresentationIdentity(
-            source: source.reference,
-            presentation: recommendation
-        )
-        let isAdded = addedPresentationIdentities.contains(identity)
+        let sourceCount = sourceCounts[source.reference, default: 0]
+        let isAdded = sourceCount > 0
+        let canAddAnother = source.isEntity
 
         return HStack(spacing: AppSpacing.medium) {
             NavigationLink(value: DashboardAddRoute.cards(source)) {
                 Label {
                     VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                        Text(title).font(.headline).foregroundStyle(.primary).lineLimit(1)
+                        HStack(spacing: AppSpacing.small) {
+                            Text(title).font(.headline).foregroundStyle(.primary).lineLimit(1)
+
+                            if isAdded {
+                                Text(sourceCount == 1 ? "On Dashboard" : "\(sourceCount) on Dashboard")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
                         Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 } icon: {
@@ -237,25 +244,41 @@ struct DashboardAddItemView: View {
             Button {
                 add(source, recommendation)
             } label: {
-                Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
+                Image(systemName: isAdded && !canAddAnother ? "checkmark.circle.fill" : "plus.circle.fill")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(isAdded ? Color.secondary : Color.accentColor)
+                    .foregroundStyle(isAdded && !canAddAnother ? Color.secondary : Color.accentColor)
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
-            .disabled(isAdded)
+            .disabled(isAdded && !canAddAnother)
             .accessibilityLabel(
-                isAdded
-                    ? "\(DashboardPresentationCatalog.descriptor(for: recommendation.kind).title) added"
-                    : "Add \(title) as \(DashboardPresentationCatalog.descriptor(for: recommendation.kind).title)"
+                addAccessibilityLabel(
+                    title: title,
+                    presentation: recommendation,
+                    isAdded: isAdded,
+                    canAddAnother: canAddAnother
+                )
             )
-            .accessibilityHint(isAdded ? "" : "Adds the suggested style")
+            .accessibilityHint(isAdded && !canAddAnother ? "" : "Adds the suggested style")
         }
         .frame(minHeight: 48)
     }
 
     private var galleryColumns: [GridItem] {
         [GridItem(.adaptive(minimum: 156, maximum: 220), spacing: AppSpacing.medium)]
+    }
+
+    private func addAccessibilityLabel(
+        title: String,
+        presentation: DashboardPresentationConfiguration,
+        isAdded: Bool,
+        canAddAnother: Bool
+    ) -> String {
+        let style = DashboardPresentationCatalog.descriptor(for: presentation.kind).title
+        if isAdded && canAddAnother {
+            return "Add another \(title) as \(style)"
+        }
+        return isAdded ? "\(style) added" : "Add \(title) as \(style)"
     }
 
     private var filteredGallerySections: [DashboardAddGallerySectionContent] {

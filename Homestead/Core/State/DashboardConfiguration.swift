@@ -548,14 +548,21 @@ final class DashboardConfiguration {
     var selectedDashboard: SavedDashboardConfiguration { dashboards.first { $0.id == selectedDashboardID } ?? dashboards[0] }
     var items: [DashboardItemConfiguration] { selectedDashboard.items }
     var setupState: DashboardSetupState { selectedDashboard.setupState }
-    var presentationIdentities: Set<DashboardPresentationIdentity> {
-        Set(items.compactMap { item in
+    var presentationCounts: [DashboardPresentationIdentity: Int] {
+        items.reduce(into: [:]) { counts, item in
             guard let source = item.source,
                   let presentation = item.presentation else {
-                return nil
+                return
             }
-            return DashboardPresentationIdentity(source: source, presentation: presentation)
-        })
+            counts[DashboardPresentationIdentity(source: source, presentation: presentation), default: 0] += 1
+        }
+    }
+
+    var sourceCounts: [DashboardSourceReference: Int] {
+        items.reduce(into: [:]) { counts, item in
+            guard let source = item.source else { return }
+            counts[source, default: 0] += 1
+        }
     }
 
     // MARK: Lifecycle
@@ -618,15 +625,11 @@ final class DashboardConfiguration {
         items.first { $0.id == itemID }?.role
     }
 
-    func contains(
+    func presentationCount(
         source: DashboardSourceReference,
         presentation: DashboardPresentationConfiguration
-    ) -> Bool {
-        let identity = DashboardPresentationIdentity(source: source, presentation: presentation)
-        return items.contains {
-            guard let itemSource = $0.source, let itemPresentation = $0.presentation else { return false }
-            return DashboardPresentationIdentity(source: itemSource, presentation: itemPresentation) == identity
-        }
+    ) -> Int {
+        presentationCounts[DashboardPresentationIdentity(source: source, presentation: presentation), default: 0]
     }
 
     // MARK: Mutations
@@ -637,11 +640,14 @@ final class DashboardConfiguration {
             .sourced(source: source, presentation: presentation)
         ) else { return nil }
 
-        let identity = DashboardPresentationIdentity(source: source, presentation: presentation)
-        if let existing = items.first(where: {
-            guard let itemSource = $0.source, let itemPresentation = $0.presentation else { return false }
-            return DashboardPresentationIdentity(source: itemSource, presentation: itemPresentation) == identity
-        }) {
+        // Summary chips are dashboard-wide aggregates. Entity-backed items are
+        // independent presentations and may intentionally repeat.
+        if case .summary = source,
+           let existing = items.first(where: {
+               guard let itemSource = $0.source, let itemPresentation = $0.presentation else { return false }
+               return DashboardPresentationIdentity(source: itemSource, presentation: itemPresentation)
+                   == DashboardPresentationIdentity(source: source, presentation: presentation)
+           }) {
             return existing.id
         }
 
@@ -968,11 +974,12 @@ final class DashboardConfiguration {
 
 nonisolated enum DashboardConfigurationValidator {
     static func normalizedItems(_ items: [DashboardItemConfiguration]) -> [DashboardItemConfiguration] {
-        var identities = Set<DashboardPresentationIdentity>()
+        var summaryIdentities = Set<DashboardPresentationIdentity>()
         return items.compactMap { item in
             guard let normalized = normalizedItem(item) else { return nil }
             guard let source = normalized.source, let presentation = normalized.presentation else { return normalized }
-            return identities.insert(
+            guard case .summary = source else { return normalized }
+            return summaryIdentities.insert(
                 DashboardPresentationIdentity(source: source, presentation: presentation)
             ).inserted ? normalized : nil
         }

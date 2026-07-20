@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-20
 
+### Repeatable Dashboard Entity Presentations
+
+- Changed the dashboard item contract so an entity is a reusable data source and every add creates a new independently editable presentation, including repeated card kinds and layouts.
+- Preserved repeated entity items through dashboard normalization, persistence, and iCloud snapshot application while retaining single-instance semantics for dashboard-wide summary chips.
+- Replaced disabled matching entity actions with compact `On Dashboard` counts and enabled `Add Another` controls; summary-chip add actions still resolve to their existing instance.
+- Verified with a Debug iPhone 17 build, all 27 `DashboardConfigurationXCTests`, guarded Xcode storage hygiene, and live Add to Dashboard inspection through the simulator browser mirror.
+
 ### Dashboard Card Completion
 
 - Replaced the generic Graph, Weather, Media, and Action card treatments with focused typed compositions that preserve the shared dashboard shell while making each family useful at a glance.
@@ -130,7 +137,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### SwiftUI Scrolling And Search Performance Cleanup
 
 - Kept `EntityBrowserList` parent rendering on stable structural indexes for ordinary scrolling and moved row-specific detail/accessory observation into the row boundary; live entity state still updates the affected row, while filters and search retain their existing dynamic behavior.
-- Consolidated Add to Dashboard source derivation into one app-facing presentation pass per render, reused the existing summary workspace, and replaced repeated linear dashboard-membership scans with a source/presentation identity set that preserves the existing style-aware duplicate rule.
+- Consolidated Add to Dashboard source derivation into one app-facing presentation pass per render and reused the existing summary workspace. The original source/presentation membership set later evolved into source and presentation counts when entity-backed cards became independently repeatable.
 - Cached dashboard summary membership classification and its workspace across ordinary live state updates, invalidating only when registry, entity membership, device-class, charging, or entity-collection inputs change; Security detail status remains dynamically recomputed from its per-entity state.
 - Removed the repeated device-summary pass used only to build the Devices label menu and moved camera snapshot decoding/downsampling out of the SwiftUI render path before image presentation.
 - Verified with a generic simulator build and 25 focused `DashboardConfigurationXCTests`; physical-device scrolling/search profiling remains the next evidence step.

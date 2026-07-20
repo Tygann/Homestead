@@ -31,10 +31,12 @@ struct DashboardChooseCardView: View {
         if let presentation = source.defaultPresentation(kind: kind, stateStore: stateStore) {
             let descriptor = DashboardPresentationCatalog.descriptor(for: kind)
             let isRecommended = recommendation?.kind == kind
-            let isAdded = dashboardConfiguration.contains(
+            let presentationCount = dashboardConfiguration.presentationCount(
                 source: source.reference,
                 presentation: presentation
             )
+            let isAdded = presentationCount > 0
+            let canAddAnother = source.isEntity
 
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 HStack(spacing: AppSpacing.small) {
@@ -55,14 +57,21 @@ struct DashboardChooseCardView: View {
                     Button {
                         add(source, presentation)
                     } label: {
-                        Label(isAdded ? "Added" : "Add", systemImage: isAdded ? "checkmark" : "plus")
+                        Label(
+                            isAdded && canAddAnother ? "Add Another" : isAdded ? "Added" : "Add",
+                            systemImage: isAdded && !canAddAnother ? "checkmark" : "plus"
+                        )
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .frame(minHeight: 44)
-                    .disabled(isAdded)
-                    .accessibilityLabel(isAdded ? "\(descriptor.title) added" : "Add \(descriptor.title)")
-                    .accessibilityHint(isAdded ? "" : "Adds the default \(descriptor.title)")
+                    .disabled(isAdded && !canAddAnother)
+                    .accessibilityLabel(
+                        isAdded && canAddAnother
+                            ? "Add another \(descriptor.title)"
+                            : isAdded ? "\(descriptor.title) added" : "Add \(descriptor.title)"
+                    )
+                    .accessibilityHint(isAdded && !canAddAnother ? "" : "Adds the default \(descriptor.title)")
                 }
 
                 if case .entity(let entityID) = source,
@@ -159,8 +168,8 @@ struct DashboardPresentationReviewView: View {
                     guard let source, let selectedPresentation else { return }
                     add(source, selectedPresentation)
                 }
-                .disabled(selectedPresentation == nil || selectedPresentationIsAdded)
-                .accessibilityLabel(selectedPresentationIsAdded ? "Added" : "Add")
+                .disabled(selectedPresentation == nil || selectedPresentationIsSingletonAdded)
+                .accessibilityLabel(addActionAccessibilityLabel)
             }
         }
     }
@@ -173,12 +182,23 @@ struct DashboardPresentationReviewView: View {
         defaultPresentation
     }
 
-    private var selectedPresentationIsAdded: Bool {
-        guard let source, let selectedPresentation else { return false }
-        return dashboardConfiguration.contains(
+    private var selectedPresentationCount: Int {
+        guard let source, let selectedPresentation else { return 0 }
+        return dashboardConfiguration.presentationCount(
             source: source.reference,
             presentation: selectedPresentation
         )
+    }
+
+    private var selectedPresentationIsSingletonAdded: Bool {
+        guard case .some(.summary) = source else { return false }
+        return selectedPresentationCount > 0
+    }
+
+    private var addActionAccessibilityLabel: String {
+        guard source != nil, selectedPresentation != nil else { return "Add" }
+        if selectedPresentationIsSingletonAdded { return "Added" }
+        return selectedPresentationCount > 0 ? "Add Another" : "Add"
     }
 
     private var sourceSelector: some View {
@@ -448,6 +468,11 @@ private struct DashboardAddPresentationPreview: View {
 }
 
 extension DashboardAddSource {
+    var isEntity: Bool {
+        if case .entity = self { return true }
+        return false
+    }
+
     func contextTitle(stateStore: HAStateStore) -> String {
         switch self {
         case .summary(let kind):

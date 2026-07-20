@@ -133,15 +133,19 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(restored.items.first(where: { $0.id == segmentedID })?.gaugeZoneConfiguration, zoneConfiguration)
     }
 
-    func testDuplicateIdentityIncludesCardTypeButNotLayout() throws {
+    func testEntityPresentationsCanRepeatAcrossCardTypesAndLayouts() throws {
         let configuration = DashboardConfiguration(defaults: makeDefaults())
         let statusID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
             presentation: .card(.status(layout: .compact))
         ))
-        let duplicateStatusID = try XCTUnwrap(configuration.add(
+        let wideStatusID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
             presentation: .card(.status(layout: .wide))
+        ))
+        let secondCompactStatusID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.status(layout: .compact))
         ))
         let graphID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
@@ -151,7 +155,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
             source: .entity("sensor.temperature"),
             presentation: .card(.circularGauge(layout: .square))
         ))
-        let duplicateCircularGaugeID = try XCTUnwrap(configuration.add(
+        let wideCircularGaugeID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
             presentation: .card(.circularGauge(layout: .wide))
         ))
@@ -160,25 +164,24 @@ final class DashboardConfigurationXCTests: XCTestCase {
             presentation: .card(.barGauge(layout: .wide))
         ))
 
-        XCTAssertEqual(
-            DashboardPresentationIdentity(
-                source: .entity("sensor.temperature"),
-                presentation: .card(.status(layout: .compact))
-            ),
-            DashboardPresentationIdentity(
-                source: .entity("sensor.temperature"),
-                presentation: .card(.status(layout: .wide))
-            )
-        )
-        XCTAssertEqual(statusID, duplicateStatusID)
+        XCTAssertNotEqual(statusID, wideStatusID)
+        XCTAssertNotEqual(statusID, secondCompactStatusID)
         XCTAssertNotEqual(statusID, graphID)
-        XCTAssertEqual(circularGaugeID, duplicateCircularGaugeID)
+        XCTAssertNotEqual(circularGaugeID, wideCircularGaugeID)
         XCTAssertNotEqual(circularGaugeID, barGaugeID)
-        XCTAssertEqual(configuration.items.count, 4)
+        XCTAssertEqual(configuration.items.count, 7)
+        XCTAssertEqual(
+            configuration.presentationCount(
+                source: .entity("sensor.temperature"),
+                presentation: .card(.status(layout: .square))
+            ),
+            3
+        )
     }
 
-    func testPresentationIdentitiesMatchDashboardDuplicateRules() throws {
-        let configuration = DashboardConfiguration(defaults: makeDefaults())
+    func testRepeatedEntityPresentationsSurvivePersistenceNormalization() throws {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
         _ = configuration.add(
             source: .entity("sensor.temperature"),
             presentation: .card(.status(layout: .compact))
@@ -192,19 +195,29 @@ final class DashboardConfigurationXCTests: XCTestCase {
             presentation: .card(.barGauge(layout: .wide))
         )
 
-        XCTAssertEqual(configuration.presentationIdentities.count, 2)
-        XCTAssertTrue(configuration.presentationIdentities.contains(
-            DashboardPresentationIdentity(
+        let restored = DashboardConfiguration(defaults: defaults)
+
+        XCTAssertEqual(restored.items.count, 3)
+        XCTAssertEqual(
+            restored.presentationCount(
                 source: .entity("sensor.temperature"),
                 presentation: .card(.status(layout: .square))
-            )
-        ))
-        XCTAssertTrue(configuration.presentationIdentities.contains(
-            DashboardPresentationIdentity(
-                source: .entity("sensor.temperature"),
-                presentation: .card(.barGauge(layout: .compact))
-            )
-        ))
+            ),
+            2
+        )
+    }
+
+    func testSummaryChipsRemainSingleInstance() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let firstID = try XCTUnwrap(configuration.add(source: .summary(.lights), presentation: .chip))
+        let secondID = try XCTUnwrap(configuration.add(source: .summary(.lights), presentation: .chip))
+
+        XCTAssertEqual(firstID, secondID)
+        XCTAssertEqual(configuration.items.count, 1)
+        XCTAssertEqual(
+            configuration.presentationCount(source: .summary(.lights), presentation: .chip),
+            1
+        )
     }
 
     func testSummaryCardAndInvalidLayoutAreRejected() {
