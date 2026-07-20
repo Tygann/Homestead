@@ -65,4 +65,12 @@ For UI-only simulator checks that should bypass onboarding without connecting to
 xcrun simctl launch booted com.tyler.Homestead --preview-screen appearance
 ```
 
-This is intended for Codex/browser-simulator verification loops and uses sample dependencies instead of the normal app startup path.
+Available sample screens are:
+
+| Value | Purpose |
+| --- | --- |
+| `appearance` | Appearance settings with deterministic sample dependencies. |
+| `entity-details` | The entity-detail family/state reference gallery, including Presence. |
+| `gauge-widget` | Dashboard and widget gauge comparison. |
+
+These routes are intended for Codex desktop and in-app browser simulator verification loops. They use sample dependencies instead of the normal app startup path. Prefer them for deterministic layout and state review; use `--live-preview` only when the change must be verified against real Home Assistant data, authenticated media, or server-specific capabilities.

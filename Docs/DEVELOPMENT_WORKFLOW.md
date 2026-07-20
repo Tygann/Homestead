@@ -9,6 +9,22 @@ This document captures the working agreement for agentic coding sessions. Keep i
 - Inspect the worktree before editing and preserve unrelated user changes.
 - Prefer small, self-contained implementation chunks that can be verified and committed cleanly.
 
+## Primary Development Surface
+
+Codex desktop is the primary development environment for Homestead. Xcode, Simulator, the terminal, and the in-app browser are supporting tools; the workflow does not assume VS Code or another editor is open, nor does it depend on an external editor noticing file changes.
+
+For an authorized implementation, use this default loop:
+
+1. Read the durable context, inspect the worktree, and trace the relevant source of truth.
+2. Make the smallest coherent code or documentation change while preserving unrelated work.
+3. Compile early when Swift types, routing, or project integration could fail.
+4. For visible UI work, launch the narrowest deterministic sample screen or isolated live preview and inspect the rendered result in Simulator or the in-app browser.
+5. Iterate against the rendered UI, including loading, empty, unavailable, and representative content states when relevant.
+6. Run focused tests proportional to the behavior changed, then run required Xcode storage hygiene after tests.
+7. Review the final diff, update only durable docs whose status changed, and commit a verified self-contained result.
+
+Use XcodeBuildMCP when available for simulator discovery, session defaults, build/run, screenshots, logs, and semantic UI interaction. Before its first build, run, or test operation in a session, inspect its active defaults; then set the Homestead project, scheme, configuration, and explicit simulator UDID when needed. Shell `xcodebuild`, `xcrun simctl`, and repository scripts remain the fallback when plugin tooling is unavailable or a lower-level diagnostic is more appropriate.
+
 ## Token Budget Defaults
 
 - Start from `AGENTS.md` and `Docs/NEXT_STEPS.md`; read roadmap/API docs only when the task touches product direction or Home Assistant API choices.
@@ -64,13 +80,13 @@ Default to High for active roadmap implementation unless `Docs/NEXT_STEPS.md` sa
 
 ## Verification Defaults
 
-- For Swift app code changes, run:
+- For Swift app code changes, prefer an XcodeBuildMCP simulator build after confirming its session defaults. The shell fallback is:
 
 ```sh
 xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'generic/platform=iOS Simulator' build
 ```
 
-- For state, mapping, service, persistence, or presentation-helper changes, also run focused Swift tests where practical:
+- For state, mapping, service, persistence, or presentation-helper changes, also run focused Swift tests where practical. Select the smallest relevant test identifiers rather than the entire target when possible. The shell fallback is:
 
 ```sh
 xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:HomesteadTests test
@@ -81,12 +97,31 @@ xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'platform
 
 ## Live Browser Simulator
 
+- Homestead is an Xcode project rather than an importable Swift package, so browser preview changes require rebuilding and relaunching the app; package-only hot reload does not apply.
 - When the in-app browser is mirroring the iOS Simulator through `serve-sim`, keep the mirror pinned to one simulator UDID and reuse that same simulator for rebuilds.
+- Start the mirror in a long-lived terminal with scoped cleanup:
+
+```sh
+HOMESTEAD_SIMULATOR_UDID="<simulator-udid>"
+cleanup_serve_sim() {
+  npx --yes serve-sim@latest --kill "$HOMESTEAD_SIMULATOR_UDID" >/dev/null 2>&1 || true
+}
+trap cleanup_serve_sim EXIT INT TERM HUP
+cleanup_serve_sim
+npx --yes serve-sim@latest "$HOMESTEAD_SIMULATOR_UDID"
+```
+
+- Open the exact local URL printed by `serve-sim` in the Codex in-app browser. A loaded page is not sufficient proof; verify that a real simulator frame is updating.
 - Do not call `build_run_sim` with empty launch arguments during preview-oriented browser work unless the user explicitly asks to test the normal app launch or onboarding path.
 - For live Home Assistant preview work, rebuild and relaunch with `--live-preview`. Preserve any focused arguments such as `--preview-entity`, `--preview-size`, and `--preview-appearance` across rebuilds.
-- For UI-only Settings or sample-data checks, launch the Debug-only screen route instead of temporarily editing `HomesteadApp`: `--preview-screen appearance`.
+- For UI-only sample-data checks, use the Debug-only `--preview-screen` routes cataloged in `Docs/PREVIEW_CREDENTIALS.md` instead of temporarily editing `HomesteadApp` or navigating through onboarding.
 - After visible SwiftUI edits, refresh the browser preview automatically by rebuilding and relaunching the app with the current preview launch arguments. Leave the existing `serve-sim` process and browser tab running; they should only be restarted when the mirror is unhealthy.
 - After each rebuild, verify a real simulator frame in the browser mirror or capture a simulator screenshot before reporting UI results.
+- When finished, stop the long-lived terminal and wait for its cleanup trap to exit. Never use an unscoped `serve-sim --kill`, because another task may own a different simulator.
+
+### Xcode 27 Beta UI Inspection
+
+The current Xcode 27 beta stores `SimulatorKit.framework` under Xcode's `Contents/SharedFrameworks` directory, while some XcodeBuildMCP semantic snapshot paths still expect the older private-framework location. If accessibility-tree capture fails for that reason, do not treat it as an app failure and do not modify or symlink files inside the signed Xcode bundle. Continue with screenshots, the live browser mirror, focused tests, and explicit accessibility identifiers where applicable; retry semantic capture after the tool gains Xcode 27 compatibility.
 
 ## Xcode Storage Hygiene
 
@@ -111,6 +146,7 @@ rm -rf ~/Library/Developer/XCTestDevices/*
 ## UI Verification
 
 - Use previews, sample data, simulator runs, or screenshots when touching visible app structure, navigation, dashboard cards, Settings, or reusable chrome.
+- A successful compile alone is not completion evidence for visual work. Inspect the rendered screen and the relevant transient or empty state before reporting the change complete.
 - Check light and dark appearance when changing surfaces, rows, cards, toolbars, sheets, or navigation transitions.
 - Check small-screen behavior when text, rows, segmented controls, tab items, or toolbar clusters change.
 - Avoid heavy materials, large shadows, and implicit animations in scrolling dashboard grids unless profiling supports the change.

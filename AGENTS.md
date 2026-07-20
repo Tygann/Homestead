@@ -56,6 +56,8 @@ Do not commit Home Assistant URLs, tokens, personal Xcode schemes, or generated 
 
 ## Useful Commands
 
+Codex desktop is the primary agentic development surface for this repository. When the Build iOS Apps tooling is available, prefer XcodeBuildMCP for simulator discovery, session defaults, build/run, screenshots, and UI inspection; keep the shell commands below as reliable fallbacks. Visible UI work should use the deterministic preview routes or isolated live preview plus the in-app simulator mirror described in `Docs/DEVELOPMENT_WORKFLOW.md` and `Docs/PREVIEW_CREDENTIALS.md`. Do not require VS Code or another editor to be open.
+
 ```sh
 xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'generic/platform=iOS Simulator' build
 xcodebuild -project Homestead.xcodeproj -scheme Homestead -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:HomesteadTests test

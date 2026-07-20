@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-20
 
+### Codex Desktop Development Workflow
+
+- Established Codex desktop as Homestead's primary agentic development surface, with Xcode, Simulator, terminal sessions, and the in-app browser used as supporting tools rather than assuming a VS Code-hosted workflow.
+- Standardized the implementation loop around XcodeBuildMCP session defaults, early compilation, deterministic Debug launch routes, a simulator-UDID-scoped `serve-sim` mirror, rendered visual verification, focused tests, storage hygiene, and focused commits.
+- Documented the Xcode 27 beta semantic-snapshot compatibility boundary and retained screenshots/browser inspection as the safe fallback without modifying the signed Xcode bundle.
+
 ### Native Presence Entity Details
 
 - Routed Person and Device Tracker entities into one typed, read-only Presence detail composition while retaining the Information/content family grammar and dashboard's stable generic-detail adapter identity.
