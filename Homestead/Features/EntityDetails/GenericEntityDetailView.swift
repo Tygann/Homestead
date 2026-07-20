@@ -1,10 +1,7 @@
 import SwiftUI
 
 struct GenericEntityDetailView: View {
-    @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var selectedHistoryRange: HAHistoryRangePreset = .day
-    @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
     @State private var selectedAction: HAEntityAction?
     @State private var availableActions: [HAEntityAction] = []
 
@@ -22,6 +19,9 @@ struct GenericEntityDetailView: View {
     private var detailState: EntityDetailStatePresentation {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
     }
+    private var features: EntityDetailFeatureSet {
+        EntityDetailFeatureProvider.features(for: entityBox)
+    }
 
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
@@ -29,13 +29,14 @@ struct GenericEntityDetailView: View {
             if !availableActions.isEmpty {
                 actionsPanel
             }
-            if supportsTimeline {
-                timelinePanel
+            if let source = features.activitySource {
+                EntityActivityPanel(
+                    entityID: entity.entityID,
+                    source: source,
+                    tint: presentation.accentColor
+                )
             }
             contextDetails
-        }
-        .task(id: timelineTaskID) {
-            await refreshTimeline()
         }
         .task(id: entity.entityID) {
             availableActions = await homeAssistantService.actions(for: entity.entityID)
@@ -107,16 +108,6 @@ struct GenericEntityDetailView: View {
         }
     }
 
-    private var timelinePanel: some View {
-        EntityHistoryTimelinePanel(
-            selectedRange: $selectedHistoryRange,
-            phase: timelinePhase,
-            tint: presentation.accentColor
-        ) {
-            Task { await refreshTimeline() }
-        }
-    }
-
     private var contextDetails: some View {
         EntityMetadataDisclosure(
             entityBox: entityBox,
@@ -132,18 +123,6 @@ struct GenericEntityDetailView: View {
 
     private var navigationTitle: String {
         entity.displayName
-    }
-
-    private var supportsTimeline: Bool {
-        entity.domain == .person || entity.domain == .deviceTracker
-    }
-
-    private var timelineTaskID: String {
-        guard supportsTimeline else {
-            return "timeline-disabled-\(entity.entityID)"
-        }
-
-        return "\(entity.entityID)-\(selectedHistoryRange.rawValue)"
     }
 
     private var iconColor: Color {
@@ -166,33 +145,6 @@ struct GenericEntityDetailView: View {
         return presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
 
-    @MainActor
-    private func refreshTimeline() async {
-        guard supportsTimeline else {
-            timelinePhase = .idle
-            return
-        }
-
-        timelinePhase = .loading
-        let interval = selectedHistoryRange.interval()
-        let request = HAHistoryRequest(
-            startDate: interval.start,
-            endDate: interval.end,
-            entityID: entity.entityID
-        )
-
-        do {
-            timelinePhase = .loaded(
-                try await homeAssistantService.fetchTimeline(
-                    settings: connectionSettings,
-                    request: request,
-                    range: selectedHistoryRange
-                )
-            )
-        } catch {
-            timelinePhase = .failed
-        }
-    }
 }
 
 #if DEBUG

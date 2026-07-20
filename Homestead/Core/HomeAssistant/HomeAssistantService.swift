@@ -1065,14 +1065,23 @@ final class HomeAssistantService {
             throw HAWebSocketError.invalidURL
         }
 
-        let configuration = try await preferredConfiguration(for: settings)
-        activeConfiguration = configuration
-        let response = try await httpClient.fetchHistory(configuration: configuration, request: request)
         let entityBox = stateStore.entityBox(for: request.entityID)
         let entity = entityBox?.homeEntity ?? stateStore.entity(for: request.entityID)
         let binarySensor = entityBox?.binarySensorEntity
         let cover = entityBox?.coverEntity
         let domain = entity?.domain ?? EntityDomain(entityID: request.entityID)
+        let supportedDomains: Set<EntityDomain> = [
+            .binarySensor, .lock, .switch, .automation, .cover, .person, .deviceTracker
+        ]
+        guard supportedDomains.contains(domain) else {
+            throw HAWebSocketError.unexpectedMessage(
+                "Activity history is not mapped for \(domain.rawValue)."
+            )
+        }
+
+        let configuration = try await preferredConfiguration(for: settings)
+        activeConfiguration = configuration
+        let response = try await httpClient.fetchHistory(configuration: configuration, request: request)
 
         switch domain {
         case .binarySensor:
@@ -1132,12 +1141,8 @@ final class HomeAssistantService {
                 range: range
             )
         default:
-            return HAHistoryTimeline.makeTimeline(
-                response: response,
-                request: request,
-                displayName: entity?.displayName ?? request.entityID,
-                domain: .binarySensor(.generic),
-                range: range
+            throw HAWebSocketError.unexpectedMessage(
+                "Activity history is not mapped for \(domain.rawValue)."
             )
         }
     }

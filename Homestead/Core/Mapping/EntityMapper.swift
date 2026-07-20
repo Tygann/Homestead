@@ -172,6 +172,23 @@ enum EntityMapper {
         )
     }
 
+    static func numberEntity(from dto: HAEntityDTO) -> NumberEntity? {
+        guard EntityDomain(entityID: dto.entityID) == .number else { return nil }
+
+        return NumberEntity(
+            entityID: dto.entityID,
+            displayName: displayName(for: dto),
+            value: Double(dto.state),
+            minimumValue: dto.attributes["min"]?.doubleValue,
+            maximumValue: dto.attributes["max"]?.doubleValue,
+            step: max(dto.attributes["step"]?.doubleValue ?? 1, 0.01),
+            unit: dto.attributes["unit_of_measurement"]?.stringValue,
+            displayMode: NumberEntityDisplayMode(
+                homeAssistantValue: dto.attributes["mode"]?.stringValue
+            )
+        )
+    }
+
     static func displayName(for dto: HAEntityDTO) -> String {
         if let friendlyName = dto.attributes["friendly_name"]?.stringValue, !friendlyName.isEmpty {
             return friendlyName

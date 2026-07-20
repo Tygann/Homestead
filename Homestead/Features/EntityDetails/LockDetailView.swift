@@ -1,12 +1,9 @@
 import SwiftUI
 
 struct LockDetailView: View {
-    @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
     @State private var confirmationRequest: ActionConfirmationRequest?
-    @State private var selectedHistoryRange: HAHistoryRangePreset = .day
-    @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -22,16 +19,16 @@ struct LockDetailView: View {
     private var detailState: EntityDetailStatePresentation {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
     }
+    private var features: EntityDetailFeatureSet {
+        EntityDetailFeatureProvider.features(for: entityBox)
+    }
 
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             actionPanel
-            timelinePanel
+            activityPanel
             contextDetails
-        }
-        .task(id: timelineTaskID) {
-            await refreshTimeline()
         }
         .actionConfirmationDialog(request: $confirmationRequest)
     }
@@ -66,13 +63,14 @@ struct LockDetailView: View {
         }
     }
 
-    private var timelinePanel: some View {
-        EntityHistoryTimelinePanel(
-            selectedRange: $selectedHistoryRange,
-            phase: timelinePhase,
-            tint: presentation.accentColor
-        ) {
-            Task { await refreshTimeline() }
+    @ViewBuilder
+    private var activityPanel: some View {
+        if let source = features.activitySource {
+            EntityActivityPanel(
+                entityID: entity.entityID,
+                source: source,
+                tint: presentation.accentColor
+            )
         }
     }
 
@@ -106,10 +104,6 @@ struct LockDetailView: View {
 
     private var isActionServiceAvailable: Bool {
         homeAssistantService.serviceActionAvailable(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock")
-    }
-
-    private var timelineTaskID: String {
-        "\(entity.entityID)-\(selectedHistoryRange.rawValue)"
     }
 
     private var iconColor: Color {
@@ -149,28 +143,6 @@ struct LockDetailView: View {
         )
     }
 
-    @MainActor
-    private func refreshTimeline() async {
-        timelinePhase = .loading
-        let interval = selectedHistoryRange.interval()
-        let request = HAHistoryRequest(
-            startDate: interval.start,
-            endDate: interval.end,
-            entityID: entity.entityID
-        )
-
-        do {
-            timelinePhase = .loaded(
-                try await homeAssistantService.fetchTimeline(
-                    settings: connectionSettings,
-                    request: request,
-                    range: selectedHistoryRange
-                )
-            )
-        } catch {
-            timelinePhase = .failed
-        }
-    }
 }
 
 #if DEBUG

@@ -1,20 +1,20 @@
 import SwiftUI
 
 struct CoverDetailView: View {
-    @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
     @State private var confirmationRequest: ActionConfirmationRequest?
     @State private var position = 100.0
     @State private var isEditingPosition = false
-    @State private var selectedHistoryRange: HAHistoryRangePreset = .day
-    @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
 
     private var detailState: EntityDetailStatePresentation {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+    private var features: EntityDetailFeatureSet {
+        EntityDetailFeatureProvider.features(for: entityBox)
     }
 
     @ViewBuilder
@@ -31,9 +31,6 @@ struct CoverDetailView: View {
 
                 timelinePanel(cover)
                 contextDetails
-            }
-            .task(id: timelineTaskID) {
-                await refreshTimeline()
             }
             .onAppear {
                 syncPosition(with: cover)
@@ -160,13 +157,14 @@ struct CoverDetailView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
+    @ViewBuilder
     private func timelinePanel(_ cover: CoverEntity) -> some View {
-        EntityHistoryTimelinePanel(
-            selectedRange: $selectedHistoryRange,
-            phase: timelinePhase,
-            tint: cover.isOpen ? Color.accentColor : Color.secondary
-        ) {
-            Task { await refreshTimeline() }
+        if let source = features.activitySource {
+            EntityActivityPanel(
+                entityID: entityBox.entityID,
+                source: source,
+                tint: cover.isOpen ? Color.accentColor : Color.secondary
+            )
         }
     }
 
@@ -181,10 +179,6 @@ struct CoverDetailView: View {
                 EntityMetadataRow(title: "State", value: entityBox.homeEntity.state.displayStateText)
             ]
         )
-    }
-
-    private var timelineTaskID: String {
-        "\(entityBox.entityID)-\(selectedHistoryRange.rawValue)"
     }
 
     private func statusBadgeText(for cover: CoverEntity) -> String {
@@ -254,28 +248,6 @@ struct CoverDetailView: View {
         )
     }
 
-    @MainActor
-    private func refreshTimeline() async {
-        timelinePhase = .loading
-        let interval = selectedHistoryRange.interval()
-        let request = HAHistoryRequest(
-            startDate: interval.start,
-            endDate: interval.end,
-            entityID: entityBox.entityID
-        )
-
-        do {
-            timelinePhase = .loaded(
-                try await homeAssistantService.fetchTimeline(
-                    settings: connectionSettings,
-                    request: request,
-                    range: selectedHistoryRange
-                )
-            )
-        } catch {
-            timelinePhase = .failed
-        }
-    }
 }
 
 #if DEBUG

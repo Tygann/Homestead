@@ -4,8 +4,6 @@ struct AutomationDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
     @State private var confirmationRequest: ActionConfirmationRequest?
-    @State private var selectedHistoryRange: HAHistoryRangePreset = .day
-    @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
     @State private var overviewPhase: OverviewPhase = .loading
 
     let entityBox: HAEntityState
@@ -16,20 +14,20 @@ struct AutomationDetailView: View {
     private var detailState: EntityDetailStatePresentation {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
     }
+    private var features: EntityDetailFeatureSet {
+        EntityDetailFeatureProvider.features(for: entityBox)
+    }
 
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             actionPanel
             overviewPanel
-            timelinePanel
+            activityPanel
             stateDetails
         }
         .task(id: entity.entityID) {
             await refreshOverview()
-        }
-        .task(id: "\(entity.entityID)-\(selectedHistoryRange.rawValue)") {
-            await refreshTimeline()
         }
         .actionConfirmationDialog(request: $confirmationRequest)
     }
@@ -74,13 +72,14 @@ struct AutomationDetailView: View {
         }
     }
 
-    private var timelinePanel: some View {
-        EntityHistoryTimelinePanel(
-            selectedRange: $selectedHistoryRange,
-            phase: timelinePhase,
-            tint: presentation.accentColor
-        ) {
-            Task { await refreshTimeline() }
+    @ViewBuilder
+    private var activityPanel: some View {
+        if let source = features.activitySource {
+            EntityActivityPanel(
+                entityID: entity.entityID,
+                source: source,
+                tint: presentation.accentColor
+            )
         }
     }
 
@@ -127,16 +126,6 @@ struct AutomationDetailView: View {
             overviewPhase = .loaded(try await homeAssistantService.fetchAutomationOverview(entityID: entity.entityID))
         } catch {
             overviewPhase = .unavailable
-        }
-    }
-
-    @MainActor
-    private func refreshTimeline() async {
-        timelinePhase = .loading
-        do {
-            timelinePhase = .loaded(try await homeAssistantService.fetchAutomationTimeline(entityID: entity.entityID, range: selectedHistoryRange))
-        } catch {
-            timelinePhase = .failed
         }
     }
 

@@ -4,10 +4,7 @@ struct SensorDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
 
-    @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var selectedHistoryRange: HAHistoryRangePreset = .day
-    @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -19,6 +16,9 @@ struct SensorDetailView: View {
 
     private var detailState: EntityDetailStatePresentation {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+    private var features: EntityDetailFeatureSet {
+        EntityDetailFeatureProvider.features(for: entityBox)
     }
 
     @MainActor
@@ -43,16 +43,17 @@ struct SensorDetailView: View {
                     preferredRange: entityBox.sensorEntity?.gaugePresentation?.range
                 )
             }
-            if supportsTimeline {
-                timelinePanel
+            if let source = features.activitySource {
+                EntityActivityPanel(
+                    entityID: entity.entityID,
+                    source: source,
+                    tint: presentation.accentColor
+                )
             }
             if entity.domain != .sensor {
                 detailMetrics
             }
             contextDetails
-        }
-        .task(id: timelineTaskID) {
-            await refreshTimeline()
         }
     }
 
@@ -157,16 +158,6 @@ struct SensorDetailView: View {
         return rows
     }
 
-    private var timelinePanel: some View {
-        EntityHistoryTimelinePanel(
-            selectedRange: $selectedHistoryRange,
-            phase: timelinePhase,
-            tint: presentation.accentColor
-        ) {
-            Task { await refreshTimeline() }
-        }
-    }
-
     private var contextDetails: some View {
         EntityMetadataDisclosure(
             entityBox: entityBox,
@@ -202,19 +193,7 @@ struct SensorDetailView: View {
     }
 
     private var supportsHistory: Bool {
-        entity.domain == .sensor && entityBox.sensorEntity?.numericValue != nil
-    }
-
-    private var supportsTimeline: Bool {
-        entity.domain == .binarySensor
-    }
-
-    private var timelineTaskID: String {
-        guard supportsTimeline else {
-            return "timeline-disabled-\(entity.entityID)"
-        }
-
-        return "\(entity.entityID)-\(selectedHistoryRange.rawValue)"
+        features.supports(.numericHistory)
     }
 
     private var statusBadgeText: String {
@@ -273,35 +252,6 @@ struct SensorDetailView: View {
         return trimmedValue.isEmpty ? nil : trimmedValue
     }
 
-    @MainActor
-    private func refreshTimeline() async {
-        guard supportsTimeline else {
-            timelinePhase = .idle
-            return
-        }
-
-        timelinePhase = .loading
-        let interval = selectedHistoryRange.interval()
-        let request = HAHistoryRequest(
-            startDate: interval.start,
-            endDate: interval.end,
-            entityID: entity.entityID
-        )
-
-        do {
-            timelinePhase = .loaded(
-                try await homeAssistantService.fetchTimeline(
-                    settings: connectionSettings,
-                    request: request,
-                    range: selectedHistoryRange
-                )
-            )
-        } catch is CancellationError {
-            return
-        } catch {
-            timelinePhase = .failed
-        }
-    }
 }
 
 struct SensorDetailHeroPresentation: Equatable, Sendable {

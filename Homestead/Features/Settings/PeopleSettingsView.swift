@@ -224,60 +224,22 @@ private struct PeoplePresenceDetailSettingsView: View {
 }
 
 private struct PeoplePresenceActivitySettingsView: View {
-    @Environment(HAConnectionSettings.self) private var connectionSettings
-    @Environment(HomeAssistantService.self) private var homeAssistantService
-
-    @State private var selectedHistoryRange: HAHistoryRangePreset = .day
-    @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
-
     let record: HAPresenceRecord
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.large) {
-                EntityHistoryTimelinePanel(
-                    selectedRange: $selectedHistoryRange,
-                    phase: timelinePhase,
+                EntityActivityPanel(
+                    entityID: record.entityID,
+                    source: .stateHistory,
                     tint: record.status.tint
-                ) {
-                    Task { await refreshTimeline() }
-                }
+                )
             }
             .padding(AppSpacing.large)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Recent Activity")
         .toolbarTitleDisplayMode(.inline)
-        .task(id: timelineTaskID) {
-            await refreshTimeline()
-        }
-    }
-
-    private var timelineTaskID: String {
-        "\(record.entityID)-\(selectedHistoryRange.rawValue)"
-    }
-
-    @MainActor
-    private func refreshTimeline() async {
-        timelinePhase = .loading
-        let interval = selectedHistoryRange.interval()
-        let request = HAHistoryRequest(
-            startDate: interval.start,
-            endDate: interval.end,
-            entityID: record.entityID
-        )
-
-        do {
-            timelinePhase = .loaded(
-                try await homeAssistantService.fetchTimeline(
-                    settings: connectionSettings,
-                    request: request,
-                    range: selectedHistoryRange
-                )
-            )
-        } catch {
-            timelinePhase = .failed
-        }
     }
 }
 

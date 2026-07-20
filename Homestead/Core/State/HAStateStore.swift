@@ -26,6 +26,7 @@ final class HAStateStore {
     @ObservationIgnored private(set) var binarySensorEntitiesByID: [String: BinarySensorEntity] = [:]
     @ObservationIgnored private(set) var weatherEntitiesByID: [String: WeatherEntity] = [:]
     @ObservationIgnored private(set) var selectEntitiesByID: [String: SelectEntity] = [:]
+    @ObservationIgnored private(set) var numberEntitiesByID: [String: NumberEntity] = [:]
     private(set) var updateEntities: [HAUpdateEntity] = []
     @ObservationIgnored private var rawEntitiesByID: [String: HAEntityDTO] = [:]
     @ObservationIgnored private var iconResolutionInputsByID: [String: EntityIconResolutionInput] = [:]
@@ -849,6 +850,7 @@ final class HAStateStore {
         binarySensorEntitiesByID.removeAll()
         weatherEntitiesByID.removeAll()
         selectEntitiesByID.removeAll()
+        numberEntitiesByID.removeAll()
         updateEntities.removeAll()
         rawEntitiesByID.removeAll()
         iconResolutionInputsByID.removeAll()
@@ -902,6 +904,9 @@ final class HAStateStore {
         selectEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
             EntityMapper.selectEntity(from: dto).map { ($0.entityID, $0) }
         })
+        numberEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
+            EntityMapper.numberEntity(from: dto).map { ($0.entityID, $0) }
+        })
         refreshUpdateEntities()
         var updatedEntityBoxesByID: [String: HAEntityState] = [:]
         for dto in entities {
@@ -919,6 +924,7 @@ final class HAStateStore {
                     binarySensorEntity: EntityMapper.binarySensorEntity(from: dto),
                     weatherEntity: EntityMapper.weatherEntity(from: dto),
                     selectEntity: EntityMapper.selectEntity(from: dto),
+                    numberEntity: EntityMapper.numberEntity(from: dto),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
                 updatedEntityBoxesByID[dto.entityID] = entityBox
@@ -934,6 +940,7 @@ final class HAStateStore {
                     binarySensorEntity: EntityMapper.binarySensorEntity(from: dto),
                     weatherEntity: EntityMapper.weatherEntity(from: dto),
                     selectEntity: EntityMapper.selectEntity(from: dto),
+                    numberEntity: EntityMapper.numberEntity(from: dto),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
             }
@@ -976,6 +983,7 @@ final class HAStateStore {
         binarySensorEntitiesByID[dto.entityID] = EntityMapper.binarySensorEntity(from: dto)
         weatherEntitiesByID[dto.entityID] = EntityMapper.weatherEntity(from: dto)
         selectEntitiesByID[dto.entityID] = EntityMapper.selectEntity(from: dto)
+        numberEntitiesByID[dto.entityID] = EntityMapper.numberEntity(from: dto)
         if !isApplyingSnapshotBatch, previousEntity?.domain == .update || homeEntity.domain == .update {
             refreshUpdateEntities()
         }
@@ -991,6 +999,7 @@ final class HAStateStore {
             binarySensorEntity: binarySensorEntitiesByID[dto.entityID],
             weatherEntity: weatherEntitiesByID[dto.entityID],
             selectEntity: selectEntitiesByID[dto.entityID],
+            numberEntity: numberEntitiesByID[dto.entityID],
             pendingCommand: pendingCommandsByID[dto.entityID]
         )
 
@@ -1148,6 +1157,7 @@ final class HAStateStore {
         binarySensorEntity: BinarySensorEntity?,
         weatherEntity: WeatherEntity?,
         selectEntity: SelectEntity?,
+        numberEntity: NumberEntity?,
         pendingCommand: HAEntityPendingCommand?
     ) {
         if let entityBox = entityBoxesByID[entityID] {
@@ -1162,6 +1172,7 @@ final class HAStateStore {
                 binarySensorEntity: binarySensorEntity,
                 weatherEntity: weatherEntity,
                 selectEntity: selectEntity,
+                numberEntity: numberEntity,
                 pendingCommand: pendingCommand
             )
         } else {
@@ -1176,6 +1187,7 @@ final class HAStateStore {
                 binarySensorEntity: binarySensorEntity,
                 weatherEntity: weatherEntity,
                 selectEntity: selectEntity,
+                numberEntity: numberEntity,
                 pendingCommand: pendingCommand
             )
         }
@@ -1630,6 +1642,7 @@ final class HAEntityState: Identifiable {
     var binarySensorEntity: BinarySensorEntity?
     var weatherEntity: WeatherEntity?
     var selectEntity: SelectEntity?
+    var numberEntity: NumberEntity?
     var pendingCommand: HAEntityPendingCommand?
 
     var id: String { homeEntity.entityID }
@@ -1647,6 +1660,7 @@ final class HAEntityState: Identifiable {
         binarySensorEntity: BinarySensorEntity? = nil,
         weatherEntity: WeatherEntity? = nil,
         selectEntity: SelectEntity? = nil,
+        numberEntity: NumberEntity? = nil,
         pendingCommand: HAEntityPendingCommand? = nil
     ) {
         self.homeEntity = homeEntity
@@ -1659,6 +1673,7 @@ final class HAEntityState: Identifiable {
         self.binarySensorEntity = binarySensorEntity
         self.weatherEntity = weatherEntity
         self.selectEntity = selectEntity
+        self.numberEntity = numberEntity
         self.pendingCommand = pendingCommand
     }
 
@@ -1673,6 +1688,7 @@ final class HAEntityState: Identifiable {
         binarySensorEntity: BinarySensorEntity?,
         weatherEntity: WeatherEntity?,
         selectEntity: SelectEntity?,
+        numberEntity: NumberEntity?,
         pendingCommand: HAEntityPendingCommand?
     ) {
         self.homeEntity = homeEntity
@@ -1685,6 +1701,7 @@ final class HAEntityState: Identifiable {
         self.binarySensorEntity = binarySensorEntity
         self.weatherEntity = weatherEntity
         self.selectEntity = selectEntity
+        self.numberEntity = numberEntity
         self.pendingCommand = pendingCommand
     }
 }

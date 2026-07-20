@@ -2,7 +2,6 @@ import SwiftUI
 
 struct NumberDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @Environment(HAStateStore.self) private var stateStore
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
 
     @State private var draftValue: Double = 0
@@ -20,19 +19,22 @@ struct NumberDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
-    private var rawAttributes: [String: JSONValue] {
-        stateStore.rawEntity(for: entity.entityID)?.attributes ?? [:]
+    private var number: NumberEntity? {
+        entityBox.numberEntity
     }
 
     private var detailState: EntityDetailStatePresentation {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+    private var features: EntityDetailFeatureSet {
+        EntityDetailFeatureProvider.features(for: entityBox)
     }
 
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             valuePanel
-            if numericStateValue != nil {
+            if features.supports(.numericHistory) {
                 EntityNumericHistoryPanel(
                     entityBox: entityBox,
                     displayName: entity.displayName,
@@ -145,22 +147,19 @@ struct NumberDetailView: View {
     }
 
     private var valueRange: ClosedRange<Double> {
-        let currentValue = numericStateValue ?? 0
-        let minimum = rawAttributes["min"]?.doubleValue ?? min(0, currentValue)
-        let maximum = rawAttributes["max"]?.doubleValue ?? max(100, currentValue)
-        return minimum...max(minimum, maximum)
+        number?.valueRange ?? 0...100
     }
 
     private var step: Double {
-        max(rawAttributes["step"]?.doubleValue ?? 1, 0.01)
+        number?.step ?? 1
     }
 
     private var unit: String? {
-        rawAttributes["unit_of_measurement"]?.stringValue
+        number?.unit
     }
 
     private var numericStateValue: Double? {
-        Double(entity.state)
+        number?.value
     }
 
     private func syncDraftValue() {

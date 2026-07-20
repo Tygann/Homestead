@@ -12,6 +12,9 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Made Sensor, Cover, Climate, and Weather deterministic reference screens; added a debug gallery, meaningful bounded chart domains, linear history interpolation, partial-coverage messaging, and Audio Graph descriptors.
 - Centralized live, pending, stale, unavailable, and entity-scoped failure presentation from existing `HAEntityState` and `HomeAssistantService` signals; detail controls now share the same interaction-blocking policy while keeping retryable failures actionable.
 - Expanded the deterministic gallery into a family/state matrix, added regular-width content constraints and Dynamic Type reflow, and extracted reusable accessible numeric history for Sensor and Number details.
+- Added a detail-surface feature provider so semantic domain capability no longer implies an unimplemented section; unsupported activity domains are omitted instead of receiving binary-sensor fallback language.
+- Mapped Number value, range, step, unit, and display mode into `NumberEntity`, removing the last raw Home Assistant attribute read from production entity-detail SwiftUI.
+- Consolidated state-history and Automation-trace loading into one self-loading, cancellation-aware Activity panel and migrated existing entity details plus People activity to it.
 - Recorded the durable contract in `Docs/ENTITY_DETAIL_DESIGN.md` and ADR 2.
 
 ## 2026-07-17

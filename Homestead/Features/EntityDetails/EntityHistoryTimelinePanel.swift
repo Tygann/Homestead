@@ -1,5 +1,71 @@
 import SwiftUI
 
+struct EntityActivityPanel: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var selectedRange: HAHistoryRangePreset = .day
+    @State private var phase: EntityHistoryTimelinePhase = .idle
+
+    let entityID: String
+    let source: EntityDetailActivitySource
+    let tint: Color
+
+    var body: some View {
+        EntityHistoryTimelinePanel(
+            selectedRange: $selectedRange,
+            phase: phase,
+            tint: tint,
+            refreshAction: refresh
+        )
+        .task(id: taskID) {
+            await loadActivity()
+        }
+    }
+
+    private var taskID: String {
+        "\(entityID)-\(source)-\(selectedRange.rawValue)"
+    }
+
+    private func refresh() {
+        Task { await loadActivity() }
+    }
+
+    @MainActor
+    private func loadActivity() async {
+        phase = .loading
+
+        do {
+            switch source {
+            case .stateHistory:
+                let interval = selectedRange.interval()
+                let request = HAHistoryRequest(
+                    startDate: interval.start,
+                    endDate: interval.end,
+                    entityID: entityID
+                )
+                phase = .loaded(
+                    try await homeAssistantService.fetchTimeline(
+                        settings: connectionSettings,
+                        request: request,
+                        range: selectedRange
+                    )
+                )
+            case .automationTraces:
+                phase = .loaded(
+                    try await homeAssistantService.fetchAutomationTimeline(
+                        entityID: entityID,
+                        range: selectedRange
+                    )
+                )
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            phase = .failed
+        }
+    }
+}
+
 enum EntityHistoryTimelinePhase: Equatable {
     case idle
     case loading
@@ -88,7 +154,7 @@ struct EntityHistoryTimelinePanel: View {
         } label: {
             Image(systemName: "arrow.clockwise")
                 .font(.subheadline.weight(.semibold))
-                .frame(width: 42, height: 42)
+                .frame(width: 44, height: 44)
                 .background(Color(.tertiarySystemGroupedBackground), in: Circle())
         }
         .buttonStyle(.plain)

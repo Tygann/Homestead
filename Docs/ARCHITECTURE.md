@@ -16,6 +16,8 @@ When adding a Home Assistant feature, first identify the official API family for
 
 Entity detail screens derive exceptional operational presentation through `EntityDetailStatePresentation`. The resolver combines per-entity availability and pending commands with service freshness, connection status, and entity-scoped action feedback; typed domain views use that shared result for hero messaging and control availability without creating another state owner.
 
+`EntityDetailFeatureProvider` separates semantic domain capability from implemented detail-section availability. It evaluates app-facing mapped entities, provides explicit numeric-history/editor/media availability and an Activity source, and prevents unsupported domains from reaching generic timeline interpretation. `EntityActivityPanel` owns view-lifecycle loading for supported state history and Automation traces.
+
 Live `state_changed` events are batched before they touch SwiftUI-observed state. A large Home Assistant instance can produce frequent background updates, and batching keeps those updates from interrupting scrolling and gestures as often.
 
 ## DTOs vs domain models

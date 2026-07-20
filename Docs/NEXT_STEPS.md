@@ -24,6 +24,10 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Added `EntityDetailFeatureProvider` as the implemented-feature truth for entity details. It combines semantic profiles with mapped entity state, exposes explicit numeric-history/editor/media support and Activity sources, and keeps unimplemented domains from rendering misleading sections.
+- Added mapped `NumberEntity` state for value, range, step, unit, and display mode, threaded it through `EntityMapper`, `HAStateStore`, and `HAEntityState`, and removed Number detail's direct raw-DTO attribute access.
+- Replaced repeated detail/activity loading state with `EntityActivityPanel`, which owns 1H/6H/24H selection, lifecycle cancellation, retry, documented state-history fetching, and Automation trace fetching. Binary Sensor, Switch, Cover, Lock, Automation, Person, Device Tracker, and Settings People activity now share it.
+- Verified the feature-provider pass with a clean generic simulator build, all eleven focused entity-detail capability/state tests, and four existing history/timeline regressions. Xcode storage hygiene cleared 6.6 GB of temporary `XCTestDevices` data after it crossed the 5 GB threshold.
 - Completed the entity-detail operational-state pass: `EntityDetailStatePresentation` now resolves entity availability, pending confirmation, connection freshness, and entity-scoped action failure into one shared hero/control contract. Domain controls consistently block only when the resolved state requires it, and matching failures remain retryable.
 - Expanded the Debug entity-detail reference gallery into deterministic family and state variants for live, pending, unavailable, stale, failed, minimum, maximum, and long-content verification. Shared hero composition reflows for constrained width and Dynamic Type, while regular-width detail content is capped to a readable width.
 - Extracted accessible continuous numeric history into `EntityNumericHistoryPanel` and reused it for numeric Sensor and Number details with 24H/7D/30D ranges, meaningful bounds, extrema-preserving sampling, coverage context, and an Audio Graph descriptor.

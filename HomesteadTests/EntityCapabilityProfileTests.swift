@@ -122,6 +122,85 @@ final class EntityCapabilityProfileTests: XCTestCase {
         XCTAssertEqual(unaffected.operationalState, .live)
     }
 
+    func testNumberEntityMapsEditingConstraintsWithoutRawViewState() throws {
+        let dto = HAEntityDTO(
+            entityID: "number.target_humidity",
+            state: "45.5",
+            attributes: [
+                "friendly_name": .string("Target Humidity"),
+                "min": .number(30),
+                "max": .number(60),
+                "step": .number(0.5),
+                "unit_of_measurement": .string("%"),
+                "mode": .string("slider")
+            ]
+        )
+
+        let number = try XCTUnwrap(EntityMapper.numberEntity(from: dto))
+
+        XCTAssertEqual(number.displayName, "Target Humidity")
+        XCTAssertEqual(number.value, 45.5)
+        XCTAssertEqual(number.valueRange, 30...60)
+        XCTAssertEqual(number.step, 0.5)
+        XCTAssertEqual(number.unit, "%")
+        XCTAssertEqual(number.displayMode, .slider)
+
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([dto])
+        XCTAssertEqual(stateStore.entityBox(for: dto.entityID)?.numberEntity, number)
+    }
+
+    func testFeatureProviderExposesOnlyImplementedHistoryAndActivity() throws {
+        let numberDTO = HAEntityDTO(
+            entityID: "number.target_humidity",
+            state: "45",
+            attributes: ["min": .number(30), "max": .number(60)]
+        )
+        let numberBox = HAEntityState(
+            homeEntity: EntityMapper.homeEntity(from: numberDTO),
+            numberEntity: try XCTUnwrap(EntityMapper.numberEntity(from: numberDTO))
+        )
+        let switchDTO = HAEntityDTO(entityID: "switch.coffee_maker", state: "on")
+        let switchBox = HAEntityState(homeEntity: EntityMapper.homeEntity(from: switchDTO))
+        let lightDTO = HAEntityDTO(entityID: "light.kitchen", state: "on")
+        let lightBox = HAEntityState(homeEntity: EntityMapper.homeEntity(from: lightDTO))
+        let automationDTO = HAEntityDTO(entityID: "automation.good_night", state: "on")
+        let automationBox = HAEntityState(homeEntity: EntityMapper.homeEntity(from: automationDTO))
+
+        let numberFeatures = EntityDetailFeatureProvider.features(for: numberBox)
+        let switchFeatures = EntityDetailFeatureProvider.features(for: switchBox)
+        let lightFeatures = EntityDetailFeatureProvider.features(for: lightBox)
+        let automationFeatures = EntityDetailFeatureProvider.features(for: automationBox)
+
+        XCTAssertTrue(numberFeatures.supports(.numericHistory))
+        XCTAssertTrue(numberFeatures.supports(.nativeEditor))
+        XCTAssertEqual(switchFeatures.activitySource, .stateHistory)
+        XCTAssertTrue(switchFeatures.supports(.recentActivity))
+        XCTAssertNil(lightFeatures.activitySource)
+        XCTAssertFalse(lightFeatures.supports(.recentActivity))
+        XCTAssertEqual(automationFeatures.activitySource, .automationTraces)
+    }
+
+    func testFeatureProviderRejectsNonNumericSensorHistory() {
+        let numericDTO = HAEntityDTO(entityID: "sensor.temperature", state: "72")
+        let textDTO = HAEntityDTO(entityID: "sensor.status", state: "Ready")
+        let numericBox = HAEntityState(
+            homeEntity: EntityMapper.homeEntity(from: numericDTO),
+            sensorEntity: EntityMapper.sensorEntity(from: numericDTO)
+        )
+        let textBox = HAEntityState(
+            homeEntity: EntityMapper.homeEntity(from: textDTO),
+            sensorEntity: EntityMapper.sensorEntity(from: textDTO)
+        )
+
+        XCTAssertTrue(
+            EntityDetailFeatureProvider.features(for: numericBox).supports(.numericHistory)
+        )
+        XCTAssertFalse(
+            EntityDetailFeatureProvider.features(for: textBox).supports(.numericHistory)
+        )
+    }
+
     private func operationalStatePresentation(
         isAvailable: Bool = true,
         pendingCommand: HAEntityPendingCommand? = nil,

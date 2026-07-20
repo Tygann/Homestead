@@ -60,6 +60,8 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 
 `EntityCapabilityProfile` is the surface-neutral source for these families, hero kinds, routes, and semantic capabilities. Dashboard and detail surfaces adapt the profile without sharing layout-specific presentation types.
 
+`EntityDetailFeatureProvider` is the detail-surface availability layer. It combines the semantic profile with the mapped state actually present for an entity and exposes only features Homestead can render correctly today. Domain views remain typed and own section ordering; the provider does not generate or type-erase their layouts.
+
 ## History Semantics
 
 - Continuous numeric history uses 24H, 7D, and 30D.
@@ -69,6 +71,8 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 - Continuous measurements use linear interpolation so the chart does not invent overshoot.
 - Charts preserve extrema when sampling, expose an accessibility chart descriptor, and only mention partial coverage when the returned samples demonstrably begin after the requested interval.
 - Numeric domains reuse `EntityNumericHistoryPanel`; sensors and editable Number entities currently opt in with their mapped unit and meaningful bounded range.
+- Discrete domains reuse the self-loading `EntityActivityPanel`, which owns range selection, cancellation, retry, and either documented state history or Automation trace loading.
+- Never fall back to generic binary-sensor language for an unmapped activity domain. Omit Activity until its states or event source have an explicit semantic mapping.
 
 ## Adaptive and Reference Behavior
 
@@ -87,3 +91,5 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 6. Verify light/dark appearance, compact/regular width, Dynamic Type, and VoiceOver labels.
 
 Avoid a type-erased universal section schema. Typed SwiftUI domain views remain the appropriate place for rich domain-specific composition.
+
+Editable Number details consume `NumberEntity` for current value, bounds, step, unit, and Home Assistant display mode. SwiftUI must not read the raw entity attributes to reconstruct those constraints.
