@@ -57,6 +57,14 @@ extension RuntimeEnvironment {
             .flatMap(HomesteadAppearanceMode.init(rawValue:))
     }
 
+    nonisolated static var entityDetailReferenceFamily: String? {
+        argumentValue(after: "--preview-detail-family")
+    }
+
+    nonisolated static var entityDetailReferenceVariant: String? {
+        argumentValue(after: "--preview-detail-state")
+    }
+
     private nonisolated static func argumentValue(after flag: String) -> String? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let flagIndex = arguments.firstIndex(of: flag),

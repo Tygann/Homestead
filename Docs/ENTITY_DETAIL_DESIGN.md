@@ -78,8 +78,8 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 
 - The shared scaffold constrains readable content width on regular-width devices while preserving the single-column section order used on iPhone.
 - Hero identity and exceptional status reflow vertically when horizontal space or Dynamic Type requires it.
-- The Debug reference gallery renders real detail compositions from deterministic fixtures across live, pending, unavailable, stale, failed, minimum, maximum, and long-content variants.
-- Launch the gallery directly with `--preview-screen entity-details` for simulator and browser-mirror review without onboarding or live-server dependencies.
+- The Debug reference gallery renders real detail compositions for Metric, Position, Climate, Weather, Presence, Number, Text, and Date & Time from deterministic fixtures across live, loading, empty, pending, unavailable, stale, failed, minimum, maximum, and long-content variants. Async history and forecast fixtures must not contact the sample Home Assistant URL.
+- Launch the gallery directly with `--preview-screen entity-details` for simulator and browser-mirror review without onboarding or live-server dependencies. Add `--preview-detail-family <value>` and `--preview-detail-state <value>` to launch a specific matrix cell without manual picker interaction.
 - Treat the reference gallery as a state matrix, not a substitute for device verification. New domain families should add representative fixtures before introducing a new visual grammar.
 - A visually complete detail-view change includes a rendered simulator pass of its representative fixture and relevant loading/empty state. A successful compile alone is a draft-quality verification for visual work.
 

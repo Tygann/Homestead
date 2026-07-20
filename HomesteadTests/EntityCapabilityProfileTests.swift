@@ -303,6 +303,27 @@ final class EntityCapabilityProfileTests: XCTestCase {
         XCTAssertFalse(EntityDetailFeatureProvider.features(for: unsupportedBox).supports(.forecast))
     }
 
+#if DEBUG
+    @MainActor
+    func testEntityDetailPreviewAppendsHelperOnlyFixtureOverrides() throws {
+        let helper = HAEntityDTO(
+            entityID: "input_number.preview_target",
+            state: "45",
+            attributes: [
+                "min": .number(30),
+                "max": .number(60),
+                "step": .number(1)
+            ]
+        )
+
+        let dependencies = PreviewDependencies.entityDetailSample(entityOverrides: [helper])
+        let entityBox = try XCTUnwrap(dependencies.stateStore.entityBox(for: helper.entityID))
+
+        XCTAssertEqual(entityBox.numberEntity?.value, 45)
+        XCTAssertEqual(entityBox.numberEntity?.valueRange, 30...60)
+    }
+#endif
+
     private func operationalStatePresentation(
         isAvailable: Bool = true,
         pendingCommand: HAEntityPendingCommand? = nil,

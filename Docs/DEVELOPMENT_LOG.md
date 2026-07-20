@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-20
 
+### Entity Detail Final Verification
+
+- Completed the Simulator and in-app browser matrix pass for representative, loading, empty, pending, stale, failed, unavailable, compact-width, and accessibility Dynamic Type states across the entity-detail grammar.
+- Expanded the deterministic gallery to cover Number, Text, and Date & Time, added direct family/state launch arguments, supplied deterministic async history/forecast fixtures, and corrected Weather's fixture to advertise the official forecast subscription capabilities instead of embedding legacy forecast attributes.
+- Fixed helper-only preview overrides being discarded, made gallery controls reflow at accessibility sizes, and fixed Date & Time Save becoming enabled after programmatic draft synchronization.
+- Verified one configured live Home Assistant server end to end with real Weather daily/hourly forecasts and an editable Number helper. A second configured preview credential was rejected by that server and was not used for live verification.
+- Added forecast subscription lifecycle coverage, passed the focused capability, mapping, routing, service-contract, activity, and state-store tests, and retained screenshot/browser inspection as the Xcode 27 fallback when semantic snapshots could not load the relocated SimulatorKit framework.
+
 ### Codex Desktop Development Workflow
 
 - Established Codex desktop as Homestead's primary agentic development surface, with Xcode, Simulator, terminal sessions, and the in-app browser used as supporting tools rather than assuming a VS Code-hosted workflow.

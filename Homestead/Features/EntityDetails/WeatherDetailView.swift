@@ -6,6 +6,7 @@ struct WeatherDetailView: View {
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
+    var automaticallyLoadsForecast = true
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -55,6 +56,8 @@ struct WeatherDetailView: View {
                 }
             }
             .task(id: homeAssistantService.connectionStatus) {
+                guard automaticallyLoadsForecast else { return }
+
                 if homeAssistantService.connectionStatus == .connected {
                     await homeAssistantService.startWeatherForecastUpdates(for: entityBox)
                 } else {
@@ -62,6 +65,7 @@ struct WeatherDetailView: View {
                 }
             }
             .onDisappear {
+                guard automaticallyLoadsForecast else { return }
                 Task {
                     await homeAssistantService.stopWeatherForecastUpdates(entityID: entityBox.entityID)
                 }

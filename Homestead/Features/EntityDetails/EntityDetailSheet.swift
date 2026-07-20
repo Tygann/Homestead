@@ -3,6 +3,7 @@ import SwiftUI
 struct EntityDetailSheet: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
+    var automaticallyLoadsWeatherForecast = true
 
     var body: some View {
         let route = EntityCapabilityRegistry.profile(for: entityBox.domain).detailRoute
@@ -33,7 +34,11 @@ struct EntityDetailSheet: View {
             case .vacuum:
                 VacuumDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .weather:
-                WeatherDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+                WeatherDetailView(
+                    entityBox: entityBox,
+                    presentationStyle: presentationStyle,
+                    automaticallyLoadsForecast: automaticallyLoadsWeatherForecast
+                )
             case .alarmControlPanel:
                 AlarmControlPanelDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .button:

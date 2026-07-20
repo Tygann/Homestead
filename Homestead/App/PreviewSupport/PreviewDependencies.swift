@@ -24,14 +24,16 @@ struct PreviewDependencies {
         dataFreshness: HADataFreshness = .live(Date()),
         connectionStatus: HAConnectionStatus = .connected,
         serviceFeedback: HAServiceFeedback? = nil,
-        pendingCommand: HAEntityPendingCommand? = nil
+        pendingCommand: HAEntityPendingCommand? = nil,
+        contentState: PreviewEntityDetailContentState = .loaded
     ) -> PreviewDependencies {
         makeSample(
             entityOverrides: entityOverrides,
             dataFreshness: dataFreshness,
             connectionStatus: connectionStatus,
             serviceFeedback: serviceFeedback,
-            pendingCommand: pendingCommand
+            pendingCommand: pendingCommand,
+            httpClient: PreviewEntityDetailHTTPClient(state: contentState)
         )
     }
 
@@ -40,12 +42,16 @@ struct PreviewDependencies {
         dataFreshness: HADataFreshness = .live(Date()),
         connectionStatus: HAConnectionStatus = .connected,
         serviceFeedback: HAServiceFeedback? = nil,
-        pendingCommand: HAEntityPendingCommand? = nil
+        pendingCommand: HAEntityPendingCommand? = nil,
+        httpClient: (any HAHTTPClientProtocol)? = nil
     ) -> PreviewDependencies {
         let previewDefaults = UserDefaults.samplePreview
         let stateStore = HAStateStore()
         let overridesByID = Dictionary(uniqueKeysWithValues: entityOverrides.map { ($0.entityID, $0) })
-        let entities = PreviewData.entities.map { overridesByID[$0.entityID] ?? $0 }
+        let baseEntities = PreviewData.entities.map { overridesByID[$0.entityID] ?? $0 }
+        let baseEntityIDs = Set(baseEntities.map(\.entityID))
+        let appendedOverrides = entityOverrides.filter { !baseEntityIDs.contains($0.entityID) }
+        let entities = baseEntities + appendedOverrides
         stateStore.applyInitialStates(entities)
         if let pendingCommand {
             stateStore.setPendingCommand(pendingCommand)
@@ -83,6 +89,7 @@ struct PreviewDependencies {
             dataFreshness: dataFreshness,
             serviceFeedback: serviceFeedback,
             authState: .signedIn(HAAuthSessionSummary(credential: credential)),
+            httpClient: httpClient,
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
             pushRelayTokenStore: InMemoryPushRelayTokenStore(),
             nativeNotificationService: nativeNotificationService,
@@ -212,6 +219,77 @@ struct PreviewDependencies {
             tabSettings: tabSettings,
             iCloudSyncService: iCloudSyncService
         )
+    }
+}
+
+// MARK: - Entity Detail Fixtures
+
+enum PreviewEntityDetailContentState: Sendable {
+    case loaded
+    case loading
+    case empty
+    case failed
+}
+
+private actor PreviewEntityDetailHTTPClient: HAHTTPClientProtocol {
+    let state: PreviewEntityDetailContentState
+
+    init(state: PreviewEntityDetailContentState) {
+        self.state = state
+    }
+
+    func fetchCameraSnapshot(configuration: HAConnectionConfiguration, entityID: String) async throws -> Data {
+        throw HAWebSocketError.missingResult
+    }
+
+    func fetchLogbook(
+        configuration: HAConnectionConfiguration,
+        request: HALogbookRequest
+    ) async throws -> [HALogbookEntryDTO] {
+        []
+    }
+
+    func fetchHistory(
+        configuration: HAConnectionConfiguration,
+        request: HAHistoryRequest
+    ) async throws -> HAHistoryResponseDTO {
+        switch state {
+        case .loaded:
+            return loadedResponse(for: request)
+        case .loading:
+            try await Task.sleep(for: .seconds(60))
+            throw CancellationError()
+        case .empty:
+            return HAHistoryResponseDTO(series: [])
+        case .failed:
+            throw HAWebSocketError.requestFailed("Deterministic preview failure")
+        }
+    }
+
+    private func loadedResponse(for request: HAHistoryRequest) -> HAHistoryResponseDTO {
+        let states: [String]
+        switch EntityDomain(entityID: request.entityID) {
+        case .cover:
+            states = ["closed", "opening", "open"]
+        case .person, .deviceTracker:
+            states = ["not_home", "home"]
+        case .sensor, .number:
+            states = ["12", "18", "15"]
+        default:
+            states = ["off", "on"]
+        }
+
+        let duration = request.endDate.timeIntervalSince(request.startDate)
+        let rows = states.enumerated().map { index, state in
+            HAHistoryStateDTO(
+                entityID: request.entityID,
+                state: state,
+                lastChanged: request.startDate.addingTimeInterval(
+                    duration * Double(index + 1) / Double(states.count + 1)
+                )
+            )
+        }
+        return HAHistoryResponseDTO(series: [rows])
     }
 }
 

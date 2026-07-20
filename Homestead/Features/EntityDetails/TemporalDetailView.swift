@@ -56,14 +56,13 @@ struct TemporalDetailView: View {
         EntityControlPanel(title: "Value", systemImage: temporalSystemImage) {
             DatePicker(
                 categoryTitle,
-                selection: $draftValue,
+                selection: draftValueBinding,
                 displayedComponents: displayedComponents
             )
             .datePickerStyle(.graphical)
             .labelsHidden()
             .frame(maxWidth: .infinity)
             .disabled(isControlDisabled)
-            .onChange(of: draftValue) { _, _ in isEditingValue = true }
 
             EntityDetailActionButton(
                 title: "Save",
@@ -119,6 +118,16 @@ struct TemporalDetailView: View {
 
     private var isSaveDisabled: Bool {
         isControlDisabled || !isEditingValue
+    }
+
+    private var draftValueBinding: Binding<Date> {
+        Binding(
+            get: { draftValue },
+            set: { value in
+                draftValue = value
+                isEditingValue = true
+            }
+        )
     }
 
     private func syncDraft() {

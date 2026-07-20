@@ -7,8 +7,18 @@ import SwiftUI
 /// across representative families and production operational states.
 @MainActor
 struct EntityDetailReferenceGallery: View {
-    @State private var family: EntityDetailReferenceFamily = .presence
-    @State private var variant: EntityDetailReferenceVariant = .live
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var family: EntityDetailReferenceFamily
+    @State private var variant: EntityDetailReferenceVariant
+
+    init() {
+        _family = State(initialValue: EntityDetailReferenceFamily(
+            rawValue: RuntimeEnvironment.entityDetailReferenceFamily ?? ""
+        ) ?? .presence)
+        _variant = State(initialValue: EntityDetailReferenceVariant(
+            rawValue: RuntimeEnvironment.entityDetailReferenceVariant ?? ""
+        ) ?? .live)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,27 +30,51 @@ struct EntityDetailReferenceGallery: View {
     }
 
     private var controls: some View {
-        HStack(spacing: AppSpacing.medium) {
-            Picker("Family", selection: $family) {
-                ForEach(EntityDetailReferenceFamily.allCases) { family in
-                    Label(family.title, systemImage: family.systemImage)
-                        .tag(family)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    familyPicker
+                    variantPicker
                 }
-            }
-
-            Spacer(minLength: AppSpacing.medium)
-
-            Picker("State", selection: $variant) {
-                ForEach(EntityDetailReferenceVariant.allCases) { variant in
-                    Text(variant.title)
-                        .tag(variant)
+            } else {
+                HStack(spacing: AppSpacing.medium) {
+                    familyPicker
+                    Spacer(minLength: AppSpacing.medium)
+                    variantPicker
                 }
             }
         }
-        .pickerStyle(.menu)
         .padding(.horizontal, AppSpacing.large)
+        .padding(.vertical, AppSpacing.small)
         .frame(minHeight: 52)
         .background(Color(.secondarySystemGroupedBackground))
+    }
+
+    private var familyPicker: some View {
+        Picker("Family", selection: $family) {
+            ForEach(EntityDetailReferenceFamily.allCases) { family in
+                Label(family.title, systemImage: family.systemImage)
+                    .tag(family)
+            }
+        }
+        .pickerStyle(.menu)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil, alignment: .leading)
+    }
+
+    private var variantPicker: some View {
+        Picker("State", selection: $variant) {
+            ForEach(EntityDetailReferenceVariant.allCases) { variant in
+                Text(variant.title)
+                    .tag(variant)
+            }
+        }
+        .pickerStyle(.menu)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(
+            maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil,
+            alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing
+        )
     }
 }
 
@@ -58,13 +92,22 @@ private struct EntityDetailReferenceScene: View {
     ) {
         self.family = family
         self.variant = variant
-        dependencies = variant.dependencies(for: family)
+        let dependencies = variant.dependencies(for: family)
+        variant.configureForecastFixture(
+            dependencies.stateStore.entityBox(for: family.entityID),
+            family: family
+        )
+        self.dependencies = dependencies
     }
 
     var body: some View {
         NavigationStack {
             if let entityBox = dependencies.stateStore.entityBox(for: family.entityID) {
-                EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
+                EntityDetailSheet(
+                    entityBox: entityBox,
+                    presentationStyle: .navigation,
+                    automaticallyLoadsWeatherForecast: family != .information
+                )
             } else {
                 ContentUnavailableView("Fixture Unavailable", systemImage: "exclamationmark.triangle")
             }
@@ -81,6 +124,9 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     case environmental
     case information
     case presence
+    case editableNumber
+    case editableText
+    case editableTemporal
 
     var id: String { rawValue }
 
@@ -91,6 +137,9 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .environmental: "Climate"
         case .information: "Weather"
         case .presence: "Presence"
+        case .editableNumber: "Number"
+        case .editableText: "Text"
+        case .editableTemporal: "Date & Time"
         }
     }
 
@@ -101,6 +150,9 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .environmental: "thermometer.medium"
         case .information: "cloud.sun.fill"
         case .presence: "person.crop.circle.fill"
+        case .editableNumber: "slider.horizontal.3"
+        case .editableText: "text.cursor"
+        case .editableTemporal: "calendar.badge.clock"
         }
     }
 
@@ -111,6 +163,9 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .environmental: "climate.downstairs"
         case .information: "weather.home"
         case .presence: "person.tyler"
+        case .editableNumber: "input_number.target_humidity"
+        case .editableText: "input_text.guest_message"
+        case .editableTemporal: "input_datetime.quiet_hours_start"
         }
     }
 
@@ -119,7 +174,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         var state = baseState
 
         switch variant {
-        case .live, .pending, .stale, .failed:
+        case .live, .loading, .empty, .pending, .stale, .failed:
             break
         case .unavailable:
             state = "unavailable"
@@ -148,6 +203,9 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .environmental: "heat"
         case .information: "partlycloudy"
         case .presence: "home"
+        case .editableNumber: "45"
+        case .editableText: "Welcome home"
+        case .editableTemporal: "22:30:00"
         }
     }
 
@@ -188,7 +246,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
                 "wind_speed": .number(8),
                 "wind_speed_unit": .string("mph"),
                 "wind_bearing": .number(225),
-                "forecast": .array([.object(["condition": .string("rainy")])]),
+                "supported_features": .number(7),
                 "attribution": .string("Home Assistant weather provider")
             ]
         case .presence:
@@ -196,6 +254,28 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
                 "friendly_name": .string("Tyler"),
                 "source": .string("device_tracker.tylers_iphone"),
                 "gps_accuracy": .number(20)
+            ]
+        case .editableNumber:
+            [
+                "friendly_name": .string("Target Humidity"),
+                "device_class": .string("humidity"),
+                "unit_of_measurement": .string("%"),
+                "min": .number(30),
+                "max": .number(60),
+                "step": .number(1)
+            ]
+        case .editableText:
+            [
+                "friendly_name": .string("Guest Message"),
+                "min": .number(0),
+                "max": .number(64),
+                "mode": .string("text")
+            ]
+        case .editableTemporal:
+            [
+                "friendly_name": .string("Quiet Hours Start"),
+                "has_date": .bool(false),
+                "has_time": .bool(true)
             ]
         }
     }
@@ -218,6 +298,12 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             attributes["temperature"] = .number(isMaximum ? 110 : -5)
         case .presence:
             state = isMaximum ? "home" : "not_home"
+        case .editableNumber:
+            state = isMaximum ? "60" : "30"
+        case .editableText:
+            state = isMaximum ? String(repeating: "W", count: 64) : ""
+        case .editableTemporal:
+            state = isMaximum ? "23:59:00" : "00:00:00"
         }
     }
 
@@ -226,6 +312,8 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
 
 private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
     case live
+    case loading
+    case empty
     case pending
     case unavailable
     case stale
@@ -239,6 +327,8 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .live: "Live"
+        case .loading: "Loading"
+        case .empty: "Empty"
         case .pending: "Pending"
         case .unavailable: "Unavailable"
         case .stale: "Stale"
@@ -256,8 +346,18 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
             dataFreshness: dataFreshness,
             connectionStatus: connectionStatus,
             serviceFeedback: serviceFeedback(for: family),
-            pendingCommand: pendingCommand(for: family)
+            pendingCommand: pendingCommand(for: family),
+            contentState: contentState
         )
+    }
+
+    private var contentState: PreviewEntityDetailContentState {
+        switch self {
+        case .loading: .loading
+        case .empty: .empty
+        case .failed: .failed
+        default: .loaded
+        }
     }
 
     private var dataFreshness: HADataFreshness {
@@ -291,6 +391,65 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
             startedAt: Date(timeIntervalSince1970: 1_784_515_140)
         )
     }
+
+    @MainActor
+    func configureForecastFixture(
+        _ entityBox: HAEntityState?,
+        family: EntityDetailReferenceFamily
+    ) {
+        guard family == .information, let entityBox else { return }
+
+        switch self {
+        case .loading:
+            entityBox.beginLoadingWeatherForecast(.daily)
+        case .empty:
+            entityBox.applyWeatherForecast(WeatherForecastSnapshot(
+                type: .daily,
+                entries: [],
+                receivedAt: Self.referenceDate
+            ))
+        case .failed:
+            entityBox.failLoadingWeatherForecast(
+                .daily,
+                message: "Forecast is temporarily unavailable."
+            )
+        default:
+            entityBox.applyWeatherForecast(Self.referenceForecast)
+        }
+    }
+
+    private static let referenceDate = Date(timeIntervalSince1970: 1_784_515_200)
+
+    private static let referenceForecast = WeatherForecastSnapshot(
+        type: .daily,
+        entries: [
+            WeatherForecastEntry(
+                datetime: referenceDate,
+                condition: .partlyCloudy,
+                temperature: 83,
+                lowTemperature: 68,
+                precipitation: nil,
+                precipitationProbability: 20,
+                humidity: 58,
+                isDaytime: true,
+                windSpeed: 8,
+                windBearing: 225
+            ),
+            WeatherForecastEntry(
+                datetime: referenceDate.addingTimeInterval(86_400),
+                condition: .rainy,
+                temperature: 76,
+                lowTemperature: 65,
+                precipitation: nil,
+                precipitationProbability: 70,
+                humidity: 72,
+                isDaytime: true,
+                windSpeed: 11,
+                windBearing: 180
+            )
+        ],
+        receivedAt: referenceDate
+    )
 }
 
 // MARK: - Preview Matrix

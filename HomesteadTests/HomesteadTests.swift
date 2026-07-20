@@ -5580,6 +5580,56 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func weatherForecastServiceTracksSupportedSubscriptionsAndEntityState() async throws {
+        let weather = HAEntityDTO(
+            entityID: "weather.home",
+            state: "partlycloudy",
+            attributes: [
+                "friendly_name": .string("Home Weather"),
+                "supported_features": .number(3)
+            ]
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([weather])
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            connectionStatus: .connected,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore()
+        )
+        let entityBox = try #require(stateStore.entityBox(for: weather.entityID))
+
+        await service.startWeatherForecastUpdates(for: entityBox)
+
+        #expect(webSocketClient.weatherForecastSubscriptions.map(\.type) == [.daily, .hourly])
+        #expect(entityBox.loadingWeatherForecastTypes == [.daily, .hourly])
+
+        await webSocketClient.emitWeatherForecast(HAWeatherForecastEventDTO(
+            type: .daily,
+            forecast: [
+                HAWeatherForecastEntryDTO(
+                    datetime: Date(timeIntervalSince1970: 1_784_515_200),
+                    condition: "rainy",
+                    temperature: 81,
+                    lowTemperature: 68,
+                    precipitationProbability: 70
+                )
+            ]
+        ))
+
+        #expect(entityBox.weatherForecastsByType[.daily]?.entries.first?.condition == .rainy)
+        #expect(!entityBox.loadingWeatherForecastTypes.contains(.daily))
+        #expect(entityBox.loadingWeatherForecastTypes.contains(.hourly))
+
+        await service.stopWeatherForecastUpdates(entityID: weather.entityID)
+
+        #expect(entityBox.loadingWeatherForecastTypes.isEmpty)
+        #expect(webSocketClient.weatherForecastUnsubscriptions == [1_000, 1_001])
+    }
+
+    @MainActor
     @Test func automationToggleUsesHomeAssistantAutomationDomain() async throws {
         let automation = HAEntityDTO(
             entityID: "automation.good_night",
@@ -10670,6 +10720,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     private var weatherForecastHandlers: [Int: @Sendable (HAWeatherForecastEventDTO) async -> Void] = [:]
     private var nextWeatherForecastSubscriptionID = 1_000
     private(set) var weatherForecastSubscriptions: [(entityID: String, type: WeatherForecastType)] = []
+    private(set) var weatherForecastUnsubscriptions: [Int] = []
     var callServiceError: Error?
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
@@ -10894,6 +10945,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func unsubscribe(subscriptionID: Int) async throws {
+        weatherForecastUnsubscriptions.append(subscriptionID)
         weatherForecastHandlers.removeValue(forKey: subscriptionID)
     }
 
