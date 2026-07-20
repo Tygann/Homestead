@@ -169,7 +169,7 @@ private extension DashboardEntityDetailKind {
         case .button: self = .button
         case .select: self = .select
         case .number: self = .number
-        case .generic: self = .entity
+        case .text, .temporal, .generic: self = .entity
         }
     }
 }

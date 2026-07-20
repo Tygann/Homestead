@@ -150,6 +150,71 @@ final class EntityCapabilityProfileTests: XCTestCase {
         XCTAssertEqual(stateStore.entityBox(for: dto.entityID)?.numberEntity, number)
     }
 
+    func testEditableHelperDomainsJoinNativeEntityFamilies() {
+        XCTAssertEqual(EntityDomain(entityID: "input_select.house_mode"), .select)
+        XCTAssertEqual(EntityDomain(entityID: "input_number.target_humidity"), .number)
+        XCTAssertEqual(EntityDomain(entityID: "input_text.guest_message"), .text)
+        XCTAssertEqual(EntityDomain(entityID: "input_datetime.quiet_hours"), .datetime)
+
+        XCTAssertEqual(EntityCapabilityRegistry.profile(for: .text).detailRoute, .text)
+        XCTAssertEqual(EntityCapabilityRegistry.profile(for: .date).detailRoute, .temporal)
+        XCTAssertEqual(EntityCapabilityRegistry.profile(for: .time).detailRoute, .temporal)
+        XCTAssertEqual(EntityCapabilityRegistry.profile(for: .datetime).detailRoute, .temporal)
+    }
+
+    func testTextEntityMapsConstraintsAndValidatesDrafts() throws {
+        let dto = HAEntityDTO(
+            entityID: "input_text.entry_code",
+            state: "A123",
+            attributes: [
+                "friendly_name": .string("Entry Code"),
+                "min": .number(4),
+                "max": .number(8),
+                "pattern": .string("[A-Z][0-9]+"),
+                "mode": .string("password")
+            ]
+        )
+
+        let text = try XCTUnwrap(EntityMapper.textEntity(from: dto))
+        XCTAssertEqual(text.mode, .password)
+        XCTAssertEqual(text.minimumLength, 4)
+        XCTAssertEqual(text.maximumLength, 8)
+        XCTAssertNil(text.validationMessage(for: "B456"))
+        XCTAssertNotNil(text.validationMessage(for: "1234"))
+        XCTAssertNotNil(text.validationMessage(for: "A1"))
+
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([dto])
+        XCTAssertEqual(stateStore.entityBox(for: dto.entityID)?.textEntity, text)
+        XCTAssertTrue(EntityDetailFeatureProvider.features(for: try XCTUnwrap(stateStore.entityBox(for: dto.entityID))).supports(.nativeEditor))
+    }
+
+    func testTemporalEntitiesMapNativeAndHelperContracts() throws {
+        let dateDTO = HAEntityDTO(entityID: "date.vacation", state: "2026-07-24")
+        let timeDTO = HAEntityDTO(entityID: "time.wake_up", state: "06:30:00")
+        let helperDTO = HAEntityDTO(
+            entityID: "input_datetime.quiet_hours",
+            state: "22:30:00",
+            attributes: ["has_date": .bool(false), "has_time": .bool(true)]
+        )
+
+        let date = try XCTUnwrap(EntityMapper.temporalEntity(from: dateDTO))
+        let time = try XCTUnwrap(EntityMapper.temporalEntity(from: timeDTO))
+        let helper = try XCTUnwrap(EntityMapper.temporalEntity(from: helperDTO))
+
+        XCTAssertEqual(date.kind, .date)
+        XCTAssertEqual(date.serviceName, "date.set_value")
+        XCTAssertNotNil(date.value)
+        XCTAssertEqual(time.kind, .time)
+        XCTAssertEqual(time.serviceData(for: try XCTUnwrap(time.value))["time"], .string("06:30:00"))
+        XCTAssertEqual(helper.kind, .time)
+        XCTAssertEqual(helper.serviceName, "input_datetime.set_datetime")
+
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([dateDTO, timeDTO, helperDTO])
+        XCTAssertNotNil(stateStore.entityBox(for: helperDTO.entityID)?.temporalEntity)
+    }
+
     func testFeatureProviderExposesOnlyImplementedHistoryAndActivity() throws {
         let numberDTO = HAEntityDTO(
             entityID: "number.target_humidity",

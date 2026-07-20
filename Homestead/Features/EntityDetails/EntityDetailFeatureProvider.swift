@@ -91,6 +91,10 @@ enum EntityDetailFeatureProvider {
             entityBox.numberEntity != nil
         case .select:
             entityBox.selectEntity != nil
+        case .text:
+            entityBox.textEntity != nil
+        case .date, .time, .datetime:
+            entityBox.temporalEntity != nil
         default:
             false
         }

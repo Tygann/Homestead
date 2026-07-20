@@ -42,6 +42,10 @@ struct EntityDetailSheet: View {
                 SelectDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .number:
                 NumberDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+            case .text:
+                TextDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+            case .temporal:
+                TemporalDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .generic:
                 GenericEntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
         }

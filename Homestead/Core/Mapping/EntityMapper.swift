@@ -214,6 +214,24 @@ enum EntityMapper {
         )
     }
 
+    static func textEntity(from dto: HAEntityDTO) -> TextEntity? {
+        guard EntityDomain(entityID: dto.entityID) == .text else { return nil }
+
+        return TextEntity(
+            entityID: dto.entityID,
+            displayName: displayName(for: dto),
+            value: dto.state,
+            minimumLength: max(dto.attributes["min"]?.intValue ?? 0, 0),
+            maximumLength: max(dto.attributes["max"]?.intValue ?? 255, 0),
+            pattern: dto.attributes["pattern"]?.stringValue,
+            mode: TextEntityMode(homeAssistantValue: dto.attributes["mode"]?.stringValue)
+        )
+    }
+
+    static func temporalEntity(from dto: HAEntityDTO) -> TemporalEntity? {
+        TemporalEntity.map(from: dto, displayName: displayName(for: dto))
+    }
+
     static func displayName(for dto: HAEntityDTO) -> String {
         if let friendlyName = dto.attributes["friendly_name"]?.stringValue, !friendlyName.isEmpty {
             return friendlyName

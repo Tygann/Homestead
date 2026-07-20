@@ -1660,6 +1660,14 @@ final class HomeAssistantService {
         entityID.hasPrefix("input_select.") ? "input_select" : "select"
     }
 
+    nonisolated static func numberServiceDomain(for entityID: String) -> String {
+        entityID.hasPrefix("input_number.") ? "input_number" : "number"
+    }
+
+    nonisolated static func textServiceDomain(for entityID: String) -> String {
+        entityID.hasPrefix("input_text.") ? "input_text" : "text"
+    }
+
     func setNumberValue(entityID: String, value: Double) async {
         let serviceData = ["value": JSONValue.number(value)]
         let pendingCommand = setPendingCommand(
@@ -1668,10 +1676,41 @@ final class HomeAssistantService {
         )
 
         let succeeded = await callService(
-            domain: "number",
+            domain: Self.numberServiceDomain(for: entityID),
             service: "set_value",
             entityID: entityID,
             serviceData: serviceData
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func setTextValue(entityID: String, value: String) async {
+        let pendingCommand = setPendingCommand(entityID: entityID, expectedState: value)
+        let succeeded = await callService(
+            domain: Self.textServiceDomain(for: entityID),
+            service: "set_value",
+            entityID: entityID,
+            serviceData: ["value": .string(value)]
+        )
+        if succeeded {
+            schedulePendingResolution(for: pendingCommand)
+        } else {
+            clearPendingCommand(pendingCommand)
+        }
+    }
+
+    func setTemporalValue(entityID: String, date: Date) async {
+        guard let temporal = stateStore.entityBox(for: entityID)?.temporalEntity else { return }
+        let pendingCommand = setPendingCommand(entityID: entityID, expectedState: nil)
+        let succeeded = await callService(
+            domain: temporal.serviceDomain,
+            service: temporal.service,
+            entityID: entityID,
+            serviceData: temporal.serviceData(for: date)
         )
         if succeeded {
             schedulePendingResolution(for: pendingCommand)

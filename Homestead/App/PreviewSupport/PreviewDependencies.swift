@@ -545,6 +545,27 @@ private enum PreviewData {
             lastUpdated: .now
         ),
         HAEntityDTO(
+            entityID: "input_text.guest_message",
+            state: "Welcome home",
+            attributes: [
+                "friendly_name": .string("Guest Message"),
+                "min": .number(0),
+                "max": .number(64),
+                "mode": .string("text")
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "input_datetime.quiet_hours_start",
+            state: "22:30:00",
+            attributes: [
+                "friendly_name": .string("Quiet Hours Start"),
+                "has_date": .bool(false),
+                "has_time": .bool(true)
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
             entityID: "alarm_control_panel.home",
             state: "armed_home",
             attributes: [

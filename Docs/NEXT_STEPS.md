@@ -24,6 +24,10 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Completed the Editable Value entity-detail family. `input_number`, `input_text`, and `input_datetime` now normalize into the existing Number, Text, and Date & Time capability profiles without losing their real Home Assistant service domains.
+- Added app-facing constrained-text and temporal models, entity-scoped state threading, native text/secure-text and DatePicker editors, explicit Save behavior, validation, operational-state blocking, confirmation policy, and deterministic previews. Native `date`, `time`, and `datetime` entities and their helper counterparts now route through dedicated detail surfaces instead of the generic fallback.
+- Added focused mapping, route, validation, state-store, feature-provider, and exact service-contract coverage. The clean generic simulator build passes; focused test execution and simulator inspection are the remaining verification steps for this chunk.
+
 - Upgraded Weather detail from legacy forecast-attribute availability text to Home Assistant's `weather/subscribe_forecast` WebSocket contract. Typed transport DTOs map into app-facing forecast snapshots stored on the entity-scoped observable state, while `HomeAssistantService` owns subscription lifecycle, retry/error policy, reconnect replacement, and teardown.
 - Added an adaptive forecast section with server-supported Daily, Day & Night, and Hourly modes, cached/stale/loading/empty/error states, compact horizontal cards, accessibility-size rows, localized dates and units, and forecast-specific VoiceOver summaries. Forecast is exposed through `EntityDetailFeatureProvider` only when `supported_features` advertises a usable mode.
 - Verified the app with a clean generic simulator build and compiled the complete test target with `build-for-testing`. Focused test execution and visual simulator inspection remain pending because no simulator was booted during this pass; live-server verification should cover providers exposing daily-only, hourly-only, and multiple forecast modes.

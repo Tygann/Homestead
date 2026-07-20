@@ -925,6 +925,8 @@ final class HAStateStore {
                     weatherEntity: EntityMapper.weatherEntity(from: dto),
                     selectEntity: EntityMapper.selectEntity(from: dto),
                     numberEntity: EntityMapper.numberEntity(from: dto),
+                    textEntity: EntityMapper.textEntity(from: dto),
+                    temporalEntity: EntityMapper.temporalEntity(from: dto),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
                 updatedEntityBoxesByID[dto.entityID] = entityBox
@@ -941,6 +943,8 @@ final class HAStateStore {
                     weatherEntity: EntityMapper.weatherEntity(from: dto),
                     selectEntity: EntityMapper.selectEntity(from: dto),
                     numberEntity: EntityMapper.numberEntity(from: dto),
+                    textEntity: EntityMapper.textEntity(from: dto),
+                    temporalEntity: EntityMapper.temporalEntity(from: dto),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
             }
@@ -1000,6 +1004,8 @@ final class HAStateStore {
             weatherEntity: weatherEntitiesByID[dto.entityID],
             selectEntity: selectEntitiesByID[dto.entityID],
             numberEntity: numberEntitiesByID[dto.entityID],
+            textEntity: EntityMapper.textEntity(from: dto),
+            temporalEntity: EntityMapper.temporalEntity(from: dto),
             pendingCommand: pendingCommandsByID[dto.entityID]
         )
 
@@ -1158,6 +1164,8 @@ final class HAStateStore {
         weatherEntity: WeatherEntity?,
         selectEntity: SelectEntity?,
         numberEntity: NumberEntity?,
+        textEntity: TextEntity?,
+        temporalEntity: TemporalEntity?,
         pendingCommand: HAEntityPendingCommand?
     ) {
         if let entityBox = entityBoxesByID[entityID] {
@@ -1173,6 +1181,8 @@ final class HAStateStore {
                 weatherEntity: weatherEntity,
                 selectEntity: selectEntity,
                 numberEntity: numberEntity,
+                textEntity: textEntity,
+                temporalEntity: temporalEntity,
                 pendingCommand: pendingCommand
             )
         } else {
@@ -1188,6 +1198,8 @@ final class HAStateStore {
                 weatherEntity: weatherEntity,
                 selectEntity: selectEntity,
                 numberEntity: numberEntity,
+                textEntity: textEntity,
+                temporalEntity: temporalEntity,
                 pendingCommand: pendingCommand
             )
         }
@@ -1643,6 +1655,8 @@ final class HAEntityState: Identifiable {
     var weatherEntity: WeatherEntity?
     var selectEntity: SelectEntity?
     var numberEntity: NumberEntity?
+    var textEntity: TextEntity?
+    var temporalEntity: TemporalEntity?
     var pendingCommand: HAEntityPendingCommand?
     private(set) var weatherForecastsByType: [WeatherForecastType: WeatherForecastSnapshot] = [:]
     private(set) var loadingWeatherForecastTypes: Set<WeatherForecastType> = []
@@ -1664,6 +1678,8 @@ final class HAEntityState: Identifiable {
         weatherEntity: WeatherEntity? = nil,
         selectEntity: SelectEntity? = nil,
         numberEntity: NumberEntity? = nil,
+        textEntity: TextEntity? = nil,
+        temporalEntity: TemporalEntity? = nil,
         pendingCommand: HAEntityPendingCommand? = nil
     ) {
         self.homeEntity = homeEntity
@@ -1677,6 +1693,8 @@ final class HAEntityState: Identifiable {
         self.weatherEntity = weatherEntity
         self.selectEntity = selectEntity
         self.numberEntity = numberEntity
+        self.textEntity = textEntity
+        self.temporalEntity = temporalEntity
         self.pendingCommand = pendingCommand
     }
 
@@ -1692,6 +1710,8 @@ final class HAEntityState: Identifiable {
         weatherEntity: WeatherEntity?,
         selectEntity: SelectEntity?,
         numberEntity: NumberEntity?,
+        textEntity: TextEntity?,
+        temporalEntity: TemporalEntity?,
         pendingCommand: HAEntityPendingCommand?
     ) {
         self.homeEntity = homeEntity
@@ -1705,6 +1725,8 @@ final class HAEntityState: Identifiable {
         self.weatherEntity = weatherEntity
         self.selectEntity = selectEntity
         self.numberEntity = numberEntity
+        self.textEntity = textEntity
+        self.temporalEntity = temporalEntity
         self.pendingCommand = pendingCommand
     }
 

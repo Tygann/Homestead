@@ -5549,6 +5549,37 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func editableValueServicesUseExactNativeAndHelperContracts() async throws {
+        let helperTime = HAEntityDTO(
+            entityID: "input_datetime.quiet_hours",
+            state: "22:30:00",
+            attributes: ["has_date": .bool(false), "has_time": .bool(true)]
+        )
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([helperTime])
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
+            authManager: HAOAuthManager(
+                tokenStore: InMemoryHAOAuthTokenStore(credential: testCredential(accessToken: "editable-value-access"))
+            )
+        )
+
+        await service.setNumberValue(entityID: "input_number.target_humidity", value: 45)
+        await service.setTextValue(entityID: "input_text.guest_message", value: "Welcome")
+        await service.setTemporalValue(entityID: helperTime.entityID, date: try #require(EntityMapper.temporalEntity(from: helperTime)?.value))
+
+        #expect(webSocketClient.callServiceInvocations.map(\.domain) == ["input_number", "input_text", "input_datetime"])
+        #expect(webSocketClient.callServiceInvocations.map(\.service) == ["set_value", "set_value", "set_datetime"])
+        #expect(webSocketClient.callServiceInvocations[0].serviceData["value"] == .number(45))
+        #expect(webSocketClient.callServiceInvocations[1].serviceData["value"] == .string("Welcome"))
+        #expect(webSocketClient.callServiceInvocations[2].serviceData["time"] == .string("22:30:00"))
+    }
+
+    @MainActor
     @Test func automationToggleUsesHomeAssistantAutomationDomain() async throws {
         let automation = HAEntityDTO(
             entityID: "automation.good_night",

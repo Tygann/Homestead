@@ -47,6 +47,8 @@ nonisolated enum EntityDetailRoute: String, Equatable, Sendable {
     case button
     case select
     case number
+    case text
+    case temporal
     case generic
 }
 
@@ -139,13 +141,13 @@ nonisolated enum EntityCapabilityRegistry {
         case .number:
             profile(domain, .editableValue, .metric, .number, "Number", [.editValue, .showHistory])
         case .text:
-            profile(domain, .editableValue, .status, .generic, "Text", [.editValue, .showActivity])
+            profile(domain, .editableValue, .status, .text, "Text", [.editValue, .showActivity])
         case .date:
-            profile(domain, .editableValue, .status, .generic, "Date", [.editValue, .showActivity])
+            profile(domain, .editableValue, .status, .temporal, "Date", [.editValue, .showActivity])
         case .time:
-            profile(domain, .editableValue, .status, .generic, "Time", [.editValue, .showActivity])
+            profile(domain, .editableValue, .status, .temporal, "Time", [.editValue, .showActivity])
         case .datetime:
-            profile(domain, .editableValue, .status, .generic, "Date & Time", [.editValue, .showActivity])
+            profile(domain, .editableValue, .status, .temporal, "Date & Time", [.editValue, .showActivity])
         case .weather:
             profile(domain, .informationContent, .environment, .weather, "Weather", [.showHistory])
         case .calendar:

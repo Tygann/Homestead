@@ -26,6 +26,9 @@ struct NumberDetailView: View {
     private var detailState: EntityDetailStatePresentation {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
     }
+    private var serviceDomain: String {
+        HomeAssistantService.numberServiceDomain(for: entity.entityID)
+    }
     private var features: EntityDetailFeatureSet {
         EntityDetailFeatureProvider.features(for: entityBox)
     }
@@ -137,7 +140,7 @@ struct NumberDetailView: View {
     }
 
     private var isControlDisabled: Bool {
-        detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "number", service: "set_value")
+        detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: serviceDomain, service: "set_value")
     }
 
     private var statusSummary: String {
@@ -173,7 +176,7 @@ struct NumberDetailView: View {
     }
 
     private func setValue(_ value: Double) {
-        confirmOrPerform(domain: "number", service: "set_value") {
+        confirmOrPerform(domain: serviceDomain, service: "set_value") {
             Task { await homeAssistantService.setNumberValue(entityID: entity.entityID, value: value) }
         }
     }

@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-20
 
+### Editable Value Entity Details
+
+- Extended the capability-driven detail grammar with native constrained-text and date/time editors while preserving the shared scaffold, hero, operational-state, confirmation, and diagnostics contracts.
+- Normalized `input_number`, `input_text`, and `input_datetime` into the same app-facing families as their native counterparts, while service helpers retain Home Assistant's exact helper domains and payload shapes.
+- Added typed `TextEntity` and `TemporalEntity` models so SwiftUI does not consume raw Home Assistant attributes, including text length/pattern/mode constraints and date/time capability selection from `has_date` / `has_time`.
+
 ### Live Weather Forecasts
 
 - Replaced legacy weather-state forecast availability with Home Assistant's dedicated `weather/subscribe_forecast` WebSocket subscription for server-advertised daily, twice-daily, and hourly modes.
