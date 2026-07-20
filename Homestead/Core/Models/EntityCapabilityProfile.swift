@@ -49,6 +49,7 @@ nonisolated enum EntityDetailRoute: String, Equatable, Sendable {
     case number
     case text
     case temporal
+    case presence
     case generic
 }
 
@@ -157,9 +158,9 @@ nonisolated enum EntityCapabilityRegistry {
         case .event:
             profile(domain, .informationContent, .activity, .generic, "Event", [.showActivity])
         case .deviceTracker:
-            profile(domain, .informationContent, .status, .generic, "Device Tracker", [.showActivity])
+            profile(domain, .informationContent, .status, .presence, "Device Tracker", [.showActivity])
         case .person:
-            profile(domain, .informationContent, .status, .generic, "Person", [.showActivity])
+            profile(domain, .informationContent, .status, .presence, "Person", [.showActivity])
         case .update:
             profile(domain, .informationContent, .status, .generic, "Update", [.activate, .showActivity])
         case .other:

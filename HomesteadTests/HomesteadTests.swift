@@ -5813,8 +5813,9 @@ struct HomesteadTests {
             attributes: [
                 "friendly_name": .string("Tyler's iPhone"),
                 "source_type": .string("gps"),
+                "tracking_type": .string("position"),
                 "battery_level": .number(88),
-                "gps_accuracy": .number(12)
+                "location_accuracy": .number(12)
             ],
             lastChanged: changedAt,
             lastUpdated: updatedAt
@@ -5894,6 +5895,26 @@ struct HomesteadTests {
         #expect(trackerRecord.context.floorName == "Downstairs")
         #expect(watchRecord.sourceTypeTitle == "Bluetooth LE")
         #expect(watchRecord.status == .away)
+    }
+
+    @MainActor
+    @Test func presenceMappingFallsBackToModernTrackingAttributes() throws {
+        let dto = HAEntityDTO(
+            entityID: "device_tracker.car",
+            state: "work",
+            attributes: [
+                "friendly_name": .string("Car"),
+                "tracking_type": .string("position"),
+                "location_accuracy": .number(7.5)
+            ]
+        )
+
+        let record = try #require(EntityMapper.presenceRecord(from: dto))
+
+        #expect(record.status == .zone("work"))
+        #expect(record.sourceTypeTitle == "Location")
+        #expect(record.gpsAccuracy == 7.5)
+        #expect(record.gpsAccuracyText == "8m")
     }
 
     @Test func personPresencePresentationShowsPeopleOnlyAndSearchesLinkedTrackers() throws {

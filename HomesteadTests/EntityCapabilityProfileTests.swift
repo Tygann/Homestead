@@ -42,6 +42,20 @@ final class EntityCapabilityProfileTests: XCTestCase {
         XCTAssertEqual(DashboardEntityDomainRegistry.capability(for: .person).detailKind, .entity)
     }
 
+    func testPresenceDomainsShareNativeInformationRoute() {
+        let person = EntityCapabilityRegistry.profile(for: .person)
+        let tracker = EntityCapabilityRegistry.profile(for: .deviceTracker)
+
+        XCTAssertEqual(person.family, .informationContent)
+        XCTAssertEqual(tracker.family, .informationContent)
+        XCTAssertEqual(person.detailRoute, .presence)
+        XCTAssertEqual(tracker.detailRoute, .presence)
+        XCTAssertEqual(person.heroKind, .status)
+        XCTAssertEqual(tracker.heroKind, .status)
+        XCTAssertTrue(person.supports(.showActivity))
+        XCTAssertTrue(tracker.supports(.showActivity))
+    }
+
     func testHistoryUsesPreferredBoundedDomainAndReportsPartialCoverage() {
         let interval = DateInterval(
             start: Date(timeIntervalSince1970: 0),

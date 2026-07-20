@@ -260,9 +260,11 @@ extension EntityMapper {
             lastUpdated: dto.lastUpdated,
             entityPicturePath: dto.attributes["entity_picture"]?.stringValue?.nonEmptyPresenceValue,
             sourceEntityID: dto.attributes["source"]?.stringValue?.nonEmptyPresenceValue,
-            sourceType: dto.attributes["source_type"]?.stringValue?.nonEmptyPresenceValue,
+            sourceType: dto.attributes["source_type"]?.stringValue?.nonEmptyPresenceValue
+                ?? dto.attributes["tracking_type"]?.stringValue?.nonEmptyPresenceValue,
             batteryLevel: batteryLevel(from: dto.attributes),
-            gpsAccuracy: dto.attributes["gps_accuracy"]?.doubleValue,
+            gpsAccuracy: dto.attributes["gps_accuracy"]?.doubleValue
+                ?? dto.attributes["location_accuracy"]?.doubleValue,
             linkedPersonEntityID: linkedPersonEntityID?.nonEmptyPresenceValue,
             linkedPersonName: linkedPersonName?.nonEmptyPresenceValue,
             linkedTrackers: linkedTrackers.sortedByPresenceTrackerTitle,
@@ -282,7 +284,8 @@ extension EntityMapper {
             entityID: dto.entityID,
             displayName: displayName(for: dto),
             status: HAPresenceStatus(state: dto.state),
-            sourceType: dto.attributes["source_type"]?.stringValue?.nonEmptyPresenceValue,
+            sourceType: dto.attributes["source_type"]?.stringValue?.nonEmptyPresenceValue
+                ?? dto.attributes["tracking_type"]?.stringValue?.nonEmptyPresenceValue,
             batteryLevel: batteryLevel(from: dto.attributes),
             context: context
         )
@@ -329,6 +332,10 @@ private extension String {
             return "GPS"
         case "bluetooth_le":
             return "Bluetooth LE"
+        case "position":
+            return "Location"
+        case "connection":
+            return "Connection"
         default:
             return replacingOccurrences(of: "_", with: " ").capitalized
         }

@@ -572,6 +572,28 @@ private enum PreviewData {
                 "friendly_name": .string("Home Alarm")
             ],
             lastUpdated: .now
+        ),
+        HAEntityDTO(
+            entityID: "person.tyler",
+            state: "home",
+            attributes: [
+                "friendly_name": .string("Tyler"),
+                "source": .string("device_tracker.tylers_iphone")
+            ],
+            lastChanged: .now.addingTimeInterval(-1_200),
+            lastUpdated: .now.addingTimeInterval(-180)
+        ),
+        HAEntityDTO(
+            entityID: "device_tracker.tylers_iphone",
+            state: "home",
+            attributes: [
+                "friendly_name": .string("Tyler's iPhone"),
+                "source_type": .string("gps"),
+                "tracking_type": .string("position"),
+                "location_accuracy": .number(8)
+            ],
+            lastChanged: .now.addingTimeInterval(-1_200),
+            lastUpdated: .now.addingTimeInterval(-180)
         )
     ]
 }

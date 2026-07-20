@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-20
 
+### Native Presence Entity Details
+
+- Routed Person and Device Tracker entities into one typed, read-only Presence detail composition while retaining the Information/content family grammar and dashboard's stable generic-detail adapter identity.
+- Reused the existing registry-aware `HAPresenceRecord` and authenticated avatar loader for Home/Away/named-zone state, source tracker/person relationships, tracking method, accuracy, device context, shared Recent Activity, exceptional operational state, and final diagnostics.
+- Accepted both legacy `gps_accuracy` and current `location_accuracy` tracker metadata plus the current `tracking_type` fallback, keeping all Home Assistant DTO interpretation below SwiftUI.
+- Added deterministic Person and Device Tracker previews and focused mapping/routing coverage. Generic simulator app and test-target compilation passed; runtime inspection awaits an already-booted simulator.
+
 ### Editable Value Entity Details
 
 - Extended the capability-driven detail grammar with native constrained-text and date/time editors while preserving the shared scaffold, hero, operational-state, confirmation, and diagnostics contracts.

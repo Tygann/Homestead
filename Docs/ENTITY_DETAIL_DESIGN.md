@@ -55,7 +55,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 | Autonomous appliance | vacuum, lawn mower | activity | start/stop, return, activity |
 | Action/workflow | scene, script, automation, button | activity or status | action/control, logic, activity |
 | Editable value | number, select, text, date/time | metric or status | native editor, constraints, history/activity |
-| Information/content | weather, calendar, todo, update, person | environment/activity/status | domain content, activity |
+| Information/content | weather, calendar, todo, update, person, device tracker | environment/activity/status | domain content, relationships, activity |
 | Generic | unknown domains | status | server-advertised actions, activity |
 
 `EntityCapabilityProfile` is the surface-neutral source for these families, hero kinds, routes, and semantic capabilities. Dashboard and detail surfaces adapt the profile without sharing layout-specific presentation types.
@@ -93,3 +93,5 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 Avoid a type-erased universal section schema. Typed SwiftUI domain views remain the appropriate place for rich domain-specific composition.
 
 Editable Number details consume `NumberEntity` for current value, bounds, step, unit, and Home Assistant display mode. SwiftUI must not read the raw entity attributes to reconstruct those constraints.
+
+Person and Device Tracker details share the typed Presence composition. The hero prioritizes authenticated person imagery or the mapped entity icon plus Home/Away/named-zone state; supporting sections may show mapped tracking method, accuracy, device context, and navigable person/tracker relationships. Registry area assignment must not be presented as live physical location. Presence remains read-only and uses discrete Recent Activity ranges.
