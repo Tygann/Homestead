@@ -2248,6 +2248,30 @@ struct HomesteadTests {
         #expect(DashboardHistoryCardPresentation.request(for: sensor, size: .compact, endingAt: endDate) == nil)
     }
 
+    @MainActor
+    @Test func dashboardHistoryPreviewProvidesDeterministicVisibleTrend() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.hallway_temperature",
+                state: "72",
+                attributes: [
+                    "friendly_name": .string("Hallway"),
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            )
+        ])
+        let entityBox = try #require(store.entityBox(for: "sensor.hallway_temperature"))
+
+        let preview = try #require(DashboardHistoryCardPresentation.preview(entityBox: entityBox))
+
+        #expect(preview.samples.count == 8)
+        #expect(preview.range == .sixHours)
+        #expect(preview.samples.last?.value == 72)
+        #expect(preview.valueDomain.lowerBound < preview.valueDomain.upperBound)
+    }
+
     @Test func dashboardHistoryPresentationMapsChartSeriesForCards() throws {
         let startDate = try testDate("2026-06-05T10:00:00Z")
         let middleDate = try testDate("2026-06-05T13:00:00Z")
@@ -5601,7 +5625,8 @@ struct HomesteadTests {
         )
         let entityBox = try #require(stateStore.entityBox(for: weather.entityID))
 
-        await service.startWeatherForecastUpdates(for: entityBox)
+        await service.startWeatherForecastUpdates(for: entityBox, consumerID: "dashboard")
+        await service.startWeatherForecastUpdates(for: entityBox, consumerID: "detail")
 
         #expect(webSocketClient.weatherForecastSubscriptions.map(\.type) == [.daily, .hourly])
         #expect(entityBox.loadingWeatherForecastTypes == [.daily, .hourly])
@@ -5623,7 +5648,12 @@ struct HomesteadTests {
         #expect(!entityBox.loadingWeatherForecastTypes.contains(.daily))
         #expect(entityBox.loadingWeatherForecastTypes.contains(.hourly))
 
-        await service.stopWeatherForecastUpdates(entityID: weather.entityID)
+        await service.stopWeatherForecastUpdates(entityID: weather.entityID, consumerID: "dashboard")
+
+        #expect(webSocketClient.weatherForecastUnsubscriptions.isEmpty)
+        #expect(entityBox.loadingWeatherForecastTypes.contains(.hourly))
+
+        await service.stopWeatherForecastUpdates(entityID: weather.entityID, consumerID: "detail")
 
         #expect(entityBox.loadingWeatherForecastTypes.isEmpty)
         #expect(webSocketClient.weatherForecastUnsubscriptions == [1_000, 1_001])
@@ -8473,7 +8503,7 @@ struct HomesteadTests {
             .automation: (.control, .toggleAutomation, .toggle),
             .vacuum: (.status, nil, .vacuum),
             .remote: (.status, nil, .entity),
-            .button: (.status, nil, .button),
+            .button: (.action, .pressButton, .button),
             .select: (.value, nil, .select),
             .number: (.value, nil, .number),
             .text: (.value, nil, .entity),
@@ -8570,9 +8600,9 @@ struct HomesteadTests {
         #expect(remote.subtitle == "Off")
         #expect(remote.primaryAction == nil)
         #expect(remote.detailKind == .entity)
-        #expect(button.cardStyle == .status)
+        #expect(button.cardStyle == .action)
         #expect(button.iconName == "arrow.trianglehead.2.clockwise")
-        #expect(button.primaryAction == nil)
+        #expect(button.primaryAction == .pressButton)
         #expect(button.detailKind == .button)
         #expect(number.cardStyle == .value)
         #expect(number.iconName == "humidity")

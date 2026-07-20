@@ -8,6 +8,7 @@ enum RuntimeEnvironment {
 
 nonisolated enum HomesteadPreviewScreen: String, Sendable {
     case appearance
+    case dashboardCards = "dashboard-cards"
     case entityDetails = "entity-details"
     case gaugeWidget = "gauge-widget"
 }
@@ -21,6 +22,8 @@ extension HomesteadPreviewScreen {
         switch argumentValue {
         case Self.appearance.rawValue:
             self = .appearance
+        case Self.dashboardCards.rawValue:
+            self = .dashboardCards
         case Self.entityDetails.rawValue:
             self = .entityDetails
         case Self.gaugeWidget.rawValue:
@@ -50,6 +53,11 @@ extension RuntimeEnvironment {
         argumentValue(after: "--preview-size")
             .flatMap(DashboardCardSize.init(rawValue:))
             ?? .square
+    }
+
+    nonisolated static var livePreviewPresentationKind: DashboardPresentationKind? {
+        argumentValue(after: "--preview-presentation")
+            .flatMap(DashboardPresentationKind.init(rawValue:))
     }
 
     nonisolated static var livePreviewAppearanceMode: HomesteadAppearanceMode? {

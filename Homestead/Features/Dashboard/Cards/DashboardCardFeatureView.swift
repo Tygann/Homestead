@@ -12,6 +12,9 @@ struct DashboardCardFeatureActions {
     var lock: (() -> Void)?
     var unlock: (() -> Void)?
     var selectOption: ((String) -> Void)?
+    var playPauseMedia: (() -> Void)?
+    var setMediaVolume: ((Double) -> Void)?
+    var selectMediaSource: ((String) -> Void)?
 
     func canRender(_ feature: DashboardCardFeature) -> Bool {
         switch feature.content {

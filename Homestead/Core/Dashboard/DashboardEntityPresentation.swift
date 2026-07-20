@@ -19,6 +19,7 @@ enum DashboardEntityPrimaryAction: Equatable, Sendable {
     case toggleAutomation
     case activateScene
     case runScript
+    case pressButton
 
     var serviceIntent: DashboardEntityServiceIntent {
         switch self {
@@ -38,6 +39,8 @@ enum DashboardEntityPrimaryAction: Equatable, Sendable {
             .call(domain: "scene", service: "turn_on")
         case .runScript:
             .call(domain: "script", service: "turn_on")
+        case .pressButton:
+            .call(domain: "button", service: "press")
         }
     }
 
@@ -53,6 +56,8 @@ enum DashboardEntityPrimaryAction: Equatable, Sendable {
             "Activate \(title)"
         case .runScript:
             "Run \(title)"
+        case .pressButton:
+            "Press \(title)"
         }
     }
 }
@@ -316,10 +321,10 @@ enum DashboardEntityDomainRegistry {
         case .button:
             DashboardEntityDomainCapability(
                 domain: domain,
-                cardStyle: .status,
-                primaryAction: nil,
+                cardStyle: .action,
+                primaryAction: .pressButton,
                 statusFormatter: .rawState,
-                iconAccentBehavior: .defaultAccent,
+                iconAccentBehavior: .actionAccent,
                 secondaryActions: []
             )
         case .select:
@@ -789,7 +794,7 @@ struct DashboardEntityPresentation {
         switch capability.primaryAction {
         case .toggleSwitch, .toggleFan, .toggleLock, .toggleAutomation:
             "Updating..."
-        case .toggleLight, .toggleCover, .activateScene, .runScript, nil:
+        case .toggleLight, .toggleCover, .activateScene, .runScript, .pressButton, nil:
             subtitle(for: entity, capability: capability)
         }
     }

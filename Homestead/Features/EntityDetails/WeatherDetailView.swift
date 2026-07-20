@@ -180,7 +180,7 @@ struct WeatherDetailView: View {
 
     private func retryForecast() {
         Task {
-            await homeAssistantService.startWeatherForecastUpdates(for: entityBox)
+            await homeAssistantService.restartWeatherForecastUpdates(for: entityBox)
         }
     }
 

@@ -208,6 +208,8 @@ struct HomesteadApp: App {
             NavigationStack {
                 AppearanceSettingsView()
             }
+        case .dashboardCards:
+            DashboardCardReferenceGallery()
         case .entityDetails:
             EntityDetailReferenceGallery()
         case .gaugeWidget:
@@ -235,10 +237,11 @@ struct HomesteadApp: App {
         for item in dashboardConfiguration.items {
             dashboardConfiguration.removeItem(id: item.id)
         }
-        _ = dashboardConfiguration.add(
-            source: .entity(entityID),
-            presentation: .card(.status(layout: RuntimeEnvironment.livePreviewCardSize))
-        )
+        let size = RuntimeEnvironment.livePreviewCardSize
+        let kind = RuntimeEnvironment.livePreviewPresentationKind ?? .status
+        let card = DashboardPresentationCatalog.cardConfiguration(kind: kind, layout: size)
+            ?? .status(layout: size)
+        _ = dashboardConfiguration.add(source: .entity(entityID), presentation: .card(card))
     }
 #endif
 }

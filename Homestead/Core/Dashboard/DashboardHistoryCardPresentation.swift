@@ -36,6 +36,36 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
     }
 
     @MainActor
+    static func preview(entityBox: HAEntityState) -> DashboardHistoryCardPresentation? {
+        guard let sensor = entityBox.sensorEntity,
+              let value = sensor.numericValue else {
+            return nil
+        }
+
+        let endDate = Date(timeIntervalSince1970: 1_784_515_200)
+        let interval = defaultRange.interval(endingAt: endDate)
+        let offsets = [-0.08, -0.03, 0.04, -0.01, 0.07, 0.02, 0.09, 0.0]
+        let scale = max(abs(value) * 0.08, 1)
+        let samples = offsets.enumerated().map { index, offset in
+            HAHistorySample(
+                occurredAt: interval.start.addingTimeInterval(
+                    interval.duration * Double(index) / Double(offsets.count - 1)
+                ),
+                value: value + (offset * scale)
+            )
+        }
+
+        return DashboardHistoryCardPresentation(series: HAHistoryChartSeries(
+            entityID: entityBox.entityID,
+            displayName: sensor.displayName,
+            unit: sensor.unitText,
+            range: defaultRange,
+            samples: samples,
+            requestedInterval: interval
+        ))
+    }
+
+    @MainActor
     static func isEligible(entityBox: HAEntityState, size: DashboardCardSize) -> Bool {
         guard size.supportsDashboardHistoryChart,
               entityBox.domain == .sensor,

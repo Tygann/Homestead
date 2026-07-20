@@ -14,6 +14,8 @@ Dashboard/widget presentation architecture now has a shared foundation: `SharedF
 
 Dashboard cards are now fully atomic rather than persisted style or feature-visibility variants: Circular Gauge and Bar Gauge render value progress over a secondary track, while Segmented Gauge renders the full configured zone range with a current-value marker. Add to Dashboard lists each gauge separately, card configuration has one Entity and one production-renderer Preview section, and every card kind uses an unmistakably synthetic preview before entity selection. Control rendering adapts from entity capabilities and available layout space; Status remains the explicit informational alternative. Dashboard schema v5 intentionally resets incompatible beta-era dashboard definitions.
 
+Graph, Weather, Media, and Action cards now use dedicated typed compositions instead of the generic large-value treatment. Graph foregrounds the current value above a visible deterministic/live six-hour linear trend. Weather owns a dashboard forecast consumer and presents adaptive high/low periods from the same official subscription shared with detail. Media exposes now-playing context plus play/pause, volume, and source controls where layout permits. Action renders explicit Activate, Run, or Press affordances for Scene, Script, and Button while retaining detail navigation and confirmation policy. Fixed dashboard cards support enlarged text through Extra Extra Extra Large without allowing accessibility sizes to overflow grid geometry.
+
 Automation details use Home Assistant's `automation/config` and `trace/list` WebSocket commands: state is presented as Enabled/Disabled, activity reflects actual Triggered/Failed/Stopped runs instead of state-history churn, and the read-only native detail summarizes When / And If / Then Do. Script details use the companion `script/config` command to present their Sequence, including legacy standalone condition actions, nested conditions and Then Do / Otherwise branches, plus named entity, area, device, floor, and label targets from modern and legacy service target shapes; climate steps also show preset/HVAC mode values. Follow-up should be live-server verification across YAML, UI-created, blueprint, and nested choose/repeat automations and scripts; editing and full trace inspection remain intentionally in Home Assistant.
 
 Unified setup, Bonjour discovery, safe iCloud restore, SSID-gated local routing, Mobile App registration safeguards, multiple saved dashboards, camera snapshot hardening, the first service/dashboard performance cleanup, the deployed Cloudflare Worker push relay, Worker-hosted OAuth/connect page, and app-side APNs push registration are implemented. Next focus is manual iPhone/iPad/Designed-for-iPad Mac verification if desired, one-time Home Assistant cleanup of cloned Mobile App devices if desired, then the existing dashboard mini tile and WidgetKit/App Intents priorities.
@@ -23,6 +25,9 @@ The second SwiftUI performance cleanup is implemented: entity-browser rows now o
 Recommended reasoning level: High.
 
 ## Completed Chunk
+
+- Completed the focused Dashboard Card pass for Graph, Weather, Media, and Action. Added deterministic loaded chart/forecast fixtures, a dedicated card reference gallery, live-preview presentation targeting, shared Weather forecast subscription ownership, wired Media controls, and native Button action routing through `button.press`.
+- Verified Compact, Square, Wide, and Large card layouts in light/dark Simulator and the in-app browser mirror, including maximum accessibility Dynamic Type behavior. Live Home Assistant verification covered a daily forecast provider, a numeric temperature history card, an unavailable/off Media Player, and a Script action card.
 
 - Completed the Editable Value entity-detail family. `input_number`, `input_text`, and `input_datetime` now normalize into the existing Number, Text, and Date & Time capability profiles without losing their real Home Assistant service domains.
 - Added app-facing constrained-text and temporal models, entity-scoped state threading, native text/secure-text and DatePicker editors, explicit Save behavior, validation, operational-state blocking, confirmation policy, and deterministic previews. Native `date`, `time`, and `datetime` entities and their helper counterparts now route through dedicated detail surfaces instead of the generic fallback.
@@ -290,7 +295,7 @@ Recommended reasoning level: High.
 
 ## Next Chunk
 
-- Continue roadmap follow-up work: device-test dashboard mini accessory tiles in dense dashboards, then polish the expanded WidgetKit/App Intents surface and consider Control Center controls for the safest common actions.
+- Device-test the completed dashboard card families and mini accessory tiles in dense live dashboards, capture the physical-device Animation Hitches and SwiftUI timeline baseline, then polish the expanded WidgetKit/App Intents surface and consider Control Center controls for the safest common actions.
 - Keep true Home Assistant users/admin views in research-needed status until an official supported API path and permission behavior are confirmed.
 
 ## Acceptance Notes
@@ -313,6 +318,7 @@ Recommended reasoning level: High.
 
 ## Recent Verification Notes
 
+- Dashboard card completion passed repeated Debug iPhone 17 simulator builds, the 18-case `EntityCapabilityProfileTests` class aside from one corrected fixture assertion followed by a passing focused rerun, and focused Graph/Weather/presentation Swift Testing slices. The initial broad Swift Testing batch hit the known `Runner._applyScopingTraits` crash; every affected case passed in smaller reruns. Simulator and in-app browser inspection covered deterministic Compact/Square/Wide/Large Graph, Weather, Media, and Action cards in light/dark and accessibility-size text, plus live Home Assistant Weather forecasts, numeric history, Media, and Script cards. Guarded storage hygiene cleared `XCTestDevices` twice after it exceeded 5 GB; the final check reported 3.8 GB.
 - Final entity-detail verification passed a Debug iPhone 17 simulator build, 17 capability/profile XCTest cases, 7 focused Swift Testing cases for forecast/editable/history behavior, and repeated two-test temporal/service reruns after final DatePicker hardening. Deterministic browser-mirror inspection covered representative/loading/empty/pending/stale/failed/unavailable/compact-width/Dynamic Type states, with live Weather plus editable-Number inspection against one configured Home Assistant server. Xcode storage hygiene cleared 6.7 GB and 6.8 GB after earlier runs; the final check reported 3.4 GB, below the cleanup threshold.
 - Generic iOS Simulator build and all 7 `MultiServerConnectionTests` passed after adding the Account server-selection entry point and return-after-switch behavior. Xcode storage hygiene reported XCTestDevices at 3.2 GB, below the cleanup threshold, so no cleanup was needed. A visual simulator pass remains pending because no simulator was booted during this change.
 - Generic iOS Simulator build passed after the focused Add to Dashboard correctness and polish pass.

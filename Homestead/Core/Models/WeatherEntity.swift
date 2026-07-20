@@ -39,7 +39,11 @@ struct WeatherEntity: Identifiable, Equatable, Sendable {
 
     var temperatureText: String? {
         guard isAvailable, let temperature else { return nil }
-        return formattedValue(temperature, unit: displayTemperatureUnit, maximumFractionDigits: 1)
+        return temperatureText(for: temperature)
+    }
+
+    func temperatureText(for value: Double) -> String {
+        formattedValue(value, unit: displayTemperatureUnit, maximumFractionDigits: 1)
     }
 
     var humidityText: String? {

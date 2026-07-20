@@ -324,6 +324,41 @@ final class EntityCapabilityProfileTests: XCTestCase {
     }
 #endif
 
+    @MainActor
+    func testDashboardMediaAndButtonActionsUseOfficialHomeAssistantServices() async {
+        let stateStore = HAStateStore()
+        stateStore.applySnapshot([
+            HAEntityDTO(entityID: "media_player.living_room", state: "playing"),
+            HAEntityDTO(entityID: "button.restart_router", state: "2026-07-20T12:00:00Z")
+        ])
+        let webSocketClient = StubHAWebSocketClient()
+        let service = HomeAssistantService(
+            stateStore: stateStore,
+            client: webSocketClient,
+            mobileAppClient: StubHAMobileAppClient(),
+            mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore()
+        )
+
+        await service.playPauseMedia(entityID: "media_player.living_room")
+        await service.setMediaVolume(entityID: "media_player.living_room", volumePercentage: 42)
+        await service.selectMediaSource(entityID: "media_player.living_room", source: "Apple TV")
+        await service.perform(.pressButton, entityID: "button.restart_router")
+
+        XCTAssertEqual(webSocketClient.callServiceInvocations.map(\.domain), [
+            "media_player", "media_player", "media_player", "button"
+        ])
+        XCTAssertEqual(webSocketClient.callServiceInvocations.map(\.service), [
+            "media_play_pause", "volume_set", "select_source", "press"
+        ])
+        guard webSocketClient.callServiceInvocations.count == 4 else {
+            XCTFail("Expected four Home Assistant service calls")
+            return
+        }
+        XCTAssertEqual(webSocketClient.callServiceInvocations[1].serviceData["volume_level"], .number(0.42))
+        XCTAssertEqual(webSocketClient.callServiceInvocations[2].serviceData["source"], .string("Apple TV"))
+        XCTAssertEqual(webSocketClient.callServiceInvocations[3].entityID, "button.restart_router")
+    }
+
     private func operationalStatePresentation(
         isAvailable: Bool = true,
         pendingCommand: HAEntityPendingCommand? = nil,

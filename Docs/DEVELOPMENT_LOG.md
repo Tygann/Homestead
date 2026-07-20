@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-20
 
+### Dashboard Card Completion
+
+- Replaced the generic Graph, Weather, Media, and Action card treatments with focused typed compositions that preserve the shared dashboard shell while making each family useful at a glance.
+- Graph cards now foreground the current reading and render a deterministic, legible six-hour linear trend; Weather cards retain shared forecast subscriptions and show adaptive multi-period high/low forecasts; Media cards expose now-playing context, play/pause, volume, and source controls where space permits; Action cards expose explicit Scene, Script, and Button triggers.
+- Added consumer-aware Weather forecast subscription ownership so a dashboard card and an open detail view can share the official `weather/subscribe_forecast` stream without tearing each other down.
+- Added the deterministic `--preview-screen dashboard-cards` gallery plus live `--preview-presentation` targeting, capped fixed dashboard-card typography at Extra Extra Extra Large, and verified compact/square/wide/large layouts in light/dark Simulator and the in-app browser mirror.
+- Verified the new renderers against real Home Assistant Weather, numeric Sensor history, Media Player, and Script entities while keeping the existing WebSocket service and documented history contracts intact.
+
 ### Entity Detail Final Verification
 
 - Completed the Simulator and in-app browser matrix pass for representative, loading, empty, pending, stale, failed, unavailable, compact-width, and accessibility Dynamic Type states across the entity-detail grammar.

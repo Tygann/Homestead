@@ -98,16 +98,18 @@ struct DashboardCardView: View {
                     primaryAction: presentation.primaryAction,
                     entityID: entityBox.entityID
                 ),
-                toggle: isEditing || isPreview || !allowsPrimaryAction(resolvedPresentationKind) ? nil : primaryAction(
-                    presentation.primaryAction,
-                    entityBox: entityBox
-                ),
+                toggle: isEditing || !allowsPrimaryAction(resolvedPresentationKind)
+                    ? nil
+                    : isPreview
+                        ? previewPrimaryAction(presentation.primaryAction)
+                        : primaryAction(presentation.primaryAction, entityBox: entityBox),
                 showDetails: isEditing || isPreview ? nil : detailsAction(
                     entityID: entityBox.entityID,
                     detailKind: presentation.detailKind
                 ),
                 featureActions: isPreview ? previewFeatureActions(for: entityBox) : featureActions(for: entityBox),
-                isFeatureInteractionEnabled: !isEditing && !isPreview
+                isFeatureInteractionEnabled: !isEditing && !isPreview,
+                isPreview: isPreview
             )
             .sheet(item: $selectedDetail) { detail in
                 if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
@@ -155,6 +157,10 @@ struct DashboardCardView: View {
                 Task { await homeAssistantService.perform(primaryAction, entityID: entityBox.entityID) }
             }
         }
+    }
+
+    private func previewPrimaryAction(_ primaryAction: DashboardEntityPrimaryAction?) -> (() -> Void)? {
+        primaryAction == nil ? nil : {}
     }
 
     private func primaryActionAvailability(
@@ -376,8 +382,50 @@ struct DashboardCardView: View {
             setCoverPosition: setCoverPositionAction(for: entityBox),
             lock: lockAction(for: entityBox),
             unlock: unlockAction(for: entityBox),
-            selectOption: selectOptionAction(for: entityBox)
+            selectOption: selectOptionAction(for: entityBox),
+            playPauseMedia: playPauseMediaAction(for: entityBox),
+            setMediaVolume: setMediaVolumeAction(for: entityBox),
+            selectMediaSource: selectMediaSourceAction(for: entityBox)
         )
+    }
+
+    private func playPauseMediaAction(for entityBox: HAEntityState) -> (() -> Void)? {
+        guard entityBox.mediaPlayerEntity != nil,
+              homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause") else {
+            return nil
+        }
+
+        return {
+            HapticFeedback.selection()
+            Task { await homeAssistantService.playPauseMedia(entityID: entityBox.entityID) }
+        }
+    }
+
+    private func setMediaVolumeAction(for entityBox: HAEntityState) -> ((Double) -> Void)? {
+        guard entityBox.mediaPlayerEntity?.volumeLevel != nil,
+              homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set") else {
+            return nil
+        }
+
+        return { volume in
+            Task {
+                await homeAssistantService.setMediaVolume(
+                    entityID: entityBox.entityID,
+                    volumePercentage: volume
+                )
+            }
+        }
+    }
+
+    private func selectMediaSourceAction(for entityBox: HAEntityState) -> ((String) -> Void)? {
+        guard entityBox.mediaPlayerEntity?.sourceList.isEmpty == false,
+              homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source") else {
+            return nil
+        }
+
+        return { source in
+            Task { await homeAssistantService.selectMediaSource(entityID: entityBox.entityID, source: source) }
+        }
     }
 
     private func confirmOrPerform(
@@ -429,6 +477,8 @@ struct DashboardCardView: View {
             return DashboardServiceCall(domain: "scene", service: "turn_on")
         case .runScript:
             return DashboardServiceCall(domain: "script", service: "turn_on")
+        case .pressButton:
+            return DashboardServiceCall(domain: "button", service: "press")
         }
     }
 
@@ -448,7 +498,10 @@ struct DashboardCardView: View {
             setCoverPosition: entityBox.coverEntity?.positionPercentage != nil ? noopSingle : nil,
             lock: entityBox.domain == .lock ? noopCommand : nil,
             unlock: entityBox.domain == .lock ? noopCommand : nil,
-            selectOption: entityBox.selectEntity?.options.isEmpty == false ? { _ in } : nil
+            selectOption: entityBox.selectEntity?.options.isEmpty == false ? { _ in } : nil,
+            playPauseMedia: entityBox.mediaPlayerEntity == nil ? nil : noopCommand,
+            setMediaVolume: entityBox.mediaPlayerEntity?.volumeLevel == nil ? nil : noopSingle,
+            selectMediaSource: entityBox.mediaPlayerEntity?.sourceList.isEmpty == false ? { _ in } : nil
         )
     }
 

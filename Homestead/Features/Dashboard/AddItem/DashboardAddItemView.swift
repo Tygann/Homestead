@@ -463,7 +463,8 @@ enum DashboardPresentationGallerySamples {
                     "temperature_unit": .string("°F"),
                     "humidity": .number(56),
                     "wind_speed": .number(8),
-                    "wind_speed_unit": .string("mph")
+                    "wind_speed_unit": .string("mph"),
+                    "supported_features": .number(3)
                 ]
             ),
             HAEntityDTO(
@@ -482,6 +483,7 @@ enum DashboardPresentationGallerySamples {
                 attributes: ["friendly_name": .string("Movie Night")]
             )
         ])
+        seedWeatherForecast(in: store, entityID: "weather.gallery")
         return store
     }()
 
@@ -549,7 +551,8 @@ enum DashboardPresentationGallerySamples {
                     "friendly_name": .string("Example Weather"),
                     "temperature": .number(73),
                     "temperature_unit": .string("°F"),
-                    "humidity": .number(56)
+                    "humidity": .number(56),
+                    "supported_features": .number(3)
                 ]
             ),
             HAEntityDTO(
@@ -567,8 +570,55 @@ enum DashboardPresentationGallerySamples {
                 attributes: ["friendly_name": .string("Example Scene")]
             )
         ])
+        seedWeatherForecast(in: store, entityID: configurationWeatherEntityID)
         return store
     }()
+
+    private static func seedWeatherForecast(in store: HAStateStore, entityID: String) {
+        let referenceDate = Date(timeIntervalSince1970: 1_784_515_200)
+        store.entityBox(for: entityID)?.applyWeatherForecast(WeatherForecastSnapshot(
+            type: .daily,
+            entries: [
+                WeatherForecastEntry(
+                    datetime: referenceDate,
+                    condition: .partlyCloudy,
+                    temperature: 81,
+                    lowTemperature: 68,
+                    precipitation: nil,
+                    precipitationProbability: 20,
+                    humidity: 56,
+                    isDaytime: true,
+                    windSpeed: 8,
+                    windBearing: 225
+                ),
+                WeatherForecastEntry(
+                    datetime: referenceDate.addingTimeInterval(86_400),
+                    condition: .rainy,
+                    temperature: 76,
+                    lowTemperature: 65,
+                    precipitation: nil,
+                    precipitationProbability: 70,
+                    humidity: 72,
+                    isDaytime: true,
+                    windSpeed: 11,
+                    windBearing: 180
+                ),
+                WeatherForecastEntry(
+                    datetime: referenceDate.addingTimeInterval(172_800),
+                    condition: .sunny,
+                    temperature: 84,
+                    lowTemperature: 67,
+                    precipitation: nil,
+                    precipitationProbability: 5,
+                    humidity: 48,
+                    isDaytime: true,
+                    windSpeed: 6,
+                    windBearing: 250
+                )
+            ],
+            receivedAt: referenceDate
+        ))
+    }
 
     static func configurationEntityID(for kind: DashboardPresentationKind) -> String? {
         switch kind {

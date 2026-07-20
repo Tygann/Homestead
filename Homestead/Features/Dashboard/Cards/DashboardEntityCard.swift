@@ -7,6 +7,7 @@ struct DashboardEntityCard: View {
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
     @Environment(\.scenePhase) private var scenePhase
     @State private var historyPhase: DashboardHistoryCardPhase = .idle
+    @State private var weatherForecastConsumerID = UUID().uuidString
 
     let entityBox: HAEntityState
     let presentation: DashboardEntityPresentation
@@ -22,6 +23,7 @@ struct DashboardEntityCard: View {
     let showDetails: (() -> Void)?
     let featureActions: DashboardCardFeatureActions
     let isFeatureInteractionEnabled: Bool
+    let isPreview: Bool
 
     var body: some View {
         let visibleFeatureSnapshot = visibleFeatures
@@ -33,8 +35,21 @@ struct DashboardEntityCard: View {
                 standardCard(visibleFeatures: visibleFeatureSnapshot)
             }
         }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .task(id: dashboardHistoryTaskID) {
             await refreshDashboardHistoryIfNeeded()
+        }
+        .task(id: weatherForecastTaskID) {
+            await updateWeatherForecastSubscription()
+        }
+        .onDisappear {
+            guard presentationKind == .weather, !isPreview else { return }
+            Task {
+                await homeAssistantService.stopWeatherForecastUpdates(
+                    entityID: entityBox.entityID,
+                    consumerID: weatherForecastConsumerID
+                )
+            }
         }
     }
 
@@ -71,7 +86,11 @@ struct DashboardEntityCard: View {
             padding: cardContainerPadding
         ) {
             ZStack(alignment: .topLeading) {
-                if !visibleFeatureSnapshot.isEmpty {
+                if usesEmbeddedCardInteractions {
+                    cardContent(visibleFeatures: visibleFeatureSnapshot)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: cardContentMinHeight, alignment: .topLeading)
+                } else if !visibleFeatureSnapshot.isEmpty {
                     if gaugeFirstPresentation(from: visibleFeatureSnapshot) != nil {
                         cardContent(visibleFeatures: visibleFeatureSnapshot)
                             .frame(maxWidth: .infinity)
@@ -95,7 +114,7 @@ struct DashboardEntityCard: View {
                         .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
                 }
 
-                if let toggle {
+                if let toggle, !usesEmbeddedCardInteractions {
                     Button(action: toggle) {
                         interactiveIconView
                     }
@@ -121,28 +140,59 @@ struct DashboardEntityCard: View {
 
     @ViewBuilder
     private func standardCardContent(visibleFeatures: [DashboardCardFeature]) -> some View {
-        switch size {
-        case .mini:
-            miniContent
-        case .compact:
-            compactContent
-        case .row:
-            if visibleFeatures.isEmpty {
+        if presentationKind == .weather, let weather = entityBox.weatherEntity {
+            DashboardWeatherCardContent(
+                weather: weather,
+                forecast: preferredWeatherForecast,
+                isLoadingForecast: isLoadingPreferredWeatherForecast,
+                forecastError: preferredWeatherForecastError,
+                presentation: presentation,
+                size: size,
+                showDetails: showDetails
+            )
+        } else if presentationKind == .media, let media = entityBox.mediaPlayerEntity {
+            DashboardMediaCardContent(
+                media: media,
+                presentation: presentation,
+                size: size,
+                isPending: isPending,
+                playPause: featureActions.playPauseMedia,
+                setVolume: featureActions.setMediaVolume,
+                selectSource: featureActions.selectMediaSource,
+                showDetails: showDetails
+            )
+        } else if presentationKind == .action {
+            DashboardActionCardContent(
+                presentation: presentation,
+                size: size,
+                isPending: isPending,
+                trigger: toggle,
+                showDetails: showDetails
+            )
+        } else {
+            switch size {
+            case .mini:
+                miniContent
+            case .compact:
                 compactContent
-            } else {
-                rowFeatureContent(visibleFeatures: visibleFeatures)
-            }
-        case .square:
-            if visibleFeatures.isEmpty {
-                largeContent
-            } else {
-                stackedFeatureContent(visibleFeatures: visibleFeatures)
-            }
-        case .wide, .large:
-            if visibleFeatures.isEmpty {
-                largeContent
-            } else {
-                stackedFeatureContent(visibleFeatures: visibleFeatures)
+            case .row:
+                if visibleFeatures.isEmpty {
+                    compactContent
+                } else {
+                    rowFeatureContent(visibleFeatures: visibleFeatures)
+                }
+            case .square:
+                if visibleFeatures.isEmpty {
+                    largeContent
+                } else {
+                    stackedFeatureContent(visibleFeatures: visibleFeatures)
+                }
+            case .wide, .large:
+                if visibleFeatures.isEmpty {
+                    largeContent
+                } else {
+                    stackedFeatureContent(visibleFeatures: visibleFeatures)
+                }
             }
         }
     }
@@ -243,12 +293,21 @@ struct DashboardEntityCard: View {
         VStack(alignment: .leading, spacing: dashboardHistoryContentSpacing) {
             cardHeader(subtitle: presentation.subtitle, subtitleFont: .caption.weight(.semibold))
 
-            if size == .large, let headline = presentation.headline {
-                Text(headline)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundStyle(presentation.headlineColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
+                if let headline = presentation.headline {
+                    Text(headline)
+                        .font(.system(size: size == .large ? 38 : 30, weight: .bold, design: .rounded))
+                        .foregroundStyle(presentation.headlineColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.68)
+                        .monospacedDigit()
+                }
+
+                Spacer(minLength: 0)
+
+                Text(DashboardHistoryCardPresentation.defaultRange.title)
+                    .font(.caption2.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
 
             dashboardHistoryBody
@@ -256,13 +315,15 @@ struct DashboardEntityCard: View {
                     transaction.animation = nil
                 }
 
-            dashboardHistoryFooter
+            if size == .large {
+                dashboardHistoryFooter
+            }
         }
     }
 
     @ViewBuilder
     private var dashboardHistoryBody: some View {
-        switch historyPhase {
+        switch resolvedHistoryPhase {
         case .idle:
             dashboardHistoryEmptyPlaceholder(title: "Recent trend")
         case .loading:
@@ -288,9 +349,14 @@ struct DashboardEntityCard: View {
 
             Spacer(minLength: AppSpacing.small)
 
-            Text(DashboardHistoryCardPresentation.defaultRange.title)
-                .font(.caption2.monospacedDigit().weight(.semibold))
-                .foregroundStyle(.tertiary)
+            if case .loaded(let chartPresentation) = resolvedHistoryPhase,
+               !chartPresentation.isEmpty,
+               let latestTimeText = chartPresentation.latestTimeText {
+                Text("Updated \(latestTimeText)")
+                    .font(.caption2.monospacedDigit().weight(.medium))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
         }
     }
 
@@ -300,7 +366,7 @@ struct DashboardEntityCard: View {
                 x: .value("Time", sample.occurredAt),
                 y: .value("Value", sample.value)
             )
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(.linear)
             .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             .foregroundStyle(presentation.accentColor)
 
@@ -309,7 +375,7 @@ struct DashboardEntityCard: View {
                 yStart: .value("Baseline", chartPresentation.valueDomain.lowerBound),
                 yEnd: .value("Value", sample.value)
             )
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(.linear)
             .foregroundStyle(
                 LinearGradient(
                     colors: [
@@ -810,6 +876,64 @@ struct DashboardEntityCard: View {
         return size.visibleFeatures(from: compatibleFeatures).filter { featureActions.canRender($0) }
     }
 
+    private var usesEmbeddedCardInteractions: Bool {
+        presentationKind == .media || presentationKind == .action || presentationKind == .weather
+    }
+
+    private var preferredWeatherForecastType: WeatherForecastType? {
+        let availableTypes = entityBox.weatherForecastsByType.keys
+        if availableTypes.contains(.daily) { return .daily }
+        if availableTypes.contains(.twiceDaily) { return .twiceDaily }
+        if availableTypes.contains(.hourly) { return .hourly }
+        return entityBox.weatherEntity?.defaultForecastType
+    }
+
+    private var preferredWeatherForecast: WeatherForecastSnapshot? {
+        guard let type = preferredWeatherForecastType else { return nil }
+        return entityBox.weatherForecastsByType[type]
+    }
+
+    private var isLoadingPreferredWeatherForecast: Bool {
+        guard let type = preferredWeatherForecastType else { return false }
+        return entityBox.loadingWeatherForecastTypes.contains(type)
+    }
+
+    private var preferredWeatherForecastError: String? {
+        guard let type = preferredWeatherForecastType else { return nil }
+        return entityBox.weatherForecastErrorsByType[type]
+    }
+
+    private var weatherForecastTaskID: String {
+        guard presentationKind == .weather,
+              !isPreview,
+              isFeatureInteractionEnabled,
+              scenePhase == .active,
+              homeAssistantService.connectionStatus == .connected else {
+            return "weather-card-disabled-\(entityBox.entityID)-\(weatherForecastConsumerID)"
+        }
+
+        return "weather-card-active-\(entityBox.entityID)-\(weatherForecastConsumerID)"
+    }
+
+    @MainActor
+    private func updateWeatherForecastSubscription() async {
+        guard presentationKind == .weather, !isPreview else { return }
+
+        if isFeatureInteractionEnabled,
+           scenePhase == .active,
+           homeAssistantService.connectionStatus == .connected {
+            await homeAssistantService.startWeatherForecastUpdates(
+                for: entityBox,
+                consumerID: weatherForecastConsumerID
+            )
+        } else {
+            await homeAssistantService.stopWeatherForecastUpdates(
+                entityID: entityBox.entityID,
+                consumerID: weatherForecastConsumerID
+            )
+        }
+    }
+
     private var shouldUseCameraPreviewCard: Bool {
         guard presentationKind == .camera, presentation.capability.domain == .camera else {
             return false
@@ -838,15 +962,15 @@ struct DashboardEntityCard: View {
     }
 
     private var dashboardHistoryContentSpacing: CGFloat {
-        size == .large ? AppSpacing.medium : AppSpacing.small
+        size == .large ? AppSpacing.medium : AppSpacing.xSmall
     }
 
     private var dashboardHistoryChartHeight: CGFloat {
-        size == .large ? 150 : 56
+        size == .large ? 136 : 48
     }
 
     private var dashboardHistoryFooterText: String {
-        switch historyPhase {
+        switch resolvedHistoryPhase {
         case .idle:
             return "Recent trend"
         case .loading:
@@ -856,6 +980,13 @@ struct DashboardEntityCard: View {
         case .failed:
             return "Trend unavailable"
         }
+    }
+
+    private var resolvedHistoryPhase: DashboardHistoryCardPhase {
+        if isPreview, let preview = DashboardHistoryCardPresentation.preview(entityBox: entityBox) {
+            return .loaded(preview)
+        }
+        return historyPhase
     }
 
     @MainActor

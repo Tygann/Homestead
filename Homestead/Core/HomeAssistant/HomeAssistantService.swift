@@ -60,6 +60,7 @@ final class HomeAssistantService {
     @ObservationIgnored private var pendingCommandTasksByID: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var weatherForecastSubscriptionIDsByEntityID: [String: [Int]] = [:]
     @ObservationIgnored private var weatherForecastSessionIDsByEntityID: [String: UUID] = [:]
+    @ObservationIgnored private var weatherForecastConsumerIDsByEntityID: [String: Set<String>] = [:]
     @ObservationIgnored private var bufferedStateChangesByID: [String: HAStateChangedEventDTO] = [:]
     @ObservationIgnored private var isBufferingStateChanges = false
     @ObservationIgnored private var lastSuspendedAt: Date?
@@ -392,12 +393,19 @@ final class HomeAssistantService {
         connectionStatus = .disconnected
     }
 
-    func startWeatherForecastUpdates(for entityBox: HAEntityState) async {
+    func startWeatherForecastUpdates(
+        for entityBox: HAEntityState,
+        consumerID: String = "weather-detail"
+    ) async {
         let entityID = entityBox.entityID
-        await stopWeatherForecastUpdates(entityID: entityID)
+        weatherForecastConsumerIDsByEntityID[entityID, default: []].insert(consumerID)
 
         guard connectionStatus == .connected,
               let weather = entityBox.weatherEntity else {
+            return
+        }
+
+        guard weatherForecastSessionIDsByEntityID[entityID] == nil else {
             return
         }
 
@@ -427,10 +435,28 @@ final class HomeAssistantService {
                 }
             }
         }
-
     }
 
-    func stopWeatherForecastUpdates(entityID: String) async {
+    func restartWeatherForecastUpdates(for entityBox: HAEntityState) async {
+        await unsubscribeFromWeatherForecastUpdates(entityID: entityBox.entityID)
+        guard weatherForecastConsumerIDsByEntityID[entityBox.entityID]?.isEmpty == false else { return }
+        await startWeatherForecastUpdates(
+            for: entityBox,
+            consumerID: weatherForecastConsumerIDsByEntityID[entityBox.entityID]?.first ?? "weather-detail"
+        )
+    }
+
+    func stopWeatherForecastUpdates(
+        entityID: String,
+        consumerID: String = "weather-detail"
+    ) async {
+        weatherForecastConsumerIDsByEntityID[entityID]?.remove(consumerID)
+        guard weatherForecastConsumerIDsByEntityID[entityID]?.isEmpty != false else { return }
+        weatherForecastConsumerIDsByEntityID.removeValue(forKey: entityID)
+        await unsubscribeFromWeatherForecastUpdates(entityID: entityID)
+    }
+
+    private func unsubscribeFromWeatherForecastUpdates(entityID: String) async {
         let subscriptionIDs = weatherForecastSubscriptionIDsByEntityID.removeValue(forKey: entityID) ?? []
         weatherForecastSessionIDsByEntityID.removeValue(forKey: entityID)
         stateStore.entityBox(for: entityID)?.clearWeatherForecastLoadingState()
@@ -850,6 +876,8 @@ final class HomeAssistantService {
             await activateScene(entityID: entityID)
         case .runScript:
             await runScript(entityID: entityID)
+        case .pressButton:
+            await pressButton(entityID: entityID)
         }
     }
 
@@ -1380,6 +1408,8 @@ final class HomeAssistantService {
             return serviceActionAvailable(domain: "scene", service: "turn_on")
         case .runScript:
             return serviceActionAvailable(domain: "script", service: "turn_on")
+        case .pressButton:
+            return serviceActionAvailable(domain: "button", service: "press")
         }
     }
 
