@@ -6,7 +6,26 @@ struct DashboardCardReferenceGallery: View {
     private let dependencies: PreviewDependencies
 
     init() {
-        let dependencies = PreviewDependencies.sample
+        let dependencies = PreviewDependencies.entityDetailSample(entityOverrides: [
+            HAEntityDTO(
+                entityID: "sensor.chart_unavailable",
+                state: "unavailable",
+                attributes: [
+                    "friendly_name": .string("Patio Temperature"),
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "weather.unavailable",
+                state: "unavailable",
+                attributes: [
+                    "friendly_name": .string("Outdoor Weather"),
+                    "temperature_unit": .string("°F"),
+                    "supported_features": .number(3)
+                ]
+            )
+        ])
         Self.seedWeatherForecast(in: dependencies.stateStore)
         self.dependencies = dependencies
     }
@@ -15,10 +34,7 @@ struct DashboardCardReferenceGallery: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                    cardSection("Compact", size: .compact)
-                    cardSection("Square", size: .square)
-                    cardSection("Wide", size: .wide)
-                    cardSection("Large", size: .large)
+                    galleryContent
                 }
                 .padding(AppSpacing.large)
             }
@@ -28,6 +44,23 @@ struct DashboardCardReferenceGallery: View {
         .withPreviewEnvironment(dependencies)
     }
 
+    @ViewBuilder
+    private var galleryContent: some View {
+        if RuntimeEnvironment.dashboardCardReferenceState == "unavailable" {
+            unavailableSection
+        } else if RuntimeEnvironment.dashboardCardReferenceState == "transient" {
+            transientSection
+        } else if let requestedSize = RuntimeEnvironment.requestedPreviewCardSize {
+            cardSection(requestedSize.displayName, size: requestedSize)
+        } else {
+            cardSection("Compact", size: .compact)
+            cardSection("Square", size: .square)
+            cardSection("Wide", size: .wide)
+            cardSection("Large", size: .large)
+            unavailableSection
+        }
+    }
+
     private func cardSection(_ title: String, size: DashboardCardSize) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             Text(title)
@@ -35,7 +68,7 @@ struct DashboardCardReferenceGallery: View {
 
             CardGrid {
                 referenceCard(
-                    title: "Graph",
+                    title: "Chart",
                     entityID: "sensor.hallway_temperature",
                     kind: .graph,
                     size: size
@@ -60,6 +93,96 @@ struct DashboardCardReferenceGallery: View {
                 )
             }
         }
+    }
+
+    private var unavailableSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Text("Unavailable")
+                .font(.title2.weight(.bold))
+
+            CardGrid {
+                referenceCard(
+                    title: "Unavailable Chart",
+                    entityID: "sensor.chart_unavailable",
+                    kind: .graph,
+                    size: .square
+                )
+                referenceCard(
+                    title: "Unavailable Weather",
+                    entityID: "weather.unavailable",
+                    kind: .weather,
+                    size: .square
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var transientSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Text("Transient States")
+                .font(.title2.weight(.bold))
+
+            CardGrid {
+                if let entityBox = dependencies.stateStore.entityBox(for: "sensor.hallway_temperature") {
+                    chartStateCard(
+                        title: "Loading Chart",
+                        presentation: DashboardEntityPresentation(entityBox: entityBox),
+                        state: .loading
+                    )
+                    chartStateCard(
+                        title: "Empty Chart",
+                        presentation: DashboardEntityPresentation(entityBox: entityBox),
+                        state: .empty
+                    )
+                }
+
+                if let weather = dependencies.stateStore.entityBox(for: "weather.home")?.weatherEntity {
+                    specializedStateCard(size: .wide) {
+                        DashboardWeatherCardContent(
+                            weather: weather,
+                            forecastsByType: [:],
+                            loadingForecastTypes: [.hourly],
+                            forecastErrorsByType: [:],
+                            size: .wide
+                        )
+                    }
+                    .accessibilityLabel("Loading Weather")
+                }
+            }
+        }
+    }
+
+    private func chartStateCard(
+        title: String,
+        presentation: DashboardEntityPresentation,
+        state: DashboardChartCardState
+    ) -> some View {
+        specializedStateCard(size: .square) {
+            DashboardChartCardContent(
+                presentation: presentation,
+                state: state,
+                size: .square
+            )
+        }
+        .accessibilityLabel(title)
+    }
+
+    private func specializedStateCard<Content: View>(
+        size: DashboardCardSize,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let cardShape = RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+
+        return content()
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            .frame(height: size.renderedHeight(rowSpacing: AppSpacing.medium, cardPadding: AppSpacing.medium))
+            .background(Color(.secondarySystemGroupedBackground), in: cardShape)
+            .clipShape(cardShape)
+            .overlay {
+                cardShape.strokeBorder(Color(.separator).opacity(0.16), lineWidth: 0.5)
+            }
+            .cardGridSpan(size.layoutMetadata)
     }
 
     @ViewBuilder
@@ -94,6 +217,17 @@ struct DashboardCardReferenceGallery: View {
             ],
             receivedAt: referenceDate
         ))
+        store.entityBox(for: "weather.home")?.applyWeatherForecast(WeatherForecastSnapshot(
+            type: .hourly,
+            entries: (0..<6).map { offset in
+                hourlyForecastEntry(
+                    date: referenceDate.addingTimeInterval(Double(offset) * 3_600),
+                    condition: offset < 4 ? .sunny : .partlyCloudy,
+                    temperature: 73 + Double(offset)
+                )
+            },
+            receivedAt: referenceDate
+        ))
     }
 
     private static func forecastEntry(
@@ -110,6 +244,25 @@ struct DashboardCardReferenceGallery: View {
             lowTemperature: low,
             precipitation: nil,
             precipitationProbability: rain,
+            humidity: nil,
+            isDaytime: true,
+            windSpeed: nil,
+            windBearing: nil
+        )
+    }
+
+    private static func hourlyForecastEntry(
+        date: Date,
+        condition: WeatherCondition,
+        temperature: Double
+    ) -> WeatherForecastEntry {
+        WeatherForecastEntry(
+            datetime: date,
+            condition: condition,
+            temperature: temperature,
+            lowTemperature: nil,
+            precipitation: nil,
+            precipitationProbability: nil,
             humidity: nil,
             isDaytime: true,
             windSpeed: nil,

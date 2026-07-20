@@ -223,6 +223,8 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
     func testCatalogOnlyBuildsCardPresentationsWithSupportedLayouts() {
         XCTAssertNil(DashboardPresentationCatalog.cardConfiguration(kind: .chip, layout: .compact))
+        XCTAssertEqual(DashboardPresentationCatalog.descriptor(for: .graph).title, "Chart")
+        XCTAssertEqual(DashboardPresentationKind.graph.defaultLayout, .wide)
 
         for kind in DashboardPresentationKind.allCases {
             if let defaultLayout = kind.defaultLayout {
@@ -531,7 +533,10 @@ final class DashboardConfigurationXCTests: XCTestCase {
         let readOnlyClimate = try XCTUnwrap(store.entityBox(for: "climate.read_only"))
 
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: light).kind, .control)
-        XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: temperature).kind, .graph)
+        XCTAssertEqual(
+            DashboardPresentationCatalog.recommendation(for: temperature),
+            .card(.graph(layout: .wide))
+        )
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: battery).kind, .status)
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: camera).kind, .camera)
         XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: temperature).contains(.circularGauge))

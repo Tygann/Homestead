@@ -50,9 +50,16 @@ extension RuntimeEnvironment {
     }
 
     nonisolated static var livePreviewCardSize: DashboardCardSize {
+        requestedPreviewCardSize ?? .square
+    }
+
+    nonisolated static var requestedPreviewCardSize: DashboardCardSize? {
         argumentValue(after: "--preview-size")
             .flatMap(DashboardCardSize.init(rawValue:))
-            ?? .square
+    }
+
+    nonisolated static var dashboardCardReferenceState: String? {
+        argumentValue(after: "--preview-card-state")
     }
 
     nonisolated static var livePreviewPresentationKind: DashboardPresentationKind? {

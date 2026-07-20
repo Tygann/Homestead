@@ -46,6 +46,16 @@ struct WeatherEntity: Identifiable, Equatable, Sendable {
         formattedValue(value, unit: displayTemperatureUnit, maximumFractionDigits: 1)
     }
 
+    var compactTemperatureText: String? {
+        guard isAvailable, let temperature else { return nil }
+        return compactTemperatureText(for: temperature)
+    }
+
+    func compactTemperatureText(for value: Double) -> String {
+        let compactUnit = displayTemperatureUnit?.hasPrefix("°") == true ? "°" : displayTemperatureUnit
+        return formattedValue(value, unit: compactUnit, maximumFractionDigits: 1)
+    }
+
     var humidityText: String? {
         guard isAvailable, let humidity else { return nil }
         return formattedValue(humidity, unit: "%", maximumFractionDigits: 0)

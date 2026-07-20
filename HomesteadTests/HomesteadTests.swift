@@ -2551,6 +2551,8 @@ struct HomesteadTests {
         #expect(weather.condition == .partlyCloudy)
         #expect(weather.displaySubtitle == "Partly Cloudy")
         #expect(weather.temperatureText == "72.6°F")
+        #expect(weather.compactTemperatureText == "72.6°")
+        #expect(weather.compactTemperatureText(for: 81) == "81°")
         #expect(weather.humidityText == "55%")
         #expect(weather.windDirectionText == "SW")
         #expect(weather.windText == "SW 8.4 mph")

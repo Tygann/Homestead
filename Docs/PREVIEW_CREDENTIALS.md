@@ -71,9 +71,11 @@ Available sample screens are:
 | Value | Purpose |
 | --- | --- |
 | `appearance` | Appearance settings with deterministic sample dependencies. |
-| `dashboard-cards` | Graph, Weather, Media, and Action cards across Compact, Square, Wide, and Large layouts. |
+| `dashboard-cards` | Chart, Weather, Media, and Action cards across Compact, Square, Wide, and Large layouts. |
 | `entity-details` | The entity-detail family/state reference gallery, including Presence. |
 | `gauge-widget` | Dashboard and widget gauge comparison. |
+
+For focused dashboard-card gallery inspection, add `--preview-size square`, `wide`, or `large`. Use `--preview-card-state transient` for deterministic Chart loading/empty plus Weather loading states, or `--preview-card-state unavailable` for unavailable Chart and Weather cards.
 
 Entity-detail verification can launch a specific deterministic matrix cell:
 

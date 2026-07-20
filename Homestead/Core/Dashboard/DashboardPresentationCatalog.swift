@@ -40,7 +40,7 @@ enum DashboardPresentationCatalog {
         case .barGauge:
             DashboardPresentationDescriptor(kind: kind, title: "Bar Gauge", systemImage: "chart.bar.fill", sharedFeatureID: "sensor-gauge", sourceRequirement: .boundedNumericSensor)
         case .graph:
-            DashboardPresentationDescriptor(kind: kind, title: "Graph", systemImage: "chart.xyaxis.line", sharedFeatureID: "sensor", sourceRequirement: .history)
+            DashboardPresentationDescriptor(kind: kind, title: "Chart", systemImage: "chart.xyaxis.line", sharedFeatureID: "sensor", sourceRequirement: .history)
         case .camera:
             DashboardPresentationDescriptor(kind: kind, title: "Camera", systemImage: "camera.fill", sharedFeatureID: nil, sourceRequirement: .domain(.camera))
         case .weather:
@@ -117,7 +117,7 @@ enum DashboardPresentationCatalog {
 
         if DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: .square),
            entityBox.sensorEntity?.deviceClass != "battery" {
-            return .card(.graph(layout: .square))
+            return .card(.graph(layout: .wide))
         }
 
         if hasControls(entityBox) {

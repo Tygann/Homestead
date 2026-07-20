@@ -1,4 +1,3 @@
-import Charts
 import SwiftUI
 
 struct DashboardEntityCard: View {
@@ -31,6 +30,8 @@ struct DashboardEntityCard: View {
         Group {
             if shouldUseCameraPreviewCard {
                 fullBleedCameraCard
+            } else if shouldUseImmersiveCard {
+                fullBleedSpecializedCard
             } else {
                 standardCard(visibleFeatures: visibleFeatureSnapshot)
             }
@@ -78,6 +79,50 @@ struct DashboardEntityCard: View {
             cardShape.strokeBorder(cameraCardBorder, lineWidth: 0.5)
         }
         .clipped()
+    }
+
+    private var fullBleedSpecializedCard: some View {
+        let cardShape = RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+
+        return Group {
+            if let showDetails {
+                Button(action: showDetails) {
+                    specializedCardVisual
+                        .contentShape(cardShape)
+                }
+                .buttonStyle(HomeCardButtonStyle())
+                .accessibilityHint(presentation.accessibilityDetailHint)
+            } else {
+                specializedCardVisual
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: renderedCardHeight)
+        .background(cameraCardBackground, in: cardShape)
+        .clipShape(cardShape)
+        .overlay {
+            cardShape.strokeBorder(specializedCardBorder, lineWidth: 0.5)
+        }
+        .clipped()
+    }
+
+    @ViewBuilder
+    private var specializedCardVisual: some View {
+        if presentationKind == .weather, let weather = entityBox.weatherEntity {
+            DashboardWeatherCardContent(
+                weather: weather,
+                forecastsByType: entityBox.weatherForecastsByType,
+                loadingForecastTypes: entityBox.loadingWeatherForecastTypes,
+                forecastErrorsByType: entityBox.weatherForecastErrorsByType,
+                size: size
+            )
+        } else {
+            DashboardChartCardContent(
+                presentation: presentation,
+                state: chartCardState,
+                size: size
+            )
+        }
     }
 
     private func standardCard(visibleFeatures visibleFeatureSnapshot: [DashboardCardFeature]) -> some View {
@@ -140,17 +185,7 @@ struct DashboardEntityCard: View {
 
     @ViewBuilder
     private func standardCardContent(visibleFeatures: [DashboardCardFeature]) -> some View {
-        if presentationKind == .weather, let weather = entityBox.weatherEntity {
-            DashboardWeatherCardContent(
-                weather: weather,
-                forecast: preferredWeatherForecast,
-                isLoadingForecast: isLoadingPreferredWeatherForecast,
-                forecastError: preferredWeatherForecastError,
-                presentation: presentation,
-                size: size,
-                showDetails: showDetails
-            )
-        } else if presentationKind == .media, let media = entityBox.mediaPlayerEntity {
+        if presentationKind == .media, let media = entityBox.mediaPlayerEntity {
             DashboardMediaCardContent(
                 media: media,
                 presentation: presentation,
@@ -241,193 +276,48 @@ struct DashboardEntityCard: View {
 
     @ViewBuilder
     private var largeContent: some View {
-        if shouldUseDashboardHistoryCard {
-            dashboardHistoryContent
-        } else {
-            let contentModel = DashboardEntityCardContentModel.make(
-                presentation: presentation,
-                size: size
-            )
+        let contentModel = DashboardEntityCardContentModel.make(
+            presentation: presentation,
+            size: size
+        )
 
-            VStack(alignment: .leading, spacing: AppSpacing.large) {
-                HStack(alignment: .center, spacing: AppSpacing.medium) {
-                    iconPlaceholder
+        VStack(alignment: .leading, spacing: AppSpacing.large) {
+            HStack(alignment: .center, spacing: AppSpacing.medium) {
+                iconPlaceholder
 
-                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                        Text(presentation.title)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.86)
-                            .truncationMode(.tail)
-
-                        Text(presentation.subtitle)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(presentation.subtitleColor)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.86)
-                            .truncationMode(.tail)
-                    }
-                }
-
-                if let headline = contentModel.headline {
-                    Text(headline)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundStyle(presentation.headlineColor)
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    Text(presentation.title)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
+                        .minimumScaleFactor(0.86)
+                        .truncationMode(.tail)
 
-                if !contentModel.metrics.isEmpty {
-                    VStack(alignment: .leading, spacing: AppSpacing.small) {
-                        ForEach(contentModel.metrics) { metric in
-                            DashboardCardMetricRow(metric: metric)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var dashboardHistoryContent: some View {
-        VStack(alignment: .leading, spacing: dashboardHistoryContentSpacing) {
-            cardHeader(subtitle: presentation.subtitle, subtitleFont: .caption.weight(.semibold))
-
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                if let headline = presentation.headline {
-                    Text(headline)
-                        .font(.system(size: size == .large ? 38 : 30, weight: .bold, design: .rounded))
-                        .foregroundStyle(presentation.headlineColor)
+                    Text(presentation.subtitle)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(presentation.subtitleColor)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.68)
-                        .monospacedDigit()
+                        .minimumScaleFactor(0.86)
+                        .truncationMode(.tail)
                 }
-
-                Spacer(minLength: 0)
-
-                Text(DashboardHistoryCardPresentation.defaultRange.title)
-                    .font(.caption2.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.secondary)
             }
 
-            dashboardHistoryBody
-                .transaction { transaction in
-                    transaction.animation = nil
-                }
-
-            if size == .large {
-                dashboardHistoryFooter
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var dashboardHistoryBody: some View {
-        switch resolvedHistoryPhase {
-        case .idle:
-            dashboardHistoryEmptyPlaceholder(title: "Recent trend")
-        case .loading:
-            dashboardHistoryLoadingPlaceholder
-        case .loaded(let chartPresentation):
-            if chartPresentation.isEmpty {
-                dashboardHistoryEmptyPlaceholder(title: "No recent trend")
-            } else {
-                dashboardHistoryChart(chartPresentation)
-            }
-        case .failed:
-            dashboardHistoryEmptyPlaceholder(title: "Trend unavailable")
-        }
-    }
-
-    private var dashboardHistoryFooter: some View {
-        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-            Text(dashboardHistoryFooterText)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(size == .large ? 2 : 1)
-                .minimumScaleFactor(0.8)
-
-            Spacer(minLength: AppSpacing.small)
-
-            if case .loaded(let chartPresentation) = resolvedHistoryPhase,
-               !chartPresentation.isEmpty,
-               let latestTimeText = chartPresentation.latestTimeText {
-                Text("Updated \(latestTimeText)")
-                    .font(.caption2.monospacedDigit().weight(.medium))
-                    .foregroundStyle(.tertiary)
+            if let headline = contentModel.headline {
+                Text(headline)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(presentation.headlineColor)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-        }
-    }
 
-    private func dashboardHistoryChart(_ chartPresentation: DashboardHistoryCardPresentation) -> some View {
-        Chart(chartPresentation.samples) { sample in
-            LineMark(
-                x: .value("Time", sample.occurredAt),
-                y: .value("Value", sample.value)
-            )
-            .interpolationMethod(.linear)
-            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-            .foregroundStyle(presentation.accentColor)
-
-            AreaMark(
-                x: .value("Time", sample.occurredAt),
-                yStart: .value("Baseline", chartPresentation.valueDomain.lowerBound),
-                yEnd: .value("Value", sample.value)
-            )
-            .interpolationMethod(.linear)
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [
-                        presentation.accentColor.opacity(0.18),
-                        presentation.accentColor.opacity(0.03)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-        }
-        .chartYScale(domain: chartPresentation.valueDomain)
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartPlotStyle { plotArea in
-            plotArea.clipped()
-        }
-        .frame(height: dashboardHistoryChartHeight)
-        .clipped()
-        .accessibilityLabel(chartPresentation.accessibilityLabel)
-        .accessibilityValue(chartPresentation.accessibilityValue)
-    }
-
-    private var dashboardHistoryLoadingPlaceholder: some View {
-        dashboardHistoryEmptyPlaceholder(title: "Loading recent trend")
-        .frame(height: dashboardHistoryChartHeight)
-    }
-
-    private func dashboardHistoryEmptyPlaceholder(title: String) -> some View {
-        VStack(spacing: AppSpacing.xSmall) {
-            Spacer(minLength: 0)
-
-            Rectangle()
-                .fill(Color.secondary.opacity(0.24))
-                .frame(height: 1)
-                .overlay(alignment: .leading) {
-                    HStack(spacing: 0) {
-                        ForEach(0..<4, id: \.self) { _ in
-                            Rectangle()
-                                .fill(Color.secondary.opacity(0.16))
-                                .frame(width: 1, height: 6)
-
-                            Spacer(minLength: 0)
-                        }
+            if !contentModel.metrics.isEmpty {
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    ForEach(contentModel.metrics) { metric in
+                        DashboardCardMetricRow(metric: metric)
                     }
                 }
-
-            Spacer(minLength: 0)
+            }
         }
-        .frame(height: dashboardHistoryChartHeight)
-        .accessibilityLabel(title)
-        .accessibilityValue(dashboardHistoryFooterText)
     }
 
     private var cameraPreviewContent: some View {
@@ -828,6 +718,13 @@ struct DashboardEntityCard: View {
         HomesteadSurfaceStyle.cardBorder(isWallpaperActive: isWallpaperSurfaceActive)
     }
 
+    private var specializedCardBorder: Color {
+        if presentationKind == .weather {
+            return Color.white.opacity(0.18)
+        }
+        return cameraCardBorder
+    }
+
     private var cardContentMinHeight: CGFloat {
         max(0, cardContainerMinHeight - (cardContainerPadding * 2))
     }
@@ -877,30 +774,7 @@ struct DashboardEntityCard: View {
     }
 
     private var usesEmbeddedCardInteractions: Bool {
-        presentationKind == .media || presentationKind == .action || presentationKind == .weather
-    }
-
-    private var preferredWeatherForecastType: WeatherForecastType? {
-        let availableTypes = entityBox.weatherForecastsByType.keys
-        if availableTypes.contains(.daily) { return .daily }
-        if availableTypes.contains(.twiceDaily) { return .twiceDaily }
-        if availableTypes.contains(.hourly) { return .hourly }
-        return entityBox.weatherEntity?.defaultForecastType
-    }
-
-    private var preferredWeatherForecast: WeatherForecastSnapshot? {
-        guard let type = preferredWeatherForecastType else { return nil }
-        return entityBox.weatherForecastsByType[type]
-    }
-
-    private var isLoadingPreferredWeatherForecast: Bool {
-        guard let type = preferredWeatherForecastType else { return false }
-        return entityBox.loadingWeatherForecastTypes.contains(type)
-    }
-
-    private var preferredWeatherForecastError: String? {
-        guard let type = preferredWeatherForecastType else { return nil }
-        return entityBox.weatherForecastErrorsByType[type]
+        presentationKind == .media || presentationKind == .action
     }
 
     private var weatherForecastTaskID: String {
@@ -947,39 +821,30 @@ struct DashboardEntityCard: View {
         }
     }
 
-    private var shouldUseDashboardHistoryCard: Bool {
+    private var shouldUseImmersiveCard: Bool {
+        if presentationKind == .weather,
+           entityBox.weatherEntity != nil,
+           [.square, .wide, .large].contains(size) {
+            return true
+        }
+
+        return presentationKind == .graph
+            && entityBox.domain == .sensor
+            && size.supportsDashboardHistoryChart
+    }
+
+    private var shouldLoadDashboardHistory: Bool {
         presentationKind == .graph && DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size)
     }
 
     private var dashboardHistoryTaskID: String {
-        guard shouldUseDashboardHistoryCard,
+        guard shouldLoadDashboardHistory,
               isFeatureInteractionEnabled,
               scenePhase == .active else {
             return "dashboard-history-disabled-\(entityBox.entityID)-\(size.rawValue)"
         }
 
         return "dashboard-history-\(entityBox.entityID)-\(size.rawValue)-\(DashboardHistoryCardPresentation.defaultRange.rawValue)"
-    }
-
-    private var dashboardHistoryContentSpacing: CGFloat {
-        size == .large ? AppSpacing.medium : AppSpacing.xSmall
-    }
-
-    private var dashboardHistoryChartHeight: CGFloat {
-        size == .large ? 136 : 48
-    }
-
-    private var dashboardHistoryFooterText: String {
-        switch resolvedHistoryPhase {
-        case .idle:
-            return "Recent trend"
-        case .loading:
-            return "Loading recent trend"
-        case .loaded(let chartPresentation):
-            return chartPresentation.isEmpty ? chartPresentation.accessibilityValue : chartPresentation.summaryText
-        case .failed:
-            return "Trend unavailable"
-        }
     }
 
     private var resolvedHistoryPhase: DashboardHistoryCardPhase {
@@ -989,9 +854,22 @@ struct DashboardEntityCard: View {
         return historyPhase
     }
 
+    private var chartCardState: DashboardChartCardState {
+        guard presentation.isAvailable else { return .failed }
+
+        switch resolvedHistoryPhase {
+        case .idle, .loading:
+            return .loading
+        case .loaded(let chartPresentation):
+            return chartPresentation.isEmpty ? .empty : .loaded(chartPresentation)
+        case .failed:
+            return .failed
+        }
+    }
+
     @MainActor
     private func refreshDashboardHistoryIfNeeded() async {
-        guard shouldUseDashboardHistoryCard else {
+        guard shouldLoadDashboardHistory else {
             historyPhase = .idle
             return
         }
