@@ -19,6 +19,10 @@ struct ToggleEntityDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
@@ -52,7 +56,7 @@ struct ToggleEntityDetailView: View {
                 title: actionTitle,
                 systemImage: actionSystemImage,
                 style: presentation.isActive ? .secondary : .primary,
-                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+                isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
             ) {
                 Task { await performPrimaryAction() }
             }

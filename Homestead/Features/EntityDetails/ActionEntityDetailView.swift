@@ -17,6 +17,10 @@ struct ActionEntityDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
@@ -50,7 +54,7 @@ struct ActionEntityDetailView: View {
             EntityDetailActionButton(
                 title: actionTitle,
                 systemImage: actionSystemImage,
-                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+                isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
             ) {
                 Task { await performAction() }
             }

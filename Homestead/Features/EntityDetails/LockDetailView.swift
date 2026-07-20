@@ -19,6 +19,10 @@ struct LockDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
@@ -52,7 +56,7 @@ struct LockDetailView: View {
                 title: actionTitle,
                 systemImage: actionSystemImage,
                 style: entity.state == "locked" ? .secondary : .primary,
-                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+                isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
             ) {
                 let service = entity.state == "locked" ? "unlock" : "lock"
                 confirmOrPerform(domain: "lock", service: service) {

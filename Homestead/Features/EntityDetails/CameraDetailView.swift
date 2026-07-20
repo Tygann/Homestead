@@ -23,16 +23,16 @@ struct CameraDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.large) {
-                header
-                cameraViewPanel
-                contextDetails
-            }
-            .padding(AppSpacing.large)
+        EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
+            header
+            cameraViewPanel
+            contextDetails
         }
-        .background(Color(.systemGroupedBackground))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -40,10 +40,9 @@ struct CameraDetailView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .disabled(!entity.isAvailable || snapshotPhase.isLoading)
+                .disabled(detailState.blocksControlInteraction || snapshotPhase.isLoading)
             }
         }
-        .entityDetailPresentation(title: entity.displayName, style: presentationStyle)
         .fullScreenCover(isPresented: $isShowingFullScreenPreview) {
             CameraFullScreenPreview(
                 title: presentation.title,

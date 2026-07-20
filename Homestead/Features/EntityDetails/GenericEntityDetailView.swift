@@ -19,6 +19,10 @@ struct GenericEntityDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
@@ -46,14 +50,15 @@ struct GenericEntityDetailView: View {
             icon: presentation.icon,
             title: EntityCapabilityRegistry.profile(for: entity.domain).categoryTitle,
             subtitle: EntityDetailHeroSubtitle.updated(entity),
-            status: EntityDetailStatusPresentation.resolved(entityBox: entityBox)?.text,
+            status: nil,
             iconColor: iconColor,
             statusColor: entity.isAvailable ? iconColor : .red,
             iconBackground: iconBackground,
-            statusBackground: entity.isAvailable ? iconBackground : Color.red.opacity(0.12)
+            statusBackground: entity.isAvailable ? iconBackground : Color.red.opacity(0.12),
+            statePresentation: detailState
         ) {
             Text(presentation.subtitle)
-                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .font(.system(.title, design: .rounded, weight: .bold))
                 .foregroundStyle(stateColor)
                 .lineLimit(2)
                 .minimumScaleFactor(0.55)
@@ -96,7 +101,7 @@ struct GenericEntityDetailView: View {
                         .frame(minHeight: 44)
                     }
                     .buttonStyle(.plain)
-                    .disabled(!entity.isAvailable)
+                    .disabled(detailState.blocksControlInteraction)
                 }
             }
         }

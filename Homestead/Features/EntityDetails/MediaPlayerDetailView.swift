@@ -16,6 +16,10 @@ struct MediaPlayerDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
@@ -97,7 +101,7 @@ struct MediaPlayerDetailView: View {
                 value: $volumePercentage,
                 range: 0...100,
                 step: 1,
-                isDisabled: !mediaPlayer.isAvailable || entityBox.pendingCommand != nil,
+                isDisabled: detailState.blocksControlInteraction,
                 accessibilityLabel: "Volume",
                 accessibilityValue: "\(Int(volumePercentage)) percent",
                 onEditingChanged: { editing in
@@ -122,7 +126,7 @@ struct MediaPlayerDetailView: View {
                     EntityDetailPillButton(
                         title: source,
                         isSelected: source == mediaPlayer.source,
-                        isDisabled: !mediaPlayer.isAvailable || entityBox.pendingCommand != nil || source == mediaPlayer.source
+                        isDisabled: detailState.blocksControlInteraction || source == mediaPlayer.source
                     ) {
                         Task {
                             await homeAssistantService.selectMediaSource(
@@ -144,7 +148,7 @@ struct MediaPlayerDetailView: View {
                 title: playPauseTitle,
                 systemImage: playPauseSystemImage,
                 style: entity.state == "playing" ? .secondary : .primary,
-                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause")
+                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause")
             ) {
                 Task {
                     await homeAssistantService.playPauseMedia(entityID: entity.entityID)

@@ -1,5 +1,3 @@
-import Accessibility
-import Charts
 import SwiftUI
 
 struct SensorDetailView: View {
@@ -9,7 +7,6 @@ struct SensorDetailView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var selectedHistoryRange: HAHistoryRangePreset = .day
-    @State private var historyPhase: SensorHistoryPhase = .idle
     @State private var timelinePhase: EntityHistoryTimelinePhase = .idle
 
     private var entity: HomeEntity {
@@ -18,6 +15,10 @@ struct SensorDetailView: View {
 
     private var presentation: DashboardEntityPresentation {
         DashboardEntityPresentation(entityBox: entityBox)
+    }
+
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
     }
 
     @MainActor
@@ -34,7 +35,13 @@ struct SensorDetailView: View {
                 currentReading
             }
             if supportsHistory {
-                historyPanel
+                EntityNumericHistoryPanel(
+                    entityBox: entityBox,
+                    displayName: entityBox.sensorEntity?.displayName ?? entity.displayName,
+                    unit: entityBox.sensorEntity?.unitText,
+                    accentColor: presentation.accentColor,
+                    preferredRange: entityBox.sensorEntity?.gaugePresentation?.range
+                )
             }
             if supportsTimeline {
                 timelinePanel
@@ -43,9 +50,6 @@ struct SensorDetailView: View {
                 detailMetrics
             }
             contextDetails
-        }
-        .task(id: historyTaskID) {
-            await refreshHistory()
         }
         .task(id: timelineTaskID) {
             await refreshTimeline()
@@ -74,7 +78,7 @@ struct SensorDetailView: View {
                 )
             } else {
                 Text(primaryValue)
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .foregroundStyle(statusColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.55)
@@ -89,8 +93,11 @@ struct SensorDetailView: View {
             icon: presentation.icon,
             title: heroPresentation?.category ?? "Sensor",
             subtitle: sensorFreshnessText,
-            status: resolvedSensorHeroStatus,
-            iconColor: sensorHeroColor
+            status: heroPresentation?.statusText,
+            iconColor: sensorHeroColor,
+            statusColor: .orange,
+            statusBackground: Color.orange.opacity(0.12),
+            statePresentation: detailState
         ) {
             if let gauge = entityBox.sensorEntity?.gaugePresentation {
                 GaugePresentationView(
@@ -113,15 +120,6 @@ struct SensorDetailView: View {
 
     private var sensorFreshnessText: Text? {
         EntityDetailHeroSubtitle.updated(entity)
-    }
-
-    private var resolvedSensorHeroStatus: String? {
-        EntityDetailStatusPresentation.resolved(
-            entityBox: entityBox,
-            normal: heroPresentation?.statusText.map {
-                EntityDetailStatusPresentation(text: $0, tone: .warning)
-            }
-        )?.text
     }
 
     private var binarySensorStatus: EntityDetailStatusPresentation? {
@@ -157,188 +155,6 @@ struct SensorDetailView: View {
         }
 
         return rows
-    }
-
-    private var historyPanel: some View {
-        EntityControlPanel(title: "History", systemImage: "chart.xyaxis.line") {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                historyRangePicker
-
-                switch historyPhase {
-                case .idle, .loading:
-                    historyLoadingView
-                case .loaded(let series):
-                    if series.isEmpty {
-                        historyUnavailableView(
-                            "No history for \(selectedHistoryRange.accessibilityTitle.lowercased()).",
-                            showsRetry: false
-                        )
-                    } else {
-                        historyChart(series)
-                    }
-                case .failed:
-                    historyUnavailableView("History unavailable", showsRetry: true)
-                }
-            }
-        }
-    }
-
-    private var historyRangePicker: some View {
-        Picker("History range", selection: $selectedHistoryRange) {
-            ForEach(HAHistoryRangePreset.sensorChartPresets) { range in
-                Text(range.title)
-                    .tag(range)
-                    .accessibilityLabel(range.accessibilityTitle)
-            }
-        }
-        .pickerStyle(.segmented)
-        .disabled(historyPhase.isLoading)
-        .accessibilityLabel("History range")
-    }
-
-    private var historyLoadingView: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                .fill(Color(.tertiarySystemGroupedBackground))
-                .frame(height: 160)
-                .overlay {
-                    ProgressView()
-                }
-
-            Text("Loading history")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func historyChart(_ series: HAHistoryChartSeries) -> some View {
-        let valueDomain = series.valueDomain(
-            preferredRange: entityBox.sensorEntity?.gaugePresentation?.range
-        )
-
-        return VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Chart(series.chartSamples()) { sample in
-                LineMark(
-                    x: .value("Time", sample.occurredAt),
-                    y: .value("Value", sample.value)
-                )
-                .interpolationMethod(.linear)
-                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                .foregroundStyle(presentation.accentColor)
-
-                AreaMark(
-                    x: .value("Time", sample.occurredAt),
-                    yStart: .value("Baseline", valueDomain.lowerBound),
-                    yEnd: .value("Value", sample.value)
-                )
-                .interpolationMethod(.linear)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [
-                            presentation.accentColor.opacity(0.22),
-                            presentation.accentColor.opacity(0.04)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            }
-            .chartYScale(domain: valueDomain)
-            .chartPlotStyle { plotArea in
-                plotArea.clipped()
-            }
-            .chartXAxis {
-                switch selectedHistoryRange {
-                case .oneHour, .sixHours, .day:
-                    AxisMarks(values: .automatic(desiredCount: 3)) { _ in
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.hour().minute())
-                    }
-                case .week:
-                    AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.weekday(.abbreviated))
-                    }
-                case .month:
-                    AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.month(.abbreviated).day())
-                    }
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
-                    AxisGridLine()
-                    AxisValueLabel()
-                }
-            }
-            .frame(height: 160)
-            .clipped()
-            .accessibilityChartDescriptor(
-                SensorHistoryChartDescriptor(series: series, valueDomain: valueDomain)
-            )
-            .accessibilityLabel("\(series.displayName) history")
-            .accessibilityValue(series.summaryText)
-
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
-                Text(series.summaryText)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
-                Spacer(minLength: AppSpacing.small)
-
-                if let latestSample = series.latestSample {
-                    Text(latestSampleDateText(latestSample.occurredAt))
-                        .font(.caption.monospacedDigit().weight(.medium))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
-
-            if let coverageNotice = series.coverageNotice {
-                Text(coverageNotice)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-    }
-
-    private func latestSampleDateText(_ date: Date) -> String {
-        switch selectedHistoryRange {
-        case .oneHour, .sixHours, .day:
-            return date.formatted(date: .omitted, time: .shortened)
-        case .week, .month:
-            return date.formatted(date: .abbreviated, time: .omitted)
-        }
-    }
-
-    private func historyUnavailableView(_ message: String, showsRetry: Bool) -> some View {
-        HStack(spacing: AppSpacing.medium) {
-            Image(systemName: "chart.xyaxis.line")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 36, height: 36)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-                .accessibilityHidden(true)
-
-            Text(message)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-
-            Spacer(minLength: AppSpacing.small)
-
-            if showsRetry {
-                Button("Retry") {
-                    Task { await refreshHistory() }
-                }
-                .buttonStyle(.bordered)
-                .frame(minHeight: 44)
-                .disabled(historyPhase.isLoading)
-            }
-        }
-        .padding(AppSpacing.medium)
-        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
     }
 
     private var timelinePanel: some View {
@@ -391,14 +207,6 @@ struct SensorDetailView: View {
 
     private var supportsTimeline: Bool {
         entity.domain == .binarySensor
-    }
-
-    private var historyTaskID: String {
-        guard supportsHistory else {
-            return "history-disabled-\(entity.entityID)"
-        }
-
-        return "\(entity.entityID)-\(selectedHistoryRange.rawValue)"
     }
 
     private var timelineTaskID: String {
@@ -459,45 +267,10 @@ struct SensorDetailView: View {
         return presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
 
-    private var statusBackground: Color {
-        guard entity.isAvailable else { return Color.red.opacity(0.12) }
-        return presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
-    }
-
     private func nonEmpty(_ value: String?) -> String? {
         guard let value else { return nil }
         let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue
-    }
-
-    @MainActor
-    private func refreshHistory() async {
-        guard supportsHistory else {
-            historyPhase = .idle
-            return
-        }
-
-        historyPhase = .loading
-        let interval = selectedHistoryRange.interval()
-        let request = HAHistoryRequest(
-            startDate: interval.start,
-            endDate: interval.end,
-            entityID: entity.entityID
-        )
-
-        do {
-            historyPhase = .loaded(
-                try await homeAssistantService.fetchHistory(
-                    settings: connectionSettings,
-                    request: request,
-                    range: selectedHistoryRange
-                )
-            )
-        } catch is CancellationError {
-            return
-        } catch {
-            historyPhase = .failed
-        }
     }
 
     @MainActor
@@ -550,66 +323,6 @@ struct SensorDetailHeroPresentation: Equatable, Sendable {
         } else {
             statusText = nil
         }
-    }
-}
-
-private struct SensorHistoryChartDescriptor: AXChartDescriptorRepresentable {
-    let series: HAHistoryChartSeries
-    let valueDomain: ClosedRange<Double>
-
-    func makeChartDescriptor() -> AXChartDescriptor {
-        let samples = series.chartSamples()
-        let firstTimestamp = samples.first?.occurredAt.timeIntervalSince1970 ?? 0
-        let lastTimestamp = samples.last?.occurredAt.timeIntervalSince1970 ?? firstTimestamp + 1
-        let xAxis = AXNumericDataAxisDescriptor(
-            title: "Time",
-            range: firstTimestamp...max(lastTimestamp, firstTimestamp + 1),
-            gridlinePositions: []
-        ) { timestamp in
-            Date(timeIntervalSince1970: timestamp).formatted(date: .abbreviated, time: .shortened)
-        }
-        let yAxis = AXNumericDataAxisDescriptor(
-            title: series.unit.map { "Value in \($0)" } ?? "Value",
-            range: valueDomain,
-            gridlinePositions: []
-        ) { value in
-            series.formatValue(value)
-        }
-        let dataPoints = samples.map { sample in
-            AXDataPoint(
-                x: sample.occurredAt.timeIntervalSince1970,
-                y: sample.value,
-                label: series.formatValue(sample.value)
-            )
-        }
-        let dataSeries = AXDataSeriesDescriptor(
-            name: series.displayName,
-            isContinuous: true,
-            dataPoints: dataPoints
-        )
-
-        return AXChartDescriptor(
-            title: "\(series.displayName) history",
-            summary: series.summaryText,
-            xAxis: xAxis,
-            yAxis: yAxis,
-            series: [dataSeries]
-        )
-    }
-}
-
-private enum SensorHistoryPhase: Equatable {
-    case idle
-    case loading
-    case loaded(HAHistoryChartSeries)
-    case failed
-
-    var isLoading: Bool {
-        if case .loading = self {
-            return true
-        }
-
-        return false
     }
 }
 

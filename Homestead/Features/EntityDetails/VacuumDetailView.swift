@@ -16,6 +16,10 @@ struct VacuumDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
@@ -38,14 +42,12 @@ struct VacuumDetailView: View {
     }
 
     private var vacuumControls: some View {
-        let isPending = entityBox.pendingCommand != nil
-
         return EntityControlPanel(title: "Control", systemImage: "washer.fill") {
             HStack(spacing: AppSpacing.small) {
                 EntityDetailActionButton(
                     title: "Start",
                 systemImage: "play.fill",
-                isDisabled: isPending || !entity.isAvailable || entity.state == "cleaning" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "start")
+                isDisabled: detailState.blocksControlInteraction || entity.state == "cleaning" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "start")
             ) {
                 confirmOrPerform(domain: "vacuum", service: "start") {
                     Task { await homeAssistantService.startVacuum(entityID: entity.entityID) }
@@ -56,7 +58,7 @@ struct VacuumDetailView: View {
                     title: "Stop",
                     systemImage: "stop.fill",
                 style: .secondary,
-                isDisabled: isPending || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "stop")
+                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "stop")
             ) {
                 confirmOrPerform(domain: "vacuum", service: "stop") {
                     Task { await homeAssistantService.stopVacuum(entityID: entity.entityID) }
@@ -68,7 +70,7 @@ struct VacuumDetailView: View {
                 title: "Return to Base",
                 systemImage: "house.fill",
                 style: .secondary,
-                isDisabled: isPending || !entity.isAvailable || entity.state == "docked" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "return_to_base")
+                isDisabled: detailState.blocksControlInteraction || entity.state == "docked" || !homeAssistantService.serviceActionAvailable(domain: "vacuum", service: "return_to_base")
             ) {
                 confirmOrPerform(domain: "vacuum", service: "return_to_base") {
                     Task { await homeAssistantService.returnVacuumToBase(entityID: entity.entityID) }

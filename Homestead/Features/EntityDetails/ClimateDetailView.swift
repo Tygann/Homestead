@@ -15,6 +15,10 @@ struct ClimateDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     @ViewBuilder
     var body: some View {
         if let climate = entityBox.climateEntity {
@@ -70,19 +74,17 @@ struct ClimateDetailView: View {
             icon: entityBox.homeEntity.resolvedIcon,
             title: "Climate",
             subtitle: EntityDetailHeroSubtitle.updated(entityBox.homeEntity),
-            status: EntityDetailStatusPresentation.resolved(
-                entityBox: entityBox,
-                normal: EntityDetailStatusPresentation(text: climate.displayState, tone: .accent)
-            )?.text,
+            status: climate.displayState,
             iconColor: climateIconColor(climate),
             statusColor: climateBadgeColor(climate),
             iconBackground: climateStatusBackground(climate),
-            statusBackground: entityBox.homeEntity.isAvailable ? climateStatusBackground(climate) : Color.red.opacity(0.12)
+            statusBackground: entityBox.homeEntity.isAvailable ? climateStatusBackground(climate) : Color.red.opacity(0.12),
+            statePresentation: detailState
         ) {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
                 if let currentTemperatureText = climate.currentTemperatureText {
                     Text(currentTemperatureText)
-                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
                         .monospacedDigit()
                 }
 
@@ -112,7 +114,7 @@ struct ClimateDetailView: View {
                 EntityDetailIconButton(
                     systemImage: "minus",
                     accessibilityLabel: "Decrease temperature",
-                    isDisabled: !isClimateAvailable(climate) || targetTemperature <= climate.resolvedMinimumTemperature
+                    isDisabled: detailState.blocksControlInteraction || targetTemperature <= climate.resolvedMinimumTemperature
                 ) {
                     adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
                 }
@@ -121,7 +123,7 @@ struct ClimateDetailView: View {
                     value: $targetTemperature,
                     range: climate.resolvedMinimumTemperature...climate.resolvedMaximumTemperature,
                     step: climate.resolvedTemperatureStep,
-                    isDisabled: !isClimateAvailable(climate),
+                    isDisabled: detailState.blocksControlInteraction,
                     accessibilityLabel: "Target temperature",
                     accessibilityValue: climate.formatTemperature(targetTemperature),
                     onEditingChanged: { editing in
@@ -135,7 +137,7 @@ struct ClimateDetailView: View {
                 EntityDetailIconButton(
                     systemImage: "plus",
                     accessibilityLabel: "Increase temperature",
-                    isDisabled: !isClimateAvailable(climate) || targetTemperature >= climate.resolvedMaximumTemperature
+                    isDisabled: detailState.blocksControlInteraction || targetTemperature >= climate.resolvedMaximumTemperature
                 ) {
                     adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate)
                 }
@@ -218,7 +220,7 @@ struct ClimateDetailView: View {
                 EntityDetailIconButton(
                     systemImage: "minus",
                     accessibilityLabel: "Decrease \(title.lowercased())",
-                    isDisabled: !isClimateAvailable(climate) || value.wrappedValue <= range.lowerBound,
+                    isDisabled: detailState.blocksControlInteraction || value.wrappedValue <= range.lowerBound,
                     action: decreaseAction
                 )
 
@@ -228,7 +230,7 @@ struct ClimateDetailView: View {
                     step: climate.resolvedTemperatureStep,
                     fillColor: fillColor,
                     showsFilledTrack: false,
-                    isDisabled: !isClimateAvailable(climate),
+                    isDisabled: detailState.blocksControlInteraction,
                     accessibilityLabel: title,
                     accessibilityValue: climate.formatTemperature(value.wrappedValue),
                     onEditingChanged: { editing in
@@ -242,7 +244,7 @@ struct ClimateDetailView: View {
                 EntityDetailIconButton(
                     systemImage: "plus",
                     accessibilityLabel: "Increase \(title.lowercased())",
-                    isDisabled: !isClimateAvailable(climate) || value.wrappedValue >= range.upperBound,
+                    isDisabled: detailState.blocksControlInteraction || value.wrappedValue >= range.upperBound,
                     action: increaseAction
                 )
             }
@@ -260,7 +262,7 @@ struct ClimateDetailView: View {
                         title: climate.displayName(forHVACMode: mode),
                         systemImage: climate.iconName(forHVACMode: mode),
                         isSelected: mode == climate.state,
-                        isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate) || mode == climate.state
+                        isDisabled: detailState.blocksControlInteraction || mode == climate.state
                     ) {
                         Task {
                             await homeAssistantService.setClimateHVACMode(
@@ -284,7 +286,7 @@ struct ClimateDetailView: View {
                         title: "Fan",
                         systemImage: "fan.fill",
                         value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
-                        isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate)
+                        isDisabled: detailState.blocksControlInteraction
                     ) {
                         ForEach(climate.fanModes, id: \.self) { fanMode in
                             Button {
@@ -310,7 +312,7 @@ struct ClimateDetailView: View {
                         title: "Preset",
                         systemImage: "leaf",
                         value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
-                        isDisabled: entityBox.pendingCommand != nil || !isClimateAvailable(climate)
+                        isDisabled: detailState.blocksControlInteraction
                     ) {
                         ForEach(climate.presetModes, id: \.self) { presetMode in
                             Button {

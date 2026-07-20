@@ -1,6 +1,7 @@
 import XCTest
 @testable import Homestead
 
+@MainActor
 final class EntityCapabilityProfileTests: XCTestCase {
     func testReferenceDomainsUseDistinctFamiliesAndRoutes() {
         let sensor = EntityCapabilityRegistry.profile(for: .sensor)
@@ -60,5 +61,90 @@ final class EntityCapabilityProfileTests: XCTestCase {
 
         XCTAssertEqual(series.valueDomain(preferredRange: 0...100), 0...100)
         XCTAssertNotNil(series.coverageNotice)
+    }
+
+    func testOperationalStateDefaultsToLiveWithoutExceptionalSignals() {
+        let presentation = operationalStatePresentation()
+
+        XCTAssertEqual(presentation.operationalState, .live)
+        XCTAssertNil(presentation.status)
+        XCTAssertNil(presentation.message)
+        XCTAssertFalse(presentation.blocksControlInteraction)
+    }
+
+    func testOperationalStatePrioritizesUnavailableAndPendingSignals() {
+        let unavailable = operationalStatePresentation(isAvailable: false)
+        let pending = operationalStatePresentation(
+            pendingCommand: HAEntityPendingCommand(entityID: "light.kitchen", expectedState: "on")
+        )
+
+        XCTAssertEqual(unavailable.operationalState, .unavailable)
+        XCTAssertEqual(unavailable.status?.text, "Unavailable")
+        XCTAssertTrue(unavailable.blocksControlInteraction)
+        XCTAssertEqual(pending.operationalState, .pending)
+        XCTAssertEqual(pending.status?.text, "Updating")
+        XCTAssertTrue(pending.blocksControlInteraction)
+    }
+
+    func testOperationalStateRepresentsStaleDisconnectedData() {
+        let presentation = operationalStatePresentation(
+            dataFreshness: .stale("Connection lost", lastUpdated: Date(timeIntervalSince1970: 100)),
+            connectionStatus: .reconnecting
+        )
+
+        XCTAssertEqual(presentation.operationalState, .stale)
+        XCTAssertEqual(presentation.status?.text, "Offline")
+        XCTAssertNotNil(presentation.message)
+        XCTAssertTrue(presentation.blocksControlInteraction)
+    }
+
+    func testOperationalStateScopesFailuresToTheMatchingEntity() {
+        let matchingFailure = HAServiceFeedback(
+            title: "Could Not Turn On Light",
+            message: "Home Assistant rejected the action.",
+            style: .failure,
+            entityID: "light.kitchen"
+        )
+        let unrelatedFailure = HAServiceFeedback(
+            title: "Could Not Lock Door",
+            message: "Home Assistant rejected the action.",
+            style: .failure,
+            entityID: "lock.front_door"
+        )
+
+        let failed = operationalStatePresentation(serviceFeedback: matchingFailure)
+        let unaffected = operationalStatePresentation(serviceFeedback: unrelatedFailure)
+
+        XCTAssertEqual(failed.operationalState, .failed)
+        XCTAssertEqual(failed.status?.text, "Action Failed")
+        XCTAssertEqual(failed.message, matchingFailure.message)
+        XCTAssertFalse(failed.blocksControlInteraction)
+        XCTAssertEqual(unaffected.operationalState, .live)
+    }
+
+    private func operationalStatePresentation(
+        isAvailable: Bool = true,
+        pendingCommand: HAEntityPendingCommand? = nil,
+        dataFreshness: HADataFreshness = .live(Date(timeIntervalSince1970: 100)),
+        connectionStatus: HAConnectionStatus = .connected,
+        serviceFeedback: HAServiceFeedback? = nil
+    ) -> EntityDetailStatePresentation {
+        let entity = HomeEntity(
+            entityID: "light.kitchen",
+            domain: .light,
+            displayName: "Kitchen Light",
+            state: isAvailable ? "off" : "unavailable",
+            iconName: "lightbulb",
+            isAvailable: isAvailable,
+            lastUpdated: Date(timeIntervalSince1970: 100)
+        )
+        let entityBox = HAEntityState(homeEntity: entity, pendingCommand: pendingCommand)
+
+        return EntityDetailStatePresentation(
+            entityBox: entityBox,
+            dataFreshness: dataFreshness,
+            connectionStatus: connectionStatus,
+            serviceFeedback: serviceFeedback
+        )
     }
 }

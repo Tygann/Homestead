@@ -18,6 +18,10 @@ struct AlarmControlPanelDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
@@ -51,6 +55,7 @@ struct AlarmControlPanelDetailView: View {
                 .padding(.horizontal, AppSpacing.medium)
                 .frame(height: 44)
                 .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+                .disabled(detailState.blocksControlInteraction)
         }
     }
 
@@ -141,7 +146,7 @@ struct AlarmControlPanelDetailView: View {
     }
 
     private func isActionDisabled(_ action: AlarmServiceAction) -> Bool {
-        entityBox.pendingCommand != nil || !entity.isAvailable || entity.state == action.expectedState
+        detailState.blocksControlInteraction || entity.state == action.expectedState
     }
 
     private func confirm(_ action: AlarmServiceAction) {

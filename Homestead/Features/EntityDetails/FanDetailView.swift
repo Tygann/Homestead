@@ -10,6 +10,10 @@ struct FanDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     @ViewBuilder
     var body: some View {
         if let fan = entityBox.fanEntity {
@@ -59,14 +63,12 @@ struct FanDetailView: View {
     }
 
     private func powerControls(_ fan: FanEntity) -> some View {
-        let isPending = entityBox.pendingCommand != nil
-
         return EntityControlPanel(title: "Control", systemImage: "power") {
             EntityDetailActionButton(
-                title: isPending ? "Updating..." : (fan.isOn ? "Turn Off" : "Turn On"),
+                title: detailState.operationalState == .pending ? "Updating..." : (fan.isOn ? "Turn Off" : "Turn On"),
                 systemImage: "power",
                 style: fan.isOn ? .secondary : .primary,
-                isDisabled: isPending || !fan.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "fan", service: fan.isOn ? "turn_off" : "turn_on")
+                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "fan", service: fan.isOn ? "turn_off" : "turn_on")
             ) {
                 confirmOrPerform(domain: "fan", service: fan.isOn ? "turn_off" : "turn_on") {
                     Task { await homeAssistantService.toggleFan(entityID: entityBox.entityID) }
@@ -92,7 +94,7 @@ struct FanDetailView: View {
                 value: $percentage,
                 range: 0...100,
                 step: fan.resolvedPercentageStep,
-                isDisabled: entityBox.pendingCommand != nil || !fan.isAvailable,
+                isDisabled: detailState.blocksControlInteraction,
                 accessibilityLabel: "Fan speed",
                 accessibilityValue: "\(Int(percentage)) percent",
                 onEditingChanged: { editing in
@@ -121,7 +123,7 @@ struct FanDetailView: View {
                     EntityDetailPillButton(
                         title: fan.displayName(forPresetMode: presetMode),
                         isSelected: presetMode == fan.presetMode,
-                        isDisabled: entityBox.pendingCommand != nil || presetMode == fan.presetMode || !fan.isAvailable
+                        isDisabled: detailState.blocksControlInteraction || presetMode == fan.presetMode
                     ) {
                         confirmOrPerform(domain: "fan", service: "set_preset_mode") {
                             Task {

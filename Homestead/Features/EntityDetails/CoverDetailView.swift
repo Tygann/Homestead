@@ -13,6 +13,10 @@ struct CoverDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     @ViewBuilder
     var body: some View {
         if let cover = entityBox.coverEntity {
@@ -57,12 +61,13 @@ struct CoverDetailView: View {
             iconColor: coverIconColor(cover),
             statusColor: coverBadgeColor(cover),
             iconBackground: coverStatusBackground(cover),
-            statusBackground: coverHeroStatus(cover) == "Unavailable" ? Color.red.opacity(0.12) : coverStatusBackground(cover)
+            statusBackground: coverHeroStatus(cover) == "Unavailable" ? Color.red.opacity(0.12) : coverStatusBackground(cover),
+            statePresentation: detailState
         ) {
             if let position = cover.positionPercentage {
                 VStack(alignment: .leading, spacing: AppSpacing.medium) {
                     Text("\(position)%")
-                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
                         .foregroundStyle(coverIconColor(cover))
                         .monospacedDigit()
 
@@ -80,14 +85,14 @@ struct CoverDetailView: View {
     }
 
     private func movementControls(_ cover: CoverEntity) -> some View {
-        let isPending = entityBox.pendingCommand != nil
+        let blocksInteraction = detailState.blocksControlInteraction
 
         return EntityControlPanel(title: "Control", systemImage: "arrow.up.and.down") {
             HStack(spacing: AppSpacing.small) {
                 EntityDetailActionButton(
                     title: "Open",
                     systemImage: "arrow.up",
-                    isDisabled: isPending || cover.state == "open" || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover")
+                    isDisabled: blocksInteraction || cover.state == "open" || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover")
                 ) {
                     confirmOrPerform(domain: "cover", service: "open_cover") {
                         Task { await homeAssistantService.openCover(entityID: entityBox.entityID) }
@@ -98,7 +103,7 @@ struct CoverDetailView: View {
                     title: "Close",
                     systemImage: "arrow.down",
                     style: .secondary,
-                    isDisabled: isPending || cover.state == "closed" || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "close_cover")
+                    isDisabled: blocksInteraction || cover.state == "closed" || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "close_cover")
                 ) {
                     confirmOrPerform(domain: "cover", service: "close_cover") {
                         Task { await homeAssistantService.closeCover(entityID: entityBox.entityID) }
@@ -110,7 +115,7 @@ struct CoverDetailView: View {
                 title: "Stop",
                 systemImage: "stop.fill",
                 style: .secondary,
-                isDisabled: isPending || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "stop_cover")
+                isDisabled: blocksInteraction || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "stop_cover")
             ) {
                 confirmOrPerform(domain: "cover", service: "stop_cover") {
                     Task { await homeAssistantService.stopCover(entityID: entityBox.entityID) }
@@ -136,7 +141,7 @@ struct CoverDetailView: View {
                 value: $position,
                 range: 0...100,
                 step: 1,
-                isDisabled: entityBox.pendingCommand != nil || !entityBox.homeEntity.isAvailable,
+                isDisabled: detailState.blocksControlInteraction,
                 accessibilityLabel: "Cover position",
                 accessibilityValue: "\(Int(position)) percent",
                 onEditingChanged: { editing in

@@ -13,6 +13,9 @@ struct AutomationDetailView: View {
 
     private var entity: HomeEntity { entityBox.homeEntity }
     private var presentation: DashboardEntityPresentation { DashboardEntityPresentation(entityBox: entityBox) }
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
 
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
@@ -49,7 +52,7 @@ struct AutomationDetailView: View {
                 title: actionTitle,
                 systemImage: presentation.isActive ? "pause.fill" : "play.fill",
                 style: presentation.isActive ? .secondary : .primary,
-                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !isActionServiceAvailable
+                isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
             ) {
                 Task { await confirmOrPerform() }
             }

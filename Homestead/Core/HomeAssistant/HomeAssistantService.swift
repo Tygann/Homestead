@@ -78,6 +78,8 @@ final class HomeAssistantService {
         client: any HAWebSocketClientProtocol = HAWebSocketClient(),
         stateCache: HAStateCache = HAStateCache(),
         connectionStatus: HAConnectionStatus = .disconnected,
+        dataFreshness: HADataFreshness = .empty,
+        serviceFeedback: HAServiceFeedback? = nil,
         authState: HAAuthState = .signedOut,
         httpClient: (any HAHTTPClientProtocol)? = nil,
         mobileAppClient: (any HAMobileAppClientProtocol)? = nil,
@@ -96,6 +98,8 @@ final class HomeAssistantService {
     ) {
         self.stateStore = stateStore
         self.client = client
+        self.dataFreshness = dataFreshness
+        self.serviceFeedback = serviceFeedback
         self.httpClient = httpClient ?? HAHTTPClient()
         self.mobileAppClient = mobileAppClient ?? HAMobileAppClient()
         self.mobileAppRegistrationStore = mobileAppRegistrationStore ?? KeychainHAMobileAppRegistrationStore()
@@ -2038,7 +2042,8 @@ final class HomeAssistantService {
             serviceFeedback = HAServiceFeedback(
                 title: "Action unavailable",
                 message: entityDisplayName(for: entityID) ?? entityID,
-                style: .failure
+                style: .failure,
+                entityID: entityID
             )
             return false
         }
@@ -2072,7 +2077,8 @@ final class HomeAssistantService {
             serviceFeedback = HAServiceFeedback(
                 title: "Action unavailable",
                 message: "\(domain).\(service) is not available on this Home Assistant server.",
-                style: .failure
+                style: .failure,
+                entityID: entityID
             )
             return false
         }
@@ -2089,7 +2095,8 @@ final class HomeAssistantService {
                 serviceFeedback = HAServiceFeedback(
                     title: successTitle,
                     message: entityDisplayName(for: entityID),
-                    style: .success
+                    style: .success,
+                    entityID: entityID
                 )
             }
             return true
@@ -2105,7 +2112,8 @@ final class HomeAssistantService {
                     error: error,
                     isRecoveringConnection: isRecoveringConnection
                 ),
-                style: .failure
+                style: .failure,
+                entityID: entityID
             )
             return false
         }
@@ -3127,7 +3135,8 @@ final class HomeAssistantService {
         serviceFeedback = HAServiceFeedback(
             title: "State not confirmed",
             message: entityDisplayName(for: pendingCommand.entityID),
-            style: .failure
+            style: .failure,
+            entityID: pendingCommand.entityID
         )
     }
 

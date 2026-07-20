@@ -12,6 +12,10 @@ struct LightDetailView: View {
 
     private let brightnessPresets = [25.0, 50.0, 75.0, 100.0]
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     @ViewBuilder
     var body: some View {
         if let light = entityBox.lightEntity {
@@ -60,15 +64,14 @@ struct LightDetailView: View {
     }
 
     private func powerControls(_ light: LightEntity) -> some View {
-        let isPending = entityBox.pendingCommand != nil
         let service = light.isOn ? "turn_off" : "turn_on"
 
         return EntityControlPanel(title: "Control", systemImage: "power") {
             EntityDetailActionButton(
-                title: isPending ? "Updating..." : (light.isOn ? "Turn Off" : "Turn On"),
+                title: detailState.operationalState == .pending ? "Updating..." : (light.isOn ? "Turn Off" : "Turn On"),
                 systemImage: "power",
                 style: light.isOn ? .secondary : .primary,
-                isDisabled: isPending || !entityBox.homeEntity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "light", service: service)
+                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "light", service: service)
             ) {
                 confirmOrPerform(domain: "light", service: service) {
                     Task {
@@ -100,7 +103,7 @@ struct LightDetailView: View {
                 value: $brightnessPercentage,
                 range: 1...100,
                 step: 1,
-                isDisabled: entityBox.pendingCommand != nil || !entityBox.homeEntity.isAvailable,
+                isDisabled: detailState.blocksControlInteraction,
                 accessibilityLabel: "Brightness",
                 accessibilityValue: "\(Int(brightnessPercentage)) percent",
                 onEditingChanged: { editing in
@@ -116,7 +119,7 @@ struct LightDetailView: View {
                     EntityDetailPillButton(
                         title: "\(Int(preset))%",
                         isSelected: isSelectedPreset(preset),
-                        isDisabled: entityBox.pendingCommand != nil || !entityBox.homeEntity.isAvailable
+                        isDisabled: detailState.blocksControlInteraction
                     ) {
                         setBrightness(preset)
                     }

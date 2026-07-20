@@ -41,6 +41,8 @@ The shared state vocabulary is:
 
 Home Assistant remains the source of truth. Detail views observe `HAEntityState` and issue intents through `HomeAssistantService`; they do not decode transport DTOs.
 
+`EntityDetailStatePresentation` is the single presentation resolver for this vocabulary. It derives state from entity availability, the entity's pending command, connection/data freshness, and entity-scoped service feedback. Domain views consume the result for their hero and control availability rather than reinterpreting transport or connection state independently. Unavailable takes precedence over pending, then a matching action failure, then stale data, then live.
+
 ## Family Grammar
 
 | Family | Typical domains | Hero | Typical sections |
@@ -66,6 +68,14 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 - Unbounded measurements use a padded dynamic domain.
 - Continuous measurements use linear interpolation so the chart does not invent overshoot.
 - Charts preserve extrema when sampling, expose an accessibility chart descriptor, and only mention partial coverage when the returned samples demonstrably begin after the requested interval.
+- Numeric domains reuse `EntityNumericHistoryPanel`; sensors and editable Number entities currently opt in with their mapped unit and meaningful bounded range.
+
+## Adaptive and Reference Behavior
+
+- The shared scaffold constrains readable content width on regular-width devices while preserving the single-column section order used on iPhone.
+- Hero identity and exceptional status reflow vertically when horizontal space or Dynamic Type requires it.
+- The Debug reference gallery renders real detail compositions from deterministic fixtures across live, pending, unavailable, stale, failed, minimum, maximum, and long-content variants.
+- Treat the reference gallery as a state matrix, not a substitute for device verification. New domain families should add representative fixtures before introducing a new visual grammar.
 
 ## Adding a Domain
 

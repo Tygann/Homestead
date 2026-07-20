@@ -25,6 +25,10 @@ struct SelectDetailView: View {
         HomeAssistantService.selectServiceDomain(for: entity.entityID)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
@@ -43,11 +47,12 @@ struct SelectDetailView: View {
             icon: presentation.icon,
             title: "Select",
             subtitle: EntityDetailHeroSubtitle.updated(entity),
-            status: EntityDetailStatusPresentation.resolved(entityBox: entityBox)?.text,
+            status: nil,
             iconColor: entity.isAvailable ? .accentColor : .secondary,
             statusColor: entity.isAvailable ? .accentColor : .red,
             iconBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
-            statusBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12)
+            statusBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12),
+            statePresentation: detailState
         ) {
             Text(entity.state.displayStateText)
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
@@ -63,7 +68,7 @@ struct SelectDetailView: View {
                 title: "Current",
                 systemImage: "checkmark.circle",
                 value: entity.state.displayStateText,
-                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: serviceDomain, service: "select_option")
+                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: serviceDomain, service: "select_option")
             ) {
                 ForEach(options, id: \.self) { option in
                     Button {

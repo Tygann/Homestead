@@ -16,9 +16,40 @@ struct PreviewDependencies {
     let iCloudSyncService: HomesteadICloudSyncService
 
     static var sample: PreviewDependencies {
+        makeSample()
+    }
+
+    static func entityDetailSample(
+        entityOverrides: [HAEntityDTO] = [],
+        dataFreshness: HADataFreshness = .live(Date()),
+        connectionStatus: HAConnectionStatus = .connected,
+        serviceFeedback: HAServiceFeedback? = nil,
+        pendingCommand: HAEntityPendingCommand? = nil
+    ) -> PreviewDependencies {
+        makeSample(
+            entityOverrides: entityOverrides,
+            dataFreshness: dataFreshness,
+            connectionStatus: connectionStatus,
+            serviceFeedback: serviceFeedback,
+            pendingCommand: pendingCommand
+        )
+    }
+
+    private static func makeSample(
+        entityOverrides: [HAEntityDTO] = [],
+        dataFreshness: HADataFreshness = .live(Date()),
+        connectionStatus: HAConnectionStatus = .connected,
+        serviceFeedback: HAServiceFeedback? = nil,
+        pendingCommand: HAEntityPendingCommand? = nil
+    ) -> PreviewDependencies {
         let previewDefaults = UserDefaults.samplePreview
         let stateStore = HAStateStore()
-        stateStore.applyInitialStates(PreviewData.entities)
+        let overridesByID = Dictionary(uniqueKeysWithValues: entityOverrides.map { ($0.entityID, $0) })
+        let entities = PreviewData.entities.map { overridesByID[$0.entityID] ?? $0 }
+        stateStore.applyInitialStates(entities)
+        if let pendingCommand {
+            stateStore.setPendingCommand(pendingCommand)
+        }
         let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
         let actionConfirmationSettings = ActionConfirmationSettings(defaults: previewDefaults)
         let tabSettings = HomesteadTabSettings(defaults: previewDefaults)
@@ -48,7 +79,9 @@ struct PreviewDependencies {
         )
         let service = HomeAssistantService(
             stateStore: stateStore,
-            connectionStatus: .connected,
+            connectionStatus: connectionStatus,
+            dataFreshness: dataFreshness,
+            serviceFeedback: serviceFeedback,
             authState: .signedIn(HAAuthSessionSummary(credential: credential)),
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
             pushRelayTokenStore: InMemoryPushRelayTokenStore(),

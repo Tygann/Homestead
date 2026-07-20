@@ -10,6 +10,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added a surface-neutral entity capability profile for family, hero, route, and semantic capability classification; detail routing now consumes it directly and dashboard routing adapts it.
 - Standardized entity-name navigation, category/freshness heroes, exceptional-only status badges, grouped sections, final diagnostics, pending/unavailable behavior, and bottom chrome clearance across existing detail domains.
 - Made Sensor, Cover, Climate, and Weather deterministic reference screens; added a debug gallery, meaningful bounded chart domains, linear history interpolation, partial-coverage messaging, and Audio Graph descriptors.
+- Centralized live, pending, stale, unavailable, and entity-scoped failure presentation from existing `HAEntityState` and `HomeAssistantService` signals; detail controls now share the same interaction-blocking policy while keeping retryable failures actionable.
+- Expanded the deterministic gallery into a family/state matrix, added regular-width content constraints and Dynamic Type reflow, and extracted reusable accessible numeric history for Sensor and Number details.
 - Recorded the durable contract in `Docs/ENTITY_DETAIL_DESIGN.md` and ADR 2.
 
 ## 2026-07-17

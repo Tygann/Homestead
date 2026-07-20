@@ -16,6 +16,10 @@ struct ButtonDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
@@ -42,7 +46,7 @@ struct ButtonDetailView: View {
             EntityDetailActionButton(
                 title: entityBox.pendingCommand != nil ? "Pressing..." : "Press",
                 systemImage: "button.programmable",
-                isDisabled: entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "button", service: "press")
+                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "button", service: "press")
             ) {
                 confirmOrPerform(domain: "button", service: "press") {
                     Task { await homeAssistantService.pressButton(entityID: entity.entityID) }

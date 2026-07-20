@@ -23,6 +23,8 @@ struct EntityDetailScaffold<Content: View>: View {
             .padding(.horizontal, AppSpacing.large)
             .padding(.top, AppSpacing.large)
             .padding(.bottom, presentationStyle.scrollBottomClearance)
+            .frame(maxWidth: 760, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
@@ -38,247 +40,6 @@ struct EntityUnavailableDetailView: View {
     var body: some View {
         ContentUnavailableView("\(title) Unavailable", systemImage: systemImage)
             .entityDetailPresentation(title: title, style: presentationStyle)
-    }
-}
-
-struct EntityDetailHeroCard<Content: View>: View {
-    let icon: ResolvedIcon
-    let title: String
-    let subtitle: Text?
-    let status: String?
-    let iconColor: Color
-    let statusColor: Color
-    let iconBackground: Color
-    let statusBackground: Color
-    private let content: Content
-
-    init(
-        icon: ResolvedIcon,
-        title: String,
-        subtitle: Text?,
-        status: String?,
-        iconColor: Color,
-        statusColor: Color? = nil,
-        iconBackground: Color? = nil,
-        statusBackground: Color? = nil,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.icon = icon
-        self.title = title
-        self.subtitle = subtitle
-        self.status = status
-        self.iconColor = iconColor
-        self.statusColor = statusColor ?? iconColor
-        self.iconBackground = iconBackground ?? iconColor.opacity(0.12)
-        self.statusBackground = statusBackground ?? iconColor.opacity(0.12)
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.large) {
-            HStack(alignment: .center, spacing: AppSpacing.medium) {
-                HomesteadIconView(icon: icon, pointSize: 25)
-                    .foregroundStyle(iconColor)
-                    .frame(width: 52, height: 52)
-                    .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(title)
-                        .font(.title3.weight(.semibold))
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.78)
-
-                    if let subtitle {
-                        subtitle
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                }
-
-                Spacer(minLength: AppSpacing.medium)
-
-                if let status, !status.isEmpty {
-                    Text(status)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(statusColor)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                        .padding(.horizontal, AppSpacing.medium)
-                        .padding(.vertical, AppSpacing.small)
-                        .background(statusBackground, in: Capsule())
-                }
-            }
-            .accessibilityElement(children: .combine)
-
-            content
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-    }
-}
-
-enum EntityDetailOperationalState: Equatable {
-    case live
-    case pending
-    case stale
-    case unavailable
-    case failed
-    case unsupported
-}
-
-enum EntityDetailStatusTone {
-    case accent
-    case neutral
-    case positive
-    case warning
-    case critical
-
-    var foregroundColor: Color {
-        switch self {
-        case .accent: .accentColor
-        case .neutral: .secondary
-        case .positive: .green
-        case .warning: .orange
-        case .critical: .red
-        }
-    }
-
-    var backgroundColor: Color {
-        foregroundColor.opacity(0.12)
-    }
-}
-
-struct EntityDetailStatusPresentation {
-    let text: String
-    let tone: EntityDetailStatusTone
-
-    static func resolved(
-        entityBox: HAEntityState,
-        normal: EntityDetailStatusPresentation? = nil
-    ) -> EntityDetailStatusPresentation? {
-        guard entityBox.homeEntity.isAvailable else {
-            return EntityDetailStatusPresentation(text: "Unavailable", tone: .critical)
-        }
-        guard entityBox.pendingCommand == nil else {
-            return EntityDetailStatusPresentation(text: "Updating", tone: .accent)
-        }
-        return normal
-    }
-}
-
-enum EntityDetailHeroSubtitle {
-    static func updated(_ entity: HomeEntity, summary: String? = nil) -> Text? {
-        let trimmedSummary = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if let lastUpdated = entity.lastUpdated {
-            if let trimmedSummary, !trimmedSummary.isEmpty {
-                return Text("\(trimmedSummary) · Updated \(lastUpdated, style: .relative)")
-            }
-            return Text("Updated \(lastUpdated, style: .relative)")
-        }
-
-        if let trimmedSummary, !trimmedSummary.isEmpty {
-            return Text(trimmedSummary)
-        }
-        return nil
-    }
-}
-
-struct EntityDetailHeader: View {
-    let icon: ResolvedIcon
-    let title: String
-    let subtitle: String
-    let badge: String
-    let iconColor: Color
-    let badgeColor: Color
-    let iconBackground: Color
-    let badgeBackground: Color
-
-    init(
-        entityBox: HAEntityState,
-        icon: ResolvedIcon,
-        category: String? = nil,
-        summary: String? = nil,
-        status: EntityDetailStatusPresentation? = nil,
-        iconColor: Color,
-        iconBackground: Color? = nil
-    ) {
-        let resolvedStatus = EntityDetailStatusPresentation.resolved(
-            entityBox: entityBox,
-            normal: status
-        )
-
-        self.icon = icon
-        title = category ?? EntityCapabilityRegistry.profile(for: entityBox.domain).categoryTitle
-        subtitle = ""
-        badge = resolvedStatus?.text ?? ""
-        self.iconColor = iconColor
-        badgeColor = resolvedStatus?.tone.foregroundColor ?? iconColor
-        self.iconBackground = iconBackground ?? iconColor.opacity(0.12)
-        badgeBackground = resolvedStatus?.tone.backgroundColor ?? iconColor.opacity(0.12)
-        heroSubtitle = EntityDetailHeroSubtitle.updated(entityBox.homeEntity, summary: summary)
-    }
-
-    private var heroSubtitle: Text?
-
-    init(
-        icon: ResolvedIcon,
-        title: String,
-        subtitle: String,
-        badge: String,
-        iconColor: Color,
-        badgeColor: Color? = nil,
-        iconBackground: Color? = nil,
-        badgeBackground: Color? = nil
-    ) {
-        self.icon = icon
-        self.title = title
-        self.subtitle = subtitle
-        self.badge = badge
-        self.iconColor = iconColor
-        self.badgeColor = badgeColor ?? iconColor
-        self.iconBackground = iconBackground ?? iconColor.opacity(0.12)
-        self.badgeBackground = badgeBackground ?? iconColor.opacity(0.12)
-        heroSubtitle = Text(subtitle)
-    }
-
-    init(
-        iconName: String,
-        title: String,
-        subtitle: String,
-        badge: String,
-        iconColor: Color,
-        badgeColor: Color? = nil,
-        iconBackground: Color? = nil,
-        badgeBackground: Color? = nil
-    ) {
-        self.init(
-            icon: .sfSymbol(iconName, provenance: .homesteadSemanticMapping),
-            title: title,
-            subtitle: subtitle,
-            badge: badge,
-            iconColor: iconColor,
-            badgeColor: badgeColor,
-            iconBackground: iconBackground,
-            badgeBackground: badgeBackground
-        )
-    }
-
-    var body: some View {
-        EntityDetailHeroCard(
-            icon: icon,
-            title: title,
-            subtitle: heroSubtitle,
-            status: badge,
-            iconColor: iconColor,
-            statusColor: badgeColor,
-            iconBackground: iconBackground,
-            statusBackground: badgeBackground
-        ) {
-            EmptyView()
-        }
     }
 }
 
@@ -361,7 +122,7 @@ struct EntityDetailIconButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.bold))
-                .frame(width: 38, height: 38)
+                .frame(width: 44, height: 44)
                 .background(Color(.tertiarySystemGroupedBackground), in: Circle())
         }
         .buttonStyle(.plain)
@@ -591,7 +352,7 @@ struct EntityDetailPillButton: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
                 .frame(maxWidth: .infinity)
-                .frame(height: 42)
+                .frame(height: 44)
         }
         .buttonStyle(.plain)
         .foregroundStyle(isSelected ? Color.white : Color.primary)

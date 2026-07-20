@@ -24,10 +24,23 @@ struct NumberDetailView: View {
         stateStore.rawEntity(for: entity.entityID)?.attributes ?? [:]
     }
 
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             valuePanel
+            if numericStateValue != nil {
+                EntityNumericHistoryPanel(
+                    entityBox: entityBox,
+                    displayName: entity.displayName,
+                    unit: unit,
+                    accentColor: .accentColor,
+                    preferredRange: valueRange
+                )
+            }
             contextDetails
         }
         .onAppear {
@@ -45,14 +58,15 @@ struct NumberDetailView: View {
             icon: presentation.icon,
             title: "Number",
             subtitle: EntityDetailHeroSubtitle.updated(entity),
-            status: EntityDetailStatusPresentation.resolved(entityBox: entityBox)?.text,
+            status: nil,
             iconColor: entity.isAvailable ? .accentColor : .secondary,
             statusColor: entity.isAvailable ? .accentColor : .red,
             iconBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
-            statusBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12)
+            statusBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12),
+            statePresentation: detailState
         ) {
             Text(formattedValue(draftValue))
-                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .foregroundStyle(entity.isAvailable ? Color.accentColor : Color.secondary)
                 .monospacedDigit()
         }
@@ -121,7 +135,7 @@ struct NumberDetailView: View {
     }
 
     private var isControlDisabled: Bool {
-        entityBox.pendingCommand != nil || !entity.isAvailable || !homeAssistantService.serviceActionAvailable(domain: "number", service: "set_value")
+        detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "number", service: "set_value")
     }
 
     private var statusSummary: String {

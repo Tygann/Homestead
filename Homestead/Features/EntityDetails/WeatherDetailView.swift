@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct WeatherDetailView: View {
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
 
@@ -14,6 +16,10 @@ struct WeatherDetailView: View {
 
     private var presentation: DashboardEntityPresentation {
         DashboardEntityPresentation(entityBox: entityBox)
+    }
+
+    private var detailState: EntityDetailStatePresentation {
+        EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
     }
 
     var body: some View {
@@ -44,11 +50,12 @@ struct WeatherDetailView: View {
             iconColor: iconColor(weather),
             statusColor: weather.isAvailable ? presentation.accentColor : .red,
             iconBackground: iconBackground(weather),
-            statusBackground: weather.isAvailable ? nil : Color.red.opacity(0.12)
+            statusBackground: weather.isAvailable ? nil : Color.red.opacity(0.12),
+            statePresentation: detailState
         ) {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
                 Text(weather.primaryReadingText)
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .foregroundStyle(statusColor(weather))
                     .lineLimit(1)
                     .minimumScaleFactor(0.55)
