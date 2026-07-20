@@ -279,7 +279,7 @@ private struct EntityDetailHeroHeader: View {
     }
 }
 
-private struct EntityDetailStateMessage: View {
+struct EntityDetailStateMessage: View {
     let state: EntityDetailOperationalState
     let message: String
 

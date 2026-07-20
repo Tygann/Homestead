@@ -5889,7 +5889,7 @@ struct HomesteadTests {
         #expect(trackerRecord.linkedPersonName == "Tyler")
         #expect(trackerRecord.sourceTypeTitle == "GPS")
         #expect(trackerRecord.batteryText == "88%")
-        #expect(trackerRecord.gpsAccuracyText == "12m")
+        #expect(trackerRecord.gpsAccuracyText == "12 m")
         #expect(trackerRecord.context.deviceName == "Tyler's iPhone")
         #expect(trackerRecord.context.areaName == "Living Room")
         #expect(trackerRecord.context.floorName == "Downstairs")
@@ -5914,7 +5914,7 @@ struct HomesteadTests {
         #expect(record.status == .zone("work"))
         #expect(record.sourceTypeTitle == "Location")
         #expect(record.gpsAccuracy == 7.5)
-        #expect(record.gpsAccuracyText == "8m")
+        #expect(record.gpsAccuracyText == "8 m")
     }
 
     @Test func personPresencePresentationShowsPeopleOnlyAndSearchesLinkedTrackers() throws {

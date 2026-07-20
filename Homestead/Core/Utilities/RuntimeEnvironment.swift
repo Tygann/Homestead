@@ -8,6 +8,7 @@ enum RuntimeEnvironment {
 
 nonisolated enum HomesteadPreviewScreen: String, Sendable {
     case appearance
+    case entityDetails = "entity-details"
     case gaugeWidget = "gauge-widget"
 }
 
@@ -20,6 +21,8 @@ extension HomesteadPreviewScreen {
         switch argumentValue {
         case Self.appearance.rawValue:
             self = .appearance
+        case Self.entityDetails.rawValue:
+            self = .entityDetails
         case Self.gaugeWidget.rawValue:
             self = .gaugeWidget
         default:

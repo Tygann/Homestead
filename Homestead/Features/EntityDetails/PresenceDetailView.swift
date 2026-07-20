@@ -18,17 +18,8 @@ struct PresenceDetailView: View {
     var body: some View {
         if let record = stateStore.presenceRecord(for: entity.entityID) {
             EntityDetailScaffold(title: record.displayName, presentationStyle: presentationStyle) {
-                hero(record)
-
-                if !detailRows(for: record).isEmpty {
-                    DashboardEntityContextPanel(
-                        title: "Presence Details",
-                        systemImage: "location.fill",
-                        rows: detailRows(for: record)
-                    )
-                }
-
-                relationships(record)
+                identityHeader(record)
+                locationSection(record)
 
                 EntityActivityPanel(
                     entityID: record.entityID,
@@ -54,71 +45,111 @@ struct PresenceDetailView: View {
 
     // MARK: - Sections
 
-    private func hero(_ record: HAPresenceRecord) -> some View {
-        EntityDetailHeroCard(
-            icon: record.resolvedIcon,
-            title: EntityCapabilityRegistry.profile(for: record.domain).categoryTitle,
-            subtitle: EntityDetailHeroSubtitle.updated(entity),
-            status: nil,
-            iconColor: record.status.tint,
-            statePresentation: detailState
-        ) {
-            HStack(alignment: .center, spacing: AppSpacing.large) {
-                PeoplePresenceAvatarView(record: record, size: 88)
+    private func identityHeader(_ record: HAPresenceRecord) -> some View {
+        VStack(spacing: AppSpacing.medium) {
+            PeoplePresenceAvatarView(record: record, size: 104)
 
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            VStack(spacing: AppSpacing.xSmall) {
+                Label {
                     Text(record.status.title)
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: record.status.systemImage)
                         .foregroundStyle(record.status.tint)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.72)
-
-                    if let contextSummary = heroContext(for: record) {
-                        Text(contextSummary)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
                 }
+                .font(.title2.weight(.semibold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
 
-                Spacer(minLength: 0)
+                if let subtitle = EntityDetailHeroSubtitle.updated(entity) {
+                    subtitle
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(record.displayName), \(record.status.title)")
+
+            if let status = detailState.status,
+               detailState.operationalState != .unavailable {
+                Text(status.text)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(status.tone.foregroundColor)
+                    .padding(.horizontal, AppSpacing.medium)
+                    .padding(.vertical, AppSpacing.xSmall)
+                    .background(status.tone.backgroundColor, in: Capsule())
+            }
+
+            if let message = detailState.message {
+                EntityDetailStateMessage(
+                    state: detailState.operationalState,
+                    message: message
+                )
+            }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, AppSpacing.small)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(record.displayName), \(record.status.title)")
     }
 
     @ViewBuilder
-    private func relationships(_ record: HAPresenceRecord) -> some View {
+    private func locationSection(_ record: HAPresenceRecord) -> some View {
         if record.isPerson {
-            EntityDetailSection(title: "Source Tracker", systemImage: "location.circle.fill") {
-                if record.linkedTrackers.isEmpty {
-                    Label("No active source tracker", systemImage: "location.slash")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                } else {
-                    ForEach(record.linkedTrackers) { tracker in
-                        relatedEntityLink(
-                            entityID: tracker.entityID,
-                            title: tracker.displayName,
-                            subtitle: trackerSubtitle(tracker),
-                            systemImage: tracker.status.systemImage,
-                            tint: tracker.status.tint
-                        )
-                    }
+            personLocationSection(record)
+        } else {
+            trackerLocationSection(record)
+        }
+    }
+
+    private func personLocationSection(_ record: HAPresenceRecord) -> some View {
+        EntityDetailSection(title: "Location Source", systemImage: "location.fill") {
+            if record.linkedTrackers.isEmpty {
+                Label("No location source", systemImage: "location.slash")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            } else {
+                ForEach(record.linkedTrackers) { tracker in
+                    relatedEntityLink(
+                        entityID: tracker.entityID,
+                        title: tracker.displayName,
+                        subtitle: sourceTrackerSubtitle(record: record, tracker: tracker),
+                        systemImage: "iphone",
+                        tint: .secondary
+                    )
                 }
             }
-        } else if let linkedPersonEntityID = record.linkedPersonEntityID,
-                  let linkedPersonName = record.linkedPersonName {
-            EntityDetailSection(title: "Person", systemImage: "person.fill") {
+
+            let rows = supplementaryRows(for: record)
+            if !rows.isEmpty {
+                Divider()
+                ForEach(rows) { row in
+                    row
+                }
+            }
+        }
+    }
+
+    private func trackerLocationSection(_ record: HAPresenceRecord) -> some View {
+        EntityDetailSection(title: "Tracking", systemImage: "location.fill") {
+            if let linkedPersonEntityID = record.linkedPersonEntityID,
+               let linkedPersonName = record.linkedPersonName {
                 relatedEntityLink(
                     entityID: linkedPersonEntityID,
                     title: linkedPersonName,
-                    subtitle: "Uses this tracker",
+                    subtitle: "Person using this tracker",
                     systemImage: "person.fill",
-                    tint: .accentColor
+                    tint: .secondary
                 )
+            }
+
+            let rows = trackingRows(for: record)
+            if !rows.isEmpty {
+                if record.linkedPersonEntityID != nil {
+                    Divider()
+                }
+                ForEach(rows) { row in
+                    row
+                }
             }
         }
     }
@@ -164,18 +195,18 @@ struct PresenceDetailView: View {
     ) -> some View {
         HStack(spacing: AppSpacing.medium) {
             Image(systemName: systemImage)
+                .font(.body.weight(.medium))
                 .foregroundStyle(tint)
-                .frame(width: 36, height: 36)
-                .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+                .frame(width: 28, height: 36)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
 
                 Text(subtitle)
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
@@ -189,18 +220,18 @@ struct PresenceDetailView: View {
                     .accessibilityHidden(true)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
 
     // MARK: - Presentation
 
-    private func detailRows(for record: HAPresenceRecord) -> [EntityMetadataRow] {
+    private func trackingRows(for record: HAPresenceRecord) -> [EntityMetadataRow] {
         var rows: [EntityMetadataRow] = []
 
         if let sourceTypeTitle = record.sourceTypeTitle {
-            rows.append(EntityMetadataRow(title: "Tracking", value: sourceTypeTitle))
+            rows.append(EntityMetadataRow(title: "Method", value: sourceTypeTitle))
         }
         if let gpsAccuracyText = record.gpsAccuracyText {
             rows.append(EntityMetadataRow(title: "Accuracy", value: gpsAccuracyText))
@@ -215,18 +246,36 @@ struct PresenceDetailView: View {
         return rows
     }
 
-    private func trackerSubtitle(_ tracker: HAPresenceTrackerSummary) -> String {
-        tracker.subtitle == tracker.entityID ? tracker.status.title : tracker.subtitle
+    private func supplementaryRows(for record: HAPresenceRecord) -> [EntityMetadataRow] {
+        var rows: [EntityMetadataRow] = []
+
+        if let batteryText = record.batteryText {
+            rows.append(EntityMetadataRow(title: "Battery", value: batteryText))
+        }
+        if let deviceName = record.context.deviceName {
+            rows.append(EntityMetadataRow(title: "Device", value: deviceName))
+        }
+
+        return rows
     }
 
-    private func heroContext(for record: HAPresenceRecord) -> String? {
-        if record.isPerson, let tracker = record.linkedTrackers.first {
-            return "Reported by \(tracker.displayName)"
+    private func sourceTrackerSubtitle(
+        record: HAPresenceRecord,
+        tracker: HAPresenceTrackerSummary
+    ) -> String {
+        var parts: [String] = []
+
+        if let sourceTypeTitle = tracker.sourceTypeTitle ?? record.sourceTypeTitle {
+            parts.append(sourceTypeTitle)
         }
-        if let linkedPersonName = record.linkedPersonName {
-            return "Tracker for \(linkedPersonName)"
+        if let gpsAccuracyText = record.gpsAccuracyText {
+            parts.append("\(gpsAccuracyText) accuracy")
         }
-        return record.sourceTypeTitle
+        if let batteryLevel = tracker.batteryLevel {
+            parts.append("\(batteryLevel)% battery")
+        }
+
+        return parts.isEmpty ? tracker.status.title : parts.joined(separator: " • ")
     }
 }
 

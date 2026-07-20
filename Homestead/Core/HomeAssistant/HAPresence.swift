@@ -60,7 +60,7 @@ struct HAPresenceRecord: Identifiable, Equatable, Sendable {
         let formatter = NumberFormatter()
         formatter.maximumFractionDigits = 0
         let value = formatter.string(from: NSNumber(value: gpsAccuracy)) ?? "\(Int(gpsAccuracy))"
-        return "\(value)m"
+        return "\(value) m"
     }
 
     func matches(query: String) -> Bool {

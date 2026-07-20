@@ -208,6 +208,8 @@ struct HomesteadApp: App {
             NavigationStack {
                 AppearanceSettingsView()
             }
+        case .entityDetails:
+            EntityDetailReferenceGallery()
         case .gaugeWidget:
             GaugeWidgetComparisonPreviewScreen()
         }

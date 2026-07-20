@@ -9,7 +9,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Routed Person and Device Tracker entities into one typed, read-only Presence detail composition while retaining the Information/content family grammar and dashboard's stable generic-detail adapter identity.
 - Reused the existing registry-aware `HAPresenceRecord` and authenticated avatar loader for Home/Away/named-zone state, source tracker/person relationships, tracking method, accuracy, device context, shared Recent Activity, exceptional operational state, and final diagnostics.
 - Accepted both legacy `gps_accuracy` and current `location_accuracy` tracker metadata plus the current `tracking_type` fallback, keeping all Home Assistant DTO interpretation below SwiftUI.
-- Added deterministic Person and Device Tracker previews and focused mapping/routing coverage. Generic simulator app and test-target compilation passed; runtime inspection awaits an already-booted simulator.
+- Replaced the dashboard-like Person hero and fragmented one-row cards with a contact-style identity header and one consolidated Location Source section; compact loading and unavailable activity states no longer reserve an empty chart footprint.
+- Added Presence to the deterministic entity-detail gallery and exposed it through `--preview-screen entity-details`. Built and rendered the route on iPhone 17 (iOS 26.5), inspected both activity transitions through the in-app simulator mirror, and passed the focused presence mapping and capability-profile tests.
 
 ### Editable Value Entity Details
 

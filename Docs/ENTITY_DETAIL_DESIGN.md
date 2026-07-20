@@ -20,11 +20,11 @@ Do not repeat the same current state in the hero and a separate read-only sectio
 
 - Use grouped system surfaces, semantic colors, SF Symbols, shared spacing/radius tokens, and at least 44-point interactive targets.
 - Keep content cards opaque and inexpensive. Reserve system material or glass treatment for navigation and control chrome supplied by iOS.
-- Use the entity friendly name for navigation and a singular domain/device category in the hero.
+- Use the entity friendly name for navigation and a singular domain/device category in the hero. Identity-first domains such as Person may use a contact-style identity header instead of a category card.
 - Omit normal badges such as `Live`, `Ready`, `Normal`, `On`, and `Off`. Show a badge only for an actionable mode, warning, unavailable state, failure, or in-flight update.
 - Preserve last-known content while refreshing or pending. Disable only affected controls.
 - Unsupported capabilities are omitted. Unavailable and failed capabilities remain understandable and recoverable.
-- Loading placeholders keep the final section footprint stable. Cancellation is not an error.
+- Loading placeholders should match the expected information density. Preserve last-known content when available, and do not reserve chart-sized space for a compact empty or unavailable result. Cancellation is not an error.
 - Pushed phone details reserve bottom scroll clearance above floating tab/search chrome. Sheets rely on their own safe area.
 - Dynamic Type may expand cards vertically; never depend on fixed text height or color alone.
 
@@ -79,7 +79,9 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 - The shared scaffold constrains readable content width on regular-width devices while preserving the single-column section order used on iPhone.
 - Hero identity and exceptional status reflow vertically when horizontal space or Dynamic Type requires it.
 - The Debug reference gallery renders real detail compositions from deterministic fixtures across live, pending, unavailable, stale, failed, minimum, maximum, and long-content variants.
+- Launch the gallery directly with `--preview-screen entity-details` for simulator and browser-mirror review without onboarding or live-server dependencies.
 - Treat the reference gallery as a state matrix, not a substitute for device verification. New domain families should add representative fixtures before introducing a new visual grammar.
+- A visually complete detail-view change includes a rendered simulator pass of its representative fixture and relevant loading/empty state. A successful compile alone is a draft-quality verification for visual work.
 
 ## Adding a Domain
 
@@ -94,4 +96,4 @@ Avoid a type-erased universal section schema. Typed SwiftUI domain views remain 
 
 Editable Number details consume `NumberEntity` for current value, bounds, step, unit, and Home Assistant display mode. SwiftUI must not read the raw entity attributes to reconstruct those constraints.
 
-Person and Device Tracker details share the typed Presence composition. The hero prioritizes authenticated person imagery or the mapped entity icon plus Home/Away/named-zone state; supporting sections may show mapped tracking method, accuracy, device context, and navigable person/tracker relationships. Registry area assignment must not be presented as live physical location. Presence remains read-only and uses discrete Recent Activity ranges.
+Person and Device Tracker details share the typed Presence composition. Person uses a quiet contact-style identity header that prioritizes authenticated imagery or the mapped entity icon plus Home/Away/named-zone state, without repeating a `Person` category card. Location source, tracking method, accuracy, battery, device context, and navigable person/tracker relationships are consolidated into one supporting section when available. Registry area assignment must not be presented as live physical location. Presence remains read-only and uses discrete Recent Activity ranges; loading, empty, and failed activity results remain compact until actual events need the timeline footprint.

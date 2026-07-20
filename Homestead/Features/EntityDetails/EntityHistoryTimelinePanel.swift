@@ -163,18 +163,18 @@ struct EntityHistoryTimelinePanel: View {
     }
 
     private var loadingView: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                .fill(Color(.tertiarySystemGroupedBackground))
-                .frame(height: 132)
-                .overlay {
-                    ProgressView()
-                }
+        HStack(spacing: AppSpacing.medium) {
+            ProgressView()
+                .frame(width: 32, height: 32)
 
             Text("Loading activity")
-                .font(.caption.weight(.medium))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private func timelineList(_ timeline: HAHistoryTimeline) -> some View {
@@ -255,20 +255,22 @@ struct EntityHistoryTimelinePanel: View {
     }
 
     private func unavailableView(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                .fill(Color(.tertiarySystemGroupedBackground))
-                .frame(height: 112)
-                .overlay {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
+        HStack(spacing: AppSpacing.medium) {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                .accessibilityHidden(true)
 
             Text(message)
-                .font(.caption.weight(.medium))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private func summaryText(_ value: String) -> some View {

@@ -7,7 +7,7 @@ import SwiftUI
 /// across representative families and production operational states.
 @MainActor
 struct EntityDetailReferenceGallery: View {
-    @State private var family: EntityDetailReferenceFamily = .metric
+    @State private var family: EntityDetailReferenceFamily = .presence
     @State private var variant: EntityDetailReferenceVariant = .live
 
     var body: some View {
@@ -80,6 +80,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     case positional
     case environmental
     case information
+    case presence
 
     var id: String { rawValue }
 
@@ -89,6 +90,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .positional: "Position"
         case .environmental: "Climate"
         case .information: "Weather"
+        case .presence: "Presence"
         }
     }
 
@@ -98,6 +100,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .positional: "blinds.horizontal.closed"
         case .environmental: "thermometer.medium"
         case .information: "cloud.sun.fill"
+        case .presence: "person.crop.circle.fill"
         }
     }
 
@@ -107,6 +110,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .positional: "cover.primary_shades"
         case .environmental: "climate.downstairs"
         case .information: "weather.home"
+        case .presence: "person.tyler"
         }
     }
 
@@ -143,6 +147,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .positional: "open"
         case .environmental: "heat"
         case .information: "partlycloudy"
+        case .presence: "home"
         }
     }
 
@@ -186,6 +191,12 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
                 "forecast": .array([.object(["condition": .string("rainy")])]),
                 "attribution": .string("Home Assistant weather provider")
             ]
+        case .presence:
+            [
+                "friendly_name": .string("Tyler"),
+                "source": .string("device_tracker.tylers_iphone"),
+                "gps_accuracy": .number(20)
+            ]
         }
     }
 
@@ -205,6 +216,8 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             attributes["temperature"] = .number(isMaximum ? 90 : 50)
         case .information:
             attributes["temperature"] = .number(isMaximum ? 110 : -5)
+        case .presence:
+            state = isMaximum ? "home" : "not_home"
         }
     }
 
