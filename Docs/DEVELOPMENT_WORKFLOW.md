@@ -25,6 +25,16 @@ For an authorized implementation, use this default loop:
 
 Use XcodeBuildMCP when available for simulator discovery, session defaults, build/run, screenshots, logs, and semantic UI interaction. Before its first build, run, or test operation in a session, inspect its active defaults; then set the Homestead project, scheme, configuration, and explicit simulator UDID when needed. Shell `xcodebuild`, `xcrun simctl`, and repository scripts remain the fallback when plugin tooling is unavailable or a lower-level diagnostic is more appropriate.
 
+The trusted project configuration in `.codex/config.toml` enables the Build iOS Apps plugin, defaults Homestead to High reasoning, and keeps multi-agent work bounded to four total threads with no nested delegation. The repo-owned `homestead-ios-verify` skill under `.agents/skills` turns the completion loop into an implicitly discoverable workflow instead of relying on repeated prompt instructions.
+
+## Delegation And Review
+
+- Use bounded subagents for independent read-heavy exploration, source tracing, test-gap analysis, log analysis, or final review when parallel work materially helps.
+- Keep writes single-owner unless the work is cleanly partitioned into non-overlapping files and coordination is clearly beneficial.
+- Do not run concurrent Xcode builds, tests, or simulator mirrors against the same destination.
+- For substantial multi-file changes, run a final read-only review before committing. Prioritize behavior regressions, Home Assistant API/source-of-truth violations, SwiftUI observation ownership, missing tests, visual evidence, and unrelated diffs.
+- Ordinary one-file fixes and documentation-only edits should remain single-agent.
+
 ## Token Budget Defaults
 
 - Start from `AGENTS.md` and `Docs/NEXT_STEPS.md`; read roadmap/API docs only when the task touches product direction or Home Assistant API choices.
@@ -118,6 +128,7 @@ npx --yes serve-sim@latest "$HOMESTEAD_SIMULATOR_UDID"
 - After visible SwiftUI edits, refresh the browser preview automatically by rebuilding and relaunching the app with the current preview launch arguments. Leave the existing `serve-sim` process and browser tab running; they should only be restarted when the mirror is unhealthy.
 - After each rebuild, verify a real simulator frame in the browser mirror or capture a simulator screenshot before reporting UI results.
 - When finished, stop the long-lived terminal and wait for its cleanup trap to exit. Never use an unscoped `serve-sim --kill`, because another task may own a different simulator.
+- Codex-managed worktrees do not receive the ignored `PreviewCredentials.json` file. Use deterministic sample routes in worktrees and keep live Home Assistant preview work in Local unless the user explicitly approves adding that credential file to `.worktreeinclude`.
 
 ### Xcode 27 Beta UI Inspection
 

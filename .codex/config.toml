@@ -1,0 +1,11 @@
+model_reasoning_effort = "high"
+
+[features]
+multi_agent = true
+
+[agents]
+max_threads = 4
+max_depth = 1
+
+[plugins."build-ios-apps@openai-curated"]
+enabled = true

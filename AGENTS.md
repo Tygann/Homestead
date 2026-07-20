@@ -69,6 +69,16 @@ Prefer focused tests over broad simulator test suites unless the change truly ne
 
 For repeatable physical-device performance profiling, use `Docs/PERFORMANCE_PROFILING.md`.
 
+Use the repo-owned `homestead-ios-verify` skill for code, test, documentation, and visible UI completion checks. It selects the proportional build, focused-test, simulator/browser, storage-hygiene, and diff-review path automatically.
+
+## Delegation And Final Review
+
+- Codex may delegate substantial independent read-heavy work without a separate user request when parallel exploration, source tracing, test-gap analysis, log inspection, or final review materially improves quality or latency.
+- Keep delegation bounded to one or two workers for ordinary Homestead work. Keep agent nesting at one level.
+- Keep production code edits single-owner by default. Do not run competing Xcode builds, tests, or simulator mirrors against the same destination.
+- Do not delegate tightly coupled one-file work or documentation-only changes when coordination would cost more than it saves.
+- Before committing a substantial multi-file change, perform a read-only final review for correctness, regressions, official Home Assistant contract compliance, SwiftUI state ownership, missing tests, visual verification gaps, and unrelated diffs. Resolve actionable findings or report why they remain.
+
 ## Release Notes
 
 - When providing TestFlight or App Store update notes, put the pasteable user-facing copy in a fenced plain-text code block so the user can copy it directly instead of extracting it from rendered Markdown.

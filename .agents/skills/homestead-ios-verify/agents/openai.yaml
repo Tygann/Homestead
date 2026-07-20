@@ -1,0 +1,4 @@
+interface:
+  display_name: "Homestead iOS Verify"
+  short_description: "Build, inspect, and verify Homestead changes"
+  default_prompt: "Use $homestead-ios-verify to verify this Homestead change end to end."
