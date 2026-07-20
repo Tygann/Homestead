@@ -39,10 +39,17 @@ struct DashboardChartCardContent: View {
 
                         Spacer(minLength: AppSpacing.small)
 
-                        if dynamicTypeSize < .xxxLarge {
-                            Text(DashboardHistoryCardPresentation.defaultRange.title)
-                                .font(.caption2.monospacedDigit().weight(.semibold))
-                                .foregroundStyle(.secondary)
+                        if showsTrailingSummary {
+                            VStack(alignment: .trailing, spacing: 1) {
+                                Text(DashboardHistoryCardPresentation.defaultRange.title)
+
+                                if let compactChangeSummaryText {
+                                    Text(compactChangeSummaryText)
+                                }
+                            }
+                            .font(.caption2.monospacedDigit().weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                         }
                     }
 
@@ -62,14 +69,6 @@ struct DashboardChartCardContent: View {
                         }
 
                         Spacer(minLength: AppSpacing.small)
-
-                        if showsChangeSummary,
-                           let changeSummaryText {
-                            Text(changeSummaryText)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
                     }
 
                     if showsContextSummary {
@@ -104,18 +103,20 @@ struct DashboardChartCardContent: View {
     }
 
     private func chart(_ chartPresentation: DashboardHistoryCardPresentation) -> some View {
-        Chart(chartPresentation.samples) { sample in
+        let displayDomain = chartDisplayDomain(chartPresentation)
+
+        return Chart(chartPresentation.samples) { sample in
             AreaMark(
                 x: .value("Time", sample.occurredAt),
-                yStart: .value("Baseline", chartPresentation.valueDomain.lowerBound),
+                yStart: .value("Baseline", displayDomain.lowerBound),
                 yEnd: .value("Value", sample.value)
             )
-            .interpolationMethod(.monotone)
+            .interpolationMethod(.catmullRom)
             .foregroundStyle(
                 LinearGradient(
                     colors: [
-                        presentation.accentColor.opacity(0.20),
-                        presentation.accentColor.opacity(0.025)
+                        presentation.accentColor.opacity(0.16),
+                        presentation.accentColor.opacity(0.02)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -126,12 +127,12 @@ struct DashboardChartCardContent: View {
                 x: .value("Time", sample.occurredAt),
                 y: .value("Value", sample.value)
             )
-            .interpolationMethod(.monotone)
-            .lineStyle(StrokeStyle(lineWidth: 2.25, lineCap: .round, lineJoin: .round))
+            .interpolationMethod(.catmullRom)
+            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             .foregroundStyle(presentation.accentColor)
         }
-        .chartYScale(domain: chartPresentation.valueDomain)
-        .chartXScale(range: .plotDimension(startPadding: 2, endPadding: 4))
+        .chartYScale(domain: displayDomain)
+        .chartXScale(range: .plotDimension(startPadding: 0, endPadding: 0))
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .chartPlotStyle { plotArea in
@@ -182,6 +183,17 @@ struct DashboardChartCardContent: View {
         return chartPresentation.changeSummaryText
     }
 
+    private var compactChangeSummaryText: String? {
+        guard let changeSummaryText else { return nil }
+        if changeSummaryText.hasPrefix("Up ") {
+            return "↑ \(changeSummaryText.dropFirst(3))"
+        }
+        if changeSummaryText.hasPrefix("Down ") {
+            return "↓ \(changeSummaryText.dropFirst(5))"
+        }
+        return changeSummaryText
+    }
+
     private var contextSummaryText: String {
         if !presentation.isAvailable {
             if case .loaded = state {
@@ -206,8 +218,8 @@ struct DashboardChartCardContent: View {
         presentation.isAvailable ? .secondary : .orange
     }
 
-    private var showsChangeSummary: Bool {
-        size == .wide || size == .large
+    private var showsTrailingSummary: Bool {
+        (size == .wide || size == .large) && dynamicTypeSize < .xxxLarge
     }
 
     private var showsContextSummary: Bool {
@@ -236,10 +248,18 @@ struct DashboardChartCardContent: View {
         case .wide:
             availableHeight * 0.46
         case .square:
-            availableHeight * 0.38
+            availableHeight * 0.35
         default:
             availableHeight * 0.34
         }
+    }
+
+    private func chartDisplayDomain(
+        _ chartPresentation: DashboardHistoryCardPresentation
+    ) -> ClosedRange<Double> {
+        let domain = chartPresentation.valueDomain
+        let headroom = (domain.upperBound - domain.lowerBound) * 0.04
+        return (domain.lowerBound - headroom)...(domain.upperBound + headroom)
     }
 
     private var accessibilityLabel: String {
@@ -342,8 +362,8 @@ struct DashboardWeatherCardContent: View {
                 Image(systemName: weather.iconName)
                     .symbolRenderingMode(.hierarchical)
                     .font(.system(size: decorativeIconSize(for: proxy.size), weight: .regular))
-                    .foregroundStyle(.white.opacity(0.07))
-                    .offset(x: proxy.size.width * 0.62, y: proxy.size.height * 0.10)
+                    .foregroundStyle(.white.opacity(0.06))
+                    .offset(x: proxy.size.width * 0.65, y: proxy.size.height * 0.07)
                     .accessibilityHidden(true)
 
                 cardContent(availableWidth: proxy.size.width)

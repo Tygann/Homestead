@@ -2250,6 +2250,7 @@ struct HomesteadTests {
 
     @MainActor
     @Test func dashboardHistoryPreviewProvidesDeterministicVisibleTrend() throws {
+        let lastUpdated = try testDate("2026-07-19T21:40:00Z")
         let store = HAStateStore()
         store.applyInitialStates([
             HAEntityDTO(
@@ -2259,7 +2260,8 @@ struct HomesteadTests {
                     "friendly_name": .string("Hallway"),
                     "device_class": .string("temperature"),
                     "unit_of_measurement": .string("°F")
-                ]
+                ],
+                lastUpdated: lastUpdated
             )
         ])
         let entityBox = try #require(store.entityBox(for: "sensor.hallway_temperature"))
@@ -2269,6 +2271,7 @@ struct HomesteadTests {
         #expect(preview.samples.count == 8)
         #expect(preview.range == .sixHours)
         #expect(preview.samples.last?.value == 72)
+        #expect(preview.samples.last?.occurredAt == lastUpdated)
         #expect(preview.valueDomain.lowerBound < preview.valueDomain.upperBound)
     }
 

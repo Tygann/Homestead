@@ -145,7 +145,9 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
             return nil
         }
 
-        let endDate = Date(timeIntervalSince1970: 1_784_515_200)
+        // Keep Debug gallery history aligned with the fixture's live sample so the
+        // current-value extension cannot compress the whole trend into the leading edge.
+        let endDate = sensor.lastUpdated ?? Date(timeIntervalSince1970: 1_784_515_200)
         let interval = defaultRange.interval(endingAt: endDate)
         let offsets = [-0.08, -0.03, 0.04, -0.01, 0.07, 0.02, 0.09, 0.0]
         let scale = max(abs(value) * 0.08, 1)
