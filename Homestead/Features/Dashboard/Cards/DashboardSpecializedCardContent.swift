@@ -25,7 +25,7 @@ struct DashboardChartCardContent: View {
                 chartLayer
                     .frame(height: chartHeight(for: proxy.size.height))
 
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                VStack(alignment: .leading, spacing: chartHeaderSpacing) {
                     HStack(spacing: AppSpacing.small) {
                         HomesteadIconView(icon: presentation.icon, pointSize: 18, weight: .semibold)
                             .foregroundStyle(presentation.accentColor)
@@ -63,7 +63,7 @@ struct DashboardChartCardContent: View {
 
                         Spacer(minLength: AppSpacing.small)
 
-                        if size != .square,
+                        if showsChangeSummary,
                            let changeSummaryText {
                             Text(changeSummaryText)
                                 .font(.caption.weight(.semibold))
@@ -72,7 +72,7 @@ struct DashboardChartCardContent: View {
                         }
                     }
 
-                    if shouldShowContextSummary {
+                    if showsContextSummary {
                         Text(contextSummaryText)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(contextSummaryColor)
@@ -110,12 +110,12 @@ struct DashboardChartCardContent: View {
                 yStart: .value("Baseline", chartPresentation.valueDomain.lowerBound),
                 yEnd: .value("Value", sample.value)
             )
-            .interpolationMethod(.linear)
+            .interpolationMethod(.monotone)
             .foregroundStyle(
                 LinearGradient(
                     colors: [
-                        presentation.accentColor.opacity(0.28),
-                        presentation.accentColor.opacity(0.04)
+                        presentation.accentColor.opacity(0.20),
+                        presentation.accentColor.opacity(0.025)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -126,21 +126,12 @@ struct DashboardChartCardContent: View {
                 x: .value("Time", sample.occurredAt),
                 y: .value("Value", sample.value)
             )
-            .interpolationMethod(.linear)
-            .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+            .interpolationMethod(.monotone)
+            .lineStyle(StrokeStyle(lineWidth: 2.25, lineCap: .round, lineJoin: .round))
             .foregroundStyle(presentation.accentColor)
-
-            if sample.id == chartPresentation.samples.last?.id {
-                PointMark(
-                    x: .value("Time", sample.occurredAt),
-                    y: .value("Value", sample.value)
-                )
-                .symbolSize(size == .large ? 52 : 38)
-                .foregroundStyle(presentation.accentColor)
-            }
         }
         .chartYScale(domain: chartPresentation.valueDomain)
-        .chartXScale(range: .plotDimension(startPadding: 4, endPadding: 8))
+        .chartXScale(range: .plotDimension(startPadding: 2, endPadding: 4))
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .chartPlotStyle { plotArea in
@@ -201,9 +192,7 @@ struct DashboardChartCardContent: View {
 
         return switch state {
         case .loaded(let chartPresentation):
-            size == .square
-                ? chartPresentation.rangeSummaryText
-                : "\(measurementTitle) · \(chartPresentation.rangeSummaryText)"
+            chartPresentation.rangeSummaryText
         case .loading:
             "\(measurementTitle) · Loading recent trend"
         case .empty:
@@ -217,22 +206,37 @@ struct DashboardChartCardContent: View {
         presentation.isAvailable ? .secondary : .orange
     }
 
-    private var shouldShowContextSummary: Bool {
-        !(size == .square && dynamicTypeSize >= .xxLarge)
+    private var showsChangeSummary: Bool {
+        size == .wide || size == .large
+    }
+
+    private var showsContextSummary: Bool {
+        if !presentation.isAvailable {
+            return dynamicTypeSize < .xxLarge
+        }
+        return size == .large && dynamicTypeSize < .xxxLarge
+    }
+
+    private var chartHeaderSpacing: CGFloat {
+        size == .square ? 2 : AppSpacing.xSmall
     }
 
     private var valueFontSize: CGFloat {
-        size == .large ? 48 : 36
+        switch size {
+        case .large: 48
+        case .wide: 40
+        default: 36
+        }
     }
 
     private func chartHeight(for availableHeight: CGFloat) -> CGFloat {
         switch size {
         case .large:
-            availableHeight * 0.58
+            availableHeight * 0.60
         case .wide:
-            availableHeight * 0.42
+            availableHeight * 0.46
         case .square:
-            availableHeight * 0.36
+            availableHeight * 0.38
         default:
             availableHeight * 0.34
         }
@@ -338,19 +342,11 @@ struct DashboardWeatherCardContent: View {
                 Image(systemName: weather.iconName)
                     .symbolRenderingMode(.hierarchical)
                     .font(.system(size: decorativeIconSize(for: proxy.size), weight: .regular))
-                    .foregroundStyle(.white.opacity(0.10))
-                    .offset(x: proxy.size.width * 0.56, y: proxy.size.height * 0.16)
+                    .foregroundStyle(.white.opacity(0.07))
+                    .offset(x: proxy.size.width * 0.62, y: proxy.size.height * 0.10)
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: size == .large ? AppSpacing.medium : AppSpacing.small) {
-                    currentConditions
-
-                    Spacer(minLength: 0)
-
-                    forecastContent(availableWidth: proxy.size.width)
-                }
-                .padding(.horizontal, AppSpacing.medium)
-                .padding(.vertical, size == .wide ? AppSpacing.small : AppSpacing.medium)
+                cardContent(availableWidth: proxy.size.width)
             }
         }
         .foregroundStyle(.white)
@@ -358,11 +354,27 @@ struct DashboardWeatherCardContent: View {
     }
 
     @ViewBuilder
-    private var currentConditions: some View {
+    private func cardContent(availableWidth: CGFloat) -> some View {
         if size == .wide {
-            wideCurrentConditions
+            VStack(alignment: .leading, spacing: 0) {
+                wideCurrentConditions
+
+                Spacer(minLength: AppSpacing.xSmall)
+
+                forecastContent(availableWidth: availableWidth)
+            }
+            .padding(.horizontal, AppSpacing.medium)
+            .padding(.top, 10)
+            .padding(.bottom, 14)
         } else {
-            standardCurrentConditions
+            VStack(alignment: .leading, spacing: size == .large ? AppSpacing.medium : AppSpacing.small) {
+                standardCurrentConditions
+
+                Spacer(minLength: 0)
+
+                forecastContent(availableWidth: availableWidth)
+            }
+            .padding(AppSpacing.medium)
         }
     }
 
@@ -431,7 +443,7 @@ struct DashboardWeatherCardContent: View {
                     .accessibilityHidden(true)
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
+            HStack(alignment: .top, spacing: AppSpacing.medium) {
                 Text(weatherReadingText)
                     .font(.system(size: currentTemperatureFontSize, weight: .regular, design: .rounded))
                     .lineLimit(1)
@@ -448,6 +460,7 @@ struct DashboardWeatherCardContent: View {
                 }
                 .font(.caption2.weight(.semibold))
                 .lineLimit(1)
+                .padding(.top, 5)
             }
         }
         .accessibilityElement(children: .ignore)
