@@ -19,17 +19,28 @@ struct SensorDetailView: View {
         DashboardEntityPresentation(entityBox: entityBox)
     }
 
+    @MainActor
+    private var heroPresentation: SensorDetailHeroPresentation? {
+        entityBox.sensorEntity.map(SensorDetailHeroPresentation.init)
+    }
+
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
-            header
-            currentReading
+            if entity.domain == .sensor {
+                sensorHero
+            } else {
+                header
+                currentReading
+            }
             if supportsHistory {
                 historyPanel
             }
             if supportsTimeline {
                 timelinePanel
             }
-            detailMetrics
+            if entity.domain != .sensor {
+                detailMetrics
+            }
             contextDetails
         }
         .task(id: historyTaskID) {
@@ -73,6 +84,41 @@ struct SensorDetailView: View {
         }
     }
 
+    private var sensorHero: some View {
+        EntityDetailHeroCard(
+            icon: presentation.icon,
+            title: heroPresentation?.category ?? "Sensor",
+            subtitle: sensorFreshnessText,
+            status: heroPresentation?.statusText,
+            iconColor: sensorHeroColor
+        ) {
+            if let gauge = entityBox.sensorEntity?.gaugePresentation {
+                GaugePresentationView(
+                    presentation: gauge,
+                    style: .detail,
+                    tint: presentation.accentColor,
+                    icon: presentation.icon
+                )
+            } else {
+                Text(primaryValue)
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                    .foregroundStyle(statusColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var sensorFreshnessText: Text? {
+        if entity.isAvailable, let lastUpdated = entity.lastUpdated {
+            return Text("Updated \(lastUpdated, style: .relative)")
+        }
+
+        return nil
+    }
+
     private var detailMetrics: some View {
         DashboardEntityContextPanel(
             title: "Reading",
@@ -113,53 +159,31 @@ struct SensorDetailView: View {
                     historyLoadingView
                 case .loaded(let series):
                     if series.isEmpty {
-                        historyUnavailableView("No numeric history for \(selectedHistoryRange.accessibilityTitle.lowercased()).")
+                        historyUnavailableView(
+                            "No history for \(selectedHistoryRange.accessibilityTitle.lowercased()).",
+                            showsRetry: false
+                        )
                     } else {
                         historyChart(series)
                     }
                 case .failed:
-                    historyUnavailableView("History unavailable")
+                    historyUnavailableView("History unavailable", showsRetry: true)
                 }
             }
         }
     }
 
     private var historyRangePicker: some View {
-        rangePicker(isLoading: historyPhase.isLoading, refreshAccessibilityLabel: "Refresh history") {
-            Task { await refreshHistory() }
-        }
-    }
-
-    private func rangePicker(
-        isLoading: Bool,
-        refreshAccessibilityLabel: String,
-        refreshAction: @escaping () -> Void
-    ) -> some View {
-        HStack(spacing: AppSpacing.small) {
-            ForEach(HAHistoryRangePreset.allCases) { range in
-                EntityDetailPillButton(
-                    title: range.title,
-                    isSelected: selectedHistoryRange == range,
-                    isDisabled: isLoading,
-                    tint: presentation.accentColor
-                ) {
-                    selectedHistoryRange = range
-                }
-                .accessibilityLabel(range.accessibilityTitle)
+        Picker("History range", selection: $selectedHistoryRange) {
+            ForEach(HAHistoryRangePreset.sensorChartPresets) { range in
+                Text(range.title)
+                    .tag(range)
+                    .accessibilityLabel(range.accessibilityTitle)
             }
-
-            Button {
-                refreshAction()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(width: 42, height: 42)
-                    .background(Color(.tertiarySystemGroupedBackground), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled(isLoading)
-            .accessibilityLabel(refreshAccessibilityLabel)
         }
+        .pickerStyle(.segmented)
+        .disabled(historyPhase.isLoading)
+        .accessibilityLabel("History range")
     }
 
     private var historyLoadingView: some View {
@@ -179,7 +203,7 @@ struct SensorDetailView: View {
 
     private func historyChart(_ series: HAHistoryChartSeries) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Chart(series.samples) { sample in
+            Chart(series.chartSamples()) { sample in
                 LineMark(
                     x: .value("Time", sample.occurredAt),
                     y: .value("Value", sample.value)
@@ -210,9 +234,22 @@ struct SensorDetailView: View {
                 plotArea.clipped()
             }
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 3)) { _ in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.hour().minute())
+                switch selectedHistoryRange {
+                case .oneHour, .sixHours, .day:
+                    AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.hour().minute())
+                    }
+                case .week:
+                    AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.weekday(.abbreviated))
+                    }
+                case .month:
+                    AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    }
                 }
             }
             .chartYAxis {
@@ -235,30 +272,56 @@ struct SensorDetailView: View {
                 Spacer(minLength: AppSpacing.small)
 
                 if let latestSample = series.latestSample {
-                    Text(latestSample.occurredAt.formatted(date: .omitted, time: .shortened))
+                    Text(latestSampleDateText(latestSample.occurredAt))
                         .font(.caption.monospacedDigit().weight(.medium))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
             }
+
+            if selectedHistoryRange == .month {
+                Text("Shows available Home Assistant history.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 
-    private func historyUnavailableView(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                .fill(Color(.tertiarySystemGroupedBackground))
-                .frame(height: 132)
-                .overlay {
-                    Image(systemName: "chart.xyaxis.line")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
+    private func latestSampleDateText(_ date: Date) -> String {
+        switch selectedHistoryRange {
+        case .oneHour, .sixHours, .day:
+            return date.formatted(date: .omitted, time: .shortened)
+        case .week, .month:
+            return date.formatted(date: .abbreviated, time: .omitted)
+        }
+    }
+
+    private func historyUnavailableView(_ message: String, showsRetry: Bool) -> some View {
+        HStack(spacing: AppSpacing.medium) {
+            Image(systemName: "chart.xyaxis.line")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 36, height: 36)
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+                .accessibilityHidden(true)
 
             Text(message)
-                .font(.caption.weight(.medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
+
+            Spacer(minLength: AppSpacing.small)
+
+            if showsRetry {
+                Button("Retry") {
+                    Task { await refreshHistory() }
+                }
+                .buttonStyle(.bordered)
+                .frame(minHeight: 44)
+                .disabled(historyPhase.isLoading)
+            }
         }
+        .padding(AppSpacing.medium)
+        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
     }
 
     private var timelinePanel: some View {
@@ -294,14 +357,7 @@ struct SensorDetailView: View {
     }
 
     private var navigationTitle: String {
-        switch entity.domain {
-        case .binarySensor:
-            "Binary Sensor"
-        case .sensor:
-            "Sensor"
-        default:
-            "Entity"
-        }
+        presentation.title
     }
 
     private var primaryValue: String {
@@ -348,6 +404,14 @@ struct SensorDetailView: View {
         }
 
         return "Live"
+    }
+
+    private var sensorHeroColor: Color {
+        guard entity.isAvailable else { return .red }
+        guard let status = entityBox.sensorEntity?.gaugePresentation?.status else {
+            return presentation.accentColor
+        }
+        return gaugeVisualStatusColor(for: status.visualStatus)
     }
 
     private var binarySensorStateText: String {
@@ -412,6 +476,8 @@ struct SensorDetailView: View {
                     range: selectedHistoryRange
                 )
             )
+        } catch is CancellationError {
+            return
         } catch {
             historyPhase = .failed
         }
@@ -440,8 +506,32 @@ struct SensorDetailView: View {
                     range: selectedHistoryRange
                 )
             )
+        } catch is CancellationError {
+            return
         } catch {
             timelinePhase = .failed
+        }
+    }
+}
+
+struct SensorDetailHeroPresentation: Equatable, Sendable {
+    let category: String
+    let statusText: String?
+
+    init(sensor: SensorEntity) {
+        category = sensor.formattedDeviceClass ?? "Sensor"
+
+        guard sensor.isAvailable else {
+            statusText = "Unavailable"
+            return
+        }
+
+        if let gauge = sensor.gaugePresentation, gauge.status != .nominal {
+            statusText = gauge.statusDisplayText
+        } else if sensor.isAlerting {
+            statusText = "Alert"
+        } else {
+            statusText = nil
         }
     }
 }
@@ -464,6 +554,13 @@ private enum SensorHistoryPhase: Equatable {
 #if DEBUG
 #Preview("Sensor") {
     if let entityBox = PreviewDependencies.sample.stateStore.entityBox(for: "sensor.hallway_temperature") {
+        SensorDetailView(entityBox: entityBox)
+            .withPreviewEnvironment()
+    }
+}
+
+#Preview("Gauge Sensor") {
+    if let entityBox = PreviewDependencies.sample.stateStore.entityBox(for: "sensor.front_door_battery") {
         SensorDetailView(entityBox: entityBox)
             .withPreviewEnvironment()
     }

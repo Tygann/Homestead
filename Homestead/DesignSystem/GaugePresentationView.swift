@@ -9,6 +9,8 @@ enum GaugePresentationStyle: Equatable, Sendable {
 }
 
 struct GaugePresentationView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let presentation: GaugePresentation
     let style: GaugePresentationStyle
     let tint: Color
@@ -34,6 +36,16 @@ struct GaugePresentationView: View {
     }
 
     private var instrumentGauge: some View {
+        instrumentGauge(
+            trackStyle: style == .segmentedInstrument ? .segmented : .continuous,
+            density: .standard
+        )
+    }
+
+    private func instrumentGauge(
+        trackStyle: GaugeInstrumentTrackStyle,
+        density: GaugeInstrumentDensity
+    ) -> some View {
         GaugeInstrumentCanvas(
             presentation: GaugeInstrumentVisualPresentation(
                 value: presentation.value,
@@ -56,41 +68,45 @@ struct GaugePresentationView: View {
             tint: statusColor(for: presentation.status),
             title: title,
             icon: icon,
-            trackStyle: style == .segmentedInstrument ? .segmented : .continuous,
-            density: .standard
+            trackStyle: trackStyle,
+            density: density
         )
     }
 
+    @ViewBuilder
     private var detailGauge: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                Text(presentation.valueText)
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundStyle(statusColor(for: presentation.status))
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                detailReadout
+
+                rowGauge
+            }
+        } else {
+            instrumentGauge(
+                trackStyle: presentation.sections.count > 1 ? .segmented : .continuous,
+                density: .standard
+            )
+            .frame(height: 206)
+        }
+    }
+
+    private var detailReadout: some View {
+        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
+            Text(presentation.valueText)
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .foregroundStyle(statusColor(for: presentation.status))
+                .lineLimit(1)
+                .minimumScaleFactor(0.58)
+                .monospacedDigit()
+
+            if let unitText = presentation.unitText {
+                Text(unitText)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.58)
-                    .monospacedDigit()
-
-                if let unitText = presentation.unitText {
-                    Text(unitText)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: AppSpacing.small)
-
-                Text(presentation.statusDisplayText)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(statusColor(for: presentation.status))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(statusColor(for: presentation.status).opacity(0.12), in: Capsule())
             }
 
-            arcGauge(arcHeight: 104, lineWidth: 14, markerFont: .caption.weight(.medium))
+            Spacer(minLength: AppSpacing.small)
         }
     }
 

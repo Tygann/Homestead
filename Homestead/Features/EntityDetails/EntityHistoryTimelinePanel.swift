@@ -68,7 +68,7 @@ struct EntityHistoryTimelinePanel: View {
 
     private var rangeButtons: some View {
         HStack(spacing: AppSpacing.small) {
-            ForEach(HAHistoryRangePreset.allCases) { range in
+            ForEach(HAHistoryRangePreset.activityPresets) { range in
                 EntityDetailPillButton(
                     title: range.title,
                     isSelected: selectedRange == range,

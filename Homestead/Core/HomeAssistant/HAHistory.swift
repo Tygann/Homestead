@@ -96,6 +96,11 @@ nonisolated enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Equat
     case oneHour
     case sixHours
     case day
+    case week
+    case month
+
+    static let activityPresets: [Self] = [.oneHour, .sixHours, .day]
+    static let sensorChartPresets: [Self] = [.day, .week, .month]
 
     var id: String { rawValue }
 
@@ -107,6 +112,10 @@ nonisolated enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Equat
             "6H"
         case .day:
             "24H"
+        case .week:
+            "7D"
+        case .month:
+            "30D"
         }
     }
 
@@ -118,6 +127,10 @@ nonisolated enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Equat
             "Last 6 hours"
         case .day:
             "Last 24 hours"
+        case .week:
+            "Last 7 days"
+        case .month:
+            "Last 30 days"
         }
     }
 
@@ -129,6 +142,10 @@ nonisolated enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Equat
             6 * 60 * 60
         case .day:
             24 * 60 * 60
+        case .week:
+            7 * 24 * 60 * 60
+        case .month:
+            30 * 24 * 60 * 60
         }
     }
 
@@ -210,6 +227,37 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
 
         let separator = unit.hasPrefix("°") || unit == "%" ? "" : " "
         return "\(numberText)\(separator)\(unit)"
+    }
+
+    func chartSamples(maxCount: Int = 240) -> [HAHistorySample] {
+        guard maxCount >= 4, samples.count > maxCount else {
+            return samples
+        }
+
+        let interiorSamples = Array(samples.dropFirst().dropLast())
+        let bucketCount = max((maxCount - 2) / 2, 1)
+        let bucketSize = max(Int(ceil(Double(interiorSamples.count) / Double(bucketCount))), 1)
+        var result = [samples[0]]
+
+        for bucketStart in stride(from: 0, to: interiorSamples.count, by: bucketSize) {
+            let bucketEnd = min(bucketStart + bucketSize, interiorSamples.count)
+            let bucket = interiorSamples[bucketStart..<bucketEnd]
+            guard let minimum = bucket.min(by: { $0.value < $1.value }),
+                  let maximum = bucket.max(by: { $0.value < $1.value }) else {
+                continue
+            }
+
+            if minimum.occurredAt <= maximum.occurredAt {
+                result.append(minimum)
+                if maximum.id != minimum.id { result.append(maximum) }
+            } else {
+                result.append(maximum)
+                if maximum.id != minimum.id { result.append(minimum) }
+            }
+        }
+
+        result.append(samples[samples.count - 1])
+        return result
     }
 
     static func make(

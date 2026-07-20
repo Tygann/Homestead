@@ -2100,14 +2100,47 @@ struct HomesteadTests {
         let expectedHourStart = try testDate("2026-06-05T15:00:00Z")
         let expectedSixHourStart = try testDate("2026-06-05T10:00:00Z")
         let expectedDayStart = try testDate("2026-06-04T16:00:00Z")
+        let expectedWeekStart = try testDate("2026-05-29T16:00:00Z")
+        let expectedMonthStart = try testDate("2026-05-06T16:00:00Z")
         let hour = HAHistoryRangePreset.oneHour.interval(endingAt: endDate)
         let sixHours = HAHistoryRangePreset.sixHours.interval(endingAt: endDate)
         let day = HAHistoryRangePreset.day.interval(endingAt: endDate)
+        let week = HAHistoryRangePreset.week.interval(endingAt: endDate)
+        let month = HAHistoryRangePreset.month.interval(endingAt: endDate)
 
         #expect(hour.end == endDate)
         #expect(hour.start == expectedHourStart)
         #expect(sixHours.start == expectedSixHourStart)
         #expect(day.start == expectedDayStart)
+        #expect(week.start == expectedWeekStart)
+        #expect(month.start == expectedMonthStart)
+        #expect(HAHistoryRangePreset.activityPresets == [.oneHour, .sixHours, .day])
+        #expect(HAHistoryRangePreset.sensorChartPresets == [.day, .week, .month])
+    }
+
+    @Test func historyChartSamplingCapsPointsAndPreservesBoundsAndExtremes() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let samples = (0..<1_000).map { index in
+            HAHistorySample(
+                occurredAt: start.addingTimeInterval(Double(index) * 60),
+                value: index == 500 ? 500 : Double(index % 25)
+            )
+        }
+        let series = HAHistoryChartSeries(
+            entityID: "sensor.temperature",
+            displayName: "Temperature",
+            unit: "°F",
+            range: .month,
+            samples: samples
+        )
+
+        let chartSamples = series.chartSamples(maxCount: 240)
+
+        #expect(chartSamples.count <= 240)
+        #expect(chartSamples.first == samples.first)
+        #expect(chartSamples.last == samples.last)
+        #expect(chartSamples.contains { $0.value == 500 })
+        #expect(chartSamples.map(\.occurredAt) == chartSamples.map(\.occurredAt).sorted())
     }
 
     @MainActor
@@ -3234,6 +3267,39 @@ struct HomesteadTests {
             lastUpdated: nil
         )
         #expect(lifetimeTotal.gaugePresentation == nil)
+    }
+
+    @MainActor
+    @Test func sensorDetailHeroShowsOnlyActionableStatus() {
+        let nominalBattery = SensorEntity(
+            entityID: "sensor.remote_battery",
+            displayName: "Remote Battery",
+            value: "100",
+            unit: "%",
+            deviceClass: "battery",
+            lastUpdated: nil
+        )
+        let criticalBattery = SensorEntity(
+            entityID: "sensor.remote_battery",
+            displayName: "Remote Battery",
+            value: "8",
+            unit: "%",
+            deviceClass: "battery",
+            lastUpdated: nil
+        )
+        let unavailableBattery = SensorEntity(
+            entityID: "sensor.remote_battery",
+            displayName: "Remote Battery",
+            value: "unavailable",
+            unit: "%",
+            deviceClass: "battery",
+            lastUpdated: nil
+        )
+
+        #expect(SensorDetailHeroPresentation(sensor: nominalBattery).category == "Battery")
+        #expect(SensorDetailHeroPresentation(sensor: nominalBattery).statusText == nil)
+        #expect(SensorDetailHeroPresentation(sensor: criticalBattery).statusText == "Critical")
+        #expect(SensorDetailHeroPresentation(sensor: unavailableBattery).statusText == "Unavailable")
     }
 
     @Test func serviceRegistryBuildsGenericEntityActions() {

@@ -39,6 +39,84 @@ struct EntityUnavailableDetailView: View {
     }
 }
 
+struct EntityDetailHeroCard<Content: View>: View {
+    let icon: ResolvedIcon
+    let title: String
+    let subtitle: Text?
+    let status: String?
+    let iconColor: Color
+    let statusColor: Color
+    let iconBackground: Color
+    let statusBackground: Color
+    private let content: Content
+
+    init(
+        icon: ResolvedIcon,
+        title: String,
+        subtitle: Text?,
+        status: String?,
+        iconColor: Color,
+        statusColor: Color? = nil,
+        iconBackground: Color? = nil,
+        statusBackground: Color? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.status = status
+        self.iconColor = iconColor
+        self.statusColor = statusColor ?? iconColor
+        self.iconBackground = iconBackground ?? iconColor.opacity(0.12)
+        self.statusBackground = statusBackground ?? iconColor.opacity(0.12)
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.large) {
+            HStack(alignment: .center, spacing: AppSpacing.medium) {
+                HomesteadIconView(icon: icon, pointSize: 25)
+                    .foregroundStyle(iconColor)
+                    .frame(width: 52, height: 52)
+                    .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                    Text(title)
+                        .font(.title3.weight(.semibold))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.78)
+
+                    if let subtitle {
+                        subtitle
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+
+                Spacer(minLength: AppSpacing.medium)
+
+                if let status, !status.isEmpty {
+                    Text(status)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(statusColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .padding(.horizontal, AppSpacing.medium)
+                        .padding(.vertical, AppSpacing.small)
+                        .background(statusBackground, in: Capsule())
+                }
+            }
+            .accessibilityElement(children: .combine)
+
+            content
+        }
+        .padding(AppSpacing.large)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+}
+
 struct EntityDetailHeader: View {
     let icon: ResolvedIcon
     let title: String
@@ -92,39 +170,18 @@ struct EntityDetailHeader: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: AppSpacing.medium) {
-            HomesteadIconView(icon: icon, pointSize: 25)
-                .foregroundStyle(iconColor)
-                .frame(width: 52, height: 52)
-                .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(title)
-                    .font(.title3.weight(.semibold))
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.78)
-
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-
-            Spacer(minLength: AppSpacing.medium)
-
-            Text(badge)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(badgeColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .padding(.horizontal, AppSpacing.medium)
-                .padding(.vertical, AppSpacing.small)
-                .background(badgeBackground, in: Capsule())
+        EntityDetailHeroCard(
+            icon: icon,
+            title: title,
+            subtitle: Text(subtitle),
+            status: badge,
+            iconColor: iconColor,
+            statusColor: badgeColor,
+            iconBackground: iconBackground,
+            statusBackground: badgeBackground
+        ) {
+            EmptyView()
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 }
 

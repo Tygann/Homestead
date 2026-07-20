@@ -24,6 +24,9 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Refined numeric sensor details around a shared `EntityDetailHeroCard`: the standard entity header now delegates to the same shell, while sensors place their domain-specific gauge or reading into its content slot. This preserves consistent icon, metadata, status, spacing, surface, and accessibility behavior without flattening domain-specific detail content.
+- Replaced numeric sensor history's short 1H/6H/24H choices with 24H/7D/30D, retained the short presets for event-oriented entity timelines, adapted chart date labels to the selected duration, and capped rendered chart points with extrema-preserving sampling. The 30-day view states that it shows the history available from Home Assistant because Recorder retention can be shorter.
+- Verified the entity-detail refinement with a clean generic simulator build and four focused gauge/history tests; Xcode storage hygiene reported `XCTestDevices` below its cleanup threshold.
 - Removed Card Features from the dashboard card context menu and deleted its persisted Automatic/Hidden state. Card type, entity capabilities, and size now own inline feature rendering; the long-press menu retains only relevant card actions, and the gauge customization action is named Gauge Settings.
 - Replaced the generic Gauge plus sub-style model with separate Circular Gauge, Segmented Gauge, and Bar Gauge card configurations. Removed persisted gauge/control styles, made duplicate identity source plus atomic card kind, gave every gauge a square default, and advanced dashboard persistence to schema v4 for an intentional beta reset.
 - Simplified card configuration to Entity plus Preview, using production renderers with synthetic entities before selection and live entity data afterward. Circular and bar gauges now use active progress over a secondary remainder; segmented gauges retain zone colors and the current-value marker.
