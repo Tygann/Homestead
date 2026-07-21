@@ -118,7 +118,7 @@ struct WeatherDetailView: View {
 
     private func sourceDetails(_ weather: WeatherEntity) -> some View {
         DashboardEntityContextPanel(
-            title: "Source",
+            title: "Weather Provider",
             systemImage: "cloud.bolt.rain.fill",
             rows: sourceRows(weather)
         )
@@ -148,9 +148,17 @@ struct WeatherDetailView: View {
     }
 
     private func sourceRows(_ weather: WeatherEntity) -> [EntityMetadataRow] {
-        weather.attributionText.map {
-            [EntityMetadataRow(title: "Attribution", value: $0, layout: .stacked)]
-        } ?? []
+        var rows: [EntityMetadataRow] = []
+
+        if let providerName = weather.providerName {
+            rows.append(EntityMetadataRow(title: "Provider", value: providerName, layout: .stacked))
+        }
+
+        if let attributionText = weather.attributionText {
+            rows.append(EntityMetadataRow(title: "Attribution", value: attributionText, layout: .stacked))
+        }
+
+        return rows
     }
 
     private var contextRows: [EntityMetadataRow] {

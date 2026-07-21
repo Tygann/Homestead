@@ -108,6 +108,17 @@ struct WeatherEntity: Identifiable, Equatable, Sendable {
         attribution?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
     }
 
+    var providerName: String? {
+        guard let attributionText else { return nil }
+
+        if attributionText.localizedCaseInsensitiveContains("met.no")
+            || attributionText.localizedCaseInsensitiveContains("Norwegian Meteorological Institute") {
+            return "Norwegian Meteorological Institute"
+        }
+
+        return nil
+    }
+
     private var displayTemperatureUnit: String? {
         switch temperatureUnit {
         case "F":

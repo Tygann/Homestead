@@ -586,7 +586,7 @@ private enum PreviewData {
                 "wind_speed_unit": .string("mph"),
                 "wind_bearing": .number(225),
                 "supported_features": .number(3),
-                "attribution": .string("Home Assistant weather provider")
+                "attribution": .string("Weather forecast from met.no, delivered by the Norwegian Meteorological Institute.")
             ],
             lastUpdated: .now
         ),

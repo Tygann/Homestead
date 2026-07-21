@@ -2636,7 +2636,20 @@ struct HomesteadTests {
         #expect(weather.supportedForecastTypes == [.daily, .hourly])
         #expect(weather.forecastAvailabilityText == "2 forecast items")
         #expect(weather.attributionText == "Weather Provider")
+        #expect(weather.providerName == nil)
         #expect(weather.iconName == "cloud.sun.fill")
+
+        let metWeatherDTO = HAEntityDTO(
+            entityID: "weather.met_home",
+            state: "partlycloudy",
+            attributes: [
+                "attribution": .string("Weather forecast from met.no, delivered by the Norwegian Meteorological Institute.")
+            ],
+            lastUpdated: nil
+        )
+        let metWeather = try #require(EntityMapper.weatherEntity(from: metWeatherDTO))
+        #expect(metWeather.providerName == "Norwegian Meteorological Institute")
+        #expect(metWeather.attributionText == "Weather forecast from met.no, delivered by the Norwegian Meteorological Institute.")
         #expect(WeatherCondition.unavailable.systemImage == "cloud.slash.fill")
         #expect(WeatherCondition.unknown.systemImage == "questionmark.circle.fill")
     }

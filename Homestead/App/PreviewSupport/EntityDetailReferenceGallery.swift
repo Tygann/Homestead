@@ -260,7 +260,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
                 "wind_speed_unit": .string("mph"),
                 "wind_bearing": .number(225),
                 "supported_features": .number(7),
-                "attribution": .string("Home Assistant weather provider")
+                "attribution": .string("Weather forecast from met.no, delivered by the Norwegian Meteorological Institute.")
             ]
         case .presence:
             [
