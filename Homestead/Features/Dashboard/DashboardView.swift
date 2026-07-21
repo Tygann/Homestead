@@ -1175,7 +1175,7 @@ struct DashboardView: View {
             Button {
                 chartSettingsContext = DashboardChartSettingsContext(item: item)
             } label: {
-                Label("Chart Settings…", systemImage: "slider.horizontal.3")
+                Label("Chart Settings", systemImage: "slider.horizontal.3")
             }
         }
 
