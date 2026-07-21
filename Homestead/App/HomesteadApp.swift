@@ -208,6 +208,8 @@ struct HomesteadApp: App {
             NavigationStack {
                 AppearanceSettingsView()
             }
+        case .dashboardChangeEntity:
+            DashboardChangeEntityPreviewScreen()
         case .dashboardCards:
             DashboardCardReferenceGallery()
         case .entityDetails:

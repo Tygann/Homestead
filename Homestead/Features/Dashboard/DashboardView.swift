@@ -10,6 +10,7 @@ struct DashboardView: View {
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var iconPickerContext: DashboardIconPickerContext?
     @State private var gaugeZoneEditorContext: DashboardGaugeZoneEditorContext?
+    @State private var changeEntityContext: DashboardChangeEntityContext?
     @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
@@ -117,6 +118,9 @@ struct DashboardView: View {
                 } onReset: {
                     dashboardConfiguration.setGaugeZoneConfiguration(nil, forItemID: context.id)
                 }
+            }
+            .sheet(item: $changeEntityContext) { context in
+                DashboardChangeEntityView(context: context)
             }
             .navigationDestination(item: $selectedEntityDetailRoute) { route in
                 if let entityBox = stateStore.entityBox(for: route.entityID) {
@@ -1127,6 +1131,12 @@ struct DashboardView: View {
             beginRenamingEntity(item)
         } label: {
             Label("Rename Card", systemImage: "pencil")
+        }
+
+        Button {
+            changeEntityContext = DashboardChangeEntityContext(item: item)
+        } label: {
+            Label("Change Entity…", systemImage: "arrow.triangle.swap")
         }
 
         if [.circularGauge, .segmentedGauge, .barGauge].contains(item.presentationKind) {

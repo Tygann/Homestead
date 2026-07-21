@@ -435,10 +435,27 @@ private struct DashboardSourcePickerView: View {
     }
 }
 
-private struct DashboardAddPresentationPreview: View {
+struct DashboardAddPresentationPreview: View {
     @Environment(HAStateStore.self) private var stateStore
     let source: DashboardAddSource
     let presentation: DashboardPresentationConfiguration
+    var displayNameOverride: String?
+    var iconNameOverride: String?
+    var gaugeZoneConfiguration: GaugeZoneConfiguration?
+
+    init(
+        source: DashboardAddSource,
+        presentation: DashboardPresentationConfiguration,
+        displayNameOverride: String? = nil,
+        iconNameOverride: String? = nil,
+        gaugeZoneConfiguration: GaugeZoneConfiguration? = nil
+    ) {
+        self.source = source
+        self.presentation = presentation
+        self.displayNameOverride = displayNameOverride
+        self.iconNameOverride = iconNameOverride
+        self.gaugeZoneConfiguration = gaugeZoneConfiguration
+    }
 
     @ViewBuilder
     var body: some View {
@@ -457,6 +474,9 @@ private struct DashboardAddPresentationPreview: View {
                         entityID: entityID,
                         size: card.layout,
                         presentationKind: card.kind,
+                        displayNameOverride: displayNameOverride,
+                        iconNameOverride: iconNameOverride,
+                        gaugeZoneConfiguration: gaugeZoneConfiguration,
                         isPreview: true
                     )
                     .cardGridSpan(card.layout.layoutMetadata)

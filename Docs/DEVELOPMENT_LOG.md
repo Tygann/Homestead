@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-20
 
+### In-Place Dashboard Entity Replacement
+
+- Added Change Entity to entity-card edit menus with a searchable compatible-only picker, current selection state, production-renderer preview, and explicit confirmation.
+- Kept replacement atomic in `DashboardConfiguration`: card identity, order, presentation kind, layout, display-name override, and icon override remain unchanged while only the entity source changes.
+- Preserved custom gauge zones only when the replacement sensor has the same normalized device class and unit; incompatible measurement semantics reset the zones and are explained before Save.
+- Added a deterministic `--preview-screen dashboard-change-entity` route and verified initial and gauge-reset states in dark and light appearance, plus all 30 focused dashboard configuration tests.
+
 ### Repeatable Dashboard Entity Presentations
 
 - Changed the dashboard item contract so an entity is a reusable data source and every add creates a new independently editable presentation, including repeated card kinds and layouts.

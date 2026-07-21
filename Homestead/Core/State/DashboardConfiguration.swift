@@ -691,6 +691,32 @@ final class DashboardConfiguration {
         updateSelectedDashboardItems(updated, setupState: .manual)
     }
 
+    @discardableResult
+    func replaceEntity(
+        forItemID itemID: UUID,
+        with replacementEntity: HAEntityState,
+        preserveGaugeZoneConfiguration: Bool
+    ) -> Bool {
+        guard let index = items.firstIndex(where: { $0.id == itemID }),
+              case .entity(let currentEntityID) = items[index].source,
+              let card = items[index].cardConfiguration,
+              currentEntityID != replacementEntity.entityID,
+              DashboardPresentationCatalog.isCompatible(card, with: replacementEntity) else {
+            return false
+        }
+
+        var updated = items
+        updated[index].content = .sourced(DashboardSourcedItem(
+            source: .entity(replacementEntity.entityID),
+            presentation: .card(card)
+        ))
+        if !preserveGaugeZoneConfiguration {
+            updated[index].gaugeZoneConfiguration = nil
+        }
+        updateSelectedDashboardItems(updated, setupState: .manual)
+        return true
+    }
+
     func removeItem(id: UUID) {
         let updated = items.filter { $0.id != id }
         updateSelectedDashboardItems(updated, setupState: updated.isEmpty ? .intentionallyEmpty : .manual)

@@ -207,6 +207,165 @@ final class DashboardConfigurationXCTests: XCTestCase {
         )
     }
 
+    func testReplacingCardEntityPreservesIdentityPresentationAndCustomizations() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        _ = configuration.addHeader(title: "Climate")
+        let cardID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.hall_temperature"),
+            presentation: .card(.segmentedGauge(layout: .wide))
+        ))
+        _ = configuration.add(
+            source: .entity("light.kitchen"),
+            presentation: .card(.status(layout: .compact))
+        )
+        configuration.renameDisplayItem(id: cardID, displayNameOverride: "Hallway")
+        configuration.setIconNameOverride("thermometer.medium", forItemID: cardID)
+        let zoneConfiguration = GaugeZoneConfiguration(
+            lowerBound: 50,
+            upperBound: 90,
+            boundaries: [68, 76],
+            colors: [
+                .standard(for: .low),
+                .standard(for: .nominal),
+                .standard(for: .high)
+            ],
+            names: ["Cool", "Comfortable", "Warm"]
+        )
+        configuration.setGaugeZoneConfiguration(zoneConfiguration, forItemID: cardID)
+        let originalIDs = configuration.items.map(\.id)
+
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.bedroom_temperature",
+                state: "72",
+                attributes: [
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            )
+        ])
+        let replacement = try XCTUnwrap(store.entityBox(for: "sensor.bedroom_temperature"))
+
+        XCTAssertTrue(configuration.replaceEntity(
+            forItemID: cardID,
+            with: replacement,
+            preserveGaugeZoneConfiguration: true
+        ))
+        XCTAssertEqual(configuration.items.map(\.id), originalIDs)
+        let updatedCard = try XCTUnwrap(configuration.items.first { $0.id == cardID })
+        XCTAssertEqual(updatedCard.source, .entity("sensor.bedroom_temperature"))
+        XCTAssertEqual(updatedCard.cardConfiguration, .segmentedGauge(layout: .wide))
+        XCTAssertEqual(updatedCard.displayNameOverride, "Hallway")
+        XCTAssertEqual(updatedCard.iconNameOverride, "thermometer.medium")
+        XCTAssertEqual(updatedCard.gaugeZoneConfiguration, zoneConfiguration)
+    }
+
+    func testReplacingGaugeEntityResetsOnlyIncompatibleGaugeCustomization() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let cardID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.hall_temperature"),
+            presentation: .card(.circularGauge(layout: .square))
+        ))
+        configuration.renameDisplayItem(id: cardID, displayNameOverride: "Comfort")
+        configuration.setIconNameOverride("house", forItemID: cardID)
+        configuration.setGaugeZoneConfiguration(
+            GaugeZoneConfiguration(
+                lowerBound: 50,
+                upperBound: 90,
+                boundaries: [70],
+                colors: [.standard(for: .low), .standard(for: .critical)]
+            ),
+            forItemID: cardID
+        )
+
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.humidity",
+                state: "45",
+                attributes: [
+                    "device_class": .string("humidity"),
+                    "unit_of_measurement": .string("%")
+                ]
+            ),
+            HAEntityDTO(entityID: "light.kitchen", state: "on")
+        ])
+        let humidity = try XCTUnwrap(store.entityBox(for: "sensor.humidity"))
+        let light = try XCTUnwrap(store.entityBox(for: "light.kitchen"))
+
+        XCTAssertFalse(configuration.replaceEntity(
+            forItemID: cardID,
+            with: light,
+            preserveGaugeZoneConfiguration: false
+        ))
+        XCTAssertTrue(configuration.replaceEntity(
+            forItemID: cardID,
+            with: humidity,
+            preserveGaugeZoneConfiguration: false
+        ))
+        let updatedCard = try XCTUnwrap(configuration.items.first { $0.id == cardID })
+        XCTAssertEqual(updatedCard.source, .entity("sensor.humidity"))
+        XCTAssertEqual(updatedCard.displayNameOverride, "Comfort")
+        XCTAssertEqual(updatedCard.iconNameOverride, "house")
+        XCTAssertNil(updatedCard.gaugeZoneConfiguration)
+    }
+
+    func testGaugeReplacementPolicyRequiresMatchingDeviceClassAndUnit() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.hall_temperature",
+                state: "71",
+                attributes: [
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.bedroom_temperature",
+                state: "72",
+                attributes: [
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.outdoor_temperature",
+                state: "20",
+                attributes: [
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°C")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "sensor.humidity",
+                state: "45",
+                attributes: [
+                    "device_class": .string("humidity"),
+                    "unit_of_measurement": .string("%")
+                ]
+            )
+        ])
+        let current = try XCTUnwrap(store.entityBox(for: "sensor.hall_temperature"))
+        let matching = try XCTUnwrap(store.entityBox(for: "sensor.bedroom_temperature"))
+        let differentUnit = try XCTUnwrap(store.entityBox(for: "sensor.outdoor_temperature"))
+        let differentDeviceClass = try XCTUnwrap(store.entityBox(for: "sensor.humidity"))
+
+        XCTAssertTrue(DashboardEntityReplacementPolicy.preservesGaugeCustomization(
+            from: current,
+            to: matching
+        ))
+        XCTAssertFalse(DashboardEntityReplacementPolicy.preservesGaugeCustomization(
+            from: current,
+            to: differentUnit
+        ))
+        XCTAssertFalse(DashboardEntityReplacementPolicy.preservesGaugeCustomization(
+            from: current,
+            to: differentDeviceClass
+        ))
+    }
+
     func testSummaryChipsRemainSingleInstance() throws {
         let configuration = DashboardConfiguration(defaults: makeDefaults())
         let firstID = try XCTUnwrap(configuration.add(source: .summary(.lights), presentation: .chip))
