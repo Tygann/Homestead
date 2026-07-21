@@ -60,6 +60,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     sensorBoardPreview
+                    chartComparisonRow
                     circularComparisonRow
                     segmentedComparisonRow
                     barComparisonRow
@@ -68,6 +69,39 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Widget Preview")
+        }
+    }
+
+    private var chartComparisonRow: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Chart")
+                .font(.headline)
+
+            HStack(alignment: .top, spacing: 18) {
+                previewColumn("Dashboard") {
+                    DashboardCardView(
+                        entityID: "sensor.hallway_temperature",
+                        size: .square,
+                        presentationKind: .graph,
+                        isPreview: true
+                    )
+                    .frame(width: dashboardWidth)
+                }
+
+                previewColumn("Widget") {
+                    HomesteadWidgetChartFace(
+                        presentation: chartPresentation,
+                        accentColor: .orange,
+                        density: .small
+                    )
+                    .frame(width: widgetSide, height: widgetSide)
+                    .background(
+                        .fill.tertiary,
+                        in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous))
+                }
+            }
         }
     }
 
@@ -240,7 +274,8 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             displayName: "Salinity",
             icon: .sfSymbol("water.waves", provenance: .homesteadSemanticMapping),
             valueText: "33.8 ppt",
-            supportingText: showsUnavailableBoard ? "Needs connection" : "6H Trend",
+            unitText: "ppt",
+            supportingText: showsUnavailableBoard ? "Needs connection" : "No recent chart",
             isAvailable: !showsUnavailableBoard,
             samples: showsUnavailableBoard ? [] : [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8].enumerated().map { index, value in
                 HomesteadTrendChartSample(
@@ -252,7 +287,31 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                 values: [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8],
                 unit: "ppt"
             ),
-            interpolationStyle: .smooth
+            interpolationStyle: .smooth,
+            accentColor: .blue
+        )
+    }
+
+    private var chartPresentation: HomesteadWidgetChartPresentation {
+        let now = Date()
+        let values = [-0.08, -0.03, 0.04, -0.01, 0.07, 0.02, 0.09, 0.0].map { 72 + ($0 * 5.76) }
+        return HomesteadWidgetChartPresentation(
+            title: "Hallway",
+            valueText: "72°F",
+            unitText: "°F",
+            icon: .sfSymbol("thermometer.medium", provenance: .homesteadSemanticMapping),
+            isAvailable: true,
+            samples: values.enumerated().map { index, value in
+                HomesteadTrendChartSample(
+                    occurredAt: now.addingTimeInterval((Double(index) / 7 * 6 - 6) * 60 * 60),
+                    value: value
+                )
+            },
+            valueDomain: HomesteadTrendChartDomain.stabilized(values: values, unit: "°F"),
+            interpolationStyle: .smooth,
+            rangeTitle: "6H",
+            changeSummaryText: nil,
+            emptyLabel: "No recent chart"
         )
     }
 

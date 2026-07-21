@@ -100,3 +100,205 @@ struct HomesteadTrendChartPlot: View {
         interpolationStyle == .smooth ? .catmullRom : .linear
     }
 }
+
+// MARK: - Widget Composition
+
+nonisolated struct HomesteadWidgetChartPresentation: Equatable, Sendable {
+    let title: String
+    let valueText: String
+    let unitText: String?
+    let icon: ResolvedIcon
+    let isAvailable: Bool
+    let samples: [HomesteadTrendChartSample]
+    let valueDomain: ClosedRange<Double>
+    let interpolationStyle: HomesteadTrendChartInterpolationStyle
+    let rangeTitle: String
+    let changeSummaryText: String?
+    let emptyLabel: String
+}
+
+nonisolated enum HomesteadWidgetChartDensity: Equatable, Sendable {
+    case compact
+    case small
+    case medium
+}
+
+struct HomesteadWidgetChartFace: View {
+    let presentation: HomesteadWidgetChartPresentation
+    let accentColor: Color
+    let density: HomesteadWidgetChartDensity
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .bottomLeading) {
+                chartLayer
+                    .frame(height: proxy.size.height * chartHeightFraction)
+
+                VStack(alignment: .leading, spacing: headerSpacing) {
+                    HStack(spacing: titleSpacing) {
+                        HomesteadIconView(
+                            icon: presentation.icon,
+                            pointSize: iconPointSize,
+                            weight: .semibold
+                        )
+                        .foregroundStyle(resolvedAccentColor)
+
+                        Text(presentation.title)
+                            .font(titleFont)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+
+                        Spacer(minLength: 4)
+
+                        if density == .medium {
+                            trailingSummary
+                        }
+                    }
+
+                    valueLabel
+                }
+                .padding(contentPadding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(presentation.title) chart")
+        .accessibilityValue(
+            presentation.isAvailable
+                ? "\(presentation.valueText), \(presentation.rangeTitle.lowercased()) chart"
+                : "Unavailable, \(presentation.emptyLabel.lowercased())"
+        )
+    }
+
+    @ViewBuilder
+    private var chartLayer: some View {
+        if presentation.samples.count >= 2 {
+            HomesteadTrendChartPlot(
+                samples: presentation.samples,
+                valueDomain: presentation.valueDomain,
+                accentColor: resolvedAccentColor,
+                interpolationStyle: presentation.interpolationStyle
+            )
+        } else {
+            HomesteadTrendChartPlaceholder(
+                accentColor: resolvedAccentColor,
+                label: density == .compact ? nil : presentation.emptyLabel,
+                horizontalPadding: contentPadding
+            )
+        }
+    }
+
+    private var valueLabel: some View {
+        let parts = gaugeValueParts(
+            from: presentation.isAvailable ? presentation.valueText : "—",
+            unitText: presentation.unitText
+        )
+
+        return HStack(alignment: .firstTextBaseline, spacing: 2) {
+            Text(parts.value)
+                .font(.system(size: valueFontSize, weight: .regular, design: .rounded))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+                .monospacedDigit()
+
+            if let unit = parts.unit, presentation.isAvailable {
+                Text(unit)
+                    .font(unitFont)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var trailingSummary: some View {
+        HStack(spacing: 3) {
+            Text(presentation.rangeTitle)
+
+            if let changeSummaryText = presentation.changeSummaryText {
+                Text("·")
+                Text(changeSummaryText)
+            }
+        }
+        .font(.caption2.monospacedDigit().weight(.semibold))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+    }
+
+    private var resolvedAccentColor: Color {
+        presentation.isAvailable ? accentColor : .secondary
+    }
+
+    private var contentPadding: CGFloat {
+        density == .compact ? 0 : 16
+    }
+
+    private var chartHeightFraction: CGFloat {
+        switch density {
+        case .compact, .small: 0.35
+        case .medium: 0.48
+        }
+    }
+
+    private var headerSpacing: CGFloat {
+        density == .compact ? 3 : 5
+    }
+
+    private var titleSpacing: CGFloat {
+        density == .compact ? 6 : 8
+    }
+
+    private var iconPointSize: CGFloat {
+        density == .compact ? 13 : 18
+    }
+
+    private var titleFont: Font {
+        density == .compact ? .caption.weight(.semibold) : .subheadline.weight(.semibold)
+    }
+
+    private var valueFontSize: CGFloat {
+        density == .compact ? 24 : 38
+    }
+
+    private var unitFont: Font {
+        density == .compact ? .caption.weight(.semibold) : .title3.weight(.semibold)
+    }
+}
+
+private struct HomesteadTrendChartPlaceholder: View {
+    let accentColor: Color
+    let label: String?
+    let horizontalPadding: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            LinearGradient(
+                colors: [
+                    accentColor.opacity(0.12),
+                    accentColor.opacity(0.02)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            Rectangle()
+                .fill(accentColor.opacity(0.36))
+                .frame(height: 2)
+
+            if let label {
+                Text(label)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.bottom, 8)
+            } else {
+                Image(systemName: "chart.xyaxis.line")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 7)
+            }
+        }
+    }
+}

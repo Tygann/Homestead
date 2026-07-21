@@ -44,7 +44,7 @@ enum HomesteadSensorBoardCompactDisplay: String, AppEnum {
 
 struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Sensor Board"
-    static var description = IntentDescription("Combine two sensor readings or gauges with a six-hour trend.")
+    static var description = IntentDescription("Combine two sensor readings or gauges with a six-hour chart.")
 
     @Parameter(title: "Sensor 1") var sensor1: HomesteadSensorEntity?
     @Parameter(title: "Sensor 1 Display", default: .automatic) var display1: HomesteadSensorBoardCompactDisplay
@@ -54,8 +54,8 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Sensor 2 Display", default: .automatic) var display2: HomesteadSensorBoardCompactDisplay
     @Parameter(title: "Sensor 2 Display Name") var customDisplayName2: String?
 
-    @Parameter(title: "Trend Sensor") var trendSensor: HomesteadTrendSensorEntity?
-    @Parameter(title: "Trend Display Name") var customTrendDisplayName: String?
+    @Parameter(title: "Chart Sensor") var trendSensor: HomesteadTrendSensorEntity?
+    @Parameter(title: "Chart Display Name") var customTrendDisplayName: String?
 
     static var parameterSummary: some ParameterSummary {
         Summary {
@@ -92,10 +92,10 @@ struct HomesteadSensorBoardCompactSlot {
     let customDisplayName: String?
 }
 
-// MARK: - Trend Entity Picker
+// MARK: - Chart Entity Picker
 
 struct HomesteadTrendSensorEntity: AppEntity, Identifiable {
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Trend Sensor")
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Chart Sensor")
     static var defaultQuery = HomesteadTrendSensorEntityQuery()
 
     let id: String
@@ -107,6 +107,7 @@ struct HomesteadTrendSensorEntity: AppEntity, Identifiable {
     let isAvailable: Bool
     let icon: ResolvedIcon
     var historyChartInterpolationStyle: HomesteadTrendChartInterpolationStyle? = nil
+    var chartAccentColor: WidgetGaugeColor? = nil
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -188,7 +189,8 @@ struct HomesteadTrendSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
             deviceName: snapshot.deviceName,
             isAvailable: snapshot.isAvailable,
             icon: snapshot.resolvedIcon,
-            historyChartInterpolationStyle: snapshot.historyChartInterpolationStyle
+            historyChartInterpolationStyle: snapshot.historyChartInterpolationStyle,
+            chartAccentColor: snapshot.chartAccentColor
         )
     }
 }
@@ -346,14 +348,16 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
                 displayName: displayName,
                 icon: snapshot?.resolvedIcon ?? sensor.icon,
                 valueText: series.latestValueText ?? snapshot?.valueText ?? sensor.valueText,
-                supportingText: "6H Trend",
+                unitText: series.unit,
+                supportingText: "No recent chart",
                 isAvailable: snapshot?.isAvailable ?? sensor.isAvailable,
                 samples: series.samples.map { .init(occurredAt: $0.occurredAt, value: $0.value) },
                 valueDomain: HomesteadTrendChartDomain.stabilized(
                     values: series.samples.map(\.value),
                     unit: series.unit
                 ),
-                interpolationStyle: interpolationStyle
+                interpolationStyle: interpolationStyle,
+                accentColor: snapshot?.chartAccentColor ?? sensor.chartAccentColor ?? .accent
             )
         } catch {
             return WidgetSensorBoardTrendItem(
@@ -361,11 +365,13 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
                 displayName: displayName,
                 icon: snapshot?.resolvedIcon ?? sensor.icon,
                 valueText: snapshot?.valueText ?? sensor.valueText,
+                unitText: snapshot?.unit ?? sensor.unit,
                 supportingText: "Needs connection",
                 isAvailable: snapshot?.isAvailable ?? sensor.isAvailable,
                 samples: [],
                 valueDomain: 0...1,
-                interpolationStyle: interpolationStyle
+                interpolationStyle: interpolationStyle,
+                accentColor: snapshot?.chartAccentColor ?? sensor.chartAccentColor ?? .accent
             )
         }
     }
@@ -470,7 +476,8 @@ private extension WidgetSensorBoardTrendItem {
             displayName: "Salinity",
             icon: .sfSymbol("water.waves", provenance: .homesteadSemanticMapping),
             valueText: "33.8 ppt",
-            supportingText: "6H Trend",
+            unitText: "ppt",
+            supportingText: "No recent chart",
             isAvailable: true,
             samples: [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8].enumerated().map { index, value in
                 HomesteadTrendChartSample(
@@ -482,7 +489,8 @@ private extension WidgetSensorBoardTrendItem {
                 values: [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8],
                 unit: "ppt"
             ),
-            interpolationStyle: .smooth
+            interpolationStyle: .smooth,
+            accentColor: .blue
         )
     }
 }

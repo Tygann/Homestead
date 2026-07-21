@@ -366,9 +366,36 @@ enum WidgetSharedStore {
                     deviceName: context.deviceName,
                     icon: icon,
                     gauge: sensor.gaugePresentation.flatMap(Self.widgetGaugePresentation),
-                    historyChartInterpolationStyle: sensor.historyChartInterpolationStyle
+                    historyChartInterpolationStyle: sensor.historyChartInterpolationStyle,
+                    chartAccentColor: widgetChartAccentColor(for: sensor)
                 )
             }
+    }
+
+    private static func widgetChartAccentColor(for sensor: SensorEntity) -> WidgetGaugeColor {
+        guard sensor.isAvailable else { return .gray }
+        guard !sensor.isAlerting else { return .red }
+
+        switch sensor.displayKind {
+        case .temperature, .temperatureDelta, .gas, .carbonMonoxide:
+            return .orange
+        case .humidity, .water, .moisture:
+            return .cyan
+        case .battery:
+            return .green
+        case .energy, .energyDistance, .energyStorage, .power, .powerFactor, .reactiveEnergy, .reactivePower, .voltage, .current, .illuminance, .irradiance:
+            return .yellow
+        case .pressure:
+            return .purple
+        case .signal, .data, .speed, .frequency, .soundPressure:
+            return .blue
+        case .airQuality, .carbonDioxide, .particulateMatter, .volatileOrganicCompounds, .conductivity, .pH, .precipitation:
+            return .mint
+        case .problem:
+            return .red
+        case .area, .date, .distance, .duration, .enum, .monetary, .volume, .volumeFlowRate, .weight, .windDirection, .uptime, .generic:
+            return .accent
+        }
     }
 
     nonisolated private static func widgetGaugePresentation(from gauge: GaugePresentation) -> WidgetGaugePresentation? {

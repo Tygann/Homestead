@@ -228,12 +228,20 @@ func gaugeVisualStatusColor(for status: GaugeVisualStatus) -> Color {
 
 func widgetGaugeColor(for color: WidgetGaugeColor) -> Color {
     switch color {
+    case .accent:
+        .accentColor
     case .blue:
         .blue
+    case .cyan:
+        .cyan
     case .green:
         .green
+    case .yellow:
+        .yellow
     case .orange:
         .orange
+    case .mint:
+        .mint
     case .red:
         .red
     case .purple:

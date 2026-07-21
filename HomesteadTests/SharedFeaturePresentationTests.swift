@@ -55,6 +55,16 @@ final class SharedFeaturePresentationTests: XCTestCase {
         XCTAssertTrue(descriptors.allSatisfy { !$0.displayName.isEmpty && !$0.description.isEmpty })
     }
 
+    func testSensorWidgetDescriptorsUseChartAsTheUserFacingName() {
+        let sensor = SharedFeatureCatalog.widgetDescriptor(for: .sensor)
+        let sensorBoard = SharedFeatureCatalog.widgetDescriptor(for: .sensorBoard)
+
+        XCTAssertTrue(sensor?.description.contains("chart") == true)
+        XCTAssertFalse(sensor?.description.contains("trend") == true)
+        XCTAssertTrue(sensorBoard?.description.contains("chart") == true)
+        XCTAssertFalse(sensorBoard?.description.contains("trend") == true)
+    }
+
     @MainActor
     func testDashboardDescriptorsDeclareSharedFeatureRelationships() {
         let dashboardDescriptors = DashboardPresentationCatalog.descriptors

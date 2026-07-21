@@ -96,6 +96,7 @@ nonisolated struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     var icon: ResolvedIcon? = nil
     var gauge: WidgetGaugePresentation? = nil
     var historyChartInterpolationStyle: HomesteadTrendChartInterpolationStyle? = nil
+    var chartAccentColor: WidgetGaugeColor? = nil
 
     var resolvedIcon: ResolvedIcon {
         icon ?? legacyIcon(fallback: "gauge.medium")
@@ -212,9 +213,13 @@ nonisolated enum WidgetGaugeStatus: String, Codable, Equatable, Sendable {
 }
 
 nonisolated enum WidgetGaugeColor: String, Codable, Equatable, Sendable {
+    case accent
     case blue
+    case cyan
     case green
+    case yellow
     case orange
+    case mint
     case red
     case purple
     case gray

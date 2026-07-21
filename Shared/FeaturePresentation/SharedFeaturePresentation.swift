@@ -185,7 +185,7 @@ nonisolated enum SharedFeatureCatalog {
             kind: .sensor,
             featureID: "sensor",
             displayName: "Homestead Sensor",
-            description: "Show a Home Assistant sensor reading, trend, or gauge.",
+            description: "Show a Home Assistant sensor reading, chart, or gauge.",
             supportedFamilies: [.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular],
             requiresConfiguration: true
         ),
@@ -193,7 +193,7 @@ nonisolated enum SharedFeatureCatalog {
             kind: .sensorBoard,
             featureID: "sensor",
             displayName: "Homestead Sensor Board",
-            description: "Combine two sensor readings or gauges with a six-hour trend.",
+            description: "Combine two sensor readings or gauges with a six-hour chart.",
             supportedFamilies: [.systemMedium],
             requiresConfiguration: true
         ),

@@ -4334,7 +4334,8 @@ struct HomesteadTests {
                     accessibilityLabel: "Battery gauge",
                     accessibilityValue: "18%, warning"
                 ),
-                historyChartInterpolationStyle: .linear
+                historyChartInterpolationStyle: .linear,
+                chartAccentColor: .red
             ),
             WidgetSensorSnapshot(
                 entityID: "sensor.temperature",
@@ -4349,7 +4350,8 @@ struct HomesteadTests {
                 areaName: nil,
                 deviceName: nil,
                 icon: .sfSymbol("thermometer.medium", provenance: .haSemanticMapping),
-                historyChartInterpolationStyle: .smooth
+                historyChartInterpolationStyle: .smooth,
+                chartAccentColor: .orange
             )
         ])
 

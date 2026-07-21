@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Homestead
 
@@ -65,6 +66,33 @@ struct WidgetSensorBoardTests {
 
         #expect(abs(domain.lowerBound - -2.4) < 0.000_001)
         #expect(abs(domain.upperBound - 22.4) < 0.000_001)
+    }
+
+    @Test func sensorBoardChartUsesSharedWidgetChartPresentation() {
+        let samples = [
+            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-60), value: 71),
+            HomesteadTrendChartSample(occurredAt: .now, value: 72)
+        ]
+        let item = WidgetSensorBoardTrendItem(
+            id: "sensor.living_room_temperature",
+            displayName: "Living Room",
+            icon: .sfSymbol("thermometer.medium", provenance: .homesteadSemanticMapping),
+            valueText: "72°F",
+            unitText: "°F",
+            supportingText: "No recent chart",
+            isAvailable: true,
+            samples: samples,
+            valueDomain: 70...74,
+            interpolationStyle: .smooth,
+            accentColor: .orange
+        )
+
+        #expect(item.chartPresentation.title == "Living Room")
+        #expect(item.chartPresentation.unitText == "°F")
+        #expect(item.chartPresentation.samples == samples)
+        #expect(item.chartPresentation.interpolationStyle == .smooth)
+        #expect(item.chartPresentation.rangeTitle == "6H")
+        #expect(item.accentColor == .orange)
     }
 
     private func makeSnapshot(gauge: WidgetGaugePresentation?) -> WidgetSensorSnapshot {

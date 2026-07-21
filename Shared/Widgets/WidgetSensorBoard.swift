@@ -76,11 +76,29 @@ nonisolated struct WidgetSensorBoardTrendItem: Identifiable, Equatable, Sendable
     let displayName: String
     let icon: ResolvedIcon
     let valueText: String
+    let unitText: String?
     let supportingText: String
     let isAvailable: Bool
     let samples: [HomesteadTrendChartSample]
     let valueDomain: ClosedRange<Double>
     let interpolationStyle: HomesteadTrendChartInterpolationStyle
+    let accentColor: WidgetGaugeColor
+
+    var chartPresentation: HomesteadWidgetChartPresentation {
+        HomesteadWidgetChartPresentation(
+            title: displayName,
+            valueText: valueText,
+            unitText: unitText,
+            icon: icon,
+            isAvailable: isAvailable,
+            samples: samples,
+            valueDomain: valueDomain,
+            interpolationStyle: interpolationStyle,
+            rangeTitle: "6H",
+            changeSummaryText: nil,
+            emptyLabel: supportingText
+        )
+    }
 }
 
 // MARK: - Sensor Board Face
@@ -130,7 +148,7 @@ struct WidgetSensorBoardFace: View {
                 WidgetSensorBoardTrendTile(item: trendItem)
             }
         } else {
-            WidgetSensorBoardEmptyTile(title: "Choose Trend", systemImage: "chart.xyaxis.line")
+            WidgetSensorBoardEmptyTile(title: "Choose Chart", systemImage: "chart.xyaxis.line")
         }
     }
 
@@ -201,67 +219,13 @@ private struct WidgetSensorBoardTrendTile: View {
     let item: WidgetSensorBoardTrendItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 6) {
-                HomesteadIconView(icon: item.icon, pointSize: 13, weight: .semibold)
-                    .foregroundStyle(item.isAvailable ? Color.blue : .secondary)
-
-                Text(item.displayName)
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-            }
-
-            Text(item.isAvailable ? item.valueText : "—")
-                .font(.system(size: 24, weight: .semibold, design: .rounded))
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-                .monospacedDigit()
-
-            chart
-
-            Text(item.supportingText)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        HomesteadWidgetChartFace(
+            presentation: item.chartPresentation,
+            accentColor: widgetGaugeColor(for: item.accentColor),
+            density: .compact
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(item.displayName), six hour trend")
-        .accessibilityValue(item.isAvailable ? item.valueText : "Unavailable")
-    }
-
-    @ViewBuilder
-    private var chart: some View {
-        if item.samples.count >= 2 {
-            HomesteadTrendChartPlot(
-                samples: item.samples,
-                valueDomain: item.valueDomain,
-                accentColor: item.isAvailable ? .blue : .secondary,
-                interpolationStyle: item.interpolationStyle
-            )
-        } else {
-            ZStack(alignment: .bottomLeading) {
-                LinearGradient(
-                    colors: [
-                        Color.secondary.opacity(0.10),
-                        Color.secondary.opacity(0.02)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.30))
-                    .frame(height: 2)
-
-                Image(systemName: "chart.xyaxis.line")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 7)
-            }
-        }
     }
 }
 

@@ -15,6 +15,7 @@ struct HomesteadSensorGraphWidget: Widget {
         .configurationDisplayName(SharedFeatureCatalog.widgetDescriptor(for: .sensor)!.displayName)
         .description(SharedFeatureCatalog.widgetDescriptor(for: .sensor)!.description)
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
+        .contentMarginsDisabled()
     }
 }
 
@@ -216,7 +217,7 @@ enum HomesteadSensorWidgetDisplay: String, AppEnum {
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Display")
     static var caseDisplayRepresentations: [HomesteadSensorWidgetDisplay: DisplayRepresentation] = [
         .reading: "Reading",
-        .trend: "Trend",
+        .trend: "Chart",
         .circularGauge: "Gauge - Circular",
         .segmentedGauge: "Gauge - Segmented",
         .barGauge: "Gauge - Bar"
@@ -240,6 +241,8 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
     let isAvailable: Bool
     let hasGauge: Bool
     var icon: ResolvedIcon? = nil
+    var historyChartInterpolationStyle: HomesteadTrendChartInterpolationStyle? = nil
+    var chartAccentColor: WidgetGaugeColor? = nil
 
     var resolvedIcon: ResolvedIcon {
         icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
@@ -336,7 +339,9 @@ struct HomesteadSensorEntityQuery: EntityQuery, EntityStringQuery, EnumerableEnt
             isAlerting: snapshot.isAlerting,
             isAvailable: snapshot.isAvailable,
             hasGauge: snapshot.gauge != nil,
-            icon: snapshot.resolvedIcon
+            icon: snapshot.resolvedIcon,
+            historyChartInterpolationStyle: snapshot.historyChartInterpolationStyle,
+            chartAccentColor: snapshot.chartAccentColor
         )
     }
 }
@@ -349,7 +354,7 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
     let subtitle: String
     let systemImage: String
     let display: HomesteadSensorWidgetDisplay
-    let samples: [HAWidgetHistorySample]
+    let samples: [HomesteadTrendChartSample]
     let valueDomain: ClosedRange<Double>
     let summaryText: String
     let isAlerting: Bool
@@ -357,6 +362,9 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
     let isConfigured: Bool
     var icon: ResolvedIcon? = nil
     var gauge: WidgetGaugePresentation? = nil
+    var chartUnitText: String? = nil
+    var chartInterpolationStyle: HomesteadTrendChartInterpolationStyle = .linear
+    var chartAccentColor: WidgetGaugeColor? = nil
 
     var resolvedIcon: ResolvedIcon {
         icon ?? .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
@@ -383,6 +391,22 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
 
     var shouldShowSegmentedGauge: Bool {
         display == .segmentedGauge && gauge != nil
+    }
+
+    var chartPresentation: HomesteadWidgetChartPresentation {
+        HomesteadWidgetChartPresentation(
+            title: displayName,
+            valueText: valueText,
+            unitText: chartUnitText,
+            icon: resolvedIcon,
+            isAvailable: isAvailable,
+            samples: samples,
+            valueDomain: valueDomain,
+            interpolationStyle: chartInterpolationStyle,
+            rangeTitle: "6H",
+            changeSummaryText: nil,
+            emptyLabel: subtitle == "Needs connection" ? "Chart unavailable" : "No recent chart"
+        )
     }
 }
 
@@ -517,17 +541,23 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
                 entityID: selectedSensor.id,
                 displayName: displayName,
                 valueText: series.latestValueText ?? selectedSensor.valueText,
-                subtitle: "6H Trend",
+                subtitle: "6H Chart",
                 systemImage: selectedSensor.systemImage,
                 display: .trend,
-                samples: series.samples,
-                valueDomain: series.valueDomain,
+                samples: series.samples.map { .init(occurredAt: $0.occurredAt, value: $0.value) },
+                valueDomain: HomesteadTrendChartDomain.stabilized(
+                    values: series.samples.map(\.value),
+                    unit: series.unit
+                ),
                 summaryText: series.summaryText,
                 isAlerting: selectedSensor.isAlerting,
                 isAvailable: selectedSensor.isAvailable,
                 isConfigured: true,
                 icon: selectedSensor.resolvedIcon,
-                gauge: cachedGauge
+                gauge: cachedGauge,
+                chartUnitText: series.unit,
+                chartInterpolationStyle: selectedSensor.historyChartInterpolationStyle ?? .linear,
+                chartAccentColor: selectedSensor.chartAccentColor
             )
         } catch {
             return HomesteadSensorGraphEntry(
@@ -545,7 +575,10 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
                 isAvailable: selectedSensor.isAvailable,
                 isConfigured: true,
                 icon: selectedSensor.resolvedIcon,
-                gauge: cachedGauge
+                gauge: cachedGauge,
+                chartUnitText: selectedSensor.unit,
+                chartInterpolationStyle: selectedSensor.historyChartInterpolationStyle ?? .linear,
+                chartAccentColor: selectedSensor.chartAccentColor
             )
         }
     }
@@ -614,7 +647,9 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             isAlerting: snapshot.isAlerting,
             isAvailable: snapshot.isAvailable,
             hasGauge: snapshot.gauge != nil,
-            icon: snapshot.resolvedIcon
+            icon: snapshot.resolvedIcon,
+            historyChartInterpolationStyle: snapshot.historyChartInterpolationStyle,
+            chartAccentColor: snapshot.chartAccentColor
         )
     }
 
@@ -623,16 +658,16 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         return trimmedName.isEmpty ? fallback : trimmedName
     }
 
-    private static func placeholderSamples() -> [HAWidgetHistorySample] {
+    private static func placeholderSamples() -> [HomesteadTrendChartSample] {
         let now = Date()
         return [
-            HAWidgetHistorySample(occurredAt: now.addingTimeInterval(-6 * 60 * 60), value: 68),
-            HAWidgetHistorySample(occurredAt: now.addingTimeInterval(-5 * 60 * 60), value: 69.5),
-            HAWidgetHistorySample(occurredAt: now.addingTimeInterval(-4 * 60 * 60), value: 69),
-            HAWidgetHistorySample(occurredAt: now.addingTimeInterval(-3 * 60 * 60), value: 71),
-            HAWidgetHistorySample(occurredAt: now.addingTimeInterval(-2 * 60 * 60), value: 73),
-            HAWidgetHistorySample(occurredAt: now.addingTimeInterval(-60 * 60), value: 71.4),
-            HAWidgetHistorySample(occurredAt: now, value: 72)
+            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-6 * 60 * 60), value: 68),
+            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-5 * 60 * 60), value: 69.5),
+            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-4 * 60 * 60), value: 69),
+            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-3 * 60 * 60), value: 71),
+            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-2 * 60 * 60), value: 73),
+            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-60 * 60), value: 71.4),
+            HomesteadTrendChartSample(occurredAt: now, value: 72)
         ]
     }
 }
@@ -674,6 +709,26 @@ struct HomesteadSensorGraphWidgetView: View {
 
     @ViewBuilder
     private var systemSmall: some View {
+        if entry.isConfigured, entry.shouldShowTrend {
+            chartFace(density: .small)
+        } else {
+            systemSmallInsetContent
+                .padding(16)
+        }
+    }
+
+    @ViewBuilder
+    private var systemMedium: some View {
+        if entry.isConfigured, entry.shouldShowTrend {
+            chartFace(density: .medium)
+        } else {
+            systemMediumInsetContent
+                .padding(16)
+        }
+    }
+
+    @ViewBuilder
+    private var systemSmallInsetContent: some View {
         if !entry.isConfigured {
             unconfigured
         } else if entry.shouldShowCircularGauge, let gauge = entry.gauge {
@@ -682,15 +737,13 @@ struct HomesteadSensorGraphWidgetView: View {
             HomesteadSensorCircularGaugeWidgetView(entry: entry, gauge: gauge, style: .segmented)
         } else if entry.shouldShowBarGauge, let gauge = entry.gauge {
             HomesteadSensorBarGaugeWidgetView(entry: entry, gauge: gauge, isMedium: false)
-        } else if entry.shouldShowTrend {
-            trendSmall
         } else {
             sensorReading
         }
     }
 
     @ViewBuilder
-    private var systemMedium: some View {
+    private var systemMediumInsetContent: some View {
         if !entry.isConfigured {
             unconfigured
         } else if entry.shouldShowBarGauge, let gauge = entry.gauge {
@@ -699,54 +752,17 @@ struct HomesteadSensorGraphWidgetView: View {
             mediumCircularGauge(gauge, style: .segmented)
         } else if entry.shouldShowCircularGauge, let gauge = entry.gauge {
             mediumCircularGauge(gauge)
-        } else if entry.shouldShowTrend {
-            trendMedium
         } else {
             mediumReading
         }
     }
 
-    private var trendSmall: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-
-            Text(entry.valueText)
-                .font(.title2.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-
-            graph
-                .frame(height: 44)
-
-            if let supportingText {
-                footerText(supportingText)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var trendMedium: some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 8) {
-                header
-
-                Spacer(minLength: 0)
-
-                Text(entry.valueText)
-                    .font(.title.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-
-                if let supportingText {
-                    footerText(supportingText)
-                }
-            }
-            .frame(width: 118, alignment: .leading)
-
-            graph
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    private func chartFace(density: HomesteadWidgetChartDensity) -> some View {
+        HomesteadWidgetChartFace(
+            presentation: entry.chartPresentation,
+            accentColor: chartAccentColor,
+            density: density
+        )
     }
 
     private var sensorReading: some View {
@@ -825,17 +841,6 @@ struct HomesteadSensorGraphWidgetView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 7) {
-            sensorIcon(size: 24, pointSize: 13, cornerRadius: 7, background: AnyShapeStyle(.fill.tertiary))
-
-            Text(entry.displayName)
-                .font(.headline)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-        }
-    }
-
     private func sensorIcon(
         size: CGFloat,
         pointSize: CGFloat,
@@ -852,14 +857,6 @@ struct HomesteadSensorGraphWidgetView: View {
         )
     }
 
-    private var graph: some View {
-        HomesteadWidgetLineChart(
-            samples: entry.samples,
-            valueDomain: entry.valueDomain,
-            accentColor: sensorValueColor
-        )
-    }
-
     private var sensorValueColor: Color {
         if entry.isAlerting {
             return .red
@@ -868,30 +865,12 @@ struct HomesteadSensorGraphWidgetView: View {
         return entry.isAvailable ? .blue : .secondary
     }
 
-    private var supportingText: String? {
-        guard entry.isConfigured else {
-            return entry.subtitle
-        }
-
-        if entry.samples.isEmpty {
-            let trimmedSubtitle = entry.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedSubtitle.isEmpty, trimmedSubtitle != "6H Trend" else {
-                return nil
-            }
-
-            return trimmedSubtitle
-        }
-
-        return family == .systemMedium ? entry.summaryText : nil
+    private var chartAccentColor: Color {
+        guard entry.isAvailable else { return .secondary }
+        guard let chartAccentColor = entry.chartAccentColor else { return sensorValueColor }
+        return widgetGaugeColor(for: chartAccentColor)
     }
 
-    private func footerText(_ text: String) -> some View {
-        Text(text)
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .lineLimit(family == .systemMedium ? 2 : 1)
-            .minimumScaleFactor(0.8)
-    }
 }
 
 private struct HomesteadSensorCircularGaugeWidgetView: View {
@@ -973,100 +952,6 @@ private struct HomesteadSensorBarGaugeWidgetView: View {
     }
 }
 
-struct HomesteadWidgetLineChart: View {
-    let samples: [HAWidgetHistorySample]
-    let valueDomain: ClosedRange<Double>
-    let accentColor: Color
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(.fill.quaternary)
-
-                if samples.count < 2 {
-                    VStack(spacing: 5) {
-                        Image(systemName: "chart.xyaxis.line")
-                            .font(.caption.weight(.semibold))
-                        Text("No History")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(.secondary)
-                } else {
-                    chartFillPath(in: proxy.size)
-                        .fill(
-                            LinearGradient(
-                                colors: [accentColor.opacity(0.22), accentColor.opacity(0.02)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-
-                    chartPath(in: proxy.size)
-                        .stroke(
-                            accentColor,
-                            style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round)
-                        )
-                }
-            }
-        }
-        .accessibilityElement(children: .ignore)
-    }
-
-    private func chartPath(in size: CGSize) -> Path {
-        Path { path in
-            points(in: size).enumerated().forEach { index, point in
-                if index == 0 {
-                    path.move(to: point)
-                } else {
-                    path.addLine(to: point)
-                }
-            }
-        }
-    }
-
-    private func chartFillPath(in size: CGSize) -> Path {
-        Path { path in
-            let resolvedPoints = points(in: size)
-            guard let first = resolvedPoints.first,
-                  let last = resolvedPoints.last else {
-                return
-            }
-
-            path.move(to: CGPoint(x: first.x, y: size.height))
-            path.addLine(to: first)
-            resolvedPoints.dropFirst().forEach { path.addLine(to: $0) }
-            path.addLine(to: CGPoint(x: last.x, y: size.height))
-            path.closeSubpath()
-        }
-    }
-
-    private func points(in size: CGSize) -> [CGPoint] {
-        guard samples.count >= 2,
-              let startDate = samples.first?.occurredAt,
-              let endDate = samples.last?.occurredAt,
-              endDate > startDate else {
-            return []
-        }
-
-        let horizontalPadding: CGFloat = 10
-        let verticalPadding: CGFloat = 8
-        let drawableWidth = max(size.width - (horizontalPadding * 2), 1)
-        let drawableHeight = max(size.height - (verticalPadding * 2), 1)
-        let range = max(valueDomain.upperBound - valueDomain.lowerBound, 1)
-        let duration = endDate.timeIntervalSince(startDate)
-
-        return samples.map { sample in
-            let xRatio = sample.occurredAt.timeIntervalSince(startDate) / duration
-            let yRatio = (sample.value - valueDomain.lowerBound) / range
-            return CGPoint(
-                x: horizontalPadding + (drawableWidth * CGFloat(xRatio)),
-                y: verticalPadding + (drawableHeight * CGFloat(1 - yRatio))
-            )
-        }
-    }
-}
-
 private extension WidgetGaugePresentation {
     static let previewTemperature = WidgetGaugePresentation(
         value: 72,
@@ -1117,23 +1002,25 @@ private extension WidgetGaugePresentation {
         entityID: "sensor.living_room_temperature",
         displayName: "Living Room",
         valueText: "72°F",
-        subtitle: "6H Trend",
+        subtitle: "6H Chart",
         systemImage: "thermometer.medium",
         display: .trend,
         samples: [
-            HAWidgetHistorySample(occurredAt: .now.addingTimeInterval(-6 * 60 * 60), value: 68),
-            HAWidgetHistorySample(occurredAt: .now.addingTimeInterval(-5 * 60 * 60), value: 69.5),
-            HAWidgetHistorySample(occurredAt: .now.addingTimeInterval(-4 * 60 * 60), value: 69),
-            HAWidgetHistorySample(occurredAt: .now.addingTimeInterval(-3 * 60 * 60), value: 71),
-            HAWidgetHistorySample(occurredAt: .now.addingTimeInterval(-2 * 60 * 60), value: 73),
-            HAWidgetHistorySample(occurredAt: .now.addingTimeInterval(-60 * 60), value: 71.4),
-            HAWidgetHistorySample(occurredAt: .now, value: 72)
+            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-6 * 60 * 60), value: 68),
+            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-5 * 60 * 60), value: 69.5),
+            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-4 * 60 * 60), value: 69),
+            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-3 * 60 * 60), value: 71),
+            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-2 * 60 * 60), value: 73),
+            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-60 * 60), value: 71.4),
+            HomesteadTrendChartSample(occurredAt: .now, value: 72)
         ],
         valueDomain: 67...74,
         summaryText: "Low 68°F • High 73°F",
         isAlerting: false,
         isAvailable: true,
-        isConfigured: true
+        isConfigured: true,
+        chartUnitText: "°F",
+        chartInterpolationStyle: .smooth
     )
 }
 
