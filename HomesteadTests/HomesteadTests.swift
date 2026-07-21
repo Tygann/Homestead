@@ -2338,6 +2338,51 @@ struct HomesteadTests {
         #expect(steadyPresentation.changeSummaryText == "Steady")
     }
 
+    @MainActor
+    @Test func dashboardHistoryInterpolationUsesSensorSemantics() {
+        let temperature = SensorEntity(
+            entityID: "sensor.temperature",
+            displayName: "Temperature",
+            value: "72",
+            unit: "°F",
+            deviceClass: "temperature",
+            stateClass: .measurement,
+            lastUpdated: nil
+        )
+        let battery = SensorEntity(
+            entityID: "sensor.battery",
+            displayName: "Battery",
+            value: "82",
+            unit: "%",
+            deviceClass: "battery",
+            stateClass: .measurement,
+            lastUpdated: nil
+        )
+        let cumulativeVolume = SensorEntity(
+            entityID: "sensor.cumulative_volume",
+            displayName: "Cumulative Volume",
+            value: "812",
+            unit: "L",
+            deviceClass: "volume",
+            stateClass: .totalIncreasing,
+            lastUpdated: nil
+        )
+        let generic = SensorEntity(
+            entityID: "sensor.generic",
+            displayName: "Generic",
+            value: "42",
+            unit: nil,
+            deviceClass: nil,
+            stateClass: .measurement,
+            lastUpdated: nil
+        )
+
+        #expect(temperature.dashboardHistoryInterpolationStyle == .smooth)
+        #expect(battery.dashboardHistoryInterpolationStyle == .linear)
+        #expect(cumulativeVolume.dashboardHistoryInterpolationStyle == .linear)
+        #expect(generic.dashboardHistoryInterpolationStyle == .linear)
+    }
+
     @Test func mobileAppRegistrationStorePersistsRegistrationInfo() throws {
         let store = InMemoryHAMobileAppRegistrationStore()
         let registration = HAMobileAppRegistrationInfo(

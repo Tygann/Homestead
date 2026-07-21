@@ -211,3 +211,30 @@ nonisolated extension DashboardCardSize {
         }
     }
 }
+
+nonisolated enum DashboardHistoryInterpolationStyle: Equatable, Sendable {
+    case smooth
+    case linear
+}
+
+extension SensorEntity {
+    var dashboardHistoryInterpolationStyle: DashboardHistoryInterpolationStyle {
+        if stateClass == .total || stateClass == .totalIncreasing {
+            return .linear
+        }
+
+        return switch displayKind {
+        case .battery, .data, .date, .duration, .enum, .energy, .energyDistance,
+             .energyStorage, .gas, .monetary, .powerFactor, .precipitation,
+             .reactiveEnergy, .signal, .uptime, .water, .generic:
+            .linear
+        case .airQuality, .area, .carbonDioxide, .carbonMonoxide, .conductivity,
+             .distance, .frequency, .humidity, .illuminance, .irradiance, .moisture,
+             .pH, .particulateMatter, .power, .pressure, .problem, .reactivePower,
+             .soundPressure, .speed, .temperature, .temperatureDelta, .current,
+             .voltage, .volatileOrganicCompounds, .volume, .volumeFlowRate, .weight,
+             .windDirection:
+            .smooth
+        }
+    }
+}

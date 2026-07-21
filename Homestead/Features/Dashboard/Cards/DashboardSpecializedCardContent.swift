@@ -40,10 +40,11 @@ struct DashboardChartCardContent: View {
                         Spacer(minLength: AppSpacing.small)
 
                         if showsTrailingSummary {
-                            VStack(alignment: .trailing, spacing: 1) {
+                            HStack(spacing: 3) {
                                 Text(DashboardHistoryCardPresentation.defaultRange.title)
 
                                 if let compactChangeSummaryText {
+                                    Text("·")
                                     Text(compactChangeSummaryText)
                                 }
                             }
@@ -111,7 +112,7 @@ struct DashboardChartCardContent: View {
                 yStart: .value("Baseline", displayDomain.lowerBound),
                 yEnd: .value("Value", sample.value)
             )
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(chartInterpolationMethod)
             .foregroundStyle(
                 LinearGradient(
                     colors: [
@@ -127,7 +128,7 @@ struct DashboardChartCardContent: View {
                 x: .value("Time", sample.occurredAt),
                 y: .value("Value", sample.value)
             )
-            .interpolationMethod(.catmullRom)
+            .interpolationMethod(chartInterpolationMethod)
             .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             .foregroundStyle(presentation.accentColor)
         }
@@ -194,6 +195,10 @@ struct DashboardChartCardContent: View {
         return changeSummaryText
     }
 
+    private var chartInterpolationMethod: InterpolationMethod {
+        sensor?.dashboardHistoryInterpolationStyle == .smooth ? .catmullRom : .linear
+    }
+
     private var contextSummaryText: String {
         if !presentation.isAvailable {
             if case .loaded = state {
@@ -246,7 +251,7 @@ struct DashboardChartCardContent: View {
         case .large:
             availableHeight * 0.60
         case .wide:
-            availableHeight * 0.46
+            availableHeight * 0.48
         case .square:
             availableHeight * 0.35
         default:
@@ -362,7 +367,7 @@ struct DashboardWeatherCardContent: View {
                 Image(systemName: weather.iconName)
                     .symbolRenderingMode(.hierarchical)
                     .font(.system(size: decorativeIconSize(for: proxy.size), weight: .regular))
-                    .foregroundStyle(.white.opacity(0.06))
+                    .foregroundStyle(.white.opacity(size == .wide ? 0.04 : 0.06))
                     .offset(x: proxy.size.width * 0.65, y: proxy.size.height * 0.07)
                     .accessibilityHidden(true)
 
