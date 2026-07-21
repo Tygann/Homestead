@@ -630,8 +630,8 @@ struct DashboardWeatherCardContent: View {
                         .offset(x: grid.columnStride * 2)
 
                     dailyTemperatureBar(range: range, domain: domain)
-                        .frame(width: (grid.columnWidth * 2) + grid.spacing)
-                        .offset(x: grid.columnStride * 3)
+                        .frame(width: grid.columnStride * 2)
+                        .offset(x: (grid.columnWidth / 2) + (grid.columnStride * 2.5))
 
                     Text(weather.compactTemperatureText(for: range.upperBound))
                         .frame(width: grid.columnWidth, alignment: .trailing)
@@ -689,13 +689,17 @@ struct DashboardWeatherCardContent: View {
     private func forecastStrip(_ forecast: WeatherForecastSnapshot, limit: Int) -> some View {
         let entries = Array(forecast.entries.prefix(limit))
 
-        return HStack(spacing: AppSpacing.small) {
+        return HStack(spacing: 0) {
             ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                 forecastItem(
                     entry,
                     type: forecast.type,
                     alignment: forecastColumnAlignment(index: index, count: entries.count)
                 )
+
+                if index < entries.count - 1 {
+                    Spacer(minLength: 0)
+                }
             }
         }
         .accessibilityElement(children: .contain)
@@ -725,7 +729,7 @@ struct DashboardWeatherCardContent: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: alignment)
         }
-        .frame(maxWidth: .infinity)
+        .frame(width: forecastEdgeColumnWidth)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(forecastDate(entry.datetime, type: type)), \(entry.condition.displayName)")
         .accessibilityValue(accessibilityForecastTemperature(entry))
@@ -850,12 +854,48 @@ struct DashboardWeatherCardContent: View {
         }
 
         return switch fahrenheitTemperature {
-        case ..<50: Color(red: 0.04, green: 0.52, blue: 1.00)
-        case ..<60: Color(red: 0.39, green: 0.82, blue: 1.00)
-        case ..<70: Color(red: 1.00, green: 0.84, blue: 0.04)
-        case ..<80: Color(red: 1.00, green: 0.62, blue: 0.04)
-        default: Color(red: 1.00, green: 0.27, blue: 0.23)
+        case ..<50:
+            Color(red: 0.04, green: 0.52, blue: 1.00)
+        case 50..<60:
+            temperatureColor(
+                progress: (fahrenheitTemperature - 50) / 10,
+                from: (0.04, 0.52, 1.00),
+                to: (0.39, 0.82, 1.00)
+            )
+        case 60..<68:
+            temperatureColor(
+                progress: (fahrenheitTemperature - 60) / 8,
+                from: (0.39, 0.82, 1.00),
+                to: (1.00, 0.84, 0.04)
+            )
+        case 68..<76:
+            temperatureColor(
+                progress: (fahrenheitTemperature - 68) / 8,
+                from: (1.00, 0.84, 0.04),
+                to: (1.00, 0.62, 0.04)
+            )
+        case 76..<100:
+            temperatureColor(
+                progress: (fahrenheitTemperature - 76) / 24,
+                from: (1.00, 0.62, 0.04),
+                to: (1.00, 0.27, 0.23)
+            )
+        default:
+            Color(red: 1.00, green: 0.27, blue: 0.23)
         }
+    }
+
+    private func temperatureColor(
+        progress: Double,
+        from start: (red: Double, green: Double, blue: Double),
+        to end: (red: Double, green: Double, blue: Double)
+    ) -> Color {
+        let progress = min(max(progress, 0), 1)
+        return Color(
+            red: start.red + ((end.red - start.red) * progress),
+            green: start.green + ((end.green - start.green) * progress),
+            blue: start.blue + ((end.blue - start.blue) * progress)
+        )
     }
 
     private func dailyTemperatureDomain(
@@ -874,10 +914,10 @@ struct DashboardWeatherCardContent: View {
 
     private func forecastGridMetrics(
         availableWidth: CGFloat
-    ) -> (columnWidth: CGFloat, columnStride: CGFloat, spacing: CGFloat) {
-        let spacing = AppSpacing.small
-        let columnWidth = max((availableWidth - (spacing * 5)) / 6, 0)
-        return (columnWidth, columnWidth + spacing, spacing)
+    ) -> (columnWidth: CGFloat, columnStride: CGFloat) {
+        let columnWidth = min(forecastEdgeColumnWidth, availableWidth / 6)
+        let columnStride = max((availableWidth - columnWidth) / 5, 0)
+        return (columnWidth, columnStride)
     }
 
     private func forecastColumnAlignment(index: Int, count: Int) -> Alignment {
@@ -948,6 +988,10 @@ struct DashboardWeatherCardContent: View {
 
     private var currentTemperatureFontSize: CGFloat {
         38
+    }
+
+    private var forecastEdgeColumnWidth: CGFloat {
+        dynamicTypeSize >= .xxLarge ? 64 : 44
     }
 
 }
