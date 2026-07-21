@@ -1146,13 +1146,13 @@ struct DashboardView: View {
         Button {
             beginRenamingEntity(item)
         } label: {
-            Label("Rename Card…", systemImage: "pencil")
+            Label("Rename Card", systemImage: "pencil")
         }
 
         Button {
             presentIconPicker(for: item)
         } label: {
-            Label("Change Icon…", systemImage: "circle.grid.2x2")
+            Label("Change Icon", systemImage: "circle.grid.2x2")
         }
 
         Divider()
@@ -1160,14 +1160,14 @@ struct DashboardView: View {
         Button {
             changeEntityContext = DashboardChangeEntityContext(item: item)
         } label: {
-            Label("Change Entity…", systemImage: "arrow.triangle.swap")
+            Label("Change Entity", systemImage: "arrow.triangle.swap")
         }
 
         if [.circularGauge, .segmentedGauge, .barGauge].contains(item.presentationKind) {
             Button {
                 presentGaugeZoneEditor(for: item)
             } label: {
-                Label("Gauge Settings…", systemImage: "dial.medium")
+                Label("Gauge Settings", systemImage: "dial.medium")
             }
         }
 
