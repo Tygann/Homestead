@@ -434,7 +434,7 @@ struct DashboardWeatherCardContent: View {
 
             Image(systemName: weather.iconName)
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: 22, weight: .medium))
+                .font(.system(size: 18, weight: .medium))
                 .accessibilityHidden(true)
 
             if size == .large {
@@ -477,12 +477,13 @@ struct DashboardWeatherCardContent: View {
                 }
                 .font(.caption2.weight(.semibold))
                 .lineLimit(1)
+                .offset(y: -2)
             }
         }
         .overlay(alignment: .topTrailing) {
             Image(systemName: weather.iconName)
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: 22, weight: .medium))
+                .font(.system(size: 18, weight: .medium))
                 .accessibilityHidden(true)
         }
         .accessibilityElement(children: .ignore)
