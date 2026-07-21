@@ -1126,16 +1126,20 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func cardEditMenuContent(for item: DashboardCardItem) -> some View {
-        ControlGroup {
+        Picker("Card Size", selection: Binding(
+            get: { dashboardConfiguration.cardConfiguration(forItemID: item.id)?.layout ?? item.size },
+            set: { size in
+                HapticFeedback.selection()
+                dashboardConfiguration.setCardLayout(size, forItemID: item.id)
+            }
+        )) {
             ForEach(DashboardPresentationCatalog.descriptor(for: item.presentationKind).supportedLayouts, id: \.self) { option in
-                Button {
-                    HapticFeedback.selection()
-                    dashboardConfiguration.setCardLayout(option, forItemID: item.id)
-                } label: {
-                    Label(option.displayName, systemImage: option.systemImage)
-                }
+                Label(option.displayName, systemImage: option.systemImage)
+                    .tag(option)
             }
         }
+        .pickerStyle(.segmented)
+        .menuActionDismissBehavior(.enabled)
 
         Divider()
 
