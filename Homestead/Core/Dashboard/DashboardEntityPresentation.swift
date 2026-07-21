@@ -837,7 +837,7 @@ struct DashboardEntityPresentation {
         case .actionAccent:
             entity.domain == .scene ? .purple : .accentColor
         case .lockState:
-            entity.state == "unlocked" ? .orange : .accentColor
+            .accentColor
         case .mediaState, .vacuumState:
             isActive(entity, capability: capability) ? .green : .accentColor
         case .camera:
@@ -857,7 +857,7 @@ struct DashboardEntityPresentation {
         case .vacuumState where isActive:
             return .green
         case .lockState where isActive:
-            return .orange
+            return .accentColor
         case .camera:
             return .blue
         case .actionAccent:

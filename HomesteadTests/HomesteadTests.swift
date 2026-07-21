@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 import UIKit
 @testable import Homestead
@@ -8518,7 +8519,7 @@ struct HomesteadTests {
                     "preset_modes": .array([.string("sleep"), .string("boost")])
                 ]
             ),
-            HAEntityDTO(entityID: "lock.front_door", state: "locked"),
+            HAEntityDTO(entityID: "lock.front_door", state: "unlocked"),
             HAEntityDTO(
                 entityID: "media_player.living_room",
                 state: "playing",
@@ -8550,7 +8551,9 @@ struct HomesteadTests {
         #expect(lockPresentation.primaryAction == nil)
         #expect(lockPresentation.primaryServiceIntent == nil)
         #expect(lockPresentation.detailKind == .lock)
-        #expect(lockPresentation.subtitle == "Locked")
+        #expect(lockPresentation.subtitle == "Unlocked")
+        #expect(lockPresentation.isActive == true)
+        #expect(lockPresentation.accentColor == .accentColor)
         #expect(mediaPresentation.primaryAction == nil)
         #expect(mediaPresentation.cardStyle == .media)
         #expect(mediaPresentation.secondaryActions == [.playPause, .setMediaVolume, .selectMediaSource])
@@ -8582,6 +8585,26 @@ struct HomesteadTests {
         #expect(presentation.isActive == false)
         #expect(presentation.primaryAction == nil)
         #expect(presentation.primaryServiceIntent == nil)
+    }
+
+    @Test func activeIconBackgroundKeepsAccentTintWithWallpaper() {
+        let accentColor = Color.red
+
+        let standardBackground = HomesteadSurfaceStyle.iconBackground(
+            isWallpaperActive: false,
+            isActive: true,
+            isAvailable: true,
+            accentColor: accentColor
+        )
+        let wallpaperBackground = HomesteadSurfaceStyle.iconBackground(
+            isWallpaperActive: true,
+            isActive: true,
+            isAvailable: true,
+            accentColor: accentColor
+        )
+
+        #expect(standardBackground == accentColor.opacity(0.12))
+        #expect(wallpaperBackground == standardBackground)
     }
 
     @MainActor

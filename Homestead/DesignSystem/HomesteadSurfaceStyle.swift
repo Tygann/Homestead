@@ -73,19 +73,19 @@ enum HomesteadSurfaceStyle {
         isAvailable: Bool,
         accentColor: Color
     ) -> Color {
-        if isWallpaperActive {
-            return wallpaperControlBackground
-        }
-
         guard isAvailable else {
-            return Color(.tertiarySystemGroupedBackground)
+            return isWallpaperActive
+                ? wallpaperControlBackground
+                : Color(.tertiarySystemGroupedBackground)
         }
 
         if isActive {
             return accentColor.opacity(0.12)
         }
 
-        return Color(.tertiarySystemGroupedBackground)
+        return isWallpaperActive
+            ? wallpaperControlBackground
+            : Color(.tertiarySystemGroupedBackground)
     }
 
     static func controlBackground(isWallpaperActive: Bool, isActive: Bool) -> Color {
