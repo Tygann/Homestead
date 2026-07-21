@@ -56,7 +56,7 @@ struct DashboardChartCardContent: View {
 
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
                         Text(displayValueText)
-                            .font(.system(size: valueFontSize, weight: .semibold, design: .rounded))
+                            .font(.system(size: valueFontSize, weight: .regular, design: .rounded))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
@@ -448,21 +448,17 @@ struct DashboardWeatherCardContent: View {
 
     private var wideCurrentConditions: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: AppSpacing.small) {
+            HStack(spacing: AppSpacing.xSmall) {
                 Text(weather.displayName)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
 
-                Spacer(minLength: AppSpacing.small)
-
                 forecastUpdateIndicator
 
-                Image(systemName: weather.iconName)
-                    .symbolRenderingMode(.multicolor)
-                    .font(.system(size: 24, weight: .medium))
-                    .accessibilityHidden(true)
+                Spacer(minLength: AppSpacing.small)
             }
+            .padding(.trailing, 32)
 
             HStack(alignment: .top, spacing: AppSpacing.medium) {
                 Text(weatherReadingText)
@@ -483,6 +479,12 @@ struct DashboardWeatherCardContent: View {
                 .lineLimit(1)
                 .padding(.top, 5)
             }
+        }
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: weather.iconName)
+                .symbolRenderingMode(.multicolor)
+                .font(.system(size: 24, weight: .medium))
+                .accessibilityHidden(true)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(weather.displayName)
