@@ -629,20 +629,23 @@ struct DashboardWeatherCardContent: View {
                 if let range = dailyTemperatureRange(for: entry) {
                     Text(weather.compactTemperatureText(for: range.lowerBound))
                         .foregroundStyle(.white.opacity(0.62))
-                        .frame(width: grid.columnWidth, alignment: .center)
-                        .offset(x: grid.columnStride * 2)
+                        .frame(width: dailyTemperatureLabelWidth, alignment: .center)
+                        .offset(
+                            x: (grid.columnStride * 2)
+                                + ((grid.columnWidth - dailyTemperatureLabelWidth) / 2)
+                        )
 
                     dailyTemperatureBar(range: range, domain: domain)
                         .frame(width: grid.columnStride * 2)
                         .offset(x: (grid.columnWidth / 2) + (grid.columnStride * 2.5))
 
                     Text(weather.compactTemperatureText(for: range.upperBound))
-                        .frame(width: grid.columnWidth, alignment: .trailing)
-                        .offset(x: grid.columnStride * 5)
+                        .frame(width: dailyTemperatureLabelWidth, alignment: .trailing)
+                        .offset(x: proxy.size.width - dailyTemperatureLabelWidth)
                 } else {
                     Text(forecastTemperature(entry))
-                        .frame(width: grid.columnWidth, alignment: .trailing)
-                        .offset(x: grid.columnStride * 5)
+                        .frame(width: dailyTemperatureLabelWidth, alignment: .trailing)
+                        .offset(x: proxy.size.width - dailyTemperatureLabelWidth)
                 }
             }
         }
@@ -710,10 +713,10 @@ struct DashboardWeatherCardContent: View {
     ) -> some View {
         VStack(spacing: size == .wide ? 1 : 3) {
             Text(forecastDate(entry.datetime, type: type))
-                .font(.caption.weight(.medium))
+                .font(.caption.monospacedDigit().weight(.semibold))
                 .foregroundStyle(.white.opacity(0.82))
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity, alignment: .center)
 
             Image(systemName: entry.condition.systemImage)
@@ -726,7 +729,7 @@ struct DashboardWeatherCardContent: View {
             Text(forecastTemperature(entry))
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(width: forecastEdgeColumnWidth)
@@ -986,6 +989,10 @@ struct DashboardWeatherCardContent: View {
 
     private var forecastEdgeColumnWidth: CGFloat {
         dynamicTypeSize >= .xxLarge ? 64 : 24
+    }
+
+    private var dailyTemperatureLabelWidth: CGFloat {
+        dynamicTypeSize >= .xxLarge ? 64 : 44
     }
 
 }
