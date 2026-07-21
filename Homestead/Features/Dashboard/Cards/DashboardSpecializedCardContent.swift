@@ -614,7 +614,10 @@ struct DashboardWeatherCardContent: View {
 
             ZStack(alignment: .leading) {
                 Text(forecastDate(entry.datetime, type: type))
-                    .frame(width: grid.columnWidth, alignment: .leading)
+                    .frame(
+                        width: grid.columnStride - (grid.columnWidth / 2),
+                        alignment: .leading
+                    )
 
                 Image(systemName: entry.condition.systemImage)
                     .symbolRenderingMode(.multicolor)
@@ -710,6 +713,7 @@ struct DashboardWeatherCardContent: View {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.white.opacity(0.82))
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity, alignment: .center)
 
             Image(systemName: entry.condition.systemImage)
@@ -722,6 +726,7 @@ struct DashboardWeatherCardContent: View {
             Text(forecastTemperature(entry))
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(width: forecastEdgeColumnWidth)
@@ -980,7 +985,7 @@ struct DashboardWeatherCardContent: View {
     }
 
     private var forecastEdgeColumnWidth: CGFloat {
-        dynamicTypeSize >= .xxLarge ? 64 : 44
+        dynamicTypeSize >= .xxLarge ? 64 : 24
     }
 
 }
