@@ -240,28 +240,36 @@ struct DashboardCardReferenceGallery: View {
     }
 
     private static func seedWeatherForecast(in store: HAStateStore) {
-        let referenceDate = Date(timeIntervalSince1970: 1_784_515_200)
+        let now = Date()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let currentHour = calendar.date(bySetting: .minute, value: 0, of: now) ?? now
+        let dailyDates = (0...5).map { offset in
+            calendar.date(byAdding: .day, value: offset, to: today)
+                ?? today.addingTimeInterval(Double(offset) * 86_400)
+        }
         store.entityBox(for: "weather.home")?.applyWeatherForecast(WeatherForecastSnapshot(
             type: .daily,
             entries: [
-                forecastEntry(date: referenceDate, condition: .partlyCloudy, high: 81, low: 68, rain: 20),
-                forecastEntry(date: referenceDate.addingTimeInterval(86_400), condition: .rainy, high: 76, low: 65, rain: 70),
-                forecastEntry(date: referenceDate.addingTimeInterval(172_800), condition: .sunny, high: 84, low: 67, rain: 5),
-                forecastEntry(date: referenceDate.addingTimeInterval(259_200), condition: .cloudy, high: 79, low: 66, rain: 30),
-                forecastEntry(date: referenceDate.addingTimeInterval(345_600), condition: .sunny, high: 86, low: 69, rain: 10)
+                forecastEntry(date: dailyDates[0], condition: .partlyCloudy, high: 81, low: 68, rain: 20),
+                forecastEntry(date: dailyDates[1], condition: .rainy, high: 76, low: 65, rain: 70),
+                forecastEntry(date: dailyDates[2], condition: .sunny, high: 84, low: 67, rain: 5),
+                forecastEntry(date: dailyDates[3], condition: .cloudy, high: 79, low: 66, rain: 30),
+                forecastEntry(date: dailyDates[4], condition: .sunny, high: 86, low: 69, rain: 10),
+                forecastEntry(date: dailyDates[5], condition: .partlyCloudy, high: 83, low: 70, rain: 15)
             ],
-            receivedAt: referenceDate
+            receivedAt: now
         ))
         store.entityBox(for: "weather.home")?.applyWeatherForecast(WeatherForecastSnapshot(
             type: .hourly,
             entries: (0..<6).map { offset in
                 hourlyForecastEntry(
-                    date: referenceDate.addingTimeInterval(Double(offset) * 3_600),
+                    date: currentHour.addingTimeInterval(Double(offset) * 3_600),
                     condition: offset < 4 ? .sunny : .partlyCloudy,
                     temperature: 73 + Double(offset)
                 )
             },
-            receivedAt: referenceDate
+            receivedAt: now
         ))
     }
 

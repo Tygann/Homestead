@@ -484,7 +484,7 @@ struct DashboardWeatherCardContent: View {
                 }
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
-                .offset(y: -2)
+                .offset(y: -8)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -523,7 +523,7 @@ struct DashboardWeatherCardContent: View {
                 }
                 .font(.caption2.weight(.semibold))
                 .lineLimit(1)
-                .offset(y: -2)
+                .offset(y: -8)
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -593,7 +593,7 @@ struct DashboardWeatherCardContent: View {
 
     private func dailyForecastList(_ forecast: WeatherForecastSnapshot) -> some View {
         let limit = dynamicTypeSize >= .xxLarge ? 3 : 4
-        let entries = Array(forecast.entries.prefix(limit))
+        let entries = Array(futureDailyEntries(from: forecast).prefix(limit))
         let domain = dailyTemperatureDomain(for: entries)
 
         return VStack(spacing: 5) {
@@ -615,8 +615,8 @@ struct DashboardWeatherCardContent: View {
 
             Image(systemName: entry.condition.systemImage)
                 .symbolRenderingMode(.multicolor)
-                .font(.caption)
-                .frame(width: 22)
+                .font(.system(size: 18, weight: .medium))
+                .frame(width: 24, height: 20)
                 .accessibilityHidden(true)
 
             if let range = dailyTemperatureRange(for: entry) {
@@ -661,7 +661,10 @@ struct DashboardWeatherCardContent: View {
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [.cyan, .yellow, .orange],
+                            colors: [
+                                dailyTemperatureColor(for: range.lowerBound),
+                                dailyTemperatureColor(for: range.upperBound)
+                            ],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -693,8 +696,8 @@ struct DashboardWeatherCardContent: View {
 
             Image(systemName: entry.condition.systemImage)
                 .symbolRenderingMode(.multicolor)
-                .font(size == .large ? .subheadline : .caption)
-                .frame(height: size == .large ? 18 : 13)
+                .font(.system(size: 18, weight: .medium))
+                .frame(height: 20)
                 .accessibilityHidden(true)
 
             Text(forecastTemperature(entry))
@@ -799,6 +802,39 @@ struct DashboardWeatherCardContent: View {
             return nil
         }
         return min(first, second)...max(first, second)
+    }
+
+    private func futureDailyEntries(
+        from forecast: WeatherForecastSnapshot,
+        relativeTo now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [WeatherForecastEntry] {
+        let today = calendar.startOfDay(for: now)
+        var representedDays = Set<Date>()
+
+        let futureEntries = forecast.entries.filter { entry in
+            let day = calendar.startOfDay(for: entry.datetime)
+            guard day > today, representedDays.insert(day).inserted else { return false }
+            return true
+        }
+        return futureEntries.isEmpty ? forecast.entries : futureEntries
+    }
+
+    private func dailyTemperatureColor(for temperature: Double) -> Color {
+        let fahrenheitTemperature: Double
+        if weather.temperatureUnit == "C" || weather.temperatureUnit == "°C" {
+            fahrenheitTemperature = (temperature * 9 / 5) + 32
+        } else {
+            fahrenheitTemperature = temperature
+        }
+
+        return switch fahrenheitTemperature {
+        case ..<50: Color(red: 0.04, green: 0.52, blue: 1.00)
+        case ..<60: Color(red: 0.39, green: 0.82, blue: 1.00)
+        case ..<70: Color(red: 1.00, green: 0.84, blue: 0.04)
+        case ..<80: Color(red: 1.00, green: 0.62, blue: 0.04)
+        default: Color(red: 1.00, green: 0.27, blue: 0.23)
+        }
     }
 
     private func dailyTemperatureDomain(
