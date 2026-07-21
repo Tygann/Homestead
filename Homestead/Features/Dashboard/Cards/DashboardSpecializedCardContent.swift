@@ -691,11 +691,7 @@ struct DashboardWeatherCardContent: View {
 
         return HStack(spacing: 0) {
             ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                forecastItem(
-                    entry,
-                    type: forecast.type,
-                    alignment: forecastColumnAlignment(index: index, count: entries.count)
-                )
+                forecastItem(entry, type: forecast.type)
 
                 if index < entries.count - 1 {
                     Spacer(minLength: 0)
@@ -707,15 +703,14 @@ struct DashboardWeatherCardContent: View {
 
     private func forecastItem(
         _ entry: WeatherForecastEntry,
-        type: WeatherForecastType,
-        alignment: Alignment
+        type: WeatherForecastType
     ) -> some View {
         VStack(spacing: size == .wide ? 1 : 3) {
             Text(forecastDate(entry.datetime, type: type))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.white.opacity(0.82))
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: alignment)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             Image(systemName: entry.condition.systemImage)
                 .symbolRenderingMode(.multicolor)
@@ -727,7 +722,7 @@ struct DashboardWeatherCardContent: View {
             Text(forecastTemperature(entry))
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: alignment)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(width: forecastEdgeColumnWidth)
         .accessibilityElement(children: .ignore)
@@ -918,12 +913,6 @@ struct DashboardWeatherCardContent: View {
         let columnWidth = min(forecastEdgeColumnWidth, availableWidth / 6)
         let columnStride = max((availableWidth - columnWidth) / 5, 0)
         return (columnWidth, columnStride)
-    }
-
-    private func forecastColumnAlignment(index: Int, count: Int) -> Alignment {
-        if index == 0 { return .leading }
-        if index == count - 1 { return .trailing }
-        return .center
     }
 
     private func forecastDate(_ date: Date, type: WeatherForecastType) -> String {
