@@ -304,8 +304,6 @@ private struct AreaSummaryCard: View {
 }
 
 private struct AreaDomainStrip: View {
-    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
-
     let chips: [DashboardAreaDomainChip]
 
     var body: some View {
@@ -337,12 +335,8 @@ private struct AreaDomainStrip: View {
         }
     }
 
-    private func iconBackground(for chip: DashboardAreaDomainChip) -> AnyShapeStyle {
-        if isWallpaperSurfaceActive {
-            return HomesteadSurfaceStyle.cardBackground(isWallpaperActive: true)
-        }
-
-        return AnyShapeStyle(iconColor(for: chip).opacity(0.16))
+    private func iconBackground(for chip: DashboardAreaDomainChip) -> Color {
+        iconColor(for: chip).opacity(0.16)
     }
 }
 
