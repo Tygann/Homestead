@@ -23,6 +23,18 @@ For tactical handoff, definition of done, token budget guidance, fresh-chat hand
 - Live Home Assistant updates are batched before touching SwiftUI state. Preserve that unless profiling proves it is unnecessary.
 - Use documented Home Assistant APIs in their intended roles: WebSocket for the main data/control plane, HTTP for documented media or auth surfaces, and native-app/mobile-app registration only for companion-app capabilities that require it.
 
+## Dashboard Schema Upgrades
+
+Dashboard persistence uses the ordered migration and recovery pipeline in `DashboardConfigurationMigration.swift`. Do not use a schema-version bump to reset saved dashboards.
+
+- Before increasing `DashboardConfigurationDocument.currentSchemaVersion`, add an explicit migration from the immediately preceding version and retain every older supported step so documents can migrate sequentially across multiple releases.
+- Keep local, profile-scoped, Canvas preview, and iCloud dashboard payloads on the same migration path. Do not add a one-off decoder or reset behavior for only one storage surface.
+- Preserve dashboard and item IDs, ordering, names, display titles, setup state, supported items, and selected-dashboard state unless the product change explicitly makes a field impossible to retain.
+- Let the existing lossy collection decoding remove only malformed or unsupported cards or dashboards. Preserve last-known-good backups, rejected-payload quarantine, and newer-schema write protection.
+- Treat a document created by a newer app schema as read-only data: never replace it with an empty or default dashboard and never advance the iCloud dashboard timestamp when its payload was rejected.
+- Add focused tests for the new migration step, chained migration where applicable, selection preservation, malformed-item isolation, backup recovery, newer-schema non-overwrite behavior, profile bundles, and iCloud decoding/application.
+- Update `Docs/NEXT_STEPS.md` and `Docs/DEVELOPMENT_LOG.md` when a schema version or migration contract changes.
+
 ## Swift Code Organization
 
 Use comments for structure and intent, not noise.
