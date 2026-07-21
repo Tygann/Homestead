@@ -52,7 +52,7 @@ struct SensorDetailView: View {
                         : entityBox.sensorEntity?.gaugePresentation?.range,
                     initialRange: initialHistoryRange,
                     layout: isHistoryFocused ? .expanded : .compact,
-                    interpolationStyle: entityBox.sensorEntity?.dashboardHistoryInterpolationStyle ?? .linear,
+                    interpolationStyle: entityBox.sensorEntity?.historyChartInterpolationStyle ?? .linear,
                     onSelectionChange: { historySelection = $0 }
                 )
             }

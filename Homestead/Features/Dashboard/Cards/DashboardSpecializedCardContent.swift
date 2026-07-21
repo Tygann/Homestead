@@ -1,5 +1,4 @@
 import Accessibility
-import Charts
 import SwiftUI
 
 // MARK: - Chart
@@ -111,42 +110,12 @@ struct DashboardChartCardContent: View {
     }
 
     private func chart(_ chartPresentation: DashboardHistoryCardPresentation) -> some View {
-        let displayDomain = chartDisplayDomain(chartPresentation)
-
-        return Chart(chartPresentation.samples) { sample in
-            AreaMark(
-                x: .value("Time", sample.occurredAt),
-                yStart: .value("Baseline", displayDomain.lowerBound),
-                yEnd: .value("Value", sample.value)
-            )
-            .interpolationMethod(chartInterpolationMethod)
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [
-                        presentation.accentColor.opacity(0.16),
-                        presentation.accentColor.opacity(0.02)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-
-            LineMark(
-                x: .value("Time", sample.occurredAt),
-                y: .value("Value", sample.value)
-            )
-            .interpolationMethod(chartInterpolationMethod)
-            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-            .foregroundStyle(presentation.accentColor)
-        }
-        .chartYScale(domain: displayDomain)
-        .chartXScale(range: .plotDimension(startPadding: 0, endPadding: 0))
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartPlotStyle { plotArea in
-            plotArea.clipped()
-        }
-        .clipped()
+        HomesteadTrendChartPlot(
+            samples: chartPresentation.chartSamples,
+            valueDomain: chartPresentation.valueDomain,
+            accentColor: presentation.accentColor,
+            interpolationStyle: sensor?.historyChartInterpolationStyle ?? .linear
+        )
     }
 
     private func chartPlaceholder(label: String) -> some View {
@@ -200,10 +169,6 @@ struct DashboardChartCardContent: View {
             return "↓ \(changeSummaryText.dropFirst(5))"
         }
         return changeSummaryText
-    }
-
-    private var chartInterpolationMethod: InterpolationMethod {
-        sensor?.dashboardHistoryInterpolationStyle == .smooth ? .catmullRom : .linear
     }
 
     private var contextSummaryText: String {
@@ -260,14 +225,6 @@ struct DashboardChartCardContent: View {
         default:
             availableHeight * 0.34
         }
-    }
-
-    private func chartDisplayDomain(
-        _ chartPresentation: DashboardHistoryCardPresentation
-    ) -> ClosedRange<Double> {
-        let domain = chartPresentation.valueDomain
-        let headroom = (domain.upperBound - domain.lowerBound) * 0.04
-        return (domain.lowerBound - headroom)...(domain.upperBound + headroom)
     }
 
     private var accessibilityLabel: String {

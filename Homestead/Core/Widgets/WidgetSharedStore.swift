@@ -365,7 +365,8 @@ enum WidgetSharedStore {
                     areaName: context.areaName,
                     deviceName: context.deviceName,
                     icon: icon,
-                    gauge: sensor.gaugePresentation.flatMap(Self.widgetGaugePresentation)
+                    gauge: sensor.gaugePresentation.flatMap(Self.widgetGaugePresentation),
+                    historyChartInterpolationStyle: sensor.historyChartInterpolationStyle
                 )
             }
     }

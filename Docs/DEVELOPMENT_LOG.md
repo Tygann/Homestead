@@ -9,6 +9,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added a stable medium Sensor Board WidgetKit kind alongside the existing Gauge Grids, with two independently named compact sensor slots and one dedicated six-hour numeric trend.
 - Compact slots support Automatic, Gauge, or Reading presentation; Automatic prefers mapped gauge metadata, and explicit Gauge safely falls back to Reading when the sensor is not gauge-capable.
 - Restricted the chart picker to numeric sensor snapshots, reused documented Home Assistant REST history and live WebSocket state refresh, deep-linked every configured region, and kept the rendered face shared with the deterministic widget preview.
+- Replaced the Sensor Board's initial boxed path sparkline with the same shared Swift Charts plot used by dashboard Chart cards, including stabilized value domains, protected headroom, gradient fill, and sensor-semantic smooth or linear interpolation persisted into widget snapshots.
 - Verified the medium mixed layout in dark and light Simulator appearances plus focused Sensor Board, shared catalog, and Gauge Grid tests.
 
 ### Durable Live Preview Dashboards

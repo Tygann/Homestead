@@ -71,18 +71,6 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
     }
 }
 
-nonisolated struct WidgetSensorBoardTrendSample: Identifiable, Equatable, Sendable {
-    let id: String
-    let occurredAt: Date
-    let value: Double
-
-    init(occurredAt: Date, value: Double) {
-        id = "\(occurredAt.timeIntervalSince1970)-\(value)"
-        self.occurredAt = occurredAt
-        self.value = value
-    }
-}
-
 nonisolated struct WidgetSensorBoardTrendItem: Identifiable, Equatable, Sendable {
     let id: String
     let displayName: String
@@ -90,8 +78,9 @@ nonisolated struct WidgetSensorBoardTrendItem: Identifiable, Equatable, Sendable
     let valueText: String
     let supportingText: String
     let isAvailable: Bool
-    let samples: [WidgetSensorBoardTrendSample]
+    let samples: [HomesteadTrendChartSample]
     let valueDomain: ClosedRange<Double>
+    let interpolationStyle: HomesteadTrendChartInterpolationStyle
 }
 
 // MARK: - Sensor Board Face
@@ -229,11 +218,7 @@ private struct WidgetSensorBoardTrendTile: View {
                 .minimumScaleFactor(0.65)
                 .monospacedDigit()
 
-            WidgetSensorBoardLineChart(
-                samples: item.samples,
-                valueDomain: item.valueDomain,
-                accentColor: item.isAvailable ? .blue : .secondary
-            )
+            chart
 
             Text(item.supportingText)
                 .font(.caption2)
@@ -245,6 +230,38 @@ private struct WidgetSensorBoardTrendTile: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(item.displayName), six hour trend")
         .accessibilityValue(item.isAvailable ? item.valueText : "Unavailable")
+    }
+
+    @ViewBuilder
+    private var chart: some View {
+        if item.samples.count >= 2 {
+            HomesteadTrendChartPlot(
+                samples: item.samples,
+                valueDomain: item.valueDomain,
+                accentColor: item.isAvailable ? .blue : .secondary,
+                interpolationStyle: item.interpolationStyle
+            )
+        } else {
+            ZStack(alignment: .bottomLeading) {
+                LinearGradient(
+                    colors: [
+                        Color.secondary.opacity(0.10),
+                        Color.secondary.opacity(0.02)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.30))
+                    .frame(height: 2)
+
+                Image(systemName: "chart.xyaxis.line")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 7)
+            }
+        }
     }
 }
 
@@ -263,88 +280,5 @@ private struct WidgetSensorBoardEmptyTile: View {
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-}
-
-private struct WidgetSensorBoardLineChart: View {
-    let samples: [WidgetSensorBoardTrendSample]
-    let valueDomain: ClosedRange<Double>
-    let accentColor: Color
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(.fill.quaternary)
-
-                if samples.count < 2 {
-                    Image(systemName: "chart.xyaxis.line")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                } else {
-                    fillPath(in: proxy.size)
-                        .fill(
-                            LinearGradient(
-                                colors: [accentColor.opacity(0.22), accentColor.opacity(0.02)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-
-                    linePath(in: proxy.size)
-                        .stroke(
-                            accentColor,
-                            style: StrokeStyle(lineWidth: 2.25, lineCap: .round, lineJoin: .round)
-                        )
-                }
-            }
-        }
-    }
-
-    private func linePath(in size: CGSize) -> Path {
-        Path { path in
-            points(in: size).enumerated().forEach { index, point in
-                if index == 0 {
-                    path.move(to: point)
-                } else {
-                    path.addLine(to: point)
-                }
-            }
-        }
-    }
-
-    private func fillPath(in size: CGSize) -> Path {
-        Path { path in
-            let resolvedPoints = points(in: size)
-            guard let first = resolvedPoints.first, let last = resolvedPoints.last else { return }
-
-            path.move(to: CGPoint(x: first.x, y: size.height))
-            path.addLine(to: first)
-            resolvedPoints.dropFirst().forEach { path.addLine(to: $0) }
-            path.addLine(to: CGPoint(x: last.x, y: size.height))
-            path.closeSubpath()
-        }
-    }
-
-    private func points(in size: CGSize) -> [CGPoint] {
-        guard let firstDate = samples.first?.occurredAt,
-              let lastDate = samples.last?.occurredAt else {
-            return []
-        }
-
-        let duration = max(lastDate.timeIntervalSince(firstDate), 1)
-        let valueSpan = max(valueDomain.upperBound - valueDomain.lowerBound, 0.000_001)
-        let inset: CGFloat = 5
-        let drawableWidth = max(size.width - (inset * 2), 0)
-        let drawableHeight = max(size.height - (inset * 2), 0)
-
-        return samples.map { sample in
-            let xFraction = sample.occurredAt.timeIntervalSince(firstDate) / duration
-            let yFraction = (sample.value - valueDomain.lowerBound) / valueSpan
-            return CGPoint(
-                x: inset + (drawableWidth * xFraction),
-                y: inset + (drawableHeight * (1 - yFraction))
-            )
-        }
     }
 }

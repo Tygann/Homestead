@@ -50,6 +50,23 @@ struct WidgetSensorBoardTests {
         #expect(!updated.isAvailable)
     }
 
+    @Test func sharedChartDomainUsesDashboardTemperatureStabilizationAndHeadroom() {
+        let domain = HomesteadTrendChartDomain.stabilized(values: [72, 73], unit: "°F")
+        let displayDomain = HomesteadTrendChartDomain.addingHeadroom(to: domain)
+
+        #expect(domain.lowerBound == 70.5)
+        #expect(domain.upperBound == 74.5)
+        #expect(abs(displayDomain.lowerBound - 70.34) < 0.000_001)
+        #expect(abs(displayDomain.upperBound - 74.66) < 0.000_001)
+    }
+
+    @Test func sharedChartDomainPreservesWiderObservedRanges() {
+        let domain = HomesteadTrendChartDomain.stabilized(values: [0, 20], unit: nil)
+
+        #expect(abs(domain.lowerBound - -2.4) < 0.000_001)
+        #expect(abs(domain.upperBound - 22.4) < 0.000_001)
+    }
+
     private func makeSnapshot(gauge: WidgetGaugePresentation?) -> WidgetSensorSnapshot {
         WidgetSensorSnapshot(
             entityID: "sensor.living_room_temperature",

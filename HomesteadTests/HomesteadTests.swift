@@ -2379,10 +2379,10 @@ struct HomesteadTests {
             lastUpdated: nil
         )
 
-        #expect(temperature.dashboardHistoryInterpolationStyle == .smooth)
-        #expect(battery.dashboardHistoryInterpolationStyle == .linear)
-        #expect(cumulativeVolume.dashboardHistoryInterpolationStyle == .linear)
-        #expect(generic.dashboardHistoryInterpolationStyle == .linear)
+        #expect(temperature.historyChartInterpolationStyle == .smooth)
+        #expect(battery.historyChartInterpolationStyle == .linear)
+        #expect(cumulativeVolume.historyChartInterpolationStyle == .linear)
+        #expect(generic.historyChartInterpolationStyle == .linear)
     }
 
     @Test func mobileAppRegistrationStorePersistsRegistrationInfo() throws {
@@ -4333,7 +4333,8 @@ struct HomesteadTests {
                     ],
                     accessibilityLabel: "Battery gauge",
                     accessibilityValue: "18%, warning"
-                )
+                ),
+                historyChartInterpolationStyle: .linear
             ),
             WidgetSensorSnapshot(
                 entityID: "sensor.temperature",
@@ -4347,7 +4348,8 @@ struct HomesteadTests {
                 isAvailable: true,
                 areaName: nil,
                 deviceName: nil,
-                icon: .sfSymbol("thermometer.medium", provenance: .haSemanticMapping)
+                icon: .sfSymbol("thermometer.medium", provenance: .haSemanticMapping),
+                historyChartInterpolationStyle: .smooth
             )
         ])
 

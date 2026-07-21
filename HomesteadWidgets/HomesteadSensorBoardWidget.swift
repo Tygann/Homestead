@@ -106,6 +106,7 @@ struct HomesteadTrendSensorEntity: AppEntity, Identifiable {
     let deviceName: String?
     let isAvailable: Bool
     let icon: ResolvedIcon
+    var historyChartInterpolationStyle: HomesteadTrendChartInterpolationStyle? = nil
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -186,7 +187,8 @@ struct HomesteadTrendSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
             areaName: snapshot.areaName,
             deviceName: snapshot.deviceName,
             isAvailable: snapshot.isAvailable,
-            icon: snapshot.resolvedIcon
+            icon: snapshot.resolvedIcon,
+            historyChartInterpolationStyle: snapshot.historyChartInterpolationStyle
         )
     }
 }
@@ -329,6 +331,9 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
     ) async -> WidgetSensorBoardTrendItem {
         let trimmedName = customDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let displayName = trimmedName.isEmpty ? sensor.displayName : trimmedName
+        let interpolationStyle = snapshot?.historyChartInterpolationStyle
+            ?? sensor.historyChartInterpolationStyle
+            ?? .linear
 
         do {
             let series = try await HAWidgetActionClient().fetchSensorHistory(
@@ -344,7 +349,11 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
                 supportingText: "6H Trend",
                 isAvailable: snapshot?.isAvailable ?? sensor.isAvailable,
                 samples: series.samples.map { .init(occurredAt: $0.occurredAt, value: $0.value) },
-                valueDomain: series.valueDomain
+                valueDomain: HomesteadTrendChartDomain.stabilized(
+                    values: series.samples.map(\.value),
+                    unit: series.unit
+                ),
+                interpolationStyle: interpolationStyle
             )
         } catch {
             return WidgetSensorBoardTrendItem(
@@ -355,7 +364,8 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
                 supportingText: "Needs connection",
                 isAvailable: snapshot?.isAvailable ?? sensor.isAvailable,
                 samples: [],
-                valueDomain: 0...1
+                valueDomain: 0...1,
+                interpolationStyle: interpolationStyle
             )
         }
     }
@@ -463,12 +473,16 @@ private extension WidgetSensorBoardTrendItem {
             supportingText: "6H Trend",
             isAvailable: true,
             samples: [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8].enumerated().map { index, value in
-                WidgetSensorBoardTrendSample(
+                HomesteadTrendChartSample(
                     occurredAt: now.addingTimeInterval(Double(index - 6) * 60 * 60),
                     value: value
                 )
             },
-            valueDomain: 33.0...34.0
+            valueDomain: HomesteadTrendChartDomain.stabilized(
+                values: [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8],
+                unit: "ppt"
+            ),
+            interpolationStyle: .smooth
         )
     }
 }

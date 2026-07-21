@@ -16,7 +16,7 @@ struct EntityNumericHistoryPanel: View {
     let accentColor: Color
     let preferredRange: ClosedRange<Double>?
     var layout: EntityNumericHistoryLayout = .compact
-    var interpolationStyle: DashboardHistoryInterpolationStyle = .linear
+    var interpolationStyle: HomesteadTrendChartInterpolationStyle = .linear
     var onSelectionChange: (EntityHistorySelection?) -> Void = { _ in }
 
     init(
@@ -28,7 +28,7 @@ struct EntityNumericHistoryPanel: View {
         preferredRange: ClosedRange<Double>?,
         initialRange: HAHistoryRangePreset = .day,
         layout: EntityNumericHistoryLayout = .compact,
-        interpolationStyle: DashboardHistoryInterpolationStyle = .linear,
+        interpolationStyle: HomesteadTrendChartInterpolationStyle = .linear,
         onSelectionChange: @escaping (EntityHistorySelection?) -> Void = { _ in }
     ) {
         self.entityBox = entityBox
@@ -191,7 +191,7 @@ private struct EntityNumericHistoryChart: View {
     let accentColor: Color
     let preferredRange: ClosedRange<Double>?
     let layout: EntityNumericHistoryLayout
-    let interpolationStyle: DashboardHistoryInterpolationStyle
+    let interpolationStyle: HomesteadTrendChartInterpolationStyle
     @Binding var selectedSampleDate: Date?
     let onSelectionChange: (EntityHistorySelection?) -> Void
 

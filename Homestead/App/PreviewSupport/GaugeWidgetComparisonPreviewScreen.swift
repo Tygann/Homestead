@@ -243,12 +243,16 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             supportingText: showsUnavailableBoard ? "Needs connection" : "6H Trend",
             isAvailable: !showsUnavailableBoard,
             samples: showsUnavailableBoard ? [] : [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8].enumerated().map { index, value in
-                WidgetSensorBoardTrendSample(
+                HomesteadTrendChartSample(
                     occurredAt: now.addingTimeInterval(Double(index - 6) * 60 * 60),
                     value: value
                 )
             },
-            valueDomain: 33...34
+            valueDomain: HomesteadTrendChartDomain.stabilized(
+                values: [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8],
+                unit: "ppt"
+            ),
+            interpolationStyle: .smooth
         )
     }
 

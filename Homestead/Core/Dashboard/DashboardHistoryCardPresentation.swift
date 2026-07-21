@@ -8,6 +8,7 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
     let unit: String?
     let range: HAHistoryRangePreset
     let samples: [HAHistorySample]
+    let chartSamples: [HomesteadTrendChartSample]
     let valueDomain: ClosedRange<Double>
     let summaryText: String
     let rangeSummaryText: String
@@ -34,7 +35,13 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
         unit = series.unit
         range = series.range
         samples = series.samples
-        valueDomain = Self.dashboardValueDomain(for: series)
+        chartSamples = series.samples.map {
+            HomesteadTrendChartSample(occurredAt: $0.occurredAt, value: $0.value)
+        }
+        valueDomain = HomesteadTrendChartDomain.stabilized(
+            values: chartSamples.map(\.value),
+            unit: series.unit
+        )
         summaryText = series.summaryText
         rangeSummaryText = Self.rangeSummaryText(for: series)
         changeSummaryText = Self.changeSummaryText(for: series)
@@ -72,27 +79,6 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
 
         let separator = unit.hasPrefix("°") || unit == "%" ? "" : " "
         return "\(numberText)\(separator)\(unit)"
-    }
-
-    private static func dashboardValueDomain(for series: HAHistoryChartSeries) -> ClosedRange<Double> {
-        guard let minimum = series.minimumValue,
-              let maximum = series.maximumValue else {
-            return 0...1
-        }
-
-        let midpoint = (minimum + maximum) / 2
-        let observedSpan = maximum - minimum
-        let minimumSpan: Double
-
-        switch series.unit {
-        case "°F", "F": minimumSpan = 4
-        case "°C", "C": minimumSpan = 2
-        case "%": minimumSpan = 10
-        default: minimumSpan = max(abs(midpoint) * 0.04, 1)
-        }
-
-        let displaySpan = max(observedSpan * 1.24, minimumSpan)
-        return (midpoint - (displaySpan / 2))...(midpoint + (displaySpan / 2))
     }
 
     private static func rangeSummaryText(for series: HAHistoryChartSeries) -> String {
@@ -211,33 +197,6 @@ nonisolated extension DashboardCardSize {
             true
         case .mini, .compact, .row:
             false
-        }
-    }
-}
-
-nonisolated enum DashboardHistoryInterpolationStyle: Equatable, Sendable {
-    case smooth
-    case linear
-}
-
-extension SensorEntity {
-    var dashboardHistoryInterpolationStyle: DashboardHistoryInterpolationStyle {
-        if stateClass == .total || stateClass == .totalIncreasing {
-            return .linear
-        }
-
-        return switch displayKind {
-        case .battery, .data, .date, .duration, .enum, .energy, .energyDistance,
-             .energyStorage, .gas, .monetary, .powerFactor, .precipitation,
-             .reactiveEnergy, .signal, .uptime, .water, .generic:
-            .linear
-        case .airQuality, .area, .carbonDioxide, .carbonMonoxide, .conductivity,
-             .distance, .frequency, .humidity, .illuminance, .irradiance, .moisture,
-             .pH, .particulateMatter, .power, .pressure, .problem, .reactivePower,
-             .soundPressure, .speed, .temperature, .temperatureDelta, .current,
-             .voltage, .volatileOrganicCompounds, .volume, .volumeFlowRate, .weight,
-             .windDirection:
-            .smooth
         }
     }
 }
