@@ -123,8 +123,8 @@ struct DashboardChartCardContent: View {
             .foregroundStyle(
                 LinearGradient(
                     colors: [
-                        presentation.accentColor.opacity(0.16),
-                        presentation.accentColor.opacity(0.02)
+                        presentation.accentColor.opacity(0.12),
+                        presentation.accentColor.opacity(0)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -203,7 +203,7 @@ struct DashboardChartCardContent: View {
     }
 
     private var chartInterpolationMethod: InterpolationMethod {
-        sensor?.dashboardHistoryInterpolationStyle == .smooth ? .catmullRom : .linear
+        sensor?.dashboardHistoryInterpolationStyle == .smooth ? .monotone : .linear
     }
 
     private var contextSummaryText: String {
@@ -371,13 +371,6 @@ struct DashboardWeatherCardContent: View {
                 )
                 .accessibilityHidden(true)
 
-                Image(systemName: weather.iconName)
-                    .symbolRenderingMode(.hierarchical)
-                    .font(.system(size: decorativeIconSize(for: proxy.size), weight: .regular))
-                    .foregroundStyle(.white.opacity(size == .wide ? 0.04 : 0.06))
-                    .offset(x: proxy.size.width * 0.65, y: proxy.size.height * 0.07)
-                    .accessibilityHidden(true)
-
                 cardContent(availableWidth: proxy.size.width)
             }
         }
@@ -445,7 +438,7 @@ struct DashboardWeatherCardContent: View {
 
             Image(systemName: weather.iconName)
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: size == .large ? 42 : 30, weight: .medium))
+                .font(.system(size: 30, weight: .medium))
                 .accessibilityHidden(true)
 
             if size == .large {
@@ -471,7 +464,7 @@ struct DashboardWeatherCardContent: View {
 
                 Image(systemName: weather.iconName)
                     .symbolRenderingMode(.multicolor)
-                    .font(.title3.weight(.medium))
+                    .font(.system(size: 30, weight: .medium))
                     .accessibilityHidden(true)
             }
 
@@ -751,9 +744,6 @@ struct DashboardWeatherCardContent: View {
         }
     }
 
-    private func decorativeIconSize(for availableSize: CGSize) -> CGFloat {
-        min(availableSize.width, availableSize.height) * (size == .large ? 0.72 : 0.62)
-    }
 }
 
 private struct DashboardWeatherCardBackground: View {
