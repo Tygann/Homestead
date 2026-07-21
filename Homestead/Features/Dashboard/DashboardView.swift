@@ -1130,8 +1130,16 @@ struct DashboardView: View {
         Button {
             beginRenamingEntity(item)
         } label: {
-            Label("Rename Card", systemImage: "pencil")
+            Label("Rename Card…", systemImage: "pencil")
         }
+
+        Button {
+            presentIconPicker(for: item)
+        } label: {
+            Label("Change Icon…", systemImage: "circle.grid.2x2")
+        }
+
+        Divider()
 
         Button {
             changeEntityContext = DashboardChangeEntityContext(item: item)
@@ -1143,14 +1151,8 @@ struct DashboardView: View {
             Button {
                 presentGaugeZoneEditor(for: item)
             } label: {
-                Label("Gauge Settings", systemImage: "dial.medium")
+                Label("Gauge Settings…", systemImage: "dial.medium")
             }
-        }
-
-        Button {
-            presentIconPicker(for: item)
-        } label: {
-            Label("Change Icon", systemImage: "circle.grid.2x2")
         }
 
         Divider()
