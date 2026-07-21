@@ -103,6 +103,16 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
     }
 }
 
+nonisolated struct DashboardChartConfiguration: Codable, Equatable, Sendable {
+    static let `default` = DashboardChartConfiguration(range: .sixHours)
+
+    var range: HAHistoryRangePreset
+
+    var isValid: Bool {
+        HAHistoryRangePreset.dashboardChartPresets.contains(range)
+    }
+}
+
 nonisolated enum DashboardPresentationConfiguration: Codable, Equatable, Sendable {
     case chip
     case card(DashboardCardConfiguration)
@@ -138,11 +148,13 @@ nonisolated struct DashboardItemCustomization: Codable, Equatable, Sendable {
     var displayNameOverride: String?
     var iconNameOverride: String?
     var gaugeZoneConfiguration: GaugeZoneConfiguration?
+    var chartConfiguration: DashboardChartConfiguration?
 
     static let none = DashboardItemCustomization(
         displayNameOverride: nil,
         iconNameOverride: nil,
-        gaugeZoneConfiguration: nil
+        gaugeZoneConfiguration: nil,
+        chartConfiguration: nil
     )
 }
 
@@ -242,6 +254,11 @@ nonisolated struct DashboardItemConfiguration: Identifiable, Codable, Equatable,
     var gaugeZoneConfiguration: GaugeZoneConfiguration? {
         get { customization.gaugeZoneConfiguration }
         set { customization.gaugeZoneConfiguration = newValue }
+    }
+
+    var chartConfiguration: DashboardChartConfiguration? {
+        get { customization.chartConfiguration }
+        set { customization.chartConfiguration = newValue }
     }
 
     var resolvedTitle: String {
@@ -688,6 +705,16 @@ final class DashboardConfiguration {
         guard configuration?.isValid != false else { return }
         var updated = items
         updated[index].gaugeZoneConfiguration = configuration
+        updateSelectedDashboardItems(updated, setupState: .manual)
+    }
+
+    func setChartConfiguration(_ configuration: DashboardChartConfiguration, forItemID itemID: UUID) {
+        guard configuration.isValid,
+              let index = items.firstIndex(where: {
+                  $0.id == itemID && $0.cardConfiguration?.kind == .graph
+              }) else { return }
+        var updated = items
+        updated[index].chartConfiguration = configuration == .default ? nil : configuration
         updateSelectedDashboardItems(updated, setupState: .manual)
     }
 

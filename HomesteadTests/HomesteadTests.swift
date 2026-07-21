@@ -2166,7 +2166,8 @@ struct HomesteadTests {
         #expect(week.start == expectedWeekStart)
         #expect(month.start == expectedMonthStart)
         #expect(HAHistoryRangePreset.activityPresets == [.oneHour, .sixHours, .day])
-        #expect(HAHistoryRangePreset.sensorChartPresets == [.day, .week, .month])
+        #expect(HAHistoryRangePreset.sensorChartPresets == [.sixHours, .day, .week, .month])
+        #expect(HAHistoryRangePreset.dashboardChartPresets == [.oneHour, .sixHours, .day, .week])
     }
 
     @Test func historyChartSamplingCapsPointsAndPreservesBoundsAndExtremes() {

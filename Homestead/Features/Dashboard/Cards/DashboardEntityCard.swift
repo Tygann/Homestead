@@ -13,6 +13,7 @@ struct DashboardEntityCard: View {
     let size: DashboardCardSize
     let presentationKind: DashboardPresentationKind
     let gaugeZoneConfiguration: GaugeZoneConfiguration?
+    let chartRange: HAHistoryRangePreset
     let features: [DashboardCardFeature]
     let contextualAreaName: String?
     let cameraRefreshGeneration: Int
@@ -845,11 +846,11 @@ struct DashboardEntityCard: View {
             return "dashboard-history-disabled-\(entityBox.entityID)-\(size.rawValue)"
         }
 
-        return "dashboard-history-\(entityBox.entityID)-\(size.rawValue)-\(DashboardHistoryCardPresentation.defaultRange.rawValue)"
+        return "dashboard-history-\(entityBox.entityID)-\(size.rawValue)-\(chartRange.rawValue)"
     }
 
     private var resolvedHistoryPhase: DashboardHistoryCardPhase {
-        if isPreview, let preview = DashboardHistoryCardPresentation.preview(entityBox: entityBox) {
+        if isPreview, let preview = DashboardHistoryCardPresentation.preview(entityBox: entityBox, range: chartRange) {
             return .loaded(preview)
         }
         return historyPhase
@@ -891,7 +892,7 @@ struct DashboardEntityCard: View {
 
         if case .loaded(let chartPresentation) = historyPhase,
            chartPresentation.entityID == entityBox.entityID,
-           chartPresentation.range == DashboardHistoryCardPresentation.defaultRange {
+           chartPresentation.range == chartRange {
             return
         }
 
@@ -901,7 +902,7 @@ struct DashboardEntityCard: View {
             let series = try await homeAssistantService.fetchDashboardHistory(
                 settings: connectionSettings,
                 entityID: entityBox.entityID,
-                range: DashboardHistoryCardPresentation.defaultRange
+                range: chartRange
             )
             guard !Task.isCancelled else { return }
             historyPhase = .loaded(DashboardHistoryCardPresentation(series: series))

@@ -254,7 +254,8 @@ private struct DashboardChangeEntityPreviewSample {
             configuration: .segmentedGauge(layout: .wide),
             displayNameOverride: nil,
             iconNameOverride: nil,
-            gaugeZoneConfiguration: dashboardConfiguration.items.first?.gaugeZoneConfiguration
+            gaugeZoneConfiguration: dashboardConfiguration.items.first?.gaugeZoneConfiguration,
+            chartConfiguration: .default
         )
 
         return Self(

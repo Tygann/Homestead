@@ -139,7 +139,10 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
     }
 
     @MainActor
-    static func preview(entityBox: HAEntityState) -> DashboardHistoryCardPresentation? {
+    static func preview(
+        entityBox: HAEntityState,
+        range: HAHistoryRangePreset = defaultRange
+    ) -> DashboardHistoryCardPresentation? {
         guard let sensor = entityBox.sensorEntity,
               let value = sensor.numericValue else {
             return nil
@@ -148,7 +151,7 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
         // Keep Debug gallery history aligned with the fixture's live sample so the
         // current-value extension cannot compress the whole trend into the leading edge.
         let endDate = sensor.lastUpdated ?? Date(timeIntervalSince1970: 1_784_515_200)
-        let interval = defaultRange.interval(endingAt: endDate)
+        let interval = range.interval(endingAt: endDate)
         let offsets = [-0.08, -0.03, 0.04, -0.01, 0.07, 0.02, 0.09, 0.0]
         let scale = max(abs(value) * 0.08, 1)
         let samples = offsets.enumerated().map { index, offset in
@@ -164,7 +167,7 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
             entityID: entityBox.entityID,
             displayName: sensor.displayName,
             unit: sensor.unitText,
-            range: defaultRange,
+            range: range,
             samples: samples,
             requestedInterval: interval
         ))

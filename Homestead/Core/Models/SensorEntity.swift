@@ -143,6 +143,10 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         }
     }
 
+    var resolvedDisplayPrecision: Int {
+        maximumFractionDigits
+    }
+
     private var maximumFractionDigits: Int {
         if let displayPrecision {
             return max(displayPrecision, 0)

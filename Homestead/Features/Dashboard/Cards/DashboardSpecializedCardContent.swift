@@ -41,7 +41,7 @@ struct DashboardChartCardContent: View {
 
                         if showsTrailingSummary {
                             HStack(spacing: 3) {
-                                Text(DashboardHistoryCardPresentation.defaultRange.title)
+                                Text(loadedRangeTitle)
 
                                 if let compactChangeSummaryText {
                                     Text("·")
@@ -87,6 +87,13 @@ struct DashboardChartCardContent: View {
         .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(accessibilityValue)
         .modifier(DashboardChartAccessibilityModifier(state: state))
+    }
+
+    private var loadedRangeTitle: String {
+        if case .loaded(let chartPresentation) = state {
+            return chartPresentation.range.title
+        }
+        return DashboardHistoryCardPresentation.defaultRange.title
     }
 
     @ViewBuilder

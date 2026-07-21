@@ -3,8 +3,10 @@ import SwiftUI
 struct SensorDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
+    var entryContext: EntityDetailEntryContext = .overview
 
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var historySelection: EntityHistorySelection?
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -29,7 +31,11 @@ struct SensorDetailView: View {
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             if entity.domain == .sensor {
-                sensorHero
+                if isHistoryFocused {
+                    historyHero
+                } else {
+                    sensorHero
+                }
             } else {
                 header
                 currentReading
@@ -39,9 +45,15 @@ struct SensorDetailView: View {
                     entityBox: entityBox,
                     displayName: entityBox.sensorEntity?.displayName ?? entity.displayName,
                     unit: entityBox.sensorEntity?.unitText,
-                    displayPrecision: entityBox.sensorEntity?.displayPrecision,
+                    displayPrecision: entityBox.sensorEntity?.resolvedDisplayPrecision,
                     accentColor: presentation.accentColor,
-                    preferredRange: entityBox.sensorEntity?.gaugePresentation?.range
+                    preferredRange: isHistoryFocused
+                        ? nil
+                        : entityBox.sensorEntity?.gaugePresentation?.range,
+                    initialRange: initialHistoryRange,
+                    layout: isHistoryFocused ? .expanded : .compact,
+                    interpolationStyle: entityBox.sensorEntity?.dashboardHistoryInterpolationStyle ?? .linear,
+                    onSelectionChange: { historySelection = $0 }
                 )
             }
             if let source = features.activitySource {
@@ -120,6 +132,45 @@ struct SensorDetailView: View {
         }
     }
 
+    private var historyHero: some View {
+        EntityDetailHeroCard(
+            icon: presentation.icon,
+            title: heroPresentation?.category ?? "Sensor",
+            subtitle: historyHeroSubtitle,
+            status: heroPresentation?.statusText,
+            iconColor: sensorHeroColor,
+            statusColor: .orange,
+            statusBackground: Color.orange.opacity(0.12),
+            statePresentation: detailState
+        ) {
+            Text(historySelection?.formattedValue ?? primaryValue)
+                .font(.system(size: 52, weight: .semibold, design: .rounded))
+                .foregroundStyle(statusColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var historyHeroSubtitle: Text? {
+        guard let selection = historySelection else {
+            return sensorFreshnessText
+        }
+        return Text(selection.occurredAt.formatted(date: .abbreviated, time: .shortened))
+    }
+
+    private var isHistoryFocused: Bool {
+        if case .history = entryContext { return true }
+        return false
+    }
+
+    private var initialHistoryRange: HAHistoryRangePreset {
+        if case .history(let range) = entryContext { return range }
+        return .day
+    }
+
     private var sensorFreshnessText: Text? {
         EntityDetailHeroSubtitle.updated(entity)
     }
@@ -194,7 +245,9 @@ struct SensorDetailView: View {
     }
 
     private var supportsHistory: Bool {
-        features.supports(.numericHistory)
+        // A configured Chart card remains a history surface even while the current
+        // Home Assistant state is temporarily nonnumeric (for example, unavailable).
+        isHistoryFocused || features.supports(.numericHistory)
     }
 
     private var statusBadgeText: String {

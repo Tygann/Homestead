@@ -106,7 +106,8 @@ private struct EntityDetailReferenceScene: View {
                 EntityDetailSheet(
                     entityBox: entityBox,
                     presentationStyle: .navigation,
-                    automaticallyLoadsWeatherForecast: family != .information
+                    automaticallyLoadsWeatherForecast: family != .information,
+                    entryContext: family == .history ? .history(initialRange: .sixHours) : .overview
                 )
             } else {
                 ContentUnavailableView("Fixture Unavailable", systemImage: "exclamationmark.triangle")
@@ -120,6 +121,7 @@ private struct EntityDetailReferenceScene: View {
 
 private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     case metric
+    case history
     case positional
     case environmental
     case information
@@ -133,6 +135,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .metric: "Metric"
+        case .history: "Chart"
         case .positional: "Position"
         case .environmental: "Climate"
         case .information: "Weather"
@@ -146,6 +149,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .metric: "gauge.with.dots.needle.50percent"
+        case .history: "chart.xyaxis.line"
         case .positional: "blinds.horizontal.closed"
         case .environmental: "thermometer.medium"
         case .information: "cloud.sun.fill"
@@ -159,6 +163,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     var entityID: String {
         switch self {
         case .metric: "sensor.front_door_battery"
+        case .history: "sensor.living_room_temperature"
         case .positional: "cover.primary_shades"
         case .environmental: "climate.downstairs"
         case .information: "weather.home"
@@ -199,6 +204,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     private var baseState: String {
         switch self {
         case .metric: "18"
+        case .history: "73.4"
         case .positional: "open"
         case .environmental: "heat"
         case .information: "partlycloudy"
@@ -216,6 +222,13 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
                 "friendly_name": .string("Front Door Battery"),
                 "device_class": .string("battery"),
                 "unit_of_measurement": .string("%")
+            ]
+        case .history:
+            [
+                "friendly_name": .string("Living Room Temperature"),
+                "device_class": .string("temperature"),
+                "state_class": .string("measurement"),
+                "unit_of_measurement": .string("°F")
             ]
         case .positional:
             [
@@ -288,6 +301,8 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         switch self {
         case .metric:
             state = isMaximum ? "100" : "0"
+        case .history:
+            state = isMaximum ? "120" : "0"
         case .positional:
             state = isMaximum ? "open" : "closed"
             attributes["current_position"] = .number(isMaximum ? 100 : 0)

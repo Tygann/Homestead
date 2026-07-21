@@ -88,7 +88,8 @@ These are the next API slices to map when the matching feature is implemented. D
 
 - A small REST client for the documented history endpoint exists for numeric sensor charts and discrete state timelines.
 - Current support covers sensor-style numeric entities plus binary sensor, lock, switch, automation, cover, person, and device tracker state timelines with fixed 1H/6H/24H ranges.
-- Dashboard chart cards support numeric sensors in chart-capable card sizes with a fixed dashboard range through the same service/HTTP flow.
+- Dashboard Chart cards support numeric sensors in chart-capable card sizes with independently persisted 1H/6H/24H/7D ranges through the same service/HTTP flow. Their chart-first detail supports 6H/24H/7D/30D selection, range statistics, and direct point inspection.
+- One-year numeric history remains deferred until an official long-term statistics contract is mapped; it should not be implemented as an expensive raw-history request.
 - Arbitrary entity history and dashboard timeline cards remain follow-up scope.
 - Keep history-specific aggregation and formatting outside `HAStateStore`.
 

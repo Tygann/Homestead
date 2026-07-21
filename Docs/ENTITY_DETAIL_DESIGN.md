@@ -66,14 +66,15 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 
 ## History Semantics
 
-- Continuous numeric history uses 24H, 7D, and 30D.
+- Continuous numeric detail history uses 6H, 24H, 7D, and 30D. Dashboard Chart cards may persist a focused 1H, 6H, 24H, or 7D range independently; 6H remains the default.
 - Discrete recent activity keeps 1H, 6H, and 24H.
 - Gauges use the meaningful absolute scale of a bounded measurement; battery is 0–100.
 - History charts use a padded sample-adaptive domain constrained by any trustworthy absolute bounds. This preserves meaningful variation without implying values outside the entity's valid range.
 - Unbounded measurements use the same padded sample-adaptive domain without absolute clamping.
-- Continuous measurements use linear interpolation so the chart does not invent overshoot.
-- Charts preserve extrema and mapped display precision when sampling, expose an accessibility chart descriptor, use range-appropriate natural time ticks, and only mention partial coverage when the returned samples demonstrably begin after the requested interval.
+- App-facing sensor semantics choose Catmull-Rom interpolation for naturally continuous measurements and linear interpolation for totals, bounded/step-like values, and ambiguous sensors. The mapped history samples remain the statistical and accessibility source of truth.
+- Charts preserve extrema and mapped display precision when sampling, expose an accessibility chart descriptor, use range-appropriate natural time ticks, and only mention partial coverage when the returned samples demonstrably begin after the requested interval. Expanded charts support direct touch scrubbing with a selected rule, point, value, timestamp, and range statistics.
 - Numeric domains reuse `EntityNumericHistoryPanel`; sensors and editable Number entities currently opt in with their mapped unit and meaningful bounded range.
+- A dashboard Chart card opens a chart-first Sensor detail with a compact current/selected reading instead of a gauge. Gauge cards and neutral entity entry points retain the overview composition. A configured Chart remains a history surface when the current Home Assistant state is temporarily unavailable.
 - Discrete domains reuse the self-loading `EntityActivityPanel`, which owns range selection, cancellation, retry, and either documented state history or Automation trace loading.
 - Never fall back to generic binary-sensor language for an unmapped activity domain. Omit Activity until its states or event source have an explicit semantic mapping.
 

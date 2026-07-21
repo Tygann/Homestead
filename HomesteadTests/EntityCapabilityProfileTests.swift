@@ -120,6 +120,27 @@ final class EntityCapabilityProfileTests: XCTestCase {
         XCTAssertEqual(series.summaryText, "Now 75°F • Low 69.4°F • High 75°F")
     }
 
+    func testHistoryRangesAndDurationWeightedAverage() {
+        XCTAssertEqual(HAHistoryRangePreset.sensorChartPresets, [.sixHours, .day, .week, .month])
+        XCTAssertEqual(HAHistoryRangePreset.dashboardChartPresets, [.oneHour, .sixHours, .day, .week])
+
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let end = start.addingTimeInterval(60 * 60)
+        let series = HAHistoryChartSeries(
+            entityID: "sensor.temperature",
+            displayName: "Temperature",
+            unit: "°F",
+            range: .oneHour,
+            samples: [
+                HAHistorySample(occurredAt: start, value: 70),
+                HAHistorySample(occurredAt: start.addingTimeInterval(45 * 60), value: 74)
+            ],
+            requestedInterval: DateInterval(start: start, end: end)
+        )
+
+        XCTAssertEqual(series.averageValue ?? .nan, 71, accuracy: 0.001)
+    }
+
     func testTemperatureGaugeUsesCoolColorAtLowExtreme() throws {
         let sensor = SensorEntity(
             entityID: "sensor.temperature",

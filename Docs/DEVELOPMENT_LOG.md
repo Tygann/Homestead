@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-20
 
+### Chart Detail And Range Configuration
+
+- Made dashboard Chart entry presentation-aware: Chart cards open a chart-first Sensor detail, while gauge cards and neutral routes retain the bounded gauge overview.
+- Expanded numeric detail history to 6H, 24H, 7D, and 30D with time-weighted Min/Average/Max statistics, mapped display precision, semantic interpolation, and native Swift Charts touch selection that updates the compact reading hero with the selected value and timestamp.
+- Added independent persisted Chart Settings for 1H, 6H, 24H, and 7D dashboard ranges, kept 6H as the migration-safe default, and preserved history access when the current Home Assistant reading is unavailable.
+- Kept one-year history out of this pass because the documented raw-history endpoint is not an appropriate long-term statistics transport.
+- Verified standard, compact-width, unavailable, failure, loading, and accessibility-size presentations in Simulator, then confirmed real Home Assistant history loading and touch scrubbing against the configured living-room temperature sensor.
+
 ### In-Place Dashboard Entity Replacement
 
 - Added Change Entity to entity-card edit menus with a searchable compatible-only picker, current selection state, production-renderer preview, and explicit confirmation.

@@ -1,9 +1,15 @@
 import SwiftUI
 
+nonisolated enum EntityDetailEntryContext: Equatable, Hashable, Sendable {
+    case overview
+    case history(initialRange: HAHistoryRangePreset)
+}
+
 struct EntityDetailSheet: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
     var automaticallyLoadsWeatherForecast = true
+    var entryContext: EntityDetailEntryContext = .overview
 
     var body: some View {
         let route = EntityCapabilityRegistry.profile(for: entityBox.domain).detailRoute
@@ -26,7 +32,11 @@ struct EntityDetailSheet: View {
             case .automation:
                 AutomationDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .sensor:
-                SensorDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+                SensorDetailView(
+                    entityBox: entityBox,
+                    presentationStyle: presentationStyle,
+                    entryContext: entryContext
+                )
             case .mediaPlayer:
                 MediaPlayerDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .camera:

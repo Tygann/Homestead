@@ -10,6 +10,7 @@ struct DashboardView: View {
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var iconPickerContext: DashboardIconPickerContext?
     @State private var gaugeZoneEditorContext: DashboardGaugeZoneEditorContext?
+    @State private var chartSettingsContext: DashboardChartSettingsContext?
     @State private var changeEntityContext: DashboardChangeEntityContext?
     @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
     @State private var renamingHeaderID: UUID?
@@ -119,12 +120,21 @@ struct DashboardView: View {
                     dashboardConfiguration.setGaugeZoneConfiguration(nil, forItemID: context.id)
                 }
             }
+            .sheet(item: $chartSettingsContext) { context in
+                DashboardChartSettingsView(context: context) { configuration in
+                    dashboardConfiguration.setChartConfiguration(configuration, forItemID: context.id)
+                }
+            }
             .sheet(item: $changeEntityContext) { context in
                 DashboardChangeEntityView(context: context)
             }
             .navigationDestination(item: $selectedEntityDetailRoute) { route in
                 if let entityBox = stateStore.entityBox(for: route.entityID) {
-                    EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
+                    EntityDetailSheet(
+                        entityBox: entityBox,
+                        presentationStyle: .navigation,
+                        entryContext: route.entryContext
+                    )
                         .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
                 } else {
                     ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
@@ -546,6 +556,7 @@ struct DashboardView: View {
                     displayNameOverride: currentCardDisplayNameOverride(for: item),
                     iconNameOverride: item.iconNameOverride,
                     gaugeZoneConfiguration: item.gaugeZoneConfiguration,
+                    chartRange: item.chartConfiguration.range,
                     cameraRefreshGeneration: cameraRefreshGeneration,
                     isEditing: true
                 )
@@ -561,11 +572,15 @@ struct DashboardView: View {
                 displayNameOverride: currentCardDisplayNameOverride(for: item),
                 iconNameOverride: item.iconNameOverride,
                 gaugeZoneConfiguration: item.gaugeZoneConfiguration,
+                chartRange: item.chartConfiguration.range,
                 cameraRefreshGeneration: cameraRefreshGeneration,
                 openDetails: {
                     selectedEntityDetailRoute = DashboardEntityDetailRoute(
                         entityID: item.entityID,
-                        sourceID: cardTransitionID(for: item)
+                        sourceID: cardTransitionID(for: item),
+                        entryContext: item.presentationKind == .graph
+                            ? .history(initialRange: item.chartConfiguration.range)
+                            : .overview
                     )
                 }
             )
@@ -668,6 +683,7 @@ struct DashboardView: View {
                 displayNameOverride: currentCardDisplayNameOverride(for: cardItem),
                 iconNameOverride: cardItem.iconNameOverride,
                 gaugeZoneConfiguration: cardItem.gaugeZoneConfiguration,
+                chartRange: cardItem.chartConfiguration.range,
                 cameraRefreshGeneration: cameraRefreshGeneration,
                 isEditing: true
             )
@@ -1152,6 +1168,14 @@ struct DashboardView: View {
                 presentGaugeZoneEditor(for: item)
             } label: {
                 Label("Gauge Settings…", systemImage: "dial.medium")
+            }
+        }
+
+        if item.presentationKind == .graph {
+            Button {
+                chartSettingsContext = DashboardChartSettingsContext(item: item)
+            } label: {
+                Label("Chart Settings…", systemImage: "slider.horizontal.3")
             }
         }
 

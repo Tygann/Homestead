@@ -274,7 +274,9 @@ private actor PreviewEntityDetailHTTPClient: HAHTTPClientProtocol {
         case .person, .deviceTracker:
             states = ["not_home", "home"]
         case .sensor, .number:
-            states = ["12", "18", "15"]
+            states = request.entityID == "sensor.living_room_temperature"
+                ? ["72.2", "71.6", "72.8", "73.4", "72.9", "73.4"]
+                : ["12", "18", "15"]
         default:
             states = ["off", "on"]
         }

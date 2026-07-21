@@ -7,6 +7,7 @@ struct DashboardCardView: View {
     var displayNameOverride: String?
     var iconNameOverride: String?
     var gaugeZoneConfiguration: GaugeZoneConfiguration?
+    var chartRange: HAHistoryRangePreset = DashboardHistoryCardPresentation.defaultRange
     var contextualAreaName: String?
     var cameraRefreshGeneration = 0
     var isEditing = false
@@ -20,6 +21,7 @@ struct DashboardCardView: View {
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
         gaugeZoneConfiguration: GaugeZoneConfiguration? = nil,
+        chartRange: HAHistoryRangePreset = DashboardHistoryCardPresentation.defaultRange,
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
@@ -31,6 +33,7 @@ struct DashboardCardView: View {
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
         self.gaugeZoneConfiguration = gaugeZoneConfiguration
+        self.chartRange = chartRange
         self.contextualAreaName = contextualAreaName
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
@@ -45,6 +48,7 @@ struct DashboardCardView: View {
         displayNameOverride: String? = nil,
         iconNameOverride: String? = nil,
         gaugeZoneConfiguration: GaugeZoneConfiguration? = nil,
+        chartRange: HAHistoryRangePreset = DashboardHistoryCardPresentation.defaultRange,
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
@@ -57,6 +61,7 @@ struct DashboardCardView: View {
         self.displayNameOverride = displayNameOverride
         self.iconNameOverride = iconNameOverride
         self.gaugeZoneConfiguration = gaugeZoneConfiguration
+        self.chartRange = chartRange
         self.contextualAreaName = contextualAreaName
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
@@ -90,6 +95,7 @@ struct DashboardCardView: View {
                 size: size,
                 presentationKind: resolvedPresentationKind,
                 gaugeZoneConfiguration: gaugeZoneConfiguration,
+                chartRange: chartRange,
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
                 contextualAreaName: contextualAreaName,
                 cameraRefreshGeneration: cameraRefreshGeneration,
@@ -105,7 +111,8 @@ struct DashboardCardView: View {
                         : primaryAction(presentation.primaryAction, entityBox: entityBox),
                 showDetails: isEditing || isPreview ? nil : detailsAction(
                     entityID: entityBox.entityID,
-                    detailKind: presentation.detailKind
+                    detailKind: presentation.detailKind,
+                    presentationKind: resolvedPresentationKind
                 ),
                 featureActions: isPreview ? previewFeatureActions(for: entityBox) : featureActions(for: entityBox),
                 isFeatureInteractionEnabled: !isEditing && !isPreview,
@@ -113,7 +120,10 @@ struct DashboardCardView: View {
             )
             .sheet(item: $selectedDetail) { detail in
                 if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
-                    EntityDetailSheet(entityBox: selectedEntityBox)
+                    EntityDetailSheet(
+                        entityBox: selectedEntityBox,
+                        entryContext: detail.entryContext
+                    )
                 } else {
                     ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
                 }
@@ -176,7 +186,8 @@ struct DashboardCardView: View {
 
     private func detailsAction(
         entityID: String,
-        detailKind: DashboardEntityDetailKind
+        detailKind: DashboardEntityDetailKind,
+        presentationKind: DashboardPresentationKind
     ) -> (() -> Void)? {
         if let openDetails {
             return openDetails
@@ -185,7 +196,10 @@ struct DashboardCardView: View {
         return {
             selectedDetail = DashboardCardDetail(
                 entityID: entityID,
-                kind: cardDetailKind(for: detailKind)
+                kind: cardDetailKind(for: detailKind),
+                entryContext: presentationKind == .graph
+                    ? .history(initialRange: chartRange)
+                    : .overview
             )
         }
     }
@@ -573,6 +587,7 @@ private struct DashboardCardDetail: Identifiable {
 
     let entityID: String
     let kind: Kind
+    let entryContext: EntityDetailEntryContext
 
     var id: String {
         "\(kind)-\(entityID)"

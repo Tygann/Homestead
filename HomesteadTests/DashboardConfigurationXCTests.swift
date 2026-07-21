@@ -80,6 +80,35 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertFalse(json.contains("entityDisplayNameOverrides"))
     }
 
+    func testChartRangePersistsOnlyForGraphCards() throws {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        let graphID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.graph(layout: .wide))
+        ))
+        let statusID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.status(layout: .square))
+        ))
+
+        configuration.setChartConfiguration(.init(range: .day), forItemID: graphID)
+        configuration.setChartConfiguration(.init(range: .week), forItemID: statusID)
+
+        XCTAssertEqual(configuration.items.first(where: { $0.id == graphID })?.chartConfiguration?.range, .day)
+        XCTAssertNil(configuration.items.first(where: { $0.id == statusID })?.chartConfiguration)
+
+        let restored = DashboardConfiguration(defaults: defaults)
+        let layoutItems = DashboardLayoutItemBuilder.makeItems(from: restored.items)
+        guard case .card(let restoredGraph)? = layoutItems.first(where: { $0.configurationItemID == graphID })?.kind else {
+            return XCTFail("Expected restored graph card")
+        }
+        XCTAssertEqual(restoredGraph.chartConfiguration.range, HAHistoryRangePreset.day)
+
+        restored.setChartConfiguration(.default, forItemID: graphID)
+        XCTAssertNil(restored.items.first(where: { $0.id == graphID })?.chartConfiguration)
+    }
+
     func testInvalidDecodedPresentationIsRemovedBeforeActivation() throws {
         let defaults = makeDefaults()
         let invalid = DashboardItemConfiguration.entityCard(

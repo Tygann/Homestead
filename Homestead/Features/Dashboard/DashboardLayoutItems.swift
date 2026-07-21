@@ -7,6 +7,7 @@ struct DashboardCardItem: Identifiable, Equatable {
     let displayNameOverride: String?
     let iconNameOverride: String?
     let gaugeZoneConfiguration: GaugeZoneConfiguration?
+    let chartConfiguration: DashboardChartConfiguration
 
     var size: DashboardCardSize { configuration.layout }
     var presentationKind: DashboardPresentationKind { configuration.kind }
@@ -65,6 +66,17 @@ struct DashboardLayoutItem: Identifiable, Equatable {
 struct DashboardEntityDetailRoute: Identifiable, Equatable, Hashable {
     let entityID: String
     let sourceID: String
+    let entryContext: EntityDetailEntryContext
+
+    init(
+        entityID: String,
+        sourceID: String,
+        entryContext: EntityDetailEntryContext = .overview
+    ) {
+        self.entityID = entityID
+        self.sourceID = sourceID
+        self.entryContext = entryContext
+    }
 
     var id: String {
         "\(sourceID)-\(entityID)"
@@ -92,7 +104,8 @@ enum DashboardLayoutItemBuilder {
                         configuration: cardConfiguration,
                         displayNameOverride: configurationItem.displayNameOverride,
                         iconNameOverride: configurationItem.iconNameOverride,
-                        gaugeZoneConfiguration: configurationItem.gaugeZoneConfiguration
+                        gaugeZoneConfiguration: configurationItem.gaugeZoneConfiguration,
+                        chartConfiguration: configurationItem.chartConfiguration ?? .default
                     )
                     return DashboardLayoutItem(
                         kind: .card(cardItem),

@@ -92,7 +92,7 @@ nonisolated struct HAHistoryStateDTO: Decodable, Equatable, Sendable {
     }
 }
 
-nonisolated enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Equatable, Sendable {
+nonisolated enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Codable, Equatable, Hashable, Sendable {
     case oneHour
     case sixHours
     case day
@@ -100,7 +100,8 @@ nonisolated enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Equat
     case month
 
     static let activityPresets: [Self] = [.oneHour, .sixHours, .day]
-    static let sensorChartPresets: [Self] = [.day, .week, .month]
+    static let sensorChartPresets: [Self] = [.sixHours, .day, .week, .month]
+    static let dashboardChartPresets: [Self] = [.oneHour, .sixHours, .day, .week]
 
     var id: String { rawValue }
 
@@ -207,6 +208,28 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
 
     var maximumValue: Double? {
         samples.map(\.value).max()
+    }
+
+    var averageValue: Double? {
+        guard let firstSample = samples.first else { return nil }
+        guard samples.count > 1 else { return firstSample.value }
+
+        let coverageEnd = max(requestedInterval?.end ?? samples.last?.occurredAt ?? firstSample.occurredAt,
+                              samples.last?.occurredAt ?? firstSample.occurredAt)
+        var weightedTotal = 0.0
+        var coveredDuration = 0.0
+
+        for (index, sample) in samples.enumerated() {
+            let nextDate = index + 1 < samples.count ? samples[index + 1].occurredAt : coverageEnd
+            let duration = max(nextDate.timeIntervalSince(sample.occurredAt), 0)
+            weightedTotal += sample.value * duration
+            coveredDuration += duration
+        }
+
+        guard coveredDuration > 0 else {
+            return samples.map(\.value).reduce(0, +) / Double(samples.count)
+        }
+        return weightedTotal / coveredDuration
     }
 
     var valueDomain: ClosedRange<Double> {

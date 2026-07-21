@@ -5,8 +5,9 @@ import SwiftUI
 struct EntityNumericHistoryPanel: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var selectedRange: HAHistoryRangePreset = .day
+    @State private var selectedRange: HAHistoryRangePreset
     @State private var phase: EntityNumericHistoryPhase = .idle
+    @State private var selectedSampleDate: Date?
 
     let entityBox: HAEntityState
     let displayName: String
@@ -14,6 +15,33 @@ struct EntityNumericHistoryPanel: View {
     var displayPrecision: Int? = nil
     let accentColor: Color
     let preferredRange: ClosedRange<Double>?
+    var layout: EntityNumericHistoryLayout = .compact
+    var interpolationStyle: DashboardHistoryInterpolationStyle = .linear
+    var onSelectionChange: (EntityHistorySelection?) -> Void = { _ in }
+
+    init(
+        entityBox: HAEntityState,
+        displayName: String,
+        unit: String?,
+        displayPrecision: Int? = nil,
+        accentColor: Color,
+        preferredRange: ClosedRange<Double>?,
+        initialRange: HAHistoryRangePreset = .day,
+        layout: EntityNumericHistoryLayout = .compact,
+        interpolationStyle: DashboardHistoryInterpolationStyle = .linear,
+        onSelectionChange: @escaping (EntityHistorySelection?) -> Void = { _ in }
+    ) {
+        self.entityBox = entityBox
+        self.displayName = displayName
+        self.unit = unit
+        self.displayPrecision = displayPrecision
+        self.accentColor = accentColor
+        self.preferredRange = preferredRange
+        self.layout = layout
+        self.interpolationStyle = interpolationStyle
+        self.onSelectionChange = onSelectionChange
+        _selectedRange = State(initialValue: initialRange)
+    }
 
     var body: some View {
         EntityDetailSection(title: "History", systemImage: "chart.xyaxis.line") {
@@ -22,7 +50,7 @@ struct EntityNumericHistoryPanel: View {
 
                 switch phase {
                 case .idle, .loading:
-                    EntityDetailLoadingPlaceholder(title: "Loading history", height: 160)
+                    EntityDetailLoadingPlaceholder(title: "Loading history", height: layout.chartHeight)
                 case .loaded(let series):
                     if series.isEmpty {
                         unavailableView(
@@ -34,7 +62,11 @@ struct EntityNumericHistoryPanel: View {
                             series: series,
                             selectedRange: selectedRange,
                             accentColor: accentColor,
-                            preferredRange: preferredRange
+                            preferredRange: preferredRange,
+                            layout: layout,
+                            interpolationStyle: interpolationStyle,
+                            selectedSampleDate: $selectedSampleDate,
+                            onSelectionChange: onSelectionChange
                         )
                     }
                 case .failed:
@@ -44,6 +76,13 @@ struct EntityNumericHistoryPanel: View {
         }
         .task(id: taskID) {
             await refresh()
+        }
+        .onChange(of: selectedRange) {
+            selectedSampleDate = nil
+            onSelectionChange(nil)
+        }
+        .onDisappear {
+            onSelectionChange(nil)
         }
     }
 
@@ -127,11 +166,50 @@ struct EntityNumericHistoryPanel: View {
     }
 }
 
+enum EntityNumericHistoryLayout: Equatable, Sendable {
+    case compact
+    case expanded
+
+    var chartHeight: CGFloat {
+        switch self {
+        case .compact: 180
+        case .expanded: 300
+        }
+    }
+}
+
+struct EntityHistorySelection: Equatable, Sendable {
+    let occurredAt: Date
+    let formattedValue: String
+}
+
 private struct EntityNumericHistoryChart: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let series: HAHistoryChartSeries
     let selectedRange: HAHistoryRangePreset
     let accentColor: Color
     let preferredRange: ClosedRange<Double>?
+    let layout: EntityNumericHistoryLayout
+    let interpolationStyle: DashboardHistoryInterpolationStyle
+    @Binding var selectedSampleDate: Date?
+    let onSelectionChange: (EntityHistorySelection?) -> Void
+
+    private var plottedSamples: [HAHistorySample] {
+        series.chartSamples()
+    }
+
+    private var selectedSample: HAHistorySample? {
+        guard let selectedSampleDate else { return nil }
+        return plottedSamples.min {
+            abs($0.occurredAt.timeIntervalSince(selectedSampleDate))
+                < abs($1.occurredAt.timeIntervalSince(selectedSampleDate))
+        }
+    }
+
+    private var chartInterpolationMethod: InterpolationMethod {
+        interpolationStyle == .smooth ? .catmullRom : .linear
+    }
 
     private var valueDomain: ClosedRange<Double> {
         series.valueDomain(preferredRange: preferredRange)
@@ -139,31 +217,48 @@ private struct EntityNumericHistoryChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Chart(series.chartSamples()) { sample in
-                LineMark(
-                    x: .value("Time", sample.occurredAt),
-                    y: .value("Value", sample.value)
-                )
-                .interpolationMethod(.linear)
-                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                .foregroundStyle(accentColor)
+            statistics
 
-                AreaMark(
-                    x: .value("Time", sample.occurredAt),
-                    yStart: .value("Baseline", valueDomain.lowerBound),
-                    yEnd: .value("Value", sample.value)
-                )
-                .interpolationMethod(.linear)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [accentColor.opacity(0.22), accentColor.opacity(0.04)],
-                        startPoint: .top,
-                        endPoint: .bottom
+            Chart {
+                ForEach(plottedSamples) { sample in
+                    LineMark(
+                        x: .value("Time", sample.occurredAt),
+                        y: .value("Value", sample.value)
                     )
-                )
+                    .interpolationMethod(chartInterpolationMethod)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    .foregroundStyle(accentColor)
+
+                    AreaMark(
+                        x: .value("Time", sample.occurredAt),
+                        yStart: .value("Baseline", valueDomain.lowerBound),
+                        yEnd: .value("Value", sample.value)
+                    )
+                    .interpolationMethod(chartInterpolationMethod)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [accentColor.opacity(0.22), accentColor.opacity(0.04)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+
+                if let selectedSample {
+                    RuleMark(x: .value("Selected time", selectedSample.occurredAt))
+                        .foregroundStyle(.secondary.opacity(0.72))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+
+                    PointMark(
+                        x: .value("Selected time", selectedSample.occurredAt),
+                        y: .value("Selected value", selectedSample.value)
+                    )
+                    .symbolSize(64)
+                    .foregroundStyle(accentColor)
+                }
             }
             .chartYScale(domain: valueDomain)
-            .chartXScale(range: .plotDimension(startPadding: 4, endPadding: 4))
+            .chartXScale(range: .plotDimension(startPadding: 0, endPadding: 0))
             .chartPlotStyle { $0.clipped() }
             .chartXAxis { xAxisMarks }
             .chartYAxis {
@@ -172,12 +267,22 @@ private struct EntityNumericHistoryChart: View {
                     AxisValueLabel()
                 }
             }
-            .frame(height: 160)
+            .chartXSelection(value: $selectedSampleDate)
+            .frame(height: layout.chartHeight)
             .accessibilityChartDescriptor(
                 EntityNumericHistoryChartDescriptor(series: series, valueDomain: valueDomain)
             )
             .accessibilityLabel("\(series.displayName) history")
             .accessibilityValue(series.summaryText)
+            .sensoryFeedback(.selection, trigger: selectedSample?.occurredAt)
+            .onChange(of: selectedSample) { _, sample in
+                onSelectionChange(sample.map {
+                    EntityHistorySelection(
+                        occurredAt: $0.occurredAt,
+                        formattedValue: series.formatValue($0.value)
+                    )
+                })
+            }
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
@@ -198,6 +303,70 @@ private struct EntityNumericHistoryChart: View {
                     .foregroundStyle(.tertiary)
             }
         }
+    }
+
+    private var statistics: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                statisticRows
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    statisticColumns
+                    statisticRows
+                }
+            }
+        }
+        .padding(.vertical, AppSpacing.small)
+        .background(
+            Color(.tertiarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private var statisticColumns: some View {
+        HStack(spacing: 0) {
+            statistic(title: "Minimum", value: series.minimumValue)
+            Divider().padding(.vertical, 3)
+            statistic(title: "Average", value: series.averageValue, emphasized: true)
+            Divider().padding(.vertical, 3)
+            statistic(title: "Maximum", value: series.maximumValue)
+        }
+    }
+
+    private var statisticRows: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            statisticRow(title: "Minimum", value: series.minimumValue)
+            statisticRow(title: "Average", value: series.averageValue, emphasized: true)
+            statisticRow(title: "Maximum", value: series.maximumValue)
+        }
+    }
+
+    private func statistic(title: String, value: Double?, emphasized: Bool = false) -> some View {
+        VStack(spacing: 3) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value.map(series.formatValue) ?? "--")
+                .font(.subheadline.monospacedDigit().weight(emphasized ? .semibold : .medium))
+                .foregroundStyle(emphasized ? accentColor : .primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func statisticRow(title: String, value: Double?, emphasized: Bool = false) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value.map(series.formatValue) ?? "--")
+                .monospacedDigit()
+                .foregroundStyle(emphasized ? accentColor : .primary)
+        }
+        .font(.subheadline.weight(emphasized ? .semibold : .regular))
+        .padding(.horizontal, AppSpacing.medium)
     }
 
     @AxisContentBuilder
