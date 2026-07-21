@@ -91,6 +91,57 @@ struct WidgetGaugeGridTests {
         #expect(HomesteadWidgetItem.sensorGauge(from: snapshot) == nil)
     }
 
+    @Test func liveReadingUpdatesGaugeValueAndAvailability() {
+        let item = makeItem(id: "sensor.alk", name: "Alk")
+        let reading = WidgetSensorLiveReading(
+            entityID: item.id,
+            valueText: "8.6 dKH",
+            numericValue: 8.6,
+            isAvailable: true,
+            icon: .sfSymbol("testtube.2", provenance: .haExplicitIcon)
+        )
+
+        let updated = item.updating(with: reading)
+
+        #expect(updated.valueText == "8.6 dKH")
+        #expect(updated.gauge?.value == 8.6)
+        #expect(updated.gauge?.valueText == "8.6 dKH")
+        #expect(updated.accessibilityValue == "8.6 dKH")
+        #expect(updated.isAvailable)
+        #expect(updated.icon == reading.icon)
+    }
+
+    @Test func liveReadingPreservesRegistryIconAndMarksUnavailable() {
+        let registryIcon = ResolvedIcon.sfSymbol("flask.fill", provenance: .haRegistryIcon)
+        let source = makeItem(id: "sensor.alk", name: "Alk")
+        let item = HomesteadWidgetItem(
+            id: source.id,
+            kind: source.kind,
+            displayName: source.displayName,
+            icon: registryIcon,
+            valueText: source.valueText,
+            unitText: source.unitText,
+            isAvailable: source.isAvailable,
+            gauge: source.gauge,
+            accessibilityLabel: source.accessibilityLabel,
+            accessibilityValue: source.accessibilityValue
+        )
+        let reading = WidgetSensorLiveReading(
+            entityID: item.id,
+            valueText: "Unavailable",
+            numericValue: nil,
+            isAvailable: false,
+            icon: .sfSymbol("gauge.medium", provenance: .haSemanticMapping)
+        )
+
+        let updated = item.updating(with: reading)
+
+        #expect(updated.icon == registryIcon)
+        #expect(!updated.isAvailable)
+        #expect(updated.accessibilityValue == "Unavailable")
+        #expect(updated.gauge?.value == item.gauge?.value)
+    }
+
     private func makeItem(id: String, name: String) -> HomesteadWidgetItem {
         HomesteadWidgetItem(
             id: id,

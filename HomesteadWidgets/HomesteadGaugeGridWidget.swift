@@ -487,7 +487,7 @@ struct HomesteadGaugeGridTimelineProvider: AppIntentTimelineProvider {
             return placeholder(in: context)
         }
 
-        return HomesteadGaugeGridEntryBuilder.entry(
+        return await HomesteadGaugeGridEntryBuilder.liveEntry(
             slots: configuration.selectedSlots,
             maximumItemCount: 3
         )
@@ -497,7 +497,7 @@ struct HomesteadGaugeGridTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadGaugeGridWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadGaugeGridEntry> {
-        let entry = HomesteadGaugeGridEntryBuilder.entry(
+        let entry = await HomesteadGaugeGridEntryBuilder.liveEntry(
             slots: configuration.selectedSlots,
             maximumItemCount: 3
         )
@@ -506,9 +506,32 @@ struct HomesteadGaugeGridTimelineProvider: AppIntentTimelineProvider {
 }
 
 enum HomesteadGaugeGridEntryBuilder {
+    static func liveEntry(
+        slots: [HomesteadGaugeGridSlot],
+        maximumItemCount: Int,
+        client: HAWidgetActionClient = HAWidgetActionClient()
+    ) async -> HomesteadGaugeGridEntry {
+        let entityIDs = Set(slots.compactMap(\.item?.id))
+        let liveReadingsByEntityID: [String: WidgetSensorLiveReading]
+
+        do {
+            liveReadingsByEntityID = try await client.fetchSensorStates(entityIDs: entityIDs)
+                .mapValues(\.liveReading)
+        } catch {
+            liveReadingsByEntityID = [:]
+        }
+
+        return entry(
+            slots: slots,
+            maximumItemCount: maximumItemCount,
+            liveReadingsByEntityID: liveReadingsByEntityID
+        )
+    }
+
     static func entry(
         slots: [HomesteadGaugeGridSlot],
-        maximumItemCount: Int
+        maximumItemCount: Int,
+        liveReadingsByEntityID: [String: WidgetSensorLiveReading] = [:]
     ) -> HomesteadGaugeGridEntry {
         let snapshotsByEntityID = HomesteadWidgetSharedStore.sensorSnapshots.reduce(into: [:]) { result, snapshot in
             result[snapshot.entityID] = snapshot
@@ -516,9 +539,12 @@ enum HomesteadGaugeGridEntryBuilder {
         let items: [HomesteadWidgetItem?] = slots.compactMap { slot in
             guard let configuredItem = slot.item else { return nil }
 
-            let item = snapshotsByEntityID[configuredItem.id]
+            let cachedItem = snapshotsByEntityID[configuredItem.id]
                 .flatMap(HomesteadWidgetItem.sensorGauge(from:))
                 ?? configuredItem.item()
+            let item = liveReadingsByEntityID[configuredItem.id]
+                .map(cachedItem.updating(with:))
+                ?? cachedItem
 
             return item.applying(slot.configuration)
         }

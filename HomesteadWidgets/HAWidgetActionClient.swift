@@ -91,6 +91,16 @@ struct HAWidgetSensorState: Sendable {
     let numericValue: Double?
 
     var systemImage: String { icon.sfSymbolName }
+
+    var liveReading: WidgetSensorLiveReading {
+        WidgetSensorLiveReading(
+            entityID: entityID,
+            valueText: valueText,
+            numericValue: numericValue,
+            isAvailable: isAvailable,
+            icon: icon
+        )
+    }
 }
 
 struct HAWidgetPresenceState: Sendable {
@@ -359,29 +369,47 @@ final class HAWidgetActionClient: Sendable {
     }
 
     func fetchSensorState(entityID: String) async throws -> HAWidgetSensorState {
-        try await withConnectedSocket { task in
-            let state = try await stateObject(entityID: entityID, over: task)
-            guard let stateValue = state["state"] as? String else {
+        guard let state = try await fetchSensorStates(entityIDs: [entityID])[entityID] else {
+            throw HAWidgetActionError.unexpectedResponse
+        }
+        return state
+    }
+
+    func fetchSensorStates(entityIDs: Set<String>) async throws -> [String: HAWidgetSensorState] {
+        guard !entityIDs.isEmpty else { return [:] }
+
+        return try await withConnectedSocket { task in
+            try await sendJSON(["id": 1, "type": "get_states"], over: task)
+
+            let message = try await receiveJSONObject(from: task)
+            guard let success = message["success"] as? Bool, success,
+                  let states = message["result"] as? [[String: Any]] else {
                 throw HAWidgetActionError.unexpectedResponse
             }
 
-            let attributes = state["attributes"] as? [String: Any]
-            let displayName = attributes?["friendly_name"] as? String ?? entityID
-            let unit = attributes?["unit_of_measurement"] as? String
-            let deviceClass = attributes?["device_class"] as? String
-            let isAvailable = !["unknown", "unavailable"].contains(stateValue)
-            let isAlerting = isAvailable && deviceClass == "battery" && (Double(stateValue) ?? 100) <= 20
+            return states.reduce(into: [:]) { result, state in
+                guard let entityID = state["entity_id"] as? String,
+                      entityIDs.contains(entityID),
+                      let stateValue = state["state"] as? String else { return }
 
-            return HAWidgetSensorState(
-                entityID: entityID,
-                displayName: displayName,
-                valueText: sensorValueText(value: stateValue, unit: unit, deviceClass: deviceClass),
-                subtitle: sensorSubtitle(value: stateValue, deviceClass: deviceClass, isAlerting: isAlerting),
-                icon: resolvedIcon(domain: "sensor", state: stateValue, attributes: attributes),
-                isAlerting: isAlerting,
-                isAvailable: isAvailable,
-                numericValue: Double(stateValue)
-            )
+                let attributes = state["attributes"] as? [String: Any]
+                let displayName = attributes?["friendly_name"] as? String ?? entityID
+                let unit = attributes?["unit_of_measurement"] as? String
+                let deviceClass = attributes?["device_class"] as? String
+                let isAvailable = !["unknown", "unavailable"].contains(stateValue)
+                let isAlerting = isAvailable && deviceClass == "battery" && (Double(stateValue) ?? 100) <= 20
+
+                result[entityID] = HAWidgetSensorState(
+                    entityID: entityID,
+                    displayName: displayName,
+                    valueText: sensorValueText(value: stateValue, unit: unit, deviceClass: deviceClass),
+                    subtitle: sensorSubtitle(value: stateValue, deviceClass: deviceClass, isAlerting: isAlerting),
+                    icon: resolvedIcon(domain: "sensor", state: stateValue, attributes: attributes),
+                    isAlerting: isAlerting,
+                    isAvailable: isAvailable,
+                    numericValue: Double(stateValue)
+                )
+            }
         }
     }
 

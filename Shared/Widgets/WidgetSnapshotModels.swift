@@ -120,6 +120,14 @@ nonisolated struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     }
 }
 
+nonisolated struct WidgetSensorLiveReading: Equatable, Sendable {
+    let entityID: String
+    let valueText: String
+    let numericValue: Double?
+    let isAvailable: Bool
+    let icon: ResolvedIcon
+}
+
 nonisolated enum HomesteadWidgetItemKind: String, Codable, Equatable, Sendable {
     case sensorGauge
 }
@@ -151,6 +159,34 @@ nonisolated struct HomesteadWidgetItem: Identifiable, Codable, Equatable, Sendab
             gauge: gauge,
             accessibilityLabel: presentation.accessibilityLabel,
             accessibilityValue: presentation.accessibilityValue ?? gauge.accessibilityValue
+        )
+    }
+
+    func updating(with reading: WidgetSensorLiveReading) -> Self {
+        guard reading.entityID == id else { return self }
+
+        let resolvedGauge = reading.numericValue.map {
+            gauge?.updating(value: $0, valueText: reading.valueText)
+        } ?? gauge
+        let resolvedIcon: ResolvedIcon
+        switch icon.provenance {
+        case .dashboardOverride, .appOverride, .haRegistryIcon:
+            resolvedIcon = icon
+        case .haExplicitIcon, .haSemanticMapping, .homesteadSemanticMapping, .fallback:
+            resolvedIcon = reading.icon
+        }
+
+        return Self(
+            id: id,
+            kind: kind,
+            displayName: displayName,
+            icon: resolvedIcon,
+            valueText: reading.valueText,
+            unitText: resolvedGauge?.unitText ?? unitText,
+            isAvailable: reading.isAvailable,
+            gauge: resolvedGauge,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityValue: reading.isAvailable ? reading.valueText : "Unavailable"
         )
     }
 }

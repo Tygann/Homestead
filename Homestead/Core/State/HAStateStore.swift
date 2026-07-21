@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WidgetKit
 
 @MainActor
 @Observable
@@ -46,6 +47,9 @@ final class HAStateStore {
     @ObservationIgnored private var cachedDashboardSummaryWorkspace: DashboardSummaryWorkspace?
     @ObservationIgnored private var isApplyingSnapshotBatch = false
     @ObservationIgnored private var snapshotBatchNeedsWidgetSave = false
+    @ObservationIgnored private var lastPersistedWidgetSensors: [WidgetSensorSnapshot]?
+    @ObservationIgnored private var gaugeWidgetReloadTask: Task<Void, Never>?
+    @ObservationIgnored private var lastGaugeWidgetReloadDate: Date?
 
     // MARK: - Public API
 
@@ -1217,7 +1221,7 @@ final class HAStateStore {
             )
         }
 
-        WidgetSnapshotPersistence.save(
+        let payload = WidgetSnapshotPersistence.save(
             entitiesByID: entitiesByID,
             lightEntitiesByID: lightEntitiesByID,
             coverEntitiesByID: coverEntitiesByID,
@@ -1225,6 +1229,28 @@ final class HAStateStore {
             sensorEntitiesByID: sensorEntitiesByID,
             contextForEntityID: contextForEntityID,
         )
+        guard lastPersistedWidgetSensors != payload.sensors else { return }
+        lastPersistedWidgetSensors = payload.sensors
+        scheduleGaugeWidgetReload()
+    }
+
+    private func scheduleGaugeWidgetReload() {
+        guard gaugeWidgetReloadTask == nil else { return }
+
+        let minimumReloadInterval: TimeInterval = 30
+        let now = Date()
+        let nextReloadDate = lastGaugeWidgetReloadDate?
+            .addingTimeInterval(minimumReloadInterval) ?? now.addingTimeInterval(1)
+        let delay = max(nextReloadDate.timeIntervalSince(now), 1)
+
+        gaugeWidgetReloadTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self, !Task.isCancelled else { return }
+            lastGaugeWidgetReloadDate = Date()
+            gaugeWidgetReloadTask = nil
+            WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.gaugeGrid.rawValue)
+            WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.largeGaugeGrid.rawValue)
+        }
     }
 
     private func refreshUpdateEntities() {

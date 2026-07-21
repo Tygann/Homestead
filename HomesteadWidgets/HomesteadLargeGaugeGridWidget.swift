@@ -454,7 +454,7 @@ struct HomesteadLargeGaugeGridTimelineProvider: AppIntentTimelineProvider {
             return placeholder(in: context)
         }
 
-        return HomesteadGaugeGridEntryBuilder.entry(
+        return await HomesteadGaugeGridEntryBuilder.liveEntry(
             slots: configuration.selectedSlots,
             maximumItemCount: 9
         )
@@ -464,7 +464,7 @@ struct HomesteadLargeGaugeGridTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadLargeGaugeGridWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadGaugeGridEntry> {
-        let entry = HomesteadGaugeGridEntryBuilder.entry(
+        let entry = await HomesteadGaugeGridEntryBuilder.liveEntry(
             slots: configuration.selectedSlots,
             maximumItemCount: 9
         )

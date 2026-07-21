@@ -13,6 +13,7 @@ enum WidgetSnapshotPersistence {
     }
 
     @MainActor
+    @discardableResult
     static func save(
         entitiesByID: [String: HomeEntity],
         lightEntitiesByID: [String: LightEntity],
@@ -20,7 +21,7 @@ enum WidgetSnapshotPersistence {
         fanEntitiesByID: [String: FanEntity],
         sensorEntitiesByID: [String: SensorEntity],
         contextForEntityID: (String) -> WidgetEntityContext
-    ) {
+    ) -> Payload {
         let payload = makePayload(
             entitiesByID: entitiesByID,
             lightEntitiesByID: lightEntitiesByID,
@@ -38,6 +39,7 @@ enum WidgetSnapshotPersistence {
         WidgetSharedStore.saveSensorSnapshotPayload(payload.sensors)
         WidgetSharedStore.savePresenceSnapshotPayload(payload.presence)
         WidgetSharedStore.saveActionSnapshotPayload(payload.actions)
+        return payload
     }
 
     @MainActor
