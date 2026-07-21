@@ -434,7 +434,7 @@ struct DashboardWeatherCardContent: View {
 
             Image(systemName: weather.iconName)
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: 24, weight: .medium))
+                .font(.system(size: 22, weight: .medium))
                 .accessibilityHidden(true)
 
             if size == .large {
@@ -460,7 +460,7 @@ struct DashboardWeatherCardContent: View {
             }
             .padding(.trailing, 32)
 
-            HStack(alignment: .top, spacing: AppSpacing.medium) {
+            HStack(alignment: .bottom, spacing: AppSpacing.medium) {
                 Text(weatherReadingText)
                     .font(.system(size: currentTemperatureFontSize, weight: .regular, design: .rounded))
                     .lineLimit(1)
@@ -477,13 +477,12 @@ struct DashboardWeatherCardContent: View {
                 }
                 .font(.caption2.weight(.semibold))
                 .lineLimit(1)
-                .padding(.top, 5)
             }
         }
         .overlay(alignment: .topTrailing) {
             Image(systemName: weather.iconName)
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: 24, weight: .medium))
+                .font(.system(size: 22, weight: .medium))
                 .accessibilityHidden(true)
         }
         .accessibilityElement(children: .ignore)
