@@ -123,8 +123,8 @@ struct DashboardChartCardContent: View {
             .foregroundStyle(
                 LinearGradient(
                     colors: [
-                        presentation.accentColor.opacity(0.12),
-                        presentation.accentColor.opacity(0)
+                        presentation.accentColor.opacity(0.16),
+                        presentation.accentColor.opacity(0.02)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -203,7 +203,7 @@ struct DashboardChartCardContent: View {
     }
 
     private var chartInterpolationMethod: InterpolationMethod {
-        sensor?.dashboardHistoryInterpolationStyle == .smooth ? .monotone : .linear
+        sensor?.dashboardHistoryInterpolationStyle == .smooth ? .catmullRom : .linear
     }
 
     private var contextSummaryText: String {
@@ -246,11 +246,7 @@ struct DashboardChartCardContent: View {
     }
 
     private var valueFontSize: CGFloat {
-        switch size {
-        case .large: 48
-        case .wide: 40
-        default: 36
-        }
+        38
     }
 
     private func chartHeight(for availableHeight: CGFloat) -> CGFloat {
@@ -405,7 +401,7 @@ struct DashboardWeatherCardContent: View {
 
     private var standardCurrentConditions: some View {
         HStack(alignment: .top, spacing: AppSpacing.medium) {
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: AppSpacing.xSmall) {
                     Text(weather.displayName)
                         .font(size == .large ? .headline.weight(.semibold) : .subheadline.weight(.semibold))
@@ -438,7 +434,7 @@ struct DashboardWeatherCardContent: View {
 
             Image(systemName: weather.iconName)
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: 30, weight: .medium))
+                .font(.system(size: 24, weight: .medium))
                 .accessibilityHidden(true)
 
             if size == .large {
@@ -464,7 +460,7 @@ struct DashboardWeatherCardContent: View {
 
                 Image(systemName: weather.iconName)
                     .symbolRenderingMode(.multicolor)
-                    .font(.system(size: 30, weight: .medium))
+                    .font(.system(size: 24, weight: .medium))
                     .accessibilityHidden(true)
             }
 
@@ -737,11 +733,7 @@ struct DashboardWeatherCardContent: View {
     }
 
     private var currentTemperatureFontSize: CGFloat {
-        switch size {
-        case .large: 58
-        case .wide: 38
-        default: 42
-        }
+        38
     }
 
 }
