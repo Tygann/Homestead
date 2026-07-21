@@ -1134,8 +1134,16 @@ struct DashboardView: View {
             }
         )) {
             ForEach(DashboardPresentationCatalog.descriptor(for: item.presentationKind).supportedLayouts, id: \.self) { option in
-                Label(option.displayName, systemImage: option.systemImage)
-                    .tag(option)
+                Label {
+                    Text(option.displayName)
+                } icon: {
+                    if let customResizeIconName = option.customResizeIconName {
+                        Image(customResizeIconName)
+                    } else {
+                        Image(systemName: option.systemImage)
+                    }
+                }
+                .tag(option)
             }
         }
         .pickerStyle(.segmented)

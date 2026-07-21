@@ -7274,6 +7274,16 @@ struct HomesteadTests {
     }
 
     @MainActor
+    @Test func compactDashboardCardSizesUseProportionalResizeIcons() {
+        #expect(DashboardCardSize.mini.customResizeIconName == "DashboardCardSizeMini")
+        #expect(DashboardCardSize.compact.customResizeIconName == "DashboardCardSizeCompact")
+        #expect(DashboardCardSize.row.customResizeIconName == "DashboardCardSizeRow")
+        #expect(DashboardCardSize.square.customResizeIconName == nil)
+        #expect(DashboardCardSize.wide.customResizeIconName == nil)
+        #expect(DashboardCardSize.large.customResizeIconName == nil)
+    }
+
+    @MainActor
     @Test func generatedCameraCardsPreferSquarePreviewSize() {
         let camera = HAEntityState(
             homeEntity: HomeEntity(

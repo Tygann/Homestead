@@ -43,6 +43,19 @@ nonisolated enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Se
         }
     }
 
+    var customResizeIconName: String? {
+        switch self {
+        case .mini:
+            "DashboardCardSizeMini"
+        case .compact:
+            "DashboardCardSizeCompact"
+        case .row:
+            "DashboardCardSizeRow"
+        case .square, .wide, .large:
+            nil
+        }
+    }
+
     var layoutMetadata: DashboardCardLayoutMetadata {
         DashboardCardLayoutMetadata(columnSpan: columnSpan, rowSpan: rowSpan)
     }
