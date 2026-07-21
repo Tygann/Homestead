@@ -124,6 +124,7 @@ struct DashboardCardFeatureView: View {
                 InlineStepperControl(
                     value: displayValue(for: effectiveValue),
                     isActive: isActive,
+                    usesBalancedSpacing: setpoint.values.count == 1,
                     decrementAccessibilityLabel: value.decrementAccessibilityLabel,
                     incrementAccessibilityLabel: value.incrementAccessibilityLabel,
                     isDecrementDisabled: effectiveValue <= bounds.lowerBound,
@@ -333,6 +334,7 @@ private struct InlineStepperControl: View {
 
     let value: String
     let isActive: Bool
+    let usesBalancedSpacing: Bool
     let decrementAccessibilityLabel: String
     let incrementAccessibilityLabel: String
     let isDecrementDisabled: Bool
@@ -360,11 +362,12 @@ private struct InlineStepperControl: View {
                 .accessibilityLabel(incrementAccessibilityLabel)
             }
 
-            HStack(spacing: AppSpacing.xSmall) {
+            HStack(spacing: usesBalancedSpacing ? 0 : AppSpacing.xSmall) {
                 Image(systemName: "minus")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(isDecrementDisabled ? .tertiary : .secondary)
-                    .frame(width: 16)
+                    .frame(maxWidth: usesBalancedSpacing ? .infinity : nil)
+                    .frame(width: usesBalancedSpacing ? nil : 16)
 
                 Text(value)
                     .font(.subheadline.weight(.semibold).monospacedDigit())
@@ -375,7 +378,8 @@ private struct InlineStepperControl: View {
                 Image(systemName: "plus")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(isIncrementDisabled ? .tertiary : .secondary)
-                    .frame(width: 16)
+                    .frame(maxWidth: usesBalancedSpacing ? .infinity : nil)
+                    .frame(width: usesBalancedSpacing ? nil : 16)
             }
             .padding(.horizontal, AppSpacing.xSmall)
             .allowsHitTesting(false)
