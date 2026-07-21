@@ -36,20 +36,114 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(configuration.selectedDashboardID, configuration.dashboards[0].id)
     }
 
-    func testUnsupportedDocumentVersionResets() throws {
+    func testNewerDocumentVersionIsPreservedWithoutBeingOverwritten() throws {
         let defaults = makeDefaults()
+        let selectedID = UUID()
         let unsupported = DashboardConfigurationDocument(
             schemaVersion: DashboardConfigurationDocument.currentSchemaVersion + 1,
             dashboards: [makeDashboard(items: [.entityChip(entityID: "sensor.old")])]
         )
-        defaults.set(try JSONEncoder().encode(unsupported), forKey: "homestead.dashboard.configuration.v3")
+        let originalData = try JSONEncoder().encode(unsupported)
+        defaults.set(originalData, forKey: "homestead.dashboard.configuration.v3")
+        defaults.set(selectedID.uuidString, forKey: "homestead.dashboard.selectedDashboardID.v3")
 
         let configuration = DashboardConfiguration(defaults: defaults)
 
         XCTAssertTrue(configuration.items.isEmpty)
         let stored = try XCTUnwrap(defaults.data(forKey: "homestead.dashboard.configuration.v3"))
-        let decoded = try JSONDecoder().decode(DashboardConfigurationDocument.self, from: stored)
-        XCTAssertEqual(decoded.schemaVersion, DashboardConfigurationDocument.currentSchemaVersion)
+        XCTAssertEqual(stored, originalData)
+        XCTAssertEqual(defaults.string(forKey: "homestead.dashboard.selectedDashboardID.v3"), selectedID.uuidString)
+    }
+
+    func testVersionFiveDocumentMigratesToChartAndPreservesDashboardsAndSelection() throws {
+        let defaults = makeDefaults()
+        let first = SavedDashboardConfiguration(
+            id: UUID(),
+            name: "Upstairs",
+            displayTitle: "Second Floor",
+            items: [.entityChip(entityID: "light.hall")]
+        )
+        let second = SavedDashboardConfiguration(
+            id: UUID(),
+            name: "Climate",
+            displayTitle: "Indoor Climate",
+            items: [.entityCard(entityID: "sensor.temperature", configuration: .chart(layout: .wide))]
+        )
+        let currentData = try JSONEncoder().encode(DashboardConfigurationDocument(dashboards: [first, second]))
+        let currentJSON = try XCTUnwrap(String(data: currentData, encoding: .utf8))
+        let versionFiveJSON = currentJSON
+            .replacingOccurrences(of: "\"schemaVersion\":6", with: "\"schemaVersion\":5")
+            .replacingOccurrences(of: "\"chart\"", with: "\"graph\"")
+        XCTAssertNotEqual(versionFiveJSON, currentJSON)
+        let versionFiveData = Data(versionFiveJSON.utf8)
+        defaults.set(versionFiveData, forKey: "homestead.dashboard.configuration.v3")
+        defaults.set(second.id.uuidString, forKey: "homestead.dashboard.selectedDashboardID.v3")
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+
+        XCTAssertEqual(configuration.dashboards.map(\.name), ["Upstairs", "Climate"])
+        XCTAssertEqual(configuration.dashboards.map(\.displayTitle), ["Second Floor", "Indoor Climate"])
+        XCTAssertEqual(configuration.selectedDashboardID, second.id)
+        XCTAssertEqual(configuration.items.first?.cardConfiguration, .chart(layout: .wide))
+
+        let migratedData = try XCTUnwrap(defaults.data(forKey: "homestead.dashboard.configuration.v3"))
+        let migratedJSON = try XCTUnwrap(String(data: migratedData, encoding: .utf8))
+        XCTAssertTrue(migratedJSON.contains("\"schemaVersion\":6"))
+        XCTAssertTrue(migratedJSON.contains("\"chart\""))
+        XCTAssertFalse(migratedJSON.contains("\"graph\""))
+        XCTAssertEqual(defaults.data(forKey: "homestead.dashboard.configuration.v3.backup"), versionFiveData)
+    }
+
+    func testMalformedCardIsDroppedWithoutDiscardingDashboardOrSiblingCards() throws {
+        let defaults = makeDefaults()
+        let dashboard = makeDashboard(items: [
+            .entityChip(entityID: "light.kitchen"),
+            .entityCard(entityID: "sensor.temperature", configuration: .chart(layout: .wide))
+        ])
+        let data = try JSONEncoder().encode(DashboardConfigurationDocument(dashboards: [dashboard]))
+        var root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var dashboards = try XCTUnwrap(root["dashboards"] as? [[String: Any]])
+        var items = try XCTUnwrap(dashboards[0]["items"] as? [[String: Any]])
+        items.insert(["malformed": true], at: 1)
+        dashboards[0]["items"] = items
+        root["dashboards"] = dashboards
+        defaults.set(try JSONSerialization.data(withJSONObject: root), forKey: "homestead.dashboard.configuration.v3")
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+
+        XCTAssertEqual(configuration.dashboards.count, 1)
+        XCTAssertEqual(configuration.dashboards[0].id, dashboard.id)
+        XCTAssertEqual(configuration.items.map(\.source), [.entity("light.kitchen"), .entity("sensor.temperature")])
+    }
+
+    func testMalformedDashboardIsDroppedWithoutDiscardingValidDashboard() throws {
+        let defaults = makeDefaults()
+        let dashboard = makeDashboard(items: [.entityChip(entityID: "light.kitchen")])
+        let data = try JSONEncoder().encode(DashboardConfigurationDocument(dashboards: [dashboard]))
+        var root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var dashboards = try XCTUnwrap(root["dashboards"] as? [[String: Any]])
+        dashboards.insert(["id": 42, "name": "Broken"], at: 0)
+        root["dashboards"] = dashboards
+        defaults.set(try JSONSerialization.data(withJSONObject: root), forKey: "homestead.dashboard.configuration.v3")
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+
+        XCTAssertEqual(configuration.dashboards.map(\.id), [dashboard.id])
+        XCTAssertEqual(configuration.items.first?.source, .entity("light.kitchen"))
+    }
+
+    func testCorruptDocumentRecoversLastKnownGoodBackup() throws {
+        let defaults = makeDefaults()
+        let dashboard = makeDashboard(items: [.entityChip(entityID: "light.kitchen")])
+        let backup = try JSONEncoder().encode(DashboardConfigurationDocument(dashboards: [dashboard]))
+        defaults.set(backup, forKey: "homestead.dashboard.configuration.v3.backup")
+        defaults.set(Data("not-json".utf8), forKey: "homestead.dashboard.configuration.v3")
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+
+        XCTAssertEqual(configuration.dashboards.map(\.id), [dashboard.id])
+        XCTAssertEqual(configuration.items.first?.source, .entity("light.kitchen"))
+        XCTAssertEqual(defaults.data(forKey: "homestead.dashboard.configuration.v3.rejected"), Data("not-json".utf8))
     }
 
     func testCurrentDocumentRoundTripsOnlyNewSchema() throws {
@@ -497,6 +591,65 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertEqual(snapshot.schemaVersion, DashboardConfigurationDocument.currentSchemaVersion)
         XCTAssertTrue(snapshot.dashboards.isEmpty)
+        XCTAssertFalse(snapshot.isCompatible)
+    }
+
+    func testVersionFiveICloudDashboardSnapshotMigratesToChart() throws {
+        let dashboard = makeDashboard(items: [
+            .entityCard(entityID: "sensor.temperature", configuration: .chart(layout: .square))
+        ])
+        let currentData = try JSONEncoder().encode(DashboardConfigurationSyncSnapshot(dashboards: [dashboard]))
+        let currentJSON = try XCTUnwrap(String(data: currentData, encoding: .utf8))
+        let oldJSON = currentJSON
+            .replacingOccurrences(of: "\"schemaVersion\":6", with: "\"schemaVersion\":5")
+            .replacingOccurrences(of: "\"chart\"", with: "\"graph\"")
+
+        let snapshot = try JSONDecoder().decode(
+            DashboardConfigurationSyncSnapshot.self,
+            from: Data(oldJSON.utf8)
+        )
+
+        XCTAssertTrue(snapshot.isCompatible)
+        XCTAssertEqual(snapshot.dashboards.first?.items.first?.cardConfiguration, .chart(layout: .square))
+    }
+
+    func testIncompatibleICloudDashboardSnapshotDoesNotReplaceLocalDashboards() throws {
+        let defaults = makeDefaults()
+        let configuration = DashboardConfiguration(defaults: defaults)
+        _ = configuration.add(source: .entity("light.kitchen"), presentation: .chip)
+        let originalDashboards = configuration.dashboards
+        let newerJSON = """
+        {"schemaVersion":7,"dashboards":[]}
+        """
+        let snapshot = try JSONDecoder().decode(
+            DashboardConfigurationSyncSnapshot.self,
+            from: Data(newerJSON.utf8)
+        )
+
+        XCTAssertFalse(configuration.applySyncSnapshot(snapshot))
+        XCTAssertEqual(configuration.dashboards, originalDashboards)
+    }
+
+    func testProfileSyncBundleDoesNotOverwriteNewerStoredProfileSchema() throws {
+        let defaults = makeDefaults()
+        let activeProfileID = UUID()
+        let protectedProfileID = UUID()
+        let protectedKey = "homestead.dashboard.configuration.v3.\(protectedProfileID.uuidString.lowercased())"
+        let newerData = Data("{\"schemaVersion\":7,\"dashboards\":[]}".utf8)
+        defaults.set(newerData, forKey: protectedKey)
+        let configuration = DashboardConfiguration(defaults: defaults, profileID: activeProfileID)
+        let snapshot = DashboardConfigurationSyncSnapshot(dashboards: [
+            makeDashboard(items: [.entityChip(entityID: "light.kitchen")])
+        ])
+
+        let didApply = configuration.applyProfileSyncSnapshots([
+            activeProfileID: snapshot,
+            protectedProfileID: snapshot
+        ])
+
+        XCTAssertFalse(didApply)
+        XCTAssertEqual(defaults.data(forKey: protectedKey), newerData)
+        XCTAssertTrue(configuration.items.isEmpty)
     }
 
     func testStaleDashboardSectionDoesNotDiscardOtherICloudPreferences() throws {

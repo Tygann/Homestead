@@ -609,12 +609,15 @@ final class HomesteadICloudSyncService {
             }
         }
         if remote.dashboard.updatedAt > localDate(.dashboard) {
+            let didApplyDashboard: Bool
             if let profileDashboards = remote.profileDashboards {
-                dashboardConfiguration.applyProfileSyncSnapshots(profileDashboards)
+                didApplyDashboard = dashboardConfiguration.applyProfileSyncSnapshots(profileDashboards)
             } else {
-                dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
+                didApplyDashboard = dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
             }
-            recordRemoteDate(remote.dashboard.updatedAt, section: .dashboard)
+            if didApplyDashboard {
+                recordRemoteDate(remote.dashboard.updatedAt, section: .dashboard)
+            }
         }
         if remote.actionConfirmations.updatedAt > localDate(.actionConfirmations) {
             actionConfirmationSettings.applySyncSnapshot(remote.actionConfirmations.value)
@@ -641,15 +644,17 @@ final class HomesteadICloudSyncService {
         if let profiles = remote.connection.value.profiles {
             connectionSettings.profileStore.mergeSyncSnapshot(profiles)
         }
+        let didApplyDashboard: Bool
         if let profileDashboards = remote.profileDashboards {
-            dashboardConfiguration.applyProfileSyncSnapshots(profileDashboards)
+            didApplyDashboard = dashboardConfiguration.applyProfileSyncSnapshots(profileDashboards)
         } else {
-            dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
+            didApplyDashboard = dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
         }
         actionConfirmationSettings.applySyncSnapshot(remote.actionConfirmations.value)
         appearanceSettings.applySyncSnapshot(remote.appearance.value)
         isApplyingRemote = false
         for section in HomesteadSyncSection.allCases {
+            if section == .dashboard, !didApplyDashboard { continue }
             recordRemoteDate(recordDate(for: section, payload: remote), section: section)
         }
         lastRemoteChangeDate = remote.newestUpdate

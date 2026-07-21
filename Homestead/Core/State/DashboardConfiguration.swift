@@ -318,7 +318,10 @@ nonisolated struct SavedDashboardConfiguration: Identifiable, Codable, Equatable
         name = try container.decode(String.self, forKey: .name)
         displayTitle = try container.decodeIfPresent(String.self, forKey: .displayTitle)
             ?? DashboardConfigurationDefaults.dashboardTitle
-        items = try container.decode([DashboardItemConfiguration].self, forKey: .items)
+        items = try container.decodeIfPresent(
+            LossyDecodableArray<DashboardItemConfiguration>.self,
+            forKey: .items
+        )?.elements ?? []
         setupState = try container.decodeIfPresent(DashboardSetupState.self, forKey: .setupState)
             ?? (items.isEmpty ? .intentionallyEmpty : .manual)
     }
@@ -461,6 +464,20 @@ nonisolated struct DashboardConfigurationDocument: Codable, Equatable, Sendable 
         self.dashboards = dashboards
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case dashboards
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        dashboards = try container.decodeIfPresent(
+            LossyDecodableArray<SavedDashboardConfiguration>.self,
+            forKey: .dashboards
+        )?.elements ?? []
+    }
+
     var isCurrentSchema: Bool { schemaVersion == Self.currentSchemaVersion }
 }
 
@@ -476,6 +493,37 @@ nonisolated struct DashboardPresentationIdentity: Hashable, Sendable {
     init(source: DashboardSourceReference, presentation: DashboardPresentationConfiguration) {
         self.source = source
         kind = presentation.kind
+    }
+}
+
+nonisolated private enum StoredDashboardDocumentState {
+    case missing
+    case loaded(DashboardConfigurationDocument)
+    case newerSchema(version: Int)
+    case unrecoverable
+
+    var document: DashboardConfigurationDocument? {
+        guard case .loaded(let document) = self else { return nil }
+        return document
+    }
+
+    var isNewerSchema: Bool {
+        guard case .newerSchema = self else { return false }
+        return true
+    }
+
+    var canUseLegacyFallback: Bool {
+        switch self {
+        case .missing, .unrecoverable: true
+        case .loaded, .newerSchema: false
+        }
+    }
+
+    var shouldCreateFreshDocument: Bool {
+        switch self {
+        case .missing, .unrecoverable: true
+        case .loaded, .newerSchema: false
+        }
     }
 }
 
@@ -499,6 +547,7 @@ final class DashboardConfiguration {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var activeProfileID: UUID?
     @ObservationIgnored private var isSwitchingProfile = false
+    @ObservationIgnored private var protectsNewerDashboardSchema = false
     @ObservationIgnored private var documentKey: String {
         Self.documentKey(profileID: activeProfileID)
     }
@@ -519,22 +568,33 @@ final class DashboardConfiguration {
         activeProfileID = profileID
         let profileDocumentKey = Self.documentKey(profileID: profileID)
         let profileSelectedKey = Self.selectedDashboardIDKey(profileID: profileID)
-        let loaded = Self.loadDocument(from: defaults, key: profileDocumentKey)
-            ?? (profileID == nil ? nil : Self.loadDocument(from: defaults, key: Self.legacyDocumentKey))
+        let primaryState = Self.loadDocumentState(from: defaults, key: profileDocumentKey)
+        let state: StoredDashboardDocumentState
+        let selectedKey: String
+        if profileID != nil, primaryState.canUseLegacyFallback {
+            let legacyState = Self.loadDocumentState(from: defaults, key: Self.legacyDocumentKey)
+            if legacyState.document != nil || legacyState.isNewerSchema {
+                state = legacyState
+                selectedKey = Self.legacySelectedDashboardIDKey
+            } else {
+                state = primaryState
+                selectedKey = profileSelectedKey
+            }
+        } else {
+            state = primaryState
+            selectedKey = profileSelectedKey
+        }
         obsoleteKeys.forEach(defaults.removeObject(forKey:))
-        let normalizedDashboards = Self.normalizedDashboards(loaded?.dashboards ?? [])
+        protectsNewerDashboardSchema = state.isNewerSchema
+        let normalizedDashboards = Self.normalizedDashboards(state.document?.dashboards ?? [])
         dashboards = normalizedDashboards
         selectedDashboardID = Self.loadSelectedDashboardID(
             from: defaults,
-            key: defaults.data(forKey: profileDocumentKey) == nil && profileID != nil
-                ? Self.legacySelectedDashboardIDKey
-                : profileSelectedKey,
+            key: selectedKey,
             dashboards: normalizedDashboards
         )
 
-        if loaded == nil {
-            defaults.removeObject(forKey: profileDocumentKey)
-            defaults.removeObject(forKey: profileSelectedKey)
+        if state.shouldCreateFreshDocument {
             selectedDashboardID = dashboards[0].id
         }
         saveDashboards()
@@ -545,22 +605,34 @@ final class DashboardConfiguration {
     var syncSnapshot: DashboardConfigurationSyncSnapshot { DashboardConfigurationSyncSnapshot(dashboards: dashboards) }
 
     func syncSnapshots(profileIDs: [UUID]) -> [UUID: DashboardConfigurationSyncSnapshot] {
-        Dictionary(uniqueKeysWithValues: profileIDs.map { profileID in
-            let document = Self.loadDocument(from: defaults, key: Self.documentKey(profileID: profileID))
-            let dashboards = Self.normalizedDashboards(document?.dashboards ?? [])
+        Dictionary(uniqueKeysWithValues: profileIDs.compactMap { profileID in
+            let state = Self.loadDocumentState(from: defaults, key: Self.documentKey(profileID: profileID))
+            guard !state.isNewerSchema else { return nil }
+            let dashboards = Self.normalizedDashboards(state.document?.dashboards ?? [])
             return (profileID, DashboardConfigurationSyncSnapshot(dashboards: dashboards))
         })
     }
 
-    func applyProfileSyncSnapshots(_ snapshots: [UUID: DashboardConfigurationSyncSnapshot]) {
-        for (profileID, snapshot) in snapshots {
+    @discardableResult
+    func applyProfileSyncSnapshots(_ snapshots: [UUID: DashboardConfigurationSyncSnapshot]) -> Bool {
+        guard snapshots.values.allSatisfy(\.isCompatible) else { return false }
+        let targetKeys = snapshots.keys.map { Self.documentKey(profileID: $0) }
+        guard targetKeys.allSatisfy({
+            !Self.loadDocumentState(from: defaults, key: $0).isNewerSchema
+        }) else { return false }
+        let encodedDocuments = snapshots.compactMap { profileID, snapshot -> (UUID, Data)? in
             let document = DashboardConfigurationDocument(dashboards: Self.normalizedDashboards(snapshot.dashboards))
-            guard let data = try? JSONEncoder().encode(document) else { continue }
-            defaults.set(data, forKey: Self.documentKey(profileID: profileID))
+            guard let data = try? JSONEncoder().encode(document) else { return nil }
+            return (profileID, data)
+        }
+        guard encodedDocuments.count == snapshots.count else { return false }
+        for (profileID, data) in encodedDocuments {
+            Self.storeDocument(data, in: defaults, key: Self.documentKey(profileID: profileID))
         }
         if let activeProfileID, let active = snapshots[activeProfileID] {
             applySyncSnapshot(active)
         }
+        return true
     }
     var selectedDashboard: SavedDashboardConfiguration { dashboards.first { $0.id == selectedDashboardID } ?? dashboards[0] }
     var items: [DashboardItemConfiguration] { selectedDashboard.items }
@@ -588,8 +660,9 @@ final class DashboardConfiguration {
         guard activeProfileID != profileID else { return }
         isSwitchingProfile = true
         activeProfileID = profileID
-        let loaded = Self.loadDocument(from: defaults, key: documentKey)
-        let normalized = Self.normalizedDashboards(loaded?.dashboards ?? [])
+        let state = Self.loadDocumentState(from: defaults, key: documentKey)
+        protectsNewerDashboardSchema = state.isNewerSchema
+        let normalized = Self.normalizedDashboards(state.document?.dashboards ?? [])
         dashboards = normalized
         selectedDashboardID = Self.loadSelectedDashboardID(
             from: defaults,
@@ -602,7 +675,10 @@ final class DashboardConfiguration {
     }
 
     func removeProfileData(_ profileID: UUID) {
-        defaults.removeObject(forKey: Self.documentKey(profileID: profileID))
+        let key = Self.documentKey(profileID: profileID)
+        defaults.removeObject(forKey: key)
+        defaults.removeObject(forKey: Self.backupDocumentKey(for: key))
+        defaults.removeObject(forKey: Self.rejectedDocumentKey(for: key))
         defaults.removeObject(forKey: Self.selectedDashboardIDKey(profileID: profileID))
     }
 
@@ -806,9 +882,12 @@ final class DashboardConfiguration {
 
     // MARK: Saved Dashboards
 
-    func applySyncSnapshot(_ snapshot: DashboardConfigurationSyncSnapshot) {
+    @discardableResult
+    func applySyncSnapshot(_ snapshot: DashboardConfigurationSyncSnapshot) -> Bool {
+        guard snapshot.isCompatible, !protectsNewerDashboardSchema else { return false }
         dashboards = Self.normalizedDashboards(snapshot.dashboards)
         ensureSelectedDashboardExists()
+        return true
     }
 
     @discardableResult
@@ -909,11 +988,13 @@ final class DashboardConfiguration {
     }
 
     private func saveDashboards() {
+        guard !protectsNewerDashboardSchema else { return }
         guard let data = try? JSONEncoder().encode(DashboardConfigurationDocument(dashboards: dashboards)) else { return }
-        defaults.set(data, forKey: documentKey)
+        Self.storeDocument(data, in: defaults, key: documentKey)
     }
 
     private func saveSelectedDashboardID() {
+        guard !protectsNewerDashboardSchema else { return }
         defaults.set(selectedDashboardID.uuidString, forKey: selectedDashboardIDKey)
     }
 
@@ -974,11 +1055,41 @@ final class DashboardConfiguration {
         return name
     }
 
-    private static func loadDocument(from defaults: UserDefaults, key: String) -> DashboardConfigurationDocument? {
-        guard let data = defaults.data(forKey: key),
-              let document = try? JSONDecoder().decode(DashboardConfigurationDocument.self, from: data),
-              document.isCurrentSchema else { return nil }
-        return DashboardConfigurationDocument(dashboards: normalizedDashboards(document.dashboards))
+    private static func loadDocumentState(from defaults: UserDefaults, key: String) -> StoredDashboardDocumentState {
+        guard let data = defaults.data(forKey: key) else { return .missing }
+
+        switch DashboardConfigurationMigrator.migrate(data) {
+        case .loaded(let document, _, let didMigrate):
+            if didMigrate {
+                defaults.set(data, forKey: backupDocumentKey(for: key))
+            }
+            return .loaded(DashboardConfigurationDocument(dashboards: normalizedDashboards(document.dashboards)))
+        case .newerSchema(let version):
+            return .newerSchema(version: version)
+        case .unsupportedSchema, .invalid:
+            defaults.set(data, forKey: rejectedDocumentKey(for: key))
+            guard let backup = defaults.data(forKey: backupDocumentKey(for: key)),
+                  case .loaded(let document, _, _) = DashboardConfigurationMigrator.migrate(backup) else {
+                return .unrecoverable
+            }
+            return .loaded(DashboardConfigurationDocument(dashboards: normalizedDashboards(document.dashboards)))
+        }
+    }
+
+    @discardableResult
+    private static func storeDocument(_ data: Data, in defaults: UserDefaults, key: String) -> Bool {
+        if let existing = defaults.data(forKey: key), existing != data {
+            switch DashboardConfigurationMigrator.migrate(existing) {
+            case .newerSchema:
+                return false
+            case .loaded:
+                defaults.set(existing, forKey: backupDocumentKey(for: key))
+            case .unsupportedSchema, .invalid:
+                break
+            }
+        }
+        defaults.set(data, forKey: key)
+        return true
     }
 
     private static let legacyDocumentKey = "homestead.dashboard.configuration.v3"
@@ -993,6 +1104,9 @@ final class DashboardConfiguration {
         guard let profileID else { return legacySelectedDashboardIDKey }
         return "\(legacySelectedDashboardIDKey).\(profileID.uuidString.lowercased())"
     }
+
+    private static func backupDocumentKey(for documentKey: String) -> String { "\(documentKey).backup" }
+    private static func rejectedDocumentKey(for documentKey: String) -> String { "\(documentKey).rejected" }
 
     private static func loadSelectedDashboardID(from defaults: UserDefaults, key: String, dashboards: [SavedDashboardConfiguration]) -> UUID {
         if let value = defaults.string(forKey: key), let id = UUID(uuidString: value), dashboards.contains(where: { $0.id == id }) { return id }
@@ -1067,21 +1181,36 @@ nonisolated enum DashboardConfigurationValidator {
 nonisolated struct DashboardConfigurationSyncSnapshot: Codable, Equatable, Sendable {
     var schemaVersion: Int
     var dashboards: [SavedDashboardConfiguration]
+    private(set) var isCompatible: Bool
 
     init(dashboards: [SavedDashboardConfiguration]) {
         schemaVersion = DashboardConfigurationDocument.currentSchemaVersion
         self.dashboards = dashboards
+        isCompatible = true
     }
 
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let decodedVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
-        schemaVersion = DashboardConfigurationDocument.currentSchemaVersion
-        guard decodedVersion == DashboardConfigurationDocument.currentSchemaVersion else {
+        let value = try JSONValue(from: decoder)
+        let data = try JSONEncoder().encode(value)
+
+        switch DashboardConfigurationMigrator.migrate(data) {
+        case .loaded(let document, _, _):
+            schemaVersion = DashboardConfigurationDocument.currentSchemaVersion
+            dashboards = document.dashboards
+            isCompatible = true
+        case .newerSchema(let version):
+            schemaVersion = version
             dashboards = []
-            return
+            isCompatible = false
+        case .unsupportedSchema(let version):
+            schemaVersion = version ?? DashboardConfigurationDocument.currentSchemaVersion
+            dashboards = []
+            isCompatible = false
+        case .invalid:
+            schemaVersion = DashboardConfigurationDocument.currentSchemaVersion
+            dashboards = []
+            isCompatible = false
         }
-        dashboards = (try? container.decode([SavedDashboardConfiguration].self, forKey: .dashboards)) ?? []
     }
 
     func encode(to encoder: Encoder) throws {

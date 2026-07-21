@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-21
 
+### Recoverable Dashboard Schema Migrations
+
+- Replaced exact-version-or-reset dashboard loading with ordered schema migrations shared by local, profile-scoped, Canvas preview, and iCloud persistence paths.
+- Added the v5-to-v6 `.graph` to `.chart` migration while preserving dashboard identity, ordering, metadata, items, and selected-dashboard state.
+- Added last-known-good document backups, rejected-payload quarantine, lossy card/dashboard recovery, and newer-schema write protection so one invalid record or a newer app payload cannot erase otherwise valid saved dashboards.
+- Made iCloud snapshot application compatibility-aware and transactional across profile dashboard bundles; rejected payloads no longer advance the dashboard sync timestamp.
+- Verified with a Simulator build, all 38 `DashboardConfigurationXCTests`, and guarded Xcode storage hygiene.
+
 ### Mixed Sensor Board Widget
 
 - Made Chart canonical throughout the beta codebase: dashboard schema v6 persists `.chart`, the Sensor App Intent persists `.chart`, WidgetKit uses `HomesteadSensorChartWidget`, shared chart types and Sensor Board configuration use Chart naming, and Debug previews accept `chart`.
