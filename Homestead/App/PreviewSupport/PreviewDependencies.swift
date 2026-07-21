@@ -112,6 +112,7 @@ struct PreviewDependencies {
 
     static var liveHomeAssistant: PreviewDependencies? {
         let previewDefaults = UserDefaults.livePreview
+        let dashboardDefaults = LivePreviewDashboardPersistence.dashboardDefaults(fallback: previewDefaults)
         let stateStore = HAStateStore()
         let actionConfirmationSettings = ActionConfirmationSettings(defaults: previewDefaults)
         let tabSettings = HomesteadTabSettings(defaults: previewDefaults)
@@ -125,6 +126,12 @@ struct PreviewDependencies {
                 legacyBaseURL: profiles[0].baseURL
             )
             profileStore.replaceForPreview(profiles)
+            LivePreviewDashboardPersistence.prepare(
+                legacyDefaults: previewDefaults,
+                dashboardDefaults: dashboardDefaults,
+                profileIDs: profiles.map { Optional($0.id) },
+                backupData: LivePreviewDashboardPersistence.bundledBackupData()
+            )
             let tokenStores = Dictionary(uniqueKeysWithValues: previewCredentials.map {
                 ($0.profile.id, InMemoryHAOAuthTokenStore(credential: $0.credential))
             })
@@ -134,7 +141,7 @@ struct PreviewDependencies {
                 profileStore: profileStore
             )
             let dashboardConfiguration = DashboardConfiguration(
-                defaults: previewDefaults,
+                defaults: dashboardDefaults,
                 profileID: profileStore.activeProfileID
             )
             let appearanceSettings = HomesteadAppearanceSettings(
@@ -181,7 +188,13 @@ struct PreviewDependencies {
             )
         }
 
-        let dashboardConfiguration = DashboardConfiguration(defaults: previewDefaults)
+        LivePreviewDashboardPersistence.prepare(
+            legacyDefaults: previewDefaults,
+            dashboardDefaults: dashboardDefaults,
+            profileIDs: [nil],
+            backupData: LivePreviewDashboardPersistence.bundledBackupData()
+        )
+        let dashboardConfiguration = DashboardConfiguration(defaults: dashboardDefaults)
         let settings = HAConnectionSettings(defaults: previewDefaults)
         let appearanceSettings = HomesteadAppearanceSettings(
             profileID: settings.activeProfileID,

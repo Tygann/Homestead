@@ -171,7 +171,7 @@
 				2FE2DD552FBDFE42009A0E06 /* Sources */,
 				2FE2DD562FBDFE42009A0E06 /* Frameworks */,
 				2FE2DD572FBDFE42009A0E06 /* Resources */,
-				A10000112FC7CC000000001 /* Copy Local Preview Credentials */,
+				A10000112FC7CC000000001 /* Copy Local Preview Resources */,
 				A100000A2FBDFE43009A0E06 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -339,7 +339,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		A10000112FC7CC000000001 /* Copy Local Preview Credentials */ = {
+		A10000112FC7CC000000001 /* Copy Local Preview Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -349,16 +349,18 @@
 			);
 			inputPaths = (
 				"$(SRCROOT)/PreviewCredentials.json",
+				"$(SRCROOT)/PreviewDashboardLayout.json",
 			);
-			name = "Copy Local Preview Credentials";
+			name = "Copy Local Preview Resources";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/PreviewCredentials.json",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/PreviewDashboardLayout.json",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\n\nCREDENTIALS_FILE=\"${SRCROOT}/PreviewCredentials.json\"\nDESTINATION=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/PreviewCredentials.json\"\n\nif [ \"${CONFIGURATION}\" = \"Debug\" ] && [ -f \"${CREDENTIALS_FILE}\" ]; then\n    cp \"${CREDENTIALS_FILE}\" \"${DESTINATION}\"\nelse\n    rm -f \"${DESTINATION}\"\nfi\n";
+			shellScript = "set -euo pipefail\n\ncopy_debug_resource() {\n    SOURCE=\"${SRCROOT}/$1\"\n    DESTINATION=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/$1\"\n\n    if [ \"${CONFIGURATION}\" = \"Debug\" ] && [ -f \"${SOURCE}\" ]; then\n        cp \"${SOURCE}\" \"${DESTINATION}\"\n    else\n        rm -f \"${DESTINATION}\"\n    fi\n}\n\ncopy_debug_resource \"PreviewCredentials.json\"\ncopy_debug_resource \"PreviewDashboardLayout.json\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

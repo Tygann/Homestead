@@ -5,6 +5,7 @@ DerivedData/
 build/
 .DS_Store
 PreviewCredentials.json
+PreviewDashboardLayout.json
 *.p8
 .env
 .env.*

@@ -37,7 +37,15 @@ If `PreviewCredentials.json` is missing, the live preview falls back to the save
 
 The default `Sample Data` preview never connects to Home Assistant. Use it for UI work when you do not need real entities.
 
-The `Live Home Assistant` preview stores dashboard card selection and sizing in a preview-specific `UserDefaults` suite. This keeps live preview layout edits persistent across preview reloads without mixing them into the simulator app's normal on-device dashboard layout.
+The `Live Home Assistant` preview stores dashboard definitions and selection in Homestead's App Group container, with profile-specific keys for each preview server. This keeps live preview layout edits persistent when Xcode replaces the ordinary Canvas app container without mixing them into the simulator app's normal on-device dashboard layout. Existing layouts from the earlier preview-specific `UserDefaults` suite migrate automatically.
+
+For recovery after replacing or erasing the simulator/runtime, stop editing the dashboard and export its current App Group state from the simulator used by Canvas:
+
+```sh
+Scripts/export_live_preview_dashboard.sh <simulator-udid>
+```
+
+The optional simulator argument defaults to `booted`. The script writes `PreviewDashboardLayout.json` at the repo root. That file is ignored by git, contains only dashboard configuration and selection keys, and is copied into Debug builds. When App Group storage has no layout for a server, the live preview restores the matching layout from this bundled backup. It never overwrites a layout already present in App Group storage.
 
 ## Debug Simulator Launch
 

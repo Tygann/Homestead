@@ -2,6 +2,15 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-21
+
+### Durable Live Preview Dashboards
+
+- Moved `Live Home Assistant` dashboard definitions from the ordinary Canvas-local defaults suite into Homestead's existing App Group while retaining per-server profile keys and keeping normal app dashboards isolated.
+- Added one-way migration that preserves existing App Group values, plus an optional ignored `PreviewDashboardLayout.json` seed that restores only missing dashboard configuration and selection keys.
+- Added `Scripts/export_live_preview_dashboard.sh` to create the filtered backup from a simulator App Group without including Home Assistant credentials, URLs, widget state, or unrelated settings.
+- Verified migration, backup restore, non-overwrite behavior, and unrelated-key rejection with focused tests, then confirmed a real Debug live-preview launch writes the expected profile-scoped App Group keys.
+
 ## 2026-07-20
 
 ### Chart Detail And Range Configuration
