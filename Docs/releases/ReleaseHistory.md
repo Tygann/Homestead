@@ -53,6 +53,31 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 111)
+
+- Release Date: 2026-07-21
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build brings richer entity details and more capable dashboard cards.
+
+- Explore redesigned details with clearer status, activity, and history across sensors, presence, weather, and more
+- View live weather forecasts and edit Number, Text, and Date & Time helpers directly in Homestead
+- Use refined Chart cards with selectable ranges, deeper statistics, and touch exploration
+- Add the same entity or card more than once, or change an existing card's entity without rebuilding it
+- Enjoy dedicated Weather, Media, and Action card layouts with improved readability and controls
+
+Please test:
+
+- Opening several entity types, including Presence, Weather, and editable helpers
+- Changing a Chart range, opening its detail view, and exploring history values
+- Adding a duplicate card and changing an existing card to a compatible entity
+
+### Internal Summary
+
+Build 111 covers the capability-driven entity-detail grammar and operational-state system; live forecast subscriptions; native Presence, editable Number/Text/Date & Time, and chart-first Sensor details; dedicated Chart, Weather, Media, and Action dashboard compositions; repeatable entity-backed cards; in-place compatible entity replacement; per-card Chart ranges; and the final Weather, history, card-menu, accessibility, and visual-polish passes after Build 109.
+
 ## Version 1 (Build 109)
 
 - Release Date: 2026-07-17
