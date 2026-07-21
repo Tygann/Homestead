@@ -1126,20 +1126,21 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func cardEditMenuContent(for item: DashboardCardItem) -> some View {
-        Picker("Card Size", selection: Binding(
-            get: { dashboardConfiguration.cardConfiguration(forItemID: item.id)?.layout ?? item.size },
-            set: { size in
-                HapticFeedback.selection()
-                dashboardConfiguration.setCardLayout(size, forItemID: item.id)
-            }
-        )) {
+        Menu {
             ForEach(DashboardPresentationCatalog.descriptor(for: item.presentationKind).supportedLayouts, id: \.self) { option in
-                Label(option.displayName, systemImage: option.systemImage)
-                    .tag(option)
-                    .tint(item.size == option ? .primary : .gray)
+                Button {
+                    HapticFeedback.selection()
+                    dashboardConfiguration.setCardLayout(option, forItemID: item.id)
+                } label: {
+                    Label(
+                        option.displayName,
+                        systemImage: item.size == option ? "checkmark" : option.systemImage
+                    )
+                }
             }
+        } label: {
+            Label("Resize Card", systemImage: "arrow.up.left.and.arrow.down.right")
         }
-        .pickerStyle(.segmented)
 
         Divider()
 
