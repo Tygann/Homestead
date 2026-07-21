@@ -82,7 +82,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                     DashboardCardView(
                         entityID: "sensor.hallway_temperature",
                         size: .square,
-                        presentationKind: .graph,
+                        presentationKind: .chart,
                         isPreview: true
                     )
                     .frame(width: dashboardWidth)
@@ -112,7 +112,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
 
             WidgetSensorBoardFace(
                 compactItems: sensorBoardCompactItems,
-                trendItem: sensorBoardTrendItem
+                chartItem: sensorBoardChartItem
             )
             .frame(width: 360, height: 169)
             .background(
@@ -267,9 +267,9 @@ struct GaugeWidgetComparisonPreviewScreen: View {
         ]
     }
 
-    private var sensorBoardTrendItem: WidgetSensorBoardTrendItem {
+    private var sensorBoardChartItem: WidgetSensorBoardChartItem {
         let now = Date()
-        return WidgetSensorBoardTrendItem(
+        return WidgetSensorBoardChartItem(
             id: "sensor.salinity",
             displayName: "Salinity",
             icon: .sfSymbol("water.waves", provenance: .homesteadSemanticMapping),
@@ -278,12 +278,12 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             supportingText: showsUnavailableBoard ? "Needs connection" : "No recent chart",
             isAvailable: !showsUnavailableBoard,
             samples: showsUnavailableBoard ? [] : [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8].enumerated().map { index, value in
-                HomesteadTrendChartSample(
+                HomesteadChartSample(
                     occurredAt: now.addingTimeInterval(Double(index - 6) * 60 * 60),
                     value: value
                 )
             },
-            valueDomain: HomesteadTrendChartDomain.stabilized(
+            valueDomain: HomesteadChartDomain.stabilized(
                 values: [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8],
                 unit: "ppt"
             ),
@@ -302,12 +302,12 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             icon: .sfSymbol("thermometer.medium", provenance: .homesteadSemanticMapping),
             isAvailable: true,
             samples: values.enumerated().map { index, value in
-                HomesteadTrendChartSample(
+                HomesteadChartSample(
                     occurredAt: now.addingTimeInterval((Double(index) / 7 * 6 - 6) * 60 * 60),
                     value: value
                 )
             },
-            valueDomain: HomesteadTrendChartDomain.stabilized(values: values, unit: "°F"),
+            valueDomain: HomesteadChartDomain.stabilized(values: values, unit: "°F"),
             interpolationStyle: .smooth,
             rangeTitle: "6H",
             changeSummaryText: nil,

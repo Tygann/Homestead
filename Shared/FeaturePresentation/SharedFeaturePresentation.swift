@@ -136,7 +136,7 @@ nonisolated enum SharedFeatureCatalog {
             category: .sensors,
             subjectKind: .sensor,
             supportedSurfaces: [.widget],
-            dashboardPresentationIDs: ["graph"],
+            dashboardPresentationIDs: ["chart"],
             relatedWidgetKinds: [.sensor, .sensorBoard],
             affordances: [.read, .history]
         ),

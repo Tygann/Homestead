@@ -34,7 +34,7 @@ enum DashboardAddGalleryFilter: String, CaseIterable, Identifiable {
         case .status:
             return [.status, .chip].contains(kind)
         case .sensors:
-            return [.circularGauge, .segmentedGauge, .barGauge, .graph].contains(kind)
+            return [.circularGauge, .segmentedGauge, .barGauge, .chart].contains(kind)
         case .media:
             return [.camera, .weather, .media].contains(kind)
         case .actions:
@@ -109,7 +109,7 @@ enum DashboardAddGalleryItem: Identifiable {
             return false
         }
 
-        return [.control, .status, .circularGauge, .graph].contains(kind)
+        return [.control, .status, .circularGauge, .chart].contains(kind)
     }
 
     var presentationKind: DashboardPresentationKind? {
@@ -166,7 +166,7 @@ enum DashboardAddGallerySection: String, CaseIterable, Identifiable {
                 .circularGauge,
                 .segmentedGauge,
                 .barGauge,
-                .graph,
+                .chart,
                 .camera,
                 .weather,
                 .media,

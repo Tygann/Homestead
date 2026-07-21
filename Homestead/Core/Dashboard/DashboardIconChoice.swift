@@ -144,7 +144,7 @@ nonisolated struct DashboardIconChoice: Identifiable, Equatable, Sendable {
         // Sensors and status
         choice("Gauge", "gauge.medium", .sensors, "sensor meter"),
         choice("Dial", "gauge.open.with.lines.needle.33percent", .sensors, "sensor meter"),
-        choice("Chart", "chart.xyaxis.line", .sensors, "history graph trend"),
+        choice("Chart", "chart.xyaxis.line", .sensors, "history chart chart"),
         choice("Activity", "waveform.path.ecg", .sensors, "health status sensor"),
         choice("Motion", "figure.walk.motion", .sensors, "presence movement"),
         choice("Eye", "eye.fill", .sensors, "visibility monitor"),

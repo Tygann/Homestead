@@ -649,7 +649,7 @@ enum DashboardPresentationGallerySamples {
             nil
         case .control:
             configurationControlEntityID
-        case .status, .graph:
+        case .status, .chart:
             configurationStatusEntityID
         case .circularGauge, .segmentedGauge, .barGauge:
             configurationGaugeEntityID
@@ -670,7 +670,7 @@ enum DashboardPresentationGallerySamples {
             nil
         case .control:
             "climate.gallery"
-        case .status, .graph:
+        case .status, .chart:
             "sensor.gallery_temperature"
         case .circularGauge, .segmentedGauge, .barGauge:
             "sensor.gallery_battery"

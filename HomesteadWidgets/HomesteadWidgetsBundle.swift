@@ -7,7 +7,7 @@ struct HomesteadWidgetsBundle: WidgetBundle {
     var body: some Widget {
         HomesteadControlWidget()
         HomesteadStatusWidget()
-        HomesteadSensorGraphWidget()
+        HomesteadSensorChartWidget()
         HomesteadSensorBoardWidget()
         HomesteadGaugeGridWidget()
         HomesteadLargeGaugeGridWidget()

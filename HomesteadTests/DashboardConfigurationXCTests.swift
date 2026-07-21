@@ -55,11 +55,11 @@ final class DashboardConfigurationXCTests: XCTestCase {
     func testCurrentDocumentRoundTripsOnlyNewSchema() throws {
         let defaults = makeDefaults()
         let configuration = DashboardConfiguration(defaults: defaults)
-        let graphID = try XCTUnwrap(configuration.add(
+        let chartID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
-            presentation: .card(.graph(layout: .wide))
+            presentation: .card(.chart(layout: .wide))
         ))
-        configuration.renameDisplayItem(id: graphID, displayNameOverride: "Temperature")
+        configuration.renameDisplayItem(id: chartID, displayNameOverride: "Temperature")
         _ = configuration.add(source: .summary(.lights), presentation: .chip)
 
         let storedBeforeRestore = try XCTUnwrap(defaults.data(forKey: "homestead.dashboard.configuration.v3"))
@@ -68,45 +68,48 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertEqual(restored.items.count, 2)
         XCTAssertEqual(restored.items[0].source, .entity("sensor.temperature"))
-        XCTAssertEqual(restored.items[0].cardConfiguration, .graph(layout: .wide))
+        XCTAssertEqual(restored.items[0].cardConfiguration, .chart(layout: .wide))
         XCTAssertEqual(restored.items[0].displayNameOverride, "Temperature")
         XCTAssertEqual(restored.items[1].source, .summary(.lights))
         XCTAssertEqual(restored.items[1].presentation, .chip)
 
         let data = try XCTUnwrap(defaults.data(forKey: "homestead.dashboard.configuration.v3"))
         let json = try XCTUnwrap(String(data: data, encoding: .utf8))
+        XCTAssertEqual(DashboardConfigurationDocument.currentSchemaVersion, 6)
+        XCTAssertTrue(json.contains("\"chart\""))
+        XCTAssertFalse(json.contains("\"graph\""))
         XCTAssertFalse(json.contains("chipKind"))
         XCTAssertFalse(json.contains("summaryKind"))
         XCTAssertFalse(json.contains("entityDisplayNameOverrides"))
     }
 
-    func testChartRangePersistsOnlyForGraphCards() throws {
+    func testChartRangePersistsOnlyForChartCards() throws {
         let defaults = makeDefaults()
         let configuration = DashboardConfiguration(defaults: defaults)
-        let graphID = try XCTUnwrap(configuration.add(
+        let chartID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
-            presentation: .card(.graph(layout: .wide))
+            presentation: .card(.chart(layout: .wide))
         ))
         let statusID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
             presentation: .card(.status(layout: .square))
         ))
 
-        configuration.setChartConfiguration(.init(range: .day), forItemID: graphID)
+        configuration.setChartConfiguration(.init(range: .day), forItemID: chartID)
         configuration.setChartConfiguration(.init(range: .week), forItemID: statusID)
 
-        XCTAssertEqual(configuration.items.first(where: { $0.id == graphID })?.chartConfiguration?.range, .day)
+        XCTAssertEqual(configuration.items.first(where: { $0.id == chartID })?.chartConfiguration?.range, .day)
         XCTAssertNil(configuration.items.first(where: { $0.id == statusID })?.chartConfiguration)
 
         let restored = DashboardConfiguration(defaults: defaults)
         let layoutItems = DashboardLayoutItemBuilder.makeItems(from: restored.items)
-        guard case .card(let restoredGraph)? = layoutItems.first(where: { $0.configurationItemID == graphID })?.kind else {
-            return XCTFail("Expected restored graph card")
+        guard case .card(let restoredChart)? = layoutItems.first(where: { $0.configurationItemID == chartID })?.kind else {
+            return XCTFail("Expected restored chart card")
         }
-        XCTAssertEqual(restoredGraph.chartConfiguration.range, HAHistoryRangePreset.day)
+        XCTAssertEqual(restoredChart.chartConfiguration.range, HAHistoryRangePreset.day)
 
-        restored.setChartConfiguration(.default, forItemID: graphID)
-        XCTAssertNil(restored.items.first(where: { $0.id == graphID })?.chartConfiguration)
+        restored.setChartConfiguration(.default, forItemID: chartID)
+        XCTAssertNil(restored.items.first(where: { $0.id == chartID })?.chartConfiguration)
     }
 
     func testInvalidDecodedPresentationIsRemovedBeforeActivation() throws {
@@ -176,9 +179,9 @@ final class DashboardConfigurationXCTests: XCTestCase {
             source: .entity("sensor.temperature"),
             presentation: .card(.status(layout: .compact))
         ))
-        let graphID = try XCTUnwrap(configuration.add(
+        let chartID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
-            presentation: .card(.graph(layout: .square))
+            presentation: .card(.chart(layout: .square))
         ))
         let circularGaugeID = try XCTUnwrap(configuration.add(
             source: .entity("sensor.temperature"),
@@ -195,7 +198,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         XCTAssertNotEqual(statusID, wideStatusID)
         XCTAssertNotEqual(statusID, secondCompactStatusID)
-        XCTAssertNotEqual(statusID, graphID)
+        XCTAssertNotEqual(statusID, chartID)
         XCTAssertNotEqual(circularGaugeID, wideCircularGaugeID)
         XCTAssertNotEqual(circularGaugeID, barGaugeID)
         XCTAssertEqual(configuration.items.count, 7)
@@ -424,8 +427,8 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
     func testCatalogOnlyBuildsCardPresentationsWithSupportedLayouts() {
         XCTAssertNil(DashboardPresentationCatalog.cardConfiguration(kind: .chip, layout: .compact))
-        XCTAssertEqual(DashboardPresentationCatalog.descriptor(for: .graph).title, "Chart")
-        XCTAssertEqual(DashboardPresentationKind.graph.defaultLayout, .wide)
+        XCTAssertEqual(DashboardPresentationCatalog.descriptor(for: .chart).title, "Chart")
+        XCTAssertEqual(DashboardPresentationKind.chart.defaultLayout, .wide)
 
         for kind in DashboardPresentationKind.allCases {
             if let defaultLayout = kind.defaultLayout {
@@ -459,7 +462,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         }
         XCTAssertEqual(
             implementedKinds,
-            [.control, .status, .circularGauge, .segmentedGauge, .barGauge, .graph, .camera, .weather, .media, .action]
+            [.control, .status, .circularGauge, .segmentedGauge, .barGauge, .chart, .camera, .weather, .media, .action]
         )
         XCTAssertEqual(implementedKinds.count, DashboardAddGallerySection.cards.items.count)
 
@@ -736,7 +739,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: light).kind, .control)
         XCTAssertEqual(
             DashboardPresentationCatalog.recommendation(for: temperature),
-            .card(.graph(layout: .wide))
+            .card(.chart(layout: .wide))
         )
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: battery).kind, .status)
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: camera).kind, .camera)
@@ -894,7 +897,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         let entityBox = try XCTUnwrap(store.entityBox(for: "sensor.lifetime_energy"))
         XCTAssertNil(entityBox.sensorEntity?.gaugePresentation)
         XCTAssertFalse(DashboardPresentationCatalog.compatiblePresentationKinds(for: entityBox).contains(.circularGauge))
-        XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: entityBox).contains(.graph))
+        XCTAssertTrue(DashboardPresentationCatalog.compatiblePresentationKinds(for: entityBox).contains(.chart))
     }
 
     func testTargetActionMetadataBuildsSchemaDrivenFields() throws {

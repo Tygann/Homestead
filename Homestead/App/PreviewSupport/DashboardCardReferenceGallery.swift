@@ -70,7 +70,7 @@ struct DashboardCardReferenceGallery: View {
                 referenceCard(
                     title: "Chart",
                     entityID: "sensor.hallway_temperature",
-                    kind: .graph,
+                    kind: .chart,
                     size: size
                 )
                 referenceCard(
@@ -104,7 +104,7 @@ struct DashboardCardReferenceGallery: View {
                 referenceCard(
                     title: "Unavailable Chart",
                     entityID: "sensor.chart_unavailable",
-                    kind: .graph,
+                    kind: .chart,
                     size: .square
                 )
                 referenceCard(
@@ -117,19 +117,19 @@ struct DashboardCardReferenceGallery: View {
                 if let unavailableBox = dependencies.stateStore.entityBox(for: "sensor.chart_unavailable"),
                    let historyBox = dependencies.stateStore.entityBox(for: "sensor.hallway_temperature"),
                    let unavailableSensor = unavailableBox.sensorEntity,
-                   let recordedTrend = DashboardHistoryCardPresentation.preview(entityBox: historyBox) {
-                    let unavailableRecordedTrend = DashboardHistoryCardPresentation(series: HAHistoryChartSeries(
+                   let recordedChart = DashboardHistoryCardPresentation.preview(entityBox: historyBox) {
+                    let unavailableRecordedChart = DashboardHistoryCardPresentation(series: HAHistoryChartSeries(
                         entityID: unavailableBox.entityID,
                         displayName: unavailableSensor.displayName,
                         unit: unavailableSensor.unit,
-                        range: recordedTrend.range,
-                        samples: recordedTrend.samples
+                        range: recordedChart.range,
+                        samples: recordedChart.samples
                     ))
                     chartStateCard(
-                        title: "Unavailable Chart With Recorded Trend",
+                        title: "Unavailable Chart With Recorded Chart",
                         presentation: DashboardEntityPresentation(entityBox: unavailableBox),
                         sensor: unavailableSensor,
-                        state: .loaded(unavailableRecordedTrend)
+                        state: .loaded(unavailableRecordedChart)
                     )
                 }
             }

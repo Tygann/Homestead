@@ -121,7 +121,7 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         GaugePresentation(sensor: self)
     }
 
-    var historyChartInterpolationStyle: HomesteadTrendChartInterpolationStyle {
+    var historyChartInterpolationStyle: HomesteadChartInterpolationStyle {
         if stateClass == .total || stateClass == .totalIncreasing {
             return .linear
         }

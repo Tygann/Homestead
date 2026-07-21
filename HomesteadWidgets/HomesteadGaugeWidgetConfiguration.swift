@@ -94,11 +94,11 @@ struct HomesteadGaugeWidgetConfiguration: Equatable, Sendable {
     }
 }
 
-extension HomesteadSensorGraphWidgetConfigurationIntent {
+extension HomesteadSensorChartWidgetConfigurationIntent {
     var gaugeWidgetConfiguration: HomesteadGaugeWidgetConfiguration {
         HomesteadGaugeWidgetConfiguration(
             customDisplayName: customDisplayName,
-            display: display ?? .trend,
+            display: display ?? .chart,
             gaugeScale: gaugeScale,
             gaugeMinimum: gaugeMinimum,
             gaugeMaximum: gaugeMaximum,

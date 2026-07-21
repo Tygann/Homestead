@@ -3,12 +3,12 @@ import SwiftUI
 
 // MARK: - Presentation
 
-nonisolated enum HomesteadTrendChartInterpolationStyle: String, Codable, Equatable, Sendable {
+nonisolated enum HomesteadChartInterpolationStyle: String, Codable, Equatable, Sendable {
     case linear
     case smooth
 }
 
-nonisolated struct HomesteadTrendChartSample: Identifiable, Equatable, Sendable {
+nonisolated struct HomesteadChartSample: Identifiable, Equatable, Sendable {
     let id: String
     let occurredAt: Date
     let value: Double
@@ -20,7 +20,7 @@ nonisolated struct HomesteadTrendChartSample: Identifiable, Equatable, Sendable 
     }
 }
 
-nonisolated enum HomesteadTrendChartDomain {
+nonisolated enum HomesteadChartDomain {
     static func stabilized(values: [Double], unit: String?) -> ClosedRange<Double> {
         guard let minimum = values.min(), let maximum = values.max() else {
             return 0...1
@@ -49,11 +49,11 @@ nonisolated enum HomesteadTrendChartDomain {
 
 // MARK: - Plot
 
-struct HomesteadTrendChartPlot: View {
-    let samples: [HomesteadTrendChartSample]
+struct HomesteadChartPlot: View {
+    let samples: [HomesteadChartSample]
     let valueDomain: ClosedRange<Double>
     let accentColor: Color
-    let interpolationStyle: HomesteadTrendChartInterpolationStyle
+    let interpolationStyle: HomesteadChartInterpolationStyle
 
     var body: some View {
         Chart(samples) { sample in
@@ -93,7 +93,7 @@ struct HomesteadTrendChartPlot: View {
     }
 
     private var displayDomain: ClosedRange<Double> {
-        HomesteadTrendChartDomain.addingHeadroom(to: valueDomain)
+        HomesteadChartDomain.addingHeadroom(to: valueDomain)
     }
 
     private var interpolationMethod: InterpolationMethod {
@@ -109,9 +109,9 @@ nonisolated struct HomesteadWidgetChartPresentation: Equatable, Sendable {
     let unitText: String?
     let icon: ResolvedIcon
     let isAvailable: Bool
-    let samples: [HomesteadTrendChartSample]
+    let samples: [HomesteadChartSample]
     let valueDomain: ClosedRange<Double>
-    let interpolationStyle: HomesteadTrendChartInterpolationStyle
+    let interpolationStyle: HomesteadChartInterpolationStyle
     let rangeTitle: String
     let changeSummaryText: String?
     let emptyLabel: String
@@ -173,14 +173,14 @@ struct HomesteadWidgetChartFace: View {
     @ViewBuilder
     private var chartLayer: some View {
         if presentation.samples.count >= 2 {
-            HomesteadTrendChartPlot(
+            HomesteadChartPlot(
                 samples: presentation.samples,
                 valueDomain: presentation.valueDomain,
                 accentColor: resolvedAccentColor,
                 interpolationStyle: presentation.interpolationStyle
             )
         } else {
-            HomesteadTrendChartPlaceholder(
+            HomesteadChartPlaceholder(
                 accentColor: resolvedAccentColor,
                 label: density == .compact ? nil : presentation.emptyLabel,
                 horizontalPadding: contentPadding
@@ -267,7 +267,7 @@ struct HomesteadWidgetChartFace: View {
     }
 }
 
-private struct HomesteadTrendChartPlaceholder: View {
+private struct HomesteadChartPlaceholder: View {
     let accentColor: Color
     let label: String?
     let horizontalPadding: CGFloat

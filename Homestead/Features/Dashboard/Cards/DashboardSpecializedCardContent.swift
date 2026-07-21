@@ -101,16 +101,16 @@ struct DashboardChartCardContent: View {
         case .loaded(let chartPresentation):
             chart(chartPresentation)
         case .loading:
-            chartPlaceholder(label: "Loading recent trend")
+            chartPlaceholder(label: "Loading recent chart")
         case .empty:
-            chartPlaceholder(label: "No recent trend")
+            chartPlaceholder(label: "No recent chart")
         case .failed:
-            chartPlaceholder(label: "Trend unavailable")
+            chartPlaceholder(label: "Chart unavailable")
         }
     }
 
     private func chart(_ chartPresentation: DashboardHistoryCardPresentation) -> some View {
-        HomesteadTrendChartPlot(
+        HomesteadChartPlot(
             samples: chartPresentation.chartSamples,
             valueDomain: chartPresentation.valueDomain,
             accentColor: presentation.accentColor,
@@ -174,7 +174,7 @@ struct DashboardChartCardContent: View {
     private var contextSummaryText: String {
         if !presentation.isAvailable {
             if case .loaded = state {
-                return "Unavailable · Last recorded trend"
+                return "Unavailable · Last recorded chart"
             }
             return "Unavailable"
         }
@@ -183,11 +183,11 @@ struct DashboardChartCardContent: View {
         case .loaded(let chartPresentation):
             chartPresentation.rangeSummaryText
         case .loading:
-            "\(measurementTitle) · Loading recent trend"
+            "\(measurementTitle) · Loading recent chart"
         case .empty:
-            "\(measurementTitle) · No recent trend"
+            "\(measurementTitle) · No recent chart"
         case .failed:
-            "\(measurementTitle) · Trend unavailable"
+            "\(measurementTitle) · Chart unavailable"
         }
     }
 
@@ -237,9 +237,9 @@ struct DashboardChartCardContent: View {
     private var accessibilityValue: String {
         switch state {
         case .loaded(let chartPresentation): chartPresentation.accessibilityValue
-        case .loading: "Loading recent trend. Current value \(presentation.headline ?? presentation.subtitle)."
-        case .empty: "No recent trend. Current value \(presentation.headline ?? presentation.subtitle)."
-        case .failed: "Trend unavailable. Current value \(presentation.headline ?? presentation.subtitle)."
+        case .loading: "Loading recent chart. Current value \(presentation.headline ?? presentation.subtitle)."
+        case .empty: "No recent chart. Current value \(presentation.headline ?? presentation.subtitle)."
+        case .failed: "Chart unavailable. Current value \(presentation.headline ?? presentation.subtitle)."
         }
     }
 }

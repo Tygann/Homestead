@@ -2,14 +2,14 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-struct HomesteadSensorGraphWidget: Widget {
+struct HomesteadSensorChartWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: HomesteadWidgetKind.sensor.rawValue,
-            intent: HomesteadSensorGraphWidgetConfigurationIntent.self,
-            provider: HomesteadSensorGraphTimelineProvider()
+            intent: HomesteadSensorChartWidgetConfigurationIntent.self,
+            provider: HomesteadSensorChartTimelineProvider()
         ) { entry in
-            HomesteadSensorGraphWidgetView(entry: entry)
+            HomesteadSensorChartWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName(SharedFeatureCatalog.widgetDescriptor(for: .sensor)!.displayName)
@@ -19,7 +19,7 @@ struct HomesteadSensorGraphWidget: Widget {
     }
 }
 
-struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent {
+struct HomesteadSensorChartWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Sensor"
     static var description = IntentDescription("Choose a Home Assistant sensor.")
 
@@ -73,7 +73,7 @@ struct HomesteadSensorGraphWidgetConfigurationIntent: WidgetConfigurationIntent 
 
     static var parameterSummary: some ParameterSummary {
         When(
-            \HomesteadSensorGraphWidgetConfigurationIntent.$display,
+            \HomesteadSensorChartWidgetConfigurationIntent.$display,
             .oneOf,
             [HomesteadSensorWidgetDisplay.circularGauge, .segmentedGauge, .barGauge]
         ) {
@@ -209,7 +209,7 @@ enum HomesteadGaugeZoneColor: String, AppEnum {
 
 enum HomesteadSensorWidgetDisplay: String, AppEnum {
     case reading
-    case trend
+    case chart
     case circularGauge
     case segmentedGauge
     case barGauge
@@ -217,7 +217,7 @@ enum HomesteadSensorWidgetDisplay: String, AppEnum {
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Display")
     static var caseDisplayRepresentations: [HomesteadSensorWidgetDisplay: DisplayRepresentation] = [
         .reading: "Reading",
-        .trend: "Chart",
+        .chart: "Chart",
         .circularGauge: "Gauge - Circular",
         .segmentedGauge: "Gauge - Segmented",
         .barGauge: "Gauge - Bar"
@@ -241,7 +241,7 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
     let isAvailable: Bool
     let hasGauge: Bool
     var icon: ResolvedIcon? = nil
-    var historyChartInterpolationStyle: HomesteadTrendChartInterpolationStyle? = nil
+    var historyChartInterpolationStyle: HomesteadChartInterpolationStyle? = nil
     var chartAccentColor: WidgetGaugeColor? = nil
 
     var resolvedIcon: ResolvedIcon {
@@ -346,7 +346,7 @@ struct HomesteadSensorEntityQuery: EntityQuery, EntityStringQuery, EnumerableEnt
     }
 }
 
-struct HomesteadSensorGraphEntry: TimelineEntry {
+struct HomesteadSensorChartEntry: TimelineEntry {
     let date: Date
     let entityID: String?
     let displayName: String
@@ -354,7 +354,7 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
     let subtitle: String
     let systemImage: String
     let display: HomesteadSensorWidgetDisplay
-    let samples: [HomesteadTrendChartSample]
+    let samples: [HomesteadChartSample]
     let valueDomain: ClosedRange<Double>
     let summaryText: String
     let isAlerting: Bool
@@ -363,7 +363,7 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
     var icon: ResolvedIcon? = nil
     var gauge: WidgetGaugePresentation? = nil
     var chartUnitText: String? = nil
-    var chartInterpolationStyle: HomesteadTrendChartInterpolationStyle = .linear
+    var chartInterpolationStyle: HomesteadChartInterpolationStyle = .linear
     var chartAccentColor: WidgetGaugeColor? = nil
 
     var resolvedIcon: ResolvedIcon {
@@ -377,8 +377,8 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
         return gaugeDisplayIcon(base: resolvedIcon, value: gauge.value, status: gauge.status.visualStatus)
     }
 
-    var shouldShowTrend: Bool {
-        display == .trend
+    var shouldShowChart: Bool {
+        display == .chart
     }
 
     var shouldShowCircularGauge: Bool {
@@ -410,9 +410,9 @@ struct HomesteadSensorGraphEntry: TimelineEntry {
     }
 }
 
-struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> HomesteadSensorGraphEntry {
-        HomesteadSensorGraphEntry(
+struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> HomesteadSensorChartEntry {
+        HomesteadSensorChartEntry(
             date: Date(),
             entityID: "sensor.living_room_temperature",
             displayName: "Living Room",
@@ -431,9 +431,9 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(
-        for configuration: HomesteadSensorGraphWidgetConfigurationIntent,
+        for configuration: HomesteadSensorChartWidgetConfigurationIntent,
         in context: Context
-    ) async -> HomesteadSensorGraphEntry {
+    ) async -> HomesteadSensorChartEntry {
         if context.isPreview, configuration.sensor == nil {
             return placeholder(in: context)
         }
@@ -442,9 +442,9 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
     }
 
     func timeline(
-        for configuration: HomesteadSensorGraphWidgetConfigurationIntent,
+        for configuration: HomesteadSensorChartWidgetConfigurationIntent,
         in context: Context
-    ) async -> Timeline<HomesteadSensorGraphEntry> {
+    ) async -> Timeline<HomesteadSensorChartEntry> {
         if context.isPreview, configuration.sensor == nil {
             return Timeline(
                 entries: [placeholder(in: context)],
@@ -458,7 +458,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         )
     }
 
-    private func entry(for configuration: HomesteadSensorGraphWidgetConfigurationIntent) async -> HomesteadSensorGraphEntry {
+    private func entry(for configuration: HomesteadSensorChartWidgetConfigurationIntent) async -> HomesteadSensorChartEntry {
         let gaugeConfiguration = configuration.gaugeWidgetConfiguration
         let display = gaugeConfiguration.display
         let configuredSensor = configuration.sensor
@@ -468,7 +468,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         let selectedSensor = latestConfiguredSnapshot.map(Self.entity) ?? configuredSensor
 
         guard let selectedSensor else {
-            return HomesteadSensorGraphEntry(
+            return HomesteadSensorChartEntry(
                 date: Date(),
                 entityID: nil,
                 displayName: "Choose Sensor",
@@ -493,8 +493,8 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
             fallback: selectedSensor.displayName
         )
 
-        if display == .trend {
-            return await trendEntry(for: selectedSensor, displayName: displayName, cachedGauge: cachedGauge)
+        if display == .chart {
+            return await chartEntry(for: selectedSensor, displayName: displayName, cachedGauge: cachedGauge)
         }
 
         return await stateEntry(
@@ -505,13 +505,13 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         )
     }
 
-    private func trendEntry(
+    private func chartEntry(
         for selectedSensor: HomesteadSensorEntity,
         displayName: String,
         cachedGauge: WidgetGaugePresentation?
-    ) async -> HomesteadSensorGraphEntry {
+    ) async -> HomesteadSensorChartEntry {
         guard selectedSensor.isNumeric else {
-            return HomesteadSensorGraphEntry(
+            return HomesteadSensorChartEntry(
                 date: Date(),
                 entityID: selectedSensor.id,
                 displayName: displayName,
@@ -536,16 +536,16 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
                 displayName: selectedSensor.displayName,
                 unit: selectedSensor.unit
             )
-            return HomesteadSensorGraphEntry(
+            return HomesteadSensorChartEntry(
                 date: Date(),
                 entityID: selectedSensor.id,
                 displayName: displayName,
                 valueText: series.latestValueText ?? selectedSensor.valueText,
                 subtitle: "6H Chart",
                 systemImage: selectedSensor.systemImage,
-                display: .trend,
+                display: .chart,
                 samples: series.samples.map { .init(occurredAt: $0.occurredAt, value: $0.value) },
-                valueDomain: HomesteadTrendChartDomain.stabilized(
+                valueDomain: HomesteadChartDomain.stabilized(
                     values: series.samples.map(\.value),
                     unit: series.unit
                 ),
@@ -560,14 +560,14 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
                 chartAccentColor: selectedSensor.chartAccentColor
             )
         } catch {
-            return HomesteadSensorGraphEntry(
+            return HomesteadSensorChartEntry(
                 date: Date(),
                 entityID: selectedSensor.id,
                 displayName: displayName,
                 valueText: selectedSensor.valueText,
                 subtitle: "Needs connection",
                 systemImage: selectedSensor.systemImage,
-                display: .trend,
+                display: .chart,
                 samples: [],
                 valueDomain: 0...1,
                 summaryText: "Needs connection",
@@ -588,14 +588,14 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         displayName: String,
         display: HomesteadSensorWidgetDisplay,
         cachedGauge: WidgetGaugePresentation?
-    ) async -> HomesteadSensorGraphEntry {
+    ) async -> HomesteadSensorChartEntry {
         do {
             let state = try await HAWidgetActionClient().fetchSensorState(entityID: selectedSensor.id)
             let liveGauge = state.numericValue.flatMap { value in
                 cachedGauge?.updating(value: value, valueText: state.valueText)
             } ?? cachedGauge
 
-            return HomesteadSensorGraphEntry(
+            return HomesteadSensorChartEntry(
                 date: Date(),
                 entityID: state.entityID,
                 displayName: displayName,
@@ -613,7 +613,7 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
                 gauge: liveGauge
             )
         } catch {
-            return HomesteadSensorGraphEntry(
+            return HomesteadSensorChartEntry(
                 date: Date(),
                 entityID: selectedSensor.id,
                 displayName: displayName,
@@ -658,24 +658,24 @@ struct HomesteadSensorGraphTimelineProvider: AppIntentTimelineProvider {
         return trimmedName.isEmpty ? fallback : trimmedName
     }
 
-    private static func placeholderSamples() -> [HomesteadTrendChartSample] {
+    private static func placeholderSamples() -> [HomesteadChartSample] {
         let now = Date()
         return [
-            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-6 * 60 * 60), value: 68),
-            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-5 * 60 * 60), value: 69.5),
-            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-4 * 60 * 60), value: 69),
-            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-3 * 60 * 60), value: 71),
-            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-2 * 60 * 60), value: 73),
-            HomesteadTrendChartSample(occurredAt: now.addingTimeInterval(-60 * 60), value: 71.4),
-            HomesteadTrendChartSample(occurredAt: now, value: 72)
+            HomesteadChartSample(occurredAt: now.addingTimeInterval(-6 * 60 * 60), value: 68),
+            HomesteadChartSample(occurredAt: now.addingTimeInterval(-5 * 60 * 60), value: 69.5),
+            HomesteadChartSample(occurredAt: now.addingTimeInterval(-4 * 60 * 60), value: 69),
+            HomesteadChartSample(occurredAt: now.addingTimeInterval(-3 * 60 * 60), value: 71),
+            HomesteadChartSample(occurredAt: now.addingTimeInterval(-2 * 60 * 60), value: 73),
+            HomesteadChartSample(occurredAt: now.addingTimeInterval(-60 * 60), value: 71.4),
+            HomesteadChartSample(occurredAt: now, value: 72)
         ]
     }
 }
 
-struct HomesteadSensorGraphWidgetView: View {
+struct HomesteadSensorChartWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
-    let entry: HomesteadSensorGraphEntry
+    let entry: HomesteadSensorChartEntry
 
     var body: some View {
         deepLinkedContent {
@@ -709,7 +709,7 @@ struct HomesteadSensorGraphWidgetView: View {
 
     @ViewBuilder
     private var systemSmall: some View {
-        if entry.isConfigured, entry.shouldShowTrend {
+        if entry.isConfigured, entry.shouldShowChart {
             chartFace(density: .small)
         } else {
             systemSmallInsetContent
@@ -719,7 +719,7 @@ struct HomesteadSensorGraphWidgetView: View {
 
     @ViewBuilder
     private var systemMedium: some View {
-        if entry.isConfigured, entry.shouldShowTrend {
+        if entry.isConfigured, entry.shouldShowChart {
             chartFace(density: .medium)
         } else {
             systemMediumInsetContent
@@ -874,7 +874,7 @@ struct HomesteadSensorGraphWidgetView: View {
 }
 
 private struct HomesteadSensorCircularGaugeWidgetView: View {
-    let entry: HomesteadSensorGraphEntry
+    let entry: HomesteadSensorChartEntry
     let gauge: WidgetGaugePresentation
     var style: WidgetGaugeInstrumentStyle = .standard
 
@@ -891,7 +891,7 @@ private struct HomesteadSensorCircularGaugeWidgetView: View {
 }
 
 private struct HomesteadSensorBarGaugeWidgetView: View {
-    let entry: HomesteadSensorGraphEntry
+    let entry: HomesteadSensorChartEntry
     let gauge: WidgetGaugePresentation
     let isMedium: Bool
 
@@ -974,9 +974,9 @@ private extension WidgetGaugePresentation {
 }
 
 #Preview(as: .systemSmall) {
-    HomesteadSensorGraphWidget()
+    HomesteadSensorChartWidget()
 } timeline: {
-    HomesteadSensorGraphEntry(
+    HomesteadSensorChartEntry(
         date: .now,
         entityID: "sensor.living_room_temperature",
         displayName: "Living Room",
@@ -995,24 +995,24 @@ private extension WidgetGaugePresentation {
 }
 
 #Preview(as: .systemMedium) {
-    HomesteadSensorGraphWidget()
+    HomesteadSensorChartWidget()
 } timeline: {
-    HomesteadSensorGraphEntry(
+    HomesteadSensorChartEntry(
         date: .now,
         entityID: "sensor.living_room_temperature",
         displayName: "Living Room",
         valueText: "72°F",
         subtitle: "6H Chart",
         systemImage: "thermometer.medium",
-        display: .trend,
+        display: .chart,
         samples: [
-            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-6 * 60 * 60), value: 68),
-            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-5 * 60 * 60), value: 69.5),
-            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-4 * 60 * 60), value: 69),
-            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-3 * 60 * 60), value: 71),
-            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-2 * 60 * 60), value: 73),
-            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-60 * 60), value: 71.4),
-            HomesteadTrendChartSample(occurredAt: .now, value: 72)
+            HomesteadChartSample(occurredAt: .now.addingTimeInterval(-6 * 60 * 60), value: 68),
+            HomesteadChartSample(occurredAt: .now.addingTimeInterval(-5 * 60 * 60), value: 69.5),
+            HomesteadChartSample(occurredAt: .now.addingTimeInterval(-4 * 60 * 60), value: 69),
+            HomesteadChartSample(occurredAt: .now.addingTimeInterval(-3 * 60 * 60), value: 71),
+            HomesteadChartSample(occurredAt: .now.addingTimeInterval(-2 * 60 * 60), value: 73),
+            HomesteadChartSample(occurredAt: .now.addingTimeInterval(-60 * 60), value: 71.4),
+            HomesteadChartSample(occurredAt: .now, value: 72)
         ],
         valueDomain: 67...74,
         summaryText: "Low 68°F • High 73°F",
@@ -1025,9 +1025,9 @@ private extension WidgetGaugePresentation {
 }
 
 #Preview(as: .accessoryRectangular) {
-    HomesteadSensorGraphWidget()
+    HomesteadSensorChartWidget()
 } timeline: {
-    HomesteadSensorGraphEntry(
+    HomesteadSensorChartEntry(
         date: .now,
         entityID: "sensor.living_room_temperature",
         displayName: "Living Room",

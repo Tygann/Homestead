@@ -8,7 +8,7 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
     let unit: String?
     let range: HAHistoryRangePreset
     let samples: [HAHistorySample]
-    let chartSamples: [HomesteadTrendChartSample]
+    let chartSamples: [HomesteadChartSample]
     let valueDomain: ClosedRange<Double>
     let summaryText: String
     let rangeSummaryText: String
@@ -36,9 +36,9 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
         range = series.range
         samples = series.samples
         chartSamples = series.samples.map {
-            HomesteadTrendChartSample(occurredAt: $0.occurredAt, value: $0.value)
+            HomesteadChartSample(occurredAt: $0.occurredAt, value: $0.value)
         }
-        valueDomain = HomesteadTrendChartDomain.stabilized(
+        valueDomain = HomesteadChartDomain.stabilized(
             values: chartSamples.map(\.value),
             unit: series.unit
         )
@@ -135,7 +135,7 @@ nonisolated struct DashboardHistoryCardPresentation: Equatable, Sendable {
         }
 
         // Keep Debug gallery history aligned with the fixture's live sample so the
-        // current-value extension cannot compress the whole trend into the leading edge.
+        // current-value extension cannot compress the whole chart into the leading edge.
         let endDate = sensor.lastUpdated ?? Date(timeIntervalSince1970: 1_784_515_200)
         let interval = range.interval(endingAt: endDate)
         let offsets = [-0.08, -0.03, 0.04, -0.01, 0.07, 0.02, 0.09, 0.0]

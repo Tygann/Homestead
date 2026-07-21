@@ -15,7 +15,7 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
     case circularGauge
     case segmentedGauge
     case barGauge
-    case graph
+    case chart
     case camera
     case weather
     case media
@@ -27,7 +27,7 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
             []
         case .control, .status:
             DashboardCardSize.allCases
-        case .circularGauge, .segmentedGauge, .barGauge, .graph, .camera, .weather:
+        case .circularGauge, .segmentedGauge, .barGauge, .chart, .camera, .weather:
             [.square, .wide, .large]
         case .media:
             [.compact, .row, .square, .wide, .large]
@@ -42,7 +42,7 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
             nil
         case .control, .status, .media, .action:
             .compact
-        case .graph:
+        case .chart:
             .wide
         case .circularGauge, .segmentedGauge, .barGauge, .camera, .weather:
             .square
@@ -56,7 +56,7 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
     case circularGauge(layout: DashboardCardSize)
     case segmentedGauge(layout: DashboardCardSize)
     case barGauge(layout: DashboardCardSize)
-    case graph(layout: DashboardCardSize)
+    case chart(layout: DashboardCardSize)
     case camera(layout: DashboardCardSize)
     case weather(layout: DashboardCardSize)
     case media(layout: DashboardCardSize)
@@ -69,7 +69,7 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
         case .circularGauge: .circularGauge
         case .segmentedGauge: .segmentedGauge
         case .barGauge: .barGauge
-        case .graph: .graph
+        case .chart: .chart
         case .camera: .camera
         case .weather: .weather
         case .media: .media
@@ -81,7 +81,7 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
         switch self {
         case .control(let layout), .status(let layout), .circularGauge(let layout),
              .segmentedGauge(let layout), .media(let layout),
-             .barGauge(let layout), .graph(let layout), .camera(let layout),
+             .barGauge(let layout), .chart(let layout), .camera(let layout),
              .weather(let layout), .action(let layout): layout
         }
     }
@@ -94,7 +94,7 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
         case .circularGauge: .circularGauge(layout: layout)
         case .segmentedGauge: .segmentedGauge(layout: layout)
         case .barGauge: .barGauge(layout: layout)
-        case .graph: .graph(layout: layout)
+        case .chart: .chart(layout: layout)
         case .camera: .camera(layout: layout)
         case .weather: .weather(layout: layout)
         case .media: .media(layout: layout)
@@ -446,7 +446,7 @@ nonisolated enum DashboardSuggestedSetup {
 }
 
 nonisolated struct DashboardConfigurationDocument: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 5
+    static let currentSchemaVersion = 6
 
     var schemaVersion: Int
     var dashboards: [SavedDashboardConfiguration]
@@ -711,7 +711,7 @@ final class DashboardConfiguration {
     func setChartConfiguration(_ configuration: DashboardChartConfiguration, forItemID itemID: UUID) {
         guard configuration.isValid,
               let index = items.firstIndex(where: {
-                  $0.id == itemID && $0.cardConfiguration?.kind == .graph
+                  $0.id == itemID && $0.cardConfiguration?.kind == .chart
               }) else { return }
         var updated = items
         updated[index].chartConfiguration = configuration == .default ? nil : configuration

@@ -52,8 +52,8 @@ struct WidgetSensorBoardTests {
     }
 
     @Test func sharedChartDomainUsesDashboardTemperatureStabilizationAndHeadroom() {
-        let domain = HomesteadTrendChartDomain.stabilized(values: [72, 73], unit: "°F")
-        let displayDomain = HomesteadTrendChartDomain.addingHeadroom(to: domain)
+        let domain = HomesteadChartDomain.stabilized(values: [72, 73], unit: "°F")
+        let displayDomain = HomesteadChartDomain.addingHeadroom(to: domain)
 
         #expect(domain.lowerBound == 70.5)
         #expect(domain.upperBound == 74.5)
@@ -62,7 +62,7 @@ struct WidgetSensorBoardTests {
     }
 
     @Test func sharedChartDomainPreservesWiderObservedRanges() {
-        let domain = HomesteadTrendChartDomain.stabilized(values: [0, 20], unit: nil)
+        let domain = HomesteadChartDomain.stabilized(values: [0, 20], unit: nil)
 
         #expect(abs(domain.lowerBound - -2.4) < 0.000_001)
         #expect(abs(domain.upperBound - 22.4) < 0.000_001)
@@ -70,10 +70,10 @@ struct WidgetSensorBoardTests {
 
     @Test func sensorBoardChartUsesSharedWidgetChartPresentation() {
         let samples = [
-            HomesteadTrendChartSample(occurredAt: .now.addingTimeInterval(-60), value: 71),
-            HomesteadTrendChartSample(occurredAt: .now, value: 72)
+            HomesteadChartSample(occurredAt: .now.addingTimeInterval(-60), value: 71),
+            HomesteadChartSample(occurredAt: .now, value: 72)
         ]
-        let item = WidgetSensorBoardTrendItem(
+        let item = WidgetSensorBoardChartItem(
             id: "sensor.living_room_temperature",
             displayName: "Living Room",
             icon: .sfSymbol("thermometer.medium", provenance: .homesteadSemanticMapping),

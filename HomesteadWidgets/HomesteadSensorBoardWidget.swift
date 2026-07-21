@@ -54,8 +54,8 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Sensor 2 Display", default: .automatic) var display2: HomesteadSensorBoardCompactDisplay
     @Parameter(title: "Sensor 2 Display Name") var customDisplayName2: String?
 
-    @Parameter(title: "Chart Sensor") var trendSensor: HomesteadTrendSensorEntity?
-    @Parameter(title: "Chart Display Name") var customTrendDisplayName: String?
+    @Parameter(title: "Chart Sensor") var chartSensor: HomesteadChartSensorEntity?
+    @Parameter(title: "Chart Display Name") var customChartDisplayName: String?
 
     static var parameterSummary: some ParameterSummary {
         Summary {
@@ -65,8 +65,8 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
             \.$sensor2
             \.$display2
             \.$customDisplayName2
-            \.$trendSensor
-            \.$customTrendDisplayName
+            \.$chartSensor
+            \.$customChartDisplayName
         }
     }
 
@@ -94,9 +94,9 @@ struct HomesteadSensorBoardCompactSlot {
 
 // MARK: - Chart Entity Picker
 
-struct HomesteadTrendSensorEntity: AppEntity, Identifiable {
+struct HomesteadChartSensorEntity: AppEntity, Identifiable {
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Chart Sensor")
-    static var defaultQuery = HomesteadTrendSensorEntityQuery()
+    static var defaultQuery = HomesteadChartSensorEntityQuery()
 
     let id: String
     let displayName: String
@@ -106,7 +106,7 @@ struct HomesteadTrendSensorEntity: AppEntity, Identifiable {
     let deviceName: String?
     let isAvailable: Bool
     let icon: ResolvedIcon
-    var historyChartInterpolationStyle: HomesteadTrendChartInterpolationStyle? = nil
+    var historyChartInterpolationStyle: HomesteadChartInterpolationStyle? = nil
     var chartAccentColor: WidgetGaugeColor? = nil
 
     var displayRepresentation: DisplayRepresentation {
@@ -135,43 +135,43 @@ struct HomesteadTrendSensorEntity: AppEntity, Identifiable {
     func matches(_ query: String) -> Bool {
         HomesteadWidgetEntityPickerText.matches(
             query: query,
-            values: [displayName, pickerDisplayName, valueText, areaName, deviceName, id, "trend", "chart"]
+            values: [displayName, pickerDisplayName, valueText, areaName, deviceName, id, "chart", "chart"]
         )
     }
 }
 
-struct HomesteadTrendSensorEntityQuery: EntityQuery, EntityStringQuery, EnumerableEntityQuery {
-    typealias Result = IntentItemCollection<HomesteadTrendSensorEntity>
+struct HomesteadChartSensorEntityQuery: EntityQuery, EntityStringQuery, EnumerableEntityQuery {
+    typealias Result = IntentItemCollection<HomesteadChartSensorEntity>
 
-    func entities(for identifiers: [HomesteadTrendSensorEntity.ID]) async throws -> [HomesteadTrendSensorEntity] {
+    func entities(for identifiers: [HomesteadChartSensorEntity.ID]) async throws -> [HomesteadChartSensorEntity] {
         allItems().filter { identifiers.contains($0.id) }
     }
 
-    func entities(matching string: String) async throws -> IntentItemCollection<HomesteadTrendSensorEntity> {
+    func entities(matching string: String) async throws -> IntentItemCollection<HomesteadChartSensorEntity> {
         collection(from: allItems().filter { $0.matches(string) })
     }
 
-    func allEntities() async throws -> IntentItemCollection<HomesteadTrendSensorEntity> {
+    func allEntities() async throws -> IntentItemCollection<HomesteadChartSensorEntity> {
         collection(from: allItems())
     }
 
-    func suggestedEntities() async throws -> IntentItemCollection<HomesteadTrendSensorEntity> {
+    func suggestedEntities() async throws -> IntentItemCollection<HomesteadChartSensorEntity> {
         try await allEntities()
     }
 
-    func defaultResult() async -> HomesteadTrendSensorEntity? {
+    func defaultResult() async -> HomesteadChartSensorEntity? {
         nil
     }
 
-    private func allItems() -> [HomesteadTrendSensorEntity] {
+    private func allItems() -> [HomesteadChartSensorEntity] {
         HomesteadWidgetSharedStore.sensorSnapshots
             .filter { $0.isNumeric == true }
             .map(Self.entity(from:))
     }
 
     private func collection(
-        from items: [HomesteadTrendSensorEntity]
-    ) -> IntentItemCollection<HomesteadTrendSensorEntity> {
+        from items: [HomesteadChartSensorEntity]
+    ) -> IntentItemCollection<HomesteadChartSensorEntity> {
         HomesteadWidgetEntityPickerText.collection(
             from: items,
             groupedBy: \.pickerGroupTitle,
@@ -179,8 +179,8 @@ struct HomesteadTrendSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
         )
     }
 
-    private static func entity(from snapshot: WidgetSensorSnapshot) -> HomesteadTrendSensorEntity {
-        HomesteadTrendSensorEntity(
+    private static func entity(from snapshot: WidgetSensorSnapshot) -> HomesteadChartSensorEntity {
+        HomesteadChartSensorEntity(
             id: snapshot.entityID,
             displayName: snapshot.displayName,
             valueText: snapshot.valueText,
@@ -200,7 +200,7 @@ struct HomesteadTrendSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
 struct HomesteadSensorBoardEntry: TimelineEntry {
     let date: Date
     let compactItems: [WidgetSensorBoardCompactItem?]
-    let trendItem: WidgetSensorBoardTrendItem?
+    let chartItem: WidgetSensorBoardChartItem?
     let isConfigured: Bool
 
     static let placeholder = HomesteadSensorBoardEntry(
@@ -247,7 +247,7 @@ struct HomesteadSensorBoardEntry: TimelineEntry {
                 )
             )
         ],
-        trendItem: .sensorBoardPreview,
+        chartItem: .sensorBoardPreview,
         isConfigured: true
     )
 }
@@ -263,7 +263,7 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
     ) async -> HomesteadSensorBoardEntry {
         if context.isPreview,
            configuration.compactSlots.allSatisfy({ $0.sensor == nil }),
-           configuration.trendSensor == nil {
+           configuration.chartSensor == nil {
             return .placeholder
         }
 
@@ -307,30 +307,30 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
             )
             return liveReadingsByEntityID[sensor.id].map(item.updating(with:)) ?? item
         }
-        let trendItem: WidgetSensorBoardTrendItem?
-        if let trendSensor = configuration.trendSensor {
-            trendItem = await makeTrendItem(
-                sensor: trendSensor,
-                customDisplayName: configuration.customTrendDisplayName,
-                snapshot: snapshotsByEntityID[trendSensor.id]
+        let chartItem: WidgetSensorBoardChartItem?
+        if let chartSensor = configuration.chartSensor {
+            chartItem = await makeChartItem(
+                sensor: chartSensor,
+                customDisplayName: configuration.customChartDisplayName,
+                snapshot: snapshotsByEntityID[chartSensor.id]
             )
         } else {
-            trendItem = nil
+            chartItem = nil
         }
 
         return HomesteadSensorBoardEntry(
             date: .now,
             compactItems: compactItems,
-            trendItem: trendItem,
-            isConfigured: compactItems.contains(where: { $0 != nil }) || trendItem != nil
+            chartItem: chartItem,
+            isConfigured: compactItems.contains(where: { $0 != nil }) || chartItem != nil
         )
     }
 
-    private func makeTrendItem(
-        sensor: HomesteadTrendSensorEntity,
+    private func makeChartItem(
+        sensor: HomesteadChartSensorEntity,
         customDisplayName: String?,
         snapshot: WidgetSensorSnapshot?
-    ) async -> WidgetSensorBoardTrendItem {
+    ) async -> WidgetSensorBoardChartItem {
         let trimmedName = customDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let displayName = trimmedName.isEmpty ? sensor.displayName : trimmedName
         let interpolationStyle = snapshot?.historyChartInterpolationStyle
@@ -343,7 +343,7 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
                 displayName: sensor.displayName,
                 unit: sensor.unit
             )
-            return WidgetSensorBoardTrendItem(
+            return WidgetSensorBoardChartItem(
                 id: sensor.id,
                 displayName: displayName,
                 icon: snapshot?.resolvedIcon ?? sensor.icon,
@@ -352,7 +352,7 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
                 supportingText: "No recent chart",
                 isAvailable: snapshot?.isAvailable ?? sensor.isAvailable,
                 samples: series.samples.map { .init(occurredAt: $0.occurredAt, value: $0.value) },
-                valueDomain: HomesteadTrendChartDomain.stabilized(
+                valueDomain: HomesteadChartDomain.stabilized(
                     values: series.samples.map(\.value),
                     unit: series.unit
                 ),
@@ -360,7 +360,7 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
                 accentColor: snapshot?.chartAccentColor ?? sensor.chartAccentColor ?? .accent
             )
         } catch {
-            return WidgetSensorBoardTrendItem(
+            return WidgetSensorBoardChartItem(
                 id: sensor.id,
                 displayName: displayName,
                 icon: snapshot?.resolvedIcon ?? sensor.icon,
@@ -385,13 +385,13 @@ struct HomesteadSensorBoardWidgetView: View {
     var body: some View {
         WidgetSensorBoardFace(
             compactItems: entry.compactItems,
-            trendItem: entry.trendItem,
+            chartItem: entry.chartItem,
             destinationsByEntityID: destinations
         )
     }
 
     private var destinations: [String: URL] {
-        let entityIDs = entry.compactItems.compactMap { $0?.id } + [entry.trendItem?.id].compactMap { $0 }
+        let entityIDs = entry.compactItems.compactMap { $0?.id } + [entry.chartItem?.id].compactMap { $0 }
         return entityIDs.reduce(into: [:]) { result, entityID in
             result[entityID] = HomesteadWidgetDeepLink.entityURL(entityID: entityID)
         }
@@ -468,7 +468,7 @@ private extension WidgetGaugePresentation {
     }
 }
 
-private extension WidgetSensorBoardTrendItem {
+private extension WidgetSensorBoardChartItem {
     static var sensorBoardPreview: Self {
         let now = Date()
         return Self(
@@ -480,12 +480,12 @@ private extension WidgetSensorBoardTrendItem {
             supportingText: "No recent chart",
             isAvailable: true,
             samples: [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8].enumerated().map { index, value in
-                HomesteadTrendChartSample(
+                HomesteadChartSample(
                     occurredAt: now.addingTimeInterval(Double(index - 6) * 60 * 60),
                     value: value
                 )
             },
-            valueDomain: HomesteadTrendChartDomain.stabilized(
+            valueDomain: HomesteadChartDomain.stabilized(
                 values: [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8],
                 unit: "ppt"
             ),

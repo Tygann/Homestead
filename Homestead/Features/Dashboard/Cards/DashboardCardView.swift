@@ -197,7 +197,7 @@ struct DashboardCardView: View {
             selectedDetail = DashboardCardDetail(
                 entityID: entityID,
                 kind: cardDetailKind(for: detailKind),
-                entryContext: presentationKind == .graph
+                entryContext: presentationKind == .chart
                     ? .history(initialRange: chartRange)
                     : .overview
             )

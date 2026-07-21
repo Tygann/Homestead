@@ -71,7 +71,7 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
     }
 }
 
-nonisolated struct WidgetSensorBoardTrendItem: Identifiable, Equatable, Sendable {
+nonisolated struct WidgetSensorBoardChartItem: Identifiable, Equatable, Sendable {
     let id: String
     let displayName: String
     let icon: ResolvedIcon
@@ -79,9 +79,9 @@ nonisolated struct WidgetSensorBoardTrendItem: Identifiable, Equatable, Sendable
     let unitText: String?
     let supportingText: String
     let isAvailable: Bool
-    let samples: [HomesteadTrendChartSample]
+    let samples: [HomesteadChartSample]
     let valueDomain: ClosedRange<Double>
-    let interpolationStyle: HomesteadTrendChartInterpolationStyle
+    let interpolationStyle: HomesteadChartInterpolationStyle
     let accentColor: WidgetGaugeColor
 
     var chartPresentation: HomesteadWidgetChartPresentation {
@@ -105,7 +105,7 @@ nonisolated struct WidgetSensorBoardTrendItem: Identifiable, Equatable, Sendable
 
 struct WidgetSensorBoardFace: View {
     let compactItems: [WidgetSensorBoardCompactItem?]
-    let trendItem: WidgetSensorBoardTrendItem?
+    let chartItem: WidgetSensorBoardChartItem?
     var destinationsByEntityID: [String: URL] = [:]
 
     var body: some View {
@@ -120,7 +120,7 @@ struct WidgetSensorBoardFace: View {
                         .frame(width: compactWidth)
                 }
 
-                trendSlot
+                chartSlot
                     .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -142,10 +142,10 @@ struct WidgetSensorBoardFace: View {
     }
 
     @ViewBuilder
-    private var trendSlot: some View {
-        if let trendItem {
-            linkedContent(entityID: trendItem.id) {
-                WidgetSensorBoardTrendTile(item: trendItem)
+    private var chartSlot: some View {
+        if let chartItem {
+            linkedContent(entityID: chartItem.id) {
+                WidgetSensorBoardChartTile(item: chartItem)
             }
         } else {
             WidgetSensorBoardEmptyTile(title: "Choose Chart", systemImage: "chart.xyaxis.line")
@@ -215,8 +215,8 @@ private struct WidgetSensorBoardCompactTile: View {
     }
 }
 
-private struct WidgetSensorBoardTrendTile: View {
-    let item: WidgetSensorBoardTrendItem
+private struct WidgetSensorBoardChartTile: View {
+    let item: WidgetSensorBoardChartItem
 
     var body: some View {
         HomesteadWidgetChartFace(

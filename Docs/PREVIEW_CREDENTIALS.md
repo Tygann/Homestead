@@ -61,12 +61,12 @@ For focused card inspection, optionally replace the preview-specific dashboard w
 xcrun simctl launch booted com.tyler.Homestead \
   --live-preview \
   --preview-entity sensor.example_battery \
-  --preview-presentation graph \
+  --preview-presentation chart \
   --preview-size square \
   --preview-appearance dark
 ```
 
-Supported sizes are `mini`, `compact`, `row`, `square`, `wide`, and `large`. Optional presentation values are `control`, `status`, `circularGauge`, `segmentedGauge`, `barGauge`, `graph`, `camera`, `weather`, `media`, and `action`; the presentation must support the selected size. Preview appearance accepts `system`, `light`, or `dark`. These arguments are compiled only in Debug builds. Live-preview services do not register Homestead as a Home Assistant Mobile App device.
+Supported sizes are `mini`, `compact`, `row`, `square`, `wide`, and `large`. Optional presentation values are `control`, `status`, `circularGauge`, `segmentedGauge`, `barGauge`, `chart`, `camera`, `weather`, `media`, and `action`; the presentation must support the selected size. Preview appearance accepts `system`, `light`, or `dark`. These arguments are compiled only in Debug builds. Live-preview services do not register Homestead as a Home Assistant Mobile App device.
 
 For UI-only simulator checks that should bypass onboarding without connecting to Home Assistant, launch a Debug-only sample screen:
 

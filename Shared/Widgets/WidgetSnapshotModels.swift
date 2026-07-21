@@ -95,7 +95,7 @@ nonisolated struct WidgetSensorSnapshot: Codable, Equatable, Sendable {
     let deviceName: String?
     var icon: ResolvedIcon? = nil
     var gauge: WidgetGaugePresentation? = nil
-    var historyChartInterpolationStyle: HomesteadTrendChartInterpolationStyle? = nil
+    var historyChartInterpolationStyle: HomesteadChartInterpolationStyle? = nil
     var chartAccentColor: WidgetGaugeColor? = nil
 
     var resolvedIcon: ResolvedIcon {

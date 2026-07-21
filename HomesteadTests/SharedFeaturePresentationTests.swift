@@ -7,7 +7,7 @@ final class SharedFeaturePresentationTests: XCTestCase {
 
         XCTAssertEqual(kinds.count, 7)
         XCTAssertEqual(Set(kinds).count, kinds.count)
-        XCTAssertEqual(HomesteadWidgetKind.sensor.rawValue, "HomesteadSensorGraphWidget")
+        XCTAssertEqual(HomesteadWidgetKind.sensor.rawValue, "HomesteadSensorChartWidget")
         XCTAssertEqual(HomesteadWidgetKind.sensorBoard.rawValue, "HomesteadSensorBoardWidget")
         XCTAssertEqual(HomesteadWidgetKind.gaugeGrid.rawValue, "HomesteadGaugeGridWidget")
     }
@@ -61,8 +61,10 @@ final class SharedFeaturePresentationTests: XCTestCase {
 
         XCTAssertTrue(sensor?.description.contains("chart") == true)
         XCTAssertFalse(sensor?.description.contains("trend") == true)
+        XCTAssertFalse(sensor?.description.contains("graph") == true)
         XCTAssertTrue(sensorBoard?.description.contains("chart") == true)
         XCTAssertFalse(sensorBoard?.description.contains("trend") == true)
+        XCTAssertFalse(sensorBoard?.description.contains("graph") == true)
     }
 
     @MainActor

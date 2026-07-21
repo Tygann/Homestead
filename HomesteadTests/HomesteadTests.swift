@@ -2251,7 +2251,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func dashboardHistoryPreviewProvidesDeterministicVisibleTrend() throws {
+    @Test func dashboardHistoryPreviewProvidesDeterministicVisibleChart() throws {
         let lastUpdated = try testDate("2026-07-19T21:40:00Z")
         let store = HAStateStore()
         store.applyInitialStates([

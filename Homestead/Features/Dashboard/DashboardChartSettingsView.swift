@@ -29,7 +29,7 @@ struct DashboardChartSettingsView: View {
                     DashboardCardView(
                         entityID: context.item.entityID,
                         size: context.item.size,
-                        presentationKind: .graph,
+                        presentationKind: .chart,
                         displayNameOverride: context.item.displayNameOverride,
                         iconNameOverride: context.item.iconNameOverride,
                         chartRange: configuration.range,
@@ -55,7 +55,7 @@ struct DashboardChartSettingsView: View {
                 } header: {
                     Text("Dashboard Range")
                 } footer: {
-                    Text("Sets the trend shown on this dashboard card. You can explore other ranges in the detail view.")
+                    Text("Sets the chart shown on this dashboard card. You can explore other ranges in the detail view.")
                 }
 
                 if configuration != .default {

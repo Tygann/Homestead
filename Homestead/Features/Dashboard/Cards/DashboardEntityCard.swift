@@ -830,13 +830,13 @@ struct DashboardEntityCard: View {
             return true
         }
 
-        return presentationKind == .graph
+        return presentationKind == .chart
             && entityBox.domain == .sensor
             && size.supportsDashboardHistoryChart
     }
 
     private var shouldLoadDashboardHistory: Bool {
-        presentationKind == .graph && DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size)
+        presentationKind == .chart && DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: size)
     }
 
     private var dashboardHistoryTaskID: String {

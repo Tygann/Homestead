@@ -578,7 +578,7 @@ struct DashboardView: View {
                     selectedEntityDetailRoute = DashboardEntityDetailRoute(
                         entityID: item.entityID,
                         sourceID: cardTransitionID(for: item),
-                        entryContext: item.presentationKind == .graph
+                        entryContext: item.presentationKind == .chart
                             ? .history(initialRange: item.chartConfiguration.range)
                             : .overview
                     )
@@ -1179,7 +1179,7 @@ struct DashboardView: View {
             }
         }
 
-        if item.presentationKind == .graph {
+        if item.presentationKind == .chart {
             Button {
                 chartSettingsContext = DashboardChartSettingsContext(item: item)
             } label: {

@@ -6,6 +6,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Mixed Sensor Board Widget
 
+- Made Chart canonical throughout the beta codebase: dashboard schema v6 persists `.chart`, the Sensor App Intent persists `.chart`, WidgetKit uses `HomesteadSensorChartWidget`, shared chart types and Sensor Board configuration use Chart naming, and Debug previews accept `chart`.
 - Added a stable medium Sensor Board WidgetKit kind alongside the existing Gauge Grids, with two independently named compact sensor slots and one dedicated six-hour numeric chart.
 - Aligned the single Sensor Chart widget with the dashboard Chart card composition, then reused its compact square-card face inside Sensor Board so both widget surfaces share the same Swift Charts rendering, typography, and edge-to-edge plot treatment.
 - Compact slots support Automatic, Gauge, or Reading presentation; Automatic prefers mapped gauge metadata, and explicit Gauge safely falls back to Reading when the sensor is not gauge-capable.
@@ -46,8 +47,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Dashboard Card Completion
 
-- Replaced the generic Graph, Weather, Media, and Action card treatments with focused typed compositions that preserve the shared dashboard shell while making each family useful at a glance.
-- Followed with dedicated visual and legibility passes that renamed Graph to Chart in user-facing surfaces while preserving the persisted `.graph` schema, made new Chart recommendations Wide by default, and gave Weather condition-responsive backgrounds with distinct Square current-condition, Wide hourly, and Large hourly-plus-daily layouts.
+- Replaced the generic Chart, Weather, Media, and Action card treatments with focused typed compositions that preserve the shared dashboard shell while making each family useful at a glance.
+- Followed with dedicated visual and legibility passes that standardized Chart naming across user-facing surfaces and the persisted `.chart` schema, made new Chart recommendations Wide by default, and gave Weather condition-responsive backgrounds with distinct Square current-condition, Wide hourly, and Large hourly-plus-daily layouts.
 - Chart cards now reserve separate text and plot regions, split value/unit typography, use stabilized unit-aware visual ranges plus truthful linear interpolation, expose low/high/change context, extend loaded history with newer live state, retain recorded history when the current entity becomes unavailable, and provide an accessible audio-graph descriptor.
 - Weather cards now apply a contrast-preserving scrim, use compact `Now`/hour labels without shrinking below the intended system text style, adapt forecast count to width and Dynamic Type, preserve the last forecast during refresh failures, and progressively remove secondary forecast content when fixed card geometry cannot hold it legibly.
 - Weather forecast selection now adapts to card size from the existing entity-scoped hourly, daily, and twice-daily snapshots; compact visual temperatures omit the redundant scale letter while accessibility and detail surfaces retain the full configured unit.
@@ -196,9 +197,9 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### WidgetKit Surface Consolidation
 
 - Kept widgets as native WidgetKit/App Intents surfaces rather than reusing dashboard card views directly.
-- Moved the widget bundle entry point into its own file, kept the public widget gallery focused on Control, Status, Sensor Graph, and Action, and removed the retired standalone Light, Switch, Fan, Cover, Lock, Presence, and Sensor widget files.
+- Moved the widget bundle entry point into its own file, kept the public widget gallery focused on Control, Status, Sensor Chart, and Action, and removed the retired standalone Light, Switch, Fan, Cover, Lock, Presence, and Sensor widget files.
 - Added shared widget presentation primitives for icon badges and compact text tiles so active widgets share the same small/rectangular visual language while preserving family-specific WidgetKit layouts.
-- Evolved the public sensor widget from graph-only to a configurable Sensor surface with Reading, Trend, Gauge - Circular, and Gauge - Bar displays. The WidgetKit kind stays `HomesteadSensorGraphWidget` for installed-widget continuity, while the gallery-facing name becomes Homestead Sensor.
+- Evolved the public sensor widget from chart-only to a configurable Sensor surface with Reading, Chart, Gauge - Circular, and Gauge - Bar displays. Its WidgetKit kind is `HomesteadSensorChartWidget`, while the gallery-facing name remains Homestead Sensor.
 - Replaced the circular sensor widget's older semicircle composition with a shared dashboard-inspired 240-degree instrument gauge and added a Debug-only gauge-widget comparison screen for side-by-side simulator verification.
 
 ## 2026-07-07
@@ -229,7 +230,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Replaced the pre-release dashboard item option bag with one versioned source + presentation model. Cards own their valid layout/options, and a shared catalog drives compatibility, recommendations, duplicate identity, default seeding, and both add paths.
 - Rebuilt Add to Dashboard as native Items-first and Cards-first navigation while preserving one-tap recommended add. Summaries now live alongside entities as sources rather than under a separate Chip mode.
 - Chose a clean schema reset: old, corrupt, or unsupported local and iCloud dashboard definitions are discarded safely, local selection resets, and unrelated synced preferences remain untouched.
-- Made dashboard card rendering explicit for Control, Status, Gauge, Graph, Camera, Weather, Media, and Action presentations and disabled network/action side effects in previews.
+- Made dashboard card rendering explicit for Control, Status, Gauge, Chart, Camera, Weather, Media, and Action presentations and disabled network/action side effects in previews.
 - Followed with a focused polish pass that made supported layouts a single catalog rule, rejected invalid catalog factories, removed obsolete pre-schema helpers, added searchable card-first source selection, and clarified preview, Added, and accessibility states.
 - Shifted the normal add path from choosing a layout to adding each presentation's catalog default directly. Rich style previews and card-first review screens now expose Add first, with alternate layouts behind an explicit secondary customization action.
 
@@ -408,7 +409,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Confirmed HA Security includes visible primary camera entities regardless of snapshot-like naming, so Homestead intentionally avoids camera-name heuristics.
 - Added connected-session subscriptions for entity, device, area, and floor registry updates so summary membership metadata refreshes after Home Assistant registry changes.
 - Made generated card defaults universal across summary views, area views, and Add to Dashboard: cameras default to preview-sized cards, Climate defaults to setpoint-capable cards, ordinary numeric sensors still default to chart cards, and non-feature/default status entities stay compact unless the user chooses a larger dashboard card.
-- Added generated-card feature visibility defaults so humidity and other history-capable sensors that also have read-only gauge features still render their trend graph by default, matching Home Assistant's Climate summary behavior while preserving the gauge as an optional larger-card feature.
+- Added generated-card feature visibility defaults so humidity and other history-capable sensors that also have read-only gauge features still render their trend chart by default, matching Home Assistant's Climate summary behavior while preserving the gauge as an optional larger-card feature.
 - Shifted universal generated card sizing toward Home Assistant's area-view defaults for interactive tile features: dimmable lights, covers/garage doors, climate entities with setpoints, and locks now default to Square cards with their first supported control feature visible.
 
 ### Sensor Gauges
@@ -461,7 +462,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### Widget Gallery Polish
 
 - Polished the experience-first Home Screen widget previews so unconfigured add-widget gallery snapshots use curated sample data instead of whichever real entity happens to be first.
-- Tightened small widget bodies by hiding generic labels such as Sensor, Script, and 6H Trend while preserving meaningful status copy like unavailable or setup guidance.
+- Tightened small widget bodies by hiding generic labels such as Sensor, Script, and 6H Chart while preserving meaningful status copy like unavailable or setup guidance.
 - Removed automatic first-entity defaults from the public unified widget intents so the add-widget gallery stays sample-based and unconfigured widgets do not silently bind to a real Home Assistant entity.
 - Further tightened Status widgets by hiding routine sensor subtitles like Temperature, while keeping alert/recovery text, and made Action widgets read as commands through a purple play-badged icon treatment instead of extra face text.
 - Aligned compact Control and Status second-line typography and simplified Action widget command icons to a single play-circle glyph after gallery review.
@@ -473,7 +474,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Experience-First Widgets
 
-- Reworked the public Home Screen widget gallery from domain-first widgets into Control, Status, Graph, and Action widget kinds.
+- Reworked the public Home Screen widget gallery from domain-first widgets into Control, Status, Chart, and Action widget kinds.
 - Added a unified Control widget that lets users pick a light, switch, fan, cover, or lock entity, then renders the appropriate state and safe action for that domain.
 - Added a unified Status widget for sensor and person state so users pick the status entity directly instead of choosing separate sensor or presence widget kinds.
 
@@ -487,7 +488,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Added Home Screen sensor and person/presence widgets using compact app-group snapshots and widget-side WebSocket `get_states` refresh.
 - Added a configurable scene/script action widget using the existing shared OAuth credential path and official WebSocket `call_service` for `scene.turn_on` / `script.turn_on`.
-- Added a Home Screen numeric sensor graph widget using compact numeric sensor snapshot metadata and Home Assistant's documented REST history endpoint over the shared OAuth credential path.
+- Added a Home Screen numeric sensor chart widget using compact numeric sensor snapshot metadata and Home Assistant's documented REST history endpoint over the shared OAuth credential path.
 - Kept widget views app-facing while raw Home Assistant state parsing stays inside the widget action client.
 
 ## 2026-06-08
