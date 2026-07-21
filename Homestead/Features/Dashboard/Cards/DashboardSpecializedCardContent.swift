@@ -609,30 +609,38 @@ struct DashboardWeatherCardContent: View {
         type: WeatherForecastType,
         domain: ClosedRange<Double>
     ) -> some View {
-        HStack(spacing: 6) {
-            Text(forecastDate(entry.datetime, type: type))
-                .frame(width: 34, alignment: .leading)
+        GeometryReader { proxy in
+            let grid = forecastGridMetrics(availableWidth: proxy.size.width)
 
-            Image(systemName: entry.condition.systemImage)
-                .symbolRenderingMode(.multicolor)
-                .font(.system(size: 18, weight: .medium))
-                .frame(width: 24, height: 20)
-                .accessibilityHidden(true)
+            ZStack(alignment: .leading) {
+                Text(forecastDate(entry.datetime, type: type))
+                    .frame(width: grid.columnWidth, alignment: .leading)
 
-            if let range = dailyTemperatureRange(for: entry) {
-                Text(weather.compactTemperatureText(for: range.lowerBound))
-                    .foregroundStyle(.white.opacity(0.62))
-                    .frame(width: 42, alignment: .trailing)
+                Image(systemName: entry.condition.systemImage)
+                    .symbolRenderingMode(.multicolor)
+                    .font(.system(size: 18, weight: .medium))
+                    .frame(width: grid.columnWidth, height: 20)
+                    .offset(x: grid.columnStride)
+                    .accessibilityHidden(true)
 
-                dailyTemperatureBar(range: range, domain: domain)
+                if let range = dailyTemperatureRange(for: entry) {
+                    Text(weather.compactTemperatureText(for: range.lowerBound))
+                        .foregroundStyle(.white.opacity(0.62))
+                        .frame(width: grid.columnWidth, alignment: .center)
+                        .offset(x: grid.columnStride * 2)
 
-                Text(weather.compactTemperatureText(for: range.upperBound))
-                    .frame(width: 42, alignment: .trailing)
-            } else {
-                Spacer(minLength: 0)
+                    dailyTemperatureBar(range: range, domain: domain)
+                        .frame(width: (grid.columnWidth * 2) + grid.spacing)
+                        .offset(x: grid.columnStride * 3)
 
-                Text(forecastTemperature(entry))
-                    .frame(width: 90, alignment: .trailing)
+                    Text(weather.compactTemperatureText(for: range.upperBound))
+                        .frame(width: grid.columnWidth, alignment: .trailing)
+                        .offset(x: grid.columnStride * 5)
+                } else {
+                    Text(forecastTemperature(entry))
+                        .frame(width: grid.columnWidth, alignment: .trailing)
+                        .offset(x: grid.columnStride * 5)
+                }
             }
         }
         .font(.caption.monospacedDigit().weight(.semibold))
@@ -679,30 +687,43 @@ struct DashboardWeatherCardContent: View {
     }
 
     private func forecastStrip(_ forecast: WeatherForecastSnapshot, limit: Int) -> some View {
-        HStack(spacing: AppSpacing.small) {
-            ForEach(Array(forecast.entries.prefix(limit))) { entry in
-                forecastItem(entry, type: forecast.type)
+        let entries = Array(forecast.entries.prefix(limit))
+
+        return HStack(spacing: AppSpacing.small) {
+            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                forecastItem(
+                    entry,
+                    type: forecast.type,
+                    alignment: forecastColumnAlignment(index: index, count: entries.count)
+                )
             }
         }
         .accessibilityElement(children: .contain)
     }
 
-    private func forecastItem(_ entry: WeatherForecastEntry, type: WeatherForecastType) -> some View {
+    private func forecastItem(
+        _ entry: WeatherForecastEntry,
+        type: WeatherForecastType,
+        alignment: Alignment
+    ) -> some View {
         VStack(spacing: size == .wide ? 1 : 3) {
             Text(forecastDate(entry.datetime, type: type))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.white.opacity(0.82))
                 .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: alignment)
 
             Image(systemName: entry.condition.systemImage)
                 .symbolRenderingMode(.multicolor)
                 .font(.system(size: 18, weight: .medium))
                 .frame(height: 20)
+                .frame(maxWidth: .infinity)
                 .accessibilityHidden(true)
 
             Text(forecastTemperature(entry))
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: alignment)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
@@ -851,6 +872,20 @@ struct DashboardWeatherCardContent: View {
         return minimum...maximum
     }
 
+    private func forecastGridMetrics(
+        availableWidth: CGFloat
+    ) -> (columnWidth: CGFloat, columnStride: CGFloat, spacing: CGFloat) {
+        let spacing = AppSpacing.small
+        let columnWidth = max((availableWidth - (spacing * 5)) / 6, 0)
+        return (columnWidth, columnWidth + spacing, spacing)
+    }
+
+    private func forecastColumnAlignment(index: Int, count: Int) -> Alignment {
+        if index == 0 { return .leading }
+        if index == count - 1 { return .trailing }
+        return .center
+    }
+
     private func forecastDate(_ date: Date, type: WeatherForecastType) -> String {
         switch type {
         case .hourly:
@@ -907,7 +942,7 @@ struct DashboardWeatherCardContent: View {
     private func forecastLimit(for type: WeatherForecastType, availableWidth: CGFloat) -> Int {
         let preferredLimit = type == .hourly ? 6 : 5
         if dynamicTypeSize >= .xxLarge { return min(preferredLimit, 3) }
-        if availableWidth < 350 { return min(preferredLimit, 5) }
+        if type != .hourly, availableWidth < 350 { return min(preferredLimit, 4) }
         return preferredLimit
     }
 

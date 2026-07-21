@@ -243,7 +243,7 @@ struct DashboardCardReferenceGallery: View {
         let now = Date()
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: now)
-        let currentHour = calendar.date(bySetting: .minute, value: 0, of: now) ?? now
+        let currentHour = calendar.dateInterval(of: .hour, for: now)?.start ?? now
         let dailyDates = (0...5).map { offset in
             calendar.date(byAdding: .day, value: offset, to: today)
                 ?? today.addingTimeInterval(Double(offset) * 86_400)
