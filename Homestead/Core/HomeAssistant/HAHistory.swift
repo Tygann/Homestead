@@ -170,6 +170,7 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
     let entityID: String
     let displayName: String
     let unit: String?
+    let displayPrecision: Int?
     let range: HAHistoryRangePreset
     let samples: [HAHistorySample]
     let requestedInterval: DateInterval?
@@ -178,6 +179,7 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
         entityID: String,
         displayName: String,
         unit: String?,
+        displayPrecision: Int? = nil,
         range: HAHistoryRangePreset,
         samples: [HAHistorySample],
         requestedInterval: DateInterval? = nil
@@ -185,6 +187,7 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
         self.entityID = entityID
         self.displayName = displayName
         self.unit = unit
+        self.displayPrecision = displayPrecision
         self.range = range
         self.samples = samples
         self.requestedInterval = requestedInterval
@@ -211,21 +214,20 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
     }
 
     func valueDomain(preferredRange: ClosedRange<Double>?) -> ClosedRange<Double> {
-        if let preferredRange, preferredRange.lowerBound < preferredRange.upperBound {
-            return preferredRange
-        }
-
         guard let minimumValue, let maximumValue else {
             return 0...1
         }
 
+        let adaptiveDomain: ClosedRange<Double>
         guard minimumValue != maximumValue else {
             let padding = max(abs(minimumValue) * 0.05, 1)
-            return (minimumValue - padding)...(maximumValue + padding)
+            adaptiveDomain = (minimumValue - padding)...(maximumValue + padding)
+            return constrainedDomain(adaptiveDomain, preferredRange: preferredRange)
         }
 
         let padding = (maximumValue - minimumValue) * 0.12
-        return (minimumValue - padding)...(maximumValue + padding)
+        adaptiveDomain = (minimumValue - padding)...(maximumValue + padding)
+        return constrainedDomain(adaptiveDomain, preferredRange: preferredRange)
     }
 
     var coverageNotice: String? {
@@ -235,7 +237,7 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
             return nil
         }
 
-        return "Available samples begin \(firstSample.occurredAt.formatted(date: .abbreviated, time: .shortened))."
+        return "History available since \(firstSample.occurredAt.formatted(date: .abbreviated, time: .shortened))."
     }
 
     var summaryText: String {
@@ -343,12 +345,35 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
     }
 
     private var maximumFractionDigits: Int {
+        if let displayPrecision {
+            return max(displayPrecision, 0)
+        }
+
         let values = samples.map(\.value)
         guard values.contains(where: { abs($0.rounded() - $0) > 0.001 }) else {
             return 0
         }
 
         return 2
+    }
+
+    private func constrainedDomain(
+        _ adaptiveDomain: ClosedRange<Double>,
+        preferredRange: ClosedRange<Double>?
+    ) -> ClosedRange<Double> {
+        guard let preferredRange,
+              preferredRange.lowerBound < preferredRange.upperBound,
+              let minimumValue,
+              let maximumValue,
+              preferredRange.contains(minimumValue),
+              preferredRange.contains(maximumValue) else {
+            return adaptiveDomain
+        }
+
+        let lowerBound = max(adaptiveDomain.lowerBound, preferredRange.lowerBound)
+        let upperBound = min(adaptiveDomain.upperBound, preferredRange.upperBound)
+        guard lowerBound < upperBound else { return adaptiveDomain }
+        return lowerBound...upperBound
     }
 }
 

@@ -525,12 +525,32 @@ struct DashboardEntityContextPanel: View {
 }
 
 struct EntityMetadataRow: View, Identifiable {
+    enum Layout {
+        case automatic
+        case stacked
+    }
+
     let title: String
     let value: String
+    var layout: Layout = .automatic
 
     var id: String { title }
 
     var body: some View {
+        Group {
+            if layout == .stacked {
+                stackedContent
+            } else {
+                automaticContent
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(value)")
+    }
+
+    private var automaticContent: some View {
         HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
             Text(title)
                 .font(.footnote.weight(.semibold))
@@ -540,10 +560,20 @@ struct EntityMetadataRow: View, Identifiable {
             valueText
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title), \(value)")
+    }
+
+    private var stackedContent: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+        }
     }
 
     @ViewBuilder

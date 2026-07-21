@@ -13,7 +13,7 @@ enum EntityDetailPresentationStyle: Equatable {
         case .sheet:
             AppSpacing.xLarge
         case .navigation, .navigationStack:
-            88
+            120
         }
     }
 }

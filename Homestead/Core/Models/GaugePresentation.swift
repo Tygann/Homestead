@@ -564,7 +564,11 @@ private extension GaugePresentation {
         if unitText == "°C" {
             return clampedSections(
                 [
-                    GaugePresentationSection(range: range.lowerBound...4.5, status: .warning),
+                    GaugePresentationSection(
+                        range: range.lowerBound...4.5,
+                        status: .warning,
+                        color: GaugeZoneColor.standard(for: .low)
+                    ),
                     GaugePresentationSection(range: 4.5...15.5, status: .low),
                     GaugePresentationSection(range: 15.5...26.5, status: .nominal),
                     GaugePresentationSection(range: 26.5...37.5, status: .high),
@@ -576,7 +580,11 @@ private extension GaugePresentation {
 
         return clampedSections(
             [
-                GaugePresentationSection(range: range.lowerBound...40, status: .warning),
+                GaugePresentationSection(
+                    range: range.lowerBound...40,
+                    status: .warning,
+                    color: GaugeZoneColor.standard(for: .low)
+                ),
                 GaugePresentationSection(range: 40...60, status: .low),
                 GaugePresentationSection(range: 60...80, status: .nominal),
                 GaugePresentationSection(range: 80...100, status: .high),

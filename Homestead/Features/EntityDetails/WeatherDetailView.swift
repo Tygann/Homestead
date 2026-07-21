@@ -148,7 +148,9 @@ struct WeatherDetailView: View {
     }
 
     private func sourceRows(_ weather: WeatherEntity) -> [EntityMetadataRow] {
-        weather.attributionText.map { [EntityMetadataRow(title: "Attribution", value: $0)] } ?? []
+        weather.attributionText.map {
+            [EntityMetadataRow(title: "Attribution", value: $0, layout: .stacked)]
+        } ?? []
     }
 
     private var contextRows: [EntityMetadataRow] {

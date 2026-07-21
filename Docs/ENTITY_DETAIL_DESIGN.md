@@ -27,6 +27,8 @@ Do not repeat the same current state in the hero and a separate read-only sectio
 - Loading placeholders should match the expected information density. Preserve last-known content when available, and do not reserve chart-sized space for a compact empty or unavailable result. Cancellation is not an error.
 - Pushed phone details reserve bottom scroll clearance above floating tab/search chrome. Sheets rely on their own safe area.
 - Dynamic Type may expand cards vertically; never depend on fixed text height or color alone.
+- Freshness uses one concise, localized-scale unit (`just now`, minutes, hours, or days) so it stays secondary and remains readable at larger text sizes.
+- Long metadata such as provider attribution uses a stacked label/value row instead of compressing the value into a trailing column.
 
 ## Operational States
 
@@ -66,10 +68,11 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 
 - Continuous numeric history uses 24H, 7D, and 30D.
 - Discrete recent activity keeps 1H, 6H, and 24H.
-- Bounded measurements use their meaningful fixed scale; battery is 0–100.
-- Unbounded measurements use a padded dynamic domain.
+- Gauges use the meaningful absolute scale of a bounded measurement; battery is 0–100.
+- History charts use a padded sample-adaptive domain constrained by any trustworthy absolute bounds. This preserves meaningful variation without implying values outside the entity's valid range.
+- Unbounded measurements use the same padded sample-adaptive domain without absolute clamping.
 - Continuous measurements use linear interpolation so the chart does not invent overshoot.
-- Charts preserve extrema when sampling, expose an accessibility chart descriptor, and only mention partial coverage when the returned samples demonstrably begin after the requested interval.
+- Charts preserve extrema and mapped display precision when sampling, expose an accessibility chart descriptor, use range-appropriate natural time ticks, and only mention partial coverage when the returned samples demonstrably begin after the requested interval.
 - Numeric domains reuse `EntityNumericHistoryPanel`; sensors and editable Number entities currently opt in with their mapped unit and meaningful bounded range.
 - Discrete domains reuse the self-loading `EntityActivityPanel`, which owns range selection, cancellation, retry, and either documented state history or Automation trace loading.
 - Never fall back to generic binary-sensor language for an unmapped activity domain. Omit Activity until its states or event source have an explicit semantic mapping.
@@ -82,6 +85,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 - Launch the gallery directly with `--preview-screen entity-details` for simulator and browser-mirror review without onboarding or live-server dependencies. Add `--preview-detail-family <value>` and `--preview-detail-state <value>` to launch a specific matrix cell without manual picker interaction.
 - Treat the reference gallery as a state matrix, not a substitute for device verification. New domain families should add representative fixtures before introducing a new visual grammar.
 - A visually complete detail-view change includes a rendered simulator pass of its representative fixture and relevant loading/empty state. A successful compile alone is a draft-quality verification for visual work.
+- Weather forecast cards keep readable system text, snap one item at a time when horizontally scrolled, and may use compact degree-only visual temperatures while retaining full-unit accessibility values.
 
 ## Adding a Domain
 

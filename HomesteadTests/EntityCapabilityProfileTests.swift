@@ -56,7 +56,7 @@ final class EntityCapabilityProfileTests: XCTestCase {
         XCTAssertTrue(tracker.supports(.showActivity))
     }
 
-    func testHistoryUsesPreferredBoundedDomainAndReportsPartialCoverage() {
+    func testHistoryConstrainsAdaptiveDomainToPreferredBoundsAndReportsPartialCoverage() {
         let interval = DateInterval(
             start: Date(timeIntervalSince1970: 0),
             end: Date(timeIntervalSince1970: 86_400)
@@ -73,8 +73,69 @@ final class EntityCapabilityProfileTests: XCTestCase {
             requestedInterval: interval
         )
 
-        XCTAssertEqual(series.valueDomain(preferredRange: 0...100), 0...100)
+        let domain = series.valueDomain(preferredRange: 0...100)
+        XCTAssertEqual(domain.lowerBound, 70.44, accuracy: 0.001)
+        XCTAssertEqual(domain.upperBound, 86.56, accuracy: 0.001)
         XCTAssertNotNil(series.coverageNotice)
+    }
+
+    func testHistoryDomainUsesPreferredBoundaryWhenSamplesReachIt() {
+        let series = HAHistoryChartSeries(
+            entityID: "sensor.battery",
+            displayName: "Battery",
+            unit: "%",
+            range: .day,
+            samples: [
+                HAHistorySample(occurredAt: .distantPast, value: 0),
+                HAHistorySample(occurredAt: .distantFuture, value: 12)
+            ]
+        )
+
+        let domain = series.valueDomain(preferredRange: 0...100)
+        XCTAssertEqual(domain.lowerBound, 0)
+        XCTAssertGreaterThan(domain.upperBound, 12)
+    }
+
+    func testEntityDetailFreshnessUsesOneReadableUnit() {
+        let now = Date(timeIntervalSince1970: 100_000)
+
+        XCTAssertEqual(EntityDetailHeroSubtitle.freshnessText(since: now.addingTimeInterval(-20), now: now), "just now")
+        XCTAssertEqual(EntityDetailHeroSubtitle.freshnessText(since: now.addingTimeInterval(-2_700), now: now), "45 min ago")
+        XCTAssertEqual(EntityDetailHeroSubtitle.freshnessText(since: now.addingTimeInterval(-11_400), now: now), "3 hr ago")
+    }
+
+    func testHistorySummaryUsesMappedDisplayPrecision() {
+        let series = HAHistoryChartSeries(
+            entityID: "sensor.temperature",
+            displayName: "Temperature",
+            unit: "°F",
+            displayPrecision: 1,
+            range: .day,
+            samples: [
+                HAHistorySample(occurredAt: .distantPast, value: 69.444),
+                HAHistorySample(occurredAt: .distantFuture, value: 75.024)
+            ]
+        )
+
+        XCTAssertEqual(series.summaryText, "Now 75°F • Low 69.4°F • High 75°F")
+    }
+
+    func testTemperatureGaugeUsesCoolColorAtLowExtreme() throws {
+        let sensor = SensorEntity(
+            entityID: "sensor.temperature",
+            displayName: "Temperature",
+            value: "75",
+            unit: "F",
+            deviceClass: "temperature",
+            lastUpdated: nil,
+            suggestedMinimumValue: 0,
+            suggestedMaximumValue: 120
+        )
+
+        let presentation = try XCTUnwrap(sensor.gaugePresentation)
+        XCTAssertEqual(presentation.sections.first?.status, .warning)
+        XCTAssertEqual(presentation.sections.first?.color, GaugeZoneColor.standard(for: .low))
+        XCTAssertEqual(presentation.sections.last?.color, nil)
     }
 
     func testOperationalStateDefaultsToLiveWithoutExceptionalSignals() {

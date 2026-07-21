@@ -131,20 +131,42 @@ struct EntityDetailStatePresentation: Equatable {
 }
 
 enum EntityDetailHeroSubtitle {
-    static func updated(_ entity: HomeEntity, summary: String? = nil) -> Text? {
+    static func updated(
+        _ entity: HomeEntity,
+        summary: String? = nil,
+        now: Date = .now
+    ) -> Text? {
         let trimmedSummary = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if let lastUpdated = entity.lastUpdated {
+            let freshness = freshnessText(since: lastUpdated, now: now)
             if let trimmedSummary, !trimmedSummary.isEmpty {
-                return Text("\(trimmedSummary) · Updated \(lastUpdated, style: .relative)")
+                return Text("\(trimmedSummary) · Updated \(freshness)")
             }
-            return Text("Updated \(lastUpdated, style: .relative)")
+            return Text("Updated \(freshness)")
         }
 
         if let trimmedSummary, !trimmedSummary.isEmpty {
             return Text(trimmedSummary)
         }
         return nil
+    }
+
+    static func freshnessText(since date: Date, now: Date = .now) -> String {
+        let elapsed = max(now.timeIntervalSince(date), 0)
+
+        switch elapsed {
+        case ..<60:
+            return "just now"
+        case ..<3_600:
+            return "\(max(Int(elapsed / 60), 1)) min ago"
+        case ..<86_400:
+            return "\(max(Int(elapsed / 3_600), 1)) hr ago"
+        case ..<604_800:
+            return "\(max(Int(elapsed / 86_400), 1)) d ago"
+        default:
+            return date.formatted(date: .abbreviated, time: .omitted)
+        }
     }
 }
 

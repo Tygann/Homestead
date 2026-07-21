@@ -91,8 +91,10 @@ struct WeatherForecastPanel: View {
                         )
                     }
                 }
+                .scrollTargetLayout()
             }
             .scrollIndicators(.hidden)
+            .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
         }
     }
 
@@ -151,7 +153,7 @@ private struct WeatherForecastCard: View {
                 .symbolRenderingMode(.multicolor)
                 .frame(height: 30)
 
-            Text(entry.temperatureSummary(unit: temperatureUnit))
+            Text(entry.compactTemperatureSummary(unit: temperatureUnit))
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
                 .lineLimit(1)
@@ -234,6 +236,16 @@ private extension WeatherForecastEntry {
         return high ?? low ?? "—"
     }
 
+    func compactTemperatureSummary(unit: String?) -> String {
+        let high = formattedTemperature(temperature, unit: compactTemperatureUnit(unit))
+        let low = formattedTemperature(lowTemperature, unit: compactTemperatureUnit(unit))
+
+        if let high, let low {
+            return "\(high) / \(low)"
+        }
+        return high ?? low ?? "—"
+    }
+
     var precipitationText: String? {
         guard let precipitationProbability else { return nil }
         return "\(Int(precipitationProbability.rounded()))%"
@@ -256,5 +268,12 @@ private extension WeatherForecastEntry {
         guard let unit, !unit.isEmpty else { return formattedValue }
         let displayUnit = unit == "F" || unit == "C" ? "°\(unit)" : unit
         return "\(formattedValue)\(displayUnit.hasPrefix("°") ? "" : " ")\(displayUnit)"
+    }
+
+    private func compactTemperatureUnit(_ unit: String?) -> String? {
+        guard unit == "F" || unit == "C" || unit == "°F" || unit == "°C" else {
+            return unit
+        }
+        return "°"
     }
 }

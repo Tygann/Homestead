@@ -39,6 +39,7 @@ struct SensorDetailView: View {
                     entityBox: entityBox,
                     displayName: entityBox.sensorEntity?.displayName ?? entity.displayName,
                     unit: entityBox.sensorEntity?.unitText,
+                    displayPrecision: entityBox.sensorEntity?.displayPrecision,
                     accentColor: presentation.accentColor,
                     preferredRange: entityBox.sensorEntity?.gaugePresentation?.range
                 )

@@ -11,6 +11,7 @@ struct EntityNumericHistoryPanel: View {
     let entityBox: HAEntityState
     let displayName: String
     let unit: String?
+    var displayPrecision: Int? = nil
     let accentColor: Color
     let preferredRange: ClosedRange<Double>?
 
@@ -112,6 +113,7 @@ struct EntityNumericHistoryPanel: View {
                     entityID: fetchedSeries.entityID,
                     displayName: displayName,
                     unit: unit ?? fetchedSeries.unit,
+                    displayPrecision: displayPrecision,
                     range: fetchedSeries.range,
                     samples: fetchedSeries.samples,
                     requestedInterval: fetchedSeries.requestedInterval
@@ -161,6 +163,7 @@ private struct EntityNumericHistoryChart: View {
                 )
             }
             .chartYScale(domain: valueDomain)
+            .chartXScale(range: .plotDimension(startPadding: 4, endPadding: 4))
             .chartPlotStyle { $0.clipped() }
             .chartXAxis { xAxisMarks }
             .chartYAxis {
@@ -170,7 +173,6 @@ private struct EntityNumericHistoryChart: View {
                 }
             }
             .frame(height: 160)
-            .clipped()
             .accessibilityChartDescriptor(
                 EntityNumericHistoryChartDescriptor(series: series, valueDomain: valueDomain)
             )
@@ -201,20 +203,42 @@ private struct EntityNumericHistoryChart: View {
     @AxisContentBuilder
     private var xAxisMarks: some AxisContent {
         switch selectedRange {
-        case .oneHour, .sixHours, .day:
-            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+        case .oneHour:
+            AxisMarks(values: .stride(by: .minute, count: 15)) { _ in
                 AxisGridLine()
-                AxisValueLabel(format: .dateTime.hour().minute())
+                AxisValueLabel(
+                    format: .dateTime.hour().minute(),
+                    anchor: .trailing,
+                    collisionResolution: .greedy
+                )
+            }
+        case .sixHours:
+            AxisMarks(values: .stride(by: .hour, count: 2)) { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.hour(), anchor: .trailing, collisionResolution: .greedy)
+            }
+        case .day:
+            AxisMarks(values: .stride(by: .hour, count: 6)) { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.hour(), anchor: .trailing, collisionResolution: .greedy)
             }
         case .week:
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+            AxisMarks(values: .stride(by: .day, count: 2)) { _ in
                 AxisGridLine()
-                AxisValueLabel(format: .dateTime.weekday(.abbreviated))
+                AxisValueLabel(
+                    format: .dateTime.weekday(.abbreviated),
+                    anchor: .trailing,
+                    collisionResolution: .greedy
+                )
             }
         case .month:
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+            AxisMarks(values: .stride(by: .day, count: 4)) { _ in
                 AxisGridLine()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                AxisValueLabel(
+                    format: .dateTime.month(.abbreviated).day(),
+                    anchor: .trailing,
+                    collisionResolution: .greedy
+                )
             }
         }
     }
@@ -241,7 +265,7 @@ private struct EntityNumericHistoryChart: View {
         case .oneHour, .sixHours, .day:
             date.formatted(date: .omitted, time: .shortened)
         case .week, .month:
-            date.formatted(date: .abbreviated, time: .omitted)
+            "Through \(date.formatted(date: .abbreviated, time: .omitted))"
         }
     }
 }
