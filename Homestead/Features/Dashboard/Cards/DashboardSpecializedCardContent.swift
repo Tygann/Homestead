@@ -376,7 +376,13 @@ struct DashboardWeatherCardContent: View {
 
     @ViewBuilder
     private func cardContent(availableWidth: CGFloat) -> some View {
-        if size == .wide {
+        if size == .large {
+            VStack(alignment: .leading, spacing: 10) {
+                largeCurrentConditions
+                largeForecastContent(availableWidth: availableWidth)
+            }
+            .padding(AppSpacing.medium)
+        } else if size == .wide {
             VStack(alignment: .leading, spacing: 0) {
                 wideCurrentConditions
 
@@ -388,7 +394,7 @@ struct DashboardWeatherCardContent: View {
             .padding(.top, 10)
             .padding(.bottom, 14)
         } else {
-            VStack(alignment: .leading, spacing: size == .large ? AppSpacing.medium : AppSpacing.small) {
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
                 standardCurrentConditions
 
                 Spacer(minLength: 0)
@@ -404,7 +410,7 @@ struct DashboardWeatherCardContent: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: AppSpacing.xSmall) {
                     Text(weather.displayName)
-                        .font(size == .large ? .headline.weight(.semibold) : .subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
 
@@ -437,8 +443,48 @@ struct DashboardWeatherCardContent: View {
                 .font(.system(size: 18, weight: .medium))
                 .accessibilityHidden(true)
 
-            if size == .large {
-                weatherContext
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(weather.displayName)
+        .accessibilityValue(currentConditionsAccessibilityValue)
+    }
+
+    private var largeCurrentConditions: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: AppSpacing.xSmall) {
+                Text(weather.displayName)
+                    .font(.headline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+
+                forecastUpdateIndicator
+
+                Spacer(minLength: AppSpacing.small)
+
+                Image(systemName: weather.iconName)
+                    .symbolRenderingMode(.multicolor)
+                    .font(.system(size: 18, weight: .medium))
+                    .accessibilityHidden(true)
+            }
+
+            HStack(alignment: .bottom, spacing: AppSpacing.medium) {
+                Text(weatherReadingText)
+                    .font(.system(size: currentTemperatureFontSize, weight: .regular, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .monospacedDigit()
+
+                Spacer(minLength: 0)
+
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(weather.displaySubtitle)
+                    if let highLowText {
+                        Text(highLowText)
+                    }
+                }
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .offset(y: -2)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -495,32 +541,6 @@ struct DashboardWeatherCardContent: View {
     private func forecastContent(availableWidth: CGFloat) -> some View {
         if size == .square || (size == .wide && dynamicTypeSize >= .xxxLarge) {
             EmptyView()
-        } else if size == .large {
-            VStack(alignment: .leading, spacing: AppSpacing.small) {
-                if let hourlyForecast {
-                    forecastSection(
-                        hourlyForecast,
-                        limit: forecastLimit(for: hourlyForecast.type, availableWidth: availableWidth)
-                    )
-                }
-
-                if let dailyForecast,
-                   dailyForecast.type != hourlyForecast?.type {
-                    forecastSection(
-                        dailyForecast,
-                        limit: forecastLimit(for: dailyForecast.type, availableWidth: availableWidth)
-                    )
-                } else if hourlyForecast == nil, let fallbackForecast {
-                    forecastSection(
-                        fallbackForecast,
-                        limit: forecastLimit(for: fallbackForecast.type, availableWidth: availableWidth)
-                    )
-                }
-
-                if hourlyForecast == nil && dailyForecast == nil && fallbackForecast == nil {
-                    forecastStatus(placeholderCount: forecastLimit(for: .hourly, availableWidth: availableWidth))
-                }
-            }
         } else if let wideForecast {
             forecastStrip(
                 wideForecast,
@@ -531,15 +551,128 @@ struct DashboardWeatherCardContent: View {
         }
     }
 
-    private func forecastSection(_ forecast: WeatherForecastSnapshot, limit: Int) -> some View {
-        VStack(spacing: 3) {
-            Text(forecast.type.title)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.78))
-                .frame(maxWidth: .infinity, alignment: .leading)
+    @ViewBuilder
+    private func largeForecastContent(availableWidth: CGFloat) -> some View {
+        let hourly = hourlyForecast
+        let daily = dailyForecast
+        let fallback = fallbackForecast
 
-            forecastStrip(forecast, limit: limit)
+        VStack(alignment: .leading, spacing: 9) {
+            Divider()
+                .overlay(Color.white.opacity(0.16))
+
+            if let hourly {
+                forecastStrip(
+                    hourly,
+                    limit: forecastLimit(for: hourly.type, availableWidth: availableWidth)
+                )
+            }
+
+            if hourly != nil, let daily {
+                Divider()
+                    .overlay(Color.white.opacity(0.16))
+                dailyForecastList(daily)
+            } else if hourly == nil, let daily {
+                dailyForecastList(daily)
+            } else if hourly == nil, daily == nil, let fallback {
+                if fallback.type == .hourly {
+                    forecastStrip(
+                        fallback,
+                        limit: forecastLimit(for: fallback.type, availableWidth: availableWidth)
+                    )
+                } else {
+                    dailyForecastList(fallback)
+                }
+            }
+
+            if hourly == nil && daily == nil && fallback == nil {
+                forecastStatus(placeholderCount: forecastLimit(for: .hourly, availableWidth: availableWidth))
+            }
         }
+    }
+
+    private func dailyForecastList(_ forecast: WeatherForecastSnapshot) -> some View {
+        let limit = dynamicTypeSize >= .xxLarge ? 3 : 4
+        let entries = Array(forecast.entries.prefix(limit))
+        let domain = dailyTemperatureDomain(for: entries)
+
+        return VStack(spacing: 5) {
+            ForEach(entries) { entry in
+                dailyForecastRow(entry, type: forecast.type, domain: domain)
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func dailyForecastRow(
+        _ entry: WeatherForecastEntry,
+        type: WeatherForecastType,
+        domain: ClosedRange<Double>
+    ) -> some View {
+        HStack(spacing: 6) {
+            Text(forecastDate(entry.datetime, type: type))
+                .frame(width: 34, alignment: .leading)
+
+            Image(systemName: entry.condition.systemImage)
+                .symbolRenderingMode(.multicolor)
+                .font(.caption)
+                .frame(width: 22)
+                .accessibilityHidden(true)
+
+            if let range = dailyTemperatureRange(for: entry) {
+                Text(weather.compactTemperatureText(for: range.lowerBound))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .frame(width: 42, alignment: .trailing)
+
+                dailyTemperatureBar(range: range, domain: domain)
+
+                Text(weather.compactTemperatureText(for: range.upperBound))
+                    .frame(width: 42, alignment: .trailing)
+            } else {
+                Spacer(minLength: 0)
+
+                Text(forecastTemperature(entry))
+                    .frame(width: 90, alignment: .trailing)
+            }
+        }
+        .font(.caption.monospacedDigit().weight(.semibold))
+        .frame(height: 24)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(forecastDate(entry.datetime, type: type)), \(entry.condition.displayName)")
+        .accessibilityValue(accessibilityForecastTemperature(entry))
+    }
+
+    private func dailyTemperatureBar(
+        range: ClosedRange<Double>,
+        domain: ClosedRange<Double>
+    ) -> some View {
+        GeometryReader { proxy in
+            let domainSpan = max(domain.upperBound - domain.lowerBound, 1)
+            let start = min(max((range.lowerBound - domain.lowerBound) / domainSpan, 0), 1)
+            let end = min(max((range.upperBound - domain.lowerBound) / domainSpan, start), 1)
+            let startX = proxy.size.width * start
+            let rangeWidth = max(proxy.size.width * (end - start), 6)
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.white.opacity(0.10))
+                    .frame(height: 5)
+
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [.cyan, .yellow, .orange],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: min(rangeWidth, max(proxy.size.width - startX, 0)), height: 5)
+                    .offset(x: startX)
+            }
+            .frame(maxHeight: .infinity, alignment: .center)
+        }
+        .frame(minWidth: 70)
+        .accessibilityHidden(true)
     }
 
     private func forecastStrip(_ forecast: WeatherForecastSnapshot, limit: Int) -> some View {
@@ -601,20 +734,6 @@ struct DashboardWeatherCardContent: View {
         }
     }
 
-    private var weatherContext: some View {
-        VStack(alignment: .trailing, spacing: AppSpacing.xSmall) {
-            if let humidity = weather.humidityText {
-                Label(humidity, systemImage: "humidity.fill")
-            }
-            if let wind = weather.windText {
-                Label(wind, systemImage: "wind")
-            }
-        }
-        .font(.caption.weight(.medium))
-        .foregroundStyle(.white.opacity(0.84))
-        .labelStyle(.titleAndIcon)
-    }
-
     @ViewBuilder
     private var forecastUpdateIndicator: some View {
         if hasForecastData, !forecastErrorsByType.isEmpty {
@@ -672,6 +791,28 @@ struct DashboardWeatherCardContent: View {
         case let (nil, low?): "L:\(low)"
         case (nil, nil): nil
         }
+    }
+
+    private func dailyTemperatureRange(for entry: WeatherForecastEntry) -> ClosedRange<Double>? {
+        guard let first = entry.lowTemperature ?? entry.temperature,
+              let second = entry.temperature ?? entry.lowTemperature else {
+            return nil
+        }
+        return min(first, second)...max(first, second)
+    }
+
+    private func dailyTemperatureDomain(
+        for entries: [WeatherForecastEntry]
+    ) -> ClosedRange<Double> {
+        let ranges = entries.compactMap(dailyTemperatureRange(for:))
+        guard let minimum = ranges.map(\.lowerBound).min(),
+              let maximum = ranges.map(\.upperBound).max() else {
+            return 0...1
+        }
+        guard minimum < maximum else {
+            return (minimum - 1)...(maximum + 1)
+        }
+        return minimum...maximum
     }
 
     private func forecastDate(_ date: Date, type: WeatherForecastType) -> String {
