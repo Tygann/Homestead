@@ -50,7 +50,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Established Codex desktop as Homestead's primary agentic development surface, with Xcode, Simulator, terminal sessions, and the in-app browser used as supporting tools rather than assuming a VS Code-hosted workflow.
 - Standardized the implementation loop around XcodeBuildMCP session defaults, early compilation, deterministic Debug launch routes, a simulator-UDID-scoped `serve-sim` mirror, rendered visual verification, focused tests, storage hygiene, and focused commits.
-- Added trusted project Codex defaults that automatically enable Build iOS Apps, prefer High reasoning, and bound local multi-agent fan-out; added a repo-owned verification skill plus automatic read-heavy delegation and final-review rules so ordinary requests no longer need repeated tooling, test, visual-QA, hygiene, or commit instructions.
+- Added trusted project Codex defaults that automatically enable Build iOS Apps and bound local multi-agent fan-out; reasoning effort remains user- and task-controlled so the composer can select the appropriate level before the first message. Added a repo-owned verification skill plus automatic read-heavy delegation and final-review rules so ordinary requests no longer need repeated tooling, test, visual-QA, hygiene, or commit instructions.
 - Kept ignored Home Assistant preview credentials out of managed worktrees by default; deterministic preview routes remain worktree-safe while live server verification stays in Local unless credential copying is explicitly approved.
 - Documented the Xcode 27 beta semantic-snapshot compatibility boundary and retained screenshots/browser inspection as the safe fallback without modifying the signed Xcode bundle.
 

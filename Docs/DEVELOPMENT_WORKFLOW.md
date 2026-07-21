@@ -25,7 +25,7 @@ For an authorized implementation, use this default loop:
 
 Use XcodeBuildMCP when available for simulator discovery, session defaults, build/run, screenshots, logs, and semantic UI interaction. Before its first build, run, or test operation in a session, inspect its active defaults; then set the Homestead project, scheme, configuration, and explicit simulator UDID when needed. Shell `xcodebuild`, `xcrun simctl`, and repository scripts remain the fallback when plugin tooling is unavailable or a lower-level diagnostic is more appropriate.
 
-The trusted project configuration in `.codex/config.toml` enables the Build iOS Apps plugin, defaults Homestead to High reasoning, and keeps multi-agent work bounded to four total threads with no nested delegation. The repo-owned `homestead-ios-verify` skill under `.agents/skills` turns the completion loop into an implicitly discoverable workflow instead of relying on repeated prompt instructions.
+The trusted project configuration in `.codex/config.toml` enables the Build iOS Apps plugin and keeps multi-agent work bounded to four total threads with no nested delegation. Reasoning effort remains user- and task-controlled so the composer can select an appropriate level before the first message. The repo-owned `homestead-ios-verify` skill under `.agents/skills` turns the completion loop into an implicitly discoverable workflow instead of relying on repeated prompt instructions.
 
 ## Delegation And Review
 
