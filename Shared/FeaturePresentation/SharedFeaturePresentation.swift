@@ -137,7 +137,7 @@ nonisolated enum SharedFeatureCatalog {
             subjectKind: .sensor,
             supportedSurfaces: [.widget],
             dashboardPresentationIDs: ["graph"],
-            relatedWidgetKinds: [.sensor],
+            relatedWidgetKinds: [.sensor, .sensorBoard],
             affordances: [.read, .history]
         ),
         SharedFeatureDescriptor(
@@ -148,7 +148,7 @@ nonisolated enum SharedFeatureCatalog {
             subjectKind: .sensor,
             supportedSurfaces: [.dashboard, .widget],
             dashboardPresentationIDs: ["gauge"],
-            relatedWidgetKinds: [.sensor, .gaugeGrid, .largeGaugeGrid],
+            relatedWidgetKinds: [.sensor, .sensorBoard, .gaugeGrid, .largeGaugeGrid],
             affordances: [.read, .gauge]
         ),
         SharedFeatureDescriptor(
@@ -187,6 +187,14 @@ nonisolated enum SharedFeatureCatalog {
             displayName: "Homestead Sensor",
             description: "Show a Home Assistant sensor reading, trend, or gauge.",
             supportedFamilies: [.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular],
+            requiresConfiguration: true
+        ),
+        WidgetFeatureDescriptor(
+            kind: .sensorBoard,
+            featureID: "sensor",
+            displayName: "Homestead Sensor Board",
+            description: "Combine two sensor readings or gauges with a six-hour trend.",
+            supportedFamilies: [.systemMedium],
             requiresConfiguration: true
         ),
         WidgetFeatureDescriptor(

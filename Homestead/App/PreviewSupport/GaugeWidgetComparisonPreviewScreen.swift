@@ -25,6 +25,22 @@ struct GaugeWidgetComparisonPreviewScreen: View {
         accessibilityLabel: "Living Room Humidity gauge",
         accessibilityValue: "56%, comfortable"
     )
+    private let sensorBoardTemperatureGauge = WidgetGaugePresentation(
+        value: 76.6,
+        lowerBound: 70,
+        upperBound: 86,
+        valueText: "76.6°F",
+        unitText: "°F",
+        status: .nominal,
+        statusDisplayText: "Comfortable",
+        sections: [
+            WidgetGaugeSection(lowerBound: 70, upperBound: 72, color: .red),
+            WidgetGaugeSection(lowerBound: 72, upperBound: 84, color: .green),
+            WidgetGaugeSection(lowerBound: 84, upperBound: 86, color: .red)
+        ],
+        accessibilityLabel: "Temperature gauge",
+        accessibilityValue: "76.6°F, comfortable"
+    )
     private let baseIcon = IconResolver.resolveEntity(
         EntityIconResolutionInput(domain: "sensor", deviceClass: "battery", state: "18")
     )
@@ -43,6 +59,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
+                    sensorBoardPreview
                     circularComparisonRow
                     segmentedComparisonRow
                     barComparisonRow
@@ -50,7 +67,24 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                 .padding(20)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Gauge Preview")
+            .navigationTitle("Widget Preview")
+        }
+    }
+
+    private var sensorBoardPreview: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Sensor Board")
+                .font(.headline)
+
+            WidgetSensorBoardFace(
+                compactItems: sensorBoardCompactItems,
+                trendItem: sensorBoardTrendItem
+            )
+            .frame(width: 360, height: 169)
+            .background(
+                .fill.tertiary,
+                in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous)
+            )
         }
     }
 
@@ -158,6 +192,92 @@ struct GaugeWidgetComparisonPreviewScreen: View {
 
             content()
         }
+    }
+
+    private var sensorBoardCompactItems: [WidgetSensorBoardCompactItem?] {
+        [
+            WidgetSensorBoardCompactItem.sensor(
+                from: previewSensor(
+                    id: "sensor.living_room_temperature",
+                    name: "Temperature",
+                    valueText: "76.6°F",
+                    icon: "thermometer.medium",
+                    gauge: sensorBoardTemperatureGauge
+                )
+            ),
+            WidgetSensorBoardCompactItem.sensor(
+                from: previewSensor(
+                    id: "sensor.alkalinity",
+                    name: "Alkalinity",
+                    valueText: "8.3 dKH",
+                    icon: "testtube.2",
+                    isAvailable: !showsUnavailableBoard,
+                    gauge: WidgetGaugePresentation(
+                        value: 8.3,
+                        lowerBound: 7,
+                        upperBound: 11,
+                        valueText: "8.3 dKH",
+                        unitText: "dKH",
+                        status: .nominal,
+                        statusDisplayText: "Available",
+                        sections: [
+                            .init(lowerBound: 7, upperBound: 8, color: .red),
+                            .init(lowerBound: 8, upperBound: 10, color: .green),
+                            .init(lowerBound: 10, upperBound: 11, color: .orange)
+                        ],
+                        accessibilityLabel: "Alkalinity gauge",
+                        accessibilityValue: "8.3 dKH"
+                    )
+                )
+            )
+        ]
+    }
+
+    private var sensorBoardTrendItem: WidgetSensorBoardTrendItem {
+        let now = Date()
+        return WidgetSensorBoardTrendItem(
+            id: "sensor.salinity",
+            displayName: "Salinity",
+            icon: .sfSymbol("water.waves", provenance: .homesteadSemanticMapping),
+            valueText: "33.8 ppt",
+            supportingText: showsUnavailableBoard ? "Needs connection" : "6H Trend",
+            isAvailable: !showsUnavailableBoard,
+            samples: showsUnavailableBoard ? [] : [33.2, 33.5, 33.4, 33.7, 33.5, 33.6, 33.8].enumerated().map { index, value in
+                WidgetSensorBoardTrendSample(
+                    occurredAt: now.addingTimeInterval(Double(index - 6) * 60 * 60),
+                    value: value
+                )
+            },
+            valueDomain: 33...34
+        )
+    }
+
+    private func previewSensor(
+        id: String,
+        name: String,
+        valueText: String,
+        icon: String,
+        isAvailable: Bool = true,
+        gauge: WidgetGaugePresentation
+    ) -> WidgetSensorSnapshot {
+        WidgetSensorSnapshot(
+            entityID: id,
+            displayName: name,
+            valueText: valueText,
+            subtitle: "Sensor",
+            systemImage: icon,
+            unit: gauge.unitText,
+            isNumeric: true,
+            isAlerting: false,
+            isAvailable: isAvailable,
+            areaName: nil,
+            deviceName: nil,
+            gauge: gauge
+        )
+    }
+
+    private var showsUnavailableBoard: Bool {
+        RuntimeEnvironment.dashboardCardReferenceState == "unavailable"
     }
 }
 

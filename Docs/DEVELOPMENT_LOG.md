@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-21
 
+### Mixed Sensor Board Widget
+
+- Added a stable medium Sensor Board WidgetKit kind alongside the existing Gauge Grids, with two independently named compact sensor slots and one dedicated six-hour numeric trend.
+- Compact slots support Automatic, Gauge, or Reading presentation; Automatic prefers mapped gauge metadata, and explicit Gauge safely falls back to Reading when the sensor is not gauge-capable.
+- Restricted the chart picker to numeric sensor snapshots, reused documented Home Assistant REST history and live WebSocket state refresh, deep-linked every configured region, and kept the rendered face shared with the deterministic widget preview.
+- Verified the medium mixed layout in dark and light Simulator appearances plus focused Sensor Board, shared catalog, and Gauge Grid tests.
+
 ### Durable Live Preview Dashboards
 
 - Moved `Live Home Assistant` dashboard definitions from the ordinary Canvas-local defaults suite into Homestead's existing App Group while retaining per-server profile keys and keeping normal app dashboards isolated.
