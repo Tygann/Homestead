@@ -20,20 +20,37 @@ struct DashboardChangeEntityView: View {
     @State private var searchText = ""
 
     let context: DashboardChangeEntityContext
+    let navigationEmbedded: Bool
     var onEntityReplaced: ((String) -> Void)?
+    var onDraftSelection: ((HAEntityState, Bool) -> Void)?
 
     init(
         context: DashboardChangeEntityContext,
-        onEntityReplaced: ((String) -> Void)? = nil
+        navigationEmbedded: Bool = false,
+        onEntityReplaced: ((String) -> Void)? = nil,
+        onDraftSelection: ((HAEntityState, Bool) -> Void)? = nil
     ) {
         self.context = context
+        self.navigationEmbedded = navigationEmbedded
         self.onEntityReplaced = onEntityReplaced
+        self.onDraftSelection = onDraftSelection
         _selectedEntityID = State(initialValue: context.item.entityID)
     }
 
     var body: some View {
-        NavigationStack {
-            List {
+        Group {
+            if navigationEmbedded {
+                pickerContent
+            } else {
+                NavigationStack {
+                    pickerContent
+                }
+            }
+        }
+    }
+
+    private var pickerContent: some View {
+        List {
                 Section("Preview") {
                     preview
                         .listRowInsets(EdgeInsets())
@@ -56,28 +73,29 @@ struct DashboardChangeEntityView: View {
                         entityButton(entityBox)
                     }
                 }
+        }
+        .overlay {
+            if filteredEntities.isEmpty {
+                ContentUnavailableView.search(text: searchText)
             }
-            .overlay {
-                if filteredEntities.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
-                }
-            }
-            .searchable(text: $searchText, prompt: "Search entities")
-            .navigationTitle("Change Entity")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
+        }
+        .searchable(text: $searchText, prompt: "Search entities")
+        .navigationTitle("Change Entity")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !navigationEmbedded {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) {
                         dismiss()
                     }
                 }
+            }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", role: .confirm) {
-                        saveReplacement()
-                    }
-                    .disabled(!canSave)
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save", role: .confirm) {
+                    saveReplacement()
                 }
+                .disabled(!canSave)
             }
         }
     }
@@ -188,6 +206,13 @@ struct DashboardChangeEntityView: View {
 
     private func saveReplacement() {
         guard let selectedEntity else { return }
+        if let onDraftSelection {
+            onDraftSelection(selectedEntity, preservesGaugeConfiguration)
+            HapticFeedback.impact(.light)
+            dismiss()
+            return
+        }
+
         let replaced: Bool
         if let reference = context.reference {
             replaced = dashboardConfiguration.replaceEntity(

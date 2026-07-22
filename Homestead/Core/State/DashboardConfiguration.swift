@@ -113,6 +113,15 @@ nonisolated struct DashboardChartConfiguration: Codable, Equatable, Sendable {
     }
 }
 
+nonisolated struct DashboardCardUpdate: Equatable, Sendable {
+    let entityID: String
+    let configuration: DashboardCardConfiguration
+    let displayNameOverride: String?
+    let iconNameOverride: String?
+    let gaugeZoneConfiguration: GaugeZoneConfiguration?
+    let chartConfiguration: DashboardChartConfiguration
+}
+
 nonisolated enum DashboardPresentationConfiguration: Codable, Equatable, Sendable {
     case chip
     case card(DashboardCardConfiguration)
@@ -747,6 +756,44 @@ final class DashboardConfiguration {
         updatedDashboards[dashboardIndex].setupState = .manual
         dashboards = updatedDashboards
         return true
+    }
+
+    @discardableResult
+    func applyCardUpdate(
+        _ update: DashboardCardUpdate,
+        for reference: DashboardItemReference
+    ) -> Bool {
+        let entityID = update.entityID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !entityID.isEmpty,
+              item(for: reference)?.role == .card,
+              DashboardConfigurationValidator.isValid(update.configuration),
+              update.gaugeZoneConfiguration?.isValid != false,
+              update.chartConfiguration.isValid else {
+            return false
+        }
+
+        let gaugeKinds: Set<DashboardPresentationKind> = [
+            .circularGauge,
+            .segmentedGauge,
+            .barGauge
+        ]
+        guard update.gaugeZoneConfiguration == nil || gaugeKinds.contains(update.configuration.kind),
+              update.configuration.kind == .chart || update.chartConfiguration == .default else {
+            return false
+        }
+
+        return updateItem(for: reference) { item in
+            item.content = .sourced(DashboardSourcedItem(
+                source: .entity(entityID),
+                presentation: .card(update.configuration)
+            ))
+            item.displayNameOverride = normalizedOverride(update.displayNameOverride)
+            item.iconNameOverride = normalizedOverride(update.iconNameOverride)
+            item.gaugeZoneConfiguration = update.gaugeZoneConfiguration
+            item.chartConfiguration = update.configuration.kind == .chart && update.chartConfiguration != .default
+                ? update.chartConfiguration
+                : nil
+        }
     }
 
     @discardableResult

@@ -14,6 +14,7 @@ struct DashboardIconPickerView: View {
 
     let defaultSystemName: String
     let recommendation: DashboardIconRecommendation
+    let navigationEmbedded: Bool
     let onSelectionChange: (String?) -> Void
 
     private let columns = [
@@ -24,52 +25,66 @@ struct DashboardIconPickerView: View {
         defaultSystemName: String,
         selectedSystemName: String?,
         recommendation: DashboardIconRecommendation,
+        navigationEmbedded: Bool = false,
         onSelectionChange: @escaping (String?) -> Void
     ) {
         self.defaultSystemName = defaultSystemName
         self.recommendation = recommendation
+        self.navigationEmbedded = navigationEmbedded
         self.onSelectionChange = onSelectionChange
         _selectedSystemName = State(initialValue: selectedSystemName)
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
-                    defaultIconButton
-
-                    if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        iconSection(
-                            title: "Recommended",
-                            choices: DashboardIconChoice.recommended(for: recommendation)
-                        )
-
-                        ForEach(DashboardIconCategory.allCases) { category in
-                            iconSection(
-                                title: category.rawValue,
-                                choices: DashboardIconChoice.choices.filter { $0.category == category }
-                            )
-                        }
-                    } else if matchingChoices.isEmpty {
-                        ContentUnavailableView.search(text: searchText)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, AppSpacing.xLarge)
-                    } else {
-                        iconSection(title: "Results", choices: matchingChoices)
-                    }
+        Group {
+            if navigationEmbedded {
+                pickerContent
+            } else {
+                NavigationStack {
+                    pickerContent
                 }
-                .padding(.horizontal, AppSpacing.large)
-                .padding(.vertical, AppSpacing.large)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Choose Icon")
-            .toolbarTitleDisplayMode(.inline)
-            .searchable(
-                text: $searchText,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Search symbols"
-            )
-            .toolbar {
+        }
+    }
+
+    private var pickerContent: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: AppSpacing.xLarge) {
+                defaultIconButton
+
+                if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    iconSection(
+                        title: "Recommended",
+                        choices: DashboardIconChoice.recommended(for: recommendation)
+                    )
+
+                    ForEach(DashboardIconCategory.allCases) { category in
+                        iconSection(
+                            title: category.rawValue,
+                            choices: DashboardIconChoice.choices.filter { $0.category == category }
+                        )
+                    }
+                } else if matchingChoices.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, AppSpacing.xLarge)
+                } else {
+                    iconSection(title: "Results", choices: matchingChoices)
+                }
+            }
+            .padding(.horizontal, AppSpacing.large)
+            .padding(.vertical, AppSpacing.large)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Choose Icon")
+        .toolbarTitleDisplayMode(.inline)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search symbols"
+        )
+        .toolbar {
+            if !navigationEmbedded {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", role: .confirm) {
                         dismiss()

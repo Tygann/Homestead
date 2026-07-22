@@ -463,6 +463,74 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertTrue(configuration.items.isEmpty)
     }
 
+    func testTransactionalCardUpdateAppliesAllDraftFieldsToExactCard() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let sourceDashboardID = configuration.selectedDashboardID
+        let cardID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.hall_temperature"),
+            presentation: .card(.segmentedGauge(layout: .wide))
+        ))
+        let reference = DashboardItemReference(dashboardID: sourceDashboardID, itemID: cardID)
+        let zones = GaugeZoneConfiguration(
+            lowerBound: 50,
+            upperBound: 90,
+            boundaries: [68, 76],
+            colors: [
+                .standard(for: .low),
+                .standard(for: .nominal),
+                .standard(for: .high)
+            ]
+        )
+
+        _ = configuration.createDashboard(named: "Other")
+        XCTAssertTrue(configuration.applyCardUpdate(
+            DashboardCardUpdate(
+                entityID: "sensor.bedroom_temperature",
+                configuration: .segmentedGauge(layout: .large),
+                displayNameOverride: "Comfort",
+                iconNameOverride: "thermometer.medium",
+                gaugeZoneConfiguration: zones,
+                chartConfiguration: .default
+            ),
+            for: reference
+        ))
+
+        let updated = try XCTUnwrap(configuration.item(for: reference))
+        XCTAssertEqual(updated.source, .entity("sensor.bedroom_temperature"))
+        XCTAssertEqual(updated.cardConfiguration, .segmentedGauge(layout: .large))
+        XCTAssertEqual(updated.displayNameOverride, "Comfort")
+        XCTAssertEqual(updated.iconNameOverride, "thermometer.medium")
+        XCTAssertEqual(updated.gaugeZoneConfiguration, zones)
+        XCTAssertNil(updated.chartConfiguration)
+        XCTAssertTrue(configuration.items.isEmpty)
+    }
+
+    func testTransactionalCardUpdateRejectsInvalidDraftWithoutPartialMutation() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let cardID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.status(layout: .compact))
+        ))
+        let reference = DashboardItemReference(
+            dashboardID: configuration.selectedDashboardID,
+            itemID: cardID
+        )
+        let original = try XCTUnwrap(configuration.item(for: reference))
+
+        XCTAssertFalse(configuration.applyCardUpdate(
+            DashboardCardUpdate(
+                entityID: "sensor.changed",
+                configuration: .status(layout: .compact),
+                displayNameOverride: "Changed",
+                iconNameOverride: "house",
+                gaugeZoneConfiguration: nil,
+                chartConfiguration: .init(range: .week)
+            ),
+            for: reference
+        ))
+        XCTAssertEqual(configuration.item(for: reference), original)
+    }
+
     func testCompositeCardReferenceDisambiguatesMatchingItemIDs() throws {
         let sharedItemID = UUID()
         let firstDashboardID = UUID()

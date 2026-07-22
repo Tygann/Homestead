@@ -6,8 +6,11 @@ struct DashboardCardEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(HAStateStore.self) private var stateStore
-    @State private var displayNameDraft = ""
-    @State private var presentedEditor: DashboardCardEditorDestination?
+    @FocusState private var isNameFocused: Bool
+    @State private var navigationPath: [DashboardCardEditorRoute] = []
+    @State private var draft = DashboardCardEditorDraft.empty
+    @State private var initialDraft = DashboardCardEditorDraft.empty
+    @State private var isLoaded = false
     @State private var isConfirmingRemoval = false
 
     let reference: DashboardItemReference
@@ -16,30 +19,35 @@ struct DashboardCardEditorView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
-                if let item = currentCardItem {
-                    editorForm(item: item)
-                } else {
+                if currentCardItem == nil {
                     ContentUnavailableView(
                         "Card Unavailable",
                         systemImage: "rectangle.slash",
                         description: Text("This dashboard card was removed or is no longer available.")
                     )
+                } else if isLoaded {
+                    editorForm
+                } else {
+                    ProgressView()
                 }
             }
             .navigationTitle("Edit Card")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", role: .confirm) {
-                        saveDisplayName()
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", role: .cancel) {
                         dismiss()
                     }
                 }
-            }
-            .sheet(item: $presentedEditor) { destination in
-                editor(destination)
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", role: .confirm) {
+                        save()
+                    }
+                    .disabled(!canSave)
+                }
             }
             .confirmationDialog(
                 "Remove Card?",
@@ -55,101 +63,82 @@ struct DashboardCardEditorView: View {
             } message: {
                 Text("This removes the card from \(dashboardName). It does not remove the entity from Home Assistant.")
             }
-            .onAppear(perform: loadDisplayName)
-            .onDisappear(perform: saveDisplayName)
+            .onAppear(perform: loadDraft)
+            .navigationDestination(for: DashboardCardEditorRoute.self) { route in
+                switch route {
+                case .icon:
+                    iconPicker
+                case .entity:
+                    entityPicker
+                case .gauge:
+                    gaugeEditor
+                }
+            }
         }
+        .interactiveDismissDisabled(hasUnsavedChanges)
     }
 
     // MARK: - Sections
 
-    private func editorForm(item: DashboardCardItem) -> some View {
+    private var editorForm: some View {
         Form {
             Section("Preview") {
+                identityEditor
+
                 DashboardCardView(
-                    entityID: item.entityID,
-                    size: item.size,
-                    presentationKind: item.presentationKind,
-                    displayNameOverride: normalizedDisplayNameDraft,
-                    iconNameOverride: item.iconNameOverride,
-                    gaugeZoneConfiguration: item.gaugeZoneConfiguration,
-                    chartRange: item.chartConfiguration.range,
+                    entityID: draft.entityID,
+                    size: draft.size,
+                    presentationKind: draft.presentationKind,
+                    displayNameOverride: draftDisplayNameOverride,
+                    iconNameOverride: draft.iconNameOverride,
+                    gaugeZoneConfiguration: draft.gaugeZoneConfiguration,
+                    chartRange: draft.chartConfiguration.range,
                     isPreview: true
                 )
-                .frame(height: item.size.renderedHeight(
+                .frame(height: draft.size.renderedHeight(
                     rowSpacing: AppSpacing.medium,
                     cardPadding: AppSpacing.medium
                 ))
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .accessibilityLabel("Card preview")
+                .accessibilityHint("Updates as you edit this card")
             }
 
-            Section("Card") {
-                TextField("Name", text: $displayNameDraft)
-                    .textInputAutocapitalization(.words)
-                    .onSubmit(saveDisplayName)
+            Section {
+                NavigationLink(value: DashboardCardEditorRoute.entity) {
+                    LabeledContent("Entity", value: canonicalEntityName)
+                }
 
-                LabeledContent("Type", value: presentationTitle(for: item.presentationKind))
-
-                Picker("Size", selection: sizeBinding(for: item)) {
-                    ForEach(
-                        DashboardPresentationCatalog.descriptor(for: item.presentationKind).supportedLayouts,
-                        id: \.self
-                    ) { size in
+                Picker("Size", selection: sizeBinding) {
+                    ForEach(supportedSizes, id: \.self) { size in
                         Label(size.displayName, systemImage: size.systemImage)
                             .tag(size)
                     }
                 }
-
-                Button {
-                    saveDisplayName()
-                    presentedEditor = .entity
-                } label: {
-                    Label("Change Entity", systemImage: "arrow.triangle.swap")
-                }
-
-                Button {
-                    saveDisplayName()
-                    presentedEditor = .icon
-                } label: {
-                    Label("Change Icon", systemImage: "circle.grid.2x2")
-                }
+            } header: {
+                Text("Card")
+            } footer: {
+                Text("Changes apply only to this dashboard card.")
             }
 
-            if isGauge(item.presentationKind) || item.presentationKind == .chart {
-                Section("Card Settings") {
-                    if isGauge(item.presentationKind) {
-                        Button {
-                            saveDisplayName()
-                            presentedEditor = .gauge
-                        } label: {
-                            Label("Gauge Settings", systemImage: "dial.medium")
-                        }
-                    }
-
-                    if item.presentationKind == .chart {
-                        Button {
-                            saveDisplayName()
-                            presentedEditor = .chart
-                        } label: {
-                            LabeledContent {
-                                Text(item.chartConfiguration.range.accessibilityTitle)
-                                    .foregroundStyle(.secondary)
-                            } label: {
-                                Label("Chart Settings", systemImage: "chart.xyaxis.line")
+            if isGauge(draft.presentationKind) || draft.presentationKind == .chart {
+                Section("Settings") {
+                    if draft.presentationKind == .chart {
+                        Picker("History Range", selection: chartRangeBinding) {
+                            ForEach(HAHistoryRangePreset.dashboardChartPresets) { range in
+                                Text(range.accessibilityTitle)
+                                    .tag(range)
                             }
                         }
                     }
-                }
-            }
 
-            Section {
-                LabeledContent("Dashboard", value: dashboardName)
-                LabeledContent("Entity", value: item.entityID)
-            } header: {
-                Text("Context")
-            } footer: {
-                Text("These settings affect only this dashboard card. Home Assistant and the entity detail remain unchanged.")
+                    if isGauge(draft.presentationKind) {
+                        NavigationLink(value: DashboardCardEditorRoute.gauge) {
+                            LabeledContent("Gauge", value: gaugeSettingsSummary)
+                        }
+                    }
+                }
             }
 
             Section {
@@ -158,59 +147,88 @@ struct DashboardCardEditorView: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
-    // MARK: - Editor Destinations
+    private var identityEditor: some View {
+        HStack(spacing: AppSpacing.medium) {
+            Button {
+                navigationPath.append(.icon)
+            } label: {
+                ZStack(alignment: .bottomTrailing) {
+                    HomesteadIconView(icon: draftResolvedIcon, pointSize: 22, weight: .semibold)
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: 52, height: 52)
+                        .background(
+                            Color.accentColor.opacity(0.12),
+                            in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                        )
 
-    @ViewBuilder
-    private func editor(_ destination: DashboardCardEditorDestination) -> some View {
-        if let item = currentCardItem {
-            switch destination {
-            case .entity:
-                DashboardChangeEntityView(
-                    context: DashboardChangeEntityContext(item: item, reference: reference),
-                    onEntityReplaced: handleEntityReplacement
-                )
-            case .icon:
-                DashboardIconPickerView(
-                    defaultSystemName: stateStore.entity(for: item.entityID)?.iconName ?? "square.grid.2x2",
-                    selectedSystemName: item.iconNameOverride,
-                    recommendation: .domain(stateStore.entity(for: item.entityID)?.domain ?? .other),
-                    onSelectionChange: { iconName in
-                        dashboardConfiguration.setIconNameOverride(iconName, for: reference)
-                    }
-                )
-            case .gauge:
-                gaugeEditor(for: item)
-            case .chart:
-                DashboardChartSettingsView(
-                    context: DashboardChartSettingsContext(item: item),
-                    onSave: { configuration in
-                        dashboardConfiguration.setChartConfiguration(configuration, for: reference)
-                    }
-                )
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, Color.accentColor)
+                        .offset(x: 4, y: 4)
+                }
             }
-        } else {
-            ContentUnavailableView("Card Unavailable", systemImage: "rectangle.slash")
+            .buttonStyle(.plain)
+            .accessibilityLabel("Change card icon")
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                TextField("Name", text: displayNameBinding)
+                    .font(.headline)
+                    .textInputAutocapitalization(.words)
+                    .focused($isNameFocused)
+                    .submitLabel(.done)
+                    .onSubmit(restoreCanonicalNameIfNeeded)
+                    .accessibilityLabel("Card name")
+
+                Text(entitySubtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
+        .padding(.vertical, AppSpacing.xSmall)
+    }
+
+    // MARK: - Navigation Destinations
+
+    private var iconPicker: some View {
+        DashboardIconPickerView(
+            defaultSystemName: defaultIconName,
+            selectedSystemName: draft.iconNameOverride,
+            recommendation: .domain(draftEntityBox?.domain ?? .other),
+            navigationEmbedded: true,
+            onSelectionChange: { draft.iconNameOverride = $0 }
+        )
+    }
+
+    private var entityPicker: some View {
+        DashboardChangeEntityView(
+            context: DashboardChangeEntityContext(item: draft.cardItem(id: reference.itemID)),
+            navigationEmbedded: true,
+            onDraftSelection: handleEntitySelection
+        )
     }
 
     @ViewBuilder
-    private func gaugeEditor(for item: DashboardCardItem) -> some View {
-        if let presentation = stateStore.entityBox(for: item.entityID)?.sensorEntity?.gaugePresentation {
-            let storedConfiguration = item.gaugeZoneConfiguration.flatMap { $0.isValid ? $0 : nil }
+    private var gaugeEditor: some View {
+        if let presentation = draftEntityBox?.sensorEntity?.gaugePresentation {
+            let storedConfiguration = draft.gaugeZoneConfiguration.flatMap { $0.isValid ? $0 : nil }
             let context = DashboardGaugeZoneEditorContext(
-                id: item.id,
+                id: reference.itemID,
                 presentation: presentation,
-                kind: item.presentationKind,
+                kind: draft.presentationKind,
                 configuration: storedConfiguration ?? .defaults(for: presentation)
             )
 
-            DashboardGaugeZoneEditorView(context: context) { configuration in
-                dashboardConfiguration.setGaugeZoneConfiguration(configuration, for: reference)
-            } onReset: {
-                dashboardConfiguration.setGaugeZoneConfiguration(nil, for: reference)
-            }
+            DashboardGaugeZoneEditorView(
+                context: context,
+                navigationEmbedded: true,
+                onSave: { draft.gaugeZoneConfiguration = $0 },
+                onReset: { draft.gaugeZoneConfiguration = nil }
+            )
         } else {
             ContentUnavailableView(
                 "Gauge Unavailable",
@@ -218,6 +236,78 @@ struct DashboardCardEditorView: View {
                 description: Text("This entity no longer provides a compatible numeric gauge.")
             )
         }
+    }
+
+    // MARK: - Actions
+
+    private func loadDraft() {
+        guard !isLoaded, let item = currentCardItem else { return }
+        let loadedDraft = DashboardCardEditorDraft(
+            item: item,
+            canonicalName: stateStore.entity(for: item.entityID)?.displayName
+        )
+        draft = loadedDraft
+        initialDraft = loadedDraft
+        isLoaded = true
+    }
+
+    private func save() {
+        guard canSave else { return }
+        restoreCanonicalNameIfNeeded()
+        let originalEntityID = initialDraft.entityID
+        let didSave = dashboardConfiguration.applyCardUpdate(
+            draft.update(canonicalName: canonicalEntityName),
+            for: reference
+        )
+        guard didSave else { return }
+
+        if draft.entityID != originalEntityID {
+            onEntityReplaced?(draft.entityID)
+        }
+        HapticFeedback.impact(.light)
+        dismiss()
+    }
+
+    private func handleEntitySelection(
+        _ replacement: HAEntityState,
+        preservesGaugeConfiguration: Bool
+    ) {
+        draft.replaceEntity(
+            with: replacement.entityID,
+            replacementCanonicalName: replacement.homeEntity.displayName,
+            preservesGaugeConfiguration: preservesGaugeConfiguration
+        )
+    }
+
+    private func restoreCanonicalNameIfNeeded() {
+        guard draft.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        draft.setDisplayName(canonicalEntityName, canonicalName: canonicalEntityName)
+    }
+
+    // MARK: - Bindings
+
+    private var displayNameBinding: Binding<String> {
+        Binding(
+            get: { draft.displayName },
+            set: { draft.setDisplayName($0, canonicalName: canonicalEntityName) }
+        )
+    }
+
+    private var sizeBinding: Binding<DashboardCardSize> {
+        Binding(
+            get: { draft.size },
+            set: {
+                HapticFeedback.selection()
+                draft.size = $0
+            }
+        )
+    }
+
+    private var chartRangeBinding: Binding<HAHistoryRangePreset> {
+        Binding(
+            get: { draft.chartConfiguration.range },
+            set: { draft.chartConfiguration.range = $0 }
+        )
     }
 
     // MARK: - Helpers
@@ -240,76 +330,75 @@ struct DashboardCardEditorView: View {
         )
     }
 
+    private var draftEntityBox: HAEntityState? {
+        stateStore.entityBox(for: draft.entityID)
+    }
+
+    private var canonicalEntityName: String {
+        draftEntityBox?.homeEntity.displayName ?? draft.entityID
+    }
+
+    private var entitySubtitle: String {
+        draftEntityBox.map { EntityDetailPresentationModel(entityBox: $0).subtitle }
+            ?? draft.entityID
+    }
+
+    private var draftResolvedIcon: ResolvedIcon {
+        guard let draftEntityBox else {
+            return .sfSymbol("square.grid.2x2", provenance: .fallback)
+        }
+        return IconResolver.applyingDashboardOverride(
+            draft.iconNameOverride,
+            to: draftEntityBox.homeEntity.resolvedIcon
+        )
+    }
+
+    private var defaultIconName: String {
+        stateStore.entity(for: draft.entityID)?.iconName ?? "square.grid.2x2"
+    }
+
+    private var draftDisplayNameOverride: String? {
+        draft.update(canonicalName: canonicalEntityName).displayNameOverride
+    }
+
+    private var supportedSizes: [DashboardCardSize] {
+        DashboardPresentationCatalog.descriptor(for: draft.presentationKind).supportedLayouts
+    }
+
     private var dashboardName: String {
         dashboardConfiguration.dashboardName(for: reference) ?? "Dashboard"
     }
 
-    private var normalizedDisplayNameDraft: String? {
-        let trimmed = displayNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        let canonicalName = currentCardItem
-            .flatMap { stateStore.entity(for: $0.entityID)?.displayName }
-        return trimmed == canonicalName ? nil : trimmed
+    private var gaugeSettingsSummary: String {
+        guard let gaugeZoneConfiguration = draft.gaugeZoneConfiguration else { return "Automatic" }
+        return "\(gaugeZoneConfiguration.colors.count) Zones"
     }
 
-    private func loadDisplayName() {
-        guard displayNameDraft.isEmpty, let item = currentCardItem else { return }
-        displayNameDraft = item.displayNameOverride
-            ?? stateStore.entity(for: item.entityID)?.displayName
-            ?? ""
+    private var canSave: Bool {
+        guard isLoaded,
+              currentCardItem != nil,
+              let draftEntityBox,
+              DashboardPresentationCatalog.isCompatible(draft.configuration, with: draftEntityBox),
+              draft.chartConfiguration.isValid,
+              draft.gaugeZoneConfiguration?.isValid != false else {
+            return false
+        }
+        return true
     }
 
-    private func saveDisplayName() {
-        guard currentCardItem != nil else { return }
-        dashboardConfiguration.renameDisplayItem(
-            reference,
-            displayNameOverride: normalizedDisplayNameDraft
-        )
-    }
-
-    private func handleEntityReplacement(_ entityID: String) {
-        displayNameDraft = DashboardCardEditorNamePolicy.draft(
-            displayNameOverride: currentCardItem?.displayNameOverride,
-            replacementCanonicalName: stateStore.entity(for: entityID)?.displayName
-        )
-        onEntityReplaced?(entityID)
-    }
-
-    private func sizeBinding(for item: DashboardCardItem) -> Binding<DashboardCardSize> {
-        Binding(
-            get: { currentCardItem?.size ?? item.size },
-            set: { size in
-                HapticFeedback.selection()
-                dashboardConfiguration.setCardLayout(size, for: reference)
-            }
-        )
+    private var hasUnsavedChanges: Bool {
+        isLoaded && draft != initialDraft
     }
 
     private func isGauge(_ kind: DashboardPresentationKind) -> Bool {
         [.circularGauge, .segmentedGauge, .barGauge].contains(kind)
     }
-
-    private func presentationTitle(for kind: DashboardPresentationKind) -> String {
-        DashboardPresentationCatalog.descriptor(for: kind).title
-    }
 }
 
-enum DashboardCardEditorNamePolicy {
-    static func draft(
-        displayNameOverride: String?,
-        replacementCanonicalName: String?
-    ) -> String {
-        displayNameOverride ?? replacementCanonicalName ?? ""
-    }
-}
-
-private enum DashboardCardEditorDestination: String, Identifiable {
-    case entity
+private enum DashboardCardEditorRoute: Hashable {
     case icon
+    case entity
     case gauge
-    case chart
-
-    var id: String { rawValue }
 }
 
 #if DEBUG

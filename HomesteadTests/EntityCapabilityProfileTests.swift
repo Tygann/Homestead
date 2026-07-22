@@ -4,23 +4,51 @@ import XCTest
 @MainActor
 final class EntityCapabilityProfileTests: XCTestCase {
     func testCardEditorNameDraftUsesReplacementCanonicalNameWithoutOverride() {
-        XCTAssertEqual(
-            DashboardCardEditorNamePolicy.draft(
+        var draft = DashboardCardEditorDraft(
+            item: DashboardCardItem(
+                id: UUID(),
+                entityID: "sensor.hall_temperature",
+                configuration: .status(layout: .compact),
                 displayNameOverride: nil,
-                replacementCanonicalName: "Bedroom Temperature"
+                iconNameOverride: nil,
+                gaugeZoneConfiguration: nil,
+                chartConfiguration: .default
             ),
-            "Bedroom Temperature"
+            canonicalName: "Hall Temperature"
         )
+        draft.replaceEntity(
+            with: "sensor.bedroom_temperature",
+            replacementCanonicalName: "Bedroom Temperature",
+            preservesGaugeConfiguration: true
+        )
+
+        XCTAssertEqual(draft.displayName, "Bedroom Temperature")
+        XCTAssertFalse(draft.usesCustomDisplayName)
+        XCTAssertNil(draft.update(canonicalName: "Bedroom Temperature Updated").displayNameOverride)
     }
 
     func testCardEditorNameDraftPreservesExplicitOverrideAfterReplacement() {
-        XCTAssertEqual(
-            DashboardCardEditorNamePolicy.draft(
+        var draft = DashboardCardEditorDraft(
+            item: DashboardCardItem(
+                id: UUID(),
+                entityID: "sensor.hall_temperature",
+                configuration: .status(layout: .compact),
                 displayNameOverride: "Comfort",
-                replacementCanonicalName: "Bedroom Temperature"
+                iconNameOverride: nil,
+                gaugeZoneConfiguration: nil,
+                chartConfiguration: .default
             ),
-            "Comfort"
+            canonicalName: "Hall Temperature"
         )
+        draft.replaceEntity(
+            with: "sensor.bedroom_temperature",
+            replacementCanonicalName: "Bedroom Temperature",
+            preservesGaugeConfiguration: true
+        )
+
+        XCTAssertEqual(draft.displayName, "Comfort")
+        XCTAssertTrue(draft.usesCustomDisplayName)
+        XCTAssertEqual(draft.update(canonicalName: "Bedroom Temperature").displayNameOverride, "Comfort")
     }
 
     func testReferenceDomainsUseDistinctFamiliesAndRoutes() {

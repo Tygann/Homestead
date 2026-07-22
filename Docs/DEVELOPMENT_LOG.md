@@ -2,6 +2,15 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-22
+
+### Native Contextual Card Editor
+
+- Replaced the one-item detail toolbar menu with a direct pencil action that opens the originating card editor in one tap.
+- Reworked Edit Card around a local transactional draft: Cancel discards, Done applies the exact referenced card update once, and entity changes notify the still-open canonical detail only after the save succeeds.
+- Made card identity directly editable beside the live preview, moved Entity and Gauge configuration into native in-sheet navigation, made Chart range inline, and removed duplicate name/icon actions plus technical Context rows.
+- Kept card-specific settings conditional, added atomic exact-reference update coverage, and visually verified the deterministic editor/detail routes in light and dark appearances.
+
 ## 2026-07-21
 
 ### Entity-First Details And Contextual Card Editing

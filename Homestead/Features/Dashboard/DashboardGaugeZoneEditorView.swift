@@ -12,23 +12,37 @@ struct DashboardGaugeZoneEditorView: View {
     @State private var configuration: GaugeZoneConfiguration
 
     let context: DashboardGaugeZoneEditorContext
+    let navigationEmbedded: Bool
     let onSave: (GaugeZoneConfiguration) -> Void
     let onReset: () -> Void
 
     init(
         context: DashboardGaugeZoneEditorContext,
+        navigationEmbedded: Bool = false,
         onSave: @escaping (GaugeZoneConfiguration) -> Void,
         onReset: @escaping () -> Void
     ) {
         self.context = context
+        self.navigationEmbedded = navigationEmbedded
         self.onSave = onSave
         self.onReset = onReset
         _configuration = State(initialValue: context.configuration)
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
+        Group {
+            if navigationEmbedded {
+                editorContent
+            } else {
+                NavigationStack {
+                    editorContent
+                }
+            }
+        }
+    }
+
+    private var editorContent: some View {
+        Form {
                 Section {
                     GaugePresentationView(
                         presentation: context.presentation.applying(zoneConfiguration: configuration),
@@ -98,21 +112,22 @@ struct DashboardGaugeZoneEditorView: View {
                         dismiss()
                     }
                 }
-            }
-            .navigationTitle("Gauge Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
+        }
+        .navigationTitle("Gauge Settings")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !navigationEmbedded {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) { dismiss() }
                 }
+            }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", role: .confirm) {
-                        onSave(configuration)
-                        dismiss()
-                    }
-                    .disabled(!configuration.isValid)
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save", role: .confirm) {
+                    onSave(configuration)
+                    dismiss()
                 }
+                .disabled(!configuration.isValid)
             }
         }
     }

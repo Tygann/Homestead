@@ -106,20 +106,14 @@ struct EntityDetailSheet: View {
         .toolbar {
             if let dashboardItemReference {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        if dashboardConfiguration.item(for: dashboardItemReference) != nil {
-                            Button {
-                                editingCardReference = dashboardItemReference
-                            } label: {
-                                Label("Edit Card", systemImage: "slider.horizontal.3")
-                            }
-                        } else {
-                            Label("Card Unavailable", systemImage: "rectangle.slash")
+                    if dashboardConfiguration.item(for: dashboardItemReference) != nil {
+                        Button {
+                            editingCardReference = dashboardItemReference
+                        } label: {
+                            Image(systemName: "pencil")
                         }
-                    } label: {
-                        Label("Card", systemImage: "rectangle.and.pencil.and.ellipsis")
+                        .accessibilityLabel("Edit Card")
                     }
-                    .accessibilityLabel("Card options")
                 }
             }
         }
