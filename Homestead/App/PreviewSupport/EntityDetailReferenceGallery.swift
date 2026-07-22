@@ -121,6 +121,7 @@ private struct EntityDetailReferenceScene: View {
 
 private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     case simpleControl
+    case momentaryAction
     case metric
     case history
     case positional
@@ -136,6 +137,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .simpleControl: "Light"
+        case .momentaryAction: "Script"
         case .metric: "Metric"
         case .history: "Chart"
         case .positional: "Position"
@@ -151,6 +153,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .simpleControl: "lightbulb.fill"
+        case .momentaryAction: "play.fill"
         case .metric: "gauge.with.dots.needle.50percent"
         case .history: "chart.xyaxis.line"
         case .positional: "blinds.horizontal.closed"
@@ -166,6 +169,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     var entityID: String {
         switch self {
         case .simpleControl: "light.reading_lamp"
+        case .momentaryAction: "script.arrive_home"
         case .metric: "sensor.front_door_battery"
         case .history: "sensor.living_room_temperature"
         case .positional: "cover.primary_shades"
@@ -208,6 +212,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     private var baseState: String {
         switch self {
         case .simpleControl: "on"
+        case .momentaryAction: "off"
         case .metric: "18"
         case .history: "73.4"
         case .positional: "open"
@@ -226,6 +231,10 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             [
                 "friendly_name": .string("Reading Lamp"),
                 "brightness": .number(184)
+            ]
+        case .momentaryAction:
+            [
+                "friendly_name": .string("Arrive Home")
             ]
         case .metric:
             [
@@ -312,6 +321,8 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .simpleControl:
             state = isMaximum ? "on" : "off"
             attributes["brightness"] = .number(isMaximum ? 255 : 1)
+        case .momentaryAction:
+            state = isMaximum ? "on" : "off"
         case .metric:
             state = isMaximum ? "100" : "0"
         case .history:

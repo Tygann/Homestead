@@ -21,7 +21,7 @@ Do not repeat the same current state in the hero and a separate read-only sectio
 - Use grouped system surfaces, semantic colors, SF Symbols, shared spacing/radius tokens, and at least 44-point interactive targets.
 - Keep content cards opaque and inexpensive. Reserve system material or glass treatment for navigation and control chrome supplied by iOS.
 - Use the entity friendly name for navigation and a singular domain/device category in the hero. Identity-first domains such as Person may use a contact-style identity header instead of a category card.
-- Persistent binary capabilities such as light, switch, fan power, and automation enablement use a native toggle in the hero. Momentary, multi-action, and security-sensitive capabilities retain explicit labeled action sections and confirmation behavior.
+- Persistent binary capabilities such as light, switch, fan power, and automation enablement use a native toggle in the hero. Momentary actions such as Run, Activate, and Press use a compact labeled hero button. Multi-action and security-sensitive capabilities retain explicit labeled action sections and confirmation behavior.
 - Omit normal badges such as `Live`, `Ready`, `Normal`, `On`, and `Off`. Show a badge only for an actionable mode, warning, unavailable state, failure, or in-flight update.
 - Preserve last-known content while refreshing or pending. Disable only affected controls.
 - Unsupported capabilities are omitted. Unavailable and failed capabilities remain understandable and recoverable.
@@ -57,7 +57,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 | Environmental | climate, humidifier, water heater | environment | temperature/level, mode, history |
 | Media/visual | media player, camera, image | media | now playing/live media, playback/source |
 | Autonomous appliance | vacuum, lawn mower | activity | start/stop, return, activity |
-| Action/workflow | scene, script, automation, button | activity or status | action/control, logic, activity |
+| Action/workflow | scene, script, automation, button | compact action or status | logic, activity |
 | Editable value | number, select, text, date/time | metric or status | native editor, constraints, history/activity |
 | Information/content | weather, calendar, todo, update, person, device tracker | environment/activity/status | domain content, relationships, activity |
 | Generic | unknown domains | status | server-advertised actions, activity |
@@ -79,16 +79,16 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 ## History Semantics
 
 - Continuous numeric detail history uses 6H, 24H, 7D, and 30D. Dashboard Chart cards may persist a focused 1H, 6H, 24H, or 7D range independently; 6H remains the default.
-- Discrete recent activity keeps 1H, 6H, and 24H.
+- Discrete recent activity uses the same 6H, 24H, 7D, and 30D detail ranges. Range changes refresh automatically; manual refresh chrome stays out of the normal state and a labeled Retry appears only after failure.
 - Gauges use the meaningful absolute scale of a bounded measurement; battery is 0–100.
-- Canonical Sensor details summarize a bounded measurement with its large reading and a compact range bar. Full gauge instruments remain dashboard/widget presentation choices rather than being repeated beside History.
+- Canonical Sensor details use one compact trailing current value in the identity hero. Gauge instruments and progress bars remain dashboard/widget presentation choices rather than being repeated beside History.
 - History charts use a padded sample-adaptive domain constrained by any trustworthy absolute bounds. This preserves meaningful variation without implying values outside the entity's valid range.
 - Unbounded measurements use the same padded sample-adaptive domain without absolute clamping.
 - App-facing sensor semantics choose Catmull-Rom interpolation for naturally continuous measurements and linear interpolation for totals, bounded/step-like values, and ambiguous sensors. The mapped history samples remain the statistical and accessibility source of truth.
-- Charts preserve extrema and mapped display precision when sampling, expose an accessibility chart descriptor, use range-appropriate natural time ticks, and only mention partial coverage when the returned samples demonstrably begin after the requested interval. Expanded charts support direct touch scrubbing with a selected rule, point, value, timestamp, and range statistics.
-- Keep one visible Min/Average/Max summary. Touch selection presents its historical value and timestamp locally over the chart; the chart footer contains only nonduplicated time or coverage context.
+- Charts preserve extrema and mapped display precision when sampling, expose an accessibility chart descriptor, use range-appropriate natural time ticks, and only mention partial coverage when the returned samples demonstrably begin after the requested interval. Canonical charts share one detail height and support direct touch scrubbing with a selected rule, point, value, timestamp, and range statistics.
+- Keep one visible Min/Average/Max summary. Touch selection presents its historical value and timestamp locally over the chart; the chart footer appears only for meaningful partial-coverage context.
 - Numeric domains reuse `EntityNumericHistoryPanel`; sensors and editable Number entities currently opt in with their mapped unit and meaningful bounded range.
-- A dashboard Chart card opens a chart-first Sensor detail with a compact current/selected reading instead of a gauge. Gauge cards and neutral entity entry points retain the overview composition. A configured Chart remains a history surface when the current Home Assistant state is temporarily unavailable.
+- Chart, Gauge, and neutral entry points open the same canonical Sensor composition. A Chart card may provide the initial History range, and remains a history surface when the current Home Assistant state is temporarily unavailable, but card presentation does not change hero content, chart height, or detail sections.
 - Discrete domains reuse the self-loading `EntityActivityPanel`, which owns range selection, cancellation, retry, and either documented state history or Automation trace loading.
 - Never fall back to generic binary-sensor language for an unmapped activity domain. Omit Activity until its states or event source have an explicit semantic mapping.
 
@@ -96,7 +96,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 
 - The shared scaffold constrains readable content width on regular-width devices while preserving the single-column section order used on iPhone.
 - Hero identity and exceptional status reflow vertically when horizontal space or Dynamic Type requires it.
-- The Debug reference gallery renders real detail compositions for Metric, Position, Climate, Weather, Presence, Number, Text, and Date & Time from deterministic fixtures across live, loading, empty, pending, unavailable, stale, failed, minimum, maximum, and long-content variants. Async history and forecast fixtures must not contact the sample Home Assistant URL.
+- The Debug reference gallery renders real detail compositions for Simple Control, Momentary Action, Metric, Chart, Position, Climate, Weather, Presence, Number, Text, and Date & Time from deterministic fixtures across live, loading, empty, pending, unavailable, stale, failed, minimum, maximum, and long-content variants. Async history and forecast fixtures must not contact the sample Home Assistant URL.
 - Launch the gallery directly with `--preview-screen entity-details` for simulator and browser-mirror review without onboarding or live-server dependencies. Add `--preview-detail-family <value>` and `--preview-detail-state <value>` to launch a specific matrix cell without manual picker interaction.
 - Treat the reference gallery as a state matrix, not a substitute for device verification. New domain families should add representative fixtures before introducing a new visual grammar.
 - A visually complete detail-view change includes a rendered simulator pass of its representative fixture and relevant loading/empty state. A successful compile alone is a draft-quality verification for visual work.
@@ -116,4 +116,4 @@ Avoid a type-erased universal section schema. Typed SwiftUI domain views remain 
 
 Editable Number details consume `NumberEntity` for current value, bounds, step, unit, and Home Assistant display mode. SwiftUI must not read the raw entity attributes to reconstruct those constraints.
 
-Person and Device Tracker details share the typed Presence composition. Person uses a quiet contact-style identity header that prioritizes authenticated imagery or the mapped entity icon plus Home/Away/named-zone state, without repeating a `Person` category card. Location source, tracking method, accuracy, battery, device context, and navigable person/tracker relationships are consolidated into one supporting section when available. Registry area assignment must not be presented as live physical location. Presence remains read-only and uses discrete Recent Activity ranges; loading, empty, and failed activity results remain compact until actual events need the timeline footprint.
+Person uses one canonical native Form composition shared by Settings > People and every entity-detail entry point. It prioritizes authenticated imagery or the mapped entity icon plus Home/Away/named-zone state, exposes compact Details and Context rows, keeps trackers navigable, and routes Recent Activity to one focused destination. Device Tracker retains its tracker-oriented detail while reusing the same mapped presence records and relationships. Registry area assignment must not be presented as live physical location. Presence remains read-only and uses the standard discrete Recent Activity ranges; loading, empty, and failed activity results remain compact until actual events need the timeline footprint.

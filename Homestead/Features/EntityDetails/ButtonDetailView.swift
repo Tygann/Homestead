@@ -23,35 +23,33 @@ struct ButtonDetailView: View {
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
-            actionPanel
             contextDetails
         }
         .actionConfirmationDialog(request: $confirmationRequest)
     }
 
     private var header: some View {
-        EntityDetailHeader(
-            entityBox: entityBox,
+        EntityDetailHeroCard(
             icon: presentation.icon,
-            category: "Button",
-            summary: nil,
+            title: "Button",
+            subtitle: EntityDetailHeroSubtitle.updated(entity),
             status: nil,
             iconColor: presentation.isAvailable ? .accentColor : .secondary,
-            iconBackground: presentation.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
-        )
-    }
-
-    private var actionPanel: some View {
-        EntityControlPanel(title: "Action", systemImage: "button.programmable") {
-            EntityDetailActionButton(
-                title: entityBox.pendingCommand != nil ? "Pressing..." : "Press",
-                systemImage: "button.programmable",
-                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "button", service: "press")
-            ) {
-                confirmOrPerform(domain: "button", service: "press") {
-                    Task { await homeAssistantService.pressButton(entityID: entity.entityID) }
+            iconBackground: presentation.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
+            statePresentation: detailState,
+            accessory: {
+                EntityDetailHeroActionButton(
+                    title: "Press",
+                    systemImage: "button.programmable",
+                    isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "button", service: "press")
+                ) {
+                    confirmOrPerform(domain: "button", service: "press") {
+                        Task { await homeAssistantService.pressButton(entityID: entity.entityID) }
+                    }
                 }
             }
+        ) {
+            EmptyView()
         }
     }
 
@@ -67,12 +65,6 @@ struct ButtonDetailView: View {
                 EntityMetadataRow(title: "State", value: entity.state.displayStateText)
             ]
         )
-    }
-
-    private var statusSummary: String {
-        guard entity.isAvailable else { return "Button unavailable" }
-        if entityBox.pendingCommand != nil { return "Waiting for Home Assistant confirmation" }
-        return entity.state == "unknown" ? "Ready for command" : entity.state.displayStateText
     }
 
     private func confirmOrPerform(domain: String, service: String, perform: @escaping () -> Void) {

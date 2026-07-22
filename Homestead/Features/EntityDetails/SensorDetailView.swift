@@ -6,7 +6,6 @@ struct SensorDetailView: View {
     var initialSection: EntityDetailInitialSection = .overview
 
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var historySelection: EntityHistorySelection?
 
     private var entity: HomeEntity {
         entityBox.homeEntity
@@ -31,11 +30,7 @@ struct SensorDetailView: View {
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             if entity.domain == .sensor {
-                if isHistoryFocused {
-                    historyHero
-                } else {
-                    sensorHero
-                }
+                sensorHero
             } else {
                 header
                 currentReading
@@ -47,13 +42,9 @@ struct SensorDetailView: View {
                     unit: entityBox.sensorEntity?.unitText,
                     displayPrecision: entityBox.sensorEntity?.resolvedDisplayPrecision,
                     accentColor: presentation.accentColor,
-                    preferredRange: isHistoryFocused
-                        ? nil
-                        : entityBox.sensorEntity?.gaugePresentation?.range,
+                    preferredRange: entityBox.sensorEntity?.gaugePresentation?.range,
                     initialRange: initialHistoryRange,
-                    layout: isHistoryFocused ? .expanded : .compact,
-                    interpolationStyle: entityBox.sensorEntity?.historyChartInterpolationStyle ?? .linear,
-                    onSelectionChange: { historySelection = $0 }
+                    interpolationStyle: entityBox.sensorEntity?.historyChartInterpolationStyle ?? .linear
                 )
             }
             if let source = features.activitySource {
@@ -111,74 +102,17 @@ struct SensorDetailView: View {
             iconColor: sensorHeroColor,
             statusColor: .orange,
             statusBackground: Color.orange.opacity(0.12),
-            statePresentation: detailState
-        ) {
-            if let gauge = entityBox.sensorEntity?.gaugePresentation {
-                gaugeSummary(gauge)
-            } else {
+            statePresentation: detailState,
+            accessory: {
                 Text(primaryValue)
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                    .font(.title2.weight(.semibold).monospacedDigit())
                     .foregroundStyle(statusColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .minimumScaleFactor(0.7)
             }
-        }
-    }
-
-    private func gaugeSummary(_ gauge: GaugePresentation) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                Text(gauge.valueText)
-                    .font(.system(size: 52, weight: .semibold, design: .rounded))
-                    .foregroundStyle(sensorHeroColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-                    .monospacedDigit()
-
-                if let unit = gauge.unitText {
-                    Text(unit)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            GaugePresentationView(
-                presentation: gauge,
-                style: .row,
-                tint: presentation.accentColor
-            )
-        }
-    }
-
-    private var historyHero: some View {
-        EntityDetailHeroCard(
-            icon: presentation.icon,
-            title: heroPresentation?.category ?? "Sensor",
-            subtitle: historyHeroSubtitle,
-            status: heroPresentation?.statusText,
-            iconColor: sensorHeroColor,
-            statusColor: .orange,
-            statusBackground: Color.orange.opacity(0.12),
-            statePresentation: detailState
         ) {
-            Text(historySelection?.formattedValue ?? primaryValue)
-                .font(.system(size: 52, weight: .semibold, design: .rounded))
-                .foregroundStyle(statusColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-                .monospacedDigit()
-                .contentTransition(.numericText())
-                .frame(maxWidth: .infinity, alignment: .leading)
+            EmptyView()
         }
-    }
-
-    private var historyHeroSubtitle: Text? {
-        guard let selection = historySelection else {
-            return sensorFreshnessText
-        }
-        return Text(selection.occurredAt.formatted(date: .abbreviated, time: .shortened))
     }
 
     private var isHistoryFocused: Bool {

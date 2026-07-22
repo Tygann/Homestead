@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-22
 
+### Canonical Entity Detail Composition
+
+- Unified Person navigation and Settings > People on one native Form detail, preserving mapped presence data, operational state, tracker navigation, and a focused Recent Activity destination.
+- Made Sensor details independent of their originating dashboard card: the hero now carries one compact current value without embedded gauge chrome, every numeric History uses one canonical height, and unlabeled latest-sample timestamps were removed in favor of local scrub context.
+- Simplified Climate to current temperature in the hero, native granular target steppers, one authoritative Mode section, and secondary option menus; removed duplicated target and mode summaries.
+- Moved Script, Scene, and Button momentary actions into compact labeled hero buttons, standardized Recent Activity on 6H/24H/7D/30D with failure-only Retry, and added a deterministic Momentary Action reference family.
+
 ### Entity Detail Hierarchy And Control Consistency
 
 - Moved persistent binary controls for lights, switches, fans, and automations into the shared hero as independently accessible native toggles, removing redundant one-action Control cards while retaining explicit action groups for covers and other multi-action or security-sensitive domains.

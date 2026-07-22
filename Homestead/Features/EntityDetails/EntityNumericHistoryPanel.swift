@@ -15,9 +15,7 @@ struct EntityNumericHistoryPanel: View {
     var displayPrecision: Int? = nil
     let accentColor: Color
     let preferredRange: ClosedRange<Double>?
-    var layout: EntityNumericHistoryLayout = .compact
     var interpolationStyle: HomesteadChartInterpolationStyle = .linear
-    var onSelectionChange: (EntityHistorySelection?) -> Void = { _ in }
 
     init(
         entityBox: HAEntityState,
@@ -27,9 +25,7 @@ struct EntityNumericHistoryPanel: View {
         accentColor: Color,
         preferredRange: ClosedRange<Double>?,
         initialRange: HAHistoryRangePreset = .day,
-        layout: EntityNumericHistoryLayout = .compact,
-        interpolationStyle: HomesteadChartInterpolationStyle = .linear,
-        onSelectionChange: @escaping (EntityHistorySelection?) -> Void = { _ in }
+        interpolationStyle: HomesteadChartInterpolationStyle = .linear
     ) {
         self.entityBox = entityBox
         self.displayName = displayName
@@ -37,9 +33,7 @@ struct EntityNumericHistoryPanel: View {
         self.displayPrecision = displayPrecision
         self.accentColor = accentColor
         self.preferredRange = preferredRange
-        self.layout = layout
         self.interpolationStyle = interpolationStyle
-        self.onSelectionChange = onSelectionChange
         _selectedRange = State(initialValue: initialRange)
     }
 
@@ -50,7 +44,7 @@ struct EntityNumericHistoryPanel: View {
 
                 switch phase {
                 case .idle, .loading:
-                    EntityDetailLoadingPlaceholder(title: "Loading history", height: layout.chartHeight)
+                    EntityDetailLoadingPlaceholder(title: "Loading history", height: Self.chartHeight)
                 case .loaded(let series):
                     if series.isEmpty {
                         unavailableView(
@@ -63,10 +57,8 @@ struct EntityNumericHistoryPanel: View {
                             selectedRange: selectedRange,
                             accentColor: accentColor,
                             preferredRange: preferredRange,
-                            layout: layout,
                             interpolationStyle: interpolationStyle,
-                            selectedSampleDate: $selectedSampleDate,
-                            onSelectionChange: onSelectionChange
+                            selectedSampleDate: $selectedSampleDate
                         )
                     }
                 case .failed:
@@ -79,10 +71,6 @@ struct EntityNumericHistoryPanel: View {
         }
         .onChange(of: selectedRange) {
             selectedSampleDate = nil
-            onSelectionChange(nil)
-        }
-        .onDisappear {
-            onSelectionChange(nil)
         }
     }
 
@@ -164,23 +152,8 @@ struct EntityNumericHistoryPanel: View {
             phase = .failed
         }
     }
-}
 
-enum EntityNumericHistoryLayout: Equatable, Sendable {
-    case compact
-    case expanded
-
-    var chartHeight: CGFloat {
-        switch self {
-        case .compact: 180
-        case .expanded: 300
-        }
-    }
-}
-
-struct EntityHistorySelection: Equatable, Sendable {
-    let occurredAt: Date
-    let formattedValue: String
+    private static let chartHeight: CGFloat = 220
 }
 
 private struct EntityNumericHistoryChart: View {
@@ -190,10 +163,8 @@ private struct EntityNumericHistoryChart: View {
     let selectedRange: HAHistoryRangePreset
     let accentColor: Color
     let preferredRange: ClosedRange<Double>?
-    let layout: EntityNumericHistoryLayout
     let interpolationStyle: HomesteadChartInterpolationStyle
     @Binding var selectedSampleDate: Date?
-    let onSelectionChange: (EntityHistorySelection?) -> Void
 
     private var plottedSamples: [HAHistorySample] {
         series.chartSamples()
@@ -276,24 +247,13 @@ private struct EntityNumericHistoryChart: View {
                         .allowsHitTesting(false)
                 }
             }
-            .frame(height: layout.chartHeight)
+            .frame(height: 220)
             .accessibilityChartDescriptor(
                 EntityNumericHistoryChartDescriptor(series: series, valueDomain: valueDomain)
             )
             .accessibilityLabel("\(series.displayName) history")
             .accessibilityValue(series.summaryText)
             .sensoryFeedback(.selection, trigger: selectedSample?.occurredAt)
-            .onChange(of: selectedSample) { _, sample in
-                onSelectionChange(sample.map {
-                    EntityHistorySelection(
-                        occurredAt: $0.occurredAt,
-                        formattedValue: series.formatValue($0.value)
-                    )
-                })
-            }
-
-            latestDate
-                .frame(maxWidth: .infinity, alignment: .trailing)
 
             if let coverageNotice = series.coverageNotice {
                 Text(coverageNotice)
@@ -429,24 +389,6 @@ private struct EntityNumericHistoryChart: View {
         .accessibilityElement(children: .combine)
     }
 
-    @ViewBuilder
-    private var latestDate: some View {
-        if let latestSample = series.latestSample {
-            Text(latestSampleDateText(latestSample.occurredAt))
-                .font(.caption.monospacedDigit().weight(.medium))
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-        }
-    }
-
-    private func latestSampleDateText(_ date: Date) -> String {
-        switch selectedRange {
-        case .oneHour, .sixHours, .day:
-            date.formatted(date: .omitted, time: .shortened)
-        case .week, .month:
-            "Through \(date.formatted(date: .abbreviated, time: .omitted))"
-        }
-    }
 }
 
 private struct EntityDetailLoadingPlaceholder: View {

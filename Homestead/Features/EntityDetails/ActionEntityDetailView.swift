@@ -24,7 +24,6 @@ struct ActionEntityDetailView: View {
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
-            actionPanel
             scriptOverviewPanel
             stateDetails
         }
@@ -36,28 +35,29 @@ struct ActionEntityDetailView: View {
     }
 
     private var header: some View {
-        EntityDetailHeader(
-            entityBox: entityBox,
+        EntityDetailHeroCard(
             icon: presentation.icon,
-            category: entityCategory,
-            summary: nil,
+            title: entityCategory,
+            subtitle: EntityDetailHeroSubtitle.updated(entity),
             status: entity.state == "on"
-                ? EntityDetailStatusPresentation(text: "Running", tone: .positive)
+                ? "Running"
                 : nil,
             iconColor: iconColor,
-            iconBackground: badgeBackground
-        )
-    }
-
-    private var actionPanel: some View {
-        EntityControlPanel(title: "Action", systemImage: actionSystemImage) {
-            EntityDetailActionButton(
-                title: actionTitle,
-                systemImage: actionSystemImage,
-                isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
-            ) {
-                Task { await performAction() }
+            statusColor: .green,
+            iconBackground: badgeBackground,
+            statusBackground: Color.green.opacity(0.12),
+            statePresentation: detailState,
+            accessory: {
+                EntityDetailHeroActionButton(
+                    title: heroActionTitle,
+                    systemImage: actionSystemImage,
+                    isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
+                ) {
+                    Task { await performAction() }
+                }
             }
+        ) {
+            EmptyView()
         }
     }
 
@@ -97,34 +97,16 @@ struct ActionEntityDetailView: View {
         entity.displayName
     }
 
-    private var statusSummary: String {
-        guard entity.isAvailable else { return "\(entityCategory) unavailable" }
-        if entityBox.pendingCommand != nil { return "Waiting for Home Assistant confirmation" }
-
-        switch entity.domain {
-        case .scene:
-            return "Ready to activate"
-        case .script:
-            return entity.state == "on" ? "Currently running" : "Ready to run"
-        default:
-            return presentation.subtitle
-        }
-    }
-
     private var entityCategory: String {
         EntityCapabilityRegistry.profile(for: entity.domain).categoryTitle
     }
 
-    private var actionTitle: String {
-        if entityBox.pendingCommand != nil {
-            return "Updating..."
-        }
-
-        return switch entity.domain {
+    private var heroActionTitle: String {
+        switch entity.domain {
         case .scene:
-            "Activate Scene"
+            "Activate"
         case .script:
-            entity.state == "on" ? "Run Again" : "Run Script"
+            "Run"
         default:
             "Run"
         }

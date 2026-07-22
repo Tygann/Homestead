@@ -99,7 +99,7 @@ nonisolated enum HAHistoryRangePreset: String, CaseIterable, Identifiable, Codab
     case week
     case month
 
-    static let activityPresets: [Self] = [.oneHour, .sixHours, .day]
+    static let activityPresets: [Self] = [.sixHours, .day, .week, .month]
     static let sensorChartPresets: [Self] = [.sixHours, .day, .week, .month]
     static let dashboardChartPresets: [Self] = [.oneHour, .sixHours, .day, .week]
 

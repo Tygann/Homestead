@@ -5,8 +5,6 @@ struct ClimateDetailView: View {
     @State private var targetTemperature = 70.0
     @State private var targetLowTemperature = 68.0
     @State private var targetHighTemperature = 76.0
-    @State private var isEditingTemperature = false
-    @State private var isEditingTemperatureRange = false
     @State private var pendingTemperatureTask: Task<Void, Never>?
     @State private var pendingTemperatureRangeTask: Task<Void, Never>?
     @State private var isOptimisticTemperature = false
@@ -49,15 +47,15 @@ struct ClimateDetailView: View {
                 syncTargetTemperatureRange(with: climate)
             }
             .onChange(of: climate.targetTemperature) { _, _ in
-                guard !isEditingTemperature, !isOptimisticTemperature else { return }
+                guard !isOptimisticTemperature else { return }
                 syncTargetTemperature(with: climate)
             }
             .onChange(of: climate.targetTemperatureLow) { _, _ in
-                guard !isEditingTemperatureRange, !isOptimisticTemperatureRange else { return }
+                guard !isOptimisticTemperatureRange else { return }
                 syncTargetTemperatureRange(with: climate)
             }
             .onChange(of: climate.targetTemperatureHigh) { _, _ in
-                guard !isEditingTemperatureRange, !isOptimisticTemperatureRange else { return }
+                guard !isOptimisticTemperatureRange else { return }
                 syncTargetTemperatureRange(with: climate)
             }
         } else {
@@ -74,99 +72,50 @@ struct ClimateDetailView: View {
             icon: entityBox.homeEntity.resolvedIcon,
             title: "Climate",
             subtitle: EntityDetailHeroSubtitle.updated(entityBox.homeEntity),
-            status: climate.displayState,
+            status: nil,
             iconColor: climateIconColor(climate),
-            statusColor: climateBadgeColor(climate),
             iconBackground: climateStatusBackground(climate),
-            statusBackground: entityBox.homeEntity.isAvailable ? climateStatusBackground(climate) : Color.red.opacity(0.12),
-            statePresentation: detailState
-        ) {
-            VStack(alignment: .leading, spacing: AppSpacing.small) {
+            statePresentation: detailState,
+            accessory: {
                 if let currentTemperatureText = climate.currentTemperatureText {
                     Text(currentTemperatureText)
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                        .font(.title2.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(climateIconColor(climate))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                         .monospacedDigit()
                 }
-
-                if let target = climate.targetTemperatureRangeText ?? climate.targetTemperatureText {
-                    Text("Target \(target)")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
             }
+        ) {
+            EmptyView()
         }
     }
 
     private func temperatureControls(_ climate: ClimateEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.large) {
-            HStack {
-                Label("Set Temperature", systemImage: "slider.horizontal.3")
-                    .font(.headline)
-
-                Spacer()
-
-                Text(climate.formatTemperature(targetTemperature))
-                    .font(.title3.bold().monospacedDigit())
-                    .foregroundStyle(climate.isActive ? Color.accentColor : Color.secondary)
-            }
-
-            HStack(spacing: AppSpacing.medium) {
-                EntityDetailIconButton(
-                    systemImage: "minus",
-                    accessibilityLabel: "Decrease temperature",
-                    isDisabled: detailState.blocksControlInteraction || targetTemperature <= climate.resolvedMinimumTemperature
-                ) {
-                    adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
-                }
-
-                EntityDetailLevelSlider(
-                    value: $targetTemperature,
-                    range: climate.resolvedMinimumTemperature...climate.resolvedMaximumTemperature,
-                    step: climate.resolvedTemperatureStep,
-                    isDisabled: detailState.blocksControlInteraction,
-                    accessibilityLabel: "Target temperature",
-                    accessibilityValue: climate.formatTemperature(targetTemperature),
-                    onEditingChanged: { editing in
-                        isEditingTemperature = editing
-                    },
-                    onCommit: { value in
-                        setTargetTemperature(value, climate: climate)
-                    }
-                )
-
-                EntityDetailIconButton(
-                    systemImage: "plus",
-                    accessibilityLabel: "Increase temperature",
-                    isDisabled: detailState.blocksControlInteraction || targetTemperature >= climate.resolvedMaximumTemperature
-                ) {
-                    adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate)
-                }
-            }
+        EntityControlPanel(title: "Temperature", systemImage: "thermometer.medium") {
+            temperatureStepper(
+                title: "Target",
+                systemImage: "scope",
+                value: targetTemperature,
+                climate: climate,
+                canDecrease: targetTemperature > climate.resolvedMinimumTemperature,
+                canIncrease: targetTemperature < climate.resolvedMaximumTemperature,
+                decreaseAction: { adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate) },
+                increaseAction: { adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate) }
+            )
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
     private func temperatureRangeControls(_ climate: ClimateEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.large) {
-            HStack {
-                Label("Temperature Range", systemImage: "slider.horizontal.below.sun.max")
-                    .font(.headline)
-
-                Spacer()
-
-                Text("\(climate.formatTemperature(targetLowTemperature))-\(climate.formatTemperature(targetHighTemperature))")
-                    .font(.title3.bold().monospacedDigit())
-                    .foregroundStyle(climate.isActive ? Color.accentColor : Color.secondary)
-            }
-
-            temperatureRangeRow(
+        EntityControlPanel(title: "Temperature", systemImage: "thermometer.medium") {
+            VStack(spacing: AppSpacing.small) {
+                temperatureStepper(
                 title: "Heat to",
                 systemImage: "flame.fill",
-                value: $targetLowTemperature,
-                range: climate.resolvedMinimumTemperature...targetHighTemperature,
+                value: targetLowTemperature,
                 climate: climate,
-                fillColor: .orange,
+                canDecrease: targetLowTemperature > climate.resolvedMinimumTemperature,
+                canIncrease: targetLowTemperature < targetHighTemperature,
                 decreaseAction: {
                     adjustLowTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
                 },
@@ -175,80 +124,60 @@ struct ClimateDetailView: View {
                 }
             )
 
-            temperatureRangeRow(
-                title: "Cool to",
-                systemImage: "snowflake",
-                value: $targetHighTemperature,
-                range: targetLowTemperature...climate.resolvedMaximumTemperature,
-                climate: climate,
-                fillColor: .cyan,
-                decreaseAction: {
-                    adjustHighTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
-                },
-                increaseAction: {
-                    adjustHighTemperature(by: climate.resolvedTemperatureStep, climate: climate)
-                }
-            )
+                Divider()
+
+                temperatureStepper(
+                    title: "Cool to",
+                    systemImage: "snowflake",
+                    value: targetHighTemperature,
+                    climate: climate,
+                    canDecrease: targetHighTemperature > targetLowTemperature,
+                    canIncrease: targetHighTemperature < climate.resolvedMaximumTemperature,
+                    decreaseAction: {
+                        adjustHighTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
+                    },
+                    increaseAction: {
+                        adjustHighTemperature(by: climate.resolvedTemperatureStep, climate: climate)
+                    }
+                )
+            }
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
-    private func temperatureRangeRow(
+    private func temperatureStepper(
         title: String,
         systemImage: String,
-        value: Binding<Double>,
-        range: ClosedRange<Double>,
+        value: Double,
         climate: ClimateEntity,
-        fillColor: Color,
+        canDecrease: Bool,
+        canIncrease: Bool,
         decreaseAction: @escaping () -> Void,
         increaseAction: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            HStack {
+        Stepper(
+            onIncrement: {
+                guard canIncrease else { return }
+                increaseAction()
+            },
+            onDecrement: {
+                guard canDecrease else { return }
+                decreaseAction()
+            }
+        ) {
+            HStack(spacing: AppSpacing.medium) {
                 Label(title, systemImage: systemImage)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
 
-                Spacer()
+                Spacer(minLength: AppSpacing.medium)
 
-                Text(climate.formatTemperature(value.wrappedValue))
+                Text(climate.formatTemperature(value))
                     .font(.headline.monospacedDigit())
-            }
-
-            HStack(spacing: AppSpacing.medium) {
-                EntityDetailIconButton(
-                    systemImage: "minus",
-                    accessibilityLabel: "Decrease \(title.lowercased())",
-                    isDisabled: detailState.blocksControlInteraction || value.wrappedValue <= range.lowerBound,
-                    action: decreaseAction
-                )
-
-                EntityDetailLevelSlider(
-                    value: value,
-                    range: range,
-                    step: climate.resolvedTemperatureStep,
-                    fillColor: fillColor,
-                    showsFilledTrack: false,
-                    isDisabled: detailState.blocksControlInteraction,
-                    accessibilityLabel: title,
-                    accessibilityValue: climate.formatTemperature(value.wrappedValue),
-                    onEditingChanged: { editing in
-                        isEditingTemperatureRange = editing
-                    },
-                    onCommit: { _ in
-                        setTargetTemperatureRange(climate: climate)
-                    }
-                )
-
-                EntityDetailIconButton(
-                    systemImage: "plus",
-                    accessibilityLabel: "Increase \(title.lowercased())",
-                    isDisabled: detailState.blocksControlInteraction || value.wrappedValue >= range.upperBound,
-                    action: increaseAction
-                )
+                    .foregroundStyle(climate.isActive ? Color.accentColor : Color.secondary)
             }
         }
+        .disabled(detailState.blocksControlInteraction || (!canDecrease && !canIncrease))
+        .accessibilityValue(climate.formatTemperature(value))
+        .frame(minHeight: 44)
     }
 
     private func modeControls(_ climate: ClimateEntity) -> some View {
@@ -440,11 +369,6 @@ struct ClimateDetailView: View {
 
     private func climateIconColor(_ climate: ClimateEntity) -> Color {
         guard isClimateAvailable(climate) else { return .secondary }
-        return climate.isActive ? Color.accentColor : Color.secondary
-    }
-
-    private func climateBadgeColor(_ climate: ClimateEntity) -> Color {
-        guard isClimateAvailable(climate) else { return .red }
         return climate.isActive ? Color.accentColor : Color.secondary
     }
 

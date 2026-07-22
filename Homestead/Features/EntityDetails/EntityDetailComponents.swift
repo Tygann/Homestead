@@ -160,6 +160,26 @@ struct EntityDetailStateToggle: View {
     }
 }
 
+struct EntityDetailHeroActionButton: View {
+    let title: String
+    let systemImage: String
+    let isDisabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, AppSpacing.small)
+                .frame(minHeight: 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .disabled(isDisabled)
+    }
+}
+
 struct EntityDetailLevelSlider: View {
     @Binding var value: Double
     let range: ClosedRange<Double>

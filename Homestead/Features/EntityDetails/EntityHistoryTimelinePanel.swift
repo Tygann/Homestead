@@ -91,7 +91,7 @@ struct EntityHistoryTimelinePanel: View {
     var body: some View {
         EntityControlPanel(title: "Recent Activity", systemImage: "clock.arrow.circlepath") {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                rangePicker
+                segmentedRangePicker
 
                 switch phase {
                 case .idle, .loading:
@@ -103,32 +103,9 @@ struct EntityHistoryTimelinePanel: View {
                         timelineList(timeline)
                     }
                 case .failed:
-                    unavailableView("Activity unavailable")
+                    unavailableView("Activity unavailable", showsRetry: true)
                 }
             }
-        }
-    }
-
-    private var rangePicker: some View {
-        ViewThatFits(in: .horizontal) {
-            horizontalRangePicker
-            compactRangePicker
-        }
-    }
-
-    private var horizontalRangePicker: some View {
-        HStack(spacing: AppSpacing.small) {
-            segmentedRangePicker
-            refreshButton
-        }
-    }
-
-    private var compactRangePicker: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            segmentedRangePicker
-
-            refreshButton
-                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -143,20 +120,6 @@ struct EntityHistoryTimelinePanel: View {
         .pickerStyle(.segmented)
         .disabled(phase.isLoading)
         .accessibilityLabel("Activity range")
-    }
-
-    private var refreshButton: some View {
-        Button {
-            refreshAction()
-        } label: {
-            Image(systemName: "arrow.clockwise")
-                .font(.subheadline.weight(.semibold))
-                .frame(width: 44, height: 44)
-                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
-        }
-        .buttonStyle(.plain)
-        .disabled(phase.isLoading)
-        .accessibilityLabel("Refresh activity")
     }
 
     private var loadingView: some View {
@@ -251,7 +214,7 @@ struct EntityHistoryTimelinePanel: View {
         .accessibilityLabel("\(entry.title), \(entry.occurredAt.formatted(date: .abbreviated, time: .shortened))")
     }
 
-    private func unavailableView(_ message: String) -> some View {
+    private func unavailableView(_ message: String, showsRetry: Bool = false) -> some View {
         HStack(spacing: AppSpacing.medium) {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.body.weight(.semibold))
@@ -265,6 +228,14 @@ struct EntityHistoryTimelinePanel: View {
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: 0)
+
+            if showsRetry {
+                Button("Retry") {
+                    refreshAction()
+                }
+                .buttonStyle(.bordered)
+                .disabled(phase.isLoading)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .accessibilityElement(children: .combine)

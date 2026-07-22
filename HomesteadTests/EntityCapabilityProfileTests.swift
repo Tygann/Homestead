@@ -240,6 +240,7 @@ final class EntityCapabilityProfileTests: XCTestCase {
     }
 
     func testHistoryRangesAndDurationWeightedAverage() {
+        XCTAssertEqual(HAHistoryRangePreset.activityPresets, [.sixHours, .day, .week, .month])
         XCTAssertEqual(HAHistoryRangePreset.sensorChartPresets, [.sixHours, .day, .week, .month])
         XCTAssertEqual(HAHistoryRangePreset.dashboardChartPresets, [.oneHour, .sixHours, .day, .week])
 

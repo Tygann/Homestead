@@ -16,10 +16,15 @@ struct PresenceDetailView: View {
     }
 
     var body: some View {
-        if let record = stateStore.presenceRecord(for: entity.entityID) {
+        if entity.domain == .person {
+            PersonPresenceDetailView(
+                entityID: entity.entityID,
+                presentationStyle: presentationStyle
+            )
+        } else if let record = stateStore.presenceRecord(for: entity.entityID) {
             EntityDetailScaffold(title: record.displayName, presentationStyle: presentationStyle) {
                 identityHeader(record)
-                locationSection(record)
+                trackerLocationSection(record)
 
                 EntityActivityPanel(
                     entityID: record.entityID,
@@ -37,7 +42,7 @@ struct PresenceDetailView: View {
         } else {
             EntityUnavailableDetailView(
                 title: entity.displayName,
-                systemImage: entity.domain == .person ? "person.crop.circle.badge.exclamationmark" : "location.slash",
+                systemImage: "location.slash",
                 presentationStyle: presentationStyle
             )
         }
@@ -89,44 +94,6 @@ struct PresenceDetailView: View {
         .padding(.vertical, AppSpacing.small)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(record.displayName), \(record.status.title)")
-    }
-
-    @ViewBuilder
-    private func locationSection(_ record: HAPresenceRecord) -> some View {
-        if record.isPerson {
-            personLocationSection(record)
-        } else {
-            trackerLocationSection(record)
-        }
-    }
-
-    private func personLocationSection(_ record: HAPresenceRecord) -> some View {
-        EntityDetailSection(title: "Location Source", systemImage: "location.fill") {
-            if record.linkedTrackers.isEmpty {
-                Label("No location source", systemImage: "location.slash")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            } else {
-                ForEach(record.linkedTrackers) { tracker in
-                    relatedEntityLink(
-                        entityID: tracker.entityID,
-                        title: tracker.displayName,
-                        subtitle: sourceTrackerSubtitle(record: record, tracker: tracker),
-                        systemImage: "iphone",
-                        tint: .secondary
-                    )
-                }
-            }
-
-            let rows = supplementaryRows(for: record)
-            if !rows.isEmpty {
-                Divider()
-                ForEach(rows) { row in
-                    row
-                }
-            }
-        }
     }
 
     private func trackerLocationSection(_ record: HAPresenceRecord) -> some View {
@@ -246,37 +213,6 @@ struct PresenceDetailView: View {
         return rows
     }
 
-    private func supplementaryRows(for record: HAPresenceRecord) -> [EntityMetadataRow] {
-        var rows: [EntityMetadataRow] = []
-
-        if let batteryText = record.batteryText {
-            rows.append(EntityMetadataRow(title: "Battery", value: batteryText))
-        }
-        if let deviceName = record.context.deviceName {
-            rows.append(EntityMetadataRow(title: "Device", value: deviceName))
-        }
-
-        return rows
-    }
-
-    private func sourceTrackerSubtitle(
-        record: HAPresenceRecord,
-        tracker: HAPresenceTrackerSummary
-    ) -> String {
-        var parts: [String] = []
-
-        if let sourceTypeTitle = tracker.sourceTypeTitle ?? record.sourceTypeTitle {
-            parts.append(sourceTypeTitle)
-        }
-        if let gpsAccuracyText = record.gpsAccuracyText {
-            parts.append("\(gpsAccuracyText) accuracy")
-        }
-        if let batteryLevel = tracker.batteryLevel {
-            parts.append("\(batteryLevel)% battery")
-        }
-
-        return parts.isEmpty ? tracker.status.title : parts.joined(separator: " • ")
-    }
 }
 
 #if DEBUG

@@ -2166,7 +2166,7 @@ struct HomesteadTests {
         #expect(day.start == expectedDayStart)
         #expect(week.start == expectedWeekStart)
         #expect(month.start == expectedMonthStart)
-        #expect(HAHistoryRangePreset.activityPresets == [.oneHour, .sixHours, .day])
+        #expect(HAHistoryRangePreset.activityPresets == [.sixHours, .day, .week, .month])
         #expect(HAHistoryRangePreset.sensorChartPresets == [.sixHours, .day, .week, .month])
         #expect(HAHistoryRangePreset.dashboardChartPresets == [.oneHour, .sixHours, .day, .week])
     }

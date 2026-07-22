@@ -20,7 +20,7 @@ struct PeopleSettingsView: View {
                 Section {
                     ForEach(presentation.people) { record in
                         NavigationLink {
-                            PeoplePresenceDetailSettingsView(entityID: record.entityID)
+                            PersonPresenceDetailView(entityID: record.entityID)
                         } label: {
                             PeoplePresenceRow(record: record)
                         }
@@ -75,10 +75,12 @@ private struct PeoplePresenceRow: View {
     }
 }
 
-private struct PeoplePresenceDetailSettingsView: View {
+struct PersonPresenceDetailView: View {
     @Environment(HAStateStore.self) private var stateStore
+    @Environment(HomeAssistantService.self) private var homeAssistantService
 
     let entityID: String
+    var presentationStyle: EntityDetailPresentationStyle = .navigation
 
     var body: some View {
         Group {
@@ -96,12 +98,23 @@ private struct PeoplePresenceDetailSettingsView: View {
                     .background(Color(.systemGroupedBackground))
             }
         }
-        .navigationTitle(record?.displayName ?? "Presence")
-        .toolbarTitleDisplayMode(.inline)
+        .entityDetailPresentation(
+            title: record?.displayName ?? "Presence",
+            style: presentationStyle
+        )
     }
 
     private var record: HAPresenceRecord? {
         stateStore.presenceRecord(for: entityID)
+    }
+
+    private var detailState: EntityDetailStatePresentation? {
+        stateStore.entityBox(for: entityID).map {
+            EntityDetailStatePresentation.resolve(
+                entityBox: $0,
+                service: homeAssistantService
+            )
+        }
     }
 
     private func headerSection(_ record: HAPresenceRecord) -> some View {
@@ -123,6 +136,14 @@ private struct PeoplePresenceDetailSettingsView: View {
                 Spacer(minLength: AppSpacing.medium)
             }
             .padding(.vertical, AppSpacing.xSmall)
+
+            if let detailState,
+               let message = detailState.message {
+                EntityDetailStateMessage(
+                    state: detailState.operationalState,
+                    message: message
+                )
+            }
         }
     }
 
@@ -160,17 +181,17 @@ private struct PeoplePresenceDetailSettingsView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(record.linkedTrackers) { tracker in
-                        Label {
-                            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                                Text(tracker.displayName)
-                                Text(tracker.subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
+                        if let trackerBox = stateStore.entityBox(for: tracker.entityID) {
+                            NavigationLink {
+                                EntityDetailSheet(
+                                    entityBox: trackerBox,
+                                    presentationStyle: .navigation
+                                )
+                            } label: {
+                                trackerLabel(tracker)
                             }
-                        } icon: {
-                            Image(systemName: tracker.status.systemImage)
-                                .foregroundStyle(tracker.status.tint)
+                        } else {
+                            trackerLabel(tracker)
                         }
                     }
                 }
@@ -179,6 +200,21 @@ private struct PeoplePresenceDetailSettingsView: View {
             Section("Person") {
                 Label(linkedPersonName, systemImage: "person.fill")
             }
+        }
+    }
+
+    private func trackerLabel(_ tracker: HAPresenceTrackerSummary) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(tracker.displayName)
+                Text(tracker.subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        } icon: {
+            Image(systemName: tracker.status.systemImage)
+                .foregroundStyle(tracker.status.tint)
         }
     }
 
@@ -223,7 +259,7 @@ private struct PeoplePresenceDetailSettingsView: View {
     }
 }
 
-private struct PeoplePresenceActivitySettingsView: View {
+struct PeoplePresenceActivitySettingsView: View {
     let record: HAPresenceRecord
 
     var body: some View {
