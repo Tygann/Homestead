@@ -1,20 +1,53 @@
 import SwiftUI
 
-nonisolated enum EntityDetailEntryContext: Equatable, Hashable, Sendable {
-    case overview
-    case history(initialRange: HAHistoryRangePreset)
+struct EntityDetailDestinationView: View {
+    @Environment(HAStateStore.self) private var stateStore
+    @State private var activeEntityID: String
+
+    let destination: EntityDetailDestination
+    var presentationStyle: EntityDetailPresentationStyle = .navigation
+
+    init(
+        destination: EntityDetailDestination,
+        presentationStyle: EntityDetailPresentationStyle = .navigation
+    ) {
+        self.destination = destination
+        self.presentationStyle = presentationStyle
+        _activeEntityID = State(initialValue: destination.entityID)
+    }
+
+    var body: some View {
+        if let entityBox = stateStore.entityBox(for: activeEntityID) {
+            EntityDetailSheet(
+                entityBox: entityBox,
+                presentationStyle: presentationStyle,
+                initialSection: destination.initialSection,
+                dashboardItemReference: destination.dashboardItemReference,
+                onCardEntityChange: { activeEntityID = $0 }
+            )
+        } else {
+            ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
+                .navigationTitle("Entity")
+        }
+    }
 }
 
 struct EntityDetailSheet: View {
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @State private var editingCardReference: DashboardItemReference?
+
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
     var automaticallyLoadsWeatherForecast = true
-    var entryContext: EntityDetailEntryContext = .overview
+    var initialSection: EntityDetailInitialSection = .overview
+    var dashboardItemReference: DashboardItemReference?
+    var onCardEntityChange: ((String) -> Void)?
 
     var body: some View {
         let route = EntityCapabilityRegistry.profile(for: entityBox.domain).detailRoute
 
-        switch route {
+        Group {
+            switch route {
             case .light:
                 LightDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .cover:
@@ -35,7 +68,7 @@ struct EntityDetailSheet: View {
                 SensorDetailView(
                     entityBox: entityBox,
                     presentationStyle: presentationStyle,
-                    entryContext: entryContext
+                    initialSection: initialSection
                 )
             case .mediaPlayer:
                 MediaPlayerDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
@@ -65,6 +98,36 @@ struct EntityDetailSheet: View {
                 PresenceDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
             case .generic:
                 GenericEntityDetailView(entityBox: entityBox, presentationStyle: presentationStyle)
+            }
+        }
+        // Reset entity-specific routed state without tearing down the
+        // contextual card editor that owns the replacement flow.
+        .id(entityBox.entityID)
+        .toolbar {
+            if let dashboardItemReference {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if dashboardConfiguration.item(for: dashboardItemReference) != nil {
+                            Button {
+                                editingCardReference = dashboardItemReference
+                            } label: {
+                                Label("Edit Card", systemImage: "slider.horizontal.3")
+                            }
+                        } else {
+                            Label("Card Unavailable", systemImage: "rectangle.slash")
+                        }
+                    } label: {
+                        Label("Card", systemImage: "rectangle.and.pencil.and.ellipsis")
+                    }
+                    .accessibilityLabel("Card options")
+                }
+            }
+        }
+        .sheet(item: $editingCardReference) { reference in
+            DashboardCardEditorView(
+                reference: reference,
+                onEntityReplaced: onCardEntityChange
+            )
         }
     }
 }

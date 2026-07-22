@@ -107,7 +107,7 @@ private struct EntityDetailReferenceScene: View {
                     entityBox: entityBox,
                     presentationStyle: .navigation,
                     automaticallyLoadsWeatherForecast: family != .information,
-                    entryContext: family == .history ? .history(initialRange: .sixHours) : .overview
+                    initialSection: family == .history ? .history(initialRange: .sixHours) : .overview
                 )
             } else {
                 ContentUnavailableView("Fixture Unavailable", systemImage: "exclamationmark.triangle")
@@ -489,5 +489,40 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
 #Preview("Long Content - Accessibility", traits: .fixedLayout(width: 430, height: 932)) {
     EntityDetailReferenceScene(family: .metric, variant: .longContent)
         .dynamicTypeSize(.accessibility5)
+}
+
+@MainActor
+struct EntityDetailCardContextPreviewScreen: View {
+    private let dependencies: PreviewDependencies
+    private let destination: EntityDetailDestination
+
+    init() {
+        let dependencies = PreviewDependencies.sample
+        let dashboardID = dependencies.dashboardConfiguration.selectedDashboardID
+        let itemID = dependencies.dashboardConfiguration.add(
+            source: .entity("sensor.hallway_temperature"),
+            presentation: .card(.chart(layout: .wide))
+        ) ?? UUID()
+        self.dependencies = dependencies
+        destination = EntityDetailDestination(
+            entityID: "sensor.hallway_temperature",
+            initialSection: .history(initialRange: .sixHours),
+            dashboardItemReference: DashboardItemReference(
+                dashboardID: dashboardID,
+                itemID: itemID
+            )
+        )
+    }
+
+    var body: some View {
+        NavigationStack {
+            EntityDetailDestinationView(destination: destination)
+        }
+        .withPreviewEnvironment(dependencies)
+    }
+}
+
+#Preview("Dashboard Card Context") {
+    EntityDetailCardContextPreviewScreen()
 }
 #endif

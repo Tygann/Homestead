@@ -62,26 +62,6 @@ enum DashboardEntityPrimaryAction: Equatable, Sendable {
     }
 }
 
-enum DashboardEntityDetailKind: String, Equatable, Sendable {
-    case light
-    case cover
-    case climate
-    case fan
-    case lock
-    case toggle
-    case action
-    case sensor
-    case mediaPlayer
-    case camera
-    case vacuum
-    case weather
-    case alarmControlPanel
-    case button
-    case select
-    case number
-    case entity
-}
-
 enum DashboardEntitySecondaryAction: String, Equatable, Sendable {
     case setBrightness
     case openCover
@@ -144,38 +124,8 @@ struct DashboardEntityDomainCapability: Equatable, Sendable {
     let iconAccentBehavior: DashboardEntityIconAccentBehavior
     let secondaryActions: [DashboardEntitySecondaryAction]
 
-    var detailKind: DashboardEntityDetailKind {
-        DashboardEntityDetailKind(
-            EntityCapabilityRegistry.profile(for: domain).detailRoute
-        )
-    }
-
     var primaryServiceIntent: DashboardEntityServiceIntent? {
         primaryAction?.serviceIntent
-    }
-}
-
-private extension DashboardEntityDetailKind {
-    init(_ route: EntityDetailRoute) {
-        switch route {
-        case .light: self = .light
-        case .cover: self = .cover
-        case .climate: self = .climate
-        case .fan: self = .fan
-        case .lock: self = .lock
-        case .toggle, .automation: self = .toggle
-        case .action: self = .action
-        case .sensor: self = .sensor
-        case .mediaPlayer: self = .mediaPlayer
-        case .camera: self = .camera
-        case .vacuum: self = .vacuum
-        case .weather: self = .weather
-        case .alarmControlPanel: self = .alarmControlPanel
-        case .button: self = .button
-        case .select: self = .select
-        case .number: self = .number
-        case .text, .temporal, .presence, .generic: self = .entity
-        }
     }
 }
 
@@ -454,7 +404,6 @@ struct DashboardEntityPresentation {
     let sharedFeaturePresentation: SharedFeaturePresentation?
     let primaryAction: DashboardEntityPrimaryAction?
     let primaryServiceIntent: DashboardEntityServiceIntent?
-    let detailKind: DashboardEntityDetailKind
     let secondaryActions: [DashboardEntitySecondaryAction]
     let supplementalMetrics: [DashboardEntityCardMetric]
 
@@ -480,7 +429,6 @@ struct DashboardEntityPresentation {
         isPending = pendingCommand != nil
         primaryAction = entityBox.homeEntity.isAvailable ? capability.primaryAction : nil
         primaryServiceIntent = entityBox.homeEntity.isAvailable ? capability.primaryServiceIntent : nil
-        detailKind = capability.detailKind
         secondaryActions = capability.secondaryActions
         var resolvedSupplementalMetrics: [DashboardEntityCardMetric] = []
 
@@ -925,32 +873,8 @@ struct DashboardEntityPresentation {
         for sensor: SensorEntity,
         behavior: DashboardEntityIconAccentBehavior
     ) -> Color {
-        guard sensor.isAvailable else { return .secondary }
         guard behavior == .sensorKind else { return .accentColor }
-        guard !sensor.isAlerting else { return .red }
-
-        switch sensor.displayKind {
-        case .temperature, .temperatureDelta:
-            return .orange
-        case .humidity, .water, .moisture:
-            return .cyan
-        case .battery:
-            return .green
-        case .energy, .energyDistance, .energyStorage, .power, .powerFactor, .reactiveEnergy, .reactivePower, .voltage, .current, .illuminance, .irradiance:
-            return .yellow
-        case .pressure:
-            return .purple
-        case .signal, .data, .speed, .frequency, .soundPressure:
-            return .blue
-        case .gas, .carbonMonoxide:
-            return .orange
-        case .airQuality, .carbonDioxide, .particulateMatter, .volatileOrganicCompounds, .conductivity, .pH, .precipitation:
-            return .mint
-        case .problem:
-            return .red
-        case .area, .date, .distance, .duration, .enum, .monetary, .volume, .volumeFlowRate, .weight, .windDirection, .uptime, .generic:
-            return .accentColor
-        }
+        return EntitySemanticAccentColor.sensor(sensor)
     }
 
     private static func climateAccentColor(
@@ -959,37 +883,11 @@ struct DashboardEntityPresentation {
     ) -> Color {
         guard behavior == .climateMode else { return .accentColor }
 
-        switch climate.state {
-        case "heat":
-            return .orange
-        case "cool":
-            return .cyan
-        case "off":
-            return .secondary
-        default:
-            return .accentColor
-        }
+        return EntitySemanticAccentColor.climate(climate)
     }
 
     private static func weatherAccentColor(for weather: WeatherEntity) -> Color {
-        guard weather.isAvailable else { return .secondary }
-
-        switch weather.condition {
-        case .sunny, .clearNight:
-            return .orange
-        case .rainy, .pouring, .lightning, .lightningRainy, .hail:
-            return .blue
-        case .snowy, .snowyRainy, .fog:
-            return .cyan
-        case .windy, .windyVariant:
-            return .mint
-        case .exceptional:
-            return .red
-        case .cloudy, .partlyCloudy, .other:
-            return .accentColor
-        case .unavailable, .unknown:
-            return .secondary
-        }
+        EntitySemanticAccentColor.weather(weather)
     }
 
     private static func weatherMetrics(for weather: WeatherEntity) -> [DashboardEntityCardMetric] {

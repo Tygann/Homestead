@@ -13,7 +13,7 @@ struct TextDetailView: View {
 
     private var entity: HomeEntity { entityBox.homeEntity }
     private var textEntity: TextEntity? { entityBox.textEntity }
-    private var presentation: DashboardEntityPresentation { DashboardEntityPresentation(entityBox: entityBox) }
+    private var presentation: EntityDetailPresentationModel { EntityDetailPresentationModel(entityBox: entityBox) }
     private var detailState: EntityDetailStatePresentation {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
     }

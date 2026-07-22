@@ -3,7 +3,7 @@ import SwiftUI
 struct SensorDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
-    var entryContext: EntityDetailEntryContext = .overview
+    var initialSection: EntityDetailInitialSection = .overview
 
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var historySelection: EntityHistorySelection?
@@ -12,8 +12,8 @@ struct SensorDetailView: View {
         entityBox.homeEntity
     }
 
-    private var presentation: DashboardEntityPresentation {
-        DashboardEntityPresentation(entityBox: entityBox)
+    private var presentation: EntityDetailPresentationModel {
+        EntityDetailPresentationModel(entityBox: entityBox)
     }
 
     private var detailState: EntityDetailStatePresentation {
@@ -162,12 +162,12 @@ struct SensorDetailView: View {
     }
 
     private var isHistoryFocused: Bool {
-        if case .history = entryContext { return true }
+        if case .history = initialSection { return true }
         return false
     }
 
     private var initialHistoryRange: HAHistoryRangePreset {
-        if case .history(let range) = entryContext { return range }
+        if case .history(let range) = initialSection { return range }
         return .day
     }
 

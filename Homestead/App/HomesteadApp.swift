@@ -210,8 +210,12 @@ struct HomesteadApp: App {
             }
         case .dashboardChangeEntity:
             DashboardChangeEntityPreviewScreen()
+        case .dashboardCardEditor:
+            DashboardCardEditorPreviewScreen()
         case .dashboardCards:
             DashboardCardReferenceGallery()
+        case .entityDetailCard:
+            EntityDetailCardContextPreviewScreen()
         case .entityDetails:
             EntityDetailReferenceGallery()
         case .gaugeWidget:

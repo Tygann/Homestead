@@ -12,7 +12,8 @@ struct DashboardCardView: View {
     var cameraRefreshGeneration = 0
     var isEditing = false
     var isPreview = false
-    var openDetails: (() -> Void)?
+    var detailDestination: EntityDetailDestination?
+    var openDetails: ((EntityDetailDestination) -> Void)?
 
     init(
         entityID: String,
@@ -25,7 +26,8 @@ struct DashboardCardView: View {
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
-        openDetails: (() -> Void)? = nil
+        detailDestination: EntityDetailDestination? = nil,
+        openDetails: ((EntityDetailDestination) -> Void)? = nil
     ) {
         self.entityID = entityID
         self.size = size
@@ -38,6 +40,7 @@ struct DashboardCardView: View {
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
         self.isPreview = false
+        self.detailDestination = detailDestination
         self.openDetails = openDetails
     }
 
@@ -53,7 +56,8 @@ struct DashboardCardView: View {
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
         isPreview: Bool,
-        openDetails: (() -> Void)? = nil
+        detailDestination: EntityDetailDestination? = nil,
+        openDetails: ((EntityDetailDestination) -> Void)? = nil
     ) {
         self.entityID = entityID
         self.size = size
@@ -66,13 +70,13 @@ struct DashboardCardView: View {
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
         self.isPreview = isPreview
+        self.detailDestination = detailDestination
         self.openDetails = openDetails
     }
 
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
-    @State private var selectedDetail: DashboardCardDetail?
     @State private var confirmationRequest: ActionConfirmationRequest?
 
     var body: some View {
@@ -110,24 +114,12 @@ struct DashboardCardView: View {
                         ? previewPrimaryAction(presentation.primaryAction)
                         : primaryAction(presentation.primaryAction, entityBox: entityBox),
                 showDetails: isEditing || isPreview ? nil : detailsAction(
-                    entityID: entityBox.entityID,
-                    detailKind: presentation.detailKind,
                     presentationKind: resolvedPresentationKind
                 ),
                 featureActions: isPreview ? previewFeatureActions(for: entityBox) : featureActions(for: entityBox),
                 isFeatureInteractionEnabled: !isEditing && !isPreview,
                 isPreview: isPreview
             )
-            .sheet(item: $selectedDetail) { detail in
-                if let selectedEntityBox = stateStore.entityBox(for: detail.entityID) {
-                    EntityDetailSheet(
-                        entityBox: selectedEntityBox,
-                        entryContext: detail.entryContext
-                    )
-                } else {
-                    ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
-                }
-            }
             .actionConfirmationDialog(request: $confirmationRequest)
         }
     }
@@ -185,21 +177,18 @@ struct DashboardCardView: View {
     }
 
     private func detailsAction(
-        entityID: String,
-        detailKind: DashboardEntityDetailKind,
         presentationKind: DashboardPresentationKind
     ) -> (() -> Void)? {
-        if let openDetails {
-            return openDetails
-        }
+        guard let openDetails,
+              let detailDestination else { return nil }
 
         return {
-            selectedDetail = DashboardCardDetail(
-                entityID: entityID,
-                kind: cardDetailKind(for: detailKind),
-                entryContext: presentationKind == .chart
-                    ? .history(initialRange: chartRange)
-                    : .overview
+            openDetails(
+                DashboardCardDetailFocusPolicy.destination(
+                    from: detailDestination,
+                    presentationKind: presentationKind,
+                    chartRange: chartRange
+                )
             )
         }
     }
@@ -519,79 +508,25 @@ struct DashboardCardView: View {
         )
     }
 
-    private func cardDetailKind(for detailKind: DashboardEntityDetailKind) -> DashboardCardDetail.Kind {
-        switch detailKind {
-        case .light:
-            .light
-        case .cover:
-            .cover
-        case .climate:
-            .climate
-        case .fan:
-            .fan
-        case .lock:
-            .lock
-        case .toggle:
-            .toggle
-        case .action:
-            .action
-        case .sensor:
-            .sensor
-        case .mediaPlayer:
-            .mediaPlayer
-        case .camera:
-            .camera
-        case .vacuum:
-            .vacuum
-        case .weather:
-            .weather
-        case .alarmControlPanel:
-            .alarmControlPanel
-        case .button:
-            .button
-        case .select:
-            .select
-        case .number:
-            .number
-        case .entity:
-            .entity
-        }
+}
+
+enum DashboardCardDetailFocusPolicy {
+    static func destination(
+        from destination: EntityDetailDestination,
+        presentationKind: DashboardPresentationKind,
+        chartRange: HAHistoryRangePreset
+    ) -> EntityDetailDestination {
+        destination.focusing(
+            presentationKind == .chart
+                ? .history(initialRange: chartRange)
+                : .overview
+        )
     }
 }
 
 private struct DashboardServiceCall {
     let domain: String
     let service: String
-}
-
-private struct DashboardCardDetail: Identifiable {
-    enum Kind {
-        case light
-        case cover
-        case climate
-        case fan
-        case lock
-        case toggle
-        case action
-        case sensor
-        case mediaPlayer
-        case camera
-        case vacuum
-        case weather
-        case alarmControlPanel
-        case button
-        case select
-        case number
-        case entity
-    }
-
-    let entityID: String
-    let kind: Kind
-    let entryContext: EntityDetailEntryContext
-
-    var id: String {
-        "\(kind)-\(entityID)"
-    }
 }
 
 #if DEBUG

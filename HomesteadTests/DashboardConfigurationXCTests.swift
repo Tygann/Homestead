@@ -437,6 +437,143 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertNil(updatedCard.gaugeZoneConfiguration)
     }
 
+    func testContextualCardEditingTargetsNonSelectedDashboard() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let sourceDashboardID = configuration.selectedDashboardID
+        let cardID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.temperature"),
+            presentation: .card(.chart(layout: .wide))
+        ))
+        let reference = DashboardItemReference(dashboardID: sourceDashboardID, itemID: cardID)
+
+        let selectedDashboardID = configuration.createDashboard(named: "Other")
+        XCTAssertEqual(configuration.selectedDashboardID, selectedDashboardID)
+        XCTAssertTrue(configuration.items.isEmpty)
+
+        XCTAssertTrue(configuration.renameDisplayItem(reference, displayNameOverride: "Outside"))
+        XCTAssertTrue(configuration.setIconNameOverride("thermometer.medium", for: reference))
+        XCTAssertTrue(configuration.setCardLayout(.large, for: reference))
+        XCTAssertTrue(configuration.setChartConfiguration(.init(range: .week), for: reference))
+
+        let edited = try XCTUnwrap(configuration.item(for: reference))
+        XCTAssertEqual(edited.displayNameOverride, "Outside")
+        XCTAssertEqual(edited.iconNameOverride, "thermometer.medium")
+        XCTAssertEqual(edited.cardConfiguration, .chart(layout: .large))
+        XCTAssertEqual(edited.chartConfiguration, .init(range: .week))
+        XCTAssertTrue(configuration.items.isEmpty)
+    }
+
+    func testCompositeCardReferenceDisambiguatesMatchingItemIDs() throws {
+        let sharedItemID = UUID()
+        let firstDashboardID = UUID()
+        let secondDashboardID = UUID()
+        let firstItem = DashboardItemConfiguration.entityCard(
+            entityID: "sensor.first",
+            configuration: .status(layout: .compact),
+            id: sharedItemID
+        )
+        let secondItem = DashboardItemConfiguration.entityCard(
+            entityID: "sensor.second",
+            configuration: .status(layout: .compact),
+            id: sharedItemID
+        )
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        XCTAssertTrue(configuration.applySyncSnapshot(DashboardConfigurationSyncSnapshot(dashboards: [
+            SavedDashboardConfiguration(id: firstDashboardID, name: "First", items: [firstItem]),
+            SavedDashboardConfiguration(id: secondDashboardID, name: "Second", items: [secondItem])
+        ])))
+
+        let secondReference = DashboardItemReference(
+            dashboardID: secondDashboardID,
+            itemID: sharedItemID
+        )
+        XCTAssertTrue(configuration.renameDisplayItem(secondReference, displayNameOverride: "Second Card"))
+
+        let firstReference = DashboardItemReference(
+            dashboardID: firstDashboardID,
+            itemID: sharedItemID
+        )
+        XCTAssertNil(configuration.item(for: firstReference)?.displayNameOverride)
+        XCTAssertEqual(configuration.item(for: secondReference)?.displayNameOverride, "Second Card")
+    }
+
+    func testContextualGaugeReplacementAndRemovalTargetNonSelectedDashboard() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let sourceDashboardID = configuration.selectedDashboardID
+        let cardID = try XCTUnwrap(configuration.add(
+            source: .entity("sensor.hall_temperature"),
+            presentation: .card(.segmentedGauge(layout: .wide))
+        ))
+        let reference = DashboardItemReference(dashboardID: sourceDashboardID, itemID: cardID)
+        let zones = GaugeZoneConfiguration(
+            lowerBound: 50,
+            upperBound: 90,
+            boundaries: [68, 76],
+            colors: [
+                .standard(for: .low),
+                .standard(for: .nominal),
+                .standard(for: .high)
+            ]
+        )
+
+        _ = configuration.createDashboard(named: "Other")
+        XCTAssertTrue(configuration.setGaugeZoneConfiguration(zones, for: reference))
+
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.bedroom_temperature",
+                state: "72",
+                attributes: [
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            )
+        ])
+        let replacement = try XCTUnwrap(store.entityBox(for: "sensor.bedroom_temperature"))
+
+        XCTAssertTrue(configuration.replaceEntity(
+            for: reference,
+            with: replacement,
+            preserveGaugeZoneConfiguration: true
+        ))
+        XCTAssertEqual(configuration.item(for: reference)?.source, .entity("sensor.bedroom_temperature"))
+        XCTAssertEqual(configuration.item(for: reference)?.gaugeZoneConfiguration, zones)
+        XCTAssertTrue(configuration.items.isEmpty)
+
+        XCTAssertTrue(configuration.removeItem(for: reference))
+        XCTAssertNil(configuration.item(for: reference))
+        XCTAssertEqual(
+            configuration.dashboards.first(where: { $0.id == sourceDashboardID })?.setupState,
+            .intentionallyEmpty
+        )
+        XCTAssertTrue(configuration.items.isEmpty)
+    }
+
+    func testStaleContextualCardReferenceFailsWithoutChangingDashboards() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let originalDashboards = configuration.dashboards
+        let staleReference = DashboardItemReference(dashboardID: UUID(), itemID: UUID())
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(entityID: "sensor.replacement", state: "1", attributes: [:])
+        ])
+        let replacement = try XCTUnwrap(store.entityBox(for: "sensor.replacement"))
+
+        XCTAssertFalse(configuration.renameDisplayItem(staleReference, displayNameOverride: "Missing"))
+        XCTAssertFalse(configuration.setIconNameOverride("house", for: staleReference))
+        XCTAssertFalse(configuration.setCardLayout(.wide, for: staleReference))
+        XCTAssertFalse(configuration.setGaugeZoneConfiguration(nil, for: staleReference))
+        XCTAssertFalse(configuration.setChartConfiguration(.init(range: .week), for: staleReference))
+        XCTAssertFalse(configuration.replaceEntity(
+            for: staleReference,
+            with: replacement,
+            preserveGaugeZoneConfiguration: true
+        ))
+        XCTAssertFalse(configuration.removeItem(for: staleReference))
+        XCTAssertEqual(configuration.dashboards, originalDashboards)
+    }
+
     func testGaugeReplacementPolicyRequiresMatchingDeviceClassAndUnit() throws {
         let store = HAStateStore()
         store.applyInitialStates([

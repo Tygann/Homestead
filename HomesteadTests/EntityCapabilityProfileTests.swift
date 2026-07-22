@@ -3,6 +3,26 @@ import XCTest
 
 @MainActor
 final class EntityCapabilityProfileTests: XCTestCase {
+    func testCardEditorNameDraftUsesReplacementCanonicalNameWithoutOverride() {
+        XCTAssertEqual(
+            DashboardCardEditorNamePolicy.draft(
+                displayNameOverride: nil,
+                replacementCanonicalName: "Bedroom Temperature"
+            ),
+            "Bedroom Temperature"
+        )
+    }
+
+    func testCardEditorNameDraftPreservesExplicitOverrideAfterReplacement() {
+        XCTAssertEqual(
+            DashboardCardEditorNamePolicy.draft(
+                displayNameOverride: "Comfort",
+                replacementCanonicalName: "Bedroom Temperature"
+            ),
+            "Comfort"
+        )
+    }
+
     func testReferenceDomainsUseDistinctFamiliesAndRoutes() {
         let sensor = EntityCapabilityRegistry.profile(for: .sensor)
         let cover = EntityCapabilityRegistry.profile(for: .cover)
@@ -36,10 +56,81 @@ final class EntityCapabilityProfileTests: XCTestCase {
         }
     }
 
-    func testDashboardDetailKindsAdaptFromNeutralRoutes() {
-        XCTAssertEqual(DashboardEntityDomainRegistry.capability(for: .light).detailKind, .light)
-        XCTAssertEqual(DashboardEntityDomainRegistry.capability(for: .automation).detailKind, .toggle)
-        XCTAssertEqual(DashboardEntityDomainRegistry.capability(for: .person).detailKind, .entity)
+    func testEntityDetailDestinationsKeepCardContextSurfaceNeutral() {
+        let dashboardID = UUID()
+        let itemID = UUID()
+        let reference = DashboardItemReference(dashboardID: dashboardID, itemID: itemID)
+        let destination = EntityDetailDestination(
+            entityID: "sensor.temperature",
+            dashboardItemReference: reference,
+            transitionSourceID: "dashboard-card-\(itemID)"
+        )
+
+        XCTAssertEqual(destination.entityID, "sensor.temperature")
+        XCTAssertEqual(destination.initialSection, .overview)
+        XCTAssertEqual(destination.dashboardItemReference, reference)
+        XCTAssertEqual(
+            destination.focusing(.history(initialRange: .week)).initialSection,
+            .history(initialRange: .week)
+        )
+        XCTAssertEqual(EntityCapabilityRegistry.profile(for: .sensor).detailRoute, .sensor)
+    }
+
+    func testOnlyChartCardsFocusCanonicalHistory() {
+        let destination = EntityDetailDestination(entityID: "sensor.temperature")
+
+        XCTAssertEqual(
+            DashboardCardDetailFocusPolicy.destination(
+                from: destination,
+                presentationKind: .chart,
+                chartRange: .month
+            ).initialSection,
+            .history(initialRange: .month)
+        )
+
+        for presentationKind in [
+            DashboardPresentationKind.control,
+            .status,
+            .segmentedGauge,
+            .weather,
+            .media
+        ] {
+            XCTAssertEqual(
+                DashboardCardDetailFocusPolicy.destination(
+                    from: destination,
+                    presentationKind: presentationKind,
+                    chartRange: .month
+                ).initialSection,
+                .overview
+            )
+        }
+    }
+
+    func testEntityDetailPresentationIgnoresDashboardOverrides() throws {
+        let stateStore = HAStateStore()
+        stateStore.applyInitialStates([
+            HAEntityDTO(
+                entityID: "sensor.outdoor_temperature",
+                state: "72",
+                attributes: [
+                    "friendly_name": .string("Outdoor Temperature"),
+                    "device_class": .string("temperature"),
+                    "unit_of_measurement": .string("°F")
+                ]
+            )
+        ])
+        let entityBox = try XCTUnwrap(stateStore.entityBox(for: "sensor.outdoor_temperature"))
+        let detail = EntityDetailPresentationModel(entityBox: entityBox)
+        let dashboard = DashboardEntityPresentation(
+            entityBox: entityBox,
+            displayNameOverride: "Patio",
+            iconNameOverride: "sun.max.fill"
+        )
+
+        XCTAssertEqual(detail.title, "Outdoor Temperature")
+        XCTAssertEqual(detail.icon, entityBox.homeEntity.resolvedIcon)
+        XCTAssertEqual(dashboard.title, "Patio")
+        XCTAssertNotEqual(dashboard.icon, detail.icon)
     }
 
     func testPresenceDomainsShareNativeInformationRoute() {

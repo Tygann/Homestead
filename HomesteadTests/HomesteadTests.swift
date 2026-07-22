@@ -2812,12 +2812,11 @@ struct HomesteadTests {
         let inputSelect = try #require(EntityMapper.selectEntity(from: inputSelectDTO))
         let inputSelectHomeEntity = EntityMapper.homeEntity(from: inputSelectDTO)
         let inputSelectBox = HAEntityState(homeEntity: inputSelectHomeEntity, selectEntity: inputSelect)
-        let inputSelectPresentation = DashboardEntityPresentation(entityBox: inputSelectBox)
 
         #expect(select.options == ["home", "away"])
         #expect(inputSelect.options == ["Morning", "Home", "Away"])
         #expect(inputSelectHomeEntity.domain == .select)
-        #expect(inputSelectPresentation.detailKind == .select)
+        #expect(EntityCapabilityRegistry.profile(for: inputSelectBox.domain).detailRoute == .select)
     }
 
     @Test func entityMapperMapsHomeAssistantUpdateEntities() throws {
@@ -7462,17 +7461,17 @@ struct HomesteadTests {
         #expect(expiredSnapshot == nil)
     }
 
-    @Test func dashboardEntityDetailRouteUsesStableSourceIdentity() {
+    @Test func entityDetailDestinationUsesStableSourceIdentity() {
         let cardID = UUID()
         let sourceID = "dashboard-card-\(cardID.uuidString)"
-        let route = DashboardEntityDetailRoute(
+        let destination = EntityDetailDestination(
             entityID: "light.kitchen",
-            sourceID: sourceID
+            transitionSourceID: sourceID
         )
 
-        #expect(route.entityID == "light.kitchen")
-        #expect(route.sourceID == sourceID)
-        #expect(route.id == "\(sourceID)-light.kitchen")
+        #expect(destination.entityID == "light.kitchen")
+        #expect(destination.transitionSourceID == sourceID)
+        #expect(destination.id == "entity-light.kitchen-\(sourceID)")
     }
 
     @Test func stateCacheRoundTripsEntitySnapshotsAndScopesByConnection() async throws {
@@ -8481,31 +8480,25 @@ struct HomesteadTests {
         #expect(lightPresentation.primaryActionAccessibilityLabel == "Turn off Kitchen")
         #expect(lightPresentation.cardStyle == .control)
         #expect(lightPresentation.secondaryActions == [.setBrightness])
-        #expect(lightPresentation.detailKind == .light)
         #expect(coverPresentation.primaryAction == .toggleCover)
         #expect(coverPresentation.primaryServiceIntent == .coverToggle)
         #expect(coverPresentation.primaryActionAccessibilityLabel == "Close Shades")
         #expect(coverPresentation.secondaryActions == [.openCover, .closeCover, .stopCover, .setCoverPosition])
-        #expect(coverPresentation.detailKind == .cover)
         #expect(scenePresentation.primaryAction == .activateScene)
         #expect(scenePresentation.primaryServiceIntent == .call(domain: "scene", service: "turn_on"))
         #expect(scenePresentation.primaryActionAccessibilityLabel == "Activate Movie Night")
         #expect(scenePresentation.cardStyle == .action)
-        #expect(scenePresentation.detailKind == .action)
         #expect(scriptPresentation.primaryAction == .runScript)
         #expect(scriptPresentation.primaryServiceIntent == .call(domain: "script", service: "turn_on"))
         #expect(scriptPresentation.primaryActionAccessibilityLabel == "Run Good Morning")
         #expect(scriptPresentation.cardStyle == .action)
-        #expect(scriptPresentation.detailKind == .action)
         #expect(automationPresentation.primaryAction == .toggleAutomation)
         #expect(automationPresentation.primaryServiceIntent == .stateToggle(domain: "automation", onService: "turn_on", offService: "turn_off"))
         #expect(automationPresentation.primaryActionAccessibilityLabel == "Turn off Good Night")
         #expect(automationPresentation.cardStyle == .control)
-        #expect(automationPresentation.detailKind == .toggle)
         #expect(sensorPresentation.primaryAction == nil)
         #expect(sensorPresentation.primaryServiceIntent == nil)
         #expect(sensorPresentation.cardStyle == .value)
-        #expect(sensorPresentation.detailKind == .sensor)
         #expect(batteryPresentation.subtitle == "68%")
         #expect(lowBatteryPresentation.subtitle == "8% • Critical")
     }
@@ -8545,16 +8538,13 @@ struct HomesteadTests {
         let binarySensorPresentation = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "binary_sensor.front_door")))
 
         #expect(switchPresentation.primaryAction == .toggleSwitch)
-        #expect(switchPresentation.detailKind == .toggle)
         #expect(switchPresentation.isActive == true)
         #expect(fanPresentation.primaryAction == .toggleFan)
-        #expect(fanPresentation.detailKind == .fan)
         #expect(fanPresentation.secondaryActions == [.setFanPercentage, .setFanPresetMode])
         #expect(fanPresentation.subtitle == "45%")
         #expect(fanPresentation.isActive == true)
         #expect(lockPresentation.primaryAction == nil)
         #expect(lockPresentation.primaryServiceIntent == nil)
-        #expect(lockPresentation.detailKind == .lock)
         #expect(lockPresentation.subtitle == "Unlocked")
         #expect(lockPresentation.isActive == true)
         #expect(lockPresentation.accentColor == .accentColor)
@@ -8567,7 +8557,6 @@ struct HomesteadTests {
         #expect(cameraPresentation.cardStyle == .camera)
         #expect(binarySensorPresentation.subtitle == "Detected")
         #expect(binarySensorPresentation.primaryAction == nil)
-        #expect(binarySensorPresentation.detailKind == .sensor)
     }
 
     @MainActor
@@ -8616,7 +8605,7 @@ struct HomesteadTests {
         let expected: [EntityDomain: (
             DashboardEntityCardStyle,
             DashboardEntityPrimaryAction?,
-            DashboardEntityDetailKind
+            EntityDetailRoute
         )] = [
             .light: (.control, .toggleLight, .light),
             .switch: (.control, .toggleSwitch, .toggle),
@@ -8630,33 +8619,33 @@ struct HomesteadTests {
             .camera: (.camera, nil, .camera),
             .scene: (.action, .activateScene, .action),
             .script: (.action, .runScript, .action),
-            .automation: (.control, .toggleAutomation, .toggle),
+            .automation: (.control, .toggleAutomation, .automation),
             .vacuum: (.status, nil, .vacuum),
-            .remote: (.status, nil, .entity),
+            .remote: (.status, nil, .generic),
             .button: (.action, .pressButton, .button),
             .select: (.value, nil, .select),
             .number: (.value, nil, .number),
-            .text: (.value, nil, .entity),
-            .date: (.value, nil, .entity),
-            .time: (.value, nil, .entity),
-            .datetime: (.value, nil, .entity),
-            .deviceTracker: (.status, nil, .entity),
-            .person: (.status, nil, .entity),
-            .update: (.status, nil, .entity),
+            .text: (.value, nil, .text),
+            .date: (.value, nil, .temporal),
+            .time: (.value, nil, .temporal),
+            .datetime: (.value, nil, .temporal),
+            .deviceTracker: (.status, nil, .presence),
+            .person: (.status, nil, .presence),
+            .update: (.status, nil, .generic),
             .alarmControlPanel: (.status, nil, .alarmControlPanel),
-            .humidifier: (.status, nil, .entity),
-            .waterHeater: (.status, nil, .entity),
-            .lawnMower: (.status, nil, .entity),
-            .valve: (.status, nil, .entity),
-            .siren: (.status, nil, .entity),
+            .humidifier: (.status, nil, .generic),
+            .waterHeater: (.status, nil, .generic),
+            .lawnMower: (.status, nil, .generic),
+            .valve: (.status, nil, .generic),
+            .siren: (.status, nil, .generic),
             .weather: (.value, nil, .weather),
-            .calendar: (.status, nil, .entity),
-            .todo: (.status, nil, .entity),
-            .event: (.status, nil, .entity),
-            .image: (.status, nil, .entity),
-            .imageProcessing: (.status, nil, .entity),
-            .airQuality: (.value, nil, .entity),
-            .other: (.generic, nil, .entity)
+            .calendar: (.status, nil, .generic),
+            .todo: (.status, nil, .generic),
+            .event: (.status, nil, .generic),
+            .image: (.status, nil, .generic),
+            .imageProcessing: (.status, nil, .generic),
+            .airQuality: (.value, nil, .generic),
+            .other: (.generic, nil, .generic)
         ]
 
         for domain in EntityDomain.allCases {
@@ -8666,7 +8655,7 @@ struct HomesteadTests {
             #expect(capability.domain == domain)
             #expect(capability.cardStyle == expectation.0)
             #expect(capability.primaryAction == expectation.1)
-            #expect(capability.detailKind == expectation.2)
+            #expect(EntityCapabilityRegistry.profile(for: domain).detailRoute == expectation.2)
             #expect(capability.primaryServiceIntent == expectation.1?.serviceIntent)
         }
     }
@@ -8729,28 +8718,23 @@ struct HomesteadTests {
         #expect(remote.iconName == "appletvremote.gen4.fill")
         #expect(remote.subtitle == "Off")
         #expect(remote.primaryAction == nil)
-        #expect(remote.detailKind == .entity)
         #expect(button.cardStyle == .action)
         #expect(button.iconName == "arrow.trianglehead.2.clockwise")
         #expect(button.primaryAction == .pressButton)
-        #expect(button.detailKind == .button)
         #expect(number.cardStyle == .value)
         #expect(number.iconName == "humidity")
         #expect(number.subtitle == "45")
         #expect(number.primaryAction == nil)
-        #expect(number.detailKind == .number)
         #expect(alarm.cardStyle == .status)
         #expect(alarm.iconName == "shield.lefthalf.filled")
         #expect(alarm.subtitle == "Armed Away")
         #expect(alarm.primaryAction == nil)
-        #expect(alarm.detailKind == .alarmControlPanel)
         #expect(weather.cardStyle == .value)
         #expect(weather.iconName == "cloud.sun.fill")
         #expect(weather.subtitle == "Partly Cloudy")
         #expect(weather.headline == "73°F")
         #expect(weather.supplementalMetrics.contains(DashboardEntityCardMetric(title: "Humidity", value: "56%", systemImage: "humidity.fill")))
         #expect(weather.supplementalMetrics.contains(DashboardEntityCardMetric(title: "Wind", value: "E 8 mph", systemImage: "wind")))
-        #expect(weather.detailKind == .weather)
         #expect(weather.primaryAction == nil)
     }
 
@@ -8768,15 +8752,12 @@ struct HomesteadTests {
         let vacuum = DashboardEntityPresentation(entityBox: try #require(store.entityBox(for: "vacuum.downstairs")))
 
         #expect(media.primaryAction == nil)
-        #expect(media.detailKind == .mediaPlayer)
         #expect(media.cardStyle == .media)
         #expect(media.isActive == true)
         #expect(media.secondaryActions == [.playPause, .setMediaVolume, .selectMediaSource])
         #expect(camera.primaryAction == nil)
-        #expect(camera.detailKind == .camera)
         #expect(camera.cardStyle == .camera)
         #expect(vacuum.primaryAction == nil)
-        #expect(vacuum.detailKind == .vacuum)
         #expect(vacuum.cardStyle == .status)
         #expect(vacuum.secondaryActions == [.startCleaning, .stopCleaning, .returnToBase])
     }

@@ -3,7 +3,7 @@ import SwiftUI
 struct AreaDetailView: View {
     let area: DashboardAreaSummary
     @Environment(HAStateStore.self) private var stateStore
-    @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
+    @State private var selectedEntityDetailDestination: EntityDetailDestination?
     @Namespace private var cardTransitionNamespace
 
     var body: some View {
@@ -21,11 +21,12 @@ struct AreaDetailView: View {
                                     entityID: item.entityID,
                                     size: item.cardSize,
                                     contextualAreaName: area.name,
-                                    openDetails: {
-                                        selectedEntityDetailRoute = DashboardEntityDetailRoute(
-                                            entityID: item.entityID,
-                                            sourceID: cardTransitionID(for: item)
-                                        )
+                                    detailDestination: EntityDetailDestination(
+                                        entityID: item.entityID,
+                                        transitionSourceID: cardTransitionID(for: item)
+                                    ),
+                                    openDetails: { destination in
+                                        selectedEntityDetailDestination = destination
                                     }
                                 )
                                 .cardGridSpan(item.cardSize.layoutMetadata)
@@ -41,14 +42,12 @@ struct AreaDetailView: View {
         .homesteadWallpaperBackground()
         .navigationTitle(area.name)
         .toolbarTitleDisplayMode(.inlineLarge)
-        .navigationDestination(item: $selectedEntityDetailRoute) { route in
-            if let entityBox = stateStore.entityBox(for: route.entityID) {
-                EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
-                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
-            } else {
-                ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
-                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
-            }
+        .navigationDestination(item: $selectedEntityDetailDestination) { destination in
+            EntityDetailDestinationView(destination: destination)
+                .navigationTransition(.zoom(
+                    sourceID: destination.transitionSourceID ?? destination.id,
+                    in: cardTransitionNamespace
+                ))
         }
     }
 

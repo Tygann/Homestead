@@ -6,7 +6,7 @@ struct DashboardSummaryView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
+    @State private var selectedEntityDetailDestination: EntityDetailDestination?
     @State private var securityActivityRows: [HAActivityRow] = []
     @State private var isLoadingSecurityActivity = false
     @State private var securityActivityErrorMessage: String?
@@ -59,14 +59,12 @@ struct DashboardSummaryView: View {
         .onChange(of: detail) { _, newDetail in
             reconcileVisibleOrder(with: newDetail)
         }
-        .navigationDestination(item: $selectedEntityDetailRoute) { route in
-            if let entityBox = stateStore.entityBox(for: route.entityID) {
-                EntityDetailSheet(entityBox: entityBox, presentationStyle: .navigation)
-                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
-            } else {
-                ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
-                    .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
-            }
+        .navigationDestination(item: $selectedEntityDetailDestination) { destination in
+            EntityDetailDestinationView(destination: destination)
+                .navigationTransition(.zoom(
+                    sourceID: destination.transitionSourceID ?? destination.id,
+                    in: cardTransitionNamespace
+                ))
         }
         .task(id: securityActivityTaskID(for: detail)) {
             guard kind == .security, detail != nil else { return }
@@ -180,11 +178,12 @@ struct DashboardSummaryView: View {
                                             entityID: item.entityID,
                                             size: size,
                                             contextualAreaName: section.title,
-                                            openDetails: {
-                                                selectedEntityDetailRoute = DashboardEntityDetailRoute(
-                                                    entityID: item.entityID,
-                                                    sourceID: cardTransitionID(for: item)
-                                                )
+                                            detailDestination: EntityDetailDestination(
+                                                entityID: item.entityID,
+                                                transitionSourceID: cardTransitionID(for: item)
+                                            ),
+                                            openDetails: { destination in
+                                                selectedEntityDetailDestination = destination
                                             }
                                         )
                                         .cardGridSpan(size.layoutMetadata)
@@ -322,9 +321,9 @@ struct DashboardSummaryView: View {
     private func openActivityEntity(_ row: HAActivityRow) {
         guard let entityID = row.entityID else { return }
         guard stateStore.entityBox(for: entityID) != nil else { return }
-        selectedEntityDetailRoute = DashboardEntityDetailRoute(
+        selectedEntityDetailDestination = EntityDetailDestination(
             entityID: entityID,
-            sourceID: securityActivityTransitionID(for: row)
+            transitionSourceID: securityActivityTransitionID(for: row)
         )
     }
 

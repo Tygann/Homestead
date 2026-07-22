@@ -2,6 +2,12 @@ import SwiftUI
 
 struct DashboardChangeEntityContext: Identifiable, Equatable {
     let item: DashboardCardItem
+    let reference: DashboardItemReference?
+
+    init(item: DashboardCardItem, reference: DashboardItemReference? = nil) {
+        self.item = item
+        self.reference = reference
+    }
 
     var id: UUID { item.id }
 }
@@ -14,9 +20,14 @@ struct DashboardChangeEntityView: View {
     @State private var searchText = ""
 
     let context: DashboardChangeEntityContext
+    var onEntityReplaced: ((String) -> Void)?
 
-    init(context: DashboardChangeEntityContext) {
+    init(
+        context: DashboardChangeEntityContext,
+        onEntityReplaced: ((String) -> Void)? = nil
+    ) {
         self.context = context
+        self.onEntityReplaced = onEntityReplaced
         _selectedEntityID = State(initialValue: context.item.entityID)
     }
 
@@ -177,12 +188,22 @@ struct DashboardChangeEntityView: View {
 
     private func saveReplacement() {
         guard let selectedEntity else { return }
-        let replaced = dashboardConfiguration.replaceEntity(
-            forItemID: context.item.id,
-            with: selectedEntity,
-            preserveGaugeZoneConfiguration: preservesGaugeConfiguration
-        )
+        let replaced: Bool
+        if let reference = context.reference {
+            replaced = dashboardConfiguration.replaceEntity(
+                for: reference,
+                with: selectedEntity,
+                preserveGaugeZoneConfiguration: preservesGaugeConfiguration
+            )
+        } else {
+            replaced = dashboardConfiguration.replaceEntity(
+                forItemID: context.item.id,
+                with: selectedEntity,
+                preserveGaugeZoneConfiguration: preservesGaugeConfiguration
+            )
+        }
         guard replaced else { return }
+        onEntityReplaced?(selectedEntity.entityID)
         HapticFeedback.impact(.light)
         dismiss()
     }

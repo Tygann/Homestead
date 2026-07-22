@@ -718,6 +718,53 @@ final class DashboardConfiguration {
         items.first { $0.id == itemID }?.role
     }
 
+    func item(for reference: DashboardItemReference) -> DashboardItemConfiguration? {
+        dashboards
+            .first(where: { $0.id == reference.dashboardID })?
+            .items
+            .first(where: { $0.id == reference.itemID })
+    }
+
+    func dashboardName(for reference: DashboardItemReference) -> String? {
+        dashboards.first(where: { $0.id == reference.dashboardID })?.resolvedName
+    }
+
+    @discardableResult
+    func updateItem(
+        for reference: DashboardItemReference,
+        _ update: (inout DashboardItemConfiguration) -> Void
+    ) -> Bool {
+        guard let dashboardIndex = dashboards.firstIndex(where: { $0.id == reference.dashboardID }),
+              let itemIndex = dashboards[dashboardIndex].items.firstIndex(where: { $0.id == reference.itemID }) else {
+            return false
+        }
+
+        var updatedDashboards = dashboards
+        update(&updatedDashboards[dashboardIndex].items[itemIndex])
+        updatedDashboards[dashboardIndex].items = DashboardConfigurationValidator.normalizedItems(
+            updatedDashboards[dashboardIndex].items
+        )
+        updatedDashboards[dashboardIndex].setupState = .manual
+        dashboards = updatedDashboards
+        return true
+    }
+
+    @discardableResult
+    func removeItem(for reference: DashboardItemReference) -> Bool {
+        guard let dashboardIndex = dashboards.firstIndex(where: { $0.id == reference.dashboardID }),
+              dashboards[dashboardIndex].items.contains(where: { $0.id == reference.itemID }) else {
+            return false
+        }
+
+        var updatedDashboards = dashboards
+        updatedDashboards[dashboardIndex].items.removeAll { $0.id == reference.itemID }
+        updatedDashboards[dashboardIndex].setupState = updatedDashboards[dashboardIndex].items.isEmpty
+            ? .intentionallyEmpty
+            : .manual
+        dashboards = updatedDashboards
+        return true
+    }
+
     func presentationCount(
         source: DashboardSourceReference,
         presentation: DashboardPresentationConfiguration
@@ -763,35 +810,74 @@ final class DashboardConfiguration {
     }
 
     func renameDisplayItem(id: UUID, displayNameOverride: String?) {
-        guard let index = items.firstIndex(where: { $0.id == id && $0.role != .heading }) else { return }
-        var updated = items
-        updated[index].displayNameOverride = normalizedOverride(displayNameOverride)
-        updateSelectedDashboardItems(updated, setupState: .manual)
+        _ = renameDisplayItem(
+            DashboardItemReference(dashboardID: selectedDashboardID, itemID: id),
+            displayNameOverride: displayNameOverride
+        )
+    }
+
+    @discardableResult
+    func renameDisplayItem(
+        _ reference: DashboardItemReference,
+        displayNameOverride: String?
+    ) -> Bool {
+        guard let item = item(for: reference), item.role != .heading else { return false }
+        return updateItem(for: reference) { item in
+            item.displayNameOverride = normalizedOverride(displayNameOverride)
+        }
     }
 
     func setIconNameOverride(_ iconNameOverride: String?, forItemID itemID: UUID) {
-        guard let index = items.firstIndex(where: { $0.id == itemID && $0.role != .heading }) else { return }
-        var updated = items
-        updated[index].iconNameOverride = normalizedOverride(iconNameOverride)
-        updateSelectedDashboardItems(updated, setupState: .manual)
+        _ = setIconNameOverride(
+            iconNameOverride,
+            for: DashboardItemReference(dashboardID: selectedDashboardID, itemID: itemID)
+        )
+    }
+
+    @discardableResult
+    func setIconNameOverride(_ iconNameOverride: String?, for reference: DashboardItemReference) -> Bool {
+        guard let item = item(for: reference), item.role != .heading else { return false }
+        return updateItem(for: reference) { item in
+            item.iconNameOverride = normalizedOverride(iconNameOverride)
+        }
     }
 
     func setGaugeZoneConfiguration(_ configuration: GaugeZoneConfiguration?, forItemID itemID: UUID) {
-        guard let index = items.firstIndex(where: { $0.id == itemID && $0.role == .card }) else { return }
-        guard configuration?.isValid != false else { return }
-        var updated = items
-        updated[index].gaugeZoneConfiguration = configuration
-        updateSelectedDashboardItems(updated, setupState: .manual)
+        _ = setGaugeZoneConfiguration(
+            configuration,
+            for: DashboardItemReference(dashboardID: selectedDashboardID, itemID: itemID)
+        )
+    }
+
+    @discardableResult
+    func setGaugeZoneConfiguration(
+        _ configuration: GaugeZoneConfiguration?,
+        for reference: DashboardItemReference
+    ) -> Bool {
+        guard configuration?.isValid != false,
+              item(for: reference)?.role == .card else { return false }
+        return updateItem(for: reference) { item in
+            item.gaugeZoneConfiguration = configuration
+        }
     }
 
     func setChartConfiguration(_ configuration: DashboardChartConfiguration, forItemID itemID: UUID) {
+        _ = setChartConfiguration(
+            configuration,
+            for: DashboardItemReference(dashboardID: selectedDashboardID, itemID: itemID)
+        )
+    }
+
+    @discardableResult
+    func setChartConfiguration(
+        _ configuration: DashboardChartConfiguration,
+        for reference: DashboardItemReference
+    ) -> Bool {
         guard configuration.isValid,
-              let index = items.firstIndex(where: {
-                  $0.id == itemID && $0.cardConfiguration?.kind == .chart
-              }) else { return }
-        var updated = items
-        updated[index].chartConfiguration = configuration == .default ? nil : configuration
-        updateSelectedDashboardItems(updated, setupState: .manual)
+              item(for: reference)?.cardConfiguration?.kind == .chart else { return false }
+        return updateItem(for: reference) { item in
+            item.chartConfiguration = configuration == .default ? nil : configuration
+        }
     }
 
     @discardableResult
@@ -800,24 +886,36 @@ final class DashboardConfiguration {
         with replacementEntity: HAEntityState,
         preserveGaugeZoneConfiguration: Bool
     ) -> Bool {
-        guard let index = items.firstIndex(where: { $0.id == itemID }),
-              case .entity(let currentEntityID) = items[index].source,
-              let card = items[index].cardConfiguration,
+        replaceEntity(
+            for: DashboardItemReference(dashboardID: selectedDashboardID, itemID: itemID),
+            with: replacementEntity,
+            preserveGaugeZoneConfiguration: preserveGaugeZoneConfiguration
+        )
+    }
+
+    @discardableResult
+    func replaceEntity(
+        for reference: DashboardItemReference,
+        with replacementEntity: HAEntityState,
+        preserveGaugeZoneConfiguration: Bool
+    ) -> Bool {
+        guard let currentItem = item(for: reference),
+              case .entity(let currentEntityID) = currentItem.source,
+              let card = currentItem.cardConfiguration,
               currentEntityID != replacementEntity.entityID,
               DashboardPresentationCatalog.isCompatible(card, with: replacementEntity) else {
             return false
         }
 
-        var updated = items
-        updated[index].content = .sourced(DashboardSourcedItem(
-            source: .entity(replacementEntity.entityID),
-            presentation: .card(card)
-        ))
-        if !preserveGaugeZoneConfiguration {
-            updated[index].gaugeZoneConfiguration = nil
+        return updateItem(for: reference) { item in
+            item.content = .sourced(DashboardSourcedItem(
+                source: .entity(replacementEntity.entityID),
+                presentation: .card(card)
+            ))
+            if !preserveGaugeZoneConfiguration {
+                item.gaugeZoneConfiguration = nil
+            }
         }
-        updateSelectedDashboardItems(updated, setupState: .manual)
-        return true
     }
 
     func removeItem(id: UUID) {
@@ -868,16 +966,23 @@ final class DashboardConfiguration {
     }
 
     func setCardLayout(_ layout: DashboardCardSize, forItemID itemID: UUID) {
-        guard let index = items.firstIndex(where: { $0.id == itemID }),
-              let card = items[index].cardConfiguration else { return }
+        _ = setCardLayout(
+            layout,
+            for: DashboardItemReference(dashboardID: selectedDashboardID, itemID: itemID)
+        )
+    }
+
+    @discardableResult
+    func setCardLayout(_ layout: DashboardCardSize, for reference: DashboardItemReference) -> Bool {
+        guard let item = item(for: reference),
+              let card = item.cardConfiguration else { return false }
         let updatedCard = card.withLayout(layout)
-        guard DashboardConfigurationValidator.isValid(updatedCard) else { return }
-        var updated = items
-        updated[index].content = .sourced(DashboardSourcedItem(
-            source: updated[index].source!,
-            presentation: .card(updatedCard)
-        ))
-        updateSelectedDashboardItems(updated, setupState: .manual)
+        guard DashboardConfigurationValidator.isValid(updatedCard) else { return false }
+
+        return updateItem(for: reference) { item in
+            guard let source = item.source else { return }
+            item.content = .sourced(DashboardSourcedItem(source: source, presentation: .card(updatedCard)))
+        }
     }
 
     // MARK: Saved Dashboards

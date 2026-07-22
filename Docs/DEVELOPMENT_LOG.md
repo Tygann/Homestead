@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-21
 
+### Entity-First Details And Contextual Card Editing
+
+- Replaced dashboard-specific detail kinds with one `EntityDetailDestination` carrying entity identity, canonical initial focus, transition identity, and an optional exact dashboard/item reference.
+- Made capability routing the only detail implementation selector, moved Browse to push navigation, and separated canonical detail presentation from `DashboardEntityPresentation` across all detail families.
+- Added a unified dashboard card editor reachable from dashboard-origin details, covering live preview, entity replacement, size, name, icon, Gauge/Chart settings, and removal while retaining long press as a shortcut.
+- Added precise cross-dashboard item mutations and stale-reference handling so contextual editing cannot target the wrong saved dashboard when selection changes or item IDs collide.
+- Added deterministic card-editor and contextual-detail preview routes plus focused route, presentation-boundary, and configuration tests.
+
 ### Recoverable Dashboard Schema Migrations
 
 - Replaced exact-version-or-reset dashboard loading with ordered schema migrations shared by local, profile-scoped, Canvas preview, and iCloud persistence paths.

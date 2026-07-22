@@ -12,7 +12,7 @@ struct DashboardView: View {
     @State private var gaugeZoneEditorContext: DashboardGaugeZoneEditorContext?
     @State private var chartSettingsContext: DashboardChartSettingsContext?
     @State private var changeEntityContext: DashboardChangeEntityContext?
-    @State private var selectedEntityDetailRoute: DashboardEntityDetailRoute?
+    @State private var selectedEntityDetailDestination: EntityDetailDestination?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
     @State private var headerTitleDraft = ""
@@ -128,18 +128,12 @@ struct DashboardView: View {
             .sheet(item: $changeEntityContext) { context in
                 DashboardChangeEntityView(context: context)
             }
-            .navigationDestination(item: $selectedEntityDetailRoute) { route in
-                if let entityBox = stateStore.entityBox(for: route.entityID) {
-                    EntityDetailSheet(
-                        entityBox: entityBox,
-                        presentationStyle: .navigation,
-                        entryContext: route.entryContext
-                    )
-                        .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
-                } else {
-                    ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
-                        .navigationTransition(.zoom(sourceID: route.sourceID, in: cardTransitionNamespace))
-                }
+            .navigationDestination(item: $selectedEntityDetailDestination) { destination in
+                EntityDetailDestinationView(destination: destination)
+                    .navigationTransition(.zoom(
+                        sourceID: destination.transitionSourceID ?? destination.id,
+                        in: cardTransitionNamespace
+                    ))
             }
             .alert("Rename Header", isPresented: isRenamingHeader) {
                 TextField("Header Title", text: $headerTitleDraft)
@@ -574,14 +568,16 @@ struct DashboardView: View {
                 gaugeZoneConfiguration: item.gaugeZoneConfiguration,
                 chartRange: item.chartConfiguration.range,
                 cameraRefreshGeneration: cameraRefreshGeneration,
-                openDetails: {
-                    selectedEntityDetailRoute = DashboardEntityDetailRoute(
-                        entityID: item.entityID,
-                        sourceID: cardTransitionID(for: item),
-                        entryContext: item.presentationKind == .chart
-                            ? .history(initialRange: item.chartConfiguration.range)
-                            : .overview
-                    )
+                detailDestination: EntityDetailDestination(
+                    entityID: item.entityID,
+                    dashboardItemReference: DashboardItemReference(
+                        dashboardID: dashboardConfiguration.selectedDashboardID,
+                        itemID: item.id
+                    ),
+                    transitionSourceID: cardTransitionID(for: item)
+                ),
+                openDetails: { destination in
+                    selectedEntityDetailDestination = destination
                 }
             )
             .frame(maxWidth: .infinity)

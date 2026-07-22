@@ -63,26 +63,6 @@ struct DashboardLayoutItem: Identifiable, Equatable {
     }
 }
 
-struct DashboardEntityDetailRoute: Identifiable, Equatable, Hashable {
-    let entityID: String
-    let sourceID: String
-    let entryContext: EntityDetailEntryContext
-
-    init(
-        entityID: String,
-        sourceID: String,
-        entryContext: EntityDetailEntryContext = .overview
-    ) {
-        self.entityID = entityID
-        self.sourceID = sourceID
-        self.entryContext = entryContext
-    }
-
-    var id: String {
-        "\(sourceID)-\(entityID)"
-    }
-}
-
 enum DashboardLayoutItemBuilder {
     static func makeItems(from configurationItems: [DashboardItemConfiguration]) -> [DashboardLayoutItem] {
         return configurationItems.compactMap { configurationItem in

@@ -64,6 +64,16 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 
 `EntityDetailFeatureProvider` is the detail-surface availability layer. It combines the semantic profile with the mapped state actually present for an entity and exposes only features Homestead can render correctly today. Domain views remain typed and own section ordering; the provider does not generate or type-erase their layouts.
 
+## Dashboard Entry And Editing
+
+- `EntityDetailDestination` is the surface-neutral navigation contract. It carries the stable entity ID, an optional initial section, optional transition identity, and an optional `{dashboardID, itemID}` reference when a specific dashboard card initiated navigation.
+- Entity state, controls, history, activity, media, and Home Assistant context remain canonical regardless of which card opened the detail. Card size, display-name/icon overrides, Gauge zones, Chart range, and other dashboard customization never redefine entity-detail content.
+- Card presentation may choose only the initial canonical section. Chart opens History with its configured starting range; other current card families open Overview.
+- Details use `EntityDetailPresentationModel`, derived from mapped entity state and capability metadata. They must not construct `DashboardEntityPresentation`.
+- A dashboard-origin detail exposes Card > Edit Card. The editor resolves the exact dashboard/item reference live and owns card preview, entity replacement, size, name, icon, Gauge/Chart settings, and removal. Long press remains an optional dashboard shortcut.
+- Browse, Areas, Summary, and management hierarchies push canonical details. Widget or external launches may create a self-contained navigation sheet when no existing hierarchy is available.
+- Stale card references must not invalidate the entity detail. Editing becomes unavailable while the canonical detail remains usable.
+
 ## History Semantics
 
 - Continuous numeric detail history uses 6H, 24H, 7D, and 30D. Dashboard Chart cards may persist a focused 1H, 6H, 24H, or 7D range independently; 6H remains the default.

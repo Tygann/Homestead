@@ -9,7 +9,9 @@ enum RuntimeEnvironment {
 nonisolated enum HomesteadPreviewScreen: String, Sendable {
     case appearance
     case dashboardChangeEntity = "dashboard-change-entity"
+    case dashboardCardEditor = "dashboard-card-editor"
     case dashboardCards = "dashboard-cards"
+    case entityDetailCard = "entity-detail-card"
     case entityDetails = "entity-details"
     case gaugeWidget = "gauge-widget"
 }
@@ -25,8 +27,12 @@ extension HomesteadPreviewScreen {
             self = .appearance
         case Self.dashboardChangeEntity.rawValue:
             self = .dashboardChangeEntity
+        case Self.dashboardCardEditor.rawValue:
+            self = .dashboardCardEditor
         case Self.dashboardCards.rawValue:
             self = .dashboardCards
+        case Self.entityDetailCard.rawValue:
+            self = .entityDetailCard
         case Self.entityDetails.rawValue:
             self = .entityDetails
         case Self.gaugeWidget.rawValue:

@@ -13,8 +13,8 @@ struct ActionEntityDetailView: View {
         entityBox.homeEntity
     }
 
-    private var presentation: DashboardEntityPresentation {
-        DashboardEntityPresentation(entityBox: entityBox)
+    private var presentation: EntityDetailPresentationModel {
+        EntityDetailPresentationModel(entityBox: entityBox)
     }
 
     private var detailState: EntityDetailStatePresentation {
