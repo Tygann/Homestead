@@ -360,16 +360,10 @@ struct GaugeInstrumentCanvas: View {
                         )
                         .foregroundStyle(tint)
                         .frame(width: metrics.iconSize, height: metrics.iconSize)
-                        .overlay(alignment: .bottomTrailing) {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.system(size: max(metrics.iconPointSize * 0.56, 7), weight: .semibold))
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(.white, Color.accentColor)
-                                .offset(x: 3, y: 3)
-                        }
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Change card icon")
+                    .accessibilityHint("Opens the icon picker")
                 } else {
                     HomesteadIconView(
                         icon: icon,

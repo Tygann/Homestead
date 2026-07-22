@@ -79,7 +79,7 @@ Available sample screens are:
 | Value | Purpose |
 | --- | --- |
 | `appearance` | Appearance settings with deterministic sample dependencies. |
-| `dashboard-card-editor` | Unified contextual card editor with exact dashboard-item context. Defaults to a Compact Control fixture; add `--preview-presentation segmentedGauge --preview-size wide` or `--preview-presentation chart --preview-size wide` for card-specific variants. |
+| `dashboard-card-editor` | Unified contextual card editor with exact dashboard-item context. Defaults to a Compact Control fixture; add `--preview-presentation segmentedGauge --preview-size wide` or `--preview-presentation chart --preview-size wide` for card-specific variants. Use `--preview-presentation control --preview-entity climate.editor_thermostat --preview-size square` for the dual-setpoint thermostat fixture. |
 | `dashboard-cards` | Chart, Weather, Media, and Action cards across Compact, Square, Wide, and Large layouts. |
 | `entity-detail-card` | Entity-first detail opened from a Chart card, including History focus and the contextual Card menu. |
 | `entity-details` | The entity-detail family/state reference gallery, including Presence. |

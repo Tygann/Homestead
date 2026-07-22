@@ -114,7 +114,15 @@ struct DashboardCardEditorView: View {
 
                 Picker("Size", selection: sizeBinding) {
                     ForEach(supportedSizes, id: \.self) { size in
-                        Label(size.displayName, systemImage: size.systemImage)
+                        Label {
+                            Text(size.displayName)
+                        } icon: {
+                            if let customResizeIconName = size.customResizeIconName {
+                                Image(customResizeIconName)
+                            } else {
+                                Image(systemName: size.systemImage)
+                            }
+                        }
                             .tag(size)
                     }
                 }
@@ -144,9 +152,10 @@ struct DashboardCardEditorView: View {
             }
 
             Section {
-                Button("Remove Card", systemImage: "minus.circle", role: .destructive) {
+                Button("Remove Card", role: .destructive) {
                     isConfirmingRemoval = true
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .scrollDismissesKeyboard(.interactively)
@@ -353,11 +362,15 @@ struct DashboardCardEditorPreviewScreen: View {
     private let reference: DashboardItemReference
 
     init() {
-        let dependencies = PreviewDependencies.sample
+        let requestedEntityID = RuntimeEnvironment.livePreviewEntityID
+        let dependencies = requestedEntityID == Self.thermostatEntityID
+            ? PreviewDependencies.entityDetailSample(entityOverrides: [Self.thermostatFixture])
+            : PreviewDependencies.sample
         let dashboardID = dependencies.dashboardConfiguration.selectedDashboardID
         let fixture = Self.fixture(
             for: RuntimeEnvironment.livePreviewPresentationKind,
-            requestedSize: RuntimeEnvironment.requestedPreviewCardSize
+            requestedSize: RuntimeEnvironment.requestedPreviewCardSize,
+            requestedEntityID: requestedEntityID
         )
         let itemID = dependencies.dashboardConfiguration.add(
             source: .entity(fixture.entityID),
@@ -378,7 +391,8 @@ struct DashboardCardEditorPreviewScreen: View {
 
     private static func fixture(
         for requestedKind: DashboardPresentationKind?,
-        requestedSize: DashboardCardSize?
+        requestedSize: DashboardCardSize?,
+        requestedEntityID: String?
     ) -> (entityID: String, configuration: DashboardCardConfiguration, displayNameOverride: String?) {
         switch requestedKind {
         case .segmentedGauge:
@@ -394,13 +408,40 @@ struct DashboardCardEditorPreviewScreen: View {
                 nil
             )
         default:
+            let entityID = requestedEntityID ?? "light.living_room_lamps"
             return (
-                "light.living_room_lamps",
+                entityID,
                 .control(layout: supportedSize(requestedSize, for: .control) ?? .compact),
-                "Back Yard Lights"
+                entityID == thermostatEntityID
+                    ? "Thermostat"
+                    : requestedEntityID == nil ? "Back Yard Lights" : nil
             )
         }
     }
+
+    private static let thermostatEntityID = "climate.editor_thermostat"
+
+    private static let thermostatFixture = HAEntityDTO(
+        entityID: thermostatEntityID,
+        state: "heat_cool",
+        attributes: [
+            "friendly_name": .string("Thermostat"),
+            "current_temperature": .number(72),
+            "target_temp_low": .number(70),
+            "target_temp_high": .number(75),
+            "temperature_unit": .string("°F"),
+            "min_temp": .number(50),
+            "max_temp": .number(90),
+            "target_temp_step": .number(1),
+            "hvac_modes": .array([
+                .string("off"),
+                .string("heat"),
+                .string("cool"),
+                .string("heat_cool")
+            ])
+        ],
+        lastUpdated: .now
+    )
 
     private static func supportedSize(
         _ requestedSize: DashboardCardSize?,

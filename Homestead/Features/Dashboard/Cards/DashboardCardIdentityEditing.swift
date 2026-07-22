@@ -53,17 +53,11 @@ private struct DashboardCardEditableIconModifier: ViewModifier {
         if let identityEditing {
             Button(action: identityEditing.editIcon) {
                 content
-                    .overlay(alignment: .bottomTrailing) {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.caption.weight(.semibold))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, Color.accentColor)
-                            .offset(x: 4, y: 4)
-                    }
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Change card icon")
+            .accessibilityHint("Opens the icon picker")
         } else {
             content
         }
