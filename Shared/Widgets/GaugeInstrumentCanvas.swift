@@ -55,9 +55,6 @@ struct GaugeInstrumentCanvas: View {
     let trackStyle: GaugeInstrumentTrackStyle
     let density: GaugeInstrumentDensity
     var renderingStyle: GaugeInstrumentRenderingStyle = .fullColor
-    var editableTitle: Binding<String>? = nil
-    var editIcon: (() -> Void)? = nil
-    var commitEditableTitle: (() -> Void)? = nil
 
     private let visibleInstrumentHeightRatio = 0.82
     private let accentedSectionGap = 0.012
@@ -81,19 +78,7 @@ struct GaugeInstrumentCanvas: View {
                     .frame(width: diameter, height: diameter)
                     .frame(width: diameter, height: visibleInstrumentHeight, alignment: .top)
 
-                if let editableTitle {
-                    TextField("Card Name", text: editableTitle)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: metrics.titleFontSize, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .multilineTextAlignment(.center)
-                        .submitLabel(.done)
-                        .onSubmit { commitEditableTitle?() }
-                        .padding(.horizontal, 3)
-                        .frame(height: titleHeight)
-                        .accessibilityLabel("Card name")
-                } else if let title {
+                if let title {
                     Text(title)
                         .font(.system(size: metrics.titleFontSize, weight: .medium))
                         .foregroundStyle(.primary)
@@ -105,7 +90,7 @@ struct GaugeInstrumentCanvas: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .accessibilityElement(children: editableTitle == nil && editIcon == nil ? .ignore : .contain)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(presentation.accessibilityValue)
     }
@@ -351,29 +336,14 @@ struct GaugeInstrumentCanvas: View {
         }
         .overlay {
             if let icon {
-                if let editIcon {
-                    Button(action: editIcon) {
-                        HomesteadIconView(
-                            icon: icon,
-                            pointSize: metrics.iconPointSize,
-                            weight: .semibold
-                        )
-                        .foregroundStyle(tint)
-                        .frame(width: metrics.iconSize, height: metrics.iconSize)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Change card icon")
-                    .accessibilityHint("Opens the icon picker")
-                } else {
-                    HomesteadIconView(
-                        icon: icon,
-                        pointSize: metrics.iconPointSize,
-                        weight: .semibold
-                    )
-                    .foregroundStyle(tint)
-                    .frame(width: metrics.iconSize, height: metrics.iconSize)
-                    .accessibilityHidden(true)
-                }
+                HomesteadIconView(
+                    icon: icon,
+                    pointSize: metrics.iconPointSize,
+                    weight: .semibold
+                )
+                .foregroundStyle(tint)
+                .frame(width: metrics.iconSize, height: metrics.iconSize)
+                .accessibilityHidden(true)
             }
         }
         .font(.system(size: metrics.rangeFontSize, weight: .semibold))

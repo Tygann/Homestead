@@ -8,8 +8,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Replaced the one-item detail toolbar menu with a direct pencil action that opens the originating card editor in one tap.
 - Reworked Edit Card around a local transactional draft: Cancel discards, Done applies the exact referenced card update once, and entity changes notify the still-open canonical detail only after the save succeeds.
-- Made card identity directly editable inside the production card preview, moved Entity and Gauge configuration into native in-sheet navigation, made Chart range inline, and removed duplicate name/icon surfaces plus technical Context rows. Added deterministic Control, Gauge, and Chart editor fixtures so the compact Control composition that exposed the duplicate-row regression is part of visible verification.
-- Polished the editor preview with direct badge-free icon selection, balanced climate stepper columns for both single and dual setpoints, proportional custom size artwork in the picker, and a centered native destructive removal row. Added a deterministic dual-setpoint thermostat editor fixture for transient-menu and light/dark inspection.
+- Separated card identity editing from rendering: a card-independent Appearance section now owns the name and icon, while a proportional four-column preview stage renders every production card non-interactively. Removed editor hooks from Control, Status, Gauge, Chart, Camera, Weather, Media, and Action renderers, and made card-specific editor rows catalog capabilities.
+- Polished the editor with an explicit 56-point icon action, labeled name field, balanced climate stepper columns for both single and dual setpoints, proportional custom size artwork in the picker, and a centered native destructive removal row. Extended deterministic editor fixtures across all implemented card families and retained the dual-setpoint thermostat fixture for transient-menu and light/dark inspection.
 - Kept card-specific settings conditional, added atomic exact-reference update coverage, and visually verified the deterministic editor/detail routes in light and dark appearances.
 
 ## 2026-07-21

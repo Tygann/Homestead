@@ -749,6 +749,74 @@ final class DashboardConfigurationXCTests: XCTestCase {
         }
     }
 
+    func testCatalogDeclaresCardEditorSettingsByCapability() {
+        XCTAssertEqual(
+            DashboardPresentationCatalog.descriptor(for: .chart).editorSettings,
+            [.historyRange]
+        )
+
+        for kind in [
+            DashboardPresentationKind.circularGauge,
+            .segmentedGauge,
+            .barGauge
+        ] {
+            XCTAssertEqual(
+                DashboardPresentationCatalog.descriptor(for: kind).editorSettings,
+                [.gaugeZones]
+            )
+        }
+
+        for kind in [
+            DashboardPresentationKind.control,
+            .status,
+            .camera,
+            .weather,
+            .media,
+            .action
+        ] {
+            XCTAssertTrue(DashboardPresentationCatalog.descriptor(for: kind).editorSettings.isEmpty)
+        }
+    }
+
+    func testCardEditorPreviewLayoutPreservesFourColumnProportions() {
+        let mini = DashboardCardEditorPreviewLayout(availableWidth: 320, size: .mini)
+        let compact = DashboardCardEditorPreviewLayout(availableWidth: 320, size: .compact)
+        let row = DashboardCardEditorPreviewLayout(availableWidth: 320, size: .row)
+        let square = DashboardCardEditorPreviewLayout(availableWidth: 320, size: .square)
+        let large = DashboardCardEditorPreviewLayout(availableWidth: 320, size: .large)
+
+        XCTAssertEqual(
+            compact.unscaledCardSize.width,
+            (mini.unscaledCardSize.width * 2) + DashboardCardEditorPreviewLayout.spacing,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            row.unscaledCardSize.width,
+            (mini.unscaledCardSize.width * 4) + (DashboardCardEditorPreviewLayout.spacing * 3),
+            accuracy: 0.001
+        )
+        XCTAssertEqual(square.unscaledCardSize.width, compact.unscaledCardSize.width, accuracy: 0.001)
+        XCTAssertEqual(
+            square.unscaledCardSize.height,
+            DashboardCardSize.square.renderedHeight(
+                rowSpacing: DashboardCardEditorPreviewLayout.spacing,
+                cardPadding: DashboardCardEditorPreviewLayout.cardPadding
+            ),
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            DashboardCardEditorPreviewLayout.stageHeight(for: .large),
+            DashboardCardEditorPreviewLayout.maximumStageHeight,
+            accuracy: 0.001
+        )
+        XCTAssertLessThan(large.scale, 1)
+        XCTAssertLessThanOrEqual(
+            large.unscaledCardSize.height * large.scale,
+            DashboardCardEditorPreviewLayout.maximumStageHeight
+                - (DashboardCardEditorPreviewLayout.stagePadding * 2)
+        )
+    }
+
     func testGalleryCatalogSeparatesImplementedAndPlannedMetadata() {
         XCTAssertEqual(
             DashboardAddGallerySection.elements.items.map(\.title),

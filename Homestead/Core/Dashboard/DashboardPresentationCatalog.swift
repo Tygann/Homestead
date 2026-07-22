@@ -10,6 +10,11 @@ nonisolated enum DashboardSourceRequirement: Equatable, Sendable {
     case trigger
 }
 
+nonisolated enum DashboardCardEditorSetting: Equatable, Hashable, Sendable {
+    case historyRange
+    case gaugeZones
+}
+
 nonisolated struct DashboardPresentationDescriptor: Identifiable, Equatable, Sendable {
     let kind: DashboardPresentationKind
     let title: String
@@ -19,6 +24,17 @@ nonisolated struct DashboardPresentationDescriptor: Identifiable, Equatable, Sen
 
     var id: DashboardPresentationKind { kind }
     var supportedLayouts: [DashboardCardSize] { kind.supportedLayouts }
+
+    var editorSettings: [DashboardCardEditorSetting] {
+        switch kind {
+        case .chart:
+            [.historyRange]
+        case .circularGauge, .segmentedGauge, .barGauge:
+            [.gaugeZones]
+        default:
+            []
+        }
+    }
 }
 
 @MainActor

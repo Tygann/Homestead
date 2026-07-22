@@ -81,30 +81,33 @@ struct DashboardCardEditorView: View {
 
     private var editorForm: some View {
         Form {
-            Section("Preview") {
-                DashboardCardView(
-                    entityID: draft.entityID,
-                    size: draft.size,
-                    presentationKind: draft.presentationKind,
-                    displayNameOverride: draftDisplayNameOverride,
-                    iconNameOverride: draft.iconNameOverride,
-                    gaugeZoneConfiguration: draft.gaugeZoneConfiguration,
-                    chartRange: draft.chartConfiguration.range,
-                    isPreview: true,
-                    identityEditing: DashboardCardIdentityEditing(
-                        displayName: displayNameBinding,
-                        editIcon: { navigationPath.append(.icon) },
-                        commitDisplayName: restoreCanonicalNameIfNeeded
-                    )
+            Section("Appearance") {
+                DashboardCardIdentityEditor(
+                    icon: draftResolvedIcon,
+                    displayName: displayNameBinding,
+                    changeIcon: { navigationPath.append(.icon) },
+                    commitDisplayName: restoreCanonicalNameIfNeeded
                 )
-                .frame(height: draft.size.renderedHeight(
-                    rowSpacing: AppSpacing.medium,
-                    cardPadding: AppSpacing.medium
-                ))
+            }
+
+            Section("Preview") {
+                DashboardCardEditorPreviewStage(
+                    size: draft.size,
+                    accessibilityValue: previewAccessibilityValue
+                ) {
+                    DashboardCardView(
+                        entityID: draft.entityID,
+                        size: draft.size,
+                        presentationKind: draft.presentationKind,
+                        displayNameOverride: draftDisplayNameOverride,
+                        iconNameOverride: draft.iconNameOverride,
+                        gaugeZoneConfiguration: draft.gaugeZoneConfiguration,
+                        chartRange: draft.chartConfiguration.range,
+                        isPreview: true
+                    )
+                }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
-                .accessibilityLabel("Card preview")
-                .accessibilityHint("Updates as you edit this card")
             }
 
             Section {
@@ -132,21 +135,10 @@ struct DashboardCardEditorView: View {
                 Text("Changes apply only to this dashboard card.")
             }
 
-            if isGauge(draft.presentationKind) || draft.presentationKind == .chart {
+            if !editorSettings.isEmpty {
                 Section("Settings") {
-                    if draft.presentationKind == .chart {
-                        Picker("History Range", selection: chartRangeBinding) {
-                            ForEach(HAHistoryRangePreset.dashboardChartPresets) { range in
-                                Text(range.accessibilityTitle)
-                                    .tag(range)
-                            }
-                        }
-                    }
-
-                    if isGauge(draft.presentationKind) {
-                        NavigationLink(value: DashboardCardEditorRoute.gauge) {
-                            LabeledContent("Gauge", value: gaugeSettingsSummary)
-                        }
+                    ForEach(editorSettings, id: \.self) { setting in
+                        editorSettingRow(setting)
                     }
                 }
             }
@@ -159,6 +151,23 @@ struct DashboardCardEditorView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    @ViewBuilder
+    private func editorSettingRow(_ setting: DashboardCardEditorSetting) -> some View {
+        switch setting {
+        case .historyRange:
+            Picker("History Range", selection: chartRangeBinding) {
+                ForEach(HAHistoryRangePreset.dashboardChartPresets) { range in
+                    Text(range.accessibilityTitle)
+                        .tag(range)
+                }
+            }
+        case .gaugeZones:
+            NavigationLink(value: DashboardCardEditorRoute.gauge) {
+                LabeledContent("Gauge", value: gaugeSettingsSummary)
+            }
+        }
     }
 
     // MARK: - Navigation Destinations
@@ -311,12 +320,34 @@ struct DashboardCardEditorView: View {
         stateStore.entity(for: draft.entityID)?.iconName ?? "square.grid.2x2"
     }
 
+    private var draftResolvedIcon: ResolvedIcon {
+        guard let draftEntityBox else {
+            return .sfSymbol("square.grid.2x2", provenance: .fallback)
+        }
+        return IconResolver.applyingDashboardOverride(
+            draft.iconNameOverride,
+            to: draftEntityBox.homeEntity.resolvedIcon
+        )
+    }
+
     private var draftDisplayNameOverride: String? {
         draft.update(canonicalName: canonicalEntityName).displayNameOverride
     }
 
     private var supportedSizes: [DashboardCardSize] {
-        DashboardPresentationCatalog.descriptor(for: draft.presentationKind).supportedLayouts
+        presentationDescriptor.supportedLayouts
+    }
+
+    private var editorSettings: [DashboardCardEditorSetting] {
+        presentationDescriptor.editorSettings
+    }
+
+    private var presentationDescriptor: DashboardPresentationDescriptor {
+        DashboardPresentationCatalog.descriptor(for: draft.presentationKind)
+    }
+
+    private var previewAccessibilityValue: String {
+        "\(draft.displayName), \(presentationDescriptor.title), \(draft.size.displayName)"
     }
 
     private var dashboardName: String {
@@ -344,9 +375,6 @@ struct DashboardCardEditorView: View {
         isLoaded && draft != initialDraft
     }
 
-    private func isGauge(_ kind: DashboardPresentationKind) -> Bool {
-        [.circularGauge, .segmentedGauge, .barGauge].contains(kind)
-    }
 }
 
 private enum DashboardCardEditorRoute: Hashable {
@@ -395,18 +423,44 @@ struct DashboardCardEditorPreviewScreen: View {
         requestedEntityID: String?
     ) -> (entityID: String, configuration: DashboardCardConfiguration, displayNameOverride: String?) {
         switch requestedKind {
+        case .control:
+            return fixture(
+                entityID: requestedEntityID ?? "light.living_room_lamps",
+                kind: .control,
+                requestedSize: requestedSize
+            )
+        case .status:
+            return fixture(entityID: "lock.front_door", kind: .status, requestedSize: requestedSize)
+        case .circularGauge:
+            return fixture(
+                entityID: "sensor.front_door_battery",
+                kind: .circularGauge,
+                requestedSize: requestedSize
+            )
         case .segmentedGauge:
-            return (
-                "sensor.front_door_battery",
-                .segmentedGauge(layout: supportedSize(requestedSize, for: .segmentedGauge) ?? .wide),
-                nil
+            return fixture(
+                entityID: "sensor.front_door_battery",
+                kind: .segmentedGauge,
+                requestedSize: requestedSize
+            )
+        case .barGauge:
+            return fixture(
+                entityID: "sensor.front_door_battery",
+                kind: .barGauge,
+                requestedSize: requestedSize
             )
         case .chart:
-            return (
-                "sensor.hallway_temperature",
-                .chart(layout: supportedSize(requestedSize, for: .chart) ?? .wide),
-                nil
-            )
+            return fixture(entityID: "sensor.hallway_temperature", kind: .chart, requestedSize: requestedSize)
+        case .camera:
+            return fixture(entityID: "camera.driveway", kind: .camera, requestedSize: requestedSize)
+        case .weather:
+            return fixture(entityID: "weather.home", kind: .weather, requestedSize: requestedSize)
+        case .media:
+            return fixture(entityID: "media_player.living_room", kind: .media, requestedSize: requestedSize)
+        case .action:
+            return fixture(entityID: "scene.movie_night", kind: .action, requestedSize: requestedSize)
+        case .chip:
+            fallthrough
         default:
             let entityID = requestedEntityID ?? "light.living_room_lamps"
             return (
@@ -417,6 +471,17 @@ struct DashboardCardEditorPreviewScreen: View {
                     : requestedEntityID == nil ? "Back Yard Lights" : nil
             )
         }
+    }
+
+    private static func fixture(
+        entityID: String,
+        kind: DashboardPresentationKind,
+        requestedSize: DashboardCardSize?
+    ) -> (entityID: String, configuration: DashboardCardConfiguration, displayNameOverride: String?) {
+        let layout = supportedSize(requestedSize, for: kind) ?? kind.defaultLayout ?? .compact
+        let configuration = DashboardPresentationCatalog.cardConfiguration(kind: kind, layout: layout)
+            ?? .control(layout: .compact)
+        return (entityID, configuration, nil)
     }
 
     private static let thermostatEntityID = "climate.editor_thermostat"

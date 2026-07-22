@@ -16,9 +16,6 @@ struct GaugePresentationView: View {
     let tint: Color
     var title: String? = nil
     var icon: ResolvedIcon? = nil
-    var editableTitle: Binding<String>? = nil
-    var editIcon: (() -> Void)? = nil
-    var commitEditableTitle: (() -> Void)? = nil
 
     private let dashboardLineWidth: CGFloat = 11
     private let arcMarkerHeight: CGFloat = 10
@@ -72,10 +69,7 @@ struct GaugePresentationView: View {
             title: title,
             icon: icon,
             trackStyle: trackStyle,
-            density: density,
-            editableTitle: editableTitle,
-            editIcon: editIcon,
-            commitEditableTitle: commitEditableTitle
+            density: density
         )
     }
 

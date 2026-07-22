@@ -14,7 +14,6 @@ private let cameraPreviewLogger = Logger(
 
 struct CameraCardPreview: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @Environment(\.dashboardCardIdentityEditing) private var identityEditing
     @Environment(\.scenePhase) private var scenePhase
     @State private var snapshotPhase: CameraCardSnapshotPhase = .idle
     #if canImport(UIKit)
@@ -24,7 +23,6 @@ struct CameraCardPreview: View {
     let entityID: String
     let isAvailable: Bool
     let title: String
-    let icon: ResolvedIcon
     let accessibilityTitle: String
     let refreshGeneration: Int
     let height: CGFloat
@@ -48,21 +46,12 @@ struct CameraCardPreview: View {
                     ZStack(alignment: .leading) {
                         Color.black.opacity(0.42)
 
-                        HStack(spacing: AppSpacing.small) {
-                            if identityEditing != nil {
-                                HomesteadIconView(icon: icon, pointSize: 16, weight: .semibold)
-                                    .foregroundStyle(.white)
-                                    .dashboardCardEditableIcon()
-                            }
-
-                            Text(title)
-                                .dashboardCardEditableTitle()
-                                .font(.subheadline)
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                        .padding(.horizontal, AppSpacing.small)
+                        Text(title)
+                            .font(.subheadline)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .padding(.horizontal, AppSpacing.small)
                     }
                     .frame(width: proxy.size.width, height: footerHeight)
                 } else {
@@ -92,7 +81,7 @@ struct CameraCardPreview: View {
         .task(id: refreshTaskID) {
             await refreshSnapshotsWhileVisible()
         }
-        .accessibilityElement(children: identityEditing == nil ? .ignore : .contain)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityTitle)
         .accessibilityValue(snapshotSubtitle)
     }
