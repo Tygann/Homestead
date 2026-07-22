@@ -268,6 +268,14 @@ private struct EntityNumericHistoryChart: View {
                 }
             }
             .chartXSelection(value: $selectedSampleDate)
+            .overlay(alignment: .topLeading) {
+                if let selectedSample {
+                    selectionCallout(selectedSample)
+                        .padding(.leading, AppSpacing.small)
+                        .padding(.top, AppSpacing.small)
+                        .allowsHitTesting(false)
+                }
+            }
             .frame(height: layout.chartHeight)
             .accessibilityChartDescriptor(
                 EntityNumericHistoryChartDescriptor(series: series, valueDomain: valueDomain)
@@ -284,18 +292,8 @@ private struct EntityNumericHistoryChart: View {
                 })
             }
 
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
-                    summary
-                    Spacer(minLength: AppSpacing.small)
-                    latestDate
-                }
-
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    summary
-                    latestDate
-                }
-            }
+            latestDate
+                .frame(maxWidth: .infinity, alignment: .trailing)
 
             if let coverageNotice = series.coverageNotice {
                 Text(coverageNotice)
@@ -328,7 +326,7 @@ private struct EntityNumericHistoryChart: View {
         HStack(spacing: 0) {
             statistic(title: "Minimum", value: series.minimumValue)
             Divider().padding(.vertical, 3)
-            statistic(title: "Average", value: series.averageValue, emphasized: true)
+            statistic(title: "Average", value: series.averageValue)
             Divider().padding(.vertical, 3)
             statistic(title: "Maximum", value: series.maximumValue)
         }
@@ -337,7 +335,7 @@ private struct EntityNumericHistoryChart: View {
     private var statisticRows: some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
             statisticRow(title: "Minimum", value: series.minimumValue)
-            statisticRow(title: "Average", value: series.averageValue, emphasized: true)
+            statisticRow(title: "Average", value: series.averageValue)
             statisticRow(title: "Maximum", value: series.maximumValue)
         }
     }
@@ -412,11 +410,23 @@ private struct EntityNumericHistoryChart: View {
         }
     }
 
-    private var summary: some View {
-        Text(series.summaryText)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+    private func selectionCallout(_ sample: HAHistorySample) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(series.formatValue(sample.value))
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(accentColor)
+
+            Text(sample.occurredAt.formatted(date: .abbreviated, time: .shortened))
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, AppSpacing.small)
+        .padding(.vertical, 6)
+        .background(
+            Color(.secondarySystemGroupedBackground).opacity(0.96),
+            in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder

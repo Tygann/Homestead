@@ -21,7 +21,6 @@ struct AutomationDetailView: View {
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
-            actionPanel
             overviewPanel
             activityPanel
             stateDetails
@@ -33,27 +32,25 @@ struct AutomationDetailView: View {
     }
 
     private var header: some View {
-        EntityDetailHeader(
-            entityBox: entityBox,
+        EntityDetailHeroCard(
             icon: presentation.icon,
-            category: "Automation",
-            summary: nil,
-            status: EntityDetailStatusPresentation(text: statusLabel, tone: presentation.isActive ? .positive : .neutral),
+            title: "Automation",
+            subtitle: EntityDetailHeroSubtitle.updated(entity),
+            status: nil,
             iconColor: presentation.isActive ? presentation.accentColor : Color.secondary,
-            iconBackground: presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
-        )
-    }
-
-    private var actionPanel: some View {
-        EntityControlPanel(title: "Control", systemImage: "calendar.badge.clock") {
-            EntityDetailActionButton(
-                title: actionTitle,
-                systemImage: presentation.isActive ? "pause.fill" : "play.fill",
-                style: presentation.isActive ? .secondary : .primary,
-                isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
-            ) {
-                Task { await confirmOrPerform() }
+            iconBackground: presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
+            statePresentation: detailState,
+            accessory: {
+                EntityDetailStateToggle(
+                    isOn: presentation.isActive,
+                    accessibilityLabel: "Automation enabled",
+                    isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
+                ) { requestedState in
+                    Task { await confirmOrPerform(requestedState: requestedState) }
+                }
             }
+        ) {
+            EmptyView()
         }
     }
 
@@ -101,17 +98,6 @@ struct AutomationDetailView: View {
         return presentation.isActive ? "Enabled" : "Disabled"
     }
 
-    private var statusSummary: String {
-        if entityBox.pendingCommand != nil { return "Updating in Home Assistant" }
-        if !entity.isAvailable { return "Automation unavailable" }
-        return presentation.isActive ? "Ready to run" : "Paused"
-    }
-
-    private var actionTitle: String {
-        if entityBox.pendingCommand != nil { return "Updating..." }
-        return presentation.isActive ? "Disable" : "Enable"
-    }
-
     private var isActionServiceAvailable: Bool {
         homeAssistantService.serviceActionAvailable(
             domain: "automation",
@@ -129,8 +115,8 @@ struct AutomationDetailView: View {
         }
     }
 
-    private func confirmOrPerform() async {
-        let service = presentation.isActive ? "turn_off" : "turn_on"
+    private func confirmOrPerform(requestedState: Bool) async {
+        let service = requestedState ? "turn_on" : "turn_off"
         guard let confirmation = ActionConfirmationPolicy.confirmation(
             for: entityBox,
             domain: "automation",

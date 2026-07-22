@@ -10,8 +10,6 @@ struct LightDetailView: View {
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
 
-    private let brightnessPresets = [25.0, 50.0, 75.0, 100.0]
-
     private var detailState: EntityDetailStatePresentation {
         EntityDetailStatePresentation.resolve(entityBox: entityBox, service: homeAssistantService)
     }
@@ -21,7 +19,6 @@ struct LightDetailView: View {
         if let light = entityBox.lightEntity {
             EntityDetailScaffold(title: light.displayName, presentationStyle: presentationStyle) {
                 header(light)
-                powerControls(light)
 
                 if light.supportsBrightness,
                    homeAssistantService.serviceActionAvailable(domain: "light", service: "turn_on") {
@@ -52,35 +49,40 @@ struct LightDetailView: View {
     }
 
     private func header(_ light: LightEntity) -> some View {
-        EntityDetailHeader(
-            entityBox: entityBox,
-            icon: entityBox.homeEntity.resolvedIcon,
-            category: "Light",
-            summary: nil,
-            status: nil,
-            iconColor: lightIconColor(light),
-            iconBackground: lightIconBackground(light)
-        )
-    }
-
-    private func powerControls(_ light: LightEntity) -> some View {
         let service = light.isOn ? "turn_off" : "turn_on"
 
-        return EntityControlPanel(title: "Control", systemImage: "power") {
-            EntityDetailActionButton(
-                title: detailState.operationalState == .pending ? "Updating..." : (light.isOn ? "Turn Off" : "Turn On"),
-                systemImage: "power",
-                style: light.isOn ? .secondary : .primary,
-                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "light", service: service)
-            ) {
-                confirmOrPerform(domain: "light", service: service) {
-                    Task {
-                    if light.isOn {
-                        await homeAssistantService.turnOffLight(entityID: entityBox.entityID)
-                    } else {
-                        await homeAssistantService.turnOnLight(entityID: entityBox.entityID)
-                    }
-                    }
+        return EntityDetailHeroCard(
+            icon: entityBox.homeEntity.resolvedIcon,
+            title: "Light",
+            subtitle: EntityDetailHeroSubtitle.updated(entityBox.homeEntity),
+            status: nil,
+            iconColor: lightIconColor(light),
+            iconBackground: lightIconBackground(light),
+            statePresentation: detailState,
+            accessory: {
+                EntityDetailStateToggle(
+                    isOn: light.isOn,
+                    accessibilityLabel: "Light power",
+                    isDisabled: detailState.blocksControlInteraction
+                        || !homeAssistantService.serviceActionAvailable(domain: "light", service: service)
+                ) { requestedState in
+                    setPower(requestedState)
+                }
+            }
+        ) {
+            EmptyView()
+        }
+    }
+
+    private func setPower(_ isOn: Bool) {
+        let service = isOn ? "turn_on" : "turn_off"
+
+        confirmOrPerform(domain: "light", service: service) {
+            Task {
+                if isOn {
+                    await homeAssistantService.turnOnLight(entityID: entityBox.entityID)
+                } else {
+                    await homeAssistantService.turnOffLight(entityID: entityBox.entityID)
                 }
             }
         }
@@ -114,19 +116,6 @@ struct LightDetailView: View {
                 }
             )
 
-            HStack(spacing: AppSpacing.small) {
-                ForEach(brightnessPresets, id: \.self) { preset in
-                    EntityDetailPillButton(
-                        title: "\(Int(preset))%",
-                        isSelected: isSelectedPreset(preset),
-                        isDisabled: detailState.blocksControlInteraction
-                    ) {
-                        setBrightness(preset)
-                    }
-                    .accessibilityLabel("Set brightness to \(Int(preset)) percent")
-                }
-            }
-
             Text(light.isOn ? "Adjusting brightness keeps this light on." : "Adjusting brightness will turn this light on.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -148,35 +137,13 @@ struct LightDetailView: View {
         )
     }
 
-    private func lightStatusText(_ light: LightEntity) -> String {
-        guard light.isOn else { return "Ready to turn on" }
-        guard let brightnessPercentage = light.brightnessPercentage else { return "On" }
-
-        return "\(brightnessPercentage)% brightness"
-    }
-
-    private func lightBadgeText(_ light: LightEntity) -> String {
-        guard entityBox.homeEntity.isAvailable else { return "Unavailable" }
-        return light.isOn ? "On" : "Off"
-    }
-
     private func lightIconColor(_ light: LightEntity) -> Color {
         guard entityBox.homeEntity.isAvailable else { return .secondary }
         return light.isOn ? Color.accentColor : Color.secondary
     }
 
-    private func lightBadgeColor(_ light: LightEntity) -> Color {
-        guard entityBox.homeEntity.isAvailable else { return .red }
-        return light.isOn ? Color.accentColor : Color.secondary
-    }
-
     private func lightIconBackground(_ light: LightEntity) -> Color {
         guard entityBox.homeEntity.isAvailable else { return Color(.tertiarySystemGroupedBackground) }
-        return light.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
-    }
-
-    private func lightBadgeBackground(_ light: LightEntity) -> Color {
-        guard entityBox.homeEntity.isAvailable else { return Color.red.opacity(0.12) }
         return light.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
 
@@ -208,10 +175,6 @@ struct LightDetailView: View {
             presentation: presentation,
             perform: perform
         )
-    }
-
-    private func isSelectedPreset(_ preset: Double) -> Bool {
-        abs(brightnessPercentage - preset) < 0.5
     }
 
     private func syncBrightness(with light: LightEntity) {

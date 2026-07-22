@@ -41,11 +41,8 @@ struct WeatherDetailView: View {
                         retry: retryForecast
                     )
                 }
-                if !weatherRows(weather).isEmpty {
-                    weatherDetails(weather)
-                }
                 if weather.attributionText != nil {
-                    sourceDetails(weather)
+                    attributionFooter(weather)
                 }
                 contextDetails
             }
@@ -104,24 +101,53 @@ struct WeatherDetailView: View {
                     .font(.headline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+
+                if weather.humidityText != nil || weather.windText != nil {
+                    Divider()
+                        .padding(.vertical, AppSpacing.xSmall)
+
+                    HStack(alignment: .top, spacing: AppSpacing.large) {
+                        if let humidity = weather.humidityText {
+                            supportingMetric(
+                                title: "Humidity",
+                                value: humidity,
+                                systemImage: "humidity.fill"
+                            )
+                        }
+
+                        if let wind = weather.windText {
+                            supportingMetric(
+                                title: "Wind",
+                                value: wind,
+                                systemImage: "wind"
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 
-    private func weatherDetails(_ weather: WeatherEntity) -> some View {
-        DashboardEntityContextPanel(
-            title: "Details",
-            systemImage: "thermometer.medium",
-            rows: weatherRows(weather)
-        )
+    private func supportingMetric(title: String, value: String, systemImage: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
-    private func sourceDetails(_ weather: WeatherEntity) -> some View {
-        DashboardEntityContextPanel(
-            title: "Weather Provider",
-            systemImage: "cloud.bolt.rain.fill",
-            rows: sourceRows(weather)
-        )
+    private func attributionFooter(_ weather: WeatherEntity) -> some View {
+        Text(weather.attributionText ?? "")
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, AppSpacing.small)
     }
 
     private var contextDetails: some View {
@@ -131,34 +157,6 @@ struct WeatherDetailView: View {
             systemImage: "house.and.flag",
             rows: contextRows
         )
-    }
-
-    private func weatherRows(_ weather: WeatherEntity) -> [EntityMetadataRow] {
-        var rows: [EntityMetadataRow] = []
-
-        if let humidityText = weather.humidityText {
-            rows.append(EntityMetadataRow(title: "Humidity", value: humidityText))
-        }
-
-        if let windText = weather.windText {
-            rows.append(EntityMetadataRow(title: "Wind", value: windText))
-        }
-
-        return rows
-    }
-
-    private func sourceRows(_ weather: WeatherEntity) -> [EntityMetadataRow] {
-        var rows: [EntityMetadataRow] = []
-
-        if let providerName = weather.providerName {
-            rows.append(EntityMetadataRow(title: "Provider", value: providerName, layout: .stacked))
-        }
-
-        if let attributionText = weather.attributionText {
-            rows.append(EntityMetadataRow(title: "Attribution", value: attributionText, layout: .stacked))
-        }
-
-        return rows
     }
 
     private var contextRows: [EntityMetadataRow] {

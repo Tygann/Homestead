@@ -96,6 +96,6 @@ xcrun simctl launch booted com.tyler.Homestead \
   --preview-detail-state loading
 ```
 
-Family values are `metric`, `positional`, `environmental`, `information`, `presence`, `editableNumber`, `editableText`, and `editableTemporal`. State values are `live`, `loading`, `empty`, `pending`, `unavailable`, `stale`, `failed`, `minimum`, `maximum`, and `longContent`.
+Family values are `simpleControl`, `metric`, `history`, `positional`, `environmental`, `information`, `presence`, `editableNumber`, `editableText`, and `editableTemporal`. State values are `live`, `loading`, `empty`, `pending`, `unavailable`, `stale`, `failed`, `minimum`, `maximum`, and `longContent`.
 
 These routes are intended for Codex desktop and in-app browser simulator verification loops. They use sample dependencies instead of the normal app startup path. Prefer them for deterministic layout and state review; use `--live-preview` only when the change must be verified against real Home Assistant data, authenticated media, or server-specific capabilities.

@@ -118,34 +118,31 @@ struct EntityHistoryTimelinePanel: View {
 
     private var horizontalRangePicker: some View {
         HStack(spacing: AppSpacing.small) {
-            rangeButtons
+            segmentedRangePicker
             refreshButton
         }
     }
 
     private var compactRangePicker: some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
-            rangeButtons
+            segmentedRangePicker
 
             refreshButton
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
-    private var rangeButtons: some View {
-        HStack(spacing: AppSpacing.small) {
+    private var segmentedRangePicker: some View {
+        Picker("Activity range", selection: $selectedRange) {
             ForEach(HAHistoryRangePreset.activityPresets) { range in
-                EntityDetailPillButton(
-                    title: range.title,
-                    isSelected: selectedRange == range,
-                    isDisabled: phase.isLoading,
-                    tint: tint
-                ) {
-                    selectedRange = range
-                }
-                .accessibilityLabel(range.accessibilityTitle)
+                Text(range.title)
+                    .tag(range)
+                    .accessibilityLabel(range.accessibilityTitle)
             }
         }
+        .pickerStyle(.segmented)
+        .disabled(phase.isLoading)
+        .accessibilityLabel("Activity range")
     }
 
     private var refreshButton: some View {

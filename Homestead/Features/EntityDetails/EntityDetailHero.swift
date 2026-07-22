@@ -172,7 +172,7 @@ enum EntityDetailHeroSubtitle {
 
 // MARK: - Hero Components
 
-struct EntityDetailHeroCard<Content: View>: View {
+struct EntityDetailHeroCard<Content: View, Accessory: View>: View {
     let icon: ResolvedIcon
     let title: String
     let subtitle: Text?
@@ -183,6 +183,7 @@ struct EntityDetailHeroCard<Content: View>: View {
     let statusBackground: Color
     let statePresentation: EntityDetailStatePresentation?
     private let content: Content
+    private let accessory: Accessory
 
     init(
         icon: ResolvedIcon,
@@ -194,6 +195,34 @@ struct EntityDetailHeroCard<Content: View>: View {
         iconBackground: Color? = nil,
         statusBackground: Color? = nil,
         statePresentation: EntityDetailStatePresentation? = nil,
+        @ViewBuilder content: () -> Content
+    ) where Accessory == EmptyView {
+        self.init(
+            icon: icon,
+            title: title,
+            subtitle: subtitle,
+            status: status,
+            iconColor: iconColor,
+            statusColor: statusColor,
+            iconBackground: iconBackground,
+            statusBackground: statusBackground,
+            statePresentation: statePresentation,
+            accessory: { EmptyView() },
+            content: content
+        )
+    }
+
+    init(
+        icon: ResolvedIcon,
+        title: String,
+        subtitle: Text?,
+        status: String?,
+        iconColor: Color,
+        statusColor: Color? = nil,
+        iconBackground: Color? = nil,
+        statusBackground: Color? = nil,
+        statePresentation: EntityDetailStatePresentation? = nil,
+        @ViewBuilder accessory: () -> Accessory,
         @ViewBuilder content: () -> Content
     ) {
         let exceptionalStatus = statePresentation?.status
@@ -207,6 +236,7 @@ struct EntityDetailHeroCard<Content: View>: View {
         self.iconBackground = iconBackground ?? iconColor.opacity(0.12)
         self.statusBackground = exceptionalStatus?.tone.backgroundColor ?? statusBackground ?? iconColor.opacity(0.12)
         self.statePresentation = statePresentation
+        self.accessory = accessory()
         self.content = content()
     }
 
@@ -220,7 +250,8 @@ struct EntityDetailHeroCard<Content: View>: View {
                 iconColor: iconColor,
                 statusColor: statusColor,
                 iconBackground: iconBackground,
-                statusBackground: statusBackground
+                statusBackground: statusBackground,
+                accessory: { accessory }
             )
 
             content
@@ -238,7 +269,7 @@ struct EntityDetailHeroCard<Content: View>: View {
     }
 }
 
-private struct EntityDetailHeroHeader: View {
+private struct EntityDetailHeroHeader<Accessory: View>: View {
     let icon: ResolvedIcon
     let title: String
     let subtitle: Text?
@@ -247,21 +278,33 @@ private struct EntityDetailHeroHeader: View {
     let statusColor: Color
     let iconBackground: Color
     let statusBackground: Color
+    @ViewBuilder let accessory: Accessory
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: AppSpacing.medium) {
                 identity
                 Spacer(minLength: AppSpacing.medium)
-                statusBadge
+                trailingContent
             }
 
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                identity
+                HStack(alignment: .center, spacing: AppSpacing.medium) {
+                    identity
+                    Spacer(minLength: AppSpacing.medium)
+                    accessory
+                }
+
                 statusBadge
             }
         }
-        .accessibilityElement(children: .combine)
+    }
+
+    private var trailingContent: some View {
+        HStack(spacing: AppSpacing.medium) {
+            statusBadge
+            accessory
+        }
     }
 
     private var identity: some View {
@@ -285,6 +328,7 @@ private struct EntityDetailHeroHeader: View {
                 }
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder

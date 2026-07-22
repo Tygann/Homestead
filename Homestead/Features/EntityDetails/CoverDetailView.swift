@@ -24,8 +24,7 @@ struct CoverDetailView: View {
                 header(cover)
                 movementControls(cover)
 
-                if cover.positionPercentage != nil,
-                   homeAssistantService.serviceActionAvailable(domain: "cover", service: "set_cover_position") {
+                if canSetPosition(cover) {
                     positionControls(cover)
                 }
 
@@ -68,10 +67,12 @@ struct CoverDetailView: View {
                         .foregroundStyle(coverIconColor(cover))
                         .monospacedDigit()
 
-                    ProgressView(value: Double(position), total: 100)
-                        .tint(coverIconColor(cover))
-                        .accessibilityLabel("Position")
-                        .accessibilityValue("\(position) percent")
+                    if !canSetPosition(cover) {
+                        ProgressView(value: Double(position), total: 100)
+                            .tint(coverIconColor(cover))
+                            .accessibilityLabel("Position")
+                            .accessibilityValue("\(position) percent")
+                    }
                 }
             } else {
                 Text(cover.displayState)
@@ -149,12 +150,14 @@ struct CoverDetailView: View {
                 }
             )
 
-            Text("Position is reported by Home Assistant when this cover supports it.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
         .padding(AppSpacing.large)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    private func canSetPosition(_ cover: CoverEntity) -> Bool {
+        cover.positionPercentage != nil
+            && homeAssistantService.serviceActionAvailable(domain: "cover", service: "set_cover_position")
     }
 
     @ViewBuilder

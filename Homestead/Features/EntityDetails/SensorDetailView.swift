@@ -114,12 +114,7 @@ struct SensorDetailView: View {
             statePresentation: detailState
         ) {
             if let gauge = entityBox.sensorEntity?.gaugePresentation {
-                GaugePresentationView(
-                    presentation: gauge,
-                    style: .detail,
-                    tint: presentation.accentColor,
-                    icon: presentation.icon
-                )
+                gaugeSummary(gauge)
             } else {
                 Text(primaryValue)
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
@@ -129,6 +124,31 @@ struct SensorDetailView: View {
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
+
+    private func gaugeSummary(_ gauge: GaugePresentation) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
+                Text(gauge.valueText)
+                    .font(.system(size: 52, weight: .semibold, design: .rounded))
+                    .foregroundStyle(sensorHeroColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .monospacedDigit()
+
+                if let unit = gauge.unitText {
+                    Text(unit)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            GaugePresentationView(
+                presentation: gauge,
+                style: .row,
+                tint: presentation.accentColor
+            )
         }
     }
 

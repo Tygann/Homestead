@@ -133,6 +133,33 @@ struct EntityDetailIconButton: View {
     }
 }
 
+struct EntityDetailStateToggle: View {
+    let isOn: Bool
+    let accessibilityLabel: String
+    let isDisabled: Bool
+    let action: (Bool) -> Void
+
+    var body: some View {
+        Toggle(
+            isOn: Binding(
+                get: { isOn },
+                set: { newValue in
+                    guard newValue != isOn else { return }
+                    action(newValue)
+                }
+            )
+        ) {
+            Text(accessibilityLabel)
+        }
+        .labelsHidden()
+        .toggleStyle(.switch)
+        .frame(minWidth: 52, minHeight: 44)
+        .disabled(isDisabled)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(isOn ? "On" : "Off")
+    }
+}
+
 struct EntityDetailLevelSlider: View {
     @Binding var value: Double
     let range: ClosedRange<Double>

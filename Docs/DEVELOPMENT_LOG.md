@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-22
 
+### Entity Detail Hierarchy And Control Consistency
+
+- Moved persistent binary controls for lights, switches, fans, and automations into the shared hero as independently accessible native toggles, removing redundant one-action Control cards while retaining explicit action groups for covers and other multi-action or security-sensitive domains.
+- Standardized passive time-range selection on native segmented pickers, kept HVAC and preset service commands as capability-aware mode grids, and simplified numeric History to one neutral Min/Average/Max strip with local touch-selection feedback and a nonduplicated timestamp footer.
+- Replaced the full Sensor detail gauge instrument with a large reading plus compact bounded-range bar, removed duplicate cover position progress when an editable slider exists, and consolidated Weather humidity/wind into its hero with quiet provider attribution below Forecast.
+- Added a deterministic Light family to the entity-detail reference gallery so live, pending, unavailable, stale, failure, extrema, and long-content behavior remain inspectable through the existing preview route.
+
 ### Native Contextual Card Editor
 
 - Replaced the one-item detail toolbar menu with a direct pencil action that opens the originating card editor in one tap.

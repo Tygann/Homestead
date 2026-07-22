@@ -19,7 +19,6 @@ struct FanDetailView: View {
         if let fan = entityBox.fanEntity {
             EntityDetailScaffold(title: fan.displayName, presentationStyle: presentationStyle) {
                 header(fan)
-                powerControls(fan)
 
                 if fan.percentage != nil,
                    homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_percentage") {
@@ -51,29 +50,34 @@ struct FanDetailView: View {
     }
 
     private func header(_ fan: FanEntity) -> some View {
-        EntityDetailHeader(
-            entityBox: entityBox,
+        let service = fan.isOn ? "turn_off" : "turn_on"
+
+        return EntityDetailHeroCard(
             icon: entityBox.homeEntity.resolvedIcon,
-            category: "Fan",
-            summary: nil,
+            title: "Fan",
+            subtitle: EntityDetailHeroSubtitle.updated(entityBox.homeEntity),
             status: nil,
             iconColor: fan.isOn ? Color.accentColor : Color.secondary,
-            iconBackground: fan.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
-        )
-    }
-
-    private func powerControls(_ fan: FanEntity) -> some View {
-        return EntityControlPanel(title: "Control", systemImage: "power") {
-            EntityDetailActionButton(
-                title: detailState.operationalState == .pending ? "Updating..." : (fan.isOn ? "Turn Off" : "Turn On"),
-                systemImage: "power",
-                style: fan.isOn ? .secondary : .primary,
-                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "fan", service: fan.isOn ? "turn_off" : "turn_on")
-            ) {
-                confirmOrPerform(domain: "fan", service: fan.isOn ? "turn_off" : "turn_on") {
-                    Task { await homeAssistantService.toggleFan(entityID: entityBox.entityID) }
+            iconBackground: fan.isOn ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
+            statePresentation: detailState,
+            accessory: {
+                EntityDetailStateToggle(
+                    isOn: fan.isOn,
+                    accessibilityLabel: "Fan power",
+                    isDisabled: detailState.blocksControlInteraction
+                        || !homeAssistantService.serviceActionAvailable(domain: "fan", service: service)
+                ) { requestedState in
+                    setPower(requestedState)
                 }
             }
+        ) {
+            EmptyView()
+        }
+    }
+
+    private func setPower(_ isOn: Bool) {
+        confirmOrPerform(domain: "fan", service: isOn ? "turn_on" : "turn_off") {
+            Task { await homeAssistantService.toggleFan(entityID: entityBox.entityID) }
         }
     }
 
@@ -152,12 +156,6 @@ struct FanDetailView: View {
                 EntityMetadataRow(title: "State", value: entityBox.homeEntity.state.displayStateText)
             ]
         )
-    }
-
-    private func statusSummary(_ fan: FanEntity) -> String {
-        guard fan.isAvailable else { return "Fan unavailable" }
-        guard fan.isOn else { return "Currently idle" }
-        return fan.percentage.map { "Running at \($0)%" } ?? "Currently active"
     }
 
     private func setPercentage(_ updatedPercentage: Double? = nil) {

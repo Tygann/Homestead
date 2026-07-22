@@ -26,7 +26,6 @@ struct ToggleEntityDetailView: View {
     var body: some View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
-            actionPanel
             if let source = features.activitySource {
                 EntityActivityPanel(
                     entityID: entity.entityID,
@@ -40,27 +39,25 @@ struct ToggleEntityDetailView: View {
     }
 
     private var header: some View {
-        EntityDetailHeader(
-            entityBox: entityBox,
+        EntityDetailHeroCard(
             icon: presentation.icon,
-            category: entityCategory,
-            summary: nil,
+            title: entityCategory,
+            subtitle: EntityDetailHeroSubtitle.updated(entity),
             status: nil,
             iconColor: presentation.isActive ? presentation.accentColor : Color.secondary,
-            iconBackground: iconBackground
-        )
-    }
-
-    private var actionPanel: some View {
-        EntityControlPanel(title: "Control", systemImage: actionSystemImage) {
-            EntityDetailActionButton(
-                title: actionTitle,
-                systemImage: actionSystemImage,
-                style: presentation.isActive ? .secondary : .primary,
-                isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
-            ) {
-                Task { await performPrimaryAction() }
+            iconBackground: iconBackground,
+            statePresentation: detailState,
+            accessory: {
+                EntityDetailStateToggle(
+                    isOn: presentation.isActive,
+                    accessibilityLabel: "\(entityCategory) power",
+                    isDisabled: detailState.blocksControlInteraction || !isActionServiceAvailable
+                ) { requestedState in
+                    Task { await performPrimaryAction(requestedState: requestedState) }
+                }
             }
+        ) {
+            EmptyView()
         }
     }
 
@@ -81,101 +78,27 @@ struct ToggleEntityDetailView: View {
         entity.displayName
     }
 
-    private var statusSummary: String {
-        guard entity.isAvailable else { return "\(entityCategory) unavailable" }
-
-        if entityBox.pendingCommand != nil {
-            return "Waiting for Home Assistant confirmation"
-        }
-
-        switch entity.domain {
-        case .lock:
-            return entity.state == "locked" ? "Secured" : "Needs attention"
-        case .switch, .fan, .automation:
-            return presentation.isActive ? "Currently active" : "Currently idle"
-        default:
-            return presentation.subtitle
-        }
-    }
-
     private var entityCategory: String {
         EntityCapabilityRegistry.profile(for: entity.domain).categoryTitle
     }
 
-    private var actionTitle: String {
-        if entityBox.pendingCommand != nil {
-            return "Updating..."
-        }
-
-        switch entity.domain {
-        case .lock:
-            return entity.state == "locked" ? "Unlock" : "Lock"
-        case .switch, .fan, .automation:
-            return presentation.isActive ? "Turn Off" : "Turn On"
-        default:
-            return "Update"
-        }
-    }
-
-    private var actionSystemImage: String {
-        switch entity.domain {
-        case .lock:
-            return entity.state == "locked" ? "lock.open.fill" : "lock.fill"
-        case .fan:
-            return "fan.fill"
-        case .switch:
-            return entity.iconName
-        case .automation:
-            return "calendar.badge.clock"
-        default:
-            return "checkmark"
-        }
-    }
-
     private var isActionServiceAvailable: Bool {
-        switch entity.domain {
-        case .switch:
-            return homeAssistantService.serviceActionAvailable(domain: "switch", service: presentation.isActive ? "turn_off" : "turn_on")
-        case .fan:
-            return homeAssistantService.serviceActionAvailable(domain: "fan", service: presentation.isActive ? "turn_off" : "turn_on")
-        case .lock:
-            return homeAssistantService.serviceActionAvailable(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock")
-        case .automation:
-            return homeAssistantService.serviceActionAvailable(domain: "automation", service: presentation.isActive ? "turn_off" : "turn_on")
-        default:
-            return false
-        }
+        entity.domain == .switch
+            && homeAssistantService.serviceActionAvailable(
+                domain: "switch",
+                service: presentation.isActive ? "turn_off" : "turn_on"
+            )
     }
 
     private var iconBackground: Color {
         presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
     }
 
-    private var badgeBackground: Color {
-        guard presentation.isAvailable else { return Color.red.opacity(0.12) }
-        return presentation.isActive ? presentation.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground)
-    }
-
-    private func performPrimaryAction() async {
-        switch entity.domain {
-        case .switch:
-            await confirmOrPerform(domain: "switch", service: presentation.isActive ? "turn_off" : "turn_on") {
-                await homeAssistantService.toggleSwitch(entityID: entity.entityID)
-            }
-        case .fan:
-            await confirmOrPerform(domain: "fan", service: presentation.isActive ? "turn_off" : "turn_on") {
-                await homeAssistantService.toggleFan(entityID: entity.entityID)
-            }
-        case .lock:
-            await confirmOrPerform(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock") {
-                await homeAssistantService.toggleLock(entityID: entity.entityID)
-            }
-        case .automation:
-            await confirmOrPerform(domain: "automation", service: presentation.isActive ? "turn_off" : "turn_on") {
-                await homeAssistantService.toggleAutomation(entityID: entity.entityID)
-            }
-        default:
-            break
+    private func performPrimaryAction(requestedState: Bool) async {
+        guard entity.domain == .switch else { return }
+        let service = requestedState ? "turn_on" : "turn_off"
+        await confirmOrPerform(domain: "switch", service: service) {
+            await homeAssistantService.toggleSwitch(entityID: entity.entityID)
         }
     }
 
