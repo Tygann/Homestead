@@ -77,11 +77,9 @@ nonisolated struct DashboardCardEditorPreviewLayout: Equatable, Sendable {
     }
 
     static func stageHeight(for size: DashboardCardSize) -> CGFloat {
-        min(
-            size.renderedHeight(rowSpacing: spacing, cardPadding: cardPadding)
-                + (verticalPadding(for: size) * 2),
-            maximumStageHeight
-        )
+        let naturalHeight = size.renderedHeight(rowSpacing: spacing, cardPadding: cardPadding)
+            + (verticalPadding(for: size) * 2)
+        return size == .large ? naturalHeight : min(naturalHeight, maximumStageHeight)
     }
 
     private static func verticalPadding(for size: DashboardCardSize) -> CGFloat {

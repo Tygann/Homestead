@@ -806,7 +806,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         )
         XCTAssertEqual(
             DashboardCardEditorPreviewLayout.stageHeight(for: .large),
-            DashboardCardEditorPreviewLayout.maximumStageHeight,
+            large.unscaledCardSize.height + (DashboardCardEditorPreviewLayout.stagePadding * 2),
             accuracy: 0.001
         )
         XCTAssertEqual(
@@ -814,11 +814,11 @@ final class DashboardConfigurationXCTests: XCTestCase {
             compact.unscaledCardSize.height + (AppSpacing.xSmall * 2),
             accuracy: 0.001
         )
-        XCTAssertLessThan(large.scale, 1)
-        XCTAssertLessThanOrEqual(
-            large.unscaledCardSize.height * large.scale,
-            DashboardCardEditorPreviewLayout.maximumStageHeight
-                - (DashboardCardEditorPreviewLayout.stagePadding * 2)
+        XCTAssertEqual(large.scale, 1, accuracy: 0.001)
+        XCTAssertEqual(
+            large.unscaledCardSize.width * large.scale,
+            row.unscaledCardSize.width,
+            accuracy: 0.001
         )
     }
 

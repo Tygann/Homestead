@@ -69,8 +69,6 @@ struct DashboardCardEditorView: View {
                     iconPicker
                 case .entity:
                     entityPicker
-                case .gauge:
-                    gaugeEditor
                 }
             }
         }
@@ -158,10 +156,8 @@ struct DashboardCardEditorView: View {
             }
 
             if !editorSettings.isEmpty {
-                Section("Settings") {
-                    ForEach(editorSettings, id: \.self) { setting in
-                        editorSettingRow(setting)
-                    }
+                ForEach(editorSettings, id: \.self) { setting in
+                    editorSettingSections(setting)
                 }
             }
 
@@ -176,18 +172,27 @@ struct DashboardCardEditorView: View {
     }
 
     @ViewBuilder
-    private func editorSettingRow(_ setting: DashboardCardEditorSetting) -> some View {
+    private func editorSettingSections(_ setting: DashboardCardEditorSetting) -> some View {
         switch setting {
         case .historyRange:
-            Picker("History Range", selection: chartRangeBinding) {
-                ForEach(HAHistoryRangePreset.dashboardChartPresets) { range in
-                    Text(range.accessibilityTitle)
-                        .tag(range)
+            Section("Chart Settings") {
+                Picker("History Range", selection: chartRangeBinding) {
+                    ForEach(HAHistoryRangePreset.dashboardChartPresets) { range in
+                        Text(range.accessibilityTitle)
+                            .tag(range)
+                    }
                 }
             }
         case .gaugeZones:
-            NavigationLink(value: DashboardCardEditorRoute.gauge) {
-                LabeledContent("Gauge Settings", value: gaugeSettingsSummary)
+            if let presentation = draftEntityBox?.sensorEntity?.gaugePresentation {
+                DashboardGaugeInlineSettings(
+                    presentation: presentation,
+                    configurationOverride: $draft.gaugeZoneConfiguration
+                )
+            } else {
+                Section("Gauge Settings") {
+                    LabeledContent("Configuration", value: "Unavailable")
+                }
             }
         }
     }
@@ -210,32 +215,6 @@ struct DashboardCardEditorView: View {
             navigationEmbedded: true,
             onDraftSelection: handleEntitySelection
         )
-    }
-
-    @ViewBuilder
-    private var gaugeEditor: some View {
-        if let presentation = draftEntityBox?.sensorEntity?.gaugePresentation {
-            let storedConfiguration = draft.gaugeZoneConfiguration.flatMap { $0.isValid ? $0 : nil }
-            let context = DashboardGaugeZoneEditorContext(
-                id: reference.itemID,
-                presentation: presentation,
-                kind: draft.presentationKind,
-                configuration: storedConfiguration ?? .defaults(for: presentation)
-            )
-
-            DashboardGaugeZoneEditorView(
-                context: context,
-                navigationEmbedded: true,
-                onSave: { draft.gaugeZoneConfiguration = $0 },
-                onReset: { draft.gaugeZoneConfiguration = nil }
-            )
-        } else {
-            ContentUnavailableView(
-                "Gauge Unavailable",
-                systemImage: "gauge.with.dots.needle.33percent",
-                description: Text("This entity no longer provides a compatible numeric gauge.")
-            )
-        }
     }
 
     // MARK: - Actions
@@ -376,11 +355,6 @@ struct DashboardCardEditorView: View {
         dashboardConfiguration.dashboardName(for: reference) ?? "Dashboard"
     }
 
-    private var gaugeSettingsSummary: String {
-        guard let gaugeZoneConfiguration = draft.gaugeZoneConfiguration else { return "Automatic" }
-        return "\(gaugeZoneConfiguration.colors.count) Zones"
-    }
-
     private var canSave: Bool {
         guard isLoaded,
               currentCardItem != nil,
@@ -402,7 +376,6 @@ struct DashboardCardEditorView: View {
 private enum DashboardCardEditorRoute: Hashable {
     case icon
     case entity
-    case gauge
 }
 
 #if DEBUG

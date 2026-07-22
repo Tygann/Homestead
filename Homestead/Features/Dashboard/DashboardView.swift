@@ -9,9 +9,7 @@ struct DashboardView: View {
     @State private var isEditingDashboard = false
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var iconPickerContext: DashboardIconPickerContext?
-    @State private var gaugeZoneEditorContext: DashboardGaugeZoneEditorContext?
-    @State private var chartSettingsContext: DashboardChartSettingsContext?
-    @State private var changeEntityContext: DashboardChangeEntityContext?
+    @State private var cardEditorReference: DashboardItemReference?
     @State private var selectedEntityDetailDestination: EntityDetailDestination?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
@@ -113,20 +111,8 @@ struct DashboardView: View {
                     }
                 )
             }
-            .sheet(item: $gaugeZoneEditorContext) { context in
-                DashboardGaugeZoneEditorView(context: context) { configuration in
-                    dashboardConfiguration.setGaugeZoneConfiguration(configuration, forItemID: context.id)
-                } onReset: {
-                    dashboardConfiguration.setGaugeZoneConfiguration(nil, forItemID: context.id)
-                }
-            }
-            .sheet(item: $chartSettingsContext) { context in
-                DashboardChartSettingsView(context: context) { configuration in
-                    dashboardConfiguration.setChartConfiguration(configuration, forItemID: context.id)
-                }
-            }
-            .sheet(item: $changeEntityContext) { context in
-                DashboardChangeEntityView(context: context)
+            .sheet(item: $cardEditorReference) { reference in
+                DashboardCardEditorView(reference: reference)
             }
             .navigationDestination(item: $selectedEntityDetailDestination) { destination in
                 EntityDetailDestinationView(destination: destination)
@@ -346,16 +332,6 @@ struct DashboardView: View {
     private func beginRenamingHeader(_ item: DashboardItemConfiguration) {
         headerTitleDraft = item.resolvedTitle
         renamingHeaderID = item.id
-    }
-
-    private func beginRenamingEntity(_ item: DashboardCardItem) {
-        guard let entity = stateStore.entity(for: item.entityID) else {
-            return
-        }
-
-        displayTitleDraft = item.displayNameOverride
-            ?? entity.displayName
-        renamingDisplayItemID = item.id
     }
 
     private func beginRenamingChip(_ item: DashboardChipItem) {
@@ -1122,65 +1098,13 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func cardEditMenuContent(for item: DashboardCardItem) -> some View {
-        Picker("Card Size", selection: Binding(
-            get: { dashboardConfiguration.cardConfiguration(forItemID: item.id)?.layout ?? item.size },
-            set: { size in
-                HapticFeedback.selection()
-                dashboardConfiguration.setCardLayout(size, forItemID: item.id)
-            }
-        )) {
-            ForEach(DashboardPresentationCatalog.descriptor(for: item.presentationKind).supportedLayouts, id: \.self) { option in
-                Label {
-                    Text(option.displayName)
-                } icon: {
-                    if let customResizeIconName = option.customResizeIconName {
-                        Image(customResizeIconName)
-                    } else {
-                        Image(systemName: option.systemImage)
-                    }
-                }
-                .tag(option)
-            }
-        }
-        .pickerStyle(.segmented)
-        .menuActionDismissBehavior(.enabled)
-
-        Divider()
-
         Button {
-            beginRenamingEntity(item)
+            cardEditorReference = DashboardItemReference(
+                dashboardID: dashboardConfiguration.selectedDashboardID,
+                itemID: item.id
+            )
         } label: {
-            Label("Rename Card", systemImage: "pencil")
-        }
-
-        Button {
-            presentIconPicker(for: item)
-        } label: {
-            Label("Change Icon", systemImage: "circle.grid.2x2")
-        }
-
-        Divider()
-
-        Button {
-            changeEntityContext = DashboardChangeEntityContext(item: item)
-        } label: {
-            Label("Change Entity", systemImage: "arrow.triangle.swap")
-        }
-
-        if [.circularGauge, .segmentedGauge, .barGauge].contains(item.presentationKind) {
-            Button {
-                presentGaugeZoneEditor(for: item)
-            } label: {
-                Label("Gauge Settings", systemImage: "dial.medium")
-            }
-        }
-
-        if item.presentationKind == .chart {
-            Button {
-                chartSettingsContext = DashboardChartSettingsContext(item: item)
-            } label: {
-                Label("Chart Settings", systemImage: "slider.horizontal.3")
-            }
+            Label("Edit Card", systemImage: "slider.horizontal.3")
         }
 
         Divider()
@@ -1213,27 +1137,6 @@ struct DashboardView: View {
         } label: {
             Label("Remove Chip", systemImage: "minus.circle")
         }
-    }
-
-    private func presentIconPicker(for item: DashboardCardItem) {
-        let entity = stateStore.entity(for: item.entityID)
-        iconPickerContext = DashboardIconPickerContext(
-            id: item.id,
-            defaultSystemName: entity?.iconName ?? "square.grid.2x2",
-            selectedSystemName: item.iconNameOverride,
-            recommendation: .domain(entity?.domain ?? EntityDomain(entityID: item.entityID))
-        )
-    }
-
-    private func presentGaugeZoneEditor(for item: DashboardCardItem) {
-        guard let presentation = stateStore.entityBox(for: item.entityID)?.sensorEntity?.gaugePresentation else { return }
-        let storedConfiguration = item.gaugeZoneConfiguration.flatMap { $0.isValid ? $0 : nil }
-        gaugeZoneEditorContext = DashboardGaugeZoneEditorContext(
-            id: item.id,
-            presentation: presentation,
-            kind: item.presentationKind,
-            configuration: storedConfiguration ?? .defaults(for: presentation)
-        )
     }
 
     private func presentIconPicker(for item: DashboardChipItem) {
