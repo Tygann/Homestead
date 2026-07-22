@@ -72,15 +72,24 @@ nonisolated struct DashboardCardEditorPreviewLayout: Equatable, Sendable {
         guard cardSize.width > 0, cardSize.height > 0 else { return 1 }
 
         let usableWidth = max(availableWidth - (Self.stagePadding * 2), 0)
-        let usableHeight = max(Self.stageHeight(for: size) - (Self.stagePadding * 2), 0)
+        let usableHeight = max(Self.stageHeight(for: size) - (Self.verticalPadding(for: size) * 2), 0)
         return min(1, usableWidth / cardSize.width, usableHeight / cardSize.height)
     }
 
     static func stageHeight(for size: DashboardCardSize) -> CGFloat {
         min(
             size.renderedHeight(rowSpacing: spacing, cardPadding: cardPadding)
-                + (stagePadding * 2),
+                + (verticalPadding(for: size) * 2),
             maximumStageHeight
         )
+    }
+
+    private static func verticalPadding(for size: DashboardCardSize) -> CGFloat {
+        switch size {
+        case .mini, .compact, .row:
+            AppSpacing.xSmall
+        case .square, .wide, .large:
+            stagePadding
+        }
     }
 }

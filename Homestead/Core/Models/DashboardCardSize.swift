@@ -12,17 +12,17 @@ nonisolated enum DashboardCardSize: String, CaseIterable, Codable, Equatable, Se
     var displayName: String {
         switch self {
         case .mini:
-            "Mini 1x1"
+            "Mini"
         case .compact:
-            "Compact 2x1"
+            "Compact"
         case .row:
-            "Row 4x1"
+            "Row"
         case .square:
-            "Square 2x2"
+            "Square"
         case .wide:
-            "Wide 4x2"
+            "Wide"
         case .large:
-            "Large 4x4"
+            "Large"
         }
     }
 

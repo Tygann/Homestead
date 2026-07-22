@@ -45,15 +45,15 @@ struct DashboardCardEditorView: View {
                     Button("Done", role: .confirm) {
                         save()
                     }
-                    .disabled(!canSave)
+                    .disabled(!canSave || !hasUnsavedChanges)
                 }
             }
             .confirmationDialog(
-                "Remove Card?",
+                "Remove from Dashboard?",
                 isPresented: $isConfirmingRemoval,
                 titleVisibility: .visible
             ) {
-                Button("Remove Card", role: .destructive) {
+                Button("Remove from Dashboard", role: .destructive) {
                     if dashboardConfiguration.removeItem(for: reference) {
                         dismiss()
                     }
@@ -105,6 +105,7 @@ struct DashboardCardEditorView: View {
                 LabeledContent("Name") {
                     TextField(canonicalEntityName, text: displayNameBinding)
                         .multilineTextAlignment(.trailing)
+                        .lineLimit(1)
                         .textInputAutocapitalization(.words)
                         .submitLabel(.done)
                         .onSubmit(restoreCanonicalNameIfNeeded)
@@ -129,7 +130,13 @@ struct DashboardCardEditorView: View {
                 .accessibilityValue(draft.iconNameOverride == nil ? "Default" : "Custom")
 
                 NavigationLink(value: DashboardCardEditorRoute.entity) {
-                    LabeledContent("Entity", value: canonicalEntityName)
+                    LabeledContent {
+                        Text(canonicalEntityName)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    } label: {
+                        Text("Entity")
+                    }
                 }
 
                 Picker("Size", selection: sizeBinding) {
@@ -148,8 +155,6 @@ struct DashboardCardEditorView: View {
                 }
             } header: {
                 Text("Card")
-            } footer: {
-                Text("Changes apply only to this dashboard card.")
             }
 
             if !editorSettings.isEmpty {
@@ -161,7 +166,7 @@ struct DashboardCardEditorView: View {
             }
 
             Section {
-                Button("Remove Card", role: .destructive) {
+                Button("Remove from Dashboard", role: .destructive) {
                     isConfirmingRemoval = true
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -182,7 +187,7 @@ struct DashboardCardEditorView: View {
             }
         case .gaugeZones:
             NavigationLink(value: DashboardCardEditorRoute.gauge) {
-                LabeledContent("Gauge", value: gaugeSettingsSummary)
+                LabeledContent("Gauge Settings", value: gaugeSettingsSummary)
             }
         }
     }

@@ -7281,13 +7281,13 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func dashboardCardSizeLabelsExposeLayoutSpans() {
-        #expect(DashboardCardSize.mini.displayName == "Mini 1x1")
-        #expect(DashboardCardSize.compact.displayName == "Compact 2x1")
-        #expect(DashboardCardSize.row.displayName == "Row 4x1")
-        #expect(DashboardCardSize.square.displayName == "Square 2x2")
-        #expect(DashboardCardSize.wide.displayName == "Wide 4x2")
-        #expect(DashboardCardSize.large.displayName == "Large 4x4")
+    @Test func dashboardCardSizeLabelsStayUserFacing() {
+        #expect(DashboardCardSize.mini.displayName == "Mini")
+        #expect(DashboardCardSize.compact.displayName == "Compact")
+        #expect(DashboardCardSize.row.displayName == "Row")
+        #expect(DashboardCardSize.square.displayName == "Square")
+        #expect(DashboardCardSize.wide.displayName == "Wide")
+        #expect(DashboardCardSize.large.displayName == "Large")
     }
 
     @MainActor
