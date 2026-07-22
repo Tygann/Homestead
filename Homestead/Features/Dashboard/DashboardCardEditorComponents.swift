@@ -1,80 +1,5 @@
 import SwiftUI
 
-// MARK: - Appearance
-
-struct DashboardCardIdentityEditor: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    let icon: ResolvedIcon
-    let displayName: Binding<String>
-    let changeIcon: () -> Void
-    let commitDisplayName: () -> Void
-
-    var body: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                    iconButton
-                    nameEditor
-                }
-            } else {
-                HStack(alignment: .center, spacing: AppSpacing.large) {
-                    iconButton
-                    nameEditor
-                }
-            }
-        }
-        .padding(.vertical, AppSpacing.xSmall)
-    }
-
-    private var iconButton: some View {
-        Button(action: changeIcon) {
-            VStack(spacing: AppSpacing.xSmall) {
-                CardIconView(
-                    icon: icon,
-                    accentColor: .accentColor,
-                    size: 56,
-                    symbolSize: 25
-                )
-
-                Text("Change")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .frame(minWidth: 64, minHeight: 76)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(DashboardCardIdentityIconButtonStyle())
-        .accessibilityLabel("Change card icon")
-        .accessibilityHint("Opens the icon picker")
-    }
-
-    private var nameEditor: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-            Text("Name")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            TextField("Card Name", text: displayName)
-                .font(.headline)
-                .textInputAutocapitalization(.words)
-                .submitLabel(.done)
-                .onSubmit(commitDisplayName)
-                .accessibilityLabel("Card name")
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-private struct DashboardCardIdentityIconButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.68 : 1)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
 // MARK: - Preview
 
 struct DashboardCardEditorPreviewStage<Content: View>: View {
@@ -99,17 +24,13 @@ struct DashboardCardEditorPreviewStage<Content: View>: View {
                 size: size
             )
 
-            ZStack {
-                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
-
-                content
-                    .frame(
-                        width: layout.unscaledCardSize.width,
-                        height: layout.unscaledCardSize.height
-                    )
-                    .scaleEffect(layout.scale)
-            }
+            content
+                .frame(
+                    width: layout.unscaledCardSize.width,
+                    height: layout.unscaledCardSize.height
+                )
+                .scaleEffect(layout.scale)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(height: DashboardCardEditorPreviewLayout.stageHeight(for: size))
         .allowsHitTesting(false)

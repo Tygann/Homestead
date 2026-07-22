@@ -81,16 +81,7 @@ struct DashboardCardEditorView: View {
 
     private var editorForm: some View {
         Form {
-            Section("Appearance") {
-                DashboardCardIdentityEditor(
-                    icon: draftResolvedIcon,
-                    displayName: displayNameBinding,
-                    changeIcon: { navigationPath.append(.icon) },
-                    commitDisplayName: restoreCanonicalNameIfNeeded
-                )
-            }
-
-            Section("Preview") {
+            Section {
                 DashboardCardEditorPreviewStage(
                     size: draft.size,
                     accessibilityValue: previewAccessibilityValue
@@ -111,6 +102,32 @@ struct DashboardCardEditorView: View {
             }
 
             Section {
+                LabeledContent("Name") {
+                    TextField(canonicalEntityName, text: displayNameBinding)
+                        .multilineTextAlignment(.trailing)
+                        .textInputAutocapitalization(.words)
+                        .submitLabel(.done)
+                        .onSubmit(restoreCanonicalNameIfNeeded)
+                        .accessibilityLabel("Card name")
+                }
+
+                NavigationLink(value: DashboardCardEditorRoute.icon) {
+                    HStack {
+                        Text("Icon")
+
+                        Spacer()
+
+                        CardIconView(
+                            icon: draftResolvedIcon,
+                            accentColor: .accentColor,
+                            size: 32,
+                            symbolSize: 15
+                        )
+                    }
+                }
+                .accessibilityLabel("Icon")
+                .accessibilityValue(draft.iconNameOverride == nil ? "Default" : "Custom")
+
                 NavigationLink(value: DashboardCardEditorRoute.entity) {
                     LabeledContent("Entity", value: canonicalEntityName)
                 }
