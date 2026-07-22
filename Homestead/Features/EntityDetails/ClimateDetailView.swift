@@ -80,20 +80,22 @@ struct ClimateDetailView: View {
 
     private func controls(_ climate: ClimateEntity) -> some View {
         EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
-            if showsTemperatureControls(climate) {
-                if climate.usesTemperatureRange {
-                    temperatureRangeControls(climate)
-                } else {
-                    temperatureControls(climate)
+            VStack(spacing: 0) {
+                if showsTemperatureControls(climate) {
+                    if climate.usesTemperatureRange {
+                        temperatureRangeControls(climate)
+                    } else {
+                        temperatureControls(climate)
+                    }
                 }
-            }
 
-            if showsTemperatureControls(climate) && showsOptions(climate) {
-                Divider()
-            }
+                if showsTemperatureControls(climate) && showsOptions(climate) {
+                    controlDivider
+                }
 
-            if showsOptions(climate) {
-                optionControls(climate)
+                if showsOptions(climate) {
+                    optionControls(climate)
+                }
             }
         }
     }
@@ -112,7 +114,7 @@ struct ClimateDetailView: View {
     }
 
     private func temperatureRangeControls(_ climate: ClimateEntity) -> some View {
-        VStack(spacing: AppSpacing.small) {
+        VStack(spacing: 0) {
             temperatureStepper(
                 title: "Heat to",
                 systemImage: "flame.fill",
@@ -128,7 +130,7 @@ struct ClimateDetailView: View {
                 }
             )
 
-            Divider()
+            controlDivider
 
             temperatureStepper(
                 title: "Cool to",
@@ -169,18 +171,18 @@ struct ClimateDetailView: View {
         ) {
             HStack(spacing: AppSpacing.medium) {
                 Label(title, systemImage: systemImage)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.body)
 
                 Spacer(minLength: AppSpacing.medium)
 
                 Text(climate.formatTemperature(value))
-                    .font(.headline.monospacedDigit())
+                    .font(.body.weight(.semibold).monospacedDigit())
                     .foregroundStyle(climate.isActive ? Color.accentColor : Color.secondary)
             }
         }
         .disabled(detailState.blocksControlInteraction || (!canDecrease && !canIncrease))
         .accessibilityValue(climate.formatTemperature(value))
-        .frame(minHeight: 44)
+        .frame(minHeight: 48)
     }
 
     private func optionControls(_ climate: ClimateEntity) -> some View {
@@ -213,7 +215,7 @@ struct ClimateDetailView: View {
 
             if showsHVACModeOptions(climate)
                 && (showsFanModeOptions(climate) || showsPresetModeOptions(climate)) {
-                Divider()
+                controlDivider
             }
 
             if showsFanModeOptions(climate) {
@@ -243,7 +245,7 @@ struct ClimateDetailView: View {
             }
 
             if showsFanModeOptions(climate) && showsPresetModeOptions(climate) {
-                Divider()
+                controlDivider
             }
 
             if showsPresetModeOptions(climate) {
@@ -272,6 +274,12 @@ struct ClimateDetailView: View {
                 }
             }
         }
+    }
+
+    private var controlDivider: some View {
+        Divider()
+            .padding(.leading, 32)
+            .opacity(0.65)
     }
 
     private var contextDetails: some View {

@@ -526,11 +526,31 @@ final class EntityCapabilityProfileTests: XCTestCase {
         )
     }
 
-    func testInlineHistoryDisclosureUsesBoundedBatches() {
+    func testInlineHistoryDisclosureStartsWithEightEntries() {
         XCTAssertEqual(EntityHistoryDisclosurePolicy.initialVisibleEntryCount, 8)
-        XCTAssertEqual(EntityHistoryDisclosurePolicy.revealCount(hiddenCount: 155), 20)
-        XCTAssertEqual(EntityHistoryDisclosurePolicy.revealCount(hiddenCount: 7), 7)
-        XCTAssertEqual(EntityHistoryDisclosurePolicy.revealCount(hiddenCount: 0), 0)
+
+        let timeline = HAHistoryTimeline(
+            entityID: "light.kitchen",
+            displayName: "Kitchen",
+            range: .day,
+            entries: [
+                HAHistoryTimelineEntry(
+                    occurredAt: .now,
+                    state: "off",
+                    title: "Turned Off",
+                    systemImage: "lightbulb",
+                    tone: .inactive
+                ),
+                HAHistoryTimelineEntry(
+                    occurredAt: .now,
+                    state: "on",
+                    title: "Turned On",
+                    systemImage: "lightbulb.fill",
+                    tone: .active
+                )
+            ]
+        )
+        XCTAssertEqual(timeline.countText, "2 changes")
     }
 
     func testWeatherForecastTemperatureScaleUsesAllVisibleDailyRanges() throws {

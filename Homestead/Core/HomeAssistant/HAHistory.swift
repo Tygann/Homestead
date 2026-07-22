@@ -493,17 +493,20 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
         entries.last
     }
 
+    var countText: String {
+        entries.count == 1 ? "1 \(summaryNoun)" : "\(entries.count) \(summaryNoun)s"
+    }
+
     var summaryText: String {
         guard !entries.isEmpty else {
             return emptyMessage
         }
 
-        let changeText = entries.count == 1 ? "1 \(summaryNoun)" : "\(entries.count) \(summaryNoun)s"
         guard let latestEntry else {
-            return changeText
+            return countText
         }
 
-        return "\(changeText) • Now \(latestEntry.title)"
+        return "\(countText) • Now \(latestEntry.title)"
     }
 
     static func makeBinarySensorTimeline(

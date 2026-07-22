@@ -81,7 +81,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 
 - Continuous numeric detail history uses 6H, 24H, 7D, and 30D. Dashboard Chart cards may persist a focused 1H, 6H, 24H, or 7D range independently; 6H remains the default.
 - Discrete History uses the same inline 6H, 24H, 7D, and 30D ranges. Range changes refresh automatically; manual refresh chrome stays out of the normal state and a labeled Retry appears only after failure.
-- Timelines initially show eight entries. A clear `Show 20 More` footer expands long results in bounded batches and reports the remaining count; local expansion resets when the detail is reopened or its range changes. Numeric History keeps its complete canonical chart inline.
+- Timelines initially show eight entries. One compact footer reports the total and hidden counts beside an accent-tinted `Show All` action; expanded results offer `Show Less`, and local disclosure resets when the detail is reopened or its range changes. Current state stays out of this historical summary. Numeric History keeps its complete canonical chart inline.
 - Gauges use the meaningful absolute scale of a bounded measurement; battery is 0–100.
 - Canonical Sensor details use one compact trailing current value in the identity hero. Gauge instruments and progress bars remain dashboard/widget presentation choices rather than being repeated beside History.
 - Numeric thresholds tint the hero icon and value while retaining their semantic status in accessibility output. They do not add a generic visual status pill when the value itself already communicates the condition.
@@ -104,7 +104,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 - Treat the reference gallery as a state matrix, not a substitute for device verification. New domain families should add representative fixtures before introducing a new visual grammar.
 - A visually complete detail-view change includes a rendered simulator pass of its representative fixture and relevant loading/empty state. A successful compile alone is a draft-quality verification for visual work.
 - Weather forecast cards keep readable system text, snap one item at a time when horizontally scrolled, and may use compact degree-only visual temperatures while retaining full-unit accessibility values.
-- Weather details keep only the current temperature as the trailing hero readout. Condition, humidity, and wind live in a compact `Conditions` section before Forecast, and provider attribution remains quiet footer context. Daily Forecast uses native row hierarchy with a shared-scale low/high temperature range bar; Hourly uses one continuous horizontal strip rather than nested cards.
+- Weather details keep only the current temperature as the trailing hero readout. Condition, humidity, and wind live in a compact `Conditions` section before Forecast, and provider attribution remains quiet footer context. Forecast removes interval tabs: Hourly appears first as one continuous horizontal strip, followed by Daily native rows with a shared-scale low/high temperature range bar; Day & Night substitutes only when Daily is unavailable.
 
 ## Adding a Domain
 

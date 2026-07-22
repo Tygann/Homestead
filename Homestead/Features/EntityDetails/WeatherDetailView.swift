@@ -2,7 +2,6 @@ import SwiftUI
 
 struct WeatherDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @State private var selectedForecastType: WeatherForecastType = .daily
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -38,7 +37,6 @@ struct WeatherDetailView: View {
                         weather: weather,
                         entityBox: entityBox,
                         isConnectionLive: homeAssistantService.connectionStatus == .connected,
-                        selectedType: $selectedForecastType,
                         retry: retryForecast
                     )
                 }
@@ -46,12 +44,6 @@ struct WeatherDetailView: View {
                     attributionFooter(weather)
                 }
                 contextDetails
-            }
-            .task(id: weather.supportedForecastTypes) {
-                if !weather.supportedForecastTypes.contains(selectedForecastType),
-                   let defaultType = weather.defaultForecastType {
-                    selectedForecastType = defaultType
-                }
             }
             .task(id: homeAssistantService.connectionStatus) {
                 guard automaticallyLoadsForecast else { return }
@@ -253,6 +245,27 @@ private func weatherDetailPreview() -> some View {
             receivedAt: .now
         )
     )
+    let hourlyEntries: [WeatherForecastEntry] = (0..<8).map { hour in
+        let offset = TimeInterval(hour * 3_600)
+        return WeatherForecastEntry(
+            datetime: Date.now.addingTimeInterval(offset),
+            condition: hour < 3 ? .partlyCloudy : .sunny,
+            temperature: 73 + Double(hour),
+            lowTemperature: nil,
+            precipitation: nil,
+            precipitationProbability: hour == 2 ? 20 : 0,
+            humidity: 56,
+            isDaytime: true,
+            windSpeed: 8,
+            windBearing: 225
+        )
+    }
+    let hourlySnapshot = WeatherForecastSnapshot(
+        type: .hourly,
+        entries: hourlyEntries,
+        receivedAt: .now
+    )
+    entityBox.applyWeatherForecast(hourlySnapshot)
     return WeatherDetailView(entityBox: entityBox)
         .withPreviewEnvironment(dependencies)
 }

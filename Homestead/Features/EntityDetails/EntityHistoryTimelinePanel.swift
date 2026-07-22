@@ -2,11 +2,6 @@ import SwiftUI
 
 nonisolated enum EntityHistoryDisclosurePolicy {
     static let initialVisibleEntryCount = 8
-    static let expansionBatchSize = 20
-
-    static func revealCount(hiddenCount: Int) -> Int {
-        min(max(hiddenCount, 0), expansionBatchSize)
-    }
 }
 
 struct EntityActivityPanel: View {
@@ -122,7 +117,7 @@ enum EntityHistoryTimelinePhase: Equatable {
 
 struct EntityHistoryTimelinePanel: View {
     @Binding var selectedRange: HAHistoryRangePreset
-    @State private var visibleEntryCount = EntityHistoryDisclosurePolicy.initialVisibleEntryCount
+    @State private var showsAllEntries = false
 
     let phase: EntityHistoryTimelinePhase
     let tint: Color
@@ -148,7 +143,7 @@ struct EntityHistoryTimelinePanel: View {
             }
         }
         .onChange(of: selectedRange) {
-            visibleEntryCount = EntityHistoryDisclosurePolicy.initialVisibleEntryCount
+            showsAllEntries = false
         }
     }
 
@@ -181,27 +176,24 @@ struct EntityHistoryTimelinePanel: View {
     }
 
     private func timelineList(_ timeline: HAHistoryTimeline) -> some View {
+        let visibleEntryCount = showsAllEntries
+            ? timeline.entries.count
+            : EntityHistoryDisclosurePolicy.initialVisibleEntryCount
         let entries = Array(timeline.entries.suffix(visibleEntryCount).reversed())
 
         return VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            VStack(alignment: .leading, spacing: 0) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                     timelineRow(entry, showsConnector: index < entries.count - 1)
                 }
             }
 
-            summaryText(timeline.summaryText)
-
             let hiddenCount = timeline.entries.count - entries.count
-            if hiddenCount > 0 {
-                Divider()
-
-                showMoreButton(hiddenCount: hiddenCount)
-            }
+            historyFooter(timeline: timeline, hiddenCount: hiddenCount)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(timeline.displayName) activity")
-        .accessibilityValue(timeline.summaryText)
+        .accessibilityValue(timeline.countText)
     }
 
     private func timelineRow(_ entry: HAHistoryTimelineEntry, showsConnector: Bool) -> some View {
@@ -266,42 +258,38 @@ struct EntityHistoryTimelinePanel: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func summaryText(_ value: String) -> some View {
-        Text(value)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-            .fixedSize(horizontal: false, vertical: true)
-    }
+    private func historyFooter(timeline: HAHistoryTimeline, hiddenCount: Int) -> some View {
+        HStack(spacing: AppSpacing.small) {
+            Text(timeline.countText)
 
-    private func showMoreButton(hiddenCount: Int) -> some View {
-        let revealCount = EntityHistoryDisclosurePolicy.revealCount(hiddenCount: hiddenCount)
-
-        return Button {
-            withAnimation(.snappy(duration: 0.25)) {
-                visibleEntryCount += revealCount
+            if hiddenCount > 0 {
+                Text("·")
+                    .accessibilityHidden(true)
+                Text("\(hiddenCount) hidden")
             }
-        } label: {
-            HStack(spacing: AppSpacing.medium) {
-                Image(systemName: "plus.circle")
-                    .foregroundStyle(tint)
-                    .frame(width: 28)
 
-                Text("Show \(revealCount) More")
-                    .foregroundStyle(.primary)
+            Spacer(minLength: AppSpacing.medium)
 
-                Spacer(minLength: AppSpacing.medium)
-
-                Text("\(hiddenCount) remaining")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+            if hiddenCount > 0 {
+                Button("Show All") {
+                    showsAllEntries = true
+                }
+                .fontWeight(.semibold)
+                .foregroundStyle(tint)
+                .accessibilityHint("Shows all history entries in this range")
+            } else if timeline.entries.count > EntityHistoryDisclosurePolicy.initialVisibleEntryCount {
+                Button("Show Less") {
+                    showsAllEntries = false
+                }
+                .fontWeight(.semibold)
+                .foregroundStyle(tint)
+                .accessibilityHint("Shows the most recent history entries")
             }
-            .font(.body)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Show \(revealCount) more history entries, \(hiddenCount) remaining")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, minHeight: 32)
+        .accessibilityElement(children: .contain)
     }
 
     private func timelineToneColor(_ tone: HAHistoryTimelineTone) -> Color {

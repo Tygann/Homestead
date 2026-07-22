@@ -6,72 +6,98 @@ struct WeatherForecastPanel: View {
     let weather: WeatherEntity
     let entityBox: HAEntityState
     let isConnectionLive: Bool
-    @Binding var selectedType: WeatherForecastType
     let retry: () -> Void
 
-    private var supportedTypes: [WeatherForecastType] {
-        weather.supportedForecastTypes
-    }
+    private var displayedTypes: [WeatherForecastType] {
+        var types: [WeatherForecastType] = []
 
-    private var snapshot: WeatherForecastSnapshot? {
-        entityBox.weatherForecastsByType[selectedType]
-    }
+        if weather.supportedForecastTypes.contains(.hourly) {
+            types.append(.hourly)
+        }
 
-    private var entries: [WeatherForecastEntry] {
-        Array((snapshot?.entries ?? []).prefix(selectedType.itemLimit))
-    }
+        if weather.supportedForecastTypes.contains(.daily) {
+            types.append(.daily)
+        } else if weather.supportedForecastTypes.contains(.twiceDaily) {
+            types.append(.twiceDaily)
+        }
 
-    private var isLoading: Bool {
-        entityBox.loadingWeatherForecastTypes.contains(selectedType)
-    }
-
-    private var errorMessage: String? {
-        entityBox.weatherForecastErrorsByType[selectedType]
+        return types
     }
 
     var body: some View {
         EntityDetailSection(title: "Forecast", systemImage: "calendar") {
-            if supportedTypes.count > 1 {
-                Picker("Forecast", selection: $selectedType) {
-                    ForEach(supportedTypes, id: \.self) { type in
-                        Text(type.title).tag(type)
+            VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                ForEach(Array(displayedTypes.enumerated()), id: \.element) { index, type in
+                    if index > 0 {
+                        Divider()
                     }
+
+                    forecastSection(for: type)
                 }
-                .pickerStyle(.segmented)
-                .accessibilityLabel("Forecast interval")
-            }
-
-            forecastContent
-        }
-    }
-
-    @ViewBuilder
-    private var forecastContent: some View {
-        if entries.isEmpty, isLoading {
-            loadingContent
-        } else if entries.isEmpty, let errorMessage {
-            unavailableContent(message: errorMessage, offersRetry: true)
-        } else if entries.isEmpty {
-            unavailableContent(message: "No forecast is currently available.", offersRetry: false)
-        } else {
-            forecastEntries
-
-            if isLoading {
-                statusLabel("Updating forecast…", systemImage: "arrow.triangle.2.circlepath")
-            } else if errorMessage != nil || !isConnectionLive {
-                statusLabel("Showing the most recent forecast.", systemImage: "clock.arrow.circlepath")
             }
         }
     }
 
     @ViewBuilder
-    private var forecastEntries: some View {
+    private func forecastSection(for type: WeatherForecastType) -> some View {
+        let entries = entries(for: type)
+        let isLoading = isLoading(type)
+        let errorMessage = errorMessage(for: type)
+
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            Text(sectionTitle(for: type))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            if entries.isEmpty, isLoading {
+                loadingContent
+            } else if entries.isEmpty, let errorMessage {
+                unavailableContent(message: errorMessage, offersRetry: true)
+            } else if entries.isEmpty {
+                unavailableContent(message: "No forecast is currently available.", offersRetry: false)
+            } else {
+                forecastEntries(entries, type: type)
+
+                if isLoading {
+                    statusLabel("Updating forecast…", systemImage: "arrow.triangle.2.circlepath")
+                } else if errorMessage != nil || !isConnectionLive {
+                    statusLabel("Showing the most recent forecast.", systemImage: "clock.arrow.circlepath")
+                }
+            }
+        }
+    }
+
+    private func entries(for type: WeatherForecastType) -> [WeatherForecastEntry] {
+        Array((entityBox.weatherForecastsByType[type]?.entries ?? []).prefix(type.itemLimit))
+    }
+
+    private func isLoading(_ type: WeatherForecastType) -> Bool {
+        entityBox.loadingWeatherForecastTypes.contains(type)
+    }
+
+    private func errorMessage(for type: WeatherForecastType) -> String? {
+        entityBox.weatherForecastErrorsByType[type]
+    }
+
+    private func sectionTitle(for type: WeatherForecastType) -> String {
+        switch type {
+        case .hourly:
+            "Hourly Forecast"
+        case .daily:
+            "Daily Forecast"
+        case .twiceDaily:
+            "Day & Night Forecast"
+        }
+    }
+
+    @ViewBuilder
+    private func forecastEntries(_ entries: [WeatherForecastEntry], type: WeatherForecastType) -> some View {
         if dynamicTypeSize.isAccessibilitySize {
             LazyVStack(spacing: 0) {
                 ForEach(entries) { entry in
                     WeatherForecastRow(
                         entry: entry,
-                        type: selectedType,
+                        type: type,
                         temperatureUnit: weather.temperatureUnit
                     )
 
@@ -80,9 +106,7 @@ struct WeatherForecastPanel: View {
                     }
                 }
             }
-        } else if selectedType == .daily {
-            WeatherDailyForecastList(entries: entries, weather: weather)
-        } else if selectedType == .hourly {
+        } else if type == .hourly {
             ScrollView(.horizontal) {
                 LazyHStack(spacing: AppSpacing.large) {
                     ForEach(entries) { entry in
@@ -93,12 +117,14 @@ struct WeatherForecastPanel: View {
             }
             .scrollIndicators(.hidden)
             .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
+        } else if type == .daily {
+            WeatherDailyForecastList(entries: entries, weather: weather)
         } else {
             LazyVStack(spacing: 0) {
                 ForEach(entries) { entry in
                     WeatherForecastRow(
                         entry: entry,
-                        type: selectedType,
+                        type: type,
                         temperatureUnit: weather.temperatureUnit
                     )
 

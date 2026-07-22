@@ -441,9 +441,15 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
         switch self {
         case .loading:
             entityBox.beginLoadingWeatherForecast(.daily)
+            entityBox.beginLoadingWeatherForecast(.hourly)
         case .empty:
             entityBox.applyWeatherForecast(WeatherForecastSnapshot(
                 type: .daily,
+                entries: [],
+                receivedAt: Self.referenceDate
+            ))
+            entityBox.applyWeatherForecast(WeatherForecastSnapshot(
+                type: .hourly,
                 entries: [],
                 receivedAt: Self.referenceDate
             ))
@@ -452,8 +458,13 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
                 .daily,
                 message: "Forecast is temporarily unavailable."
             )
+            entityBox.failLoadingWeatherForecast(
+                .hourly,
+                message: "Forecast is temporarily unavailable."
+            )
         default:
             entityBox.applyWeatherForecast(Self.referenceForecast)
+            entityBox.applyWeatherForecast(Self.referenceHourlyForecast)
         }
     }
 
@@ -489,6 +500,27 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
         ],
         receivedAt: referenceDate
     )
+
+    private static let referenceHourlyForecast = WeatherForecastSnapshot(
+        type: .hourly,
+        entries: (0..<8).map { referenceHourlyEntry(hour: $0) },
+        receivedAt: referenceDate
+    )
+
+    private static func referenceHourlyEntry(hour: Int) -> WeatherForecastEntry {
+        WeatherForecastEntry(
+            datetime: referenceDate.addingTimeInterval(TimeInterval(hour * 3_600)),
+            condition: hour < 3 ? .partlyCloudy : .sunny,
+            temperature: 73 + Double(hour),
+            lowTemperature: nil,
+            precipitation: nil,
+            precipitationProbability: hour == 2 ? 20 : 0,
+            humidity: 56,
+            isDaytime: true,
+            windSpeed: 8,
+            windBearing: 225
+        )
+    }
 }
 
 // MARK: - Preview Matrix
