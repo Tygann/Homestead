@@ -80,21 +80,33 @@ struct WeatherForecastPanel: View {
                     }
                 }
             }
-        } else {
+        } else if selectedType == .daily {
+            WeatherDailyForecastList(entries: entries, weather: weather)
+        } else if selectedType == .hourly {
             ScrollView(.horizontal) {
-                LazyHStack(spacing: AppSpacing.small) {
+                LazyHStack(spacing: AppSpacing.large) {
                     ForEach(entries) { entry in
-                        WeatherForecastCard(
-                            entry: entry,
-                            type: selectedType,
-                            temperatureUnit: weather.temperatureUnit
-                        )
+                        WeatherHourlyForecastItem(entry: entry, weather: weather)
                     }
                 }
                 .scrollTargetLayout()
             }
             .scrollIndicators(.hidden)
             .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
+        } else {
+            LazyVStack(spacing: 0) {
+                ForEach(entries) { entry in
+                    WeatherForecastRow(
+                        entry: entry,
+                        type: selectedType,
+                        temperatureUnit: weather.temperatureUnit
+                    )
+
+                    if entry.id != entries.last?.id {
+                        Divider()
+                    }
+                }
+            }
         }
     }
 
@@ -136,14 +148,95 @@ struct WeatherForecastPanel: View {
     }
 }
 
-private struct WeatherForecastCard: View {
+private struct WeatherDailyForecastList: View {
+    let entries: [WeatherForecastEntry]
+    let weather: WeatherEntity
+
+    private var temperatureDomain: ClosedRange<Double> {
+        WeatherForecastTemperatureScale.domain(for: entries)
+    }
+
+    var body: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(entries) { entry in
+                WeatherDailyForecastRow(
+                    entry: entry,
+                    weather: weather,
+                    temperatureDomain: temperatureDomain
+                )
+
+                if entry.id != entries.last?.id {
+                    Divider()
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct WeatherDailyForecastRow: View {
     let entry: WeatherForecastEntry
-    let type: WeatherForecastType
-    let temperatureUnit: String?
+    let weather: WeatherEntity
+    let temperatureDomain: ClosedRange<Double>
+
+    var body: some View {
+        HStack(spacing: AppSpacing.small) {
+            Text(entry.forecastTimeTitle(for: .daily))
+                .font(.body.weight(.medium))
+                .lineLimit(1)
+                .frame(width: 46, alignment: .leading)
+
+            VStack(spacing: 1) {
+                Image(systemName: entry.condition.systemImage)
+                    .font(.title3)
+                    .symbolRenderingMode(.multicolor)
+                    .frame(height: 24)
+
+                if let precipitationText = entry.precipitationText,
+                   (entry.precipitationProbability ?? 0) > 0 {
+                    Text(precipitationText)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.blue)
+                }
+            }
+            .frame(width: 42)
+
+            if let range = WeatherForecastTemperatureScale.range(for: entry) {
+                Text(weather.compactTemperatureText(for: range.lowerBound))
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 38, alignment: .trailing)
+
+                WeatherForecastTemperatureRangeBar(
+                    range: range,
+                    domain: temperatureDomain,
+                    temperatureUnit: weather.temperatureUnit
+                )
+                .frame(maxWidth: .infinity)
+
+                Text(weather.compactTemperatureText(for: range.upperBound))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .frame(width: 38, alignment: .trailing)
+            } else {
+                Spacer(minLength: 0)
+
+                Text(entry.compactTemperatureSummary(unit: weather.temperatureUnit))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+            }
+        }
+        .frame(minHeight: 52)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(entry.accessibilitySummary(for: .daily, temperatureUnit: weather.temperatureUnit))
+    }
+}
+
+private struct WeatherHourlyForecastItem: View {
+    let entry: WeatherForecastEntry
+    let weather: WeatherEntity
 
     var body: some View {
         VStack(spacing: AppSpacing.small) {
-            Text(entry.forecastTimeTitle(for: type))
+            Text(entry.forecastTimeTitle(for: .hourly))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -153,24 +246,26 @@ private struct WeatherForecastCard: View {
                 .symbolRenderingMode(.multicolor)
                 .frame(height: 30)
 
-            Text(entry.compactTemperatureSummary(unit: temperatureUnit))
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
+            Text(entry.compactTemperatureSummary(unit: weather.temperatureUnit))
+                .font(.subheadline.weight(.semibold).monospacedDigit())
                 .lineLimit(1)
 
-            if let precipitationText = entry.precipitationText {
-                Label(precipitationText, systemImage: "drop.fill")
+            if let precipitationText = entry.precipitationText,
+               (entry.precipitationProbability ?? 0) > 0 {
+                Text(precipitationText)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.blue)
                     .lineLimit(1)
+            } else {
+                Text(" ")
+                    .font(.caption2)
+                    .accessibilityHidden(true)
             }
         }
-        .frame(width: 96)
-        .frame(minHeight: 126)
-        .padding(.vertical, AppSpacing.small)
-        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        .frame(width: 60)
+        .frame(minHeight: 118)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(entry.accessibilitySummary(for: type, temperatureUnit: temperatureUnit))
+        .accessibilityLabel(entry.accessibilitySummary(for: .hourly, temperatureUnit: weather.temperatureUnit))
     }
 }
 

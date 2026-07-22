@@ -2,7 +2,7 @@ import Accessibility
 import Charts
 import SwiftUI
 
-struct EntityNumericHistoryPanel<Footer: View>: View {
+struct EntityNumericHistoryPanel: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var selectedRange: HAHistoryRangePreset
@@ -16,8 +16,6 @@ struct EntityNumericHistoryPanel<Footer: View>: View {
     let accentColor: Color
     let preferredRange: ClosedRange<Double>?
     var interpolationStyle: HomesteadChartInterpolationStyle = .linear
-    let presentationMode: EntityHistoryPresentationMode
-    @ViewBuilder let footer: Footer
 
     init(
         entityBox: HAEntityState,
@@ -27,9 +25,7 @@ struct EntityNumericHistoryPanel<Footer: View>: View {
         accentColor: Color,
         preferredRange: ClosedRange<Double>?,
         initialRange: HAHistoryRangePreset = .day,
-        interpolationStyle: HomesteadChartInterpolationStyle = .linear,
-        presentationMode: EntityHistoryPresentationMode,
-        @ViewBuilder footer: () -> Footer
+        interpolationStyle: HomesteadChartInterpolationStyle = .linear
     ) {
         self.entityBox = entityBox
         self.displayName = displayName
@@ -38,17 +34,13 @@ struct EntityNumericHistoryPanel<Footer: View>: View {
         self.accentColor = accentColor
         self.preferredRange = preferredRange
         self.interpolationStyle = interpolationStyle
-        self.presentationMode = presentationMode
-        self.footer = footer()
         _selectedRange = State(initialValue: initialRange)
     }
 
     var body: some View {
         EntityDetailSection(title: "History", systemImage: "chart.xyaxis.line") {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                if presentationMode == .full {
-                    rangePicker
-                }
+                rangePicker
 
                 switch phase {
                 case .idle, .loading:
@@ -73,8 +65,6 @@ struct EntityNumericHistoryPanel<Footer: View>: View {
                 case .failed:
                     unavailableView("History unavailable", showsRetry: true)
                 }
-
-                footer
             }
         }
         .task(id: taskID) {
@@ -164,36 +154,7 @@ struct EntityNumericHistoryPanel<Footer: View>: View {
         }
     }
 
-    private var chartHeight: CGFloat {
-        presentationMode == .preview ? 150 : 220
-    }
-}
-
-extension EntityNumericHistoryPanel where Footer == EmptyView {
-    init(
-        entityBox: HAEntityState,
-        displayName: String,
-        unit: String?,
-        displayPrecision: Int? = nil,
-        accentColor: Color,
-        preferredRange: ClosedRange<Double>?,
-        initialRange: HAHistoryRangePreset = .day,
-        interpolationStyle: HomesteadChartInterpolationStyle = .linear,
-        presentationMode: EntityHistoryPresentationMode = .full
-    ) {
-        self.init(
-            entityBox: entityBox,
-            displayName: displayName,
-            unit: unit,
-            displayPrecision: displayPrecision,
-            accentColor: accentColor,
-            preferredRange: preferredRange,
-            initialRange: initialRange,
-            interpolationStyle: interpolationStyle,
-            presentationMode: presentationMode,
-            footer: { EmptyView() }
-        )
-    }
+    private let chartHeight: CGFloat = 220
 }
 
 struct EntityNumericHistoryPreview: View {
@@ -215,54 +176,8 @@ struct EntityNumericHistoryPreview: View {
             accentColor: accentColor,
             preferredRange: preferredRange,
             initialRange: initialRange,
-            interpolationStyle: interpolationStyle,
-            presentationMode: .preview
-        ) {
-            Divider()
-
-            NavigationLink {
-                EntityNumericHistoryView(
-                    entityBox: entityBox,
-                    displayName: displayName,
-                    unit: unit,
-                    displayPrecision: displayPrecision,
-                    accentColor: accentColor,
-                    preferredRange: preferredRange,
-                    interpolationStyle: interpolationStyle
-                )
-            } label: {
-                EntityDetailNavigationRowLabel(
-                    title: "Show All",
-                    systemImage: "chart.xyaxis.line"
-                )
-                .frame(minHeight: 44)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-}
-
-private struct EntityNumericHistoryView: View {
-    let entityBox: HAEntityState
-    let displayName: String
-    let unit: String?
-    let displayPrecision: Int?
-    let accentColor: Color
-    let preferredRange: ClosedRange<Double>?
-    let interpolationStyle: HomesteadChartInterpolationStyle
-
-    var body: some View {
-        EntityDetailScaffold(title: "History", presentationStyle: .navigation) {
-            EntityNumericHistoryPanel(
-                entityBox: entityBox,
-                displayName: displayName,
-                unit: unit,
-                displayPrecision: displayPrecision,
-                accentColor: accentColor,
-                preferredRange: preferredRange,
-                interpolationStyle: interpolationStyle
-            )
-        }
+            interpolationStyle: interpolationStyle
+        )
     }
 }
 

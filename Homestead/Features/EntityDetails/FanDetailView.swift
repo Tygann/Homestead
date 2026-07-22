@@ -95,13 +95,13 @@ struct FanDetailView: View {
     private func percentageControls(_ fan: FanEntity) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.large) {
             HStack {
-                Label("Speed", systemImage: "slider.horizontal.3")
-                    .font(.subheadline.weight(.semibold))
+                Text("Speed")
+                    .font(.body)
 
                 Spacer()
 
                 Text("\(Int(percentage))%")
-                    .font(.title3.bold().monospacedDigit())
+                    .font(.headline.monospacedDigit())
                     .foregroundStyle(fan.isOn ? Color.accentColor : Color.secondary)
             }
 
@@ -127,27 +127,29 @@ struct FanDetailView: View {
     }
 
     private func presetControls(_ fan: FanEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Preset", systemImage: "dial.medium")
-                .font(.subheadline.weight(.semibold))
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
-                ForEach(fan.presetModes, id: \.self) { presetMode in
-                    EntityDetailPillButton(
-                        title: fan.displayName(forPresetMode: presetMode),
-                        isSelected: presetMode == fan.presetMode,
-                        isDisabled: detailState.blocksControlInteraction || presetMode == fan.presetMode
-                    ) {
-                        confirmOrPerform(domain: "fan", service: "set_preset_mode") {
-                            Task {
-                                await homeAssistantService.setFanPresetMode(
-                                    entityID: fan.entityID,
-                                    presetMode: presetMode
-                                )
-                            }
+        EntityDetailMenuRow(
+            title: "Preset",
+            systemImage: "dial.medium",
+            value: fan.presetMode.map(fan.displayName(forPresetMode:)) ?? "None",
+            isDisabled: detailState.blocksControlInteraction
+        ) {
+            ForEach(fan.presetModes, id: \.self) { presetMode in
+                Button {
+                    confirmOrPerform(domain: "fan", service: "set_preset_mode") {
+                        Task {
+                            await homeAssistantService.setFanPresetMode(
+                                entityID: fan.entityID,
+                                presetMode: presetMode
+                            )
                         }
                     }
+                } label: {
+                    Label(
+                        fan.displayName(forPresetMode: presetMode),
+                        systemImage: presetMode == fan.presetMode ? "checkmark" : "dial.medium"
+                    )
                 }
+                .disabled(presetMode == fan.presetMode)
             }
         }
     }

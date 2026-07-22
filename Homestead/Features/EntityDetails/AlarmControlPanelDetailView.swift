@@ -46,10 +46,10 @@ struct AlarmControlPanelDetailView: View {
 
     private var controls: some View {
         EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
-            Label("Access", systemImage: "key.fill")
-                .font(.subheadline.weight(.semibold))
+            Text("Code")
+                .font(.body)
 
-            SecureField("Code", text: $code)
+            SecureField("Enter code", text: $code)
                 .textContentType(.oneTimeCode)
                 .keyboardType(.numberPad)
                 .font(.headline)
@@ -60,9 +60,6 @@ struct AlarmControlPanelDetailView: View {
 
             if !availableArmActions.isEmpty {
                 Divider()
-
-                Label("Security Mode", systemImage: "shield.fill")
-                    .font(.subheadline.weight(.semibold))
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppSpacing.small) {
                     ForEach(availableArmActions) { action in

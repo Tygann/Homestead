@@ -10,7 +10,7 @@ Every detail screen uses this order when the corresponding content exists:
 2. Hero: category, freshness, exceptional status, and the current value, state, progress, environment, media, or activity.
 3. Controls: every writable capability outside the hero, consolidated into one grouped surface with internal labels and dividers.
 4. Domain content: weather data, automation logic, media, or supporting measurements.
-5. History: a compact capability-driven preview with a consistent Show All destination.
+5. History: a capability-driven inline chart or timeline with consistent range selection and progressive disclosure.
 6. Entity Details: diagnostics and Home Assistant metadata, always last.
 
 Do not repeat the same current state in the hero and a separate read-only section. A control may repeat its editable value when the repeated value is necessary to operate that control.
@@ -30,7 +30,7 @@ Do not repeat the same current state in the hero and a separate read-only sectio
 - Dynamic Type may expand cards vertically; never depend on fixed text height or color alone.
 - Freshness uses one concise, localized-scale unit (`just now`, minutes, hours, or days) so it stays secondary and remains readable at larger text sizes.
 - Long metadata such as provider attribution uses a stacked label/value row instead of compressing the value into a trailing column.
-- Use `History` as the universal label for numeric trends, state transitions, presence changes, and workflow runs. Detail pages show a compact 24-hour preview and move native range selection to the full History destination. Use compact menu rows for mutually exclusive settings such as HVAC mode, fan mode, and preset; reserve visible button groups for genuinely separate commands or per-action availability.
+- Use `History` as the universal label for numeric trends, state transitions, presence changes, and workflow runs. Keep native range selection and history content inline in the entity detail. Use compact menu rows for mutually exclusive settings such as HVAC mode, fan mode, and preset; reserve visible button groups for genuinely separate commands or per-action availability.
 - Navigation rows use regular body-weight labels, accent-tinted SF Symbols, and disclosure indicators. `Entity Details` remains the final row and does not compete visually with operational content.
 
 ## Operational States
@@ -80,8 +80,8 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 ## History Semantics
 
 - Continuous numeric detail history uses 6H, 24H, 7D, and 30D. Dashboard Chart cards may persist a focused 1H, 6H, 24H, or 7D range independently; 6H remains the default.
-- Discrete History uses the same 6H, 24H, 7D, and 30D ranges in its full destination. Range changes refresh automatically; manual refresh chrome stays out of the normal state and a labeled Retry appears only after failure.
-- Main details show at most three discrete entries or a compact numeric chart, followed by `Show All`. Full range controls and the longer timeline or chart live in the pushed History destination.
+- Discrete History uses the same inline 6H, 24H, 7D, and 30D ranges. Range changes refresh automatically; manual refresh chrome stays out of the normal state and a labeled Retry appears only after failure.
+- Timelines initially show eight entries. A clear `Show 20 More` footer expands long results in bounded batches and reports the remaining count; local expansion resets when the detail is reopened or its range changes. Numeric History keeps its complete canonical chart inline.
 - Gauges use the meaningful absolute scale of a bounded measurement; battery is 0–100.
 - Canonical Sensor details use one compact trailing current value in the identity hero. Gauge instruments and progress bars remain dashboard/widget presentation choices rather than being repeated beside History.
 - Numeric thresholds tint the hero icon and value while retaining their semantic status in accessibility output. They do not add a generic visual status pill when the value itself already communicates the condition.
@@ -90,7 +90,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 - App-facing sensor semantics choose Catmull-Rom interpolation for naturally continuous measurements and linear interpolation for totals, bounded/step-like values, and ambiguous sensors. The mapped history samples remain the statistical and accessibility source of truth.
 - Charts preserve extrema and mapped display precision when sampling, expose an accessibility chart descriptor, use range-appropriate natural time ticks, and only mention partial coverage when the returned samples demonstrably begin after the requested interval. Canonical charts share one detail height and support direct touch scrubbing with a selected rule, point, value, timestamp, and range statistics.
 - Keep one visible Min/Average/Max summary. Touch selection presents its historical value and timestamp locally over the chart; the chart footer appears only for meaningful partial-coverage context.
-- Numeric domains reuse `EntityNumericHistoryPreview` on the main detail and `EntityNumericHistoryPanel` in the full destination; sensors and editable Number entities currently opt in with their mapped unit and meaningful bounded range.
+- Numeric domains reuse the inline `EntityNumericHistoryPanel`; sensors and editable Number entities currently opt in with their mapped unit and meaningful bounded range.
 - Chart, Gauge, and neutral entry points open the same canonical Sensor composition. A Chart card may provide the initial History range, and remains a history surface when the current Home Assistant state is temporarily unavailable, but card presentation does not change hero content, chart height, or detail sections.
 - Discrete domains reuse `EntityActivityPreview` and the self-loading `EntityActivityPanel`, which own cancellation, retry, full-range selection, and either Home Assistant state history or Automation trace loading.
 - Omit History when Home Assistant does not provide data Homestead can present honestly; consistency means shared placement and behavior, not an empty section on every domain.
@@ -104,7 +104,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 - Treat the reference gallery as a state matrix, not a substitute for device verification. New domain families should add representative fixtures before introducing a new visual grammar.
 - A visually complete detail-view change includes a rendered simulator pass of its representative fixture and relevant loading/empty state. A successful compile alone is a draft-quality verification for visual work.
 - Weather forecast cards keep readable system text, snap one item at a time when horizontally scrolled, and may use compact degree-only visual temperatures while retaining full-unit accessibility values.
-- Weather details keep only the current temperature as the trailing hero readout. Condition, humidity, and wind live in a compact `Current Conditions` section before Forecast, and provider attribution remains quiet footer context.
+- Weather details keep only the current temperature as the trailing hero readout. Condition, humidity, and wind live in a compact `Conditions` section before Forecast, and provider attribution remains quiet footer context. Daily Forecast uses native row hierarchy with a shared-scale low/high temperature range bar; Hourly uses one continuous horizontal strip rather than nested cards.
 
 ## Adding a Domain
 
@@ -119,4 +119,4 @@ Avoid a type-erased universal section schema. Typed SwiftUI domain views remain 
 
 Editable Number details consume `NumberEntity` for current value, bounds, step, unit, and Home Assistant display mode. SwiftUI must not read the raw entity attributes to reconstruct those constraints.
 
-Person uses one canonical native Form composition shared by Settings > People and every entity-detail entry point. It prioritizes authenticated imagery or the mapped entity icon plus Home/Away/named-zone state, exposes compact Details and Context rows, keeps trackers navigable, shows the same compact History preview and Show All destination as other discrete domains, and ends with the shared Entity Details diagnostics navigation instead of exposing raw Home Assistant metadata inline. Device Tracker retains its tracker-oriented detail while reusing the same mapped presence records and relationships. Registry area assignment must not be presented as live physical location. Presence remains read-only; loading, empty, and failed History results stay compact until actual events need the timeline footprint.
+Person uses one canonical native Form composition shared by Settings > People and every entity-detail entry point. It prioritizes authenticated imagery or the mapped entity icon plus Home/Away/named-zone state, exposes compact Details and Context rows, keeps trackers navigable, shows the same inline ranged History and progressive disclosure as other discrete domains, and ends with the shared Entity Details diagnostics navigation instead of exposing raw Home Assistant metadata inline. Device Tracker retains its tracker-oriented detail while reusing the same mapped presence records and relationships. Registry area assignment must not be presented as live physical location. Presence remains read-only; loading, empty, and failed History results stay compact until actual events need the timeline footprint.

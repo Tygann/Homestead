@@ -283,7 +283,11 @@ private actor PreviewEntityDetailHTTPClient: HAHTTPClientProtocol {
         let states: [String]
         switch EntityDomain(entityID: request.entityID) {
         case .cover:
-            states = ["closed", "opening", "open"]
+            states = [
+                "closed", "opening", "open", "closing",
+                "closed", "opening", "open", "closing",
+                "closed", "opening", "open", "closing"
+            ]
         case .person, .deviceTracker:
             states = ["not_home", "home"]
         case .sensor, .number:

@@ -99,61 +99,51 @@ struct ClimateDetailView: View {
     }
 
     private func temperatureControls(_ climate: ClimateEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Label("Temperature", systemImage: "thermometer.medium")
-                .font(.subheadline.weight(.semibold))
-
-            temperatureStepper(
-                title: "Target",
-                systemImage: "scope",
-                value: targetTemperature,
-                climate: climate,
-                canDecrease: targetTemperature > climate.resolvedMinimumTemperature,
-                canIncrease: targetTemperature < climate.resolvedMaximumTemperature,
-                decreaseAction: { adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate) },
-                increaseAction: { adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate) }
-            )
-        }
+        temperatureStepper(
+            title: "Target",
+            systemImage: "scope",
+            value: targetTemperature,
+            climate: climate,
+            canDecrease: targetTemperature > climate.resolvedMinimumTemperature,
+            canIncrease: targetTemperature < climate.resolvedMaximumTemperature,
+            decreaseAction: { adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate) },
+            increaseAction: { adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate) }
+        )
     }
 
     private func temperatureRangeControls(_ climate: ClimateEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Label("Temperature", systemImage: "thermometer.medium")
-                .font(.subheadline.weight(.semibold))
+        VStack(spacing: AppSpacing.small) {
+            temperatureStepper(
+                title: "Heat to",
+                systemImage: "flame.fill",
+                value: targetLowTemperature,
+                climate: climate,
+                canDecrease: targetLowTemperature > climate.resolvedMinimumTemperature,
+                canIncrease: targetLowTemperature < targetHighTemperature,
+                decreaseAction: {
+                    adjustLowTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
+                },
+                increaseAction: {
+                    adjustLowTemperature(by: climate.resolvedTemperatureStep, climate: climate)
+                }
+            )
 
-            VStack(spacing: AppSpacing.small) {
-                temperatureStepper(
-                    title: "Heat to",
-                    systemImage: "flame.fill",
-                    value: targetLowTemperature,
-                    climate: climate,
-                    canDecrease: targetLowTemperature > climate.resolvedMinimumTemperature,
-                    canIncrease: targetLowTemperature < targetHighTemperature,
-                    decreaseAction: {
-                        adjustLowTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
-                    },
-                    increaseAction: {
-                        adjustLowTemperature(by: climate.resolvedTemperatureStep, climate: climate)
-                    }
-                )
+            Divider()
 
-                Divider()
-
-                temperatureStepper(
-                    title: "Cool to",
-                    systemImage: "snowflake",
-                    value: targetHighTemperature,
-                    climate: climate,
-                    canDecrease: targetHighTemperature > targetLowTemperature,
-                    canIncrease: targetHighTemperature < climate.resolvedMaximumTemperature,
-                    decreaseAction: {
-                        adjustHighTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
-                    },
-                    increaseAction: {
-                        adjustHighTemperature(by: climate.resolvedTemperatureStep, climate: climate)
-                    }
-                )
-            }
+            temperatureStepper(
+                title: "Cool to",
+                systemImage: "snowflake",
+                value: targetHighTemperature,
+                climate: climate,
+                canDecrease: targetHighTemperature > targetLowTemperature,
+                canIncrease: targetHighTemperature < climate.resolvedMaximumTemperature,
+                decreaseAction: {
+                    adjustHighTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
+                },
+                increaseAction: {
+                    adjustHighTemperature(by: climate.resolvedTemperatureStep, climate: climate)
+                }
+            )
         }
     }
 
@@ -194,86 +184,90 @@ struct ClimateDetailView: View {
     }
 
     private func optionControls(_ climate: ClimateEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Label("Options", systemImage: "switch.2")
-                .font(.subheadline.weight(.semibold))
-
-            VStack(spacing: AppSpacing.small) {
-                if showsHVACModeOptions(climate) {
-                    EntityDetailMenuRow(
-                        title: "Mode",
-                        systemImage: "dial.medium",
-                        value: climate.displayName(forHVACMode: climate.state),
-                        isDisabled: detailState.blocksControlInteraction
-                    ) {
-                        ForEach(climate.hvacModes, id: \.self) { mode in
-                            Button {
-                                Task {
-                                    await homeAssistantService.setClimateHVACMode(
-                                        entityID: entityBox.entityID,
-                                        hvacMode: mode
-                                    )
-                                }
-                            } label: {
-                                Label(
-                                    climate.displayName(forHVACMode: mode),
-                                    systemImage: mode == climate.state ? "checkmark" : climate.iconName(forHVACMode: mode)
+        VStack(spacing: 0) {
+            if showsHVACModeOptions(climate) {
+                EntityDetailMenuRow(
+                    title: "Mode",
+                    systemImage: "dial.medium",
+                    value: climate.displayName(forHVACMode: climate.state),
+                    isDisabled: detailState.blocksControlInteraction
+                ) {
+                    ForEach(climate.hvacModes, id: \.self) { mode in
+                        Button {
+                            Task {
+                                await homeAssistantService.setClimateHVACMode(
+                                    entityID: entityBox.entityID,
+                                    hvacMode: mode
                                 )
                             }
-                            .disabled(mode == climate.state)
+                        } label: {
+                            Label(
+                                climate.displayName(forHVACMode: mode),
+                                systemImage: mode == climate.state ? "checkmark" : climate.iconName(forHVACMode: mode)
+                            )
                         }
+                        .disabled(mode == climate.state)
                     }
                 }
+            }
 
-                if showsFanModeOptions(climate) {
-                    EntityDetailMenuRow(
-                        title: "Fan",
-                        systemImage: "fan.fill",
-                        value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
-                        isDisabled: detailState.blocksControlInteraction
-                    ) {
-                        ForEach(climate.fanModes, id: \.self) { fanMode in
-                            Button {
-                                Task {
-                                    await homeAssistantService.setClimateFanMode(
-                                        entityID: entityBox.entityID,
-                                        fanMode: fanMode
-                                    )
-                                }
-                            } label: {
-                                Label(
-                                    climate.displayName(forFanMode: fanMode),
-                                    systemImage: fanMode == climate.fanMode ? "checkmark" : "fan.fill"
+            if showsHVACModeOptions(climate)
+                && (showsFanModeOptions(climate) || showsPresetModeOptions(climate)) {
+                Divider()
+            }
+
+            if showsFanModeOptions(climate) {
+                EntityDetailMenuRow(
+                    title: "Fan",
+                    systemImage: "fan.fill",
+                    value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
+                    isDisabled: detailState.blocksControlInteraction
+                ) {
+                    ForEach(climate.fanModes, id: \.self) { fanMode in
+                        Button {
+                            Task {
+                                await homeAssistantService.setClimateFanMode(
+                                    entityID: entityBox.entityID,
+                                    fanMode: fanMode
                                 )
                             }
-                            .disabled(fanMode == climate.fanMode)
+                        } label: {
+                            Label(
+                                climate.displayName(forFanMode: fanMode),
+                                systemImage: fanMode == climate.fanMode ? "checkmark" : "fan.fill"
+                            )
                         }
+                        .disabled(fanMode == climate.fanMode)
                     }
                 }
+            }
 
-                if showsPresetModeOptions(climate) {
-                    EntityDetailMenuRow(
-                        title: "Preset",
-                        systemImage: "leaf",
-                        value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
-                        isDisabled: detailState.blocksControlInteraction
-                    ) {
-                        ForEach(climate.presetModes, id: \.self) { presetMode in
-                            Button {
-                                Task {
-                                    await homeAssistantService.setClimatePresetMode(
-                                        entityID: entityBox.entityID,
-                                        presetMode: presetMode
-                                    )
-                                }
-                            } label: {
-                                Label(
-                                    climate.displayName(forPresetMode: presetMode),
-                                    systemImage: presetMode == climate.presetMode ? "checkmark" : "leaf"
+            if showsFanModeOptions(climate) && showsPresetModeOptions(climate) {
+                Divider()
+            }
+
+            if showsPresetModeOptions(climate) {
+                EntityDetailMenuRow(
+                    title: "Preset",
+                    systemImage: "leaf",
+                    value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
+                    isDisabled: detailState.blocksControlInteraction
+                ) {
+                    ForEach(climate.presetModes, id: \.self) { presetMode in
+                        Button {
+                            Task {
+                                await homeAssistantService.setClimatePresetMode(
+                                    entityID: entityBox.entityID,
+                                    presetMode: presetMode
                                 )
                             }
-                            .disabled(presetMode == climate.presetMode)
+                        } label: {
+                            Label(
+                                climate.displayName(forPresetMode: presetMode),
+                                systemImage: presetMode == climate.presetMode ? "checkmark" : "leaf"
+                            )
                         }
+                        .disabled(presetMode == climate.presetMode)
                     }
                 }
             }

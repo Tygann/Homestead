@@ -1,6 +1,15 @@
 import SwiftUI
 
-struct EntityActivityPanel<Footer: View>: View {
+nonisolated enum EntityHistoryDisclosurePolicy {
+    static let initialVisibleEntryCount = 8
+    static let expansionBatchSize = 20
+
+    static func revealCount(hiddenCount: Int) -> Int {
+        min(max(hiddenCount, 0), expansionBatchSize)
+    }
+}
+
+struct EntityActivityPanel: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var selectedRange: HAHistoryRangePreset = .day
@@ -9,31 +18,13 @@ struct EntityActivityPanel<Footer: View>: View {
     let entityID: String
     let source: EntityDetailActivitySource
     let tint: Color
-    let presentationMode: EntityHistoryPresentationMode
-    @ViewBuilder let footer: Footer
-
-    init(
-        entityID: String,
-        source: EntityDetailActivitySource,
-        tint: Color,
-        presentationMode: EntityHistoryPresentationMode,
-        @ViewBuilder footer: () -> Footer
-    ) {
-        self.entityID = entityID
-        self.source = source
-        self.tint = tint
-        self.presentationMode = presentationMode
-        self.footer = footer()
-    }
 
     var body: some View {
         EntityHistoryTimelinePanel(
             selectedRange: $selectedRange,
             phase: phase,
             tint: tint,
-            presentationMode: presentationMode,
-            refreshAction: refresh,
-            footer: { footer }
+            refreshAction: refresh
         )
         .task(id: taskID) {
             await loadActivity()
@@ -84,54 +75,17 @@ struct EntityActivityPanel<Footer: View>: View {
     }
 }
 
-extension EntityActivityPanel where Footer == EmptyView {
-    init(
-        entityID: String,
-        source: EntityDetailActivitySource,
-        tint: Color,
-        presentationMode: EntityHistoryPresentationMode = .full
-    ) {
-        self.init(
-            entityID: entityID,
-            source: source,
-            tint: tint,
-            presentationMode: presentationMode,
-            footer: { EmptyView() }
-        )
-    }
-}
-
 struct EntityActivityPreview: View {
     let entityID: String
     let source: EntityDetailActivitySource
     let tint: Color
-    var showsDisclosureIndicator = true
 
     var body: some View {
         EntityActivityPanel(
             entityID: entityID,
             source: source,
-            tint: tint,
-            presentationMode: .preview
-        ) {
-            Divider()
-
-            NavigationLink {
-                EntityActivityHistoryView(
-                    entityID: entityID,
-                    source: source,
-                    tint: tint
-                )
-            } label: {
-                EntityDetailNavigationRowLabel(
-                    title: "Show All",
-                    systemImage: "clock.arrow.circlepath",
-                    showsDisclosureIndicator: showsDisclosureIndicator
-                )
-                .frame(minHeight: 44)
-            }
-            .buttonStyle(.plain)
-        }
+            tint: tint
+        )
     }
 }
 
@@ -144,22 +98,6 @@ struct EntityActivityHistoryPreview: View {
         if let source = EntityDetailFeatureProvider.features(for: entityBox).activitySource {
             EntityActivityPreview(
                 entityID: entityBox.entityID,
-                source: source,
-                tint: tint
-            )
-        }
-    }
-}
-
-private struct EntityActivityHistoryView: View {
-    let entityID: String
-    let source: EntityDetailActivitySource
-    let tint: Color
-
-    var body: some View {
-        EntityDetailScaffold(title: "History", presentationStyle: .navigation) {
-            EntityActivityPanel(
-                entityID: entityID,
                 source: source,
                 tint: tint
             )
@@ -182,21 +120,18 @@ enum EntityHistoryTimelinePhase: Equatable {
     }
 }
 
-struct EntityHistoryTimelinePanel<Footer: View>: View {
+struct EntityHistoryTimelinePanel: View {
     @Binding var selectedRange: HAHistoryRangePreset
+    @State private var visibleEntryCount = EntityHistoryDisclosurePolicy.initialVisibleEntryCount
 
     let phase: EntityHistoryTimelinePhase
     let tint: Color
-    let presentationMode: EntityHistoryPresentationMode
     let refreshAction: () -> Void
-    @ViewBuilder let footer: Footer
 
     var body: some View {
         EntityControlPanel(title: "History", systemImage: "clock.arrow.circlepath") {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                if presentationMode == .full {
-                    segmentedRangePicker
-                }
+                segmentedRangePicker
 
                 switch phase {
                 case .idle, .loading:
@@ -210,9 +145,10 @@ struct EntityHistoryTimelinePanel<Footer: View>: View {
                 case .failed:
                     unavailableView("History unavailable", showsRetry: true)
                 }
-
-                footer
             }
+        }
+        .onChange(of: selectedRange) {
+            visibleEntryCount = EntityHistoryDisclosurePolicy.initialVisibleEntryCount
         }
     }
 
@@ -234,7 +170,7 @@ struct EntityHistoryTimelinePanel<Footer: View>: View {
             ProgressView()
                 .frame(width: 32, height: 32)
 
-            Text("Loading activity")
+            Text("Loading history")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -245,8 +181,7 @@ struct EntityHistoryTimelinePanel<Footer: View>: View {
     }
 
     private func timelineList(_ timeline: HAHistoryTimeline) -> some View {
-        let maximumEntryCount = presentationMode == .preview ? 3 : 8
-        let entries = Array(timeline.entries.suffix(maximumEntryCount).reversed())
+        let entries = Array(timeline.entries.suffix(visibleEntryCount).reversed())
 
         return VStack(alignment: .leading, spacing: AppSpacing.medium) {
             VStack(alignment: .leading, spacing: 0) {
@@ -255,36 +190,18 @@ struct EntityHistoryTimelinePanel<Footer: View>: View {
                 }
             }
 
-            timelineFooter(timeline, visibleCount: entries.count)
+            summaryText(timeline.summaryText)
+
+            let hiddenCount = timeline.entries.count - entries.count
+            if hiddenCount > 0 {
+                Divider()
+
+                showMoreButton(hiddenCount: hiddenCount)
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(timeline.displayName) activity")
         .accessibilityValue(timeline.summaryText)
-    }
-
-    @ViewBuilder
-    private func timelineFooter(_ timeline: HAHistoryTimeline, visibleCount: Int) -> some View {
-        let hiddenCount = timeline.entries.count - visibleCount
-
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
-                summaryText(timeline.summaryText)
-
-                Spacer(minLength: AppSpacing.small)
-
-                if hiddenCount > 0 {
-                    hiddenCountText(hiddenCount)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                summaryText(timeline.summaryText)
-
-                if hiddenCount > 0 {
-                    hiddenCountText(hiddenCount)
-                }
-            }
-        }
     }
 
     private func timelineRow(_ entry: HAHistoryTimelineEntry, showsConnector: Bool) -> some View {
@@ -357,11 +274,34 @@ struct EntityHistoryTimelinePanel<Footer: View>: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func hiddenCountText(_ count: Int) -> some View {
-        Text("+\(count)")
-            .font(.caption.monospacedDigit().weight(.semibold))
-            .foregroundStyle(.tertiary)
-            .lineLimit(1)
+    private func showMoreButton(hiddenCount: Int) -> some View {
+        let revealCount = EntityHistoryDisclosurePolicy.revealCount(hiddenCount: hiddenCount)
+
+        return Button {
+            withAnimation(.snappy(duration: 0.25)) {
+                visibleEntryCount += revealCount
+            }
+        } label: {
+            HStack(spacing: AppSpacing.medium) {
+                Image(systemName: "plus.circle")
+                    .foregroundStyle(tint)
+                    .frame(width: 28)
+
+                Text("Show \(revealCount) More")
+                    .foregroundStyle(.primary)
+
+                Spacer(minLength: AppSpacing.medium)
+
+                Text("\(hiddenCount) remaining")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            .font(.body)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Show \(revealCount) more history entries, \(hiddenCount) remaining")
     }
 
     private func timelineToneColor(_ tone: HAHistoryTimelineTone) -> Color {
@@ -389,9 +329,7 @@ private struct EntityHistoryTimelinePreviewGallery: View {
                         selectedRange: $selectedRange,
                         phase: .loaded(timeline),
                         tint: tint,
-                        presentationMode: .full,
-                        refreshAction: {},
-                        footer: { EmptyView() }
+                        refreshAction: {}
                     )
                 }
             }

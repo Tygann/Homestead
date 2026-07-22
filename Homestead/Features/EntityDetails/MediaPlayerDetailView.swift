@@ -79,13 +79,13 @@ struct MediaPlayerDetailView: View {
     private func volumeControls(_ mediaPlayer: MediaPlayerEntity) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.large) {
             HStack {
-                Label("Volume", systemImage: "speaker.wave.2.fill")
-                    .font(.subheadline.weight(.semibold))
+                Text("Volume")
+                    .font(.body)
 
                 Spacer()
 
                 Text("\(Int(volumePercentage))%")
-                    .font(.title3.bold().monospacedDigit())
+                    .font(.headline.monospacedDigit())
                     .foregroundStyle(mediaPlayer.isPlaying ? Color.accentColor : Color.secondary)
             }
 
@@ -107,34 +107,30 @@ struct MediaPlayerDetailView: View {
     }
 
     private func sourceControls(_ mediaPlayer: MediaPlayerEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Source", systemImage: "airplayaudio")
-                .font(.subheadline.weight(.semibold))
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
-                ForEach(mediaPlayer.sourceList, id: \.self) { source in
-                    EntityDetailPillButton(
-                        title: source,
-                        isSelected: source == mediaPlayer.source,
-                        isDisabled: detailState.blocksControlInteraction || source == mediaPlayer.source
-                    ) {
-                        Task {
-                            await homeAssistantService.selectMediaSource(
-                                entityID: mediaPlayer.entityID,
-                                source: source
-                            )
-                        }
+        EntityDetailMenuRow(
+            title: "Source",
+            systemImage: "airplayaudio",
+            value: mediaPlayer.source ?? "None",
+            isDisabled: detailState.blocksControlInteraction
+        ) {
+            ForEach(mediaPlayer.sourceList, id: \.self) { source in
+                Button {
+                    Task {
+                        await homeAssistantService.selectMediaSource(
+                            entityID: mediaPlayer.entityID,
+                            source: source
+                        )
                     }
+                } label: {
+                    Label(source, systemImage: source == mediaPlayer.source ? "checkmark" : "airplayaudio")
                 }
+                .disabled(source == mediaPlayer.source)
             }
         }
     }
 
     private func controls(_ mediaPlayer: MediaPlayerEntity) -> some View {
         EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
-            Label("Playback", systemImage: playPauseSystemImage)
-                .font(.subheadline.weight(.semibold))
-
             EntityDetailActionButton(
                 title: playPauseTitle,
                 systemImage: playPauseSystemImage,

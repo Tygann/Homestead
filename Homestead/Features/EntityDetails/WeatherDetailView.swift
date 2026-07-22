@@ -101,10 +101,10 @@ struct WeatherDetailView: View {
     }
 
     private func currentConditions(_ weather: WeatherEntity) -> some View {
-        EntityDetailSection(title: "Current Conditions", systemImage: "cloud.sun.fill") {
+        EntityDetailSection(title: "Conditions", systemImage: "cloud.sun.fill") {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
                 Text(weather.displaySubtitle)
-                    .font(.body)
+                    .font(.title3.weight(.medium))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
 

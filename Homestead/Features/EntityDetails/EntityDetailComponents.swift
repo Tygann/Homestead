@@ -1,10 +1,5 @@
 import SwiftUI
 
-enum EntityHistoryPresentationMode {
-    case preview
-    case full
-}
-
 struct EntityDetailScaffold<Content: View>: View {
     let title: String
     let presentationStyle: EntityDetailPresentationStyle
@@ -445,12 +440,12 @@ struct EntityDetailMenuRow<MenuContent: View>: View {
         } label: {
             HStack(spacing: AppSpacing.medium) {
                 Label(title, systemImage: systemImage)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.body)
 
                 Spacer(minLength: AppSpacing.medium)
 
                 Text(value)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -460,9 +455,7 @@ struct EntityDetailMenuRow<MenuContent: View>: View {
                     .foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, AppSpacing.medium)
-            .frame(height: 44)
-            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+            .frame(minHeight: 44)
             .opacity(isDisabled ? 0.55 : 1)
         }
         .buttonStyle(.plain)

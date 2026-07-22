@@ -242,8 +242,7 @@ struct PersonPresenceDetailView: View {
             EntityActivityPreview(
                 entityID: record.entityID,
                 source: .stateHistory,
-                tint: record.status.tint,
-                showsDisclosureIndicator: false
+                tint: record.status.tint
             )
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)

@@ -92,13 +92,13 @@ struct LightDetailView: View {
     private func brightnessControls(_ light: LightEntity) -> some View {
         EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
             HStack {
-                Label("Brightness", systemImage: "sun.max.fill")
-                    .font(.subheadline.weight(.semibold))
+                Text("Brightness")
+                    .font(.body)
 
                 Spacer()
 
                 Text("\(Int(brightnessPercentage))%")
-                    .font(.title3.bold().monospacedDigit())
+                    .font(.headline.monospacedDigit())
                     .foregroundStyle(light.isOn ? Color.accentColor : Color.secondary)
             }
 

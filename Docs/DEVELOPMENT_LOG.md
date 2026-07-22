@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-22
 
+### Inline History And Native Control Rows
+
+- Returned History ranges and content to the entity detail, with eight initial discrete entries, twenty-entry progressive expansion, and view-local disclosure state that resets when the detail or range changes.
+- Flattened secondary controls into native rows within the single Controls surface, removing nested section-like labels and backgrounds from position, brightness, speed, climate options, media source, and alarm actions.
+- Renamed Weather supporting context to Conditions and rebuilt Daily/Hourly Forecast presentation around the same shared-scale temperature-range bar used by the large dashboard Weather card.
+
 ### Entity Detail Controls And History Contract
 
 - Consolidated writable capabilities outside each hero into one Controls surface, using dividers and compact sublabels for level, position, setpoint, mode, preset, playback, source, and access groups.

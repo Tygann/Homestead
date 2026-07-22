@@ -526,6 +526,48 @@ final class EntityCapabilityProfileTests: XCTestCase {
         )
     }
 
+    func testInlineHistoryDisclosureUsesBoundedBatches() {
+        XCTAssertEqual(EntityHistoryDisclosurePolicy.initialVisibleEntryCount, 8)
+        XCTAssertEqual(EntityHistoryDisclosurePolicy.revealCount(hiddenCount: 155), 20)
+        XCTAssertEqual(EntityHistoryDisclosurePolicy.revealCount(hiddenCount: 7), 7)
+        XCTAssertEqual(EntityHistoryDisclosurePolicy.revealCount(hiddenCount: 0), 0)
+    }
+
+    func testWeatherForecastTemperatureScaleUsesAllVisibleDailyRanges() throws {
+        let entries = [
+            WeatherForecastEntry(
+                datetime: .now,
+                condition: .sunny,
+                temperature: 84,
+                lowTemperature: 62,
+                precipitation: nil,
+                precipitationProbability: nil,
+                humidity: nil,
+                isDaytime: true,
+                windSpeed: nil,
+                windBearing: nil
+            ),
+            WeatherForecastEntry(
+                datetime: .now.addingTimeInterval(86_400),
+                condition: .rainy,
+                temperature: 76,
+                lowTemperature: 58,
+                precipitation: nil,
+                precipitationProbability: 60,
+                humidity: nil,
+                isDaytime: true,
+                windSpeed: nil,
+                windBearing: nil
+            )
+        ]
+
+        XCTAssertEqual(
+            try XCTUnwrap(WeatherForecastTemperatureScale.range(for: entries[0])),
+            62...84
+        )
+        XCTAssertEqual(WeatherForecastTemperatureScale.domain(for: entries), 58...84)
+    }
+
     func testFeatureProviderExposesForecastOnlyForSupportedWeatherEntities() throws {
         let supportedDTO = HAEntityDTO(
             entityID: "weather.home",

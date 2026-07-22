@@ -123,13 +123,13 @@ struct CoverDetailView: View {
     private func positionControls(_ cover: CoverEntity) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.large) {
             HStack {
-                Label("Position", systemImage: "slider.horizontal.3")
-                    .font(.subheadline.weight(.semibold))
+                Text("Position")
+                    .font(.body)
 
                 Spacer()
 
                 Text("\(Int(position))%")
-                    .font(.title3.bold().monospacedDigit())
+                    .font(.headline.monospacedDigit())
                     .foregroundStyle(cover.isOpen ? Color.accentColor : Color.secondary)
             }
 
