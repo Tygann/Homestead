@@ -11,6 +11,7 @@ enum DashboardChartCardState: Equatable {
 }
 
 struct DashboardChartCardContent: View {
+    @Environment(\.dashboardCardIdentityEditing) private var identityEditing
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let presentation: DashboardEntityPresentation
@@ -29,8 +30,10 @@ struct DashboardChartCardContent: View {
                         HomesteadIconView(icon: presentation.icon, pointSize: 18, weight: .semibold)
                             .foregroundStyle(presentation.accentColor)
                             .accessibilityHidden(true)
+                            .dashboardCardEditableIcon()
 
                         Text(presentation.title)
+                            .dashboardCardEditableTitle()
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
@@ -82,7 +85,7 @@ struct DashboardChartCardContent: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: identityEditing == nil ? .ignore : .contain)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(accessibilityValue)
         .modifier(DashboardChartAccessibilityModifier(state: state))
@@ -304,6 +307,7 @@ private struct DashboardHistoryChartDescriptor: AXChartDescriptorRepresentable {
 // MARK: - Weather
 
 struct DashboardWeatherCardContent: View {
+    @Environment(\.dashboardCardIdentityEditing) private var identityEditing
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let weather: WeatherEntity
@@ -367,6 +371,7 @@ struct DashboardWeatherCardContent: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: AppSpacing.xSmall) {
                     Text(weather.displayName)
+                        .dashboardCardEditableTitle()
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
@@ -399,9 +404,10 @@ struct DashboardWeatherCardContent: View {
                 .symbolRenderingMode(.multicolor)
                 .font(.system(size: 18, weight: .medium))
                 .accessibilityHidden(true)
+                .dashboardCardEditableIcon()
 
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: identityEditing == nil ? .ignore : .contain)
         .accessibilityLabel(weather.displayName)
         .accessibilityValue(currentConditionsAccessibilityValue)
     }
@@ -410,6 +416,7 @@ struct DashboardWeatherCardContent: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: AppSpacing.xSmall) {
                 Text(weather.displayName)
+                    .dashboardCardEditableTitle()
                     .font(.headline.weight(.semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
@@ -422,6 +429,7 @@ struct DashboardWeatherCardContent: View {
                     .symbolRenderingMode(.multicolor)
                     .font(.system(size: 18, weight: .medium))
                     .accessibilityHidden(true)
+                    .dashboardCardEditableIcon()
             }
 
             HStack(alignment: .bottom, spacing: AppSpacing.medium) {
@@ -444,7 +452,7 @@ struct DashboardWeatherCardContent: View {
                 .offset(y: -8)
             }
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: identityEditing == nil ? .ignore : .contain)
         .accessibilityLabel(weather.displayName)
         .accessibilityValue(currentConditionsAccessibilityValue)
     }
@@ -453,6 +461,7 @@ struct DashboardWeatherCardContent: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: AppSpacing.xSmall) {
                 Text(weather.displayName)
+                    .dashboardCardEditableTitle()
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
@@ -488,8 +497,9 @@ struct DashboardWeatherCardContent: View {
                 .symbolRenderingMode(.multicolor)
                 .font(.system(size: 18, weight: .medium))
                 .accessibilityHidden(true)
+                .dashboardCardEditableIcon()
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: identityEditing == nil ? .ignore : .contain)
         .accessibilityLabel(weather.displayName)
         .accessibilityValue(currentConditionsAccessibilityValue)
     }
@@ -1089,9 +1099,11 @@ struct DashboardMediaCardContent: View {
                 isAvailable: presentation.isAvailable,
                 accentColor: presentation.accentColor
             )
+            .dashboardCardEditableIcon()
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(presentation.title)
+                    .dashboardCardEditableTitle()
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                 Text(nowPlayingTitle ?? media.displayState)
@@ -1245,9 +1257,11 @@ struct DashboardActionCardContent: View {
                 isAvailable: presentation.isAvailable,
                 accentColor: presentation.accentColor
             )
+            .dashboardCardEditableIcon()
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(presentation.title)
+                    .dashboardCardEditableTitle()
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                 Text(actionKind)
@@ -1342,9 +1356,11 @@ private struct DashboardSpecializedCardHeader: View {
                 isAvailable: presentation.isAvailable,
                 accentColor: presentation.accentColor
             )
+            .dashboardCardEditableIcon()
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(presentation.title)
+                    .dashboardCardEditableTitle()
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)

@@ -6,7 +6,6 @@ struct DashboardCardEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(HAStateStore.self) private var stateStore
-    @FocusState private var isNameFocused: Bool
     @State private var navigationPath: [DashboardCardEditorRoute] = []
     @State private var draft = DashboardCardEditorDraft.empty
     @State private var initialDraft = DashboardCardEditorDraft.empty
@@ -83,8 +82,6 @@ struct DashboardCardEditorView: View {
     private var editorForm: some View {
         Form {
             Section("Preview") {
-                identityEditor
-
                 DashboardCardView(
                     entityID: draft.entityID,
                     size: draft.size,
@@ -93,7 +90,12 @@ struct DashboardCardEditorView: View {
                     iconNameOverride: draft.iconNameOverride,
                     gaugeZoneConfiguration: draft.gaugeZoneConfiguration,
                     chartRange: draft.chartConfiguration.range,
-                    isPreview: true
+                    isPreview: true,
+                    identityEditing: DashboardCardIdentityEditing(
+                        displayName: displayNameBinding,
+                        editIcon: { navigationPath.append(.icon) },
+                        commitDisplayName: restoreCanonicalNameIfNeeded
+                    )
                 )
                 .frame(height: draft.size.renderedHeight(
                     rowSpacing: AppSpacing.medium,
@@ -148,48 +150,6 @@ struct DashboardCardEditorView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
-    }
-
-    private var identityEditor: some View {
-        HStack(spacing: AppSpacing.medium) {
-            Button {
-                navigationPath.append(.icon)
-            } label: {
-                ZStack(alignment: .bottomTrailing) {
-                    HomesteadIconView(icon: draftResolvedIcon, pointSize: 22, weight: .semibold)
-                        .foregroundStyle(Color.accentColor)
-                        .frame(width: 52, height: 52)
-                        .background(
-                            Color.accentColor.opacity(0.12),
-                            in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                        )
-
-                    Image(systemName: "pencil.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, Color.accentColor)
-                        .offset(x: 4, y: 4)
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Change card icon")
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                TextField("Name", text: displayNameBinding)
-                    .font(.headline)
-                    .textInputAutocapitalization(.words)
-                    .focused($isNameFocused)
-                    .submitLabel(.done)
-                    .onSubmit(restoreCanonicalNameIfNeeded)
-                    .accessibilityLabel("Card name")
-
-                Text(entitySubtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.vertical, AppSpacing.xSmall)
     }
 
     // MARK: - Navigation Destinations
@@ -338,21 +298,6 @@ struct DashboardCardEditorView: View {
         draftEntityBox?.homeEntity.displayName ?? draft.entityID
     }
 
-    private var entitySubtitle: String {
-        draftEntityBox.map { EntityDetailPresentationModel(entityBox: $0).subtitle }
-            ?? draft.entityID
-    }
-
-    private var draftResolvedIcon: ResolvedIcon {
-        guard let draftEntityBox else {
-            return .sfSymbol("square.grid.2x2", provenance: .fallback)
-        }
-        return IconResolver.applyingDashboardOverride(
-            draft.iconNameOverride,
-            to: draftEntityBox.homeEntity.resolvedIcon
-        )
-    }
-
     private var defaultIconName: String {
         stateStore.entity(for: draft.entityID)?.iconName ?? "square.grid.2x2"
     }
@@ -410,10 +355,18 @@ struct DashboardCardEditorPreviewScreen: View {
     init() {
         let dependencies = PreviewDependencies.sample
         let dashboardID = dependencies.dashboardConfiguration.selectedDashboardID
+        let fixture = Self.fixture(
+            for: RuntimeEnvironment.livePreviewPresentationKind,
+            requestedSize: RuntimeEnvironment.requestedPreviewCardSize
+        )
         let itemID = dependencies.dashboardConfiguration.add(
-            source: .entity("sensor.front_door_battery"),
-            presentation: .card(.segmentedGauge(layout: .wide))
+            source: .entity(fixture.entityID),
+            presentation: .card(fixture.configuration)
         ) ?? UUID()
+        dependencies.dashboardConfiguration.renameDisplayItem(
+            DashboardItemReference(dashboardID: dashboardID, itemID: itemID),
+            displayNameOverride: fixture.displayNameOverride
+        )
         self.dependencies = dependencies
         reference = DashboardItemReference(dashboardID: dashboardID, itemID: itemID)
     }
@@ -421,6 +374,39 @@ struct DashboardCardEditorPreviewScreen: View {
     var body: some View {
         DashboardCardEditorView(reference: reference)
             .withPreviewEnvironment(dependencies)
+    }
+
+    private static func fixture(
+        for requestedKind: DashboardPresentationKind?,
+        requestedSize: DashboardCardSize?
+    ) -> (entityID: String, configuration: DashboardCardConfiguration, displayNameOverride: String?) {
+        switch requestedKind {
+        case .segmentedGauge:
+            return (
+                "sensor.front_door_battery",
+                .segmentedGauge(layout: supportedSize(requestedSize, for: .segmentedGauge) ?? .wide),
+                nil
+            )
+        case .chart:
+            return (
+                "sensor.hallway_temperature",
+                .chart(layout: supportedSize(requestedSize, for: .chart) ?? .wide),
+                nil
+            )
+        default:
+            return (
+                "light.living_room_lamps",
+                .control(layout: supportedSize(requestedSize, for: .control) ?? .compact),
+                "Back Yard Lights"
+            )
+        }
+    }
+
+    private static func supportedSize(
+        _ requestedSize: DashboardCardSize?,
+        for kind: DashboardPresentationKind
+    ) -> DashboardCardSize? {
+        requestedSize.flatMap { kind.supportedLayouts.contains($0) ? $0 : nil }
     }
 }
 

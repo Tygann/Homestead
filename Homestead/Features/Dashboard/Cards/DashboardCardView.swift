@@ -12,6 +12,7 @@ struct DashboardCardView: View {
     var cameraRefreshGeneration = 0
     var isEditing = false
     var isPreview = false
+    var identityEditing: DashboardCardIdentityEditing?
     var detailDestination: EntityDetailDestination?
     var openDetails: ((EntityDetailDestination) -> Void)?
 
@@ -26,6 +27,7 @@ struct DashboardCardView: View {
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
+        identityEditing: DashboardCardIdentityEditing? = nil,
         detailDestination: EntityDetailDestination? = nil,
         openDetails: ((EntityDetailDestination) -> Void)? = nil
     ) {
@@ -40,6 +42,7 @@ struct DashboardCardView: View {
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
         self.isPreview = false
+        self.identityEditing = identityEditing
         self.detailDestination = detailDestination
         self.openDetails = openDetails
     }
@@ -56,6 +59,7 @@ struct DashboardCardView: View {
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
         isPreview: Bool,
+        identityEditing: DashboardCardIdentityEditing? = nil,
         detailDestination: EntityDetailDestination? = nil,
         openDetails: ((EntityDetailDestination) -> Void)? = nil
     ) {
@@ -70,6 +74,7 @@ struct DashboardCardView: View {
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
         self.isPreview = isPreview
+        self.identityEditing = identityEditing
         self.detailDestination = detailDestination
         self.openDetails = openDetails
     }
@@ -108,7 +113,7 @@ struct DashboardCardView: View {
                     primaryAction: presentation.primaryAction,
                     entityID: entityBox.entityID
                 ),
-                toggle: isEditing || !allowsPrimaryAction(resolvedPresentationKind)
+                toggle: identityEditing != nil || isEditing || !allowsPrimaryAction(resolvedPresentationKind)
                     ? nil
                     : isPreview
                         ? previewPrimaryAction(presentation.primaryAction)
@@ -120,6 +125,7 @@ struct DashboardCardView: View {
                 isFeatureInteractionEnabled: !isEditing && !isPreview,
                 isPreview: isPreview
             )
+            .environment(\.dashboardCardIdentityEditing, identityEditing)
             .actionConfirmationDialog(request: $confirmationRequest)
         }
     }

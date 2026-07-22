@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardEntityCard: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.dashboardCardIdentityEditing) private var identityEditing
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
     @Environment(\.scenePhase) private var scenePhase
     @State private var historyPhase: DashboardHistoryCardPhase = .idle
@@ -239,6 +240,7 @@ struct DashboardEntityCard: View {
             miniIconPlaceholder
 
             Text(miniTitleText)
+                .dashboardCardEditableTitle()
                 .font(.caption.weight(.medium))
                 .foregroundStyle(miniTitleColor)
                 .lineLimit(2)
@@ -258,6 +260,7 @@ struct DashboardEntityCard: View {
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(presentation.title)
+                    .dashboardCardEditableTitle()
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -289,6 +292,7 @@ struct DashboardEntityCard: View {
 
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                     Text(presentation.title)
+                        .dashboardCardEditableTitle()
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
@@ -327,6 +331,7 @@ struct DashboardEntityCard: View {
             entityID: entityBox.entityID,
             isAvailable: entityBox.homeEntity.isAvailable,
             title: cameraPreviewTitle,
+            icon: presentation.icon,
             accessibilityTitle: presentation.title,
             refreshGeneration: cameraRefreshGeneration,
             height: renderedCardHeight,
@@ -434,7 +439,10 @@ struct DashboardEntityCard: View {
                 style: presentationKind == .segmentedGauge ? .segmentedInstrument : .instrument,
                 tint: iconColor,
                 title: presentation.title,
-                icon: gaugeIcon(for: gauge)
+                icon: gaugeIcon(for: gauge),
+                editableTitle: identityEditing?.displayName,
+                editIcon: identityEditing?.editIcon,
+                commitEditableTitle: identityEditing?.commitDisplayName
             )
         }
     }
@@ -547,9 +555,11 @@ struct DashboardEntityCard: View {
                     .accessibilityHidden(true)
             }
             .frame(width: GaugeVisualMetrics.compactHeaderIconSize, height: GaugeVisualMetrics.compactHeaderIconSize)
+            .dashboardCardEditableIcon()
 
             VStack(alignment: .leading, spacing: GaugeVisualMetrics.compactHeaderTextSpacing) {
                 Text(presentation.title)
+                    .dashboardCardEditableTitle()
                     .font(GaugeVisualMetrics.compactHeaderTitleFont)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -575,6 +585,7 @@ struct DashboardEntityCard: View {
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 Text(presentation.title)
+                    .dashboardCardEditableTitle()
                     .font(size == .row ? .subheadline.weight(.semibold) : .headline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -628,6 +639,7 @@ struct DashboardEntityCard: View {
                         isAvailable: presentation.isAvailable,
                         accentColor: presentation.accentColor
                     )
+                    .dashboardCardEditableIcon()
                 }
             }
     }
@@ -663,6 +675,7 @@ struct DashboardEntityCard: View {
         HomesteadIconView(icon: presentation.icon, pointSize: 16)
             .foregroundStyle(miniIconColor)
             .accessibilityHidden(true)
+            .dashboardCardEditableIcon()
     }
 
     private var cardIconView: some View {
@@ -672,6 +685,7 @@ struct DashboardEntityCard: View {
             isAvailable: presentation.isAvailable,
             accentColor: presentation.accentColor
         )
+        .dashboardCardEditableIcon()
     }
 
     private var miniTitleText: String {

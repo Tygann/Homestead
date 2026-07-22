@@ -8,7 +8,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Replaced the one-item detail toolbar menu with a direct pencil action that opens the originating card editor in one tap.
 - Reworked Edit Card around a local transactional draft: Cancel discards, Done applies the exact referenced card update once, and entity changes notify the still-open canonical detail only after the save succeeds.
-- Made card identity directly editable beside the live preview, moved Entity and Gauge configuration into native in-sheet navigation, made Chart range inline, and removed duplicate name/icon actions plus technical Context rows.
+- Made card identity directly editable inside the production card preview, moved Entity and Gauge configuration into native in-sheet navigation, made Chart range inline, and removed duplicate name/icon surfaces plus technical Context rows. Added deterministic Control, Gauge, and Chart editor fixtures so the compact Control composition that exposed the duplicate-row regression is part of visible verification.
 - Kept card-specific settings conditional, added atomic exact-reference update coverage, and visually verified the deterministic editor/detail routes in light and dark appearances.
 
 ## 2026-07-21
