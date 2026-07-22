@@ -21,8 +21,9 @@ Do not repeat the same current state in the hero and a separate read-only sectio
 - Use grouped system surfaces, semantic colors, SF Symbols, shared spacing/radius tokens, and at least 44-point interactive targets.
 - Keep content cards opaque and inexpensive. Reserve system material or glass treatment for navigation and control chrome supplied by iOS.
 - Use the entity friendly name for navigation and a singular domain/device category in the hero. Identity-first domains such as Person may use a contact-style identity header instead of a category card.
-- Persistent binary capabilities such as light, switch, fan power, and automation enablement use a native toggle in the hero. Momentary actions such as Run, Activate, and Press use a compact labeled hero button. Multi-action and security-sensitive capabilities retain explicit labeled action sections and confirmation behavior.
-- Omit normal badges such as `Live`, `Ready`, `Normal`, `On`, and `Off`. Show a badge only for an actionable mode, warning, unavailable state, failure, or in-flight update.
+- The hero contains identity plus at most one trailing current readout or one primary control. Persistent binary capabilities such as light, switch, fan power, and automation enablement use a native toggle; momentary actions such as Run, Activate, and Press use a compact system-bordered button. Multi-action and security-sensitive capabilities retain explicit labeled action sections and confirmation behavior.
+- Keep adjustable secondary controls immediately after the hero in their own first section. Brightness, position, and temperature setpoints need labels, exact values, pending behavior, and sufficient room for native sliders or steppers; they do not belong inside the hero.
+- Omit normal badges such as `Live`, `Ready`, `Normal`, `On`, and `Off`. Advisory numeric states use semantic icon/value color plus explicit accessibility text instead of a generic pill. Show a badge or message only when text adds actionable or exceptional meaning, such as unavailable, failed, stale, or in-flight state.
 - Preserve last-known content while refreshing or pending. Disable only affected controls.
 - Unsupported capabilities are omitted. Unavailable and failed capabilities remain understandable and recoverable.
 - Loading placeholders should match the expected information density. Preserve last-known content when available, and do not reserve chart-sized space for a compact empty or unavailable result. Cancellation is not an error.
@@ -30,7 +31,7 @@ Do not repeat the same current state in the hero and a separate read-only sectio
 - Dynamic Type may expand cards vertically; never depend on fixed text height or color alone.
 - Freshness uses one concise, localized-scale unit (`just now`, minutes, hours, or days) so it stays secondary and remains readable at larger text sizes.
 - Long metadata such as provider attribution uses a stacked label/value row instead of compressing the value into a trailing column.
-- Use native segmented pickers for short mutually exclusive view filters such as History, Recent Activity, and Forecast ranges. Keep mode grids for service commands with individual availability or pending behavior, and use menus when labels or option counts do not fit comfortably.
+- Use native segmented pickers for short mutually exclusive view filters such as History, Recent Activity, and Forecast ranges. Use compact menu rows for mutually exclusive settings such as HVAC mode, fan mode, and preset; reserve visible button groups for genuinely separate commands or per-action availability.
 
 ## Operational States
 
@@ -53,7 +54,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 | --- | --- | --- | --- |
 | Metric | sensor, binary sensor, air quality | metric or status | history or activity |
 | Simple control | light, switch, fan, remote | status | primary toggle, level, presets |
-| Positional/security | cover, lock, valve, siren, alarm | progress or status | primary action, position/access, activity |
+| Positional/security | cover, lock, valve, siren, alarm | trailing position or status | primary action, position/access, activity |
 | Environmental | climate, humidifier, water heater | environment | temperature/level, mode, history |
 | Media/visual | media player, camera, image | media | now playing/live media, playback/source |
 | Autonomous appliance | vacuum, lawn mower | activity | start/stop, return, activity |
@@ -82,6 +83,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 - Discrete recent activity uses the same 6H, 24H, 7D, and 30D detail ranges. Range changes refresh automatically; manual refresh chrome stays out of the normal state and a labeled Retry appears only after failure.
 - Gauges use the meaningful absolute scale of a bounded measurement; battery is 0–100.
 - Canonical Sensor details use one compact trailing current value in the identity hero. Gauge instruments and progress bars remain dashboard/widget presentation choices rather than being repeated beside History.
+- Numeric thresholds tint the hero icon and value while retaining their semantic status in accessibility output. They do not add a generic visual status pill when the value itself already communicates the condition.
 - History charts use a padded sample-adaptive domain constrained by any trustworthy absolute bounds. This preserves meaningful variation without implying values outside the entity's valid range.
 - Unbounded measurements use the same padded sample-adaptive domain without absolute clamping.
 - App-facing sensor semantics choose Catmull-Rom interpolation for naturally continuous measurements and linear interpolation for totals, bounded/step-like values, and ambiguous sensors. The mapped history samples remain the statistical and accessibility source of truth.
@@ -101,7 +103,7 @@ Home Assistant remains the source of truth. Detail views observe `HAEntityState`
 - Treat the reference gallery as a state matrix, not a substitute for device verification. New domain families should add representative fixtures before introducing a new visual grammar.
 - A visually complete detail-view change includes a rendered simulator pass of its representative fixture and relevant loading/empty state. A successful compile alone is a draft-quality verification for visual work.
 - Weather forecast cards keep readable system text, snap one item at a time when horizontally scrolled, and may use compact degree-only visual temperatures while retaining full-unit accessibility values.
-- Weather details keep humidity and wind as compact supporting hero metrics, place Forecast next, and render provider attribution as quiet footer context instead of a peer content card.
+- Weather details use the current temperature as the trailing hero readout, keep condition plus humidity and wind as compact supporting hero context, place Forecast next, and render provider attribution as quiet footer context instead of a peer content card.
 
 ## Adding a Domain
 
@@ -116,4 +118,4 @@ Avoid a type-erased universal section schema. Typed SwiftUI domain views remain 
 
 Editable Number details consume `NumberEntity` for current value, bounds, step, unit, and Home Assistant display mode. SwiftUI must not read the raw entity attributes to reconstruct those constraints.
 
-Person uses one canonical native Form composition shared by Settings > People and every entity-detail entry point. It prioritizes authenticated imagery or the mapped entity icon plus Home/Away/named-zone state, exposes compact Details and Context rows, keeps trackers navigable, and routes Recent Activity to one focused destination. Device Tracker retains its tracker-oriented detail while reusing the same mapped presence records and relationships. Registry area assignment must not be presented as live physical location. Presence remains read-only and uses the standard discrete Recent Activity ranges; loading, empty, and failed activity results remain compact until actual events need the timeline footprint.
+Person uses one canonical native Form composition shared by Settings > People and every entity-detail entry point. It prioritizes authenticated imagery or the mapped entity icon plus Home/Away/named-zone state, exposes compact Details and Context rows, keeps trackers navigable, routes Recent Activity to one focused destination, and ends with the same Entity Details diagnostics navigation used by other families instead of exposing raw Home Assistant metadata inline. Device Tracker retains its tracker-oriented detail while reusing the same mapped presence records and relationships. Registry area assignment must not be presented as live physical location. Presence remains read-only and uses the standard discrete Recent Activity ranges; loading, empty, and failed activity results remain compact until actual events need the timeline footprint.

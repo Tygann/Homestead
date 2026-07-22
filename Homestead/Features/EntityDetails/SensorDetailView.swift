@@ -98,10 +98,8 @@ struct SensorDetailView: View {
             icon: presentation.icon,
             title: heroPresentation?.category ?? "Sensor",
             subtitle: sensorFreshnessText,
-            status: heroPresentation?.statusText,
+            status: nil,
             iconColor: sensorHeroColor,
-            statusColor: .orange,
-            statusBackground: Color.orange.opacity(0.12),
             statePresentation: detailState,
             accessory: {
                 Text(primaryValue)
@@ -109,6 +107,7 @@ struct SensorDetailView: View {
                     .foregroundStyle(statusColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                    .accessibilityLabel(sensorHeroAccessibilityValue)
             }
         ) {
             EmptyView()
@@ -226,6 +225,13 @@ struct SensorDetailView: View {
         return gaugeVisualStatusColor(for: status.visualStatus)
     }
 
+    private var sensorHeroAccessibilityValue: String {
+        guard let semanticStatusText = heroPresentation?.semanticStatusText else {
+            return primaryValue
+        }
+        return "\(primaryValue), \(semanticStatusText)"
+    }
+
     private var binarySensorStateText: String {
         guard entity.isAvailable else { return entity.state.displayStateText }
 
@@ -264,22 +270,22 @@ struct SensorDetailView: View {
 
 struct SensorDetailHeroPresentation: Equatable, Sendable {
     let category: String
-    let statusText: String?
+    let semanticStatusText: String?
 
     init(sensor: SensorEntity) {
         category = sensor.formattedDeviceClass ?? "Sensor"
 
         guard sensor.isAvailable else {
-            statusText = "Unavailable"
+            semanticStatusText = "Unavailable"
             return
         }
 
         if let gauge = sensor.gaugePresentation, gauge.status != .nominal {
-            statusText = gauge.statusDisplayText
+            semanticStatusText = gauge.statusDisplayText
         } else if sensor.isAlerting {
-            statusText = "Alert"
+            semanticStatusText = "Alert"
         } else {
-            statusText = nil
+            semanticStatusText = nil
         }
     }
 }

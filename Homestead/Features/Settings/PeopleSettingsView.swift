@@ -91,7 +91,7 @@ struct PersonPresenceDetailView: View {
                     relationshipsSection(record)
                     contextSection(record)
                     activitySection(record)
-                    homeAssistantSection(record)
+                    entityDetailsSection(record)
                 }
             } else {
                 ContentUnavailableView("Presence Missing", systemImage: "person.2")
@@ -247,13 +247,18 @@ struct PersonPresenceDetailView: View {
         }
     }
 
-    private func homeAssistantSection(_ record: HAPresenceRecord) -> some View {
-        Section("Home Assistant") {
-            LabeledContent("Entity", value: record.entityID)
-            LabeledContent("Domain", value: record.domain.displayName)
-
-            if let sourceEntityID = record.sourceEntityID {
-                LabeledContent("Tracker", value: sourceEntityID)
+    @ViewBuilder
+    private func entityDetailsSection(_ record: HAPresenceRecord) -> some View {
+        if let entityBox = stateStore.entityBox(for: record.entityID) {
+            Section {
+                NavigationLink {
+                    EntityDiagnosticsView(
+                        entityBox: entityBox,
+                        presentationStyle: .navigation
+                    )
+                } label: {
+                    SettingsNavigationRowLabel("Entity Details", systemImage: "info.circle")
+                }
             }
         }
     }

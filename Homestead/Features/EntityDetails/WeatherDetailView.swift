@@ -86,17 +86,16 @@ struct WeatherDetailView: View {
             statusColor: weather.isAvailable ? presentation.accentColor : .red,
             iconBackground: iconBackground(weather),
             statusBackground: weather.isAvailable ? nil : Color.red.opacity(0.12),
-            statePresentation: detailState
-        ) {
-            VStack(alignment: .leading, spacing: AppSpacing.small) {
+            statePresentation: detailState,
+            accessory: {
                 Text(weather.primaryReadingText)
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                    .font(.title2.weight(.semibold).monospacedDigit())
                     .foregroundStyle(statusColor(weather))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
+                    .minimumScaleFactor(0.7)
+            }
+        ) {
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
                 Text(weather.displaySubtitle)
                     .font(.headline)
                     .foregroundStyle(.secondary)

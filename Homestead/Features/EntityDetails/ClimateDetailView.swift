@@ -31,13 +31,8 @@ struct ClimateDetailView: View {
                     temperatureControls(climate)
                 }
 
-                if !climate.hvacModes.isEmpty,
-                   homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_hvac_mode") {
-                    modeControls(climate)
-                }
-
-                if showsSecondaryOptions(climate) {
-                    secondaryOptionControls(climate)
+                if showsOptions(climate) {
+                    optionControls(climate)
                 }
 
                 contextDetails
@@ -110,19 +105,19 @@ struct ClimateDetailView: View {
         EntityControlPanel(title: "Temperature", systemImage: "thermometer.medium") {
             VStack(spacing: AppSpacing.small) {
                 temperatureStepper(
-                title: "Heat to",
-                systemImage: "flame.fill",
-                value: targetLowTemperature,
-                climate: climate,
-                canDecrease: targetLowTemperature > climate.resolvedMinimumTemperature,
-                canIncrease: targetLowTemperature < targetHighTemperature,
-                decreaseAction: {
-                    adjustLowTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
-                },
-                increaseAction: {
-                    adjustLowTemperature(by: climate.resolvedTemperatureStep, climate: climate)
-                }
-            )
+                    title: "Heat to",
+                    systemImage: "flame.fill",
+                    value: targetLowTemperature,
+                    climate: climate,
+                    canDecrease: targetLowTemperature > climate.resolvedMinimumTemperature,
+                    canIncrease: targetLowTemperature < targetHighTemperature,
+                    decreaseAction: {
+                        adjustLowTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
+                    },
+                    increaseAction: {
+                        adjustLowTemperature(by: climate.resolvedTemperatureStep, climate: climate)
+                    }
+                )
 
                 Divider()
 
@@ -180,36 +175,35 @@ struct ClimateDetailView: View {
         .frame(minHeight: 44)
     }
 
-    private func modeControls(_ climate: ClimateEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Label("Mode", systemImage: "dial.medium")
-                .font(.headline)
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
-                ForEach(climate.hvacModes, id: \.self) { mode in
-                    EntityDetailPillButton(
-                        title: climate.displayName(forHVACMode: mode),
-                        systemImage: climate.iconName(forHVACMode: mode),
-                        isSelected: mode == climate.state,
-                        isDisabled: detailState.blocksControlInteraction || mode == climate.state
+    private func optionControls(_ climate: ClimateEntity) -> some View {
+        EntityControlPanel(title: "Options", systemImage: "slider.horizontal.3") {
+            VStack(spacing: AppSpacing.small) {
+                if showsHVACModeOptions(climate) {
+                    EntityDetailMenuRow(
+                        title: "Mode",
+                        systemImage: "dial.medium",
+                        value: climate.displayName(forHVACMode: climate.state),
+                        isDisabled: detailState.blocksControlInteraction
                     ) {
-                        Task {
-                            await homeAssistantService.setClimateHVACMode(
-                                entityID: entityBox.entityID,
-                                hvacMode: mode
-                            )
+                        ForEach(climate.hvacModes, id: \.self) { mode in
+                            Button {
+                                Task {
+                                    await homeAssistantService.setClimateHVACMode(
+                                        entityID: entityBox.entityID,
+                                        hvacMode: mode
+                                    )
+                                }
+                            } label: {
+                                Label(
+                                    climate.displayName(forHVACMode: mode),
+                                    systemImage: mode == climate.state ? "checkmark" : climate.iconName(forHVACMode: mode)
+                                )
+                            }
+                            .disabled(mode == climate.state)
                         }
                     }
                 }
-            }
-        }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-    }
 
-    private func secondaryOptionControls(_ climate: ClimateEntity) -> some View {
-        EntityControlPanel(title: "Options", systemImage: "slider.horizontal.3") {
-            VStack(spacing: AppSpacing.small) {
                 if showsFanModeOptions(climate) {
                     EntityDetailMenuRow(
                         title: "Fan",
@@ -278,8 +272,12 @@ struct ClimateDetailView: View {
         )
     }
 
-    private func showsSecondaryOptions(_ climate: ClimateEntity) -> Bool {
-        showsFanModeOptions(climate) || showsPresetModeOptions(climate)
+    private func showsOptions(_ climate: ClimateEntity) -> Bool {
+        showsHVACModeOptions(climate) || showsFanModeOptions(climate) || showsPresetModeOptions(climate)
+    }
+
+    private func showsHVACModeOptions(_ climate: ClimateEntity) -> Bool {
+        !climate.hvacModes.isEmpty && homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_hvac_mode")
     }
 
     private func showsFanModeOptions(_ climate: ClimateEntity) -> Bool {

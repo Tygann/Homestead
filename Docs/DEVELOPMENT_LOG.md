@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-22
 
+### Entity Detail Hero Contract
+
+- Standardized heroes on identity plus one trailing current readout or primary control: Sensor, Cover, Climate, and Weather align their current values, while Script, Scene, and Button use a compact system-bordered action.
+- Removed generic numeric warning pills while preserving semantic icon/value color and explicit VoiceOver status; exceptional connection, availability, pending, and failure states continue through the shared state presentation.
+- Consolidated Climate HVAC mode into the first Options menu beside Fan and Preset, kept temperature/brightness/position precision controls in dedicated first sections, and retained explicit Cover Open/Close/Stop commands.
+- Replaced Person's inline Home Assistant metadata section with the same Entity Details diagnostics navigation used by other entity families while preserving the shared Settings > People Form.
+
 ### Canonical Entity Detail Composition
 
 - Unified Person navigation and Settings > People on one native Form detail, preserving mapped presence data, operational state, tracker navigation, and a focused Recent Activity destination.

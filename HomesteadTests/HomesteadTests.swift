@@ -3440,7 +3440,7 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func sensorDetailHeroShowsOnlyActionableStatus() {
+    @Test func sensorDetailHeroRetainsSemanticStatusForAccessibility() {
         let nominalBattery = SensorEntity(
             entityID: "sensor.remote_battery",
             displayName: "Remote Battery",
@@ -3467,9 +3467,9 @@ struct HomesteadTests {
         )
 
         #expect(SensorDetailHeroPresentation(sensor: nominalBattery).category == "Battery")
-        #expect(SensorDetailHeroPresentation(sensor: nominalBattery).statusText == nil)
-        #expect(SensorDetailHeroPresentation(sensor: criticalBattery).statusText == "Critical")
-        #expect(SensorDetailHeroPresentation(sensor: unavailableBattery).statusText == "Unavailable")
+        #expect(SensorDetailHeroPresentation(sensor: nominalBattery).semanticStatusText == nil)
+        #expect(SensorDetailHeroPresentation(sensor: criticalBattery).semanticStatusText == "Critical")
+        #expect(SensorDetailHeroPresentation(sensor: unavailableBattery).semanticStatusText == "Unavailable")
     }
 
     @Test func serviceRegistryBuildsGenericEntityActions() {

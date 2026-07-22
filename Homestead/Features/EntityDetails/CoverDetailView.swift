@@ -58,27 +58,18 @@ struct CoverDetailView: View {
             statusColor: coverBadgeColor(cover),
             iconBackground: coverStatusBackground(cover),
             statusBackground: coverHeroStatus(cover) == "Unavailable" ? Color.red.opacity(0.12) : coverStatusBackground(cover),
-            statePresentation: detailState
-        ) {
-            if let position = cover.positionPercentage {
-                VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                    Text("\(position)%")
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                        .foregroundStyle(coverIconColor(cover))
-                        .monospacedDigit()
-
-                    if !canSetPosition(cover) {
-                        ProgressView(value: Double(position), total: 100)
-                            .tint(coverIconColor(cover))
-                            .accessibilityLabel("Position")
-                            .accessibilityValue("\(position) percent")
-                    }
-                }
-            } else {
-                Text(cover.displayState)
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
+            statePresentation: detailState,
+            accessory: {
+                Text(cover.positionPercentage.map { "\($0)%" } ?? cover.displayState)
+                    .font(.title2.weight(.semibold).monospacedDigit())
                     .foregroundStyle(coverIconColor(cover))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .accessibilityLabel(cover.positionPercentage == nil ? "State" : "Position")
+                    .accessibilityValue(cover.positionPercentage.map { "\($0) percent" } ?? cover.displayState)
             }
+        ) {
+            EmptyView()
         }
     }
 
@@ -182,14 +173,6 @@ struct CoverDetailView: View {
                 EntityMetadataRow(title: "State", value: entityBox.homeEntity.state.displayStateText)
             ]
         )
-    }
-
-    private func statusBadgeText(for cover: CoverEntity) -> String {
-        if let position = cover.positionPercentage {
-            return "\(position)%"
-        }
-
-        return cover.displayState
     }
 
     private func coverHeroStatus(_ cover: CoverEntity) -> String? {

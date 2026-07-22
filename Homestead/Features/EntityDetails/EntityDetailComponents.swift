@@ -167,15 +167,11 @@ struct EntityDetailHeroActionButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .padding(.horizontal, AppSpacing.small)
-                .frame(minHeight: 44)
-        }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.capsule)
+        Button(title, systemImage: systemImage, action: action)
+        .font(.subheadline.weight(.semibold))
+        .buttonStyle(.bordered)
+        .controlSize(.regular)
+        .frame(minHeight: 44)
         .disabled(isDisabled)
     }
 }
