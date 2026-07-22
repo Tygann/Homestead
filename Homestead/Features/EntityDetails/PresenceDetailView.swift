@@ -26,7 +26,7 @@ struct PresenceDetailView: View {
                 identityHeader(record)
                 trackerLocationSection(record)
 
-                EntityActivityPanel(
+                EntityActivityPreview(
                     entityID: record.entityID,
                     source: .stateHistory,
                     tint: record.status.tint

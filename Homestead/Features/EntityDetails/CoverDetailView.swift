@@ -22,11 +22,7 @@ struct CoverDetailView: View {
         if let cover = entityBox.coverEntity {
             EntityDetailScaffold(title: cover.displayName, presentationStyle: presentationStyle) {
                 header(cover)
-                movementControls(cover)
-
-                if canSetPosition(cover) {
-                    positionControls(cover)
-                }
+                controls(cover)
 
                 timelinePanel(cover)
                 contextDetails
@@ -73,10 +69,21 @@ struct CoverDetailView: View {
         }
     }
 
+    private func controls(_ cover: CoverEntity) -> some View {
+        EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
+            movementControls(cover)
+
+            if canSetPosition(cover) {
+                Divider()
+                positionControls(cover)
+            }
+        }
+    }
+
     private func movementControls(_ cover: CoverEntity) -> some View {
         let blocksInteraction = detailState.blocksControlInteraction
 
-        return EntityControlPanel(title: "Control", systemImage: "arrow.up.and.down") {
+        return VStack(spacing: AppSpacing.small) {
             HStack(spacing: AppSpacing.small) {
                 EntityDetailActionButton(
                     title: "Open",
@@ -117,7 +124,7 @@ struct CoverDetailView: View {
         VStack(alignment: .leading, spacing: AppSpacing.large) {
             HStack {
                 Label("Position", systemImage: "slider.horizontal.3")
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
 
                 Spacer()
 
@@ -140,10 +147,7 @@ struct CoverDetailView: View {
                     setPosition(value)
                 }
             )
-
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
     private func canSetPosition(_ cover: CoverEntity) -> Bool {
@@ -154,7 +158,7 @@ struct CoverDetailView: View {
     @ViewBuilder
     private func timelinePanel(_ cover: CoverEntity) -> some View {
         if let source = features.activitySource {
-            EntityActivityPanel(
+            EntityActivityPreview(
                 entityID: entityBox.entityID,
                 source: source,
                 tint: cover.isOpen ? Color.accentColor : Color.secondary

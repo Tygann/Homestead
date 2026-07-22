@@ -239,11 +239,14 @@ struct PersonPresenceDetailView: View {
 
     private func activitySection(_ record: HAPresenceRecord) -> some View {
         Section {
-            NavigationLink {
-                PeoplePresenceActivitySettingsView(record: record)
-            } label: {
-                SettingsNavigationRowLabel("Recent Activity", systemImage: "clock.arrow.circlepath")
-            }
+            EntityActivityPreview(
+                entityID: record.entityID,
+                source: .stateHistory,
+                tint: record.status.tint,
+                showsDisclosureIndicator: false
+            )
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
     }
 
@@ -261,26 +264,6 @@ struct PersonPresenceDetailView: View {
                 }
             }
         }
-    }
-}
-
-struct PeoplePresenceActivitySettingsView: View {
-    let record: HAPresenceRecord
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppSpacing.large) {
-                EntityActivityPanel(
-                    entityID: record.entityID,
-                    source: .stateHistory,
-                    tint: record.status.tint
-                )
-            }
-            .padding(AppSpacing.large)
-        }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Recent Activity")
-        .toolbarTitleDisplayMode(.inline)
     }
 }
 

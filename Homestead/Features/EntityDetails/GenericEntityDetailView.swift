@@ -30,7 +30,7 @@ struct GenericEntityDetailView: View {
                 actionsPanel
             }
             if let source = features.activitySource {
-                EntityActivityPanel(
+                EntityActivityPreview(
                     entityID: entity.entityID,
                     source: source,
                     tint: presentation.accentColor
@@ -68,7 +68,7 @@ struct GenericEntityDetailView: View {
     }
 
     private var actionsPanel: some View {
-        EntityControlPanel(title: "Actions", systemImage: "bolt.fill") {
+        EntityControlPanel(title: "Controls", systemImage: "bolt.fill") {
             VStack(spacing: AppSpacing.small) {
                 ForEach(availableActions) { action in
                     Button {

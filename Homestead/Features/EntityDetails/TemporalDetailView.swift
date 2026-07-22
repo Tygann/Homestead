@@ -22,6 +22,7 @@ struct TemporalDetailView: View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             hero
             editorPanel
+            EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
             contextDetails
         }
         .onAppear(perform: syncDraft)
@@ -53,7 +54,7 @@ struct TemporalDetailView: View {
     }
 
     private var editorPanel: some View {
-        EntityControlPanel(title: "Value", systemImage: temporalSystemImage) {
+        EntityControlPanel(title: "Controls", systemImage: temporalSystemImage) {
             DatePicker(
                 categoryTitle,
                 selection: draftValueBinding,

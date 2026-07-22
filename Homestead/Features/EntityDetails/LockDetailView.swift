@@ -48,7 +48,7 @@ struct LockDetailView: View {
     }
 
     private var actionPanel: some View {
-        EntityControlPanel(title: "Control", systemImage: actionSystemImage) {
+        EntityControlPanel(title: "Controls", systemImage: actionSystemImage) {
             EntityDetailActionButton(
                 title: actionTitle,
                 systemImage: actionSystemImage,
@@ -66,7 +66,7 @@ struct LockDetailView: View {
     @ViewBuilder
     private var activityPanel: some View {
         if let source = features.activitySource {
-            EntityActivityPanel(
+            EntityActivityPreview(
                 entityID: entity.entityID,
                 source: source,
                 tint: presentation.accentColor

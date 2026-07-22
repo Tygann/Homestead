@@ -25,6 +25,7 @@ struct ActionEntityDetailView: View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
             scriptOverviewPanel
+            EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
             stateDetails
         }
         .task(id: entity.entityID) {

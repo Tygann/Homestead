@@ -25,10 +25,8 @@ struct AlarmControlPanelDetailView: View {
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
-            accessPanel
-            if !availableArmActions.isEmpty {
-                armPanel
-            }
+            controls
+            EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
             contextDetails
         }
         .actionConfirmationDialog(request: $confirmationRequest)
@@ -46,8 +44,11 @@ struct AlarmControlPanelDetailView: View {
         )
     }
 
-    private var accessPanel: some View {
-        EntityControlPanel(title: "Access", systemImage: "key.fill") {
+    private var controls: some View {
+        EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
+            Label("Access", systemImage: "key.fill")
+                .font(.subheadline.weight(.semibold))
+
             SecureField("Code", text: $code)
                 .textContentType(.oneTimeCode)
                 .keyboardType(.numberPad)
@@ -56,21 +57,24 @@ struct AlarmControlPanelDetailView: View {
                 .frame(height: 44)
                 .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
                 .disabled(detailState.blocksControlInteraction)
-        }
-    }
 
-    private var armPanel: some View {
-        EntityControlPanel(title: "Security Mode", systemImage: "shield.fill") {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppSpacing.small) {
-                ForEach(availableArmActions) { action in
-                    EntityDetailPillButton(
-                        title: action.title,
-                        systemImage: action.systemImage,
-                        isSelected: entity.state == action.expectedState,
-                        isDisabled: isActionDisabled(action),
-                        tint: action.isDisarm ? .red : .accentColor
-                    ) {
-                        confirm(action)
+            if !availableArmActions.isEmpty {
+                Divider()
+
+                Label("Security Mode", systemImage: "shield.fill")
+                    .font(.subheadline.weight(.semibold))
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppSpacing.small) {
+                    ForEach(availableArmActions) { action in
+                        EntityDetailPillButton(
+                            title: action.title,
+                            systemImage: action.systemImage,
+                            isSelected: entity.state == action.expectedState,
+                            isDisabled: isActionDisabled(action),
+                            tint: action.isDisarm ? .red : .accentColor
+                        ) {
+                            confirm(action)
+                        }
                     }
                 }
             }

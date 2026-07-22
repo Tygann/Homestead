@@ -20,16 +20,11 @@ struct FanDetailView: View {
             EntityDetailScaffold(title: fan.displayName, presentationStyle: presentationStyle) {
                 header(fan)
 
-                if fan.percentage != nil,
-                   homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_percentage") {
-                    percentageControls(fan)
+                if showsSpeedControl(fan) || showsPresetControl(fan) {
+                    controls(fan)
                 }
 
-                if !fan.presetModes.isEmpty,
-                   homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_preset_mode") {
-                    presetControls(fan)
-                }
-
+                EntityActivityHistoryPreview(entityBox: entityBox, tint: .accentColor)
                 contextDetails
             }
             .onAppear {
@@ -81,11 +76,27 @@ struct FanDetailView: View {
         }
     }
 
+    private func controls(_ fan: FanEntity) -> some View {
+        EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
+            if showsSpeedControl(fan) {
+                percentageControls(fan)
+            }
+
+            if showsSpeedControl(fan) && showsPresetControl(fan) {
+                Divider()
+            }
+
+            if showsPresetControl(fan) {
+                presetControls(fan)
+            }
+        }
+    }
+
     private func percentageControls(_ fan: FanEntity) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.large) {
             HStack {
                 Label("Speed", systemImage: "slider.horizontal.3")
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
 
                 Spacer()
 
@@ -113,14 +124,12 @@ struct FanDetailView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
     private func presetControls(_ fan: FanEntity) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             Label("Preset", systemImage: "dial.medium")
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
                 ForEach(fan.presetModes, id: \.self) { presetMode in
@@ -141,8 +150,16 @@ struct FanDetailView: View {
                 }
             }
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    private func showsSpeedControl(_ fan: FanEntity) -> Bool {
+        fan.percentage != nil
+            && homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_percentage")
+    }
+
+    private func showsPresetControl(_ fan: FanEntity) -> Bool {
+        !fan.presetModes.isEmpty
+            && homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_preset_mode")
     }
 
     private var contextDetails: some View {

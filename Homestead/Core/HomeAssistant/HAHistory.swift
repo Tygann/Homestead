@@ -414,6 +414,7 @@ nonisolated enum HAHistoryTimelineDomain: Equatable, Sendable {
     case cover(deviceClass: String?)
     case person
     case deviceTracker
+    case entity(EntityDomain)
 }
 
 nonisolated struct HAHistoryTimelineEntry: Identifiable, Equatable, Sendable {
@@ -667,7 +668,79 @@ nonisolated struct HAHistoryTimeline: Equatable, Sendable {
                 occurredAt: occurredAt,
                 domain: "device_tracker"
             )
+        case .entity(let entityDomain):
+            return entityEntry(
+                state: state,
+                occurredAt: occurredAt,
+                domain: entityDomain
+            )
         }
+    }
+
+    private static func entityEntry(
+        state: String,
+        occurredAt: Date,
+        domain: EntityDomain
+    ) -> HAHistoryTimelineEntry? {
+        switch (domain, state) {
+        case (_, "unknown"):
+            return HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unknown",
+                systemImage: "questionmark.circle",
+                tone: .unavailable
+            )
+        case (_, "unavailable"):
+            return HAHistoryTimelineEntry(
+                occurredAt: occurredAt,
+                state: state,
+                title: "Unavailable",
+                systemImage: "exclamationmark.triangle",
+                tone: .unavailable
+            )
+        case (.light, "on"), (.fan, "on"), (.remote, "on"):
+            return genericEntry(state: state, title: "Turned On", occurredAt: occurredAt, domain: domain, tone: .active)
+        case (.light, "off"), (.fan, "off"), (.remote, "off"):
+            return genericEntry(state: state, title: "Turned Off", occurredAt: occurredAt, domain: domain, tone: .inactive)
+        case (.script, "on"):
+            return genericEntry(state: state, title: "Started", occurredAt: occurredAt, domain: domain, tone: .active)
+        case (.script, "off"):
+            return genericEntry(state: state, title: "Finished", occurredAt: occurredAt, domain: domain, tone: .inactive)
+        case (.scene, _):
+            return genericEntry(state: state, title: "Activated", occurredAt: occurredAt, domain: domain, tone: .active)
+        case (.button, _):
+            return genericEntry(state: state, title: "Pressed", occurredAt: occurredAt, domain: domain, tone: .active)
+        default:
+            let inactiveStates: Set<String> = ["off", "idle", "paused", "closed", "docked", "standby"]
+            return genericEntry(
+                state: state,
+                title: state.replacingOccurrences(of: "_", with: " ").capitalized,
+                occurredAt: occurredAt,
+                domain: domain,
+                tone: inactiveStates.contains(state) ? .inactive : .active
+            )
+        }
+    }
+
+    private static func genericEntry(
+        state: String,
+        title: String,
+        occurredAt: Date,
+        domain: EntityDomain,
+        tone: HAHistoryTimelineTone
+    ) -> HAHistoryTimelineEntry {
+        HAHistoryTimelineEntry(
+            occurredAt: occurredAt,
+            state: state,
+            title: title,
+            resolvedIcon: IconResolver.historicalEntityIcon(
+                domain: domain.rawValue,
+                deviceClass: nil,
+                state: state
+            ),
+            tone: tone
+        )
     }
 
     private static func binarySensorEntry(

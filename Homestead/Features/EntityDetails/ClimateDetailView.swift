@@ -23,16 +23,8 @@ struct ClimateDetailView: View {
             EntityDetailScaffold(title: climate.displayName, presentationStyle: presentationStyle) {
                 header(climate)
 
-                if climate.usesTemperatureRange,
-                   homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
-                    temperatureRangeControls(climate)
-                } else if climate.targetTemperature != nil,
-                          homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") {
-                    temperatureControls(climate)
-                }
-
-                if showsOptions(climate) {
-                    optionControls(climate)
+                if showsTemperatureControls(climate) || showsOptions(climate) {
+                    controls(climate)
                 }
 
                 contextDetails
@@ -86,8 +78,31 @@ struct ClimateDetailView: View {
         }
     }
 
+    private func controls(_ climate: ClimateEntity) -> some View {
+        EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
+            if showsTemperatureControls(climate) {
+                if climate.usesTemperatureRange {
+                    temperatureRangeControls(climate)
+                } else {
+                    temperatureControls(climate)
+                }
+            }
+
+            if showsTemperatureControls(climate) && showsOptions(climate) {
+                Divider()
+            }
+
+            if showsOptions(climate) {
+                optionControls(climate)
+            }
+        }
+    }
+
     private func temperatureControls(_ climate: ClimateEntity) -> some View {
-        EntityControlPanel(title: "Temperature", systemImage: "thermometer.medium") {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            Label("Temperature", systemImage: "thermometer.medium")
+                .font(.subheadline.weight(.semibold))
+
             temperatureStepper(
                 title: "Target",
                 systemImage: "scope",
@@ -102,7 +117,10 @@ struct ClimateDetailView: View {
     }
 
     private func temperatureRangeControls(_ climate: ClimateEntity) -> some View {
-        EntityControlPanel(title: "Temperature", systemImage: "thermometer.medium") {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            Label("Temperature", systemImage: "thermometer.medium")
+                .font(.subheadline.weight(.semibold))
+
             VStack(spacing: AppSpacing.small) {
                 temperatureStepper(
                     title: "Heat to",
@@ -176,7 +194,10 @@ struct ClimateDetailView: View {
     }
 
     private func optionControls(_ climate: ClimateEntity) -> some View {
-        EntityControlPanel(title: "Options", systemImage: "slider.horizontal.3") {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            Label("Options", systemImage: "switch.2")
+                .font(.subheadline.weight(.semibold))
+
             VStack(spacing: AppSpacing.small) {
                 if showsHVACModeOptions(climate) {
                     EntityDetailMenuRow(
@@ -274,6 +295,11 @@ struct ClimateDetailView: View {
 
     private func showsOptions(_ climate: ClimateEntity) -> Bool {
         showsHVACModeOptions(climate) || showsFanModeOptions(climate) || showsPresetModeOptions(climate)
+    }
+
+    private func showsTemperatureControls(_ climate: ClimateEntity) -> Bool {
+        homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature")
+            && (climate.usesTemperatureRange || climate.targetTemperature != nil)
     }
 
     private func showsHVACModeOptions(_ climate: ClimateEntity) -> Bool {

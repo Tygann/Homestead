@@ -24,6 +24,7 @@ struct TextDetailView: View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             hero
             editorPanel
+            EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
             contextDetails
         }
         .onAppear(perform: syncDraft)
@@ -55,7 +56,7 @@ struct TextDetailView: View {
     }
 
     private var editorPanel: some View {
-        EntityControlPanel(title: "Value", systemImage: "text.cursor") {
+        EntityControlPanel(title: "Controls", systemImage: "text.cursor") {
             Group {
                 if textEntity?.mode == .password {
                     SecureField("Value", text: $draftValue)

@@ -36,7 +36,7 @@ struct SensorDetailView: View {
                 currentReading
             }
             if supportsHistory {
-                EntityNumericHistoryPanel(
+                EntityNumericHistoryPreview(
                     entityBox: entityBox,
                     displayName: entityBox.sensorEntity?.displayName ?? entity.displayName,
                     unit: entityBox.sensorEntity?.unitText,
@@ -48,7 +48,7 @@ struct SensorDetailView: View {
                 )
             }
             if let source = features.activitySource {
-                EntityActivityPanel(
+                EntityActivityPreview(
                     entityID: entity.entityID,
                     source: source,
                     tint: presentation.accentColor

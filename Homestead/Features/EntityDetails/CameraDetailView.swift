@@ -31,6 +31,7 @@ struct CameraDetailView: View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             cameraViewPanel
+            EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
             contextDetails
         }
         .toolbar {

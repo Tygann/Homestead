@@ -32,6 +32,7 @@ struct WeatherDetailView: View {
         if let weather {
             EntityDetailScaffold(title: weather.displayName, presentationStyle: presentationStyle) {
                 hero(weather)
+                currentConditions(weather)
                 if features.supports(.forecast) {
                     WeatherForecastPanel(
                         weather: weather,
@@ -95,10 +96,16 @@ struct WeatherDetailView: View {
                     .minimumScaleFactor(0.7)
             }
         ) {
+            EmptyView()
+        }
+    }
+
+    private func currentConditions(_ weather: WeatherEntity) -> some View {
+        EntityDetailSection(title: "Current Conditions", systemImage: "cloud.sun.fill") {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
                 Text(weather.displaySubtitle)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                    .font(.body)
+                    .foregroundStyle(.primary)
                     .lineLimit(2)
 
                 if weather.humidityText != nil || weather.windText != nil {

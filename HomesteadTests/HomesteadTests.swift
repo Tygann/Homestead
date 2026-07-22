@@ -1916,6 +1916,43 @@ struct HomesteadTests {
         #expect(automationEntries.map(\.title) == ["Enabled", "Disabled"])
         #expect(automationEntries.map(\.tone) == [.active, .inactive])
 
+        let lightEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "light.desk", state: "off", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "light.desk", state: "on", lastChanged: secondDate)
+            ],
+            fallbackEntityID: "light.desk",
+            matching: "light.desk",
+            interval: interval,
+            domain: .entity(.light)
+        )
+        #expect(lightEntries.map(\.title) == ["Turned Off", "Turned On"])
+        #expect(lightEntries.map(\.tone) == [.inactive, .active])
+
+        let scriptEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "script.arrive_home", state: "on", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "script.arrive_home", state: "off", lastChanged: secondDate)
+            ],
+            fallbackEntityID: "script.arrive_home",
+            matching: "script.arrive_home",
+            interval: interval,
+            domain: .entity(.script)
+        )
+        #expect(scriptEntries.map(\.title) == ["Started", "Finished"])
+
+        let selectEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "select.house_mode", state: "home", lastChanged: thirdDate),
+                HAHistoryStateDTO(entityID: "select.house_mode", state: "away", lastChanged: fourthDate)
+            ],
+            fallbackEntityID: "select.house_mode",
+            matching: "select.house_mode",
+            interval: interval,
+            domain: .entity(.select)
+        )
+        #expect(selectEntries.map(\.title) == ["Home", "Away"])
+
         let coverEntries = HAHistoryTimeline.entries(
             from: [
                 HAHistoryStateDTO(entityID: "cover.garage", state: "opening", lastChanged: firstDate),

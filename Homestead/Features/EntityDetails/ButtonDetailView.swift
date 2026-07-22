@@ -23,6 +23,7 @@ struct ButtonDetailView: View {
     var body: some View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
+            EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
             contextDetails
         }
         .actionConfirmationDialog(request: $confirmationRequest)

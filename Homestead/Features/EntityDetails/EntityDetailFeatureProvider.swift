@@ -75,14 +75,7 @@ enum EntityDetailFeatureProvider {
     ) -> EntityDetailActivitySource? {
         guard profile.supports(.showActivity) else { return nil }
 
-        switch domain {
-        case .binarySensor, .switch, .cover, .lock, .person, .deviceTracker:
-            return .stateHistory
-        case .automation:
-            return .automationTraces
-        default:
-            return nil
-        }
+        return domain == .automation ? .automationTraces : .stateHistory
     }
 
     private static func supportsNativeEditor(_ entityBox: HAEntityState) -> Bool {

@@ -37,6 +37,7 @@ struct SelectDetailView: View {
                 optionPanel
             }
 
+            EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
             contextDetails
         }
         .actionConfirmationDialog(request: $confirmationRequest)
@@ -63,7 +64,7 @@ struct SelectDetailView: View {
     }
 
     private var optionPanel: some View {
-        EntityControlPanel(title: "Option", systemImage: "filemenu.and.selection") {
+        EntityControlPanel(title: "Controls", systemImage: "filemenu.and.selection") {
             EntityDetailMenuRow(
                 title: "Current",
                 systemImage: "checkmark.circle",

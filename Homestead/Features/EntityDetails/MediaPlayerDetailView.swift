@@ -24,18 +24,10 @@ struct MediaPlayerDetailView: View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             nowPlayingPanel
-            playbackControls
             if let mediaPlayer = entityBox.mediaPlayerEntity {
-                if mediaPlayer.volumeLevel != nil,
-                   homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set") {
-                    volumeControls(mediaPlayer)
-                }
-
-                if !mediaPlayer.sourceList.isEmpty,
-                   homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source") {
-                    sourceControls(mediaPlayer)
-                }
+                controls(mediaPlayer)
             }
+            EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
             contextDetails
         }
         .onAppear {
@@ -88,7 +80,7 @@ struct MediaPlayerDetailView: View {
         VStack(alignment: .leading, spacing: AppSpacing.large) {
             HStack {
                 Label("Volume", systemImage: "speaker.wave.2.fill")
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
 
                 Spacer()
 
@@ -112,14 +104,12 @@ struct MediaPlayerDetailView: View {
                 }
             )
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
     private func sourceControls(_ mediaPlayer: MediaPlayerEntity) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             Label("Source", systemImage: "airplayaudio")
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: AppSpacing.small)], spacing: AppSpacing.small) {
                 ForEach(mediaPlayer.sourceList, id: \.self) { source in
@@ -138,12 +128,13 @@ struct MediaPlayerDetailView: View {
                 }
             }
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
-    private var playbackControls: some View {
-        EntityControlPanel(title: "Playback", systemImage: playPauseSystemImage) {
+    private func controls(_ mediaPlayer: MediaPlayerEntity) -> some View {
+        EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
+            Label("Playback", systemImage: playPauseSystemImage)
+                .font(.subheadline.weight(.semibold))
+
             EntityDetailActionButton(
                 title: playPauseTitle,
                 systemImage: playPauseSystemImage,
@@ -154,7 +145,27 @@ struct MediaPlayerDetailView: View {
                     await homeAssistantService.playPauseMedia(entityID: entity.entityID)
                 }
             }
+
+            if showsVolumeControl(mediaPlayer) {
+                Divider()
+                volumeControls(mediaPlayer)
+            }
+
+            if showsSourceControl(mediaPlayer) {
+                Divider()
+                sourceControls(mediaPlayer)
+            }
         }
+    }
+
+    private func showsVolumeControl(_ mediaPlayer: MediaPlayerEntity) -> Bool {
+        mediaPlayer.volumeLevel != nil
+            && homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set")
+    }
+
+    private func showsSourceControl(_ mediaPlayer: MediaPlayerEntity) -> Bool {
+        !mediaPlayer.sourceList.isEmpty
+            && homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source")
     }
 
     private var contextDetails: some View {

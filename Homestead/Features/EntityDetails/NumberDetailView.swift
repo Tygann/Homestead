@@ -38,7 +38,7 @@ struct NumberDetailView: View {
             header
             valuePanel
             if features.supports(.numericHistory) {
-                EntityNumericHistoryPanel(
+                EntityNumericHistoryPreview(
                     entityBox: entityBox,
                     displayName: entity.displayName,
                     unit: unit,
@@ -78,7 +78,7 @@ struct NumberDetailView: View {
     }
 
     private var valuePanel: some View {
-        EntityControlPanel(title: "Value", systemImage: "slider.horizontal.3") {
+        EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
             HStack(spacing: AppSpacing.medium) {
                 EntityDetailIconButton(
                     systemImage: "minus",

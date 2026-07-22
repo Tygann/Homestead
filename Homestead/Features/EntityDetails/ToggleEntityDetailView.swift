@@ -27,7 +27,7 @@ struct ToggleEntityDetailView: View {
         EntityDetailScaffold(title: navigationTitle, presentationStyle: presentationStyle) {
             header
             if let source = features.activitySource {
-                EntityActivityPanel(
+                EntityActivityPreview(
                     entityID: entity.entityID,
                     source: source,
                     tint: presentation.accentColor

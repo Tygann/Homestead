@@ -1150,12 +1150,10 @@ final class HomeAssistantService {
         let binarySensor = entityBox?.binarySensorEntity
         let cover = entityBox?.coverEntity
         let domain = entity?.domain ?? EntityDomain(entityID: request.entityID)
-        let supportedDomains: Set<EntityDomain> = [
-            .binarySensor, .lock, .switch, .automation, .cover, .person, .deviceTracker
-        ]
-        guard supportedDomains.contains(domain) else {
+        let profile = EntityCapabilityRegistry.profile(for: domain)
+        guard profile.supports(.showActivity) else {
             throw HAWebSocketError.unexpectedMessage(
-                "Activity history is not mapped for \(domain.rawValue)."
+                "History is not supported for \(domain.rawValue)."
             )
         }
 
@@ -1221,8 +1219,12 @@ final class HomeAssistantService {
                 range: range
             )
         default:
-            throw HAWebSocketError.unexpectedMessage(
-                "Activity history is not mapped for \(domain.rawValue)."
+            return HAHistoryTimeline.makeTimeline(
+                response: response,
+                request: request,
+                displayName: entity?.displayName ?? request.entityID,
+                domain: .entity(domain),
+                range: range
             )
         }
     }

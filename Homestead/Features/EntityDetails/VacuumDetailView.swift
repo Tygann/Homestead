@@ -24,6 +24,7 @@ struct VacuumDetailView: View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             vacuumControls
+            EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
             contextDetails
         }
         .actionConfirmationDialog(request: $confirmationRequest)
@@ -42,7 +43,7 @@ struct VacuumDetailView: View {
     }
 
     private var vacuumControls: some View {
-        return EntityControlPanel(title: "Control", systemImage: "washer.fill") {
+        return EntityControlPanel(title: "Controls", systemImage: "washer.fill") {
             HStack(spacing: AppSpacing.small) {
                 EntityDetailActionButton(
                     title: "Start",

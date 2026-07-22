@@ -72,7 +72,7 @@ struct AutomationDetailView: View {
     @ViewBuilder
     private var activityPanel: some View {
         if let source = features.activitySource {
-            EntityActivityPanel(
+            EntityActivityPreview(
                 entityID: entity.entityID,
                 source: source,
                 tint: presentation.accentColor

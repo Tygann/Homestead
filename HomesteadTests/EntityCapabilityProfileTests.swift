@@ -457,9 +457,53 @@ final class EntityCapabilityProfileTests: XCTestCase {
         XCTAssertTrue(numberFeatures.supports(.nativeEditor))
         XCTAssertEqual(switchFeatures.activitySource, .stateHistory)
         XCTAssertTrue(switchFeatures.supports(.recentActivity))
-        XCTAssertNil(lightFeatures.activitySource)
-        XCTAssertFalse(lightFeatures.supports(.recentActivity))
+        XCTAssertEqual(lightFeatures.activitySource, .stateHistory)
+        XCTAssertTrue(lightFeatures.supports(.recentActivity))
         XCTAssertEqual(automationFeatures.activitySource, .automationTraces)
+
+        let firstDate = Date(timeIntervalSince1970: 100)
+        let secondDate = Date(timeIntervalSince1970: 200)
+        let interval = DateInterval(
+            start: Date(timeIntervalSince1970: 0),
+            end: Date(timeIntervalSince1970: 300)
+        )
+
+        let lightEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "light.desk", state: "off", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "light.desk", state: "on", lastChanged: secondDate)
+            ],
+            fallbackEntityID: "light.desk",
+            matching: "light.desk",
+            interval: interval,
+            domain: .entity(.light)
+        )
+        XCTAssertEqual(lightEntries.map(\.title), ["Turned Off", "Turned On"])
+        XCTAssertEqual(lightEntries.map(\.tone), [.inactive, .active])
+
+        let scriptEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "script.arrive_home", state: "on", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "script.arrive_home", state: "off", lastChanged: secondDate)
+            ],
+            fallbackEntityID: "script.arrive_home",
+            matching: "script.arrive_home",
+            interval: interval,
+            domain: .entity(.script)
+        )
+        XCTAssertEqual(scriptEntries.map(\.title), ["Started", "Finished"])
+
+        let selectEntries = HAHistoryTimeline.entries(
+            from: [
+                HAHistoryStateDTO(entityID: "select.house_mode", state: "home", lastChanged: firstDate),
+                HAHistoryStateDTO(entityID: "select.house_mode", state: "away", lastChanged: secondDate)
+            ],
+            fallbackEntityID: "select.house_mode",
+            matching: "select.house_mode",
+            interval: interval,
+            domain: .entity(.select)
+        )
+        XCTAssertEqual(selectEntries.map(\.title), ["Home", "Away"])
     }
 
     func testFeatureProviderRejectsNonNumericSensorHistory() {

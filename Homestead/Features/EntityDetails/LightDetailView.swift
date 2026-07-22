@@ -25,6 +25,7 @@ struct LightDetailView: View {
                     brightnessControls(light)
                 }
 
+                EntityActivityHistoryPreview(entityBox: entityBox, tint: .accentColor)
                 contextDetails
             }
             .onAppear {
@@ -89,10 +90,10 @@ struct LightDetailView: View {
     }
 
     private func brightnessControls(_ light: LightEntity) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.large) {
+        EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
             HStack {
                 Label("Brightness", systemImage: "sun.max.fill")
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
 
                 Spacer()
 
@@ -120,8 +121,6 @@ struct LightDetailView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
-        .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 
     private var contextDetails: some View {

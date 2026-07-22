@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct EntityActivityPanel: View {
+struct EntityActivityPanel<Footer: View>: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @State private var selectedRange: HAHistoryRangePreset = .day
@@ -9,13 +9,31 @@ struct EntityActivityPanel: View {
     let entityID: String
     let source: EntityDetailActivitySource
     let tint: Color
+    let presentationMode: EntityHistoryPresentationMode
+    @ViewBuilder let footer: Footer
+
+    init(
+        entityID: String,
+        source: EntityDetailActivitySource,
+        tint: Color,
+        presentationMode: EntityHistoryPresentationMode,
+        @ViewBuilder footer: () -> Footer
+    ) {
+        self.entityID = entityID
+        self.source = source
+        self.tint = tint
+        self.presentationMode = presentationMode
+        self.footer = footer()
+    }
 
     var body: some View {
         EntityHistoryTimelinePanel(
             selectedRange: $selectedRange,
             phase: phase,
             tint: tint,
-            refreshAction: refresh
+            presentationMode: presentationMode,
+            refreshAction: refresh,
+            footer: { footer }
         )
         .task(id: taskID) {
             await loadActivity()
@@ -66,6 +84,89 @@ struct EntityActivityPanel: View {
     }
 }
 
+extension EntityActivityPanel where Footer == EmptyView {
+    init(
+        entityID: String,
+        source: EntityDetailActivitySource,
+        tint: Color,
+        presentationMode: EntityHistoryPresentationMode = .full
+    ) {
+        self.init(
+            entityID: entityID,
+            source: source,
+            tint: tint,
+            presentationMode: presentationMode,
+            footer: { EmptyView() }
+        )
+    }
+}
+
+struct EntityActivityPreview: View {
+    let entityID: String
+    let source: EntityDetailActivitySource
+    let tint: Color
+    var showsDisclosureIndicator = true
+
+    var body: some View {
+        EntityActivityPanel(
+            entityID: entityID,
+            source: source,
+            tint: tint,
+            presentationMode: .preview
+        ) {
+            Divider()
+
+            NavigationLink {
+                EntityActivityHistoryView(
+                    entityID: entityID,
+                    source: source,
+                    tint: tint
+                )
+            } label: {
+                EntityDetailNavigationRowLabel(
+                    title: "Show All",
+                    systemImage: "clock.arrow.circlepath",
+                    showsDisclosureIndicator: showsDisclosureIndicator
+                )
+                .frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+struct EntityActivityHistoryPreview: View {
+    let entityBox: HAEntityState
+    let tint: Color
+
+    @ViewBuilder
+    var body: some View {
+        if let source = EntityDetailFeatureProvider.features(for: entityBox).activitySource {
+            EntityActivityPreview(
+                entityID: entityBox.entityID,
+                source: source,
+                tint: tint
+            )
+        }
+    }
+}
+
+private struct EntityActivityHistoryView: View {
+    let entityID: String
+    let source: EntityDetailActivitySource
+    let tint: Color
+
+    var body: some View {
+        EntityDetailScaffold(title: "History", presentationStyle: .navigation) {
+            EntityActivityPanel(
+                entityID: entityID,
+                source: source,
+                tint: tint
+            )
+        }
+    }
+}
+
 enum EntityHistoryTimelinePhase: Equatable {
     case idle
     case loading
@@ -81,17 +182,21 @@ enum EntityHistoryTimelinePhase: Equatable {
     }
 }
 
-struct EntityHistoryTimelinePanel: View {
+struct EntityHistoryTimelinePanel<Footer: View>: View {
     @Binding var selectedRange: HAHistoryRangePreset
 
     let phase: EntityHistoryTimelinePhase
     let tint: Color
+    let presentationMode: EntityHistoryPresentationMode
     let refreshAction: () -> Void
+    @ViewBuilder let footer: Footer
 
     var body: some View {
-        EntityControlPanel(title: "Recent Activity", systemImage: "clock.arrow.circlepath") {
+        EntityControlPanel(title: "History", systemImage: "clock.arrow.circlepath") {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                segmentedRangePicker
+                if presentationMode == .full {
+                    segmentedRangePicker
+                }
 
                 switch phase {
                 case .idle, .loading:
@@ -103,8 +208,10 @@ struct EntityHistoryTimelinePanel: View {
                         timelineList(timeline)
                     }
                 case .failed:
-                    unavailableView("Activity unavailable", showsRetry: true)
+                    unavailableView("History unavailable", showsRetry: true)
                 }
+
+                footer
             }
         }
     }
@@ -138,7 +245,8 @@ struct EntityHistoryTimelinePanel: View {
     }
 
     private func timelineList(_ timeline: HAHistoryTimeline) -> some View {
-        let entries = Array(timeline.entries.suffix(8).reversed())
+        let maximumEntryCount = presentationMode == .preview ? 3 : 8
+        let entries = Array(timeline.entries.suffix(maximumEntryCount).reversed())
 
         return VStack(alignment: .leading, spacing: AppSpacing.medium) {
             VStack(alignment: .leading, spacing: 0) {
@@ -280,8 +388,11 @@ private struct EntityHistoryTimelinePreviewGallery: View {
                     EntityHistoryTimelinePanel(
                         selectedRange: $selectedRange,
                         phase: .loaded(timeline),
-                        tint: tint
-                    ) {}
+                        tint: tint,
+                        presentationMode: .full,
+                        refreshAction: {},
+                        footer: { EmptyView() }
+                    )
                 }
             }
             .padding(AppSpacing.large)
@@ -375,12 +486,12 @@ private struct EntityHistoryTimelinePreviewGallery: View {
     }
 }
 
-#Preview("Recent Activity Small Light") {
+#Preview("History Small Light") {
     EntityHistoryTimelinePreviewGallery(tint: .accentColor)
         .withPreviewAccentColor()
 }
 
-#Preview("Recent Activity Small Dark") {
+#Preview("History Small Dark") {
     EntityHistoryTimelinePreviewGallery(tint: .accentColor)
         .withPreviewAccentColor()
         .preferredColorScheme(.dark)

@@ -1,5 +1,10 @@
 import SwiftUI
 
+enum EntityHistoryPresentationMode {
+    case preview
+    case full
+}
+
 struct EntityDetailScaffold<Content: View>: View {
     let title: String
     let presentationStyle: EntityDetailPresentationStyle
@@ -489,17 +494,10 @@ struct EntityMetadataDisclosure: View {
                 NavigationLink {
                     EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation)
                 } label: {
-                    HStack(spacing: AppSpacing.medium) {
-                        Label("Entity Details", systemImage: "info.circle")
-                            .font(.subheadline.weight(.semibold))
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .foregroundStyle(.primary)
+                    EntityDetailNavigationRowLabel(
+                        title: "Entity Details",
+                        systemImage: "info.circle"
+                    )
                     .padding(.horizontal, AppSpacing.large)
                     .frame(height: 52)
                     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
@@ -521,6 +519,33 @@ struct EntityMetadataDisclosure: View {
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
             }
         }
+    }
+}
+
+struct EntityDetailNavigationRowLabel: View {
+    let title: String
+    let systemImage: String
+    var showsDisclosureIndicator = true
+
+    var body: some View {
+        HStack(spacing: AppSpacing.medium) {
+            Image(systemName: systemImage)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
+
+            Text(title)
+                .font(.body)
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: AppSpacing.medium)
+
+            if showsDisclosureIndicator {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .contentShape(Rectangle())
     }
 }
 

@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-22
 
+### Entity Detail Controls And History Contract
+
+- Consolidated writable capabilities outside each hero into one Controls surface, using dividers and compact sublabels for level, position, setpoint, mode, preset, playback, source, and access groups.
+- Standardized numeric trends, state transitions, presence changes, and workflow runs on the visible title History. Main details show a compact 24-hour preview and Show All row; full destinations own 6H/24H/7D/30D range selection and expanded content.
+- Expanded state-history previews to every capability profile that declares activity support, while retaining Automation traces and omitting unsupported or misleading History surfaces.
+- Moved Weather condition, humidity, and wind into Current Conditions, aligned Person with the shared inline History pattern, and restyled Entity Details as a regular accent-tinted navigation row.
+
 ### Entity Detail Hero Contract
 
 - Standardized heroes on identity plus one trailing current readout or primary control: Sensor, Cover, Climate, and Weather align their current values, while Script, Scene, and Button use a compact system-bordered action.
