@@ -696,28 +696,29 @@ private struct ClimateFloatingMenu<MenuContent: View>: View {
     }
 
     private var compactLabel: some View {
-        VStack(spacing: 2) {
-            HStack(spacing: AppSpacing.xSmall) {
-                Image(systemName: systemImage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        HStack(spacing: AppSpacing.xSmall) {
+            Image(systemName: systemImage)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
 
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
 
-            HStack(spacing: AppSpacing.xSmall) {
                 Text(value)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.tertiary)
             }
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, AppSpacing.small)
         .frame(minWidth: 96, maxWidth: .infinity, minHeight: 52)
@@ -847,10 +848,10 @@ private struct ClimateThermostatInstrument: View {
                             selectedHandle = .upper
                         }
                 }
-                .font(.system(size: 32, weight: .semibold, design: .rounded).monospacedDigit())
+                .font(.system(size: 36, weight: .semibold, design: .rounded).monospacedDigit())
             } else {
                 Text(displayValue(lowerValue))
-                    .font(.system(size: 40, weight: .semibold, design: .rounded).monospacedDigit())
+                    .font(.system(size: 44, weight: .semibold, design: .rounded).monospacedDigit())
                     .foregroundStyle(lowerTint)
             }
         }
@@ -862,8 +863,8 @@ private struct ClimateThermostatInstrument: View {
     private func precisionControls(geometry: DialGeometry) -> some View {
         let leftEndpoint = point(for: 0, geometry: geometry)
         let rightEndpoint = point(for: 1, geometry: geometry)
-        let controlY = leftEndpoint.y + 48
-        let controlWidth = min(max(rightEndpoint.x - leftEndpoint.x - 20, 184), 212)
+        let controlY = leftEndpoint.y + 36
+        let controlWidth = min(max(rightEndpoint.x - leftEndpoint.x - 32, 164), 176)
 
         return HStack(spacing: 0) {
             precisionButton(systemImage: "minus", direction: -1)
