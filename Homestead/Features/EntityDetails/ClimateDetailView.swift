@@ -753,7 +753,7 @@ private struct ClimateThermostatInstrument: View {
 
     private let arcStartAngle = 150.0
     private let arcLength = 240.0
-    private let instrumentHeight: CGFloat = 226
+    private let instrumentHeight: CGFloat = 230
     private let precisionControlHeight: CGFloat = 48
 
     var body: some View {
@@ -865,7 +865,7 @@ private struct ClimateThermostatInstrument: View {
     private func precisionControls(geometry: DialGeometry) -> some View {
         let leftEndpoint = point(for: 0, geometry: geometry)
         let rightEndpoint = point(for: 1, geometry: geometry)
-        let controlY = leftEndpoint.y + 28
+        let controlY = leftEndpoint.y + 32
         let controlWidth = min(max(rightEndpoint.x - leftEndpoint.x - 32, 164), 176)
 
         return HStack(spacing: 0) {
