@@ -1,5 +1,13 @@
 import SwiftUI
 
+nonisolated enum WeatherForecastDayLabel {
+    static func title(for date: Date, calendar: Calendar = .autoupdatingCurrent) -> String {
+        calendar.isDateInToday(date)
+            ? "Today"
+            : date.formatted(.dateTime.weekday(.abbreviated))
+    }
+}
+
 struct WeatherForecastPanel: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -26,15 +34,30 @@ struct WeatherForecastPanel: View {
 
     var body: some View {
         EntityDetailSection(title: "Forecast", systemImage: "calendar") {
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                ForEach(Array(displayedTypes.enumerated()), id: \.element) { index, type in
-                    if index > 0 {
-                        Divider()
-                    }
+            if allDisplayedForecastsFailed {
+                unavailableContent(
+                    message: "Forecast is temporarily unavailable.",
+                    offersRetry: true
+                )
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(displayedTypes.enumerated()), id: \.element) { index, type in
+                        if index > 0 {
+                            Divider()
+                                .padding(.vertical, AppSpacing.small)
+                                .padding(.trailing, AppSpacing.small)
+                        }
 
-                    forecastSection(for: type)
+                        forecastSection(for: type)
+                    }
                 }
             }
+        }
+    }
+
+    private var allDisplayedForecastsFailed: Bool {
+        !displayedTypes.isEmpty && displayedTypes.allSatisfy { type in
+            entries(for: type).isEmpty && errorMessage(for: type) != nil
         }
     }
 
@@ -82,11 +105,11 @@ struct WeatherForecastPanel: View {
     private func sectionTitle(for type: WeatherForecastType) -> String {
         switch type {
         case .hourly:
-            "Hourly Forecast"
+            "Hourly"
         case .daily:
-            "Daily Forecast"
+            "Daily"
         case .twiceDaily:
-            "Day & Night Forecast"
+            "Day & Night"
         }
     }
 
@@ -107,12 +130,19 @@ struct WeatherForecastPanel: View {
                 }
             }
         } else if type == .hourly {
+            let showsPrecipitationRow = entries.contains { ($0.precipitationProbability ?? 0) > 0 }
+
             ScrollView(.horizontal) {
-                LazyHStack(spacing: AppSpacing.large) {
+                LazyHStack(spacing: AppSpacing.medium) {
                     ForEach(entries) { entry in
-                        WeatherHourlyForecastItem(entry: entry, weather: weather)
+                        WeatherHourlyForecastItem(
+                            entry: entry,
+                            weather: weather,
+                            showsPrecipitationRow: showsPrecipitationRow
+                        )
                     }
                 }
+                .padding(.trailing, AppSpacing.large)
                 .scrollTargetLayout()
             }
             .scrollIndicators(.hidden)
@@ -210,7 +240,7 @@ private struct WeatherDailyForecastRow: View {
             Text(entry.forecastTimeTitle(for: .daily))
                 .font(.body.weight(.medium))
                 .lineLimit(1)
-                .frame(width: 46, alignment: .leading)
+                .frame(width: 58, alignment: .leading)
 
             VStack(spacing: 1) {
                 Image(systemName: entry.condition.systemImage)
@@ -236,7 +266,10 @@ private struct WeatherDailyForecastRow: View {
                 WeatherForecastTemperatureRangeBar(
                     range: range,
                     domain: temperatureDomain,
-                    temperatureUnit: weather.temperatureUnit
+                    temperatureUnit: weather.temperatureUnit,
+                    markerValue: Calendar.autoupdatingCurrent.isDateInToday(entry.datetime)
+                        ? weather.temperature
+                        : nil
                 )
                 .frame(maxWidth: .infinity)
 
@@ -259,6 +292,7 @@ private struct WeatherDailyForecastRow: View {
 private struct WeatherHourlyForecastItem: View {
     let entry: WeatherForecastEntry
     let weather: WeatherEntity
+    let showsPrecipitationRow: Bool
 
     var body: some View {
         VStack(spacing: AppSpacing.small) {
@@ -276,20 +310,22 @@ private struct WeatherHourlyForecastItem: View {
                 .font(.subheadline.weight(.semibold).monospacedDigit())
                 .lineLimit(1)
 
-            if let precipitationText = entry.precipitationText,
-               (entry.precipitationProbability ?? 0) > 0 {
-                Text(precipitationText)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.blue)
-                    .lineLimit(1)
-            } else {
-                Text(" ")
-                    .font(.caption2)
-                    .accessibilityHidden(true)
+            if showsPrecipitationRow {
+                if let precipitationText = entry.precipitationText,
+                   (entry.precipitationProbability ?? 0) > 0 {
+                    Text(precipitationText)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.blue)
+                        .lineLimit(1)
+                } else {
+                    Text(" ")
+                        .font(.caption2)
+                        .accessibilityHidden(true)
+                }
             }
         }
-        .frame(width: 60)
-        .frame(minHeight: 118)
+        .frame(width: 72)
+        .frame(minHeight: showsPrecipitationRow ? 104 : 82)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(entry.accessibilitySummary(for: .hourly, temperatureUnit: weather.temperatureUnit))
     }
@@ -338,7 +374,7 @@ private extension WeatherForecastEntry {
     func forecastTimeTitle(for type: WeatherForecastType) -> String {
         switch type {
         case .daily:
-            return datetime.formatted(.dateTime.weekday(.abbreviated))
+            return WeatherForecastDayLabel.title(for: datetime)
         case .hourly:
             return datetime.formatted(date: .omitted, time: .shortened)
         case .twiceDaily:

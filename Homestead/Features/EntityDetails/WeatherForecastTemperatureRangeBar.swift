@@ -4,8 +4,25 @@ struct WeatherForecastTemperatureRangeBar: View {
     let range: ClosedRange<Double>
     let domain: ClosedRange<Double>
     let temperatureUnit: String?
+    var markerValue: Double?
     var trackColor = Color(.tertiarySystemFill)
     var height: CGFloat = 6
+
+    init(
+        range: ClosedRange<Double>,
+        domain: ClosedRange<Double>,
+        temperatureUnit: String?,
+        markerValue: Double? = nil,
+        trackColor: Color = Color(.tertiarySystemFill),
+        height: CGFloat = 6
+    ) {
+        self.range = range
+        self.domain = domain
+        self.temperatureUnit = temperatureUnit
+        self.markerValue = markerValue
+        self.trackColor = trackColor
+        self.height = height
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -42,6 +59,24 @@ struct WeatherForecastTemperatureRangeBar: View {
                         height: height
                     )
                     .offset(x: startX)
+
+                if let markerValue,
+                   range.contains(markerValue),
+                   let markerPosition = WeatherForecastTemperatureScale.normalizedPosition(
+                       for: markerValue,
+                       in: domain
+                   ) {
+                    Circle()
+                        .fill(.white)
+                        .frame(width: height + 4, height: height + 4)
+                        .shadow(color: .black.opacity(0.22), radius: 1, y: 1)
+                        .offset(
+                            x: min(
+                                max((proxy.size.width * markerPosition) - ((height + 4) / 2), 0),
+                                max(proxy.size.width - (height + 4), 0)
+                            )
+                        )
+                }
             }
             .frame(maxHeight: .infinity, alignment: .center)
         }
@@ -50,6 +85,14 @@ struct WeatherForecastTemperatureRangeBar: View {
 }
 
 enum WeatherForecastTemperatureScale {
+    static func normalizedPosition(
+        for value: Double,
+        in domain: ClosedRange<Double>
+    ) -> Double? {
+        guard domain.lowerBound < domain.upperBound else { return nil }
+        return min(max((value - domain.lowerBound) / (domain.upperBound - domain.lowerBound), 0), 1)
+    }
+
     static func range(for entry: WeatherForecastEntry) -> ClosedRange<Double>? {
         guard let first = entry.lowTemperature ?? entry.temperature,
               let second = entry.temperature ?? entry.lowTemperature else {

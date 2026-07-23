@@ -9,6 +9,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Returned History ranges and content to the entity detail, with eight initial discrete entries, compact total/hidden-count disclosure, and view-local Show All state that resets when the detail or range changes.
 - Flattened secondary controls into native rows within the single Controls surface, removing nested section-like labels and backgrounds from position, brightness, speed, climate options, media source, and alarm actions.
 - Renamed Weather supporting context to Conditions and rebuilt Daily/Hourly Forecast presentation around the same shared-scale temperature-range bar used by the large dashboard Weather card.
+- Tightened the combined forecast hierarchy with compact Hourly spacing, Today labeling, a current-temperature range marker, and one retry state when all supported forecast subscriptions fail.
 
 ### Entity Detail Controls And History Contract
 

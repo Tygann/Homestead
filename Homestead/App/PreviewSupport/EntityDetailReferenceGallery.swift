@@ -474,7 +474,7 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
         type: .daily,
         entries: [
             WeatherForecastEntry(
-                datetime: referenceDate,
+                datetime: forecastReferenceDate,
                 condition: .partlyCloudy,
                 temperature: 83,
                 lowTemperature: 68,
@@ -486,7 +486,7 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
                 windBearing: 225
             ),
             WeatherForecastEntry(
-                datetime: referenceDate.addingTimeInterval(86_400),
+                datetime: forecastReferenceDate.addingTimeInterval(86_400),
                 condition: .rainy,
                 temperature: 76,
                 lowTemperature: 65,
@@ -498,18 +498,22 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
                 windBearing: 180
             )
         ],
-        receivedAt: referenceDate
+        receivedAt: forecastReferenceDate
     )
 
     private static let referenceHourlyForecast = WeatherForecastSnapshot(
         type: .hourly,
         entries: (0..<8).map { referenceHourlyEntry(hour: $0) },
-        receivedAt: referenceDate
+        receivedAt: forecastReferenceDate
     )
+
+    private static let forecastReferenceDate = Calendar.autoupdatingCurrent
+        .startOfDay(for: .now)
+        .addingTimeInterval(12 * 3_600)
 
     private static func referenceHourlyEntry(hour: Int) -> WeatherForecastEntry {
         WeatherForecastEntry(
-            datetime: referenceDate.addingTimeInterval(TimeInterval(hour * 3_600)),
+            datetime: forecastReferenceDate.addingTimeInterval(TimeInterval(hour * 3_600)),
             condition: hour < 3 ? .partlyCloudy : .sunny,
             temperature: 73 + Double(hour),
             lowTemperature: nil,

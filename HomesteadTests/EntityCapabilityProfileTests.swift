@@ -586,6 +586,12 @@ final class EntityCapabilityProfileTests: XCTestCase {
             62...84
         )
         XCTAssertEqual(WeatherForecastTemperatureScale.domain(for: entries), 58...84)
+        XCTAssertEqual(
+            try XCTUnwrap(WeatherForecastTemperatureScale.normalizedPosition(for: 73, in: 58...84)),
+            15.0 / 26.0,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(WeatherForecastDayLabel.title(for: .now), "Today")
     }
 
     func testFeatureProviderExposesForecastOnlyForSupportedWeatherEntities() throws {
