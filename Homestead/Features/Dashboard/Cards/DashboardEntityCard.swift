@@ -722,7 +722,9 @@ struct DashboardEntityCard: View {
 
     private var specializedCardBorder: Color {
         if presentationKind == .weather {
-            return Color.white.opacity(0.18)
+            return isWallpaperSurfaceActive
+                ? cameraCardBorder
+                : Color.white.opacity(0.18)
         }
         return cameraCardBorder
     }

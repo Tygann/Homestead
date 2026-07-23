@@ -305,6 +305,7 @@ private struct DashboardHistoryChartDescriptor: AXChartDescriptorRepresentable {
 
 struct DashboardWeatherCardContent: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
 
     let weather: WeatherEntity
     let forecastsByType: [WeatherForecastType: WeatherForecastSnapshot]
@@ -316,9 +317,10 @@ struct DashboardWeatherCardContent: View {
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
                 DashboardWeatherCardBackground(condition: weather.condition)
+                    .opacity(isWallpaperSurfaceActive ? 0.48 : 1)
 
                 LinearGradient(
-                    colors: [Color.black.opacity(0.28), Color.black.opacity(0.18)],
+                    colors: legibilityOverlayColors,
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -855,6 +857,14 @@ struct DashboardWeatherCardContent: View {
 
     private var currentTemperatureFontSize: CGFloat {
         38
+    }
+
+    private var legibilityOverlayColors: [Color] {
+        if isWallpaperSurfaceActive {
+            return [Color.black.opacity(0.18), Color.black.opacity(0.10)]
+        }
+
+        return [Color.black.opacity(0.28), Color.black.opacity(0.18)]
     }
 
     private var forecastEdgeColumnWidth: CGFloat {
