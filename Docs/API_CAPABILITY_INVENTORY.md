@@ -63,7 +63,7 @@ Official references:
 
 | Feature | API family | Status | Intended Homestead surface |
 | --- | --- | --- | --- |
-| Expanded widgets | WidgetKit/App Intents plus OAuth/WebSocket/history/service calls | In progress | Home Screen Control, Status, Sensor, medium/large Sensor Board, medium/large Gauge Grid, and Action widgets exist; Control Center controls and widget polish/device testing remain follow-up scope. |
+| Expanded widgets | WidgetKit/App Intents plus OAuth/WebSocket/history/service calls | In progress | Home Screen Control, Status, Sensor, medium/large Sensor Board, and Action widgets exist; Sensor Board is the sole multi-sensor composition and supports readings, capability-mapped gauges, and numeric charts in any slot. Control Center controls and widget polish/device testing remain follow-up scope. |
 
 ## Next Feature-Sized Mapping Queue
 

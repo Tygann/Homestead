@@ -193,17 +193,6 @@ nonisolated struct HomesteadWidgetItem: Identifiable, Codable, Equatable, Sendab
     }
 }
 
-nonisolated enum HomesteadWidgetGridSelection {
-    static let maximumItemCount = 6
-
-    static func compacted(
-        _ items: [HomesteadWidgetItem?],
-        maximumItemCount: Int = maximumItemCount
-    ) -> [HomesteadWidgetItem] {
-        Array(items.compactMap { $0 }.prefix(max(0, maximumItemCount)))
-    }
-}
-
 nonisolated enum WidgetGaugeStatus: String, Codable, Equatable, Sendable {
     case nominal
     case low

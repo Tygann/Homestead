@@ -148,7 +148,7 @@ nonisolated enum SharedFeatureCatalog {
             subjectKind: .sensor,
             supportedSurfaces: [.dashboard, .widget],
             dashboardPresentationIDs: ["gauge"],
-            relatedWidgetKinds: [.sensor, .sensorBoard, .gaugeGrid, .largeGaugeGrid],
+            relatedWidgetKinds: [.sensor, .sensorBoard, .largeSensorBoard],
             affordances: [.read, .gauge]
         ),
         SharedFeatureDescriptor(
@@ -202,22 +202,6 @@ nonisolated enum SharedFeatureCatalog {
             featureID: "sensor",
             displayName: "Homestead Large Sensor Board",
             description: "Combine up to nine sensor readings, gauges, or six-hour charts.",
-            supportedFamilies: [.systemLarge],
-            requiresConfiguration: true
-        ),
-        WidgetFeatureDescriptor(
-            kind: .gaugeGrid,
-            featureID: "sensor-gauge",
-            displayName: "Homestead Gauge Grid",
-            description: "Show up to three Home Assistant gauges.",
-            supportedFamilies: [.systemMedium],
-            requiresConfiguration: true
-        ),
-        WidgetFeatureDescriptor(
-            kind: .largeGaugeGrid,
-            featureID: "sensor-gauge",
-            displayName: "Homestead Large Gauge Grid",
-            description: "Show up to nine Home Assistant gauges.",
             supportedFamilies: [.systemLarge],
             requiresConfiguration: true
         ),

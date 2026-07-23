@@ -1260,8 +1260,7 @@ final class HAStateStore {
             lastGaugeWidgetReloadDate = Date()
             gaugeWidgetReloadTask = nil
             WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.sensorBoard.rawValue)
-            WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.gaugeGrid.rawValue)
-            WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.largeGaugeGrid.rawValue)
+            WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.largeSensorBoard.rawValue)
         }
     }
 
