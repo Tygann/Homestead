@@ -56,6 +56,8 @@ enum EntityDetailActionButtonStyle {
 }
 
 struct EntityDetailActionButton: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let title: String
     let systemImage: String
     let style: EntityDetailActionButtonStyle
@@ -105,13 +107,22 @@ struct EntityDetailActionButton: View {
     }
 
     private var backgroundColor: Color {
-        if isDisabled { return Color(.tertiarySystemGroupedBackground).opacity(0.8) }
+        if isDisabled {
+            return HomesteadSurfaceStyle.controlBackground(
+                isWallpaperActive: isWallpaperSurfaceActive,
+                isActive: false
+            )
+            .opacity(0.8)
+        }
 
         switch style {
         case .primary:
             return .accentColor
         case .secondary:
-            return Color(.tertiarySystemGroupedBackground)
+            return HomesteadSurfaceStyle.controlBackground(
+                isWallpaperActive: isWallpaperSurfaceActive,
+                isActive: false
+            )
         case .destructive:
             return Color.red.opacity(0.12)
         }
@@ -119,6 +130,8 @@ struct EntityDetailActionButton: View {
 }
 
 struct EntityDetailIconButton: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let systemImage: String
     let accessibilityLabel: String
     let isDisabled: Bool
@@ -129,7 +142,13 @@ struct EntityDetailIconButton: View {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.bold))
                 .frame(width: 44, height: 44)
-                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                .background(
+                    HomesteadSurfaceStyle.controlBackground(
+                        isWallpaperActive: isWallpaperSurfaceActive,
+                        isActive: false
+                    ),
+                    in: Circle()
+                )
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
@@ -371,6 +390,8 @@ private enum DetailSliderDragAxis {
 }
 
 struct EntityDetailPillButton: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let title: String
     let systemImage: String?
     let isSelected: Bool
@@ -405,7 +426,15 @@ struct EntityDetailPillButton: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(isSelected ? Color.white : Color.primary)
-        .background(isSelected ? tint : Color(.tertiarySystemGroupedBackground), in: Capsule())
+        .background(
+            isSelected
+                ? tint
+                : HomesteadSurfaceStyle.controlBackground(
+                    isWallpaperActive: isWallpaperSurfaceActive,
+                    isActive: false
+                ),
+            in: Capsule()
+        )
         .disabled(isDisabled)
     }
 
@@ -499,7 +528,7 @@ struct EntityMetadataDisclosure: View {
                     )
                     .padding(.horizontal, AppSpacing.large)
                     .frame(height: 52)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+                    .homesteadCardSurface()
                 }
                 .buttonStyle(.plain)
             } else {
@@ -515,7 +544,7 @@ struct EntityMetadataDisclosure: View {
                         .font(.headline)
                 }
                 .padding(AppSpacing.large)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+                .homesteadCardSurface()
             }
         }
     }
@@ -561,7 +590,7 @@ struct EntityDetailSection<Content: View>: View {
             content
         }
         .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .homesteadCardSurface()
     }
 }
 

@@ -591,6 +591,8 @@ private enum ClimateFloatingMenuProminence {
 }
 
 private struct ClimateFloatingMenu<MenuContent: View>: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let title: String
     let systemImage: String
     let value: String
@@ -628,7 +630,13 @@ private struct ClimateFloatingMenu<MenuContent: View>: View {
                     compactLabel
                 }
             }
-            .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
+            .background(
+                HomesteadSurfaceStyle.controlBackground(
+                    isWallpaperActive: isWallpaperSurfaceActive,
+                    isActive: false
+                ),
+                in: Capsule()
+            )
             .overlay {
                 Capsule()
                     .stroke(Color.primary.opacity(0.06), lineWidth: 1)
@@ -738,6 +746,8 @@ private enum ClimateThermostatHandle {
 }
 
 private struct ClimateThermostatInstrument: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     @Binding var lowerValue: Double
     @Binding var upperValue: Double
     @State private var selectedHandle: ClimateThermostatHandle = .lower
@@ -880,7 +890,13 @@ private struct ClimateThermostatInstrument: View {
             precisionButton(systemImage: "plus", direction: 1)
         }
         .frame(width: controlWidth, height: precisionControlHeight)
-        .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
+        .background(
+            HomesteadSurfaceStyle.controlBackground(
+                isWallpaperActive: isWallpaperSurfaceActive,
+                isActive: false
+            ),
+            in: Capsule()
+        )
         .overlay {
             Capsule()
                 .stroke(Color.primary.opacity(0.06), lineWidth: 1)
@@ -1185,6 +1201,8 @@ private struct ClimateThermostatArc: Shape {
 // MARK: - Accessibility Setpoint Row
 
 private struct ClimateSetpointControl: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let title: String
     let value: String
     let tint: Color
@@ -1249,7 +1267,13 @@ private struct ClimateSetpointControl: View {
             Image(systemName: systemImage)
                 .font(.body.weight(.semibold))
                 .frame(width: 44, height: 44)
-                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                .background(
+                    HomesteadSurfaceStyle.controlBackground(
+                        isWallpaperActive: isWallpaperSurfaceActive,
+                        isActive: false
+                    ),
+                    in: Circle()
+                )
         }
         .buttonStyle(.plain)
         .foregroundStyle(isEnabled ? Color.primary : Color.secondary.opacity(0.45))

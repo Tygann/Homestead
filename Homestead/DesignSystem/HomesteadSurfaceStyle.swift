@@ -104,3 +104,35 @@ enum HomesteadSurfaceStyle {
         Color(.tertiaryLabel).opacity(0.50)
     }
 }
+
+extension View {
+    func homesteadCardSurface(cornerRadius: CGFloat = AppRadius.card) -> some View {
+        modifier(HomesteadCardSurfaceModifier(cornerRadius: cornerRadius))
+    }
+}
+
+private struct HomesteadCardSurfaceModifier: ViewModifier {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+
+        content
+            .background(
+                HomesteadSurfaceStyle.cardBackground(
+                    isWallpaperActive: isWallpaperSurfaceActive
+                ),
+                in: shape
+            )
+            .overlay {
+                shape.strokeBorder(
+                    HomesteadSurfaceStyle.cardBorder(
+                        isWallpaperActive: isWallpaperSurfaceActive
+                    ),
+                    lineWidth: 0.5
+                )
+            }
+    }
+}

@@ -265,7 +265,7 @@ struct EntityDetailHeroCard<Content: View, Accessory: View>: View {
             }
         }
         .padding(AppSpacing.large)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .homesteadCardSurface()
     }
 }
 
