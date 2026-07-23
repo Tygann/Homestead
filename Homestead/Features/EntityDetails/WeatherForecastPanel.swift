@@ -119,12 +119,11 @@ struct WeatherForecastPanel: View {
 
             ScrollView(.horizontal) {
                 LazyHStack(spacing: AppSpacing.small) {
-                    ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    ForEach(entries) { entry in
                         WeatherHourlyForecastItem(
                             entry: entry,
                             weather: weather,
-                            showsPrecipitationRow: showsPrecipitationRow,
-                            alignsToLeadingEdge: index == 0
+                            showsPrecipitationRow: showsPrecipitationRow
                         )
                     }
                 }
@@ -279,7 +278,6 @@ private struct WeatherHourlyForecastItem: View {
     let entry: WeatherForecastEntry
     let weather: WeatherEntity
     let showsPrecipitationRow: Bool
-    let alignsToLeadingEdge: Bool
 
     var body: some View {
         VStack(spacing: AppSpacing.small) {
@@ -311,7 +309,7 @@ private struct WeatherHourlyForecastItem: View {
                 }
             }
         }
-        .frame(width: 60, alignment: alignsToLeadingEdge ? .leading : .center)
+        .frame(width: 60, alignment: .leading)
         .frame(minHeight: showsPrecipitationRow ? 104 : 82)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(entry.accessibilitySummary(for: .hourly, temperatureUnit: weather.temperatureUnit))
