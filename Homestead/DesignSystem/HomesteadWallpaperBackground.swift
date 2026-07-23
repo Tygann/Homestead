@@ -56,17 +56,21 @@ struct HomesteadWallpaperBackground: View {
 }
 
 extension View {
-    func homesteadWallpaperBackground() -> some View {
-        modifier(HomesteadWallpaperBackgroundModifier())
+    func homesteadWallpaperBackground(allowsWallpaper: Bool = true) -> some View {
+        modifier(HomesteadWallpaperBackgroundModifier(allowsWallpaper: allowsWallpaper))
     }
 }
 
 private struct HomesteadWallpaperBackgroundModifier: ViewModifier {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
 
+    let allowsWallpaper: Bool
+
     func body(content: Content) -> some View {
+        let isWallpaperActive = allowsWallpaper && appearanceSettings.activeWallpaperURL != nil
+
         ZStack {
-            if appearanceSettings.activeWallpaperURL != nil {
+            if isWallpaperActive {
                 HomesteadWallpaperBackground()
             } else {
                 Color(.systemGroupedBackground)
@@ -76,6 +80,6 @@ private struct HomesteadWallpaperBackgroundModifier: ViewModifier {
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .environment(\.homesteadWallpaperSurfaceActive, appearanceSettings.activeWallpaperURL != nil)
+        .environment(\.homesteadWallpaperSurfaceActive, isWallpaperActive)
     }
 }

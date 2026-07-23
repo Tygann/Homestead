@@ -23,6 +23,7 @@ struct AreaDetailView: View {
                                     contextualAreaName: area.name,
                                     detailDestination: EntityDetailDestination(
                                         entityID: item.entityID,
+                                        surfaceContext: .home,
                                         transitionSourceID: cardTransitionID(for: item)
                                     ),
                                     openDetails: { destination in

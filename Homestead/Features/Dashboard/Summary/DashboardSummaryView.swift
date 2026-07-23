@@ -180,6 +180,7 @@ struct DashboardSummaryView: View {
                                             contextualAreaName: section.title,
                                             detailDestination: EntityDetailDestination(
                                                 entityID: item.entityID,
+                                                surfaceContext: .home,
                                                 transitionSourceID: cardTransitionID(for: item)
                                             ),
                                             openDetails: { destination in
@@ -323,6 +324,7 @@ struct DashboardSummaryView: View {
         guard stateStore.entityBox(for: entityID) != nil else { return }
         selectedEntityDetailDestination = EntityDetailDestination(
             entityID: entityID,
+            surfaceContext: .home,
             transitionSourceID: securityActivityTransitionID(for: row)
         )
     }

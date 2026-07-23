@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct EntityDetailScaffold<Content: View>: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let title: String
     let presentationStyle: EntityDetailPresentationStyle
     private let content: Content
@@ -27,7 +29,11 @@ struct EntityDetailScaffold<Content: View>: View {
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
-        .background(Color(.systemGroupedBackground))
+        .background(
+            isWallpaperSurfaceActive
+                ? Color.clear
+                : Color(.systemGroupedBackground)
+        )
         .entityDetailPresentation(title: title, style: presentationStyle)
     }
 }

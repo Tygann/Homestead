@@ -25,9 +25,15 @@ struct EntityDetailDestinationView: View {
                 dashboardItemReference: destination.dashboardItemReference,
                 onCardEntityChange: { activeEntityID = $0 }
             )
+            .homesteadWallpaperBackground(
+                allowsWallpaper: destination.surfaceContext == .home
+            )
         } else {
             ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
                 .navigationTitle("Entity")
+                .homesteadWallpaperBackground(
+                    allowsWallpaper: destination.surfaceContext == .home
+                )
         }
     }
 }

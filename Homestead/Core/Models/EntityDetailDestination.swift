@@ -5,6 +5,11 @@ nonisolated enum EntityDetailInitialSection: Equatable, Hashable, Sendable {
     case history(initialRange: HAHistoryRangePreset)
 }
 
+nonisolated enum EntityDetailSurfaceContext: Equatable, Hashable, Sendable {
+    case standard
+    case home
+}
+
 nonisolated struct DashboardItemReference: Identifiable, Equatable, Hashable, Sendable {
     let dashboardID: UUID
     let itemID: UUID
@@ -15,17 +20,20 @@ nonisolated struct DashboardItemReference: Identifiable, Equatable, Hashable, Se
 nonisolated struct EntityDetailDestination: Identifiable, Equatable, Hashable, Sendable {
     let entityID: String
     let initialSection: EntityDetailInitialSection
+    let surfaceContext: EntityDetailSurfaceContext
     let dashboardItemReference: DashboardItemReference?
     let transitionSourceID: String?
 
     init(
         entityID: String,
         initialSection: EntityDetailInitialSection = .overview,
+        surfaceContext: EntityDetailSurfaceContext = .standard,
         dashboardItemReference: DashboardItemReference? = nil,
         transitionSourceID: String? = nil
     ) {
         self.entityID = entityID
         self.initialSection = initialSection
+        self.surfaceContext = surfaceContext
         self.dashboardItemReference = dashboardItemReference
         self.transitionSourceID = transitionSourceID
     }
@@ -41,6 +49,7 @@ nonisolated struct EntityDetailDestination: Identifiable, Equatable, Hashable, S
         Self(
             entityID: entityID,
             initialSection: section,
+            surfaceContext: surfaceContext,
             dashboardItemReference: dashboardItemReference,
             transitionSourceID: transitionSourceID
         )

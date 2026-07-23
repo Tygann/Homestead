@@ -546,6 +546,7 @@ struct DashboardView: View {
                 cameraRefreshGeneration: cameraRefreshGeneration,
                 detailDestination: EntityDetailDestination(
                     entityID: item.entityID,
+                    surfaceContext: .home,
                     dashboardItemReference: DashboardItemReference(
                         dashboardID: dashboardConfiguration.selectedDashboardID,
                         itemID: item.id

@@ -84,24 +84,31 @@ final class EntityCapabilityProfileTests: XCTestCase {
         }
     }
 
-    func testEntityDetailDestinationsKeepCardContextSurfaceNeutral() {
+    func testEntityDetailDestinationsPreserveHomeSurfaceWhenFocusingHistory() {
         let dashboardID = UUID()
         let itemID = UUID()
         let reference = DashboardItemReference(dashboardID: dashboardID, itemID: itemID)
         let destination = EntityDetailDestination(
             entityID: "sensor.temperature",
+            surfaceContext: .home,
             dashboardItemReference: reference,
             transitionSourceID: "dashboard-card-\(itemID)"
         )
 
         XCTAssertEqual(destination.entityID, "sensor.temperature")
         XCTAssertEqual(destination.initialSection, .overview)
+        XCTAssertEqual(destination.surfaceContext, .home)
         XCTAssertEqual(destination.dashboardItemReference, reference)
-        XCTAssertEqual(
-            destination.focusing(.history(initialRange: .week)).initialSection,
-            .history(initialRange: .week)
-        )
+        let historyDestination = destination.focusing(.history(initialRange: .week))
+        XCTAssertEqual(historyDestination.initialSection, .history(initialRange: .week))
+        XCTAssertEqual(historyDestination.surfaceContext, .home)
         XCTAssertEqual(EntityCapabilityRegistry.profile(for: .sensor).detailRoute, .sensor)
+    }
+
+    func testEntityDetailDestinationsDefaultToStandardSurface() {
+        let destination = EntityDetailDestination(entityID: "sensor.temperature")
+
+        XCTAssertEqual(destination.surfaceContext, .standard)
     }
 
     func testOnlyChartCardsFocusCanonicalHistory() {

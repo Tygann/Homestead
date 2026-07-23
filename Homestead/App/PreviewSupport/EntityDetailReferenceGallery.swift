@@ -571,6 +571,7 @@ struct EntityDetailCardContextPreviewScreen: View {
         destination = EntityDetailDestination(
             entityID: "sensor.hallway_temperature",
             initialSection: .history(initialRange: .sixHours),
+            surfaceContext: .home,
             dashboardItemReference: DashboardItemReference(
                 dashboardID: dashboardID,
                 itemID: itemID
