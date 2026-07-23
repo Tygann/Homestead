@@ -5,10 +5,14 @@ final class SharedFeaturePresentationTests: XCTestCase {
     func testWidgetKindsAreStableAndUnique() {
         let kinds = HomesteadWidgetKind.allCases.map(\.rawValue)
 
-        XCTAssertEqual(kinds.count, 7)
+        XCTAssertEqual(kinds.count, 8)
         XCTAssertEqual(Set(kinds).count, kinds.count)
         XCTAssertEqual(HomesteadWidgetKind.sensor.rawValue, "HomesteadSensorChartWidget")
         XCTAssertEqual(HomesteadWidgetKind.sensorBoard.rawValue, "HomesteadSensorBoardWidget")
+        XCTAssertEqual(
+            HomesteadWidgetKind.largeSensorBoard.rawValue,
+            "HomesteadLargeSensorBoardWidget"
+        )
         XCTAssertEqual(HomesteadWidgetKind.gaugeGrid.rawValue, "HomesteadGaugeGridWidget")
     }
 

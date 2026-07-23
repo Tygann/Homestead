@@ -21,7 +21,7 @@ struct HomesteadSensorBoardWidget: Widget {
     }
 }
 
-enum HomesteadSensorBoardCompactDisplay: String, AppEnum {
+enum HomesteadSensorBoardSlotDisplay: String, AppEnum {
     case automatic
     case gauge
     case reading
@@ -50,59 +50,53 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     static var description = IntentDescription("Combine three sensor readings, gauges, or six-hour charts.")
 
     @Parameter(title: "Slot 1 Display", default: .automatic)
-    var display1: HomesteadSensorBoardCompactDisplay
+    var display1: HomesteadSensorBoardSlotDisplay
 
     @Parameter(title: "Slot 1 Sensor") var sensor1: HomesteadSensorEntity?
     @Parameter(title: "Slot 1 Chart Sensor") var chartSensor1: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 1 Display Name") var customDisplayName1: String?
-    @Parameter(title: "Slot 1 Chart Display Name") var customChartDisplayName1: String?
 
     @Parameter(title: "Slot 2 Display", default: .automatic)
-    var display2: HomesteadSensorBoardCompactDisplay
+    var display2: HomesteadSensorBoardSlotDisplay
 
     @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
     @Parameter(title: "Slot 2 Chart Sensor") var chartSensor2: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 2 Display Name") var customDisplayName2: String?
-    @Parameter(title: "Slot 2 Chart Display Name") var customChartDisplayName2: String?
 
     @Parameter(title: "Slot 3 Display", default: .chart)
-    var display3: HomesteadSensorBoardCompactDisplay
+    var display3: HomesteadSensorBoardSlotDisplay
 
     @Parameter(title: "Slot 3 Sensor") var sensor3: HomesteadSensorEntity?
-
-    // Retain these parameter identities so existing Sensor Board widgets keep
-    // their configured third-slot chart and custom name.
-    @Parameter(title: "Slot 3 Chart Sensor") var chartSensor: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 3 Chart Sensor") var chartSensor3: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 3 Display Name") var customDisplayName3: String?
-    @Parameter(title: "Slot 3 Chart Display Name") var customChartDisplayName: String?
 
     static var parameterSummary: some ParameterSummary {
         When(
             \HomesteadSensorBoardWidgetConfigurationIntent.$display1,
             .equalTo,
-            HomesteadSensorBoardCompactDisplay.chart
+            HomesteadSensorBoardSlotDisplay.chart
         ) {
             When(\.$display2, .equalTo, .chart) {
                 When(\.$display3, .equalTo, .chart) {
                     Summary {
                         \.$display1
                         \.$chartSensor1
-                        \.$customChartDisplayName1
+                        \.$customDisplayName1
                         \.$display2
                         \.$chartSensor2
-                        \.$customChartDisplayName2
+                        \.$customDisplayName2
                         \.$display3
-                        \.$chartSensor
-                        \.$customChartDisplayName
+                        \.$chartSensor3
+                        \.$customDisplayName3
                     }
                 } otherwise: {
                     Summary {
                         \.$display1
                         \.$chartSensor1
-                        \.$customChartDisplayName1
+                        \.$customDisplayName1
                         \.$display2
                         \.$chartSensor2
-                        \.$customChartDisplayName2
+                        \.$customDisplayName2
                         \.$display3
                         \.$sensor3
                         \.$customDisplayName3
@@ -113,19 +107,19 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                     Summary {
                         \.$display1
                         \.$chartSensor1
-                        \.$customChartDisplayName1
+                        \.$customDisplayName1
                         \.$display2
                         \.$sensor2
                         \.$customDisplayName2
                         \.$display3
-                        \.$chartSensor
-                        \.$customChartDisplayName
+                        \.$chartSensor3
+                        \.$customDisplayName3
                     }
                 } otherwise: {
                     Summary {
                         \.$display1
                         \.$chartSensor1
-                        \.$customChartDisplayName1
+                        \.$customDisplayName1
                         \.$display2
                         \.$sensor2
                         \.$customDisplayName2
@@ -144,10 +138,10 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$customDisplayName1
                         \.$display2
                         \.$chartSensor2
-                        \.$customChartDisplayName2
+                        \.$customDisplayName2
                         \.$display3
-                        \.$chartSensor
-                        \.$customChartDisplayName
+                        \.$chartSensor3
+                        \.$customDisplayName3
                     }
                 } otherwise: {
                     Summary {
@@ -156,7 +150,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$customDisplayName1
                         \.$display2
                         \.$chartSensor2
-                        \.$customChartDisplayName2
+                        \.$customDisplayName2
                         \.$display3
                         \.$sensor3
                         \.$customDisplayName3
@@ -172,8 +166,8 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$sensor2
                         \.$customDisplayName2
                         \.$display3
-                        \.$chartSensor
-                        \.$customChartDisplayName
+                        \.$chartSensor3
+                        \.$customDisplayName3
                     }
                 } otherwise: {
                     Summary {
@@ -199,28 +193,28 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                 sensor: sensor1,
                 chartSensor: chartSensor1,
                 customDisplayName: customDisplayName1,
-                customChartDisplayName: customChartDisplayName1
+                customChartDisplayName: customDisplayName1
             ),
             HomesteadSensorBoardSlotConfiguration(
                 display: display2,
                 sensor: sensor2,
                 chartSensor: chartSensor2,
                 customDisplayName: customDisplayName2,
-                customChartDisplayName: customChartDisplayName2
+                customChartDisplayName: customDisplayName2
             ),
             HomesteadSensorBoardSlotConfiguration(
                 display: display3,
                 sensor: sensor3,
-                chartSensor: chartSensor,
+                chartSensor: chartSensor3,
                 customDisplayName: customDisplayName3,
-                customChartDisplayName: customChartDisplayName
+                customChartDisplayName: customDisplayName3
             )
         ]
     }
 }
 
 struct HomesteadSensorBoardSlotConfiguration {
-    let display: HomesteadSensorBoardCompactDisplay
+    let display: HomesteadSensorBoardSlotDisplay
     let sensor: HomesteadSensorEntity?
     let chartSensor: HomesteadChartSensorEntity?
     let customDisplayName: String?
@@ -416,11 +410,19 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
     private func entry(
         for configuration: HomesteadSensorBoardWidgetConfigurationIntent
     ) async -> HomesteadSensorBoardEntry {
+        await HomesteadSensorBoardEntryBuilder.entry(slots: configuration.slots)
+    }
+}
+
+enum HomesteadSensorBoardEntryBuilder {
+    static func entry(
+        slots: [HomesteadSensorBoardSlotConfiguration]
+    ) async -> HomesteadSensorBoardEntry {
         let snapshotsByEntityID = HomesteadWidgetSharedStore.sensorSnapshots.reduce(into: [:]) { result, snapshot in
             result[snapshot.entityID] = snapshot
         }
         let compactEntityIDs = Set(
-            configuration.slots.compactMap { slot in
+            slots.compactMap { slot in
                 slot.display == .chart ? nil : slot.sensor?.id
             }
         )
@@ -434,7 +436,6 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
             liveReadingsByEntityID = [:]
         }
 
-        let slots = configuration.slots
         var items = Array<WidgetSensorBoardItem?>(repeating: nil, count: slots.count)
         await withTaskGroup(of: (Int, WidgetSensorBoardChartItem).self) { group in
             for (index, slot) in slots.enumerated() {

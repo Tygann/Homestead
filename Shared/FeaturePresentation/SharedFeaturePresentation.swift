@@ -198,6 +198,14 @@ nonisolated enum SharedFeatureCatalog {
             requiresConfiguration: true
         ),
         WidgetFeatureDescriptor(
+            kind: .largeSensorBoard,
+            featureID: "sensor",
+            displayName: "Homestead Large Sensor Board",
+            description: "Combine up to six sensor readings, gauges, or six-hour charts.",
+            supportedFamilies: [.systemLarge],
+            requiresConfiguration: true
+        ),
+        WidgetFeatureDescriptor(
             kind: .gaugeGrid,
             featureID: "sensor-gauge",
             displayName: "Homestead Gauge Grid",

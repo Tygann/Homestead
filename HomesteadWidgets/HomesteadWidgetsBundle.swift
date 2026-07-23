@@ -9,6 +9,7 @@ struct HomesteadWidgetsBundle: WidgetBundle {
         HomesteadStatusWidget()
         HomesteadSensorChartWidget()
         HomesteadSensorBoardWidget()
+        HomesteadLargeSensorBoardWidget()
         HomesteadGaugeGridWidget()
         HomesteadLargeGaugeGridWidget()
         HomesteadActionWidget()

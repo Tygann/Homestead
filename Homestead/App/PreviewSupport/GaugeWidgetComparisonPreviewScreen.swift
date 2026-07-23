@@ -59,6 +59,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
+                    largeSensorBoardPreview
                     sensorBoardPreview
                     chartComparisonRow
                     circularComparisonRow
@@ -114,6 +115,23 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                 items: sensorBoardItems
             )
             .frame(width: 360, height: 169)
+            .background(
+                .fill.tertiary,
+                in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous)
+            )
+        }
+    }
+
+    private var largeSensorBoardPreview: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Large Sensor Board")
+                .font(.headline)
+
+            WidgetSensorBoardFace(
+                items: largeSensorBoardItems,
+                layout: .large
+            )
+            .frame(width: 360, height: 360)
             .background(
                 .fill.tertiary,
                 in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous)
@@ -262,6 +280,31 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                         accessibilityLabel: "Alkalinity gauge",
                         accessibilityValue: "8.3 dKH"
                     )
+                )
+            ))
+        ]
+    }
+
+    private var largeSensorBoardItems: [WidgetSensorBoardItem?] {
+        sensorBoardItems + [
+            .compact(WidgetSensorBoardCompactItem.sensor(
+                from: previewSensor(
+                    id: "sensor.pool_temperature",
+                    name: "Pool",
+                    valueText: "81.2°F",
+                    icon: "thermometer.medium",
+                    gauge: sensorBoardTemperatureGauge
+                ),
+                presentation: .reading
+            )),
+            .chart(sensorBoardChartItem),
+            .compact(WidgetSensorBoardCompactItem.sensor(
+                from: previewSensor(
+                    id: "sensor.spa_temperature",
+                    name: "Spa",
+                    valueText: "101°F",
+                    icon: "thermometer.high",
+                    gauge: sensorBoardTemperatureGauge
                 )
             ))
         ]

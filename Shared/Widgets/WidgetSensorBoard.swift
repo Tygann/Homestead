@@ -115,19 +115,42 @@ nonisolated enum WidgetSensorBoardItem: Identifiable, Equatable, Sendable {
 
 // MARK: - Sensor Board Face
 
+enum WidgetSensorBoardLayout {
+    case medium
+    case large
+}
+
 struct WidgetSensorBoardFace: View {
     let items: [WidgetSensorBoardItem?]
+    var layout: WidgetSensorBoardLayout = .medium
     var destinationsByEntityID: [String: URL] = [:]
 
+    @ViewBuilder
     var body: some View {
-        HStack(spacing: 10) {
-            ForEach(0..<3, id: \.self) { index in
-                slot(at: index)
-                    .frame(maxWidth: .infinity)
+        switch layout {
+        case .medium:
+            HStack(spacing: 10) {
+                ForEach(0..<3, id: \.self) { index in
+                    slot(at: index)
+                        .frame(maxWidth: .infinity)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(12)
+        case .large:
+            Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+                ForEach(0..<2, id: \.self) { row in
+                    GridRow {
+                        ForEach(0..<3, id: \.self) { column in
+                            slot(at: (row * 3) + column)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(12)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(12)
     }
 
     @ViewBuilder
