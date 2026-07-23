@@ -186,41 +186,18 @@ struct EntityDetailStateToggle: View {
 }
 
 struct EntityDetailHeroActionButton: View {
-    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
-
     let title: String
     let systemImage: String
     let isDisabled: Bool
     let action: () -> Void
 
-    @ViewBuilder
     var body: some View {
-        if isWallpaperSurfaceActive {
-            Button(action: action) {
-                Label(title, systemImage: systemImage)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-                    .padding(.horizontal, AppSpacing.medium)
-                    .frame(minHeight: 44)
-                    .background(
-                        HomesteadSurfaceStyle.controlBackground(
-                            isWallpaperActive: true,
-                            isActive: false
-                        ),
-                        in: Capsule()
-                    )
-            }
-            .buttonStyle(.plain)
+        Button(title, systemImage: systemImage, action: action)
+            .font(.subheadline.weight(.semibold))
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
+            .frame(minHeight: 44)
             .disabled(isDisabled)
-            .opacity(isDisabled ? 0.55 : 1)
-        } else {
-            Button(title, systemImage: systemImage, action: action)
-                .font(.subheadline.weight(.semibold))
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .frame(minHeight: 44)
-                .disabled(isDisabled)
-        }
     }
 }
 
