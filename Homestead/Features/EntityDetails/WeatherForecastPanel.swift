@@ -118,7 +118,7 @@ struct WeatherForecastPanel: View {
             let showsPrecipitationRow = entries.contains { ($0.precipitationProbability ?? 0) > 0 }
 
             ScrollView(.horizontal) {
-                LazyHStack(spacing: AppSpacing.small) {
+                LazyHStack(spacing: AppSpacing.xSmall) {
                     ForEach(entries) { entry in
                         WeatherHourlyForecastItem(
                             entry: entry,
