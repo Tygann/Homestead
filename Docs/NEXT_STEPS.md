@@ -30,7 +30,7 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
-- Replaced Climate's compact target rows at standard text sizes with a native-feeling 240-degree thermostat instrument. Single targets use one semantic handle; Heat/Cool exposes independently selectable endpoints, a warm-to-cool range, direct dragging, and precise step buttons while retaining the row-based accessibility-size fallback and the existing Home Assistant command pipeline.
+- Replaced Climate's compact target rows at standard text sizes with a native-feeling 240-degree thermostat instrument. Single targets use one semantic handle; Heat/Cool exposes a blue low endpoint, warm high endpoint, selected-span gradient, direct dragging with step haptics, and endpoint-aligned precision buttons. Mode is now the primary floating menu with adaptive Fan/Preset capsules beneath it, while accessibility sizes retain the native row composition and the existing Home Assistant command pipeline remains unchanged.
 
 - Returned History to the entity detail itself: range pickers and canonical numeric charts remain inline, while discrete timelines start with eight entries and expose total and hidden counts beside `Show All`. Flattened nested Controls styling into native rows with consistent rhythm, refined Weather Conditions, and stacked Hourly above Daily Forecast using the shared dashboard temperature-range component.
 

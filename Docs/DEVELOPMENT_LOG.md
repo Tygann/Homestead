@@ -7,7 +7,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### Thermostat Detail Instrument
 
 - Replaced climate target rows at standard Dynamic Type sizes with a compact 240-degree thermostat instrument that keeps current temperature in the hero and editable setpoints in Controls.
-- Single-target modes use one semantically tinted handle; Heat/Cool uses independently selectable orange and blue handles with a visible range gradient, direct dragging, and precise minus/plus adjustment.
+- Single-target modes use one semantically tinted handle; Heat/Cool uses independently selectable blue low and warm high handles with a selected-span gradient, direct dragging, endpoint-aligned precision controls, and step haptics.
+- Replaced the thermostat's flat Mode/Fan/Preset rows at standard text sizes with one primary floating Mode menu and adaptive secondary Fan/Preset capsules; accessibility sizes retain the native row composition.
 - Preserved Home Assistant service, clamping, optimistic-update, and pending-state behavior; accessibility sizes retain the native row composition, while every handle exposes a labeled adjustable value.
 - Expanded the deterministic Climate reference fixture to cover the more demanding Heat/Cool range and verified light, dark, pending, unavailable, direct manipulation, and accessibility-size behavior.
 

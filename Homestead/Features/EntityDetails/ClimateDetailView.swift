@@ -91,7 +91,12 @@ struct ClimateDetailView: View {
                 }
 
                 if showsTemperatureControls(climate) && showsOptions(climate) {
-                    controlSectionDivider
+                    if dynamicTypeSize.isAccessibilitySize {
+                        controlSectionDivider
+                    } else {
+                        Color.clear
+                            .frame(height: AppSpacing.large)
+                    }
                 }
 
                 if showsOptions(climate) {
@@ -142,7 +147,7 @@ struct ClimateDetailView: View {
                 temperatureAdjustmentRow(
                     title: "Heat to",
                     value: targetLowTemperature,
-                    tint: .orange,
+                    tint: .blue,
                     climate: climate,
                     canDecrease: targetLowTemperature > climate.resolvedMinimumTemperature,
                     canIncrease: targetLowTemperature < targetHighTemperature,
@@ -157,7 +162,7 @@ struct ClimateDetailView: View {
                 temperatureAdjustmentRow(
                     title: "Cool to",
                     value: targetHighTemperature,
-                    tint: .blue,
+                    tint: .orange,
                     climate: climate,
                     canDecrease: targetHighTemperature > targetLowTemperature,
                     canIncrease: targetHighTemperature < climate.resolvedMaximumTemperature,
@@ -209,7 +214,16 @@ struct ClimateDetailView: View {
         )
     }
 
+    @ViewBuilder
     private func optionControls(_ climate: ClimateEntity) -> some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            optionRows(climate)
+        } else {
+            optionCapsules(climate)
+        }
+    }
+
+    private func optionRows(_ climate: ClimateEntity) -> some View {
         VStack(spacing: 0) {
             if showsHVACModeOptions(climate) {
                 EntityDetailMenuRow(
@@ -218,22 +232,7 @@ struct ClimateDetailView: View {
                     value: climate.displayName(forHVACMode: climate.state),
                     isDisabled: detailState.blocksControlInteraction
                 ) {
-                    ForEach(climate.hvacModes, id: \.self) { mode in
-                        Button {
-                            Task {
-                                await homeAssistantService.setClimateHVACMode(
-                                    entityID: entityBox.entityID,
-                                    hvacMode: mode
-                                )
-                            }
-                        } label: {
-                            Label(
-                                climate.displayName(forHVACMode: mode),
-                                systemImage: mode == climate.state ? "checkmark" : climate.iconName(forHVACMode: mode)
-                            )
-                        }
-                        .disabled(mode == climate.state)
-                    }
+                    hvacModeMenu(climate)
                 }
             }
 
@@ -249,22 +248,7 @@ struct ClimateDetailView: View {
                     value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
                     isDisabled: detailState.blocksControlInteraction
                 ) {
-                    ForEach(climate.fanModes, id: \.self) { fanMode in
-                        Button {
-                            Task {
-                                await homeAssistantService.setClimateFanMode(
-                                    entityID: entityBox.entityID,
-                                    fanMode: fanMode
-                                )
-                            }
-                        } label: {
-                            Label(
-                                climate.displayName(forFanMode: fanMode),
-                                systemImage: fanMode == climate.fanMode ? "checkmark" : "fan.fill"
-                            )
-                        }
-                        .disabled(fanMode == climate.fanMode)
-                    }
+                    fanModeMenu(climate)
                 }
             }
 
@@ -279,24 +263,113 @@ struct ClimateDetailView: View {
                     value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
                     isDisabled: detailState.blocksControlInteraction
                 ) {
-                    ForEach(climate.presetModes, id: \.self) { presetMode in
-                        Button {
-                            Task {
-                                await homeAssistantService.setClimatePresetMode(
-                                    entityID: entityBox.entityID,
-                                    presetMode: presetMode
-                                )
-                            }
-                        } label: {
-                            Label(
-                                climate.displayName(forPresetMode: presetMode),
-                                systemImage: presetMode == climate.presetMode ? "checkmark" : "leaf"
-                            )
+                    presetModeMenu(climate)
+                }
+            }
+        }
+    }
+
+    private func optionCapsules(_ climate: ClimateEntity) -> some View {
+        VStack(spacing: AppSpacing.small) {
+            if showsHVACModeOptions(climate) {
+                ClimateFloatingMenu(
+                    title: "Mode",
+                    systemImage: climate.iconName(forHVACMode: climate.state),
+                    value: climate.displayName(forHVACMode: climate.state),
+                    prominence: .primary,
+                    isDisabled: detailState.blocksControlInteraction
+                ) {
+                    hvacModeMenu(climate)
+                }
+            }
+
+            if showsFanModeOptions(climate) || showsPresetModeOptions(climate) {
+                HStack(spacing: AppSpacing.small) {
+                    if showsFanModeOptions(climate) {
+                        ClimateFloatingMenu(
+                            title: "Fan",
+                            systemImage: "fan.fill",
+                            value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
+                            prominence: .secondary,
+                            isDisabled: detailState.blocksControlInteraction
+                        ) {
+                            fanModeMenu(climate)
                         }
-                        .disabled(presetMode == climate.presetMode)
+                    }
+
+                    if showsPresetModeOptions(climate) {
+                        ClimateFloatingMenu(
+                            title: "Preset",
+                            systemImage: "leaf",
+                            value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
+                            prominence: .secondary,
+                            isDisabled: detailState.blocksControlInteraction
+                        ) {
+                            presetModeMenu(climate)
+                        }
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func hvacModeMenu(_ climate: ClimateEntity) -> some View {
+        ForEach(climate.hvacModes, id: \.self) { mode in
+            Button {
+                Task {
+                    await homeAssistantService.setClimateHVACMode(
+                        entityID: entityBox.entityID,
+                        hvacMode: mode
+                    )
+                }
+            } label: {
+                Label(
+                    climate.displayName(forHVACMode: mode),
+                    systemImage: mode == climate.state ? "checkmark" : climate.iconName(forHVACMode: mode)
+                )
+            }
+            .disabled(mode == climate.state)
+        }
+    }
+
+    @ViewBuilder
+    private func fanModeMenu(_ climate: ClimateEntity) -> some View {
+        ForEach(climate.fanModes, id: \.self) { fanMode in
+            Button {
+                Task {
+                    await homeAssistantService.setClimateFanMode(
+                        entityID: entityBox.entityID,
+                        fanMode: fanMode
+                    )
+                }
+            } label: {
+                Label(
+                    climate.displayName(forFanMode: fanMode),
+                    systemImage: fanMode == climate.fanMode ? "checkmark" : "fan.fill"
+                )
+            }
+            .disabled(fanMode == climate.fanMode)
+        }
+    }
+
+    @ViewBuilder
+    private func presetModeMenu(_ climate: ClimateEntity) -> some View {
+        ForEach(climate.presetModes, id: \.self) { presetMode in
+            Button {
+                Task {
+                    await homeAssistantService.setClimatePresetMode(
+                        entityID: entityBox.entityID,
+                        presetMode: presetMode
+                    )
+                }
+            } label: {
+                Label(
+                    climate.displayName(forPresetMode: presetMode),
+                    systemImage: presetMode == climate.presetMode ? "checkmark" : "leaf"
+                )
+            }
+            .disabled(presetMode == climate.presetMode)
         }
     }
 
@@ -470,6 +543,117 @@ struct ClimateDetailView: View {
     }
 }
 
+// MARK: - Floating Climate Menus
+
+private enum ClimateFloatingMenuProminence {
+    case primary
+    case secondary
+}
+
+private struct ClimateFloatingMenu<MenuContent: View>: View {
+    let title: String
+    let systemImage: String
+    let value: String
+    let prominence: ClimateFloatingMenuProminence
+    let isDisabled: Bool
+    private let menuContent: MenuContent
+
+    init(
+        title: String,
+        systemImage: String,
+        value: String,
+        prominence: ClimateFloatingMenuProminence,
+        isDisabled: Bool,
+        @ViewBuilder menuContent: () -> MenuContent
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.value = value
+        self.prominence = prominence
+        self.isDisabled = isDisabled
+        self.menuContent = menuContent()
+    }
+
+    var body: some View {
+        Menu {
+            menuContent
+        } label: {
+            Group {
+                switch prominence {
+                case .primary:
+                    primaryLabel
+                case .secondary:
+                    secondaryLabel
+                }
+            }
+            .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+            }
+            .contentShape(Capsule())
+            .opacity(isDisabled ? 0.55 : 1)
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
+    }
+
+    private var primaryLabel: some View {
+        HStack(spacing: AppSpacing.medium) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+
+            Spacer(minLength: AppSpacing.small)
+
+            Text(value)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            Spacer(minLength: AppSpacing.small)
+
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .frame(width: 24)
+        }
+        .padding(.horizontal, AppSpacing.medium)
+        .frame(maxWidth: .infinity, minHeight: 48)
+    }
+
+    private var secondaryLabel: some View {
+        HStack(spacing: AppSpacing.small) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+
+            Spacer(minLength: AppSpacing.xSmall)
+
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, AppSpacing.medium)
+        .frame(maxWidth: .infinity, minHeight: 52)
+    }
+}
+
 // MARK: - Thermostat Instrument
 
 private enum ClimateThermostatInstrumentMode {
@@ -500,41 +684,39 @@ private struct ClimateThermostatInstrument: View {
     private let arcLength = 240.0
 
     var body: some View {
-        VStack(spacing: AppSpacing.small) {
-            GeometryReader { proxy in
-                let geometry = dialGeometry(in: proxy.size)
+        GeometryReader { proxy in
+            let geometry = dialGeometry(in: proxy.size)
 
-                ZStack {
-                    arcTrack
+            ZStack {
+                arcTrack
 
-                    selectedArc
+                selectedArc
 
-                    setpointReadout
-                        .position(x: geometry.center.x, y: geometry.center.y + 8)
+                setpointReadout
+                    .position(x: geometry.center.x, y: geometry.center.y - 10)
 
+                handle(
+                    .lower,
+                    point: point(for: lowerFraction, geometry: geometry),
+                    geometry: geometry,
+                    tint: lowerTint
+                )
+
+                if usesRange {
                     handle(
-                        .lower,
-                        point: point(for: lowerFraction, geometry: geometry),
+                        .upper,
+                        point: point(for: upperFraction, geometry: geometry),
                         geometry: geometry,
-                        tint: lowerTint
+                        tint: .orange
                     )
-
-                    if usesRange {
-                        handle(
-                            .upper,
-                            point: point(for: upperFraction, geometry: geometry),
-                            geometry: geometry,
-                            tint: .blue
-                        )
-                    }
                 }
-                .coordinateSpace(name: "climateThermostatArc")
-            }
-            .frame(height: 188)
-            .accessibilityElement(children: .contain)
 
-            precisionControls
+                precisionControls(geometry: geometry)
+            }
+            .coordinateSpace(name: "climateThermostatArc")
         }
+        .frame(height: 250)
+        .accessibilityElement(children: .contain)
         .opacity(isDisabled ? 0.55 : 1)
     }
 
@@ -553,10 +735,10 @@ private struct ClimateThermostatInstrument: View {
             ClimateThermostatArc(startFraction: lowerFraction, endFraction: upperFraction)
                 .stroke(
                     AngularGradient(
-                        colors: [.orange, .yellow, .mint, .blue],
+                        colors: [.blue, .orange],
                         center: .center,
-                        startAngle: .degrees(arcStartAngle),
-                        endAngle: .degrees(arcStartAngle + arcLength)
+                        startAngle: .degrees(arcStartAngle + (arcLength * lowerFraction)),
+                        endAngle: .degrees(arcStartAngle + (arcLength * upperFraction))
                     ),
                     style: StrokeStyle(lineWidth: 22, lineCap: .round)
                 )
@@ -580,8 +762,8 @@ private struct ClimateThermostatInstrument: View {
 
             if usesRange {
                 HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                    Text(formatValue(lowerValue))
-                        .foregroundStyle(selectedHandle == .lower ? Color.orange : Color.primary)
+                    Text(displayValue(lowerValue))
+                        .foregroundStyle(selectedHandle == .lower ? Color.blue : Color.primary)
                         .onTapGesture {
                             selectedHandle = .lower
                         }
@@ -589,15 +771,15 @@ private struct ClimateThermostatInstrument: View {
                     Text("–")
                         .foregroundStyle(.secondary)
 
-                    Text(formatValue(upperValue))
-                        .foregroundStyle(selectedHandle == .upper ? Color.blue : Color.primary)
+                    Text(displayValue(upperValue))
+                        .foregroundStyle(selectedHandle == .upper ? Color.orange : Color.primary)
                         .onTapGesture {
                             selectedHandle = .upper
                         }
                 }
                 .font(.system(size: 32, weight: .semibold, design: .rounded).monospacedDigit())
             } else {
-                Text(formatValue(lowerValue))
+                Text(displayValue(lowerValue))
                     .font(.system(size: 40, weight: .semibold, design: .rounded).monospacedDigit())
                     .foregroundStyle(lowerTint)
             }
@@ -607,19 +789,26 @@ private struct ClimateThermostatInstrument: View {
         .accessibilityHidden(true)
     }
 
-    private var precisionControls: some View {
-        HStack(spacing: AppSpacing.medium) {
+    private func precisionControls(geometry: DialGeometry) -> some View {
+        let leftEndpoint = point(for: 0, geometry: geometry)
+        let rightEndpoint = point(for: 1, geometry: geometry)
+        let controlY = leftEndpoint.y + 48
+
+        return ZStack {
             precisionButton(systemImage: "minus", direction: -1)
+                .position(x: leftEndpoint.x + 10, y: controlY)
 
             Text(adjustmentLabel)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 92)
                 .contentTransition(.numericText())
+                .position(x: geometry.center.x, y: controlY)
 
             precisionButton(systemImage: "plus", direction: 1)
+                .position(x: rightEndpoint.x - 10, y: controlY)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func precisionButton(systemImage: String, direction: Double) -> some View {
@@ -724,7 +913,7 @@ private struct ClimateThermostatInstrument: View {
         case let .single(_, tint):
             tint
         case .range:
-            .orange
+            .blue
         }
     }
 
@@ -775,6 +964,8 @@ private struct ClimateThermostatInstrument: View {
     }
 
     private func adjust(_ handle: ClimateThermostatHandle, by delta: Double) {
+        let previousValue = value(for: handle)
+
         switch handle {
         case .lower:
             let upperLimit = usesRange ? upperValue : maximumValue
@@ -783,6 +974,9 @@ private struct ClimateThermostatInstrument: View {
             upperValue = steppedValue(min(max(upperValue + delta, lowerValue), maximumValue))
         }
 
+        if value(for: handle) != previousValue {
+            HapticFeedback.selection()
+        }
         commitUpdatedValue()
     }
 
@@ -792,6 +986,7 @@ private struct ClimateThermostatInstrument: View {
         geometry: DialGeometry
     ) {
         let updatedValue = value(at: location, geometry: geometry)
+        let previousValue = value(for: handle)
 
         switch handle {
         case .lower:
@@ -799,6 +994,10 @@ private struct ClimateThermostatInstrument: View {
             lowerValue = min(updatedValue, upperLimit)
         case .upper:
             upperValue = max(updatedValue, lowerValue)
+        }
+
+        if value(for: handle) != previousValue {
+            HapticFeedback.selection()
         }
     }
 
@@ -819,6 +1018,14 @@ private struct ClimateThermostatInstrument: View {
             return "\(readoutLabel) temperature"
         }
         return handle == .lower ? "Heat setpoint" : "Cool setpoint"
+    }
+
+    private func displayValue(_ value: Double) -> String {
+        let value = formatValue(value)
+        if value.hasSuffix("°F") || value.hasSuffix("°C") {
+            return String(value.dropLast())
+        }
+        return value
     }
 
     private func fraction(for value: Double) -> Double {
