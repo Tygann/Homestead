@@ -222,9 +222,10 @@ private struct WidgetSensorBoardChartTile: View {
         HomesteadWidgetChartFace(
             presentation: item.chartPresentation,
             accentColor: widgetGaugeColor(for: item.accentColor),
-            density: .compact
+            density: .sensorBoard
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 12)
         .contentShape(Rectangle())
     }
 }

@@ -54,6 +54,7 @@ struct HomesteadChartPlot: View {
     let valueDomain: ClosedRange<Double>
     let accentColor: Color
     let interpolationStyle: HomesteadChartInterpolationStyle
+    var highlightsLatestSample = false
 
     var body: some View {
         Chart(samples) { sample in
@@ -81,9 +82,23 @@ struct HomesteadChartPlot: View {
             .interpolationMethod(interpolationMethod)
             .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             .foregroundStyle(accentColor)
+
+            if highlightsLatestSample, sample.id == samples.last?.id {
+                PointMark(
+                    x: .value("Latest Time", sample.occurredAt),
+                    y: .value("Latest Value", sample.value)
+                )
+                .symbolSize(24)
+                .foregroundStyle(accentColor)
+            }
         }
         .chartYScale(domain: displayDomain)
-        .chartXScale(range: .plotDimension(startPadding: 0, endPadding: 0))
+        .chartXScale(
+            range: .plotDimension(
+                startPadding: 0,
+                endPadding: highlightsLatestSample ? 3 : 0
+            )
+        )
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .chartPlotStyle { plotArea in
@@ -119,6 +134,7 @@ nonisolated struct HomesteadWidgetChartPresentation: Equatable, Sendable {
 
 nonisolated enum HomesteadWidgetChartDensity: Equatable, Sendable {
     case compact
+    case sensorBoard
     case small
     case medium
 }
@@ -159,6 +175,14 @@ struct HomesteadWidgetChartFace: View {
                 }
                 .padding(contentPadding)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                if density == .sensorBoard {
+                    Text(presentation.rangeTitle)
+                        .font(.caption2.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 2)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
             }
         }
         .accessibilityElement(children: .ignore)
@@ -177,12 +201,13 @@ struct HomesteadWidgetChartFace: View {
                 samples: presentation.samples,
                 valueDomain: presentation.valueDomain,
                 accentColor: resolvedAccentColor,
-                interpolationStyle: presentation.interpolationStyle
+                interpolationStyle: presentation.interpolationStyle,
+                highlightsLatestSample: density == .sensorBoard
             )
         } else {
             HomesteadChartPlaceholder(
                 accentColor: resolvedAccentColor,
-                label: density == .compact ? nil : presentation.emptyLabel,
+                label: compactlyHidesEmptyLabel ? nil : presentation.emptyLabel,
                 horizontalPadding: contentPadding
             )
         }
@@ -232,38 +257,54 @@ struct HomesteadWidgetChartFace: View {
     }
 
     private var contentPadding: CGFloat {
-        density == .compact ? 0 : 16
+        switch density {
+        case .compact, .sensorBoard: 0
+        case .small, .medium: 16
+        }
     }
 
     private var chartHeightFraction: CGFloat {
         switch density {
         case .compact, .small: 0.35
+        case .sensorBoard: 0.58
         case .medium: 0.48
         }
     }
 
     private var headerSpacing: CGFloat {
-        density == .compact ? 3 : 5
+        compactHeader ? 3 : 5
     }
 
     private var titleSpacing: CGFloat {
-        density == .compact ? 6 : 8
+        compactHeader ? 6 : 8
     }
 
     private var iconPointSize: CGFloat {
-        density == .compact ? 13 : 18
+        compactHeader ? 13 : 18
     }
 
     private var titleFont: Font {
-        density == .compact ? .caption.weight(.semibold) : .subheadline.weight(.semibold)
+        compactHeader ? .caption.weight(.semibold) : .subheadline.weight(.semibold)
     }
 
     private var valueFontSize: CGFloat {
-        density == .compact ? 24 : 38
+        switch density {
+        case .compact: 24
+        case .sensorBoard: 22
+        case .small, .medium: 38
+        }
     }
 
     private var unitFont: Font {
-        density == .compact ? .caption.weight(.semibold) : .title3.weight(.semibold)
+        compactHeader ? .caption.weight(.semibold) : .title3.weight(.semibold)
+    }
+
+    private var compactHeader: Bool {
+        density == .compact || density == .sensorBoard
+    }
+
+    private var compactlyHidesEmptyLabel: Bool {
+        density == .compact || density == .sensorBoard
     }
 }
 
