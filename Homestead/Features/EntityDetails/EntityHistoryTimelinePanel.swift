@@ -116,6 +116,8 @@ enum EntityHistoryTimelinePhase: Equatable {
 }
 
 struct EntityHistoryTimelinePanel: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     @Binding var selectedRange: HAHistoryRangePreset
     @State private var showsAllEntries = false
 
@@ -237,7 +239,13 @@ struct EntityHistoryTimelinePanel: View {
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 32, height: 32)
-                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                .background(
+                    HomesteadSurfaceStyle.controlBackground(
+                        isWallpaperActive: isWallpaperSurfaceActive,
+                        isActive: false
+                    ),
+                    in: Circle()
+                )
                 .accessibilityHidden(true)
 
             Text(message)

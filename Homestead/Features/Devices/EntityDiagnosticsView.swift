@@ -5,6 +5,7 @@ struct EntityDiagnosticsView: View {
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .navigationStack
+    var surfaceContext: EntityDetailSurfaceContext = .standard
 
     var body: some View {
         let entity = entityBox.homeEntity
@@ -32,6 +33,7 @@ struct EntityDiagnosticsView: View {
                     EntityDetailRow(title: "Last Changed", value: lastChanged.formatted(date: .abbreviated, time: .shortened))
                 }
             }
+            .homesteadListRowSurface()
 
             if let device {
                 Section("Device") {
@@ -47,6 +49,7 @@ struct EntityDiagnosticsView: View {
 
                     EntityDetailRow(title: "Device ID", value: device.id)
                 }
+                .homesteadListRowSurface()
             }
 
             if let registry {
@@ -67,6 +70,7 @@ struct EntityDiagnosticsView: View {
                         EntityDetailRow(title: "Hidden", value: hiddenBy ? "Yes" : "No")
                     }
                 }
+                .homesteadListRowSurface()
             }
 
             if let attributes = rawEntity?.attributes, !attributes.isEmpty {
@@ -75,8 +79,12 @@ struct EntityDiagnosticsView: View {
                         EntityDetailRow(title: key.humanizedAttributeName, value: value.detailDisplayValue)
                     }
                 }
+                .homesteadListRowSurface()
             }
         }
+        .scrollContentBackground(.hidden)
+        .homesteadWallpaperBackground(allowsWallpaper: surfaceContext == .home)
+        .environment(\.homesteadEntityDetailSurfaceContext, surfaceContext)
         .entityDetailPresentation(title: "Entity Details", style: presentationStyle)
     }
 

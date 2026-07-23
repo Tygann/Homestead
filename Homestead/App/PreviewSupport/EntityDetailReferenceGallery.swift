@@ -109,6 +109,8 @@ private struct EntityDetailReferenceScene: View {
                     automaticallyLoadsWeatherForecast: family != .information,
                     initialSection: family == .history ? .history(initialRange: .sixHours) : .overview
                 )
+                .homesteadWallpaperBackground()
+                .environment(\.homesteadEntityDetailSurfaceContext, .home)
             } else {
                 ContentUnavailableView("Fixture Unavailable", systemImage: "exclamationmark.triangle")
             }

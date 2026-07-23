@@ -3,6 +3,7 @@ import SwiftUI
 struct PresenceDetailView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.homesteadEntityDetailSurfaceContext) private var surfaceContext
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -131,7 +132,12 @@ struct PresenceDetailView: View {
     ) -> some View {
         if let relatedEntityBox = stateStore.entityBox(for: entityID) {
             NavigationLink {
-                EntityDetailSheet(entityBox: relatedEntityBox, presentationStyle: .navigation)
+                EntityDetailDestinationView(
+                    destination: EntityDetailDestination(
+                        entityID: relatedEntityBox.entityID,
+                        surfaceContext: surfaceContext
+                    )
+                )
             } label: {
                 relatedEntityLabel(
                     title: title,

@@ -28,11 +28,19 @@ struct EntityDetailDestinationView: View {
             .homesteadWallpaperBackground(
                 allowsWallpaper: destination.surfaceContext == .home
             )
+            .environment(
+                \.homesteadEntityDetailSurfaceContext,
+                destination.surfaceContext
+            )
         } else {
             ContentUnavailableView("Entity Unavailable", systemImage: "questionmark.circle")
                 .navigationTitle("Entity")
                 .homesteadWallpaperBackground(
                     allowsWallpaper: destination.surfaceContext == .home
+                )
+                .environment(
+                    \.homesteadEntityDetailSurfaceContext,
+                    destination.surfaceContext
                 )
         }
     }

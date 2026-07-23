@@ -270,6 +270,8 @@ struct EntityDetailHeroCard<Content: View, Accessory: View>: View {
 }
 
 private struct EntityDetailHeroHeader<Accessory: View>: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let icon: ResolvedIcon
     let title: String
     let subtitle: Text?
@@ -312,7 +314,10 @@ private struct EntityDetailHeroHeader<Accessory: View>: View {
             HomesteadIconView(icon: icon, pointSize: 25)
                 .foregroundStyle(iconColor)
                 .frame(width: 52, height: 52)
-                .background(iconBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+                .background(
+                    isWallpaperSurfaceActive ? iconColor.opacity(0.12) : iconBackground,
+                    in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                )
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
@@ -340,7 +345,10 @@ private struct EntityDetailHeroHeader<Accessory: View>: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, AppSpacing.medium)
                 .padding(.vertical, AppSpacing.small)
-                .background(statusBackground, in: Capsule())
+                .background(
+                    isWallpaperSurfaceActive ? statusColor.opacity(0.12) : statusBackground,
+                    in: Capsule()
+                )
         }
     }
 }

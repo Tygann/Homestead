@@ -186,22 +186,47 @@ struct EntityDetailStateToggle: View {
 }
 
 struct EntityDetailHeroActionButton: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let title: String
     let systemImage: String
     let isDisabled: Bool
     let action: () -> Void
 
+    @ViewBuilder
     var body: some View {
-        Button(title, systemImage: systemImage, action: action)
-        .font(.subheadline.weight(.semibold))
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-        .frame(minHeight: 44)
-        .disabled(isDisabled)
+        if isWallpaperSurfaceActive {
+            Button(action: action) {
+                Label(title, systemImage: systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, AppSpacing.medium)
+                    .frame(minHeight: 44)
+                    .background(
+                        HomesteadSurfaceStyle.controlBackground(
+                            isWallpaperActive: true,
+                            isActive: false
+                        ),
+                        in: Capsule()
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(isDisabled)
+            .opacity(isDisabled ? 0.55 : 1)
+        } else {
+            Button(title, systemImage: systemImage, action: action)
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .frame(minHeight: 44)
+                .disabled(isDisabled)
+        }
     }
 }
 
 struct EntityDetailLevelSlider: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     @Binding var value: Double
     let range: ClosedRange<Double>
     let step: Double
@@ -274,7 +299,14 @@ struct EntityDetailLevelSlider: View {
 
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                    .fill(trackColor)
+                    .fill(
+                        isWallpaperSurfaceActive
+                            ? HomesteadSurfaceStyle.controlBackground(
+                                isWallpaperActive: true,
+                                isActive: false
+                            )
+                            : trackColor
+                    )
 
                 if showsFilledTrack {
                     RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
@@ -499,6 +531,8 @@ struct EntityDetailMenuRow<MenuContent: View>: View {
 }
 
 struct EntityMetadataDisclosure: View {
+    @Environment(\.homesteadEntityDetailSurfaceContext) private var surfaceContext
+
     let entityBox: HAEntityState?
     let title: String
     let systemImage: String
@@ -520,7 +554,11 @@ struct EntityMetadataDisclosure: View {
         Group {
             if let entityBox {
                 NavigationLink {
-                    EntityDiagnosticsView(entityBox: entityBox, presentationStyle: .navigation)
+                    EntityDiagnosticsView(
+                        entityBox: entityBox,
+                        presentationStyle: .navigation,
+                        surfaceContext: surfaceContext
+                    )
                 } label: {
                     EntityDetailNavigationRowLabel(
                         title: "Entity Details",

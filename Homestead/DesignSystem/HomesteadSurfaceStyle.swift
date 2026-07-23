@@ -4,10 +4,19 @@ private struct HomesteadWallpaperSurfaceActiveKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct HomesteadEntityDetailSurfaceContextKey: EnvironmentKey {
+    static let defaultValue = EntityDetailSurfaceContext.standard
+}
+
 extension EnvironmentValues {
     var homesteadWallpaperSurfaceActive: Bool {
         get { self[HomesteadWallpaperSurfaceActiveKey.self] }
         set { self[HomesteadWallpaperSurfaceActiveKey.self] = newValue }
+    }
+
+    var homesteadEntityDetailSurfaceContext: EntityDetailSurfaceContext {
+        get { self[HomesteadEntityDetailSurfaceContextKey.self] }
+        set { self[HomesteadEntityDetailSurfaceContextKey.self] = newValue }
     }
 }
 
@@ -109,6 +118,10 @@ extension View {
     func homesteadCardSurface(cornerRadius: CGFloat = AppRadius.card) -> some View {
         modifier(HomesteadCardSurfaceModifier(cornerRadius: cornerRadius))
     }
+
+    func homesteadListRowSurface() -> some View {
+        listRowBackground(HomesteadListRowBackground())
+    }
 }
 
 private struct HomesteadCardSurfaceModifier: ViewModifier {
@@ -134,5 +147,18 @@ private struct HomesteadCardSurfaceModifier: ViewModifier {
                     lineWidth: 0.5
                 )
             }
+    }
+}
+
+private struct HomesteadListRowBackground: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
+    var body: some View {
+        Rectangle()
+            .fill(
+                HomesteadSurfaceStyle.cardBackground(
+                    isWallpaperActive: isWallpaperSurfaceActive
+                )
+            )
     }
 }

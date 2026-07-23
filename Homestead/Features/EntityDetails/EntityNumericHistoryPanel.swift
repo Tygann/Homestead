@@ -5,6 +5,7 @@ import SwiftUI
 struct EntityNumericHistoryPanel: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
     @State private var selectedRange: HAHistoryRangePreset
     @State private var phase: EntityNumericHistoryPhase = .idle
     @State private var selectedSampleDate: Date?
@@ -98,7 +99,13 @@ struct EntityNumericHistoryPanel: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 44, height: 44)
-                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+                .background(
+                    HomesteadSurfaceStyle.controlBackground(
+                        isWallpaperActive: isWallpaperSurfaceActive,
+                        isActive: false
+                    ),
+                    in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+                )
                 .accessibilityHidden(true)
 
             Text(message)
@@ -117,7 +124,13 @@ struct EntityNumericHistoryPanel: View {
             }
         }
         .padding(AppSpacing.medium)
-        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+        .background(
+            HomesteadSurfaceStyle.controlBackground(
+                isWallpaperActive: isWallpaperSurfaceActive,
+                isActive: false
+            ),
+            in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+        )
     }
 
     @MainActor
@@ -183,6 +196,7 @@ struct EntityNumericHistoryPreview: View {
 
 private struct EntityNumericHistoryChart: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
 
     let series: HAHistoryChartSeries
     let selectedRange: HAHistoryRangePreset
@@ -302,7 +316,10 @@ private struct EntityNumericHistoryChart: View {
         }
         .padding(.vertical, AppSpacing.small)
         .background(
-            Color(.tertiarySystemGroupedBackground),
+            HomesteadSurfaceStyle.controlBackground(
+                isWallpaperActive: isWallpaperSurfaceActive,
+                isActive: false
+            ),
             in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
         )
         .accessibilityElement(children: .combine)
@@ -418,13 +435,20 @@ private struct EntityNumericHistoryChart: View {
 }
 
 private struct EntityDetailLoadingPlaceholder: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let title: String
     let height: CGFloat
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
             RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
-                .fill(Color(.tertiarySystemGroupedBackground))
+                .fill(
+                    HomesteadSurfaceStyle.controlBackground(
+                        isWallpaperActive: isWallpaperSurfaceActive,
+                        isActive: false
+                    )
+                )
                 .frame(height: height)
                 .overlay { ProgressView() }
 

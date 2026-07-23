@@ -78,6 +78,7 @@ private struct PeoplePresenceRow: View {
 struct PersonPresenceDetailView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.homesteadEntityDetailSurfaceContext) private var surfaceContext
 
     let entityID: String
     var presentationStyle: EntityDetailPresentationStyle = .navigation
@@ -95,9 +96,10 @@ struct PersonPresenceDetailView: View {
                 }
             } else {
                 ContentUnavailableView("Presence Missing", systemImage: "person.2")
-                    .background(Color(.systemGroupedBackground))
             }
         }
+        .scrollContentBackground(.hidden)
+        .homesteadWallpaperBackground(allowsWallpaper: surfaceContext == .home)
         .entityDetailPresentation(
             title: record?.displayName ?? "Presence",
             style: presentationStyle
@@ -145,6 +147,7 @@ struct PersonPresenceDetailView: View {
                 )
             }
         }
+        .homesteadListRowSurface()
     }
 
     @ViewBuilder
@@ -169,6 +172,7 @@ struct PersonPresenceDetailView: View {
                     }
                 }
             }
+            .homesteadListRowSurface()
         }
     }
 
@@ -183,9 +187,11 @@ struct PersonPresenceDetailView: View {
                     ForEach(record.linkedTrackers) { tracker in
                         if let trackerBox = stateStore.entityBox(for: tracker.entityID) {
                             NavigationLink {
-                                EntityDetailSheet(
-                                    entityBox: trackerBox,
-                                    presentationStyle: .navigation
+                                EntityDetailDestinationView(
+                                    destination: EntityDetailDestination(
+                                        entityID: trackerBox.entityID,
+                                        surfaceContext: surfaceContext
+                                    )
                                 )
                             } label: {
                                 trackerLabel(tracker)
@@ -196,10 +202,12 @@ struct PersonPresenceDetailView: View {
                     }
                 }
             }
+            .homesteadListRowSurface()
         } else if let linkedPersonName = record.linkedPersonName {
             Section("Person") {
                 Label(linkedPersonName, systemImage: "person.fill")
             }
+            .homesteadListRowSurface()
         }
     }
 
@@ -234,6 +242,7 @@ struct PersonPresenceDetailView: View {
                     LabeledContent("Device", value: deviceName)
                 }
             }
+            .homesteadListRowSurface()
         }
     }
 
@@ -256,12 +265,14 @@ struct PersonPresenceDetailView: View {
                 NavigationLink {
                     EntityDiagnosticsView(
                         entityBox: entityBox,
-                        presentationStyle: .navigation
+                        presentationStyle: .navigation,
+                        surfaceContext: surfaceContext
                     )
                 } label: {
                     SettingsNavigationRowLabel("Entity Details", systemImage: "info.circle")
                 }
             }
+            .homesteadListRowSurface()
         }
     }
 }
