@@ -216,7 +216,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .metric: "18"
         case .history: "73.4"
         case .positional: "open"
-        case .environmental: "heat"
+        case .environmental: "heat_cool"
         case .information: "partlycloudy"
         case .presence: "home"
         case .editableNumber: "45"
@@ -259,6 +259,8 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
                 "friendly_name": .string("Downstairs"),
                 "current_temperature": .number(68),
                 "temperature": .number(70),
+                "target_temp_low": .number(66),
+                "target_temp_high": .number(74),
                 "temperature_unit": .string("°F"),
                 "min_temp": .number(50),
                 "max_temp": .number(90),
@@ -333,6 +335,8 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .environmental:
             attributes["current_temperature"] = .number(isMaximum ? 90 : 50)
             attributes["temperature"] = .number(isMaximum ? 90 : 50)
+            attributes["target_temp_low"] = .number(isMaximum ? 90 : 50)
+            attributes["target_temp_high"] = .number(isMaximum ? 90 : 50)
         case .information:
             attributes["temperature"] = .number(isMaximum ? 110 : -5)
         case .presence:

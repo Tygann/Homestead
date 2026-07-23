@@ -30,6 +30,8 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Replaced Climate's compact target rows at standard text sizes with a native-feeling 240-degree thermostat instrument. Single targets use one semantic handle; Heat/Cool exposes independently selectable endpoints, a warm-to-cool range, direct dragging, and precise step buttons while retaining the row-based accessibility-size fallback and the existing Home Assistant command pipeline.
+
 - Returned History to the entity detail itself: range pickers and canonical numeric charts remain inline, while discrete timelines start with eight entries and expose total and hidden counts beside `Show All`. Flattened nested Controls styling into native rows with consistent rhythm, refined Weather Conditions, and stacked Hourly above Daily Forecast using the shared dashboard temperature-range component.
 
 - Unified entity-detail content beneath the hero: secondary capabilities share one Controls surface, numeric and discrete data share one History contract, Person uses that same inline pattern, Weather separates supporting conditions from identity, and Entity Details uses the shared native-weight navigation-row treatment.

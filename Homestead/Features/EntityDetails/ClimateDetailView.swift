@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ClimateDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var targetTemperature = 70.0
     @State private var targetLowTemperature = 68.0
     @State private var targetHighTemperature = 76.0
@@ -100,48 +101,87 @@ struct ClimateDetailView: View {
         }
     }
 
+    @ViewBuilder
     private func temperatureControls(_ climate: ClimateEntity) -> some View {
-        temperatureAdjustmentRow(
-            title: "Target",
-            value: targetTemperature,
-            tint: .accentColor,
-            climate: climate,
-            canDecrease: targetTemperature > climate.resolvedMinimumTemperature,
-            canIncrease: targetTemperature < climate.resolvedMaximumTemperature,
-            decreaseAction: { adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate) },
-            increaseAction: { adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate) }
-        )
+        if dynamicTypeSize.isAccessibilitySize {
+            temperatureAdjustmentRow(
+                title: temperatureControlLabel(climate),
+                value: targetTemperature,
+                tint: temperatureControlTint(climate),
+                climate: climate,
+                canDecrease: targetTemperature > climate.resolvedMinimumTemperature,
+                canIncrease: targetTemperature < climate.resolvedMaximumTemperature,
+                decreaseAction: { adjustTemperature(by: -climate.resolvedTemperatureStep, climate: climate) },
+                increaseAction: { adjustTemperature(by: climate.resolvedTemperatureStep, climate: climate) }
+            )
+        } else {
+            ClimateThermostatInstrument(
+                lowerValue: $targetTemperature,
+                upperValue: $targetTemperature,
+                minimumValue: climate.resolvedMinimumTemperature,
+                maximumValue: climate.resolvedMaximumTemperature,
+                step: climate.resolvedTemperatureStep,
+                mode: .single(
+                    label: temperatureControlLabel(climate),
+                    tint: temperatureControlTint(climate)
+                ),
+                isDisabled: detailState.blocksControlInteraction,
+                formatValue: climate.formatTemperature(_:),
+                commitSingleValue: {
+                    setTargetTemperature(climate: climate)
+                },
+                commitRange: {}
+            )
+        }
     }
 
+    @ViewBuilder
     private func temperatureRangeControls(_ climate: ClimateEntity) -> some View {
-        VStack(spacing: AppSpacing.small) {
-            temperatureAdjustmentRow(
-                title: "Heat to",
-                value: targetLowTemperature,
-                tint: .orange,
-                climate: climate,
-                canDecrease: targetLowTemperature > climate.resolvedMinimumTemperature,
-                canIncrease: targetLowTemperature < targetHighTemperature,
-                decreaseAction: {
-                    adjustLowTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
-                },
-                increaseAction: {
-                    adjustLowTemperature(by: climate.resolvedTemperatureStep, climate: climate)
-                }
-            )
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: AppSpacing.small) {
+                temperatureAdjustmentRow(
+                    title: "Heat to",
+                    value: targetLowTemperature,
+                    tint: .orange,
+                    climate: climate,
+                    canDecrease: targetLowTemperature > climate.resolvedMinimumTemperature,
+                    canIncrease: targetLowTemperature < targetHighTemperature,
+                    decreaseAction: {
+                        adjustLowTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
+                    },
+                    increaseAction: {
+                        adjustLowTemperature(by: climate.resolvedTemperatureStep, climate: climate)
+                    }
+                )
 
-            temperatureAdjustmentRow(
-                title: "Cool to",
-                value: targetHighTemperature,
-                tint: .blue,
-                climate: climate,
-                canDecrease: targetHighTemperature > targetLowTemperature,
-                canIncrease: targetHighTemperature < climate.resolvedMaximumTemperature,
-                decreaseAction: {
-                    adjustHighTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
-                },
-                increaseAction: {
-                    adjustHighTemperature(by: climate.resolvedTemperatureStep, climate: climate)
+                temperatureAdjustmentRow(
+                    title: "Cool to",
+                    value: targetHighTemperature,
+                    tint: .blue,
+                    climate: climate,
+                    canDecrease: targetHighTemperature > targetLowTemperature,
+                    canIncrease: targetHighTemperature < climate.resolvedMaximumTemperature,
+                    decreaseAction: {
+                        adjustHighTemperature(by: -climate.resolvedTemperatureStep, climate: climate)
+                    },
+                    increaseAction: {
+                        adjustHighTemperature(by: climate.resolvedTemperatureStep, climate: climate)
+                    }
+                )
+            }
+        } else {
+            ClimateThermostatInstrument(
+                lowerValue: $targetLowTemperature,
+                upperValue: $targetHighTemperature,
+                minimumValue: climate.resolvedMinimumTemperature,
+                maximumValue: climate.resolvedMaximumTemperature,
+                step: climate.resolvedTemperatureStep,
+                mode: .range,
+                isDisabled: detailState.blocksControlInteraction,
+                formatValue: climate.formatTemperature(_:),
+                commitSingleValue: {},
+                commitRange: {
+                    setTargetTemperatureRange(climate: climate)
                 }
             )
         }
@@ -306,6 +346,30 @@ struct ClimateDetailView: View {
         !climate.presetModes.isEmpty && homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_preset_mode")
     }
 
+    private func temperatureControlLabel(_ climate: ClimateEntity) -> String {
+        switch climate.state {
+        case "heat":
+            "Heat to"
+        case "cool":
+            "Cool to"
+        default:
+            "Set to"
+        }
+    }
+
+    private func temperatureControlTint(_ climate: ClimateEntity) -> Color {
+        guard climate.isActive else { return .secondary }
+
+        switch climate.state {
+        case "heat":
+            return .orange
+        case "cool":
+            return .blue
+        default:
+            return .accentColor
+        }
+    }
+
     private func adjustTemperature(by delta: Double, climate: ClimateEntity) {
         targetTemperature = ClimateSetpointAdjustment(climate: climate)
             .clampedSingleTemperature(targetTemperature + delta)
@@ -405,6 +469,433 @@ struct ClimateDetailView: View {
         }
     }
 }
+
+// MARK: - Thermostat Instrument
+
+private enum ClimateThermostatInstrumentMode {
+    case single(label: String, tint: Color)
+    case range
+}
+
+private enum ClimateThermostatHandle {
+    case lower
+    case upper
+}
+
+private struct ClimateThermostatInstrument: View {
+    @Binding var lowerValue: Double
+    @Binding var upperValue: Double
+    @State private var selectedHandle: ClimateThermostatHandle = .lower
+
+    let minimumValue: Double
+    let maximumValue: Double
+    let step: Double
+    let mode: ClimateThermostatInstrumentMode
+    let isDisabled: Bool
+    let formatValue: (Double) -> String
+    let commitSingleValue: () -> Void
+    let commitRange: () -> Void
+
+    private let arcStartAngle = 150.0
+    private let arcLength = 240.0
+
+    var body: some View {
+        VStack(spacing: AppSpacing.small) {
+            GeometryReader { proxy in
+                let geometry = dialGeometry(in: proxy.size)
+
+                ZStack {
+                    arcTrack
+
+                    selectedArc
+
+                    setpointReadout
+                        .position(x: geometry.center.x, y: geometry.center.y + 8)
+
+                    handle(
+                        .lower,
+                        point: point(for: lowerFraction, geometry: geometry),
+                        geometry: geometry,
+                        tint: lowerTint
+                    )
+
+                    if usesRange {
+                        handle(
+                            .upper,
+                            point: point(for: upperFraction, geometry: geometry),
+                            geometry: geometry,
+                            tint: .blue
+                        )
+                    }
+                }
+                .coordinateSpace(name: "climateThermostatArc")
+            }
+            .frame(height: 188)
+            .accessibilityElement(children: .contain)
+
+            precisionControls
+        }
+        .opacity(isDisabled ? 0.55 : 1)
+    }
+
+    private var arcTrack: some View {
+        ClimateThermostatArc()
+            .stroke(
+                Color.secondary.opacity(0.16),
+                style: StrokeStyle(lineWidth: 22, lineCap: .round)
+            )
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var selectedArc: some View {
+        if usesRange {
+            ClimateThermostatArc(startFraction: lowerFraction, endFraction: upperFraction)
+                .stroke(
+                    AngularGradient(
+                        colors: [.orange, .yellow, .mint, .blue],
+                        center: .center,
+                        startAngle: .degrees(arcStartAngle),
+                        endAngle: .degrees(arcStartAngle + arcLength)
+                    ),
+                    style: StrokeStyle(lineWidth: 22, lineCap: .round)
+                )
+                .accessibilityHidden(true)
+        } else {
+            ClimateThermostatArc(startFraction: 0, endFraction: lowerFraction)
+                .stroke(
+                    lowerTint,
+                    style: StrokeStyle(lineWidth: 22, lineCap: .round)
+                )
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var setpointReadout: some View {
+        VStack(spacing: AppSpacing.xSmall) {
+            Text(readoutLabel.uppercased())
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .tracking(0.6)
+
+            if usesRange {
+                HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
+                    Text(formatValue(lowerValue))
+                        .foregroundStyle(selectedHandle == .lower ? Color.orange : Color.primary)
+                        .onTapGesture {
+                            selectedHandle = .lower
+                        }
+
+                    Text("–")
+                        .foregroundStyle(.secondary)
+
+                    Text(formatValue(upperValue))
+                        .foregroundStyle(selectedHandle == .upper ? Color.blue : Color.primary)
+                        .onTapGesture {
+                            selectedHandle = .upper
+                        }
+                }
+                .font(.system(size: 32, weight: .semibold, design: .rounded).monospacedDigit())
+            } else {
+                Text(formatValue(lowerValue))
+                    .font(.system(size: 40, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(lowerTint)
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.72)
+        .accessibilityHidden(true)
+    }
+
+    private var precisionControls: some View {
+        HStack(spacing: AppSpacing.medium) {
+            precisionButton(systemImage: "minus", direction: -1)
+
+            Text(adjustmentLabel)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 92)
+                .contentTransition(.numericText())
+
+            precisionButton(systemImage: "plus", direction: 1)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func precisionButton(systemImage: String, direction: Double) -> some View {
+        let canAdjust = direction < 0 ? canDecreaseSelectedValue : canIncreaseSelectedValue
+        let actionName = direction < 0 ? "Decrease" : "Increase"
+
+        return Button {
+            adjustSelectedValue(by: direction * resolvedStep)
+        } label: {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+                .frame(width: 48, height: 48)
+                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(canAdjust ? Color.primary : Color.secondary.opacity(0.4))
+        .disabled(isDisabled || !canAdjust)
+        .accessibilityLabel("\(actionName) \(adjustmentLabel)")
+    }
+
+    private func handle(
+        _ handle: ClimateThermostatHandle,
+        point: CGPoint,
+        geometry: DialGeometry,
+        tint: Color
+    ) -> some View {
+        let isSelected = !usesRange || selectedHandle == handle
+
+        return Button {
+            selectedHandle = handle
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 32, height: 32)
+                    .shadow(color: Color.black.opacity(0.18), radius: 5, y: 2)
+
+                Circle()
+                    .fill(tint)
+                    .frame(width: 20, height: 20)
+
+                if isSelected {
+                    Circle()
+                        .stroke(tint.opacity(0.55), lineWidth: 2)
+                        .frame(width: 38, height: 38)
+                }
+            }
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(isSelected ? 1 : 0.94)
+        .position(point)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 4, coordinateSpace: .named("climateThermostatArc"))
+                .onChanged { value in
+                    guard !isDisabled else { return }
+                    selectedHandle = handle
+                    update(handle, from: value.location, geometry: geometry)
+                }
+                .onEnded { value in
+                    guard !isDisabled else { return }
+                    update(handle, from: value.location, geometry: geometry)
+                    commitUpdatedValue()
+                }
+        )
+        .accessibilityLabel(accessibilityLabel(for: handle))
+        .accessibilityValue(formatValue(value(for: handle)))
+        .accessibilityAdjustableAction { direction in
+            guard !isDisabled else { return }
+            selectedHandle = handle
+
+            switch direction {
+            case .increment:
+                adjust(handle, by: resolvedStep)
+            case .decrement:
+                adjust(handle, by: -resolvedStep)
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    private var usesRange: Bool {
+        if case .range = mode {
+            return true
+        }
+        return false
+    }
+
+    private var readoutLabel: String {
+        switch mode {
+        case let .single(label, _):
+            label
+        case .range:
+            "Keep between"
+        }
+    }
+
+    private var lowerTint: Color {
+        switch mode {
+        case let .single(_, tint):
+            tint
+        case .range:
+            .orange
+        }
+    }
+
+    private var adjustmentLabel: String {
+        if !usesRange {
+            return readoutLabel
+        }
+
+        return selectedHandle == .lower ? "Heat to" : "Cool to"
+    }
+
+    private var lowerFraction: Double {
+        fraction(for: lowerValue)
+    }
+
+    private var upperFraction: Double {
+        fraction(for: upperValue)
+    }
+
+    private var resolvedStep: Double {
+        max(step, 0.1)
+    }
+
+    private var canDecreaseSelectedValue: Bool {
+        switch effectiveSelectedHandle {
+        case .lower:
+            return lowerValue > minimumValue
+        case .upper:
+            return upperValue > lowerValue
+        }
+    }
+
+    private var canIncreaseSelectedValue: Bool {
+        switch effectiveSelectedHandle {
+        case .lower:
+            return usesRange ? lowerValue < upperValue : lowerValue < maximumValue
+        case .upper:
+            return upperValue < maximumValue
+        }
+    }
+
+    private func adjustSelectedValue(by delta: Double) {
+        adjust(effectiveSelectedHandle, by: delta)
+    }
+
+    private var effectiveSelectedHandle: ClimateThermostatHandle {
+        usesRange ? selectedHandle : .lower
+    }
+
+    private func adjust(_ handle: ClimateThermostatHandle, by delta: Double) {
+        switch handle {
+        case .lower:
+            let upperLimit = usesRange ? upperValue : maximumValue
+            lowerValue = steppedValue(min(max(lowerValue + delta, minimumValue), upperLimit))
+        case .upper:
+            upperValue = steppedValue(min(max(upperValue + delta, lowerValue), maximumValue))
+        }
+
+        commitUpdatedValue()
+    }
+
+    private func update(
+        _ handle: ClimateThermostatHandle,
+        from location: CGPoint,
+        geometry: DialGeometry
+    ) {
+        let updatedValue = value(at: location, geometry: geometry)
+
+        switch handle {
+        case .lower:
+            let upperLimit = usesRange ? upperValue : maximumValue
+            lowerValue = min(updatedValue, upperLimit)
+        case .upper:
+            upperValue = max(updatedValue, lowerValue)
+        }
+    }
+
+    private func commitUpdatedValue() {
+        if usesRange {
+            commitRange()
+        } else {
+            commitSingleValue()
+        }
+    }
+
+    private func value(for handle: ClimateThermostatHandle) -> Double {
+        handle == .lower ? lowerValue : upperValue
+    }
+
+    private func accessibilityLabel(for handle: ClimateThermostatHandle) -> String {
+        if !usesRange {
+            return "\(readoutLabel) temperature"
+        }
+        return handle == .lower ? "Heat setpoint" : "Cool setpoint"
+    }
+
+    private func fraction(for value: Double) -> Double {
+        guard maximumValue > minimumValue else { return 0 }
+        return min(max((value - minimumValue) / (maximumValue - minimumValue), 0), 1)
+    }
+
+    private func steppedValue(_ value: Double) -> Double {
+        let stepped = (value / resolvedStep).rounded() * resolvedStep
+        return min(max(stepped, minimumValue), maximumValue)
+    }
+
+    private func value(at location: CGPoint, geometry: DialGeometry) -> Double {
+        var angle = atan2(
+            location.y - geometry.center.y,
+            location.x - geometry.center.x
+        ) * 180 / .pi
+
+        if angle < 0 {
+            angle += 360
+        }
+
+        if angle <= 30 {
+            angle += 360
+        } else if angle < arcStartAngle {
+            angle = angle < 90 ? arcStartAngle + arcLength : arcStartAngle
+        }
+
+        let fraction = min(max((angle - arcStartAngle) / arcLength, 0), 1)
+        return steppedValue(minimumValue + (fraction * (maximumValue - minimumValue)))
+    }
+
+    private func dialGeometry(in size: CGSize) -> DialGeometry {
+        let radius = min(max((size.width - 44) / 2, 1), 108)
+        return DialGeometry(
+            center: CGPoint(x: size.width / 2, y: radius + 12),
+            radius: radius
+        )
+    }
+
+    private func point(for fraction: Double, geometry: DialGeometry) -> CGPoint {
+        let angle = (arcStartAngle + (arcLength * fraction)) * .pi / 180
+        return CGPoint(
+            x: geometry.center.x + (geometry.radius * cos(angle)),
+            y: geometry.center.y + (geometry.radius * sin(angle))
+        )
+    }
+}
+
+private struct DialGeometry {
+    let center: CGPoint
+    let radius: CGFloat
+}
+
+private struct ClimateThermostatArc: Shape {
+    var startFraction = 0.0
+    var endFraction = 1.0
+
+    func path(in rect: CGRect) -> Path {
+        let radius = min(max((rect.width - 44) / 2, 1), 108)
+        let center = CGPoint(x: rect.midX, y: radius + 12)
+        let startAngle = 150 + (240 * startFraction)
+        let endAngle = 150 + (240 * endFraction)
+
+        var path = Path()
+        path.addArc(
+            center: center,
+            radius: radius,
+            startAngle: .degrees(startAngle),
+            endAngle: .degrees(endAngle),
+            clockwise: false
+        )
+        return path
+    }
+}
+
+// MARK: - Accessibility Setpoint Row
 
 private struct ClimateSetpointControl: View {
     let title: String
