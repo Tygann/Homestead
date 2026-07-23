@@ -93,7 +93,7 @@ enum WeatherForecastTemperatureScale {
         return min(max((value - domain.lowerBound) / (domain.upperBound - domain.lowerBound), 0), 1)
     }
 
-    static func range(for entry: WeatherForecastEntry) -> ClosedRange<Double>? {
+    nonisolated static func range(for entry: WeatherForecastEntry) -> ClosedRange<Double>? {
         guard let first = entry.lowTemperature ?? entry.temperature,
               let second = entry.temperature ?? entry.lowTemperature else {
             return nil
@@ -101,7 +101,7 @@ enum WeatherForecastTemperatureScale {
         return min(first, second)...max(first, second)
     }
 
-    static func domain(for entries: [WeatherForecastEntry]) -> ClosedRange<Double> {
+    nonisolated static func domain(for entries: [WeatherForecastEntry]) -> ClosedRange<Double> {
         let ranges = entries.compactMap(range(for:))
         guard let minimum = ranges.map(\.lowerBound).min(),
               let maximum = ranges.map(\.upperBound).max() else {
