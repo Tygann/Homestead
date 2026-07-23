@@ -166,7 +166,7 @@ struct HomesteadWidgetChartFace: View {
 
                         Spacer(minLength: 4)
 
-                        if density == .medium {
+                        if density == .medium || density == .sensorBoard {
                             trailingSummary
                         }
                     }
@@ -176,13 +176,6 @@ struct HomesteadWidgetChartFace: View {
                 .padding(contentPadding)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-                if density == .sensorBoard {
-                    Text(presentation.rangeTitle)
-                        .font(.caption2.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 2)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                }
             }
         }
         .accessibilityElement(children: .ignore)
@@ -266,7 +259,7 @@ struct HomesteadWidgetChartFace: View {
     private var chartHeightFraction: CGFloat {
         switch density {
         case .compact, .small: 0.35
-        case .sensorBoard: 0.58
+        case .sensorBoard: 0.5
         case .medium: 0.48
         }
     }

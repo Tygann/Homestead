@@ -109,22 +109,16 @@ struct WidgetSensorBoardFace: View {
     var destinationsByEntityID: [String: URL] = [:]
 
     var body: some View {
-        GeometryReader { proxy in
-            let spacing: CGFloat = 10
-            let compactRegionWidth = min(proxy.size.width * 0.56, proxy.size.height * 1.35)
-            let compactWidth = max((compactRegionWidth - spacing) / 2, 0)
-
-            HStack(spacing: spacing) {
-                ForEach(0..<2, id: \.self) { index in
-                    compactSlot(at: index)
-                        .frame(width: compactWidth)
-                }
-
-                chartSlot
+        HStack(spacing: 10) {
+            ForEach(0..<2, id: \.self) { index in
+                compactSlot(at: index)
                     .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            chartSlot
+                .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(12)
     }
 
@@ -225,7 +219,7 @@ private struct WidgetSensorBoardChartTile: View {
             density: .sensorBoard
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 18)
         .contentShape(Rectangle())
     }
 }
