@@ -101,48 +101,50 @@ nonisolated struct WidgetSensorBoardChartItem: Identifiable, Equatable, Sendable
     }
 }
 
+nonisolated enum WidgetSensorBoardItem: Identifiable, Equatable, Sendable {
+    case compact(WidgetSensorBoardCompactItem)
+    case chart(WidgetSensorBoardChartItem)
+
+    var id: String {
+        switch self {
+        case let .compact(item): item.id
+        case let .chart(item): item.id
+        }
+    }
+}
+
 // MARK: - Sensor Board Face
 
 struct WidgetSensorBoardFace: View {
-    let compactItems: [WidgetSensorBoardCompactItem?]
-    let chartItem: WidgetSensorBoardChartItem?
+    let items: [WidgetSensorBoardItem?]
     var destinationsByEntityID: [String: URL] = [:]
 
     var body: some View {
         HStack(spacing: 10) {
-            ForEach(0..<2, id: \.self) { index in
-                compactSlot(at: index)
+            ForEach(0..<3, id: \.self) { index in
+                slot(at: index)
                     .frame(maxWidth: .infinity)
             }
-
-            chartSlot
-                .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(12)
     }
 
     @ViewBuilder
-    private func compactSlot(at index: Int) -> some View {
-        let item = compactItems.indices.contains(index) ? compactItems[index] : nil
+    private func slot(at index: Int) -> some View {
+        let item = items.indices.contains(index) ? items[index] : nil
 
-        if let item {
+        switch item {
+        case let .compact(item):
             linkedContent(entityID: item.id) {
                 WidgetSensorBoardCompactTile(item: item)
             }
-        } else {
-            WidgetSensorBoardEmptyTile(title: "Choose Sensor", systemImage: "plus")
-        }
-    }
-
-    @ViewBuilder
-    private var chartSlot: some View {
-        if let chartItem {
-            linkedContent(entityID: chartItem.id) {
-                WidgetSensorBoardChartTile(item: chartItem)
+        case let .chart(item):
+            linkedContent(entityID: item.id) {
+                WidgetSensorBoardChartTile(item: item)
             }
-        } else {
-            WidgetSensorBoardEmptyTile(title: "Choose Chart", systemImage: "chart.xyaxis.line")
+        case nil:
+            WidgetSensorBoardEmptyTile(title: "Choose Item", systemImage: "plus")
         }
     }
 

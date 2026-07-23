@@ -25,71 +25,206 @@ enum HomesteadSensorBoardCompactDisplay: String, AppEnum {
     case automatic
     case gauge
     case reading
+    case chart
 
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Compact Display")
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Display")
     static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
         .automatic: "Automatic",
         .gauge: "Gauge",
-        .reading: "Reading"
+        .reading: "Reading",
+        .chart: "Chart"
     ]
 
-    var presentation: WidgetSensorBoardCompactPresentation {
+    var compactPresentation: WidgetSensorBoardCompactPresentation? {
         switch self {
         case .automatic: .automatic
         case .gauge: .gauge
         case .reading: .reading
+        case .chart: nil
         }
     }
 }
 
 struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Sensor Board"
-    static var description = IntentDescription("Combine two sensor readings or gauges with a six-hour chart.")
+    static var description = IntentDescription("Combine three sensor readings, gauges, or six-hour charts.")
 
-    @Parameter(title: "Sensor 1") var sensor1: HomesteadSensorEntity?
-    @Parameter(title: "Sensor 1 Display", default: .automatic) var display1: HomesteadSensorBoardCompactDisplay
-    @Parameter(title: "Sensor 1 Display Name") var customDisplayName1: String?
+    @Parameter(title: "Slot 1 Display", default: .automatic)
+    var display1: HomesteadSensorBoardCompactDisplay
 
-    @Parameter(title: "Sensor 2") var sensor2: HomesteadSensorEntity?
-    @Parameter(title: "Sensor 2 Display", default: .automatic) var display2: HomesteadSensorBoardCompactDisplay
-    @Parameter(title: "Sensor 2 Display Name") var customDisplayName2: String?
+    @Parameter(title: "Slot 1 Sensor") var sensor1: HomesteadSensorEntity?
+    @Parameter(title: "Slot 1 Chart Sensor") var chartSensor1: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 1 Display Name") var customDisplayName1: String?
+    @Parameter(title: "Slot 1 Chart Display Name") var customChartDisplayName1: String?
 
-    @Parameter(title: "Chart Sensor") var chartSensor: HomesteadChartSensorEntity?
-    @Parameter(title: "Chart Display Name") var customChartDisplayName: String?
+    @Parameter(title: "Slot 2 Display", default: .automatic)
+    var display2: HomesteadSensorBoardCompactDisplay
+
+    @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
+    @Parameter(title: "Slot 2 Chart Sensor") var chartSensor2: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 2 Display Name") var customDisplayName2: String?
+    @Parameter(title: "Slot 2 Chart Display Name") var customChartDisplayName2: String?
+
+    @Parameter(title: "Slot 3 Display", default: .chart)
+    var display3: HomesteadSensorBoardCompactDisplay
+
+    @Parameter(title: "Slot 3 Sensor") var sensor3: HomesteadSensorEntity?
+
+    // Retain these parameter identities so existing Sensor Board widgets keep
+    // their configured third-slot chart and custom name.
+    @Parameter(title: "Slot 3 Chart Sensor") var chartSensor: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 3 Display Name") var customDisplayName3: String?
+    @Parameter(title: "Slot 3 Chart Display Name") var customChartDisplayName: String?
 
     static var parameterSummary: some ParameterSummary {
-        Summary {
-            \.$sensor1
-            \.$display1
-            \.$customDisplayName1
-            \.$sensor2
-            \.$display2
-            \.$customDisplayName2
-            \.$chartSensor
-            \.$customChartDisplayName
+        When(
+            \HomesteadSensorBoardWidgetConfigurationIntent.$display1,
+            .equalTo,
+            HomesteadSensorBoardCompactDisplay.chart
+        ) {
+            When(\.$display2, .equalTo, .chart) {
+                When(\.$display3, .equalTo, .chart) {
+                    Summary {
+                        \.$display1
+                        \.$chartSensor1
+                        \.$customChartDisplayName1
+                        \.$display2
+                        \.$chartSensor2
+                        \.$customChartDisplayName2
+                        \.$display3
+                        \.$chartSensor
+                        \.$customChartDisplayName
+                    }
+                } otherwise: {
+                    Summary {
+                        \.$display1
+                        \.$chartSensor1
+                        \.$customChartDisplayName1
+                        \.$display2
+                        \.$chartSensor2
+                        \.$customChartDisplayName2
+                        \.$display3
+                        \.$sensor3
+                        \.$customDisplayName3
+                    }
+                }
+            } otherwise: {
+                When(\.$display3, .equalTo, .chart) {
+                    Summary {
+                        \.$display1
+                        \.$chartSensor1
+                        \.$customChartDisplayName1
+                        \.$display2
+                        \.$sensor2
+                        \.$customDisplayName2
+                        \.$display3
+                        \.$chartSensor
+                        \.$customChartDisplayName
+                    }
+                } otherwise: {
+                    Summary {
+                        \.$display1
+                        \.$chartSensor1
+                        \.$customChartDisplayName1
+                        \.$display2
+                        \.$sensor2
+                        \.$customDisplayName2
+                        \.$display3
+                        \.$sensor3
+                        \.$customDisplayName3
+                    }
+                }
+            }
+        } otherwise: {
+            When(\.$display2, .equalTo, .chart) {
+                When(\.$display3, .equalTo, .chart) {
+                    Summary {
+                        \.$display1
+                        \.$sensor1
+                        \.$customDisplayName1
+                        \.$display2
+                        \.$chartSensor2
+                        \.$customChartDisplayName2
+                        \.$display3
+                        \.$chartSensor
+                        \.$customChartDisplayName
+                    }
+                } otherwise: {
+                    Summary {
+                        \.$display1
+                        \.$sensor1
+                        \.$customDisplayName1
+                        \.$display2
+                        \.$chartSensor2
+                        \.$customChartDisplayName2
+                        \.$display3
+                        \.$sensor3
+                        \.$customDisplayName3
+                    }
+                }
+            } otherwise: {
+                When(\.$display3, .equalTo, .chart) {
+                    Summary {
+                        \.$display1
+                        \.$sensor1
+                        \.$customDisplayName1
+                        \.$display2
+                        \.$sensor2
+                        \.$customDisplayName2
+                        \.$display3
+                        \.$chartSensor
+                        \.$customChartDisplayName
+                    }
+                } otherwise: {
+                    Summary {
+                        \.$display1
+                        \.$sensor1
+                        \.$customDisplayName1
+                        \.$display2
+                        \.$sensor2
+                        \.$customDisplayName2
+                        \.$display3
+                        \.$sensor3
+                        \.$customDisplayName3
+                    }
+                }
+            }
         }
     }
 
-    var compactSlots: [HomesteadSensorBoardCompactSlot] {
+    var slots: [HomesteadSensorBoardSlotConfiguration] {
         [
-            HomesteadSensorBoardCompactSlot(
-                sensor: sensor1,
+            HomesteadSensorBoardSlotConfiguration(
                 display: display1,
-                customDisplayName: customDisplayName1
+                sensor: sensor1,
+                chartSensor: chartSensor1,
+                customDisplayName: customDisplayName1,
+                customChartDisplayName: customChartDisplayName1
             ),
-            HomesteadSensorBoardCompactSlot(
-                sensor: sensor2,
+            HomesteadSensorBoardSlotConfiguration(
                 display: display2,
-                customDisplayName: customDisplayName2
+                sensor: sensor2,
+                chartSensor: chartSensor2,
+                customDisplayName: customDisplayName2,
+                customChartDisplayName: customChartDisplayName2
+            ),
+            HomesteadSensorBoardSlotConfiguration(
+                display: display3,
+                sensor: sensor3,
+                chartSensor: chartSensor,
+                customDisplayName: customDisplayName3,
+                customChartDisplayName: customChartDisplayName
             )
         ]
     }
 }
 
-struct HomesteadSensorBoardCompactSlot {
-    let sensor: HomesteadSensorEntity?
+struct HomesteadSensorBoardSlotConfiguration {
     let display: HomesteadSensorBoardCompactDisplay
+    let sensor: HomesteadSensorEntity?
+    let chartSensor: HomesteadChartSensorEntity?
     let customDisplayName: String?
+    let customChartDisplayName: String?
 }
 
 // MARK: - Chart Entity Picker
@@ -199,14 +334,13 @@ struct HomesteadChartSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
 
 struct HomesteadSensorBoardEntry: TimelineEntry {
     let date: Date
-    let compactItems: [WidgetSensorBoardCompactItem?]
-    let chartItem: WidgetSensorBoardChartItem?
+    let items: [WidgetSensorBoardItem?]
     let isConfigured: Bool
 
     static let placeholder = HomesteadSensorBoardEntry(
         date: .now,
-        compactItems: [
-            WidgetSensorBoardCompactItem.sensor(
+        items: [
+            .compact(WidgetSensorBoardCompactItem.sensor(
                 from: .sensorBoardPreview(
                     id: "sensor.living_room_temperature",
                     name: "Temperature",
@@ -225,8 +359,8 @@ struct HomesteadSensorBoardEntry: TimelineEntry {
                         ]
                     )
                 )
-            ),
-            WidgetSensorBoardCompactItem.sensor(
+            )),
+            .compact(WidgetSensorBoardCompactItem.sensor(
                 from: .sensorBoardPreview(
                     id: "sensor.alkalinity",
                     name: "Alkalinity",
@@ -245,9 +379,9 @@ struct HomesteadSensorBoardEntry: TimelineEntry {
                         ]
                     )
                 )
-            )
+            )),
+            .chart(.sensorBoardPreview)
         ],
-        chartItem: .sensorBoardPreview,
         isConfigured: true
     )
 }
@@ -262,8 +396,7 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
         in context: Context
     ) async -> HomesteadSensorBoardEntry {
         if context.isPreview,
-           configuration.compactSlots.allSatisfy({ $0.sensor == nil }),
-           configuration.chartSensor == nil {
+           configuration.slots.allSatisfy({ $0.sensor == nil && $0.chartSensor == nil }) {
             return .placeholder
         }
 
@@ -286,7 +419,11 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
         let snapshotsByEntityID = HomesteadWidgetSharedStore.sensorSnapshots.reduce(into: [:]) { result, snapshot in
             result[snapshot.entityID] = snapshot
         }
-        let compactEntityIDs = Set(configuration.compactSlots.compactMap(\.sensor?.id))
+        let compactEntityIDs = Set(
+            configuration.slots.compactMap { slot in
+                slot.display == .chart ? nil : slot.sensor?.id
+            }
+        )
         let liveReadingsByEntityID: [String: WidgetSensorLiveReading]
 
         do {
@@ -297,36 +434,51 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
             liveReadingsByEntityID = [:]
         }
 
-        let compactItems = configuration.compactSlots.map { slot -> WidgetSensorBoardCompactItem? in
-            guard let sensor = slot.sensor else { return nil }
-            let snapshot = snapshotsByEntityID[sensor.id] ?? sensor.fallbackSnapshot
-            let item = WidgetSensorBoardCompactItem.sensor(
-                from: snapshot,
-                customDisplayName: slot.customDisplayName,
-                presentation: slot.display.presentation
-            )
-            return liveReadingsByEntityID[sensor.id].map(item.updating(with:)) ?? item
-        }
-        let chartItem: WidgetSensorBoardChartItem?
-        if let chartSensor = configuration.chartSensor {
-            chartItem = await makeChartItem(
-                sensor: chartSensor,
-                customDisplayName: configuration.customChartDisplayName,
-                snapshot: snapshotsByEntityID[chartSensor.id]
-            )
-        } else {
-            chartItem = nil
+        let slots = configuration.slots
+        var items = Array<WidgetSensorBoardItem?>(repeating: nil, count: slots.count)
+        await withTaskGroup(of: (Int, WidgetSensorBoardChartItem).self) { group in
+            for (index, slot) in slots.enumerated() {
+                switch slot.display {
+                case .chart:
+                    guard let sensor = slot.chartSensor else { continue }
+                    let snapshot = snapshotsByEntityID[sensor.id]
+                    group.addTask {
+                        let item = await Self.makeChartItem(
+                            sensor: sensor,
+                            customDisplayName: slot.customChartDisplayName,
+                            snapshot: snapshot
+                        )
+                        return (index, item)
+                    }
+                case .automatic, .gauge, .reading:
+                    guard let sensor = slot.sensor,
+                          let presentation = slot.display.compactPresentation else {
+                        continue
+                    }
+                    let snapshot = snapshotsByEntityID[sensor.id] ?? sensor.fallbackSnapshot
+                    let item = WidgetSensorBoardCompactItem.sensor(
+                        from: snapshot,
+                        customDisplayName: slot.customDisplayName,
+                        presentation: presentation
+                    )
+                    let updatedItem = liveReadingsByEntityID[sensor.id].map(item.updating(with:)) ?? item
+                    items[index] = .compact(updatedItem)
+                }
+            }
+
+            for await (index, item) in group {
+                items[index] = .chart(item)
+            }
         }
 
         return HomesteadSensorBoardEntry(
             date: .now,
-            compactItems: compactItems,
-            chartItem: chartItem,
-            isConfigured: compactItems.contains(where: { $0 != nil }) || chartItem != nil
+            items: items,
+            isConfigured: items.contains(where: { $0 != nil })
         )
     }
 
-    private func makeChartItem(
+    private static func makeChartItem(
         sensor: HomesteadChartSensorEntity,
         customDisplayName: String?,
         snapshot: WidgetSensorSnapshot?
@@ -384,14 +536,13 @@ struct HomesteadSensorBoardWidgetView: View {
 
     var body: some View {
         WidgetSensorBoardFace(
-            compactItems: entry.compactItems,
-            chartItem: entry.chartItem,
+            items: entry.items,
             destinationsByEntityID: destinations
         )
     }
 
     private var destinations: [String: URL] {
-        let entityIDs = entry.compactItems.compactMap { $0?.id } + [entry.chartItem?.id].compactMap { $0 }
+        let entityIDs = entry.items.compactMap { $0?.id }
         return entityIDs.reduce(into: [:]) { result, entityID in
             result[entityID] = HomesteadWidgetDeepLink.entityURL(entityID: entityID)
         }

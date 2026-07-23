@@ -111,8 +111,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                 .font(.headline)
 
             WidgetSensorBoardFace(
-                compactItems: sensorBoardCompactItems,
-                chartItem: sensorBoardChartItem
+                items: sensorBoardItems
             )
             .frame(width: 360, height: 169)
             .background(
@@ -228,9 +227,10 @@ struct GaugeWidgetComparisonPreviewScreen: View {
         }
     }
 
-    private var sensorBoardCompactItems: [WidgetSensorBoardCompactItem?] {
+    private var sensorBoardItems: [WidgetSensorBoardItem?] {
         [
-            WidgetSensorBoardCompactItem.sensor(
+            .chart(sensorBoardChartItem),
+            .compact(WidgetSensorBoardCompactItem.sensor(
                 from: previewSensor(
                     id: "sensor.living_room_temperature",
                     name: "Temperature",
@@ -238,8 +238,8 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                     icon: "thermometer.medium",
                     gauge: sensorBoardTemperatureGauge
                 )
-            ),
-            WidgetSensorBoardCompactItem.sensor(
+            )),
+            .compact(WidgetSensorBoardCompactItem.sensor(
                 from: previewSensor(
                     id: "sensor.alkalinity",
                     name: "Alkalinity",
@@ -263,7 +263,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                         accessibilityValue: "8.3 dKH"
                     )
                 )
-            )
+            ))
         ]
     }
 

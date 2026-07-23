@@ -3,6 +3,14 @@ import Testing
 @testable import Homestead
 
 struct WidgetSensorBoardTests {
+    @Test func boardItemUsesConfiguredEntityForEitherPresentation() {
+        let compact = WidgetSensorBoardCompactItem.sensor(from: makeSnapshot(gauge: makeGauge()))
+        let chart = makeChartItem()
+
+        #expect(WidgetSensorBoardItem.compact(compact).id == compact.id)
+        #expect(WidgetSensorBoardItem.chart(chart).id == chart.id)
+    }
+
     @Test func automaticPresentationUsesGaugeWhenAvailable() {
         let item = WidgetSensorBoardCompactItem.sensor(from: makeSnapshot(gauge: makeGauge()))
 
@@ -69,23 +77,8 @@ struct WidgetSensorBoardTests {
     }
 
     @Test func sensorBoardChartUsesSharedWidgetChartPresentation() {
-        let samples = [
-            HomesteadChartSample(occurredAt: .now.addingTimeInterval(-60), value: 71),
-            HomesteadChartSample(occurredAt: .now, value: 72)
-        ]
-        let item = WidgetSensorBoardChartItem(
-            id: "sensor.living_room_temperature",
-            displayName: "Living Room",
-            icon: .sfSymbol("thermometer.medium", provenance: .homesteadSemanticMapping),
-            valueText: "72°F",
-            unitText: "°F",
-            supportingText: "No recent chart",
-            isAvailable: true,
-            samples: samples,
-            valueDomain: 70...74,
-            interpolationStyle: .smooth,
-            accentColor: .orange
-        )
+        let item = makeChartItem()
+        let samples = item.samples
 
         #expect(item.chartPresentation.title == "Living Room")
         #expect(item.chartPresentation.unitText == "°F")
@@ -93,6 +86,25 @@ struct WidgetSensorBoardTests {
         #expect(item.chartPresentation.interpolationStyle == .smooth)
         #expect(item.chartPresentation.rangeTitle == "6H")
         #expect(item.accentColor == .orange)
+    }
+
+    private func makeChartItem() -> WidgetSensorBoardChartItem {
+        WidgetSensorBoardChartItem(
+            id: "sensor.living_room_temperature",
+            displayName: "Living Room",
+            icon: .sfSymbol("thermometer.medium", provenance: .homesteadSemanticMapping),
+            valueText: "72°F",
+            unitText: "°F",
+            supportingText: "No recent chart",
+            isAvailable: true,
+            samples: [
+                HomesteadChartSample(occurredAt: .now.addingTimeInterval(-60), value: 71),
+                HomesteadChartSample(occurredAt: .now, value: 72)
+            ],
+            valueDomain: 70...74,
+            interpolationStyle: .smooth,
+            accentColor: .orange
+        )
     }
 
     private func makeSnapshot(gauge: WidgetGaugePresentation?) -> WidgetSensorSnapshot {

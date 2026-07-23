@@ -193,7 +193,7 @@ nonisolated enum SharedFeatureCatalog {
             kind: .sensorBoard,
             featureID: "sensor",
             displayName: "Homestead Sensor Board",
-            description: "Combine two sensor readings or gauges with a six-hour chart.",
+            description: "Combine three sensor readings, gauges, or six-hour charts.",
             supportedFamilies: [.systemMedium],
             requiresConfiguration: true
         ),
