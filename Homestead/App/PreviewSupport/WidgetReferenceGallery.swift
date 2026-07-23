@@ -1,7 +1,8 @@
 #if DEBUG
 import SwiftUI
+import WidgetKit
 
-struct GaugeWidgetComparisonPreviewScreen: View {
+struct WidgetReferenceGallery: View {
     private let dashboardWidth: CGFloat = 180
     private let widgetSide: CGFloat = 169
     private let widgetCornerRadius: CGFloat = 36
@@ -61,6 +62,10 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                 VStack(alignment: .leading, spacing: 28) {
                     largeSensorBoardPreview
                     sensorBoardPreview
+                    mediumSensorPreview
+                    coreWidgetPreviews
+                    configurationStatePreviews
+                    accessoryWidgetPreviews
                     chartComparisonRow
                     circularComparisonRow
                     segmentedComparisonRow
@@ -69,8 +74,274 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                 .padding(20)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Widget Preview")
+            .navigationTitle("Widgets")
         }
+    }
+
+    // MARK: - Widget Families
+
+    private var coreWidgetPreviews: some View {
+        referenceSection("Core Widgets") {
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    systemWidget("Control") {
+                        smallReferenceFace(
+                            title: "Bed Lamp",
+                            value: showsUnavailableBoard ? "Unavailable" : "On • 50%",
+                            icon: "lightbulb.fill",
+                            color: showsUnavailableBoard ? .secondary : .yellow
+                        )
+                    }
+                    systemWidget("Status") {
+                        smallReferenceFace(
+                            title: "Living Room",
+                            value: showsUnavailableBoard ? "—" : "72°F",
+                            supportingText: showsUnavailableBoard ? "Unavailable" : nil,
+                            icon: "thermometer.medium",
+                            color: showsUnavailableBoard ? .secondary : .blue
+                        )
+                    }
+                    systemWidget("Sensor") {
+                        HomesteadWidgetChartFace(
+                            presentation: sensorChartPresentation,
+                            accentColor: showsUnavailableBoard ? .secondary : .orange,
+                            density: .small
+                        )
+                    }
+                    systemWidget("Action") {
+                        smallReferenceFace(
+                            title: "Movie Time",
+                            icon: "play.circle.fill",
+                            color: .purple,
+                            titleLineLimit: 3
+                        )
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        }
+    }
+
+    private var mediumSensorPreview: some View {
+        referenceSection("Medium Sensor") {
+            HomesteadWidgetChartFace(
+                presentation: sensorChartPresentation,
+                accentColor: showsUnavailableBoard ? .secondary : .orange,
+                density: .medium
+            )
+            .frame(width: 360, height: 169)
+            .background(
+                .fill.tertiary,
+                in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous))
+        }
+    }
+
+    private var configurationStatePreviews: some View {
+        referenceSection("Configuration States") {
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    systemWidget("Control") {
+                        smallReferenceFace(
+                            title: "Choose Control",
+                            value: "Open Homestead",
+                            icon: "switch.2",
+                            color: .secondary
+                        )
+                    }
+                    systemWidget("Status") {
+                        smallReferenceFace(
+                            title: "Choose Status",
+                            value: "Open Homestead",
+                            icon: "gauge.medium",
+                            color: .secondary
+                        )
+                    }
+                    systemWidget("Sensor") {
+                        smallReferenceFace(
+                            title: "Choose Sensor",
+                            value: "Open Homestead",
+                            icon: "thermometer.medium",
+                            color: .secondary
+                        )
+                    }
+                    systemWidget("Action") {
+                        smallReferenceFace(
+                            title: "Choose Action",
+                            supportingText: "Open Homestead",
+                            icon: "sparkles",
+                            color: .secondary
+                        )
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        }
+    }
+
+    private var accessoryWidgetPreviews: some View {
+        referenceSection("Accessories") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    accessoryRectangular {
+                        rectangularReferenceFace(
+                            title: "Bed Lamp",
+                            value: showsUnavailableBoard ? "Unavailable" : "On • 50%",
+                            icon: "lightbulb.fill",
+                            color: showsUnavailableBoard ? .secondary : .yellow
+                        )
+                    }
+                    accessoryRectangular {
+                        rectangularReferenceFace(
+                            title: "Living Room",
+                            value: showsUnavailableBoard ? "—" : "72°F",
+                            icon: "thermometer.medium",
+                            color: showsUnavailableBoard ? .secondary : .blue
+                        )
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    accessoryRectangular {
+                        rectangularReferenceFace(
+                            title: "Hallway",
+                            value: showsUnavailableBoard ? "—" : "72°F",
+                            icon: "thermometer.medium",
+                            color: showsUnavailableBoard ? .secondary : .orange
+                        )
+                    }
+                    accessoryRectangular {
+                        rectangularReferenceFace(
+                            title: "Movie Time",
+                            value: nil,
+                            icon: "play.circle.fill",
+                            color: .purple
+                        )
+                    }
+                }
+
+                HStack(spacing: 18) {
+                    accessoryCircular {
+                        iconBadge("lightbulb.fill", color: showsUnavailableBoard ? .secondary : .yellow)
+                    }
+                    accessoryCircular {
+                        iconBadge("thermometer.medium", color: showsUnavailableBoard ? .secondary : .blue)
+                    }
+                    accessoryCircular {
+                        iconBadge("thermometer.medium", color: showsUnavailableBoard ? .secondary : .orange)
+                    }
+                    accessoryCircular {
+                        iconBadge("play.circle.fill", color: .purple)
+                    }
+                }
+            }
+        }
+    }
+
+    private func referenceSection<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.headline)
+
+            content()
+        }
+    }
+
+    private func systemWidget<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        previewColumn(title) {
+            content()
+                .padding(16)
+                .frame(width: widgetSide, height: widgetSide)
+                .background(
+                    .fill.tertiary,
+                    in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous))
+        }
+    }
+
+    private func accessoryRectangular<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .frame(maxWidth: .infinity)
+            .frame(height: 62)
+            .padding(.horizontal, 10)
+            .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func accessoryCircular<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .frame(width: 62, height: 62)
+            .background(.fill.quaternary, in: Circle())
+    }
+
+    private var sensorChartPresentation: HomesteadWidgetChartPresentation {
+        let now = Date()
+        let samples = showsUnavailableBoard ? [] : [70.8, 71.2, 71.1, 71.8, 72.0].enumerated().map {
+            HomesteadChartSample(
+                occurredAt: now.addingTimeInterval(Double($0.offset - 4) * 90 * 60),
+                value: $0.element
+            )
+        }
+        return HomesteadWidgetChartPresentation(
+            title: "Hallway",
+            valueText: showsUnavailableBoard ? "—" : "72°F",
+            unitText: "°F",
+            icon: .sfSymbol("thermometer.medium", provenance: .homesteadSemanticMapping),
+            isAvailable: !showsUnavailableBoard,
+            samples: samples,
+            valueDomain: HomesteadChartDomain.stabilized(values: samples.map(\.value), unit: "°F"),
+            interpolationStyle: .smooth,
+            rangeTitle: "6H",
+            changeSummaryText: nil,
+            emptyLabel: showsUnavailableBoard ? "Chart unavailable" : "No recent chart"
+        )
+    }
+
+    private func smallReferenceFace(
+        title: String,
+        value: String? = nil,
+        supportingText: String? = nil,
+        icon: String,
+        color: Color,
+        titleLineLimit: Int = 2
+    ) -> some View {
+        HomesteadWidgetSmallTile(
+            title: title,
+            value: value,
+            supportingText: supportingText,
+            valueColor: color == .secondary ? .secondary : .primary,
+            titleLineLimit: titleLineLimit
+        ) {
+            iconBadge(icon, color: color)
+        }
+    }
+
+    private func rectangularReferenceFace(
+        title: String,
+        value: String?,
+        icon: String,
+        color: Color
+    ) -> some View {
+        HomesteadWidgetRectangularTile(title: title, value: value) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(color)
+        }
+    }
+
+    private func iconBadge(_ systemName: String, color: Color) -> some View {
+        HomesteadWidgetIconBadge(content: .symbol(systemName), color: color)
     }
 
     private var chartComparisonRow: some View {
@@ -467,7 +738,7 @@ private struct WidgetGaugeBarComparisonFace: View {
 }
 
 #Preview("Gauge Widget Comparison") {
-    GaugeWidgetComparisonPreviewScreen()
+    WidgetReferenceGallery()
         .withPreviewEnvironment()
         .preferredColorScheme(.dark)
 }

@@ -218,8 +218,8 @@ struct HomesteadApp: App {
             EntityDetailCardContextPreviewScreen()
         case .entityDetails:
             EntityDetailReferenceGallery()
-        case .gaugeWidget:
-            GaugeWidgetComparisonPreviewScreen()
+        case .widgets:
+            WidgetReferenceGallery()
         }
     }
 #endif

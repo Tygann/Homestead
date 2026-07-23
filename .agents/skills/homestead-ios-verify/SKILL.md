@@ -41,7 +41,7 @@ Follow the smallest verification path that proves the requested outcome. Read `A
 1. Choose the narrowest Debug launch path:
    - `--preview-screen appearance` for Appearance.
    - `--preview-screen entity-details` for the entity-detail family/state gallery.
-   - `--preview-screen gauge-widget` for dashboard/widget gauge comparison.
+   - `--preview-screen widgets` for the complete widget family/state gallery.
    - `--live-preview` only for real Home Assistant state, authenticated media, or server-specific capabilities.
 2. Reuse one explicit simulator UDID. Homestead is an Xcode project, so rebuild and relaunch after edits; do not assume package hot reload.
 3. When browser inspection improves the task, start a simulator-scoped `serve-sim` process using the cleanup contract in `Docs/DEVELOPMENT_WORKFLOW.md`, then open its exact URL in the Codex in-app browser.
