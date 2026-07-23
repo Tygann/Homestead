@@ -265,7 +265,7 @@ struct EntityDetailHeroCard<Content: View, Accessory: View>: View {
             }
         }
         .padding(AppSpacing.large)
-        .homesteadCardSurface(enhancesWallpaperContrast: true)
+        .homesteadCardSurface()
     }
 }
 

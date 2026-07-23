@@ -560,7 +560,7 @@ struct EntityMetadataDisclosure: View {
                     )
                     .padding(.horizontal, AppSpacing.large)
                     .frame(height: 52)
-                    .homesteadCardSurface(enhancesWallpaperContrast: true)
+                    .homesteadCardSurface()
                 }
                 .buttonStyle(.plain)
             } else {
@@ -576,7 +576,7 @@ struct EntityMetadataDisclosure: View {
                         .font(.headline)
                 }
                 .padding(AppSpacing.large)
-                .homesteadCardSurface(enhancesWallpaperContrast: true)
+                .homesteadCardSurface()
             }
         }
     }
@@ -622,7 +622,7 @@ struct EntityDetailSection<Content: View>: View {
             content
         }
         .padding(AppSpacing.large)
-        .homesteadCardSurface(enhancesWallpaperContrast: true)
+        .homesteadCardSurface()
     }
 }
 
