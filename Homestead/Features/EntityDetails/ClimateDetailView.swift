@@ -90,7 +90,7 @@ struct ClimateDetailView: View {
                 }
 
                 if showsTemperatureControls(climate) && showsOptions(climate) {
-                    controlDivider
+                    controlSectionDivider
                 }
 
                 if showsOptions(climate) {
@@ -101,10 +101,10 @@ struct ClimateDetailView: View {
     }
 
     private func temperatureControls(_ climate: ClimateEntity) -> some View {
-        temperatureStepper(
+        temperatureAdjustmentRow(
             title: "Target",
-            systemImage: "scope",
             value: targetTemperature,
+            tint: .accentColor,
             climate: climate,
             canDecrease: targetTemperature > climate.resolvedMinimumTemperature,
             canIncrease: targetTemperature < climate.resolvedMaximumTemperature,
@@ -114,11 +114,11 @@ struct ClimateDetailView: View {
     }
 
     private func temperatureRangeControls(_ climate: ClimateEntity) -> some View {
-        VStack(spacing: 0) {
-            temperatureStepper(
+        VStack(spacing: AppSpacing.small) {
+            temperatureAdjustmentRow(
                 title: "Heat to",
-                systemImage: "flame.fill",
                 value: targetLowTemperature,
+                tint: .orange,
                 climate: climate,
                 canDecrease: targetLowTemperature > climate.resolvedMinimumTemperature,
                 canIncrease: targetLowTemperature < targetHighTemperature,
@@ -130,12 +130,10 @@ struct ClimateDetailView: View {
                 }
             )
 
-            controlDivider
-
-            temperatureStepper(
+            temperatureAdjustmentRow(
                 title: "Cool to",
-                systemImage: "snowflake",
                 value: targetHighTemperature,
+                tint: .blue,
                 climate: climate,
                 canDecrease: targetHighTemperature > targetLowTemperature,
                 canIncrease: targetHighTemperature < climate.resolvedMaximumTemperature,
@@ -149,40 +147,26 @@ struct ClimateDetailView: View {
         }
     }
 
-    private func temperatureStepper(
+    private func temperatureAdjustmentRow(
         title: String,
-        systemImage: String,
         value: Double,
+        tint: Color,
         climate: ClimateEntity,
         canDecrease: Bool,
         canIncrease: Bool,
         decreaseAction: @escaping () -> Void,
         increaseAction: @escaping () -> Void
     ) -> some View {
-        Stepper(
-            onIncrement: {
-                guard canIncrease else { return }
-                increaseAction()
-            },
-            onDecrement: {
-                guard canDecrease else { return }
-                decreaseAction()
-            }
-        ) {
-            HStack(spacing: AppSpacing.medium) {
-                Label(title, systemImage: systemImage)
-                    .font(.body)
-
-                Spacer(minLength: AppSpacing.medium)
-
-                Text(climate.formatTemperature(value))
-                    .font(.body.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(climate.isActive ? Color.accentColor : Color.secondary)
-            }
-        }
-        .disabled(detailState.blocksControlInteraction || (!canDecrease && !canIncrease))
-        .accessibilityValue(climate.formatTemperature(value))
-        .frame(minHeight: 48)
+        ClimateSetpointControl(
+            title: title,
+            value: climate.formatTemperature(value),
+            tint: climate.isActive ? tint : .secondary,
+            canDecrease: canDecrease,
+            canIncrease: canIncrease,
+            isDisabled: detailState.blocksControlInteraction,
+            decreaseAction: decreaseAction,
+            increaseAction: increaseAction
+        )
     }
 
     private func optionControls(_ climate: ClimateEntity) -> some View {
@@ -215,7 +199,7 @@ struct ClimateDetailView: View {
 
             if showsHVACModeOptions(climate)
                 && (showsFanModeOptions(climate) || showsPresetModeOptions(climate)) {
-                controlDivider
+                optionDivider
             }
 
             if showsFanModeOptions(climate) {
@@ -245,7 +229,7 @@ struct ClimateDetailView: View {
             }
 
             if showsFanModeOptions(climate) && showsPresetModeOptions(climate) {
-                controlDivider
+                optionDivider
             }
 
             if showsPresetModeOptions(climate) {
@@ -276,10 +260,16 @@ struct ClimateDetailView: View {
         }
     }
 
-    private var controlDivider: some View {
+    private var controlSectionDivider: some View {
+        Divider()
+            .padding(.vertical, AppSpacing.small)
+            .opacity(0.8)
+    }
+
+    private var optionDivider: some View {
         Divider()
             .padding(.leading, 32)
-            .opacity(0.65)
+            .opacity(0.45)
     }
 
     private var contextDetails: some View {
@@ -413,6 +403,80 @@ struct ClimateDetailView: View {
         if targetHighTemperature < targetLowTemperature {
             targetHighTemperature = targetLowTemperature
         }
+    }
+}
+
+private struct ClimateSetpointControl: View {
+    let title: String
+    let value: String
+    let tint: Color
+    let canDecrease: Bool
+    let canIncrease: Bool
+    let isDisabled: Bool
+    let decreaseAction: () -> Void
+    let increaseAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: AppSpacing.medium) {
+            Text(title)
+                .font(.body)
+
+            Spacer(minLength: AppSpacing.small)
+
+            Text(value)
+                .font(.title3.weight(.semibold).monospacedDigit())
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            HStack(spacing: AppSpacing.small) {
+                adjustmentButton(
+                    systemImage: "minus",
+                    isEnabled: canDecrease,
+                    action: decreaseAction
+                )
+
+                adjustmentButton(
+                    systemImage: "plus",
+                    isEnabled: canIncrease,
+                    action: increaseAction
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 48)
+        .opacity(isDisabled ? 0.55 : 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
+        .accessibilityAdjustableAction { direction in
+            guard !isDisabled else { return }
+
+            switch direction {
+            case .increment where canIncrease:
+                increaseAction()
+            case .decrement where canDecrease:
+                decreaseAction()
+            default:
+                break
+            }
+        }
+    }
+
+    private func adjustmentButton(
+        systemImage: String,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+                .frame(width: 44, height: 44)
+                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isEnabled ? Color.primary : Color.secondary.opacity(0.45))
+        .disabled(isDisabled || !isEnabled)
+        .accessibilityHidden(true)
     }
 }
 
