@@ -201,7 +201,7 @@ nonisolated enum SharedFeatureCatalog {
             kind: .largeSensorBoard,
             featureID: "sensor",
             displayName: "Homestead Large Sensor Board",
-            description: "Combine up to six sensor readings, gauges, or six-hour charts.",
+            description: "Combine up to nine sensor readings, gauges, or six-hour charts.",
             supportedFamilies: [.systemLarge],
             requiresConfiguration: true
         ),

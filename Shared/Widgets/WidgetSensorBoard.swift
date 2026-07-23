@@ -138,8 +138,8 @@ struct WidgetSensorBoardFace: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(12)
         case .large:
-            Grid(horizontalSpacing: 10, verticalSpacing: 10) {
-                ForEach(0..<2, id: \.self) { row in
+            Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+                ForEach(0..<3, id: \.self) { row in
                     GridRow {
                         ForEach(0..<3, id: \.self) { column in
                             slot(at: (row * 3) + column)
@@ -149,7 +149,7 @@ struct WidgetSensorBoardFace: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(12)
+            .padding(10)
         }
     }
 
@@ -160,11 +160,11 @@ struct WidgetSensorBoardFace: View {
         switch item {
         case let .compact(item):
             linkedContent(entityID: item.id) {
-                WidgetSensorBoardCompactTile(item: item)
+                WidgetSensorBoardCompactTile(item: item, usesSquareDensity: layout == .large)
             }
         case let .chart(item):
             linkedContent(entityID: item.id) {
-                WidgetSensorBoardChartTile(item: item)
+                WidgetSensorBoardChartTile(item: item, usesSquareDensity: layout == .large)
             }
         case nil:
             WidgetSensorBoardEmptyTile(title: "Choose Item", systemImage: "plus")
@@ -188,6 +188,7 @@ struct WidgetSensorBoardFace: View {
 
 private struct WidgetSensorBoardCompactTile: View {
     let item: WidgetSensorBoardCompactItem
+    let usesSquareDensity: Bool
 
     var body: some View {
         Group {
@@ -200,7 +201,11 @@ private struct WidgetSensorBoardCompactTile: View {
                     style: .compactSegmented
                 )
             } else {
-                reading
+                if usesSquareDensity {
+                    squareReading
+                } else {
+                    reading
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -232,19 +237,41 @@ private struct WidgetSensorBoardCompactTile: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
+
+    private var squareReading: some View {
+        VStack(spacing: 4) {
+            HomesteadIconView(icon: item.icon, pointSize: 13, weight: .semibold)
+                .foregroundStyle(item.isAvailable ? Color.blue : .secondary)
+
+            Text(item.isAvailable ? item.valueText : "—")
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundStyle(item.isAvailable ? Color.primary : .secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .monospacedDigit()
+
+            Text(item.displayName)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 }
 
 private struct WidgetSensorBoardChartTile: View {
     let item: WidgetSensorBoardChartItem
+    let usesSquareDensity: Bool
 
     var body: some View {
         HomesteadWidgetChartFace(
             presentation: item.chartPresentation,
             accentColor: widgetGaugeColor(for: item.accentColor),
-            density: .sensorBoard
+            density: usesSquareDensity ? .sensorBoardSquare : .sensorBoard
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.vertical, 18)
+        .padding(.vertical, usesSquareDensity ? 8 : 18)
         .contentShape(Rectangle())
     }
 }

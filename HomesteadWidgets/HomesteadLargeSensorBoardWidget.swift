@@ -30,6 +30,9 @@ enum HomesteadLargeSensorBoardEditingSlot: Int, AppEnum {
     case four
     case five
     case six
+    case seven
+    case eight
+    case nine
 
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Configure Slot")
     static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
@@ -38,14 +41,17 @@ enum HomesteadLargeSensorBoardEditingSlot: Int, AppEnum {
         .three: "Slot 3",
         .four: "Slot 4",
         .five: "Slot 5",
-        .six: "Slot 6"
+        .six: "Slot 6",
+        .seven: "Slot 7",
+        .eight: "Slot 8",
+        .nine: "Slot 9"
     ]
 }
 
 struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Large Sensor Board"
     static var description = IntentDescription(
-        "Combine up to six sensor readings, gauges, or six-hour charts."
+        "Combine up to nine sensor readings, gauges, or six-hour charts."
     )
 
     @Parameter(title: "Configure Slot", default: .one)
@@ -86,6 +92,24 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 6 Sensor") var sensor6: HomesteadSensorEntity?
     @Parameter(title: "Slot 6 Chart Sensor") var chartSensor6: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 6 Display Name") var customDisplayName6: String?
+
+    @Parameter(title: "Slot 7 Display", default: .automatic)
+    var display7: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 7 Sensor") var sensor7: HomesteadSensorEntity?
+    @Parameter(title: "Slot 7 Chart Sensor") var chartSensor7: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 7 Display Name") var customDisplayName7: String?
+
+    @Parameter(title: "Slot 8 Display", default: .automatic)
+    var display8: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 8 Sensor") var sensor8: HomesteadSensorEntity?
+    @Parameter(title: "Slot 8 Chart Sensor") var chartSensor8: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 8 Display Name") var customDisplayName8: String?
+
+    @Parameter(title: "Slot 9 Display", default: .chart)
+    var display9: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 9 Sensor") var sensor9: HomesteadSensorEntity?
+    @Parameter(title: "Slot 9 Chart Sensor") var chartSensor9: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 9 Display Name") var customDisplayName9: String?
 
     static var parameterSummary: some ParameterSummary {
         Switch(\.$editingSlot) {
@@ -191,6 +215,57 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     }
                 }
             }
+            Case(.seven) {
+                When(\.$display7, .equalTo, .chart) {
+                    Summary {
+                        \.$editingSlot
+                        \.$display7
+                        \.$chartSensor7
+                        \.$customDisplayName7
+                    }
+                } otherwise: {
+                    Summary {
+                        \.$editingSlot
+                        \.$display7
+                        \.$sensor7
+                        \.$customDisplayName7
+                    }
+                }
+            }
+            Case(.eight) {
+                When(\.$display8, .equalTo, .chart) {
+                    Summary {
+                        \.$editingSlot
+                        \.$display8
+                        \.$chartSensor8
+                        \.$customDisplayName8
+                    }
+                } otherwise: {
+                    Summary {
+                        \.$editingSlot
+                        \.$display8
+                        \.$sensor8
+                        \.$customDisplayName8
+                    }
+                }
+            }
+            Case(.nine) {
+                When(\.$display9, .equalTo, .chart) {
+                    Summary {
+                        \.$editingSlot
+                        \.$display9
+                        \.$chartSensor9
+                        \.$customDisplayName9
+                    }
+                } otherwise: {
+                    Summary {
+                        \.$editingSlot
+                        \.$display9
+                        \.$sensor9
+                        \.$customDisplayName9
+                    }
+                }
+            }
             DefaultCase {
                 Summary {
                     \.$editingSlot
@@ -206,7 +281,10 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
             slot(display3, sensor3, chartSensor3, customDisplayName3),
             slot(display4, sensor4, chartSensor4, customDisplayName4),
             slot(display5, sensor5, chartSensor5, customDisplayName5),
-            slot(display6, sensor6, chartSensor6, customDisplayName6)
+            slot(display6, sensor6, chartSensor6, customDisplayName6),
+            slot(display7, sensor7, chartSensor7, customDisplayName7),
+            slot(display8, sensor8, chartSensor8, customDisplayName8),
+            slot(display9, sensor9, chartSensor9, customDisplayName9)
         ]
     }
 
@@ -282,7 +360,7 @@ private extension HomesteadSensorBoardEntry {
     static var largePlaceholder: Self {
         Self(
             date: .now,
-            items: placeholder.items + placeholder.items,
+            items: placeholder.items + placeholder.items + placeholder.items,
             isConfigured: true
         )
     }

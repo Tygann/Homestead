@@ -135,6 +135,7 @@ nonisolated struct HomesteadWidgetChartPresentation: Equatable, Sendable {
 nonisolated enum HomesteadWidgetChartDensity: Equatable, Sendable {
     case compact
     case sensorBoard
+    case sensorBoardSquare
     case small
     case medium
 }
@@ -166,7 +167,7 @@ struct HomesteadWidgetChartFace: View {
 
                         Spacer(minLength: 4)
 
-                        if density == .medium || density == .sensorBoard {
+                        if density == .medium || density == .sensorBoard || density == .sensorBoardSquare {
                             trailingSummary
                         }
                     }
@@ -195,7 +196,7 @@ struct HomesteadWidgetChartFace: View {
                 valueDomain: presentation.valueDomain,
                 accentColor: resolvedAccentColor,
                 interpolationStyle: presentation.interpolationStyle,
-                highlightsLatestSample: density == .sensorBoard
+                highlightsLatestSample: density == .sensorBoard || density == .sensorBoardSquare
             )
         } else {
             HomesteadChartPlaceholder(
@@ -251,7 +252,7 @@ struct HomesteadWidgetChartFace: View {
 
     private var contentPadding: CGFloat {
         switch density {
-        case .compact, .sensorBoard: 0
+        case .compact, .sensorBoard, .sensorBoardSquare: 0
         case .small, .medium: 16
         }
     }
@@ -260,6 +261,7 @@ struct HomesteadWidgetChartFace: View {
         switch density {
         case .compact, .small: 0.35
         case .sensorBoard: 0.5
+        case .sensorBoardSquare: 0.44
         case .medium: 0.48
         }
     }
@@ -284,6 +286,7 @@ struct HomesteadWidgetChartFace: View {
         switch density {
         case .compact: 24
         case .sensorBoard: 22
+        case .sensorBoardSquare: 19
         case .small, .medium: 38
         }
     }
@@ -293,11 +296,11 @@ struct HomesteadWidgetChartFace: View {
     }
 
     private var compactHeader: Bool {
-        density == .compact || density == .sensorBoard
+        density == .compact || density == .sensorBoard || density == .sensorBoardSquare
     }
 
     private var compactlyHidesEmptyLabel: Bool {
-        density == .compact || density == .sensorBoard
+        density == .compact || density == .sensorBoard || density == .sensorBoardSquare
     }
 }
 

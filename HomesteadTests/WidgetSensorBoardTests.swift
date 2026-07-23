@@ -11,7 +11,7 @@ struct WidgetSensorBoardTests {
         #expect(WidgetSensorBoardItem.chart(chart).id == chart.id)
     }
 
-    @Test func largeBoardPreservesSixOrderedMixedItems() {
+    @Test func largeBoardPreservesNineOrderedMixedItems() {
         let compact = WidgetSensorBoardCompactItem.sensor(from: makeSnapshot(gauge: makeGauge()))
         let chart = makeChartItem()
         let items: [WidgetSensorBoardItem] = [
@@ -20,11 +20,24 @@ struct WidgetSensorBoardTests {
             .chart(chart),
             .compact(compact),
             .compact(compact),
-            .chart(chart)
+            .chart(chart),
+            .compact(compact),
+            .chart(chart),
+            .compact(compact)
         ]
 
-        #expect(items.count == 6)
-        #expect(items.map(\.id) == [chart.id, compact.id, chart.id, compact.id, compact.id, chart.id])
+        #expect(items.count == 9)
+        #expect(items.map(\.id) == [
+            chart.id,
+            compact.id,
+            chart.id,
+            compact.id,
+            compact.id,
+            chart.id,
+            compact.id,
+            chart.id,
+            compact.id
+        ])
     }
 
     @Test func automaticPresentationUsesGaugeWhenAvailable() {

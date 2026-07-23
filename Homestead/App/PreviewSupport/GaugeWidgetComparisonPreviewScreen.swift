@@ -306,6 +306,26 @@ struct GaugeWidgetComparisonPreviewScreen: View {
                     icon: "thermometer.high",
                     gauge: sensorBoardTemperatureGauge
                 )
+            )),
+            .compact(WidgetSensorBoardCompactItem.sensor(
+                from: previewSensor(
+                    id: "sensor.pool_ph",
+                    name: "Pool pH",
+                    valueText: "7.5",
+                    icon: "drop.degreesign",
+                    gauge: nil
+                ),
+                presentation: .reading
+            )),
+            .chart(sensorBoardChartItem),
+            .compact(WidgetSensorBoardCompactItem.sensor(
+                from: previewSensor(
+                    id: "sensor.water_temperature",
+                    name: "Water",
+                    valueText: "78.4°F",
+                    icon: "water.waves.and.thermometer",
+                    gauge: sensorBoardTemperatureGauge
+                )
             ))
         ]
     }
@@ -364,7 +384,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
         valueText: String,
         icon: String,
         isAvailable: Bool = true,
-        gauge: WidgetGaugePresentation
+        gauge: WidgetGaugePresentation?
     ) -> WidgetSensorSnapshot {
         WidgetSensorSnapshot(
             entityID: id,
@@ -372,7 +392,7 @@ struct GaugeWidgetComparisonPreviewScreen: View {
             valueText: valueText,
             subtitle: "Sensor",
             systemImage: icon,
-            unit: gauge.unitText,
+            unit: gauge?.unitText,
             isNumeric: true,
             isAlerting: false,
             isAvailable: isAvailable,
