@@ -118,7 +118,7 @@ struct WeatherForecastPanel: View {
             let showsPrecipitationRow = entries.contains { ($0.precipitationProbability ?? 0) > 0 }
 
             ScrollView(.horizontal) {
-                LazyHStack(spacing: AppSpacing.medium) {
+                LazyHStack(spacing: AppSpacing.small) {
                     ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                         WeatherHourlyForecastItem(
                             entry: entry,
@@ -311,7 +311,7 @@ private struct WeatherHourlyForecastItem: View {
                 }
             }
         }
-        .frame(width: 72, alignment: alignsToLeadingEdge ? .leading : .center)
+        .frame(width: 60, alignment: alignsToLeadingEdge ? .leading : .center)
         .frame(minHeight: showsPrecipitationRow ? 104 : 82)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(entry.accessibilitySummary(for: .hourly, temperatureUnit: weather.temperatureUnit))
@@ -363,7 +363,9 @@ private extension WeatherForecastEntry {
         case .daily:
             return WeatherForecastDayLabel.title(for: datetime)
         case .hourly:
-            return datetime.formatted(date: .omitted, time: .shortened)
+            return datetime.formatted(
+                .dateTime.hour(.defaultDigits(amPM: .abbreviated))
+            )
         case .twiceDaily:
             let period = isDaytime == false ? "Night" : "Day"
             return "\(datetime.formatted(.dateTime.weekday(.abbreviated))) \(period)"
