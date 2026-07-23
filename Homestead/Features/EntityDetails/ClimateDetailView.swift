@@ -269,47 +269,86 @@ struct ClimateDetailView: View {
         }
     }
 
+    @ViewBuilder
     private func optionCapsules(_ climate: ClimateEntity) -> some View {
+        if showsHVACModeOptions(climate)
+            && showsFanModeOptions(climate)
+            && showsPresetModeOptions(climate) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: AppSpacing.small) {
+                    modeMenu(climate, prominence: .compact)
+                    fanMenu(climate, prominence: .compact)
+                    presetMenu(climate, prominence: .compact)
+                }
+                stackedOptionCapsules(climate)
+            }
+        } else {
+            stackedOptionCapsules(climate)
+        }
+    }
+
+    private func stackedOptionCapsules(_ climate: ClimateEntity) -> some View {
         VStack(spacing: AppSpacing.small) {
             if showsHVACModeOptions(climate) {
-                ClimateFloatingMenu(
-                    title: "Mode",
-                    systemImage: climate.iconName(forHVACMode: climate.state),
-                    value: climate.displayName(forHVACMode: climate.state),
-                    prominence: .primary,
-                    isDisabled: detailState.blocksControlInteraction
-                ) {
-                    hvacModeMenu(climate)
-                }
+                modeMenu(climate, prominence: .primary)
             }
 
             if showsFanModeOptions(climate) || showsPresetModeOptions(climate) {
                 HStack(spacing: AppSpacing.small) {
                     if showsFanModeOptions(climate) {
-                        ClimateFloatingMenu(
-                            title: "Fan",
-                            systemImage: "fan.fill",
-                            value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
-                            prominence: .secondary,
-                            isDisabled: detailState.blocksControlInteraction
-                        ) {
-                            fanModeMenu(climate)
-                        }
+                        fanMenu(climate, prominence: .secondary)
                     }
 
                     if showsPresetModeOptions(climate) {
-                        ClimateFloatingMenu(
-                            title: "Preset",
-                            systemImage: "leaf",
-                            value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
-                            prominence: .secondary,
-                            isDisabled: detailState.blocksControlInteraction
-                        ) {
-                            presetModeMenu(climate)
-                        }
+                        presetMenu(climate, prominence: .secondary)
                     }
                 }
             }
+        }
+    }
+
+    private func modeMenu(
+        _ climate: ClimateEntity,
+        prominence: ClimateFloatingMenuProminence
+    ) -> some View {
+        ClimateFloatingMenu(
+            title: "Mode",
+            systemImage: climate.iconName(forHVACMode: climate.state),
+            value: climate.displayName(forHVACMode: climate.state),
+            prominence: prominence,
+            isDisabled: detailState.blocksControlInteraction
+        ) {
+            hvacModeMenu(climate)
+        }
+    }
+
+    private func fanMenu(
+        _ climate: ClimateEntity,
+        prominence: ClimateFloatingMenuProminence
+    ) -> some View {
+        ClimateFloatingMenu(
+            title: "Fan",
+            systemImage: "fan.fill",
+            value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
+            prominence: prominence,
+            isDisabled: detailState.blocksControlInteraction
+        ) {
+            fanModeMenu(climate)
+        }
+    }
+
+    private func presetMenu(
+        _ climate: ClimateEntity,
+        prominence: ClimateFloatingMenuProminence
+    ) -> some View {
+        ClimateFloatingMenu(
+            title: "Preset",
+            systemImage: "leaf",
+            value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
+            prominence: prominence,
+            isDisabled: detailState.blocksControlInteraction
+        ) {
+            presetModeMenu(climate)
         }
     }
 
@@ -548,6 +587,7 @@ struct ClimateDetailView: View {
 private enum ClimateFloatingMenuProminence {
     case primary
     case secondary
+    case compact
 }
 
 private struct ClimateFloatingMenu<MenuContent: View>: View {
@@ -584,6 +624,8 @@ private struct ClimateFloatingMenu<MenuContent: View>: View {
                     primaryLabel
                 case .secondary:
                     secondaryLabel
+                case .compact:
+                    compactLabel
                 }
             }
             .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
@@ -651,6 +693,34 @@ private struct ClimateFloatingMenu<MenuContent: View>: View {
         }
         .padding(.horizontal, AppSpacing.medium)
         .frame(maxWidth: .infinity, minHeight: 52)
+    }
+
+    private var compactLabel: some View {
+        VStack(spacing: 2) {
+            HStack(spacing: AppSpacing.xSmall) {
+                Image(systemName: systemImage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: AppSpacing.xSmall) {
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.horizontal, AppSpacing.small)
+        .frame(minWidth: 96, maxWidth: .infinity, minHeight: 52)
     }
 }
 
@@ -793,22 +863,26 @@ private struct ClimateThermostatInstrument: View {
         let leftEndpoint = point(for: 0, geometry: geometry)
         let rightEndpoint = point(for: 1, geometry: geometry)
         let controlY = leftEndpoint.y + 48
+        let controlWidth = min(max(rightEndpoint.x - leftEndpoint.x - 20, 184), 212)
 
-        return ZStack {
+        return HStack(spacing: 0) {
             precisionButton(systemImage: "minus", direction: -1)
-                .position(x: leftEndpoint.x + 10, y: controlY)
 
             Text(adjustmentLabel)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
-                .frame(minWidth: 92)
+                .frame(maxWidth: .infinity)
                 .contentTransition(.numericText())
-                .position(x: geometry.center.x, y: controlY)
 
             precisionButton(systemImage: "plus", direction: 1)
-                .position(x: rightEndpoint.x - 10, y: controlY)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: controlWidth, height: 48)
+        .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        }
+        .position(x: geometry.center.x, y: controlY)
     }
 
     private func precisionButton(systemImage: String, direction: Double) -> some View {
@@ -820,8 +894,8 @@ private struct ClimateThermostatInstrument: View {
         } label: {
             Image(systemName: systemImage)
                 .font(.body.weight(.semibold))
-                .frame(width: 48, height: 48)
-                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                .frame(width: 52, height: 48)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(canAdjust ? Color.primary : Color.secondary.opacity(0.4))
@@ -1023,6 +1097,9 @@ private struct ClimateThermostatInstrument: View {
     private func displayValue(_ value: Double) -> String {
         let value = formatValue(value)
         if value.hasSuffix("°F") || value.hasSuffix("°C") {
+            return String(value.dropLast(2))
+        }
+        if value.hasSuffix("°") {
             return String(value.dropLast())
         }
         return value
