@@ -20,7 +20,7 @@ struct EntityDiagnosticsView: View {
                     .listRowBackground(Color.clear)
             }
 
-            Section("State") {
+            Section {
                 EntityDetailRow(title: "Entity ID", value: entity.entityID)
                 EntityDetailRow(title: "Domain", value: entity.domain.displayName)
                 EntityDetailRow(title: "State", value: displayState(for: entityBox))
@@ -32,11 +32,13 @@ struct EntityDiagnosticsView: View {
                 if let lastChanged = rawEntity?.lastChanged {
                     EntityDetailRow(title: "Last Changed", value: lastChanged.formatted(date: .abbreviated, time: .shortened))
                 }
+            } header: {
+                HomesteadListSectionHeader("State")
             }
             .homesteadListRowSurface()
 
             if let device {
-                Section("Device") {
+                Section {
                     EntityDetailRow(title: "Name", value: device.displayName)
 
                     if let manufacturer = device.manufacturer?.nonEmptyValue {
@@ -48,12 +50,14 @@ struct EntityDiagnosticsView: View {
                     }
 
                     EntityDetailRow(title: "Device ID", value: device.id)
+                } header: {
+                    HomesteadListSectionHeader("Device")
                 }
                 .homesteadListRowSurface()
             }
 
             if let registry {
-                Section("Registry") {
+                Section {
                     if let name = registry.name?.nonEmptyValue {
                         EntityDetailRow(title: "Name", value: name)
                     }
@@ -69,15 +73,19 @@ struct EntityDiagnosticsView: View {
                     if let hiddenBy = registry.hiddenBy {
                         EntityDetailRow(title: "Hidden", value: hiddenBy ? "Yes" : "No")
                     }
+                } header: {
+                    HomesteadListSectionHeader("Registry")
                 }
                 .homesteadListRowSurface()
             }
 
             if let attributes = rawEntity?.attributes, !attributes.isEmpty {
-                Section("Attributes") {
+                Section {
                     ForEach(attributes.sortedByKey, id: \.key) { key, value in
                         EntityDetailRow(title: key.humanizedAttributeName, value: value.detailDisplayValue)
                     }
+                } header: {
+                    HomesteadListSectionHeader("Attributes")
                 }
                 .homesteadListRowSurface()
             }

@@ -115,8 +115,16 @@ enum HomesteadSurfaceStyle {
 }
 
 extension View {
-    func homesteadCardSurface(cornerRadius: CGFloat = AppRadius.card) -> some View {
-        modifier(HomesteadCardSurfaceModifier(cornerRadius: cornerRadius))
+    func homesteadCardSurface(
+        cornerRadius: CGFloat = AppRadius.card,
+        enhancesWallpaperContrast: Bool = false
+    ) -> some View {
+        modifier(
+            HomesteadCardSurfaceModifier(
+                cornerRadius: cornerRadius,
+                enhancesWallpaperContrast: enhancesWallpaperContrast
+            )
+        )
     }
 
     func homesteadListRowSurface() -> some View {
@@ -124,21 +132,38 @@ extension View {
     }
 }
 
+struct HomesteadListSectionHeader: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title)
+            .foregroundStyle(isWallpaperSurfaceActive ? Color.primary : Color.secondary)
+    }
+}
+
 private struct HomesteadCardSurfaceModifier: ViewModifier {
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
 
     let cornerRadius: CGFloat
+    let enhancesWallpaperContrast: Bool
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         content
-            .background(
-                HomesteadSurfaceStyle.cardBackground(
-                    isWallpaperActive: isWallpaperSurfaceActive
-                ),
-                in: shape
-            )
+            .background {
+                HomesteadSurfaceBackground(
+                    isWallpaperSurfaceActive: isWallpaperSurfaceActive,
+                    enhancesWallpaperContrast: enhancesWallpaperContrast
+                )
+                .clipShape(shape)
+            }
             .overlay {
                 shape.strokeBorder(
                     HomesteadSurfaceStyle.cardBorder(
@@ -154,11 +179,30 @@ private struct HomesteadListRowBackground: View {
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
 
     var body: some View {
-        Rectangle()
-            .fill(
-                HomesteadSurfaceStyle.cardBackground(
-                    isWallpaperActive: isWallpaperSurfaceActive
+        HomesteadSurfaceBackground(
+            isWallpaperSurfaceActive: isWallpaperSurfaceActive,
+            enhancesWallpaperContrast: true
+        )
+    }
+}
+
+private struct HomesteadSurfaceBackground: View {
+    let isWallpaperSurfaceActive: Bool
+    let enhancesWallpaperContrast: Bool
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(
+                    HomesteadSurfaceStyle.cardBackground(
+                        isWallpaperActive: isWallpaperSurfaceActive
+                    )
                 )
-            )
+
+            if isWallpaperSurfaceActive, enhancesWallpaperContrast {
+                Rectangle()
+                    .fill(Color(.systemBackground).opacity(0.14))
+            }
+        }
     }
 }

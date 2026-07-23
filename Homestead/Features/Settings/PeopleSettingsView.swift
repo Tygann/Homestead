@@ -153,7 +153,7 @@ struct PersonPresenceDetailView: View {
     @ViewBuilder
     private func detailsSection(_ record: HAPresenceRecord) -> some View {
         if record.hasPresenceDetails {
-            Section("Details") {
+            Section {
                 if let gpsAccuracyText = record.gpsAccuracyText {
                     LabeledContent("Accuracy", value: gpsAccuracyText)
                 }
@@ -171,6 +171,8 @@ struct PersonPresenceDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            } header: {
+                HomesteadListSectionHeader("Details")
             }
             .homesteadListRowSurface()
         }
@@ -179,7 +181,7 @@ struct PersonPresenceDetailView: View {
     @ViewBuilder
     private func relationshipsSection(_ record: HAPresenceRecord) -> some View {
         if record.isPerson {
-            Section("Trackers") {
+            Section {
                 if record.linkedTrackers.isEmpty {
                     Label("No active tracker", systemImage: "location.slash")
                         .foregroundStyle(.secondary)
@@ -201,11 +203,15 @@ struct PersonPresenceDetailView: View {
                         }
                     }
                 }
+            } header: {
+                HomesteadListSectionHeader("Trackers")
             }
             .homesteadListRowSurface()
         } else if let linkedPersonName = record.linkedPersonName {
-            Section("Person") {
+            Section {
                 Label(linkedPersonName, systemImage: "person.fill")
+            } header: {
+                HomesteadListSectionHeader("Person")
             }
             .homesteadListRowSurface()
         }
@@ -229,7 +235,7 @@ struct PersonPresenceDetailView: View {
     @ViewBuilder
     private func contextSection(_ record: HAPresenceRecord) -> some View {
         if record.hasContext {
-            Section("Context") {
+            Section {
                 if let areaName = record.context.areaName {
                     LabeledContent("Area", value: areaName)
                 }
@@ -241,6 +247,8 @@ struct PersonPresenceDetailView: View {
                 if let deviceName = record.context.deviceName {
                     LabeledContent("Device", value: deviceName)
                 }
+            } header: {
+                HomesteadListSectionHeader("Context")
             }
             .homesteadListRowSurface()
         }

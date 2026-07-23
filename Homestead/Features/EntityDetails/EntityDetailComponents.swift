@@ -186,15 +186,32 @@ struct EntityDetailStateToggle: View {
 }
 
 struct EntityDetailHeroActionButton: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let title: String
     let systemImage: String
     let isDisabled: Bool
     let action: () -> Void
 
+    @ViewBuilder
     var body: some View {
+        if isWallpaperSurfaceActive {
+            if #available(iOS 26.0, *) {
+                button
+                    .buttonStyle(.glass)
+            } else {
+                button
+                    .buttonStyle(.bordered)
+            }
+        } else {
+            button
+                .buttonStyle(.bordered)
+        }
+    }
+
+    private var button: some View {
         Button(title, systemImage: systemImage, action: action)
             .font(.subheadline.weight(.semibold))
-            .buttonStyle(.bordered)
             .controlSize(.regular)
             .frame(minHeight: 44)
             .disabled(isDisabled)
@@ -543,7 +560,7 @@ struct EntityMetadataDisclosure: View {
                     )
                     .padding(.horizontal, AppSpacing.large)
                     .frame(height: 52)
-                    .homesteadCardSurface()
+                    .homesteadCardSurface(enhancesWallpaperContrast: true)
                 }
                 .buttonStyle(.plain)
             } else {
@@ -559,7 +576,7 @@ struct EntityMetadataDisclosure: View {
                         .font(.headline)
                 }
                 .padding(AppSpacing.large)
-                .homesteadCardSurface()
+                .homesteadCardSurface(enhancesWallpaperContrast: true)
             }
         }
     }
@@ -605,7 +622,7 @@ struct EntityDetailSection<Content: View>: View {
             content
         }
         .padding(AppSpacing.large)
-        .homesteadCardSurface()
+        .homesteadCardSurface(enhancesWallpaperContrast: true)
     }
 }
 
