@@ -721,7 +721,7 @@ private struct ClimateFloatingMenu<MenuContent: View>: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, AppSpacing.small)
-        .frame(minWidth: 96, maxWidth: .infinity, minHeight: 52)
+        .frame(minWidth: 96, maxWidth: .infinity, minHeight: 48)
     }
 }
 
@@ -863,7 +863,7 @@ private struct ClimateThermostatInstrument: View {
     private func precisionControls(geometry: DialGeometry) -> some View {
         let leftEndpoint = point(for: 0, geometry: geometry)
         let rightEndpoint = point(for: 1, geometry: geometry)
-        let controlY = leftEndpoint.y + 20
+        let controlY = leftEndpoint.y + 28
         let controlWidth = min(max(rightEndpoint.x - leftEndpoint.x - 32, 164), 176)
 
         return HStack(spacing: 0) {
