@@ -753,6 +753,7 @@ private struct ClimateThermostatInstrument: View {
 
     private let arcStartAngle = 150.0
     private let arcLength = 240.0
+    private let precisionControlHeight: CGFloat = 48
 
     var body: some View {
         GeometryReader { proxy in
@@ -782,7 +783,10 @@ private struct ClimateThermostatInstrument: View {
                     )
                 }
 
-                precisionControls(geometry: geometry)
+                precisionControls(
+                    geometry: geometry,
+                    containerHeight: proxy.size.height
+                )
             }
             .coordinateSpace(name: "climateThermostatArc")
         }
@@ -860,10 +864,13 @@ private struct ClimateThermostatInstrument: View {
         .accessibilityHidden(true)
     }
 
-    private func precisionControls(geometry: DialGeometry) -> some View {
+    private func precisionControls(
+        geometry: DialGeometry,
+        containerHeight: CGFloat
+    ) -> some View {
         let leftEndpoint = point(for: 0, geometry: geometry)
         let rightEndpoint = point(for: 1, geometry: geometry)
-        let controlY = leftEndpoint.y + 28
+        let controlY = containerHeight - (precisionControlHeight / 2)
         let controlWidth = min(max(rightEndpoint.x - leftEndpoint.x - 32, 164), 176)
 
         return HStack(spacing: 0) {
@@ -877,7 +884,7 @@ private struct ClimateThermostatInstrument: View {
 
             precisionButton(systemImage: "plus", direction: 1)
         }
-        .frame(width: controlWidth, height: 48)
+        .frame(width: controlWidth, height: precisionControlHeight)
         .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
         .overlay {
             Capsule()
