@@ -17,6 +17,7 @@ final class HAStateStore {
     private(set) var entityCatalogSignature = ""
     private(set) var hasEntities = false
     private(set) var hasLoadedInitialSnapshot = false
+    private(set) var weatherSolarPhase: WeatherSolarPhase?
     private(set) var dataSourceID: String?
     @ObservationIgnored private(set) var lightEntitiesByID: [String: LightEntity] = [:]
     @ObservationIgnored private(set) var climateEntitiesByID: [String: ClimateEntity] = [:]
@@ -853,6 +854,7 @@ final class HAStateStore {
         sensorEntitiesByID.removeAll()
         binarySensorEntitiesByID.removeAll()
         weatherEntitiesByID.removeAll()
+        weatherSolarPhase = nil
         selectEntitiesByID.removeAll()
         numberEntitiesByID.removeAll()
         updateEntities.removeAll()
@@ -905,6 +907,9 @@ final class HAStateStore {
         weatherEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
             EntityMapper.weatherEntity(from: dto).map { ($0.entityID, $0) }
         })
+        weatherSolarPhase = entities
+            .first(where: { $0.entityID == "sun.sun" })
+            .flatMap(EntityMapper.weatherSolarPhase(from:))
         selectEntitiesByID = Dictionary(uniqueKeysWithValues: entities.compactMap { dto in
             EntityMapper.selectEntity(from: dto).map { ($0.entityID, $0) }
         })
@@ -972,6 +977,9 @@ final class HAStateStore {
             invalidateDashboardSummaryMembershipContext()
         }
         rawEntitiesByID[dto.entityID] = dto
+        if dto.entityID == "sun.sun" {
+            weatherSolarPhase = EntityMapper.weatherSolarPhase(from: dto)
+        }
         apply(dto: dto)
         return true
     }
@@ -1056,6 +1064,9 @@ final class HAStateStore {
         sensorEntitiesByID.removeValue(forKey: entityID)
         binarySensorEntitiesByID.removeValue(forKey: entityID)
         weatherEntitiesByID.removeValue(forKey: entityID)
+        if entityID == "sun.sun" {
+            weatherSolarPhase = nil
+        }
         selectEntitiesByID.removeValue(forKey: entityID)
         if removedEntity?.domain == .update {
             refreshUpdateEntities()

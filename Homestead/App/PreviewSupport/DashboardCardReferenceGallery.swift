@@ -6,7 +6,7 @@ struct DashboardCardReferenceGallery: View {
     private let dependencies: PreviewDependencies
 
     init() {
-        let dependencies = PreviewDependencies.entityDetailSample(entityOverrides: [
+        var entityOverrides = [
             HAEntityDTO(
                 entityID: "sensor.chart_unavailable",
                 state: "unavailable",
@@ -25,7 +25,12 @@ struct DashboardCardReferenceGallery: View {
                     "supported_features": .number(3)
                 ]
             )
-        ])
+        ]
+        entityOverrides.append(Self.sunFixture(
+            referenceState: RuntimeEnvironment.dashboardCardReferenceState
+        ))
+
+        let dependencies = PreviewDependencies.entityDetailSample(entityOverrides: entityOverrides)
         Self.seedWeatherForecast(in: dependencies.stateStore)
         self.dependencies = dependencies
     }
@@ -271,6 +276,27 @@ struct DashboardCardReferenceGallery: View {
             },
             receivedAt: now
         ))
+    }
+
+    private static func sunFixture(referenceState: String?) -> HAEntityDTO {
+        let elevation: Double
+        switch referenceState {
+        case "weather-twilight":
+            elevation = -3
+        case "weather-night":
+            elevation = -14
+        default:
+            elevation = 24
+        }
+
+        return HAEntityDTO(
+            entityID: "sun.sun",
+            state: elevation >= 0 ? "above_horizon" : "below_horizon",
+            attributes: [
+                "friendly_name": .string("Sun"),
+                "elevation": .number(elevation)
+            ]
+        )
     }
 
     private static func forecastEntry(

@@ -595,6 +595,15 @@ private enum PreviewData {
             lastUpdated: .now
         ),
         HAEntityDTO(
+            entityID: "sun.sun",
+            state: "above_horizon",
+            attributes: [
+                "friendly_name": .string("Sun"),
+                "elevation": .number(24)
+            ],
+            lastUpdated: .now
+        ),
+        HAEntityDTO(
             entityID: "scene.movie_night",
             state: "scening",
             attributes: [

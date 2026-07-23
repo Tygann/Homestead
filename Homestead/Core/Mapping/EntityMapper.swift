@@ -162,6 +162,32 @@ enum EntityMapper {
         )
     }
 
+    static func weatherSolarPhase(from dto: HAEntityDTO) -> WeatherSolarPhase? {
+        guard dto.entityID == "sun.sun" else { return nil }
+
+        if let elevation = dto.attributes["elevation"]?.doubleValue {
+            if elevation >= 0 {
+                return .day
+            }
+
+            // Civil twilight spans from the horizon to six degrees below it.
+            if elevation > -6 {
+                return .twilight
+            }
+
+            return .night
+        }
+
+        switch dto.state {
+        case "above_horizon":
+            return .day
+        case "below_horizon":
+            return .night
+        default:
+            return nil
+        }
+    }
+
     static func weatherForecastSnapshot(
         from dto: HAWeatherForecastEventDTO,
         receivedAt: Date = Date()

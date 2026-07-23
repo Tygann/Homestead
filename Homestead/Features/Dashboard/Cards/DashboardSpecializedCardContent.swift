@@ -311,12 +311,18 @@ struct DashboardWeatherCardContent: View {
     let forecastsByType: [WeatherForecastType: WeatherForecastSnapshot]
     let loadingForecastTypes: Set<WeatherForecastType>
     let forecastErrorsByType: [WeatherForecastType: String]
+    var solarPhase: WeatherSolarPhase? = nil
     let size: DashboardCardSize
 
     var body: some View {
+        let palette = DashboardWeatherPaletteResolver.resolve(
+            condition: weather.condition,
+            solarPhase: solarPhase
+        )
+
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
-                DashboardWeatherCardBackground(condition: weather.condition)
+                DashboardWeatherCardBackground(colors: palette.colors)
                     .opacity(isWallpaperSurfaceActive ? 0.48 : 1)
 
                 LinearGradient(
@@ -878,7 +884,7 @@ struct DashboardWeatherCardContent: View {
 }
 
 private struct DashboardWeatherCardBackground: View {
-    let condition: WeatherCondition
+    let colors: [Color]
 
     var body: some View {
         LinearGradient(
@@ -888,28 +894,6 @@ private struct DashboardWeatherCardBackground: View {
         )
     }
 
-    private var colors: [Color] {
-        switch condition {
-        case .sunny, .partlyCloudy:
-            [Color(red: 0.25, green: 0.63, blue: 0.93), Color(red: 0.08, green: 0.35, blue: 0.68)]
-        case .clearNight:
-            [Color(red: 0.19, green: 0.29, blue: 0.55), Color(red: 0.05, green: 0.09, blue: 0.24)]
-        case .rainy, .pouring, .hail:
-            [Color(red: 0.30, green: 0.51, blue: 0.66), Color(red: 0.10, green: 0.22, blue: 0.32)]
-        case .lightning, .lightningRainy:
-            [Color(red: 0.34, green: 0.34, blue: 0.55), Color(red: 0.12, green: 0.12, blue: 0.25)]
-        case .snowy, .snowyRainy:
-            [Color(red: 0.56, green: 0.72, blue: 0.82), Color(red: 0.27, green: 0.43, blue: 0.55)]
-        case .cloudy, .fog:
-            [Color(red: 0.43, green: 0.52, blue: 0.61), Color(red: 0.21, green: 0.29, blue: 0.37)]
-        case .windy, .windyVariant:
-            [Color(red: 0.34, green: 0.58, blue: 0.61), Color(red: 0.17, green: 0.34, blue: 0.38)]
-        case .exceptional:
-            [Color(red: 0.69, green: 0.37, blue: 0.31), Color(red: 0.36, green: 0.16, blue: 0.18)]
-        case .unavailable, .unknown, .other:
-            [Color(red: 0.38, green: 0.41, blue: 0.45), Color(red: 0.19, green: 0.21, blue: 0.24)]
-        }
-    }
 }
 
 // MARK: - Media

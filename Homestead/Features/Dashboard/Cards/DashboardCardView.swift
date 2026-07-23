@@ -98,6 +98,7 @@ struct DashboardCardView: View {
                 presentation: presentation,
                 size: size,
                 presentationKind: resolvedPresentationKind,
+                weatherSolarPhase: stateStore.weatherSolarPhase,
                 gaugeZoneConfiguration: gaugeZoneConfiguration,
                 chartRange: chartRange,
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),

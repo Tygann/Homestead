@@ -12,6 +12,7 @@ struct DashboardEntityCard: View {
     let presentation: DashboardEntityPresentation
     let size: DashboardCardSize
     let presentationKind: DashboardPresentationKind
+    var weatherSolarPhase: WeatherSolarPhase? = nil
     let gaugeZoneConfiguration: GaugeZoneConfiguration?
     let chartRange: HAHistoryRangePreset
     let features: [DashboardCardFeature]
@@ -115,6 +116,7 @@ struct DashboardEntityCard: View {
                 forecastsByType: entityBox.weatherForecastsByType,
                 loadingForecastTypes: entityBox.loadingWeatherForecastTypes,
                 forecastErrorsByType: entityBox.weatherForecastErrorsByType,
+                solarPhase: weatherSolarPhase,
                 size: size
             )
         } else {
