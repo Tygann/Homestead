@@ -68,10 +68,6 @@ struct WeatherForecastPanel: View {
         let errorMessage = errorMessage(for: type)
 
         VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Text(sectionTitle(for: type))
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-
             if entries.isEmpty, isLoading {
                 loadingContent
             } else if entries.isEmpty, let errorMessage {
@@ -102,17 +98,6 @@ struct WeatherForecastPanel: View {
         entityBox.weatherForecastErrorsByType[type]
     }
 
-    private func sectionTitle(for type: WeatherForecastType) -> String {
-        switch type {
-        case .hourly:
-            "Hourly"
-        case .daily:
-            "Daily"
-        case .twiceDaily:
-            "Day & Night"
-        }
-    }
-
     @ViewBuilder
     private func forecastEntries(_ entries: [WeatherForecastEntry], type: WeatherForecastType) -> some View {
         if dynamicTypeSize.isAccessibilitySize {
@@ -134,11 +119,12 @@ struct WeatherForecastPanel: View {
 
             ScrollView(.horizontal) {
                 LazyHStack(spacing: AppSpacing.medium) {
-                    ForEach(entries) { entry in
+                    ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                         WeatherHourlyForecastItem(
                             entry: entry,
                             weather: weather,
-                            showsPrecipitationRow: showsPrecipitationRow
+                            showsPrecipitationRow: showsPrecipitationRow,
+                            alignsToLeadingEdge: index == 0
                         )
                     }
                 }
@@ -293,6 +279,7 @@ private struct WeatherHourlyForecastItem: View {
     let entry: WeatherForecastEntry
     let weather: WeatherEntity
     let showsPrecipitationRow: Bool
+    let alignsToLeadingEdge: Bool
 
     var body: some View {
         VStack(spacing: AppSpacing.small) {
@@ -324,7 +311,7 @@ private struct WeatherHourlyForecastItem: View {
                 }
             }
         }
-        .frame(width: 72)
+        .frame(width: 72, alignment: alignsToLeadingEdge ? .leading : .center)
         .frame(minHeight: showsPrecipitationRow ? 104 : 82)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(entry.accessibilitySummary(for: .hourly, temperatureUnit: weather.temperatureUnit))
