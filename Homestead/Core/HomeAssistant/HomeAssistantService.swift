@@ -413,9 +413,14 @@ final class HomeAssistantService {
         let sessionID = UUID()
         weatherForecastSessionIDsByEntityID[entityID] = sessionID
         var subscriptionIDs: [Int] = []
+
+        // Reserve every supported forecast slot before the first subscription
+        // can deliver data so the UI never observes a partially-started load.
         for type in weather.supportedForecastTypes {
             entityBox.beginLoadingWeatherForecast(type)
+        }
 
+        for type in weather.supportedForecastTypes {
             do {
                 let subscriptionID = try await client.subscribeToWeatherForecast(
                     entityID: entityID,

@@ -117,6 +117,7 @@ struct DashboardEntityCard: View {
                 loadingForecastTypes: entityBox.loadingWeatherForecastTypes,
                 forecastErrorsByType: entityBox.weatherForecastErrorsByType,
                 solarPhase: weatherSolarPhase,
+                expectsForecastHydration: expectsWeatherForecastHydration,
                 size: size
             )
         } else {
@@ -793,6 +794,19 @@ struct DashboardEntityCard: View {
         }
 
         return "weather-card-active-\(entityBox.entityID)-\(weatherForecastConsumerID)"
+    }
+
+    private var expectsWeatherForecastHydration: Bool {
+        guard presentationKind == .weather, !isPreview else {
+            return isPreview
+        }
+
+        switch homeAssistantService.connectionStatus {
+        case .preparing, .connecting, .reconnecting, .connected:
+            return true
+        case .disconnected, .failed:
+            return false
+        }
     }
 
     @MainActor
