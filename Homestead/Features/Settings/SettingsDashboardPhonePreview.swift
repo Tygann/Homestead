@@ -53,38 +53,46 @@ struct SettingsDashboardPhonePreview: View {
     private func previewCanvas(size: CGSize) -> some View {
         let scale = size.width / Self.referenceWidth
         let contentPadding = 11 * scale
+        let contentSize = CGSize(
+            width: size.width - (contentPadding * 2),
+            height: size.height - (contentPadding * 2)
+        )
         let phoneShape = RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
 
         return ZStack {
-            ZStack {
-                previewBackground(in: size)
-
+            previewBackground(in: size)
+        }
+            .frame(width: size.width, height: size.height)
+            .overlay(alignment: .top) {
                 VStack(spacing: 0) {
                     previewHeader(scale: scale)
                         .padding(.bottom, 15 * scale)
 
                     SettingsDashboardLayoutMiniature(
                         items: items,
-                        contentWidth: size.width - (contentPadding * 2),
+                        contentWidth: contentSize.width,
                         renderScale: scale
                     )
-                    .frame(maxHeight: .infinity, alignment: .top)
                 }
+                .frame(
+                    width: contentSize.width,
+                    height: contentSize.height,
+                    alignment: .top
+                )
                 .padding(contentPadding)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .clipped()
             }
             .clipShape(phoneShape)
-
-            previewBottomChrome(scale: scale)
+            .overlay(alignment: .bottom) {
+                previewBottomChrome(scale: scale)
                 .padding(.horizontal, 10 * scale)
                 .padding(.bottom, contentPadding)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-
-            phoneShape
+            }
+            .overlay {
+                phoneShape
                 .strokeBorder(Color.white.opacity(0.18), lineWidth: max(0.5, scale))
-        }
-        .frame(width: size.width, height: size.height)
-        .clipShape(phoneShape)
+            }
+            .clipShape(phoneShape)
     }
 
     private var previewTaskID: String {
@@ -259,13 +267,13 @@ private struct SettingsDashboardLayoutMiniature: View {
                     }
                 }
                 .frame(width: contentWidth, height: layout.height, alignment: .topLeading)
-                .frame(maxHeight: .infinity, alignment: .top)
                 .clipped()
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Dashboard layout preview")
             }
         }
         .frame(width: contentWidth, alignment: .topLeading)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var chipItems: [DashboardItemConfiguration] {

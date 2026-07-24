@@ -4,34 +4,36 @@ import UIKit
 struct DashboardView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var editingDashboardID: UUID?
+    @State private var toolbarAddRequest: DashboardToolbarAddRequest?
 
     var body: some View {
         let enabledDashboards = dashboardConfiguration.enabledDashboards
 
-        TabView(selection: selectedDashboardBinding) {
-            ForEach(enabledDashboards) { dashboard in
-                DashboardPageView(
-                    dashboardID: dashboard.id,
-                    bottomContentClearance: enabledDashboards.count > 1
-                        ? DashboardPageIndicatorMetrics.reservedHeight
-                        : 0,
-                    isEditingDashboard: Binding(
-                        get: { editingDashboardID == dashboard.id },
-                        set: { isEditing in
-                            editingDashboardID = isEditing ? dashboard.id : nil
-                        }
+        ZStack(alignment: .bottom) {
+            TabView(selection: selectedDashboardBinding) {
+                ForEach(enabledDashboards) { dashboard in
+                    DashboardPageView(
+                        dashboardID: dashboard.id,
+                        bottomContentClearance: enabledDashboards.count > 1
+                            ? DashboardPageIndicatorMetrics.reservedHeight
+                            : 0,
+                        toolbarAddRequest: toolbarAddRequest,
+                        isEditingDashboard: Binding(
+                            get: { editingDashboardID == dashboard.id },
+                            set: { isEditing in
+                                editingDashboardID = isEditing ? dashboard.id : nil
+                            }
+                        )
                     )
-                )
-                .tag(dashboard.id)
-                .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
-                .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
+                    .tag(dashboard.id)
+                    .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
+                    .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
+                }
             }
-        }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .homesteadWallpaperBackground()
-        .overlay(alignment: .bottom) {
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea(.container, edges: .bottom)
+
             if enabledDashboards.count > 1 {
                 DashboardPageIndicator(
                     dashboards: enabledDashboards,
@@ -39,6 +41,28 @@ struct DashboardView: View {
                     selectDashboard: selectDashboard
                 )
                 .padding(.bottom, DashboardPageIndicatorMetrics.bottomSpacing)
+            }
+        }
+        .homesteadWallpaperBackground()
+        .navigationTitle(selectedDashboardTitle)
+        .toolbarTitleDisplayMode(.inlineLarge)
+        .toolbar {
+            if editingDashboardID != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(role: .confirm) {
+                        editingDashboardID = nil
+                    }
+                }
+            } else {
+                ToolbarItem(placement: .topBarTrailing) {
+                    optionsMenu
+                }
+
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    SettingsAccountButton()
+                }
             }
         }
         .onChange(of: dashboardConfiguration.selectedDashboardID) { oldID, newID in
@@ -65,6 +89,34 @@ struct DashboardView: View {
         }
     }
 
+    private var selectedDashboardTitle: String {
+        dashboardConfiguration.dashboard(id: dashboardConfiguration.selectedDashboardID)?
+            .resolvedDisplayTitle ?? "Dashboard"
+    }
+
+    private var optionsMenu: some View {
+        Menu {
+            Button {
+                toolbarAddRequest = DashboardToolbarAddRequest(
+                    dashboardID: dashboardConfiguration.selectedDashboardID
+                )
+            } label: {
+                Label("Add to Dashboard", systemImage: "rectangle.stack.badge.plus")
+            }
+
+            Divider()
+
+            Button {
+                editingDashboardID = dashboardConfiguration.selectedDashboardID
+            } label: {
+                Label("Edit Dashboard", systemImage: "square.grid.2x2")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .bold()
+        }
+    }
+
     private var selectedDashboardBinding: Binding<UUID> {
         Binding(
             get: { dashboardConfiguration.selectedDashboardID },
@@ -77,11 +129,7 @@ struct DashboardView: View {
 
     private func selectDashboard(_ dashboardID: UUID) {
         guard editingDashboardID == nil else { return }
-        var transaction = Transaction()
-        transaction.animation = reduceMotion ? nil : .snappy(duration: 0.28)
-        _ = withTransaction(transaction) {
-            dashboardConfiguration.selectDashboard(id: dashboardID)
-        }
+        dashboardConfiguration.selectDashboard(id: dashboardID)
     }
 
     private func pageAccessibilityValue(for dashboardID: UUID) -> String {
@@ -94,6 +142,11 @@ struct DashboardView: View {
         guard stateStore.hasEntities else { return }
         dashboardConfiguration.reconcile(with: stateStore.allEntityBoxes())
     }
+}
+
+private struct DashboardToolbarAddRequest: Equatable {
+    let id = UUID()
+    let dashboardID: UUID
 }
 
 nonisolated enum DashboardPageIndicatorMetrics {
@@ -224,6 +277,7 @@ private struct DashboardPageView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let dashboardID: UUID
     let bottomContentClearance: CGFloat
+    let toolbarAddRequest: DashboardToolbarAddRequest?
     @Binding var isEditingDashboard: Bool
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var iconPickerContext: DashboardIconPickerContext?
@@ -289,38 +343,9 @@ private struct DashboardPageView: View {
                 await homeAssistantService.refreshStates()
                 cameraRefreshGeneration += 1
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                Color.clear
-                    .frame(height: bottomContentClearance)
-                    .accessibilityHidden(true)
-            }
-            .navigationTitle(
-                dashboardConfiguration.dashboard(id: dashboardID)?.resolvedDisplayTitle
-                    ?? "Dashboard"
-            )
-            //        .navigationSubtitle(connectionSettings.baseURL)
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .toolbar {
-                if isEditingDashboard {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(role: .confirm) {
-                            isEditingDashboard = false
-                        }
-                    }
-                } else {
-                    if dashboardConfiguration.setupState(for: dashboardID) != .notChosen {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            optionsMenu
-                        }
-
-                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                    }
-
-                    ToolbarItem(placement: .topBarTrailing) {
-                        SettingsAccountButton()
-                    }
-                }
-            }
+            .contentMargins(.top, AppSpacing.xLarge, for: .scrollContent)
+            .contentMargins(.bottom, bottomContentClearance, for: .scrollContent)
+            .scrollClipDisabled()
             .sheet(item: $addSheetMode) { mode in
                 DashboardAddItemView(
                     dashboardID: dashboardID,
@@ -396,6 +421,10 @@ private struct DashboardPageView: View {
                     endDashboardGridDrag()
                     endDashboardChipDrag()
                 }
+            }
+            .onChange(of: toolbarAddRequest) { _, request in
+                guard request?.dashboardID == dashboardID else { return }
+                addSheetMode = .items
             }
             .onChange(of: pendingScrollDashboardItemID) { _, itemID in
                 scrollToDashboardItem(itemID, scrollProxy: scrollProxy)
@@ -1437,28 +1466,6 @@ private struct DashboardPageView: View {
         }
     }
     
-    // MARK: - Toolbar Menus
-
-    private var optionsMenu: some View {
-        Menu {
-            Button {
-                addSheetMode = .items
-            } label: {
-                Label("Add to Dashboard", systemImage: "rectangle.stack.badge.plus")
-            }
-            
-            Divider()
-            
-            Button {
-                isEditingDashboard = true
-            } label: {
-                Label("Edit Dashboard", systemImage: "square.grid.2x2")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .bold()
-        }
-    }
 }
 
 #if DEBUG

@@ -2,9 +2,10 @@ import XCTest
 @testable import Homestead
 
 final class PreviewScreenRouteTests: XCTestCase {
-    func testWidgetReferenceGalleryUsesCanonicalWidgetsRoute() {
+    func testKnownPreviewRoutesUseCanonicalArguments() {
         XCTAssertEqual(HomesteadPreviewScreen(argumentValue: "widgets"), .widgets)
         XCTAssertEqual(HomesteadPreviewScreen(argumentValue: "settings"), .settings)
+        XCTAssertEqual(HomesteadPreviewScreen(argumentValue: "home"), .home)
         XCTAssertNil(HomesteadPreviewScreen(argumentValue: "gauge-widget"))
     }
 

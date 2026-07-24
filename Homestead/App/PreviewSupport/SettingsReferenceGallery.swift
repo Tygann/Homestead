@@ -16,7 +16,7 @@ struct SettingsReferenceGallery: View {
                 Section("Dashboard Paging") {
                     NavigationLink("Home with Bottom Navigation") {
                         ContentView()
-                            .withPreviewEnvironment(.dashboardSample(pageCount: 3))
+                            .withPreviewEnvironment(.dashboardPagingSample)
                     }
 
                     NavigationLink("One Home Page") {
@@ -131,14 +131,29 @@ struct SettingsReferenceGallery: View {
 
 struct AppearanceSettingsPreviewHost: View {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
     var body: some View {
         AppearanceSettingsView()
             .task {
-                guard !appearanceSettings.hasWallpaper else { return }
-                try? await appearanceSettings.importWallpaper(from: SamplePreviewWallpaper.data)
+                if !appearanceSettings.hasWallpaper {
+                    try? await appearanceSettings.importWallpaper(from: SamplePreviewWallpaper.data)
+                }
+                addOverflowingPreviewCardsIfNeeded()
                 appearanceSettings.isWallpaperEnabled = false
             }
+    }
+
+    private func addOverflowingPreviewCardsIfNeeded() {
+        guard dashboardConfiguration.items.count < 16 else { return }
+
+        for index in dashboardConfiguration.items.count..<16 {
+            let entityID = index.isMultiple(of: 2) ? "light.bedroom" : "light.kitchen"
+            _ = dashboardConfiguration.add(
+                source: .entity(entityID),
+                presentation: .card(.control(layout: .square))
+            )
+        }
     }
 }
 

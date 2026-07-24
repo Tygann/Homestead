@@ -19,6 +19,18 @@ struct PreviewDependencies {
         makeSample()
     }
 
+    static var dashboardPagingSample: PreviewDependencies {
+        let dependencies = dashboardSample(pageCount: 3)
+        for index in 0..<8 {
+            let entityID = index.isMultiple(of: 2) ? "light.bedroom" : "light.kitchen"
+            _ = dependencies.dashboardConfiguration.add(
+                source: .entity(entityID),
+                presentation: .card(.control(layout: .square))
+            )
+        }
+        return dependencies
+    }
+
     static func dashboardSample(
         pageCount: Int,
         disablesLastDashboard: Bool = false,
