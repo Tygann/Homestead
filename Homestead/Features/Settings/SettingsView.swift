@@ -126,6 +126,7 @@ struct SettingsView: View {
                 ) {
                     SettingsNavigationRowLabel("Share Homestead", systemImage: "square.and.arrow.up")
                 }
+                .buttonStyle(.plain)
 
                 Button {
                     isShowingRatePlaceholder = true

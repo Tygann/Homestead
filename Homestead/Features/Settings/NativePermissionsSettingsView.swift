@@ -62,6 +62,16 @@ struct NativePermissionsSettingsView: View {
             } footer: {
                 Text("The system controls permission decisions. Homestead only requests access when a native feature needs it.")
             }
+
+            Section {
+                Button {
+                    openIOSSettings()
+                } label: {
+                    SettingsNavigationRowLabel("Open Homestead in Settings", systemImage: "gearshape")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens Homestead’s permissions in the Settings app")
+            }
         }
         .navigationTitle("Privacy & Permissions")
         .toolbarTitleDisplayMode(.inline)
@@ -130,7 +140,7 @@ struct NativePermissionsSettingsView: View {
     private var localNetworkMessage: String {
         switch nativePermissionService.status.localNetwork {
         case .managedBySystem:
-            return "iOS asks when Homestead first connects to a server on your local network."
+            return "iOS manages access when Homestead connects locally."
         case .allowed:
             return "Ready for Home Assistant servers on your local network."
         case .denied:
@@ -229,13 +239,13 @@ private struct NativePermissionStatusRow: View {
                 permissionIcon
 
                 Text(title)
-                    .font(.headline)
+                    .font(.body)
 
                 Spacer(minLength: AppSpacing.small)
             }
 
             Text(message)
-                .font(.footnote)
+                .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -248,18 +258,20 @@ private struct NativePermissionStatusRow: View {
 
     private var permissionIcon: some View {
         Image(systemName: systemImage)
-            .foregroundStyle(accessoryTint)
+            .foregroundStyle(Color.accentColor)
+            .frame(width: 28)
             .accessibilityHidden(true)
     }
 
     private var permissionCopy: some View {
         VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
             Text(title)
-                .font(.headline)
+                .font(.body)
 
             Text(message)
-                .font(.footnote)
+                .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

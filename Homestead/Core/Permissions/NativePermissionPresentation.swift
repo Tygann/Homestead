@@ -48,7 +48,7 @@ nonisolated struct NativePermissionRowPresentation: Equatable, Sendable {
         case .unavailable:
             .status(title: "Unavailable", tone: .neutral)
         case .managedBySystem:
-            .status(title: "System Managed", tone: .neutral)
+            .status(title: "iOS", tone: .neutral)
         }
 
         return NativePermissionRowPresentation(accessory: accessory)

@@ -66,7 +66,6 @@ struct HomeAssistantSettingsView: View {
 
                 statusChip
             }
-            .padding(.vertical, 2)
             .frame(maxWidth: .infinity)
         }
         .listRowBackground(Color.clear)

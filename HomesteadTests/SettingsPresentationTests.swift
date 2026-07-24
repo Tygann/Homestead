@@ -120,7 +120,7 @@ struct SettingsPresentationTests {
         #expect(NativePermissionRowPresentation.make(status: .unknown).accessory ==
             .progress(title: "Checking"))
         #expect(NativePermissionRowPresentation.make(status: .managedBySystem).accessory ==
-            .status(title: "System Managed", tone: .neutral))
+            .status(title: "iOS", tone: .neutral))
     }
 
     @Test func localNetworkDoesNotPretendToOfferAnInAppRequest() {
