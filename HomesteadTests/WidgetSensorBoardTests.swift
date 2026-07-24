@@ -117,6 +117,39 @@ struct WidgetSensorBoardTests {
         #expect(item.accentColor == .orange)
     }
 
+    @Test func segmentedGaugeSlotAppliesCustomScaleBoundariesAndColors() {
+        let item = WidgetSensorBoardCompactItem.sensor(
+            from: makeSnapshot(gauge: makeGauge()),
+            presentation: .gauge
+        )
+        let configuration = sensorBoardGaugeConfiguration(
+            gaugeScale: .custom,
+            gaugeMinimum: 60,
+            gaugeMaximum: 90,
+            zoneCount: .three,
+            zone1Color: .blue,
+            zone2BeginsAt: 70,
+            zone2Color: .green,
+            zone3BeginsAt: 80,
+            zone3Color: .red,
+            zone4BeginsAt: nil,
+            zone4Color: .orange,
+            zone5BeginsAt: nil,
+            zone5Color: .purple
+        )
+
+        let configured = item.applyingGaugeConfiguration(configuration)
+
+        #expect(configured.gauge?.lowerBound == 60)
+        #expect(configured.gauge?.upperBound == 90)
+        #expect(configured.gauge?.sections == [
+            WidgetGaugeSection(lowerBound: 60, upperBound: 70, color: .blue),
+            WidgetGaugeSection(lowerBound: 70, upperBound: 80, color: .green),
+            WidgetGaugeSection(lowerBound: 80, upperBound: 90, color: .red)
+        ])
+        #expect(configured.requestedPresentation == .gauge)
+    }
+
     private func makeChartItem() -> WidgetSensorBoardChartItem {
         WidgetSensorBoardChartItem(
             id: "sensor.living_room_temperature",

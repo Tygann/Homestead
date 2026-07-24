@@ -30,7 +30,7 @@ enum HomesteadSensorBoardSlotDisplay: String, AppEnum {
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Display")
     static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
         .automatic: "Automatic",
-        .gauge: "Gauge",
+        .gauge: "Gauge - Segmented",
         .reading: "Reading",
         .chart: "Chart"
     ]
@@ -45,9 +45,25 @@ enum HomesteadSensorBoardSlotDisplay: String, AppEnum {
     }
 }
 
+enum HomesteadSensorBoardEditingSlot: Int, AppEnum {
+    case one = 1
+    case two
+    case three
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Configure Slot")
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+        .one: "Slot 1",
+        .two: "Slot 2",
+        .three: "Slot 3"
+    ]
+}
+
 struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Sensor Board"
     static var description = IntentDescription("Combine three sensor readings, gauges, or six-hour charts.")
+
+    @Parameter(title: "Configure Slot", default: .one)
+    var editingSlot: HomesteadSensorBoardEditingSlot
 
     @Parameter(title: "Slot 1 Display", default: .automatic)
     var display1: HomesteadSensorBoardSlotDisplay
@@ -56,12 +72,54 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Slot 1 Chart Sensor") var chartSensor1: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 1 Display Name") var customDisplayName1: String?
 
+    @Parameter(title: "Slot 1 Scale", default: .automatic)
+    var gaugeScale1: HomesteadGaugeScale
+    @Parameter(title: "Slot 1 Minimum") var gaugeMinimum1: Double?
+    @Parameter(title: "Slot 1 Maximum") var gaugeMaximum1: Double?
+    @Parameter(title: "Slot 1 Zones", default: .automatic)
+    var zoneCount1: HomesteadGaugeZoneCount
+    @Parameter(title: "Slot 1 Zone 1 Color", default: .blue)
+    var zone1Color1: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 1 Zone 2 Begins At") var zone2BeginsAt1: Double?
+    @Parameter(title: "Slot 1 Zone 2 Color", default: .green)
+    var zone2Color1: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 1 Zone 3 Begins At") var zone3BeginsAt1: Double?
+    @Parameter(title: "Slot 1 Zone 3 Color", default: .orange)
+    var zone3Color1: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 1 Zone 4 Begins At") var zone4BeginsAt1: Double?
+    @Parameter(title: "Slot 1 Zone 4 Color", default: .red)
+    var zone4Color1: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 1 Zone 5 Begins At") var zone5BeginsAt1: Double?
+    @Parameter(title: "Slot 1 Zone 5 Color", default: .purple)
+    var zone5Color1: HomesteadGaugeZoneColor
+
     @Parameter(title: "Slot 2 Display", default: .automatic)
     var display2: HomesteadSensorBoardSlotDisplay
 
     @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
     @Parameter(title: "Slot 2 Chart Sensor") var chartSensor2: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 2 Display Name") var customDisplayName2: String?
+
+    @Parameter(title: "Slot 2 Scale", default: .automatic)
+    var gaugeScale2: HomesteadGaugeScale
+    @Parameter(title: "Slot 2 Minimum") var gaugeMinimum2: Double?
+    @Parameter(title: "Slot 2 Maximum") var gaugeMaximum2: Double?
+    @Parameter(title: "Slot 2 Zones", default: .automatic)
+    var zoneCount2: HomesteadGaugeZoneCount
+    @Parameter(title: "Slot 2 Zone 1 Color", default: .blue)
+    var zone1Color2: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 2 Zone 2 Begins At") var zone2BeginsAt2: Double?
+    @Parameter(title: "Slot 2 Zone 2 Color", default: .green)
+    var zone2Color2: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 2 Zone 3 Begins At") var zone3BeginsAt2: Double?
+    @Parameter(title: "Slot 2 Zone 3 Color", default: .orange)
+    var zone3Color2: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 2 Zone 4 Begins At") var zone4BeginsAt2: Double?
+    @Parameter(title: "Slot 2 Zone 4 Color", default: .red)
+    var zone4Color2: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 2 Zone 5 Begins At") var zone5BeginsAt2: Double?
+    @Parameter(title: "Slot 2 Zone 5 Color", default: .purple)
+    var zone5Color2: HomesteadGaugeZoneColor
 
     @Parameter(title: "Slot 3 Display", default: .chart)
     var display3: HomesteadSensorBoardSlotDisplay
@@ -70,120 +128,338 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Slot 3 Chart Sensor") var chartSensor3: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 3 Display Name") var customDisplayName3: String?
 
+    @Parameter(title: "Slot 3 Scale", default: .automatic)
+    var gaugeScale3: HomesteadGaugeScale
+    @Parameter(title: "Slot 3 Minimum") var gaugeMinimum3: Double?
+    @Parameter(title: "Slot 3 Maximum") var gaugeMaximum3: Double?
+    @Parameter(title: "Slot 3 Zones", default: .automatic)
+    var zoneCount3: HomesteadGaugeZoneCount
+    @Parameter(title: "Slot 3 Zone 1 Color", default: .blue)
+    var zone1Color3: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 3 Zone 2 Begins At") var zone2BeginsAt3: Double?
+    @Parameter(title: "Slot 3 Zone 2 Color", default: .green)
+    var zone2Color3: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 3 Zone 3 Begins At") var zone3BeginsAt3: Double?
+    @Parameter(title: "Slot 3 Zone 3 Color", default: .orange)
+    var zone3Color3: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 3 Zone 4 Begins At") var zone4BeginsAt3: Double?
+    @Parameter(title: "Slot 3 Zone 4 Color", default: .red)
+    var zone4Color3: HomesteadGaugeZoneColor
+    @Parameter(title: "Slot 3 Zone 5 Begins At") var zone5BeginsAt3: Double?
+    @Parameter(title: "Slot 3 Zone 5 Color", default: .purple)
+    var zone5Color3: HomesteadGaugeZoneColor
+
     static var parameterSummary: some ParameterSummary {
-        When(
-            \HomesteadSensorBoardWidgetConfigurationIntent.$display1,
-            .equalTo,
-            HomesteadSensorBoardSlotDisplay.chart
-        ) {
-            When(\.$display2, .equalTo, .chart) {
-                When(\.$display3, .equalTo, .chart) {
+        Switch(\.$editingSlot) {
+            Case(.one) {
+                When(\.$display1, .equalTo, .chart) {
                     Summary {
+                        \.$editingSlot
                         \.$display1
                         \.$chartSensor1
                         \.$customDisplayName1
-                        \.$display2
-                        \.$chartSensor2
-                        \.$customDisplayName2
-                        \.$display3
-                        \.$chartSensor3
-                        \.$customDisplayName3
                     }
                 } otherwise: {
-                    Summary {
-                        \.$display1
-                        \.$chartSensor1
-                        \.$customDisplayName1
-                        \.$display2
-                        \.$chartSensor2
-                        \.$customDisplayName2
-                        \.$display3
-                        \.$sensor3
-                        \.$customDisplayName3
-                    }
-                }
-            } otherwise: {
-                When(\.$display3, .equalTo, .chart) {
-                    Summary {
-                        \.$display1
-                        \.$chartSensor1
-                        \.$customDisplayName1
-                        \.$display2
-                        \.$sensor2
-                        \.$customDisplayName2
-                        \.$display3
-                        \.$chartSensor3
-                        \.$customDisplayName3
-                    }
-                } otherwise: {
-                    Summary {
-                        \.$display1
-                        \.$chartSensor1
-                        \.$customDisplayName1
-                        \.$display2
-                        \.$sensor2
-                        \.$customDisplayName2
-                        \.$display3
-                        \.$sensor3
-                        \.$customDisplayName3
+                    When(\.$display1, .equalTo, .gauge) {
+                        When(\.$gaugeScale1, .equalTo, .custom) {
+                            When(\.$zoneCount1, .equalTo, .automatic) {
+                            Summary {
+                                \.$editingSlot
+                                \.$display1
+                                \.$sensor1
+                                \.$customDisplayName1
+                                \.$gaugeScale1
+                                \.$gaugeMinimum1
+                                \.$gaugeMaximum1
+                                \.$zoneCount1
+                            }
+                            } otherwise: {
+                            Summary {
+                                \.$editingSlot
+                                \.$display1
+                                \.$sensor1
+                                \.$customDisplayName1
+                                \.$gaugeScale1
+                                \.$gaugeMinimum1
+                                \.$gaugeMaximum1
+                                \.$zoneCount1
+                                \.$zone1Color1
+                                \.$zone2BeginsAt1
+                                \.$zone2Color1
+                                \.$zone3BeginsAt1
+                                \.$zone3Color1
+                                \.$zone4BeginsAt1
+                                \.$zone4Color1
+                                \.$zone5BeginsAt1
+                                \.$zone5Color1
+                            }
+                            }
+                        } otherwise: {
+                            When(\.$zoneCount1, .equalTo, .automatic) {
+                            Summary {
+                                \.$editingSlot
+                                \.$display1
+                                \.$sensor1
+                                \.$customDisplayName1
+                                \.$gaugeScale1
+                                \.$zoneCount1
+                            }
+                            } otherwise: {
+                            Summary {
+                                \.$editingSlot
+                                \.$display1
+                                \.$sensor1
+                                \.$customDisplayName1
+                                \.$gaugeScale1
+                                \.$zoneCount1
+                                \.$zone1Color1
+                                \.$zone2BeginsAt1
+                                \.$zone2Color1
+                                \.$zone3BeginsAt1
+                                \.$zone3Color1
+                                \.$zone4BeginsAt1
+                                \.$zone4Color1
+                                \.$zone5BeginsAt1
+                                \.$zone5Color1
+                            }
+                            }
+                        }
+                    } otherwise: {
+                        Summary {
+                            \.$editingSlot
+                            \.$display1
+                            \.$sensor1
+                            \.$customDisplayName1
+                        }
                     }
                 }
             }
-        } otherwise: {
-            When(\.$display2, .equalTo, .chart) {
-                When(\.$display3, .equalTo, .chart) {
+            Case(.two) {
+                When(\.$display2, .equalTo, .chart) {
                     Summary {
-                        \.$display1
-                        \.$sensor1
-                        \.$customDisplayName1
+                        \.$editingSlot
                         \.$display2
                         \.$chartSensor2
                         \.$customDisplayName2
-                        \.$display3
-                        \.$chartSensor3
-                        \.$customDisplayName3
                     }
                 } otherwise: {
-                    Summary {
-                        \.$display1
-                        \.$sensor1
-                        \.$customDisplayName1
-                        \.$display2
-                        \.$chartSensor2
-                        \.$customDisplayName2
-                        \.$display3
-                        \.$sensor3
-                        \.$customDisplayName3
+                    When(\.$display2, .equalTo, .gauge) {
+                        When(\.$gaugeScale2, .equalTo, .custom) {
+                            When(\.$zoneCount2, .equalTo, .automatic) {
+                            Summary {
+                                \.$editingSlot
+                                \.$display2
+                                \.$sensor2
+                                \.$customDisplayName2
+                                \.$gaugeScale2
+                                \.$gaugeMinimum2
+                                \.$gaugeMaximum2
+                                \.$zoneCount2
+                            }
+                            } otherwise: {
+                            Summary {
+                                \.$editingSlot
+                                \.$display2
+                                \.$sensor2
+                                \.$customDisplayName2
+                                \.$gaugeScale2
+                                \.$gaugeMinimum2
+                                \.$gaugeMaximum2
+                                \.$zoneCount2
+                                \.$zone1Color2
+                                \.$zone2BeginsAt2
+                                \.$zone2Color2
+                                \.$zone3BeginsAt2
+                                \.$zone3Color2
+                                \.$zone4BeginsAt2
+                                \.$zone4Color2
+                                \.$zone5BeginsAt2
+                                \.$zone5Color2
+                            }
+                            }
+                        } otherwise: {
+                            When(\.$zoneCount2, .equalTo, .automatic) {
+                            Summary {
+                                \.$editingSlot
+                                \.$display2
+                                \.$sensor2
+                                \.$customDisplayName2
+                                \.$gaugeScale2
+                                \.$zoneCount2
+                            }
+                            } otherwise: {
+                            Summary {
+                                \.$editingSlot
+                                \.$display2
+                                \.$sensor2
+                                \.$customDisplayName2
+                                \.$gaugeScale2
+                                \.$zoneCount2
+                                \.$zone1Color2
+                                \.$zone2BeginsAt2
+                                \.$zone2Color2
+                                \.$zone3BeginsAt2
+                                \.$zone3Color2
+                                \.$zone4BeginsAt2
+                                \.$zone4Color2
+                                \.$zone5BeginsAt2
+                                \.$zone5Color2
+                            }
+                            }
+                        }
+                    } otherwise: {
+                        Summary {
+                            \.$editingSlot
+                            \.$display2
+                            \.$sensor2
+                            \.$customDisplayName2
+                        }
                     }
                 }
-            } otherwise: {
+            }
+            Case(.three) {
                 When(\.$display3, .equalTo, .chart) {
                     Summary {
-                        \.$display1
-                        \.$sensor1
-                        \.$customDisplayName1
-                        \.$display2
-                        \.$sensor2
-                        \.$customDisplayName2
+                        \.$editingSlot
                         \.$display3
                         \.$chartSensor3
                         \.$customDisplayName3
                     }
                 } otherwise: {
-                    Summary {
-                        \.$display1
-                        \.$sensor1
-                        \.$customDisplayName1
-                        \.$display2
-                        \.$sensor2
-                        \.$customDisplayName2
-                        \.$display3
-                        \.$sensor3
-                        \.$customDisplayName3
+                    When(\.$display3, .equalTo, .gauge) {
+                        When(\.$gaugeScale3, .equalTo, .custom) {
+                            When(\.$zoneCount3, .equalTo, .automatic) {
+                            Summary {
+                                \.$editingSlot
+                                \.$display3
+                                \.$sensor3
+                                \.$customDisplayName3
+                                \.$gaugeScale3
+                                \.$gaugeMinimum3
+                                \.$gaugeMaximum3
+                                \.$zoneCount3
+                            }
+                            } otherwise: {
+                            Summary {
+                                \.$editingSlot
+                                \.$display3
+                                \.$sensor3
+                                \.$customDisplayName3
+                                \.$gaugeScale3
+                                \.$gaugeMinimum3
+                                \.$gaugeMaximum3
+                                \.$zoneCount3
+                                \.$zone1Color3
+                                \.$zone2BeginsAt3
+                                \.$zone2Color3
+                                \.$zone3BeginsAt3
+                                \.$zone3Color3
+                                \.$zone4BeginsAt3
+                                \.$zone4Color3
+                                \.$zone5BeginsAt3
+                                \.$zone5Color3
+                            }
+                            }
+                        } otherwise: {
+                            When(\.$zoneCount3, .equalTo, .automatic) {
+                            Summary {
+                                \.$editingSlot
+                                \.$display3
+                                \.$sensor3
+                                \.$customDisplayName3
+                                \.$gaugeScale3
+                                \.$zoneCount3
+                            }
+                            } otherwise: {
+                            Summary {
+                                \.$editingSlot
+                                \.$display3
+                                \.$sensor3
+                                \.$customDisplayName3
+                                \.$gaugeScale3
+                                \.$zoneCount3
+                                \.$zone1Color3
+                                \.$zone2BeginsAt3
+                                \.$zone2Color3
+                                \.$zone3BeginsAt3
+                                \.$zone3Color3
+                                \.$zone4BeginsAt3
+                                \.$zone4Color3
+                                \.$zone5BeginsAt3
+                                \.$zone5Color3
+                            }
+                            }
+                        }
+                    } otherwise: {
+                        Summary {
+                            \.$editingSlot
+                            \.$display3
+                            \.$sensor3
+                            \.$customDisplayName3
+                        }
                     }
+                }
+            }
+            DefaultCase {
+                Summary {
+                    \.$editingSlot
                 }
             }
         }
+    }
+
+    private var gaugeConfiguration1: HomesteadGaugeWidgetConfiguration {
+        sensorBoardGaugeConfiguration(
+            gaugeScale: gaugeScale1,
+            gaugeMinimum: gaugeMinimum1,
+            gaugeMaximum: gaugeMaximum1,
+            zoneCount: zoneCount1,
+            zone1Color: zone1Color1,
+            zone2BeginsAt: zone2BeginsAt1,
+            zone2Color: zone2Color1,
+            zone3BeginsAt: zone3BeginsAt1,
+            zone3Color: zone3Color1,
+            zone4BeginsAt: zone4BeginsAt1,
+            zone4Color: zone4Color1,
+            zone5BeginsAt: zone5BeginsAt1,
+            zone5Color: zone5Color1
+        )
+    }
+
+    private var gaugeConfiguration2: HomesteadGaugeWidgetConfiguration {
+        sensorBoardGaugeConfiguration(
+            gaugeScale: gaugeScale2,
+            gaugeMinimum: gaugeMinimum2,
+            gaugeMaximum: gaugeMaximum2,
+            zoneCount: zoneCount2,
+            zone1Color: zone1Color2,
+            zone2BeginsAt: zone2BeginsAt2,
+            zone2Color: zone2Color2,
+            zone3BeginsAt: zone3BeginsAt2,
+            zone3Color: zone3Color2,
+            zone4BeginsAt: zone4BeginsAt2,
+            zone4Color: zone4Color2,
+            zone5BeginsAt: zone5BeginsAt2,
+            zone5Color: zone5Color2
+        )
+    }
+
+    private var gaugeConfiguration3: HomesteadGaugeWidgetConfiguration {
+        sensorBoardGaugeConfiguration(
+            gaugeScale: gaugeScale3,
+            gaugeMinimum: gaugeMinimum3,
+            gaugeMaximum: gaugeMaximum3,
+            zoneCount: zoneCount3,
+            zone1Color: zone1Color3,
+            zone2BeginsAt: zone2BeginsAt3,
+            zone2Color: zone2Color3,
+            zone3BeginsAt: zone3BeginsAt3,
+            zone3Color: zone3Color3,
+            zone4BeginsAt: zone4BeginsAt3,
+            zone4Color: zone4Color3,
+            zone5BeginsAt: zone5BeginsAt3,
+            zone5Color: zone5Color3
+        )
     }
 
     var slots: [HomesteadSensorBoardSlotConfiguration] {
@@ -193,21 +469,24 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                 sensor: sensor1,
                 chartSensor: chartSensor1,
                 customDisplayName: customDisplayName1,
-                customChartDisplayName: customDisplayName1
+                customChartDisplayName: customDisplayName1,
+                gaugeConfiguration: gaugeConfiguration1
             ),
             HomesteadSensorBoardSlotConfiguration(
                 display: display2,
                 sensor: sensor2,
                 chartSensor: chartSensor2,
                 customDisplayName: customDisplayName2,
-                customChartDisplayName: customDisplayName2
+                customChartDisplayName: customDisplayName2,
+                gaugeConfiguration: gaugeConfiguration2
             ),
             HomesteadSensorBoardSlotConfiguration(
                 display: display3,
                 sensor: sensor3,
                 chartSensor: chartSensor3,
                 customDisplayName: customDisplayName3,
-                customChartDisplayName: customDisplayName3
+                customChartDisplayName: customDisplayName3,
+                gaugeConfiguration: gaugeConfiguration3
             )
         ]
     }
@@ -219,6 +498,7 @@ struct HomesteadSensorBoardSlotConfiguration {
     let chartSensor: HomesteadChartSensorEntity?
     let customDisplayName: String?
     let customChartDisplayName: String?
+    let gaugeConfiguration: HomesteadGaugeWidgetConfiguration
 }
 
 // MARK: - Chart Entity Picker
@@ -463,7 +743,10 @@ enum HomesteadSensorBoardEntryBuilder {
                         presentation: presentation
                     )
                     let updatedItem = liveReadingsByEntityID[sensor.id].map(item.updating(with:)) ?? item
-                    items[index] = .compact(updatedItem)
+                    let configuredItem = slot.display == .gauge
+                        ? updatedItem.applyingGaugeConfiguration(slot.gaugeConfiguration)
+                        : updatedItem
+                    items[index] = .compact(configuredItem)
                 }
             }
 

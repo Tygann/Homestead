@@ -1,4 +1,83 @@
+import AppIntents
 import Foundation
+
+enum HomesteadGaugeScale: String, AppEnum {
+    case automatic
+    case custom
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Scale")
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+        .automatic: "Automatic",
+        .custom: "Custom"
+    ]
+}
+
+enum HomesteadGaugeZoneCount: Int, AppEnum {
+    case automatic = 0
+    case one = 1
+    case two = 2
+    case three = 3
+    case four = 4
+    case five = 5
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Zones")
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+        .automatic: "Automatic",
+        .one: "1",
+        .two: "2",
+        .three: "3",
+        .four: "4",
+        .five: "5"
+    ]
+}
+
+enum HomesteadGaugeZoneColor: String, AppEnum {
+    case blue
+    case green
+    case orange
+    case red
+    case purple
+    case gray
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Zone Color")
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+        .blue: "Blue",
+        .green: "Green",
+        .orange: "Orange",
+        .red: "Red",
+        .purple: "Purple",
+        .gray: "Gray"
+    ]
+
+    var widgetColor: WidgetGaugeColor {
+        switch self {
+        case .blue: .blue
+        case .green: .green
+        case .orange: .orange
+        case .red: .red
+        case .purple: .purple
+        case .gray: .gray
+        }
+    }
+}
+
+enum HomesteadSensorWidgetDisplay: String, AppEnum {
+    case reading
+    case chart
+    case circularGauge
+    case segmentedGauge
+    case barGauge
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Display")
+    static var caseDisplayRepresentations: [HomesteadSensorWidgetDisplay: DisplayRepresentation] = [
+        .reading: "Reading",
+        .chart: "Chart",
+        .circularGauge: "Gauge - Circular",
+        .segmentedGauge: "Gauge - Segmented",
+        .barGauge: "Gauge - Bar"
+    ]
+}
+
 
 struct HomesteadGaugeWidgetConfiguration: Equatable, Sendable {
     let customDisplayName: String?
@@ -94,24 +173,52 @@ struct HomesteadGaugeWidgetConfiguration: Equatable, Sendable {
     }
 }
 
-extension HomesteadSensorChartWidgetConfigurationIntent {
-    var gaugeWidgetConfiguration: HomesteadGaugeWidgetConfiguration {
-        HomesteadGaugeWidgetConfiguration(
-            customDisplayName: customDisplayName,
-            display: display ?? .chart,
-            gaugeScale: gaugeScale,
-            gaugeMinimum: gaugeMinimum,
-            gaugeMaximum: gaugeMaximum,
-            zoneCount: zoneCount,
-            zone1Color: zone1Color,
-            zone2BeginsAt: zone2BeginsAt,
-            zone2Color: zone2Color,
-            zone3BeginsAt: zone3BeginsAt,
-            zone3Color: zone3Color,
-            zone4BeginsAt: zone4BeginsAt,
-            zone4Color: zone4Color,
-            zone5BeginsAt: zone5BeginsAt,
-            zone5Color: zone5Color
+func sensorBoardGaugeConfiguration(
+    gaugeScale: HomesteadGaugeScale,
+    gaugeMinimum: Double?,
+    gaugeMaximum: Double?,
+    zoneCount: HomesteadGaugeZoneCount,
+    zone1Color: HomesteadGaugeZoneColor,
+    zone2BeginsAt: Double?,
+    zone2Color: HomesteadGaugeZoneColor,
+    zone3BeginsAt: Double?,
+    zone3Color: HomesteadGaugeZoneColor,
+    zone4BeginsAt: Double?,
+    zone4Color: HomesteadGaugeZoneColor,
+    zone5BeginsAt: Double?,
+    zone5Color: HomesteadGaugeZoneColor
+) -> HomesteadGaugeWidgetConfiguration {
+    HomesteadGaugeWidgetConfiguration(
+        customDisplayName: nil,
+        display: .segmentedGauge,
+        gaugeScale: gaugeScale,
+        gaugeMinimum: gaugeMinimum,
+        gaugeMaximum: gaugeMaximum,
+        zoneCount: zoneCount,
+        zone1Color: zone1Color,
+        zone2BeginsAt: zone2BeginsAt,
+        zone2Color: zone2Color,
+        zone3BeginsAt: zone3BeginsAt,
+        zone3Color: zone3Color,
+        zone4BeginsAt: zone4BeginsAt,
+        zone4Color: zone4Color,
+        zone5BeginsAt: zone5BeginsAt,
+        zone5Color: zone5Color
+    )
+}
+
+extension WidgetSensorBoardCompactItem {
+    func applyingGaugeConfiguration(_ configuration: HomesteadGaugeWidgetConfiguration) -> Self {
+        guard let gauge else { return self }
+
+        return Self(
+            id: id,
+            displayName: displayName,
+            icon: icon,
+            valueText: valueText,
+            isAvailable: isAvailable,
+            requestedPresentation: requestedPresentation,
+            gauge: configuration.resolvedGauge(gauge)
         )
     }
 }
