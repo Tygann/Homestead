@@ -10,44 +10,33 @@ struct DashboardView: View {
     var body: some View {
         let enabledDashboards = dashboardConfiguration.enabledDashboards
 
-        GeometryReader { geometry in
-            ZStack(alignment: .bottom) {
-                TabView(selection: selectedDashboardBinding) {
-                    ForEach(enabledDashboards) { dashboard in
-                        DashboardPageView(
-                            dashboardID: dashboard.id,
-                            topContentClearance: geometry.safeAreaInsets.top,
-                            bottomContentClearance: enabledDashboards.count > 1
-                                ? DashboardPageIndicatorMetrics.reservedHeight
-                                : 0,
-                            toolbarAddRequest: toolbarAddRequest,
-                            isEditingDashboard: Binding(
-                                get: { editingDashboardID == dashboard.id },
-                                set: { isEditing in
-                                    editingDashboardID = isEditing ? dashboard.id : nil
-                                }
-                            )
-                        )
-                        .tag(dashboard.id)
-                        .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
-                        .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-
-                if enabledDashboards.count > 1 {
-                    DashboardPageIndicator(
-                        dashboards: enabledDashboards,
-                        selectedDashboardID: dashboardConfiguration.selectedDashboardID,
-                        selectDashboard: selectDashboard
+        TabView(selection: selectedDashboardBinding) {
+            ForEach(enabledDashboards) { dashboard in
+                DashboardPageView(
+                    dashboardID: dashboard.id,
+                    toolbarAddRequest: toolbarAddRequest,
+                    isEditingDashboard: Binding(
+                        get: { editingDashboardID == dashboard.id },
+                        set: { isEditing in
+                            editingDashboardID = isEditing ? dashboard.id : nil
+                        }
                     )
-                    .padding(
-                        .bottom,
-                        geometry.safeAreaInsets.bottom + DashboardPageIndicatorMetrics.bottomSpacing
-                    )
-                }
+                )
+                .tag(dashboard.id)
+                .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
+                .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
             }
-            .ignoresSafeArea(.container, edges: [.top, .bottom])
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            if enabledDashboards.count > 1 {
+                DashboardPageIndicator(
+                    dashboards: enabledDashboards,
+                    selectedDashboardID: dashboardConfiguration.selectedDashboardID,
+                    selectDashboard: selectDashboard
+                )
+                .padding(.vertical, DashboardPageIndicatorMetrics.bottomSpacing)
+            }
         }
         .homesteadWallpaperBackground()
         .navigationTitle(selectedDashboardTitle)
@@ -159,7 +148,6 @@ nonisolated enum DashboardPageIndicatorMetrics {
     static let maximumVisibleDots = 4
     static let capsuleSize = CGSize(width: 52, height: 20)
     static let bottomSpacing: CGFloat = 4
-    static let reservedHeight = capsuleSize.height + (bottomSpacing * 2)
 }
 
 nonisolated struct DashboardPageIndicatorLayout: Equatable {
@@ -210,34 +198,42 @@ private struct DashboardPageIndicator: View {
     let selectDashboard: (UUID) -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(layout.dots, id: \.pageIndex) { dot in
-                let dashboard = dashboards[dot.pageIndex]
+        ZStack {
+            Color.clear
+                .frame(
+                    width: DashboardPageIndicatorMetrics.capsuleSize.width,
+                    height: DashboardPageIndicatorMetrics.capsuleSize.height
+                )
+                .glassEffect(.regular, in: .capsule)
 
-                Button {
-                    selectDashboard(dashboard.id)
-                } label: {
-                    Circle()
-                        .fill(
-                            dashboard.id == selectedDashboardID
-                                ? Color.primary
-                                : Color.secondary.opacity(0.42)
-                        )
-                        .frame(width: 5, height: 5)
-                        .scaleEffect(dot.scale)
-                        .frame(width: 10, height: DashboardPageIndicatorMetrics.capsuleSize.height)
-                        .contentShape(Rectangle())
+            HStack(spacing: 0) {
+                ForEach(layout.dots, id: \.pageIndex) { dot in
+                    let dashboard = dashboards[dot.pageIndex]
+
+                    Button {
+                        selectDashboard(dashboard.id)
+                    } label: {
+                        Circle()
+                            .fill(
+                                dashboard.id == selectedDashboardID
+                                    ? Color.white
+                                    : Color.secondary.opacity(0.42)
+                            )
+                            .frame(width: 5, height: 5)
+                            .scaleEffect(dot.scale)
+                            .frame(width: 10, height: DashboardPageIndicatorMetrics.capsuleSize.height)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Show \(dashboard.resolvedDisplayTitle)")
+                    .accessibilityValue(dashboard.id == selectedDashboardID ? "Current page" : "")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Show \(dashboard.resolvedDisplayTitle)")
-                .accessibilityValue(dashboard.id == selectedDashboardID ? "Current page" : "")
             }
         }
         .frame(
             width: DashboardPageIndicatorMetrics.capsuleSize.width,
             height: DashboardPageIndicatorMetrics.capsuleSize.height
         )
-        .glassEffect(.regular, in: .capsule)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Dashboard pages")
         .accessibilityValue(accessibilityValue)
@@ -278,8 +274,6 @@ private struct DashboardPageView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let dashboardID: UUID
-    let topContentClearance: CGFloat
-    let bottomContentClearance: CGFloat
     let toolbarAddRequest: DashboardToolbarAddRequest?
     @Binding var isEditingDashboard: Bool
     @State private var addSheetMode: DashboardAddItemMode?
@@ -346,13 +340,7 @@ private struct DashboardPageView: View {
                 await homeAssistantService.refreshStates()
                 cameraRefreshGeneration += 1
             }
-            .contentMargins(
-                .top,
-                AppSpacing.xLarge + topContentClearance,
-                for: .scrollContent
-            )
-            .contentMargins(.bottom, bottomContentClearance, for: .scrollContent)
-            .scrollClipDisabled()
+            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .sheet(item: $addSheetMode) { mode in
                 DashboardAddItemView(
                     dashboardID: dashboardID,

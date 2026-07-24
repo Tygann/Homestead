@@ -1207,12 +1207,6 @@ final class DashboardConfigurationXCTests: XCTestCase {
     func testPageIndicatorKeepsAFixedCapsuleSize() {
         XCTAssertEqual(DashboardPageIndicatorMetrics.capsuleSize.width, 52, accuracy: 0.001)
         XCTAssertEqual(DashboardPageIndicatorMetrics.capsuleSize.height, 20, accuracy: 0.001)
-        XCTAssertEqual(
-            DashboardPageIndicatorMetrics.reservedHeight,
-            DashboardPageIndicatorMetrics.capsuleSize.height
-                + (DashboardPageIndicatorMetrics.bottomSpacing * 2),
-            accuracy: 0.001
-        )
     }
 
     func testCatalogRejectsIncompatibleEntityPresentationDuringReconciliation() throws {
