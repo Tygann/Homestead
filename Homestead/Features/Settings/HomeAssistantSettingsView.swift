@@ -20,17 +20,13 @@ struct HomeAssistantSettingsView: View {
 
             homeAssistantSection
 
-            advancedSection
-
             if shouldShowSupport {
                 Section {
                     NavigationLink {
                         HomeAssistantDiagnosticsView()
                     } label: {
-                        SettingsNavigationRowLabel("Diagnostics", systemImage: "stethoscope")
+                        SettingsNavigationRowLabel("Support & Diagnostics", systemImage: "stethoscope")
                     }
-                } footer: {
-                    Text("Support details are available if something is not working as expected.")
                 }
             }
 
@@ -38,14 +34,6 @@ struct HomeAssistantSettingsView: View {
         }
         .navigationTitle("Account")
         .toolbarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .padding(.top, -30)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Account")
-                    .font(.headline)
-            }
-        }
         .task(id: serverRefreshTaskID) {
             await homeAssistantService.refreshAuthState()
             await homeAssistantService.refreshServerConfiguration()
@@ -168,26 +156,6 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
-    private var advancedSection: some View {
-        Section {
-            DisclosureGroup("Advanced") {
-                LabeledContent("Authentication", value: homeAssistantService.authState.diagnosticTitle)
-                LabeledContent("Connection", value: homeAssistantService.connectionStatus.title)
-                LabeledContent("Mobile App", value: mobileAppStatusTitle)
-
-                if let signedInServerDisplayText {
-                    LabeledContent("Signed-In Server", value: signedInServerDisplayText)
-                }
-
-                if let mobileAppStatusMessage {
-                    Text(mobileAppStatusMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-
     private var bottomAuthActionSection: some View {
         Section {
             if canSignOut {
@@ -294,29 +262,11 @@ struct HomeAssistantSettingsView: View {
         }
     }
 
-    private var signedInServerDisplayText: String? {
-        guard let summary = homeAssistantService.authState.sessionSummary else {
-            return nil
-        }
-
-        return SettingsHomeAssistantStatus.serverDisplayText(summary.baseURLString)
-    }
-
     private var hasServerMismatch: Bool {
-        guard connectionSettings.hasServerURL,
-              let summary = homeAssistantService.authState.sessionSummary else {
-            return false
-        }
-
-        let signedInServer = HAConnectionConfiguration(
-            baseURLString: summary.baseURLString,
-            accessToken: ""
-        ).dataSourceID
-        let enteredServer = HAConnectionConfiguration(
-            baseURLString: connectionSettings.baseURL,
-            accessToken: ""
-        ).dataSourceID
-        return signedInServer != enteredServer
+        SettingsServerRelationship.make(
+            configuredBaseURL: connectionSettings.baseURL,
+            signedInBaseURL: homeAssistantService.authState.sessionSummary?.baseURLString
+        ).isMismatch
     }
 
     private var shouldShowSupport: Bool {
@@ -346,73 +296,6 @@ struct HomeAssistantSettingsView: View {
             true
         case .refreshing, .signedIn:
             false
-        }
-    }
-
-    private var canRetryConnection: Bool {
-        guard !hasServerMismatch else {
-            return false
-        }
-
-        guard homeAssistantService.authState.isSignedIn else {
-            return false
-        }
-
-        switch homeAssistantService.connectionStatus {
-        case .failed, .disconnected:
-            return true
-        case .connected, .preparing, .connecting, .reconnecting:
-            return false
-        }
-    }
-
-    private var mobileAppStatusTitle: String {
-        switch homeAssistantService.mobileAppRegistrationState {
-        case .unregistered:
-            "Not registered"
-        case .registering:
-            "Registering"
-        case .registered:
-            "Registered"
-        case .failed:
-            "Needs attention"
-        }
-    }
-
-    private var mobileAppStatusMessage: String? {
-        switch homeAssistantService.mobileAppRegistrationState {
-        case .unregistered:
-            return nil
-        case .registering:
-            return "Homestead is registering with Home Assistant."
-        case .registered(let summary):
-            let date = summary.registeredAt.formatted(date: .abbreviated, time: .shortened)
-            return "Registered as \(summary.deviceName) on \(date)."
-        case .failed(let message):
-            return message
-        }
-    }
-
-    private var shouldShowRegistrationAction: Bool {
-        guard homeAssistantService.authState.isSignedIn else {
-            return false
-        }
-
-        if case .failed = homeAssistantService.mobileAppRegistrationState {
-            return true
-        }
-
-        return false
-    }
-
-    private var mobileAppButtonTitle: String {
-        switch homeAssistantService.mobileAppRegistrationState {
-        case .registering:
-            "Registering"
-        case .registered:
-            "Register Again"
-        case .unregistered, .failed:
-            "Register Mobile App"
         }
     }
 
@@ -786,10 +669,54 @@ private extension String {
 }
 
 #if DEBUG
-#Preview("Account Settings") {
+#Preview("Account — Connected") {
     NavigationStack {
         HomeAssistantSettingsView()
     }
-    .withPreviewEnvironment()
+    .withPreviewEnvironment(.settingsSample(.healthy))
+}
+
+#Preview("Account — Server Mismatch") {
+    NavigationStack {
+        HomeAssistantSettingsView()
+    }
+    .withPreviewEnvironment(.settingsSample(.degraded))
+}
+
+#Preview("Account Sheet — Wallpaper") {
+    AccountSettingsSheetPreviewHost(usesWallpaperBackdrop: true)
+        .withPreviewEnvironment(.settingsSample(.healthy))
+}
+
+#Preview("Account Sheet — No Wallpaper") {
+    AccountSettingsSheetPreviewHost(usesWallpaperBackdrop: false)
+        .withPreviewEnvironment(.settingsSample(.healthy))
+}
+
+struct AccountSettingsSheetPreviewHost: View {
+    @State private var isPresented = true
+    let usesWallpaperBackdrop: Bool
+
+    var body: some View {
+        Group {
+            if usesWallpaperBackdrop {
+                LinearGradient(
+                    colors: [.indigo, .purple, .orange],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                Color(.systemGroupedBackground)
+            }
+        }
+        .ignoresSafeArea()
+        .sheet(isPresented: $isPresented) {
+            NavigationStack {
+                HomeAssistantSettingsView()
+            }
+            .presentationDetents([.large])
+            .interactiveDismissDisabled()
+        }
+    }
 }
 #endif

@@ -79,9 +79,10 @@ struct SystemNativePermissionClient: NativePermissionClient {
             return .unavailable
         }
 
-        switch Self.currentLocationAuthorizationStatus() {
+        let manager = CLLocationManager()
+        switch manager.authorizationStatus {
         case .authorizedAlways, .authorizedWhenInUse:
-            return .allowed
+            return manager.accuracyAuthorization == .reducedAccuracy ? .limited : .allowed
         case .notDetermined:
             return .notDetermined
         case .denied:
@@ -186,7 +187,7 @@ private final class LocationPermissionRequester: NSObject, CLLocationManagerDele
     }
 
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        finish(with: status.nativePermissionStatus)
+        finish(with: SystemNativePermissionClient.locationStatusForRequester())
     }
 
     private func finish(with status: NativeCapabilityAuthorizationStatus) {
@@ -203,32 +204,11 @@ private final class LocationPermissionRequester: NSObject, CLLocationManagerDele
 
 private extension SystemNativePermissionClient {
     static func locationStatusForRequester() -> NativeCapabilityAuthorizationStatus {
-        guard CLLocationManager.locationServicesEnabled() else {
-            return .unavailable
-        }
-
-        return currentLocationAuthorizationStatus().nativePermissionStatus
+        locationStatus()
     }
 
     static func currentLocationAuthorizationStatus() -> CLAuthorizationStatus {
         CLLocationManager().authorizationStatus
-    }
-}
-
-private extension CLAuthorizationStatus {
-    var nativePermissionStatus: NativeCapabilityAuthorizationStatus {
-        switch self {
-        case .authorizedAlways, .authorizedWhenInUse:
-            return .allowed
-        case .notDetermined:
-            return .notDetermined
-        case .denied:
-            return .denied
-        case .restricted:
-            return .restricted
-        @unknown default:
-            return .unknown
-        }
     }
 }
 #endif

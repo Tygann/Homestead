@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @State private var isShowingRatePlaceholder = false
 
     var body: some View {
         let peopleRecords = stateStore.presenceRecords().filter(\.isPerson)
@@ -119,6 +120,20 @@ struct SettingsView: View {
             }
 
             Section {
+                ShareLink(
+                    item: HomesteadDistributionPresentation.publicInstallURL,
+                    preview: SharePreview("Homestead")
+                ) {
+                    SettingsNavigationRowLabel("Share Homestead", systemImage: "square.and.arrow.up")
+                }
+
+                Button {
+                    isShowingRatePlaceholder = true
+                } label: {
+                    SettingsNavigationRowLabel("Rate Homestead", systemImage: "star")
+                }
+                .buttonStyle(.plain)
+
                 NavigationLink(destination: AboutView()) {
                     SettingsNavigationRowLabel("About", systemImage: "info.circle")
                 }
@@ -128,6 +143,14 @@ struct SettingsView: View {
         .toolbarTitleDisplayMode(.inline)
         .task(id: authRefreshTaskID) {
             await homeAssistantService.refreshAuthState()
+        }
+        .alert(
+            HomesteadDistributionPresentation.ratePlaceholder.title,
+            isPresented: $isShowingRatePlaceholder
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(HomesteadDistributionPresentation.ratePlaceholder.message)
         }
     }
 

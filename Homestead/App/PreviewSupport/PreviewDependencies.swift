@@ -19,6 +19,108 @@ struct PreviewDependencies {
         makeSample()
     }
 
+    static func settingsSample(_ scenario: PreviewSettingsScenario) -> PreviewDependencies {
+        let isDegraded = scenario == .degraded
+        let base = makeSample(
+            dataFreshness: isDegraded
+                ? .cached(Date(timeIntervalSince1970: 1_753_200_000))
+                : .live(Date(timeIntervalSince1970: 1_753_286_400)),
+            connectionStatus: isDegraded
+                ? .failed("Preview connection failure")
+                : .connected
+        )
+
+        base.connectionSettings.internalURL = "http://homeassistant.local:8123"
+        base.connectionSettings.externalURL = "https://ha.example.com"
+        if isDegraded {
+            base.connectionSettings.baseURL = "https://configured.example.com"
+        }
+
+        let config = HAConfigDTO(
+            version: "2026.7.3",
+            locationName: "Lake House",
+            timeZone: "America/Chicago",
+            internalURL: "http://homeassistant.local:8123",
+            externalURL: "https://ha.example.com",
+            state: "RUNNING",
+            configSource: "storage",
+            unitSystem: nil
+        )
+        let serverConfiguration = HAServerConfigurationSnapshot(
+            dto: config,
+            loadedAt: Date(timeIntervalSince1970: 1_753_286_400)
+        )
+        let serverEnvironment = HAServerEnvironmentSnapshot(
+            config: config,
+            supervisorInfo: HASupervisorInfoDTO(version: "2026.07.3"),
+            operatingSystemInfo: HAOperatingSystemInfoDTO(version: "18.1")
+        )
+        let registrationInfo = HAMobileAppRegistrationInfo(
+            serverIdentifier: "preview",
+            deviceID: "preview-device",
+            appVersion: "1.0",
+            deviceName: "Homestead • iPhone",
+            webhookID: "preview-webhook",
+            supportsCloudPushNotifications: true,
+            registeredAt: Date(timeIntervalSince1970: 1_752_600_000)
+        )
+        base.homeAssistantService.applySettingsPreviewState(
+            currentUserDisplayName: "Taylor",
+            isNetworkAvailable: !isDegraded,
+            mobileAppRegistrationState: isDegraded
+                ? .failed("Registration needs to be restored.")
+                : .registered(HAMobileAppRegistrationSummary(info: registrationInfo)),
+            serverConfiguration: serverConfiguration,
+            serverEnvironment: serverEnvironment,
+            stateCacheMetadata: HAStateCacheMetadata(
+                scopeIdentifier: "preview-settings",
+                savedAt: Date(timeIntervalSince1970: 1_753_286_400),
+                entityCount: 1_093,
+                entityRegistryCount: 1_204,
+                deviceRegistryCount: 214,
+                areaRegistryCount: 18,
+                floorRegistryCount: 3
+            ),
+            activeRouteSummary: HAConnectionRouteSummary(
+                route: .externalURL,
+                baseURLString: "https://ha.example.com"
+            )
+        )
+
+        let permissionStatus: NativePermissionStatusSnapshot = switch scenario {
+        case .healthy, .degraded, .permissionsAllowed:
+            .previewAllowed
+        case .permissionsNotRequested:
+            NativePermissionStatusSnapshot(
+                camera: .notDetermined,
+                location: .notDetermined,
+                localNetwork: .managedBySystem
+            )
+        case .permissionsDenied:
+            NativePermissionStatusSnapshot(
+                camera: .denied,
+                location: .denied,
+                localNetwork: .managedBySystem
+            )
+        }
+        let nativePermissionService = NativePermissionService(
+            client: PreviewNativePermissionClient(status: permissionStatus)
+        )
+
+        return PreviewDependencies(
+            stateStore: base.stateStore,
+            connectionSettings: base.connectionSettings,
+            homeAssistantService: base.homeAssistantService,
+            nativeNotificationService: base.nativeNotificationService,
+            nativePermissionService: nativePermissionService,
+            dashboardConfiguration: base.dashboardConfiguration,
+            actionConfirmationSettings: base.actionConfirmationSettings,
+            appearanceSettings: base.appearanceSettings,
+            tabSettings: base.tabSettings,
+            iCloudSyncService: base.iCloudSyncService
+        )
+    }
+
     static func entityDetailSample(
         entityOverrides: [HAEntityDTO] = [],
         dataFreshness: HADataFreshness = .live(Date()),
@@ -233,6 +335,14 @@ struct PreviewDependencies {
             iCloudSyncService: iCloudSyncService
         )
     }
+}
+
+enum PreviewSettingsScenario: Equatable, Sendable {
+    case healthy
+    case degraded
+    case permissionsNotRequested
+    case permissionsAllowed
+    case permissionsDenied
 }
 
 // MARK: - Entity Detail Fixtures

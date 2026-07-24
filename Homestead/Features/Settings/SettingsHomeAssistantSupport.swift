@@ -52,7 +52,7 @@ struct SettingsStatusChip: View {
 
 // MARK: - Settings Home Assistant Status
 enum SettingsHomeAssistantStatus {
-    static func serverDisplayText(_ baseURL: String) -> String {
+    nonisolated static func serverDisplayText(_ baseURL: String) -> String {
         let trimmedURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedURL.isEmpty else {
             return "No server set"

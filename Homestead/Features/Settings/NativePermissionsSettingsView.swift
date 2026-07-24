@@ -2,89 +2,65 @@ import SwiftUI
 import UIKit
 
 // MARK: - Native Permissions Settings View
+
 struct NativePermissionsSettingsView: View {
+    // MARK: - Properties
+
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(NativePermissionService.self) private var nativePermissionService
+    @State private var openSettingsErrorMessage: String?
+
+    // MARK: - Body
 
     var body: some View {
         Form {
             Section {
                 NativePermissionStatusRow(
                     title: "Local Network",
-                    message: "Needed for Home Assistant servers on your home network.",
-                    badgeText: nativePermissionService.status.localNetwork.permissionBadgeText,
+                    message: localNetworkMessage,
                     systemImage: "network",
-                    tint: nativePermissionService.status.localNetwork.permissionTint
+                    presentation: .make(
+                        status: nativePermissionService.status.localNetwork,
+                        supportsInAppRequest: false
+                    ),
+                    action: handleLocalNetworkAction
                 )
 
                 NativePermissionStatusRow(
                     title: "Location",
                     message: locationMessage,
-                    badgeText: nativePermissionService.status.location.permissionBadgeText,
                     systemImage: "location.fill",
-                    tint: nativePermissionService.status.location.permissionTint
+                    presentation: .make(
+                        status: nativePermissionService.status.location,
+                        isRequesting: nativePermissionService.isRequestingLocationAccess
+                    ),
+                    action: handleLocationAction
                 )
 
                 NativePermissionStatusRow(
                     title: "Camera",
                     message: cameraMessage,
-                    badgeText: nativePermissionService.status.camera.permissionBadgeText,
                     systemImage: "camera.fill",
-                    tint: nativePermissionService.status.camera.permissionTint
+                    presentation: .make(
+                        status: nativePermissionService.status.camera,
+                        isRequesting: nativePermissionService.isRequestingCameraAccess
+                    ),
+                    action: handleCameraAction
                 )
 
-                if let message = nativePermissionService.lastErrorMessage {
-                    Text(UserFacingErrorPresentation.message(forRawMessage: message))
-                        .font(.footnote)
-                        .foregroundStyle(.red)
+                if let message = errorMessage {
+                    Label {
+                        Text(message)
+                            .font(.footnote)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    .foregroundStyle(.red)
                 }
             } footer: {
                 Text("The system controls permission decisions. Homestead only requests access when a native feature needs it.")
-            }
-
-            if showsPermissionActions {
-                Section {
-                    if nativePermissionService.status.location.canRequestInApp {
-                        Button {
-                            Task { await nativePermissionService.requestLocationAccess() }
-                        } label: {
-                            Label(
-                                nativePermissionService.isRequestingLocationAccess ? "Requesting Location" : "Allow Location",
-                                systemImage: "location.fill"
-                            )
-                        }
-                        .disabled(nativePermissionService.isRequestingLocationAccess)
-                    }
-
-                    if nativePermissionService.status.camera.canRequestInApp {
-                        Button {
-                            Task { await nativePermissionService.requestCameraAccess() }
-                        } label: {
-                            Label(
-                                nativePermissionService.isRequestingCameraAccess ? "Requesting Camera" : "Allow Camera",
-                                systemImage: "camera.fill"
-                            )
-                        }
-                        .disabled(nativePermissionService.isRequestingCameraAccess)
-                    }
-                }
-            }
-
-            Section {
-                Button {
-                    openIOSSettings()
-                } label: {
-                    Label("Open Homestead in Settings", systemImage: "gearshape")
-                }
-
-                Button {
-                    Task {
-                        await nativePermissionService.refreshStatus()
-                    }
-                } label: {
-                    Label(refreshButtonTitle, systemImage: "arrow.clockwise")
-                }
-                .disabled(nativePermissionService.isRefreshing)
             }
         }
         .navigationTitle("Privacy & Permissions")
@@ -92,15 +68,84 @@ struct NativePermissionsSettingsView: View {
         .task {
             await nativePermissionService.refreshStatus()
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard NativePermissionRefreshPolicy.shouldRefresh(when: newPhase) else {
+                return
+            }
+
+            Task {
+                await nativePermissionService.refreshStatus()
+            }
+        }
     }
 
-    private var showsPermissionActions: Bool {
-        nativePermissionService.status.location.canRequestInApp ||
-            nativePermissionService.status.camera.canRequestInApp
+    // MARK: - Actions
+
+    private func handleLocalNetworkAction(_ action: NativePermissionRowAction) {
+        if action == .openSettings {
+            openIOSSettings()
+        }
     }
 
-    private var refreshButtonTitle: String {
-        nativePermissionService.isRefreshing ? "Refreshing" : "Refresh Status"
+    private func handleLocationAction(_ action: NativePermissionRowAction) {
+        switch action {
+        case .allow:
+            Task { await nativePermissionService.requestLocationAccess() }
+        case .openSettings:
+            openIOSSettings()
+        }
+    }
+
+    private func handleCameraAction(_ action: NativePermissionRowAction) {
+        switch action {
+        case .allow:
+            Task { await nativePermissionService.requestCameraAccess() }
+        case .openSettings:
+            openIOSSettings()
+        }
+    }
+
+    private func openIOSSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+            openSettingsErrorMessage = "Homestead couldn’t open Settings."
+            return
+        }
+
+        openURL(url) { accepted in
+            if !accepted {
+                openSettingsErrorMessage = "Homestead couldn’t open Settings."
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var errorMessage: String? {
+        if let openSettingsErrorMessage {
+            return openSettingsErrorMessage
+        }
+        return nativePermissionService.lastErrorMessage.map(UserFacingErrorPresentation.message(forRawMessage:))
+    }
+
+    private var localNetworkMessage: String {
+        switch nativePermissionService.status.localNetwork {
+        case .managedBySystem:
+            return "iOS asks when Homestead first connects to a server on your local network."
+        case .allowed:
+            return "Ready for Home Assistant servers on your local network."
+        case .denied:
+            return "Allow access in Settings to reach servers on your local network."
+        case .restricted:
+            return "Local network access is restricted on this device."
+        case .notDetermined:
+            return "iOS will ask when Homestead first needs local network access."
+        case .unavailable:
+            return "Local network access is unavailable on this device."
+        case .limited:
+            return "Local network access is limited."
+        case .unknown:
+            return "Homestead is checking local network access."
+        }
     }
 
     private var locationMessage: String {
@@ -110,15 +155,15 @@ struct NativePermissionsSettingsView: View {
         case .limited:
             return "Location access is limited."
         case .denied:
-            return "Turn on location in Settings."
+            return "Turn on location access in Settings."
         case .restricted:
             return "Location access is restricted on this device."
         case .notDetermined:
-            return "Allow when a presence feature needs this device's location."
+            return "Allow for presence features and trusted Wi-Fi setup."
         case .unavailable:
             return "Location Services are off or unavailable."
         case .managedBySystem:
-            return "Managed by the system."
+            return "Location access is managed by the system."
         case .unknown:
             return "Homestead is checking location access."
         }
@@ -135,92 +180,173 @@ struct NativePermissionsSettingsView: View {
         case .restricted:
             return "Camera access is restricted on this device."
         case .notDetermined:
-            return "Allow when a native setup feature needs the camera."
+            return "Allow for camera-based setup and scanning features."
         case .unavailable:
             return "Camera access is unavailable on this device."
         case .managedBySystem:
-            return "Managed by the system."
+            return "Camera access is managed by the system."
         case .unknown:
             return "Homestead is checking camera access."
         }
     }
-
-    private func openIOSSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else {
-            return
-        }
-
-        openURL(url)
-    }
 }
+
+// MARK: - Permission Status Row
 
 private struct NativePermissionStatusRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let title: String
     let message: String
-    let badgeText: String
     let systemImage: String
-    let tint: Color
+    let presentation: NativePermissionRowPresentation
+    let action: (NativePermissionRowAction) -> Void
 
     var body: some View {
-        Label {
-            HStack(alignment: .center, spacing: AppSpacing.medium) {
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(title)
-                        .font(.headline)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                accessibilityLayout
+            } else {
+                standardLayout
+            }
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+        .accessibilityElement(children: .contain)
+    }
 
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+    private var standardLayout: some View {
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            permissionIcon
+            permissionCopy
+            Spacer(minLength: AppSpacing.small)
+            accessory
+        }
+    }
+
+    private var accessibilityLayout: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
+                permissionIcon
+
+                Text(title)
+                    .font(.headline)
 
                 Spacer(minLength: AppSpacing.small)
-
-                Text(badgeText)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(tint)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(tint.opacity(0.12), in: Capsule())
             }
-            .padding(.vertical, AppSpacing.xSmall)
-        } icon: {
-            Image(systemName: systemImage)
-                .foregroundStyle(tint)
-        }
-    }
-}
 
-private extension NativeCapabilityAuthorizationStatus {
-    var permissionBadgeText: String {
-        switch self {
-        case .allowed:
-            return "Allowed"
-        case .limited:
-            return "Limited"
-        case .denied:
-            return "Off"
-        case .restricted:
-            return "Restricted"
-        case .notDetermined:
-            return "Ask"
-        case .unavailable:
-            return "Unavailable"
-        case .managedBySystem:
-            return "iOS"
-        case .unknown:
-            return "Checking"
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
+                Spacer()
+                accessory
+            }
         }
     }
 
-    var permissionTint: Color {
-        switch self {
-        case .allowed, .limited:
-            return .green
-        case .denied, .restricted:
-            return .red
-        case .notDetermined, .unknown, .unavailable, .managedBySystem:
+    private var permissionIcon: some View {
+        Image(systemName: systemImage)
+            .foregroundStyle(accessoryTint)
+            .accessibilityHidden(true)
+    }
+
+    private var permissionCopy: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text(title)
+                .font(.headline)
+
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var accessory: some View {
+        switch presentation.accessory {
+        case .action(let title, let rowAction):
+            Button(title) {
+                action(rowAction)
+            }
+            .buttonStyle(.borderless)
+            .font(.subheadline.weight(.semibold))
+            .accessibilityLabel("\(title) \(self.title)")
+
+        case .progress(let title):
+            HStack(spacing: AppSpacing.xSmall) {
+                ProgressView()
+                    .controlSize(.small)
+
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(self.title), \(title)")
+
+        case .status(let title, _):
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(accessoryTint)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(accessoryTint.opacity(0.12), in: Capsule())
+                .fixedSize()
+                .accessibilityLabel("\(self.title), \(title)")
+        }
+    }
+
+    private var accessoryTint: Color {
+        switch presentation.accessory {
+        case .action:
+            return .accentColor
+        case .progress:
             return .secondary
+        case .status(_, let tone):
+            return switch tone {
+            case .positive:
+                .green
+            case .caution:
+                .orange
+            case .negative:
+                .red
+            case .neutral:
+                .secondary
+            }
         }
     }
 }
+
+#if DEBUG
+#Preview("Permissions — Not Requested") {
+    NavigationStack {
+        NativePermissionsSettingsView()
+    }
+    .withPreviewEnvironment(.settingsSample(.permissionsNotRequested))
+}
+
+#Preview("Permissions — Allowed") {
+    NavigationStack {
+        NativePermissionsSettingsView()
+    }
+    .withPreviewEnvironment(.settingsSample(.permissionsAllowed))
+}
+
+#Preview("Permissions — Denied") {
+    NavigationStack {
+        NativePermissionsSettingsView()
+    }
+    .withPreviewEnvironment(.settingsSample(.permissionsDenied))
+}
+
+#Preview("Permissions — Accessibility") {
+    NavigationStack {
+        NativePermissionsSettingsView()
+    }
+    .environment(\.dynamicTypeSize, .accessibility3)
+    .withPreviewEnvironment(.settingsSample(.permissionsDenied))
+}
+#endif

@@ -3395,3 +3395,26 @@ final class HomeAssistantService {
         stateStore.entity(for: entityID)?.state == "on" ? "turn_off" : "turn_on"
     }
 }
+
+#if DEBUG
+extension HomeAssistantService {
+    func applySettingsPreviewState(
+        currentUserDisplayName: String,
+        isNetworkAvailable: Bool,
+        mobileAppRegistrationState: HAMobileAppRegistrationState,
+        serverConfiguration: HAServerConfigurationSnapshot,
+        serverEnvironment: HAServerEnvironmentSnapshot,
+        stateCacheMetadata: HAStateCacheMetadata,
+        activeRouteSummary: HAConnectionRouteSummary
+    ) {
+        self.currentUserDisplayName = currentUserDisplayName
+        self.isNetworkAvailable = isNetworkAvailable
+        self.mobileAppRegistrationState = mobileAppRegistrationState
+        self.serverConfiguration = serverConfiguration
+        self.serverEnvironment = serverEnvironment
+        self.serverConfigurationStatus = .loaded(serverConfiguration.loadedAt)
+        self.stateCacheMetadata = stateCacheMetadata
+        self.activeRouteSummary = activeRouteSummary
+    }
+}
+#endif
