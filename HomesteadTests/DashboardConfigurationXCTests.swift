@@ -1190,6 +1190,31 @@ final class DashboardConfigurationXCTests: XCTestCase {
         }
     }
 
+    func testPageIndicatorUsesAStableFourDotWindow() {
+        let firstPage = DashboardPageIndicatorLayout(pageCount: 5, selectedIndex: 0)
+        XCTAssertEqual(firstPage.dots.map(\.pageIndex), [0, 1, 2, 3])
+        XCTAssertEqual(firstPage.dots.map(\.scale), [1, 1, 1, 0.62])
+
+        let middlePage = DashboardPageIndicatorLayout(pageCount: 6, selectedIndex: 3)
+        XCTAssertEqual(middlePage.dots.map(\.pageIndex), [1, 2, 3, 4])
+        XCTAssertEqual(middlePage.dots.map(\.scale), [0.62, 1, 1, 0.62])
+
+        let lastPage = DashboardPageIndicatorLayout(pageCount: 5, selectedIndex: 4)
+        XCTAssertEqual(lastPage.dots.map(\.pageIndex), [1, 2, 3, 4])
+        XCTAssertEqual(lastPage.dots.map(\.scale), [0.62, 1, 1, 1])
+    }
+
+    func testPageIndicatorKeepsAFixedCapsuleSize() {
+        XCTAssertEqual(DashboardPageIndicatorMetrics.capsuleSize.width, 52, accuracy: 0.001)
+        XCTAssertEqual(DashboardPageIndicatorMetrics.capsuleSize.height, 20, accuracy: 0.001)
+        XCTAssertEqual(
+            DashboardPageIndicatorMetrics.reservedHeight,
+            DashboardPageIndicatorMetrics.capsuleSize.height
+                + (DashboardPageIndicatorMetrics.bottomSpacing * 2),
+            accuracy: 0.001
+        )
+    }
+
     func testCatalogRejectsIncompatibleEntityPresentationDuringReconciliation() throws {
         let defaults = makeDefaults()
         let configuration = DashboardConfiguration(defaults: defaults)

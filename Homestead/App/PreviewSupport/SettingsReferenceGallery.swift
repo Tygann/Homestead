@@ -14,6 +14,11 @@ struct SettingsReferenceGallery: View {
                 }
 
                 Section("Dashboard Paging") {
+                    NavigationLink("Home with Bottom Navigation") {
+                        ContentView()
+                            .withPreviewEnvironment(.dashboardSample(pageCount: 3))
+                    }
+
                     NavigationLink("One Home Page") {
                         DashboardView()
                             .withPreviewEnvironment(.dashboardSample(pageCount: 1))
@@ -22,6 +27,13 @@ struct SettingsReferenceGallery: View {
                     NavigationLink("Several Home Pages") {
                         DashboardView()
                             .withPreviewEnvironment(.dashboardSample(pageCount: 3))
+                    }
+
+                    NavigationLink("Five Pages, Last Selected") {
+                        DashboardView()
+                            .withPreviewEnvironment(
+                                .dashboardSample(pageCount: 5, selectedPageIndex: 4)
+                            )
                     }
 
                     NavigationLink("Several Pages with Wallpaper") {

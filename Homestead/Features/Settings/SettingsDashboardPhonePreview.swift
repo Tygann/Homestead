@@ -11,9 +11,7 @@ nonisolated enum SettingsDashboardPhonePreviewMetrics {
 }
 
 struct SettingsDashboardPhonePreview: View {
-    private static let viewportWidth: CGFloat = 178
-    private static let viewportHeight: CGFloat = viewportWidth / SettingsDashboardPhonePreviewMetrics.aspectRatio
-    private static let contentPadding: CGFloat = 11
+    private static let referenceWidth: CGFloat = 178
 
     let width: CGFloat
     let items: [DashboardItemConfiguration]
@@ -42,13 +40,9 @@ struct SettingsDashboardPhonePreview: View {
 
     var body: some View {
         let size = SettingsDashboardPhonePreviewMetrics.size(forWidth: width)
-        let scale = size.width / Self.viewportWidth
 
-        previewCanvas
-            .frame(width: Self.viewportWidth, height: Self.viewportHeight)
-            .scaleEffect(scale, anchor: .topLeading)
-            .frame(width: size.width, height: size.height, alignment: .topLeading)
-            .clipped()
+        previewCanvas(size: size)
+            .frame(width: size.width, height: size.height)
             .shadow(color: .black.opacity(0.08), radius: 14, y: 8)
             .accessibilityLabel(accessibilityLabel)
             .task(id: previewTaskID) {
@@ -56,44 +50,41 @@ struct SettingsDashboardPhonePreview: View {
             }
     }
 
-    private var previewCanvas: some View {
-        let phoneShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+    private func previewCanvas(size: CGSize) -> some View {
+        let scale = size.width / Self.referenceWidth
+        let contentPadding = 11 * scale
+        let phoneShape = RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
 
         return ZStack {
             ZStack {
-                previewBackground(in: Self.viewportSize)
+                previewBackground(in: size)
 
                 VStack(spacing: 0) {
-                    previewHeader
-                        .padding(.bottom, 15)
+                    previewHeader(scale: scale)
+                        .padding(.bottom, 15 * scale)
 
                     SettingsDashboardLayoutMiniature(
                         items: items,
-                        contentWidth: Self.contentWidth
+                        contentWidth: size.width - (contentPadding * 2),
+                        renderScale: scale
                     )
                     .frame(maxHeight: .infinity, alignment: .top)
                 }
-                .padding(Self.contentPadding)
+                .padding(contentPadding)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .clipShape(phoneShape)
 
-            previewBottomChrome
-                .padding(.horizontal, 10)
-                .padding(.bottom, Self.contentPadding)
+            previewBottomChrome(scale: scale)
+                .padding(.horizontal, 10 * scale)
+                .padding(.bottom, contentPadding)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
             phoneShape
-                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.18), lineWidth: max(0.5, scale))
         }
-    }
-
-    private static var viewportSize: CGSize {
-        CGSize(width: viewportWidth, height: viewportHeight)
-    }
-
-    private static var contentWidth: CGFloat {
-        viewportWidth - (contentPadding * 2)
+        .frame(width: size.width, height: size.height)
+        .clipShape(phoneShape)
     }
 
     private var previewTaskID: String {
@@ -126,8 +117,8 @@ struct SettingsDashboardPhonePreview: View {
         }
     }
 
-    private var previewBottomChrome: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+    private func previewBottomChrome(scale: CGFloat) -> some View {
+        HStack(alignment: .bottom, spacing: 8 * scale) {
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(.thinMaterial)
@@ -138,21 +129,21 @@ struct SettingsDashboardPhonePreview: View {
 
                 Capsule()
                     .fill(Color(.tertiarySystemGroupedBackground).opacity(0.70))
-                    .frame(width: 42)
-                    .padding(3)
+                    .frame(width: 42 * scale)
+                    .padding(3 * scale)
 
                 HStack {
                     Image(systemName: "house.fill")
                     Spacer()
                     Image(systemName: "square.split.bottomrightquarter.fill")
                 }
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 11 * scale, weight: .semibold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 17)
+                .padding(.horizontal, 17 * scale)
             }
-            .frame(height: 31)
+            .frame(height: 31 * scale)
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 6 * scale)
 
             Circle()
                 .fill(.thinMaterial)
@@ -162,37 +153,37 @@ struct SettingsDashboardPhonePreview: View {
                 }
                 .overlay {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 11 * scale, weight: .semibold))
                         .foregroundStyle(.white)
                 }
-                .frame(width: 31, height: 31)
+                .frame(width: 31 * scale, height: 31 * scale)
         }
     }
 
-    private var previewHeader: some View {
-        HStack(alignment: .center, spacing: 6) {
+    private func previewHeader(scale: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: 6 * scale) {
             if let title = normalizedDashboardTitle {
                 Text(title)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 13 * scale, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             } else {
                 Capsule()
                     .fill(Color.white.opacity(0.76))
-                    .frame(width: 56, height: 7)
+                    .frame(width: 56 * scale, height: 7 * scale)
             }
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 6 * scale)
 
-            HStack(spacing: 5) {
+            HStack(spacing: 5 * scale) {
                 Circle()
                     .fill(Color.white.opacity(0.22))
                     .overlay {
                         Circle()
                             .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
                     }
-                    .frame(width: 17, height: 17)
+                    .frame(width: 17 * scale, height: 17 * scale)
 
                 Circle()
                     .fill(Color.white.opacity(0.22))
@@ -200,10 +191,10 @@ struct SettingsDashboardPhonePreview: View {
                         Circle()
                             .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
                     }
-                    .frame(width: 17, height: 17)
+                    .frame(width: 17 * scale, height: 17 * scale)
             }
         }
-        .frame(height: 28)
+        .frame(height: 28 * scale)
     }
 
     private var normalizedDashboardTitle: String? {
@@ -225,9 +216,9 @@ struct SettingsDashboardPhonePreview: View {
 private struct SettingsDashboardLayoutMiniature: View {
     let items: [DashboardItemConfiguration]
     let contentWidth: CGFloat
+    let renderScale: CGFloat
 
     private let maximumVisibleItems = 24
-    private let miniatureScale: CGFloat = 0.40
 
     private var spacing: CGFloat {
         AppSpacing.medium * miniatureScale
@@ -235,6 +226,10 @@ private struct SettingsDashboardLayoutMiniature: View {
 
     private var rowHeight: CGFloat {
         DashboardCardSize.renderedGridUnitHeight(cardPadding: AppSpacing.medium) * miniatureScale
+    }
+
+    private var miniatureScale: CGFloat {
+        0.40 * renderScale
     }
 
     var body: some View {
@@ -255,7 +250,10 @@ private struct SettingsDashboardLayoutMiniature: View {
 
                 ZStack(alignment: .topLeading) {
                     ForEach(layout.placements) { placement in
-                        SettingsDashboardLayoutPreviewTile(item: placement.item)
+                        SettingsDashboardLayoutPreviewTile(
+                            item: placement.item,
+                            renderScale: renderScale
+                        )
                             .frame(width: placement.frame.width, height: placement.frame.height)
                             .offset(x: placement.frame.minX, y: placement.frame.minY)
                     }
@@ -279,7 +277,7 @@ private struct SettingsDashboardLayoutMiniature: View {
     }
 
     private var chipRow: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 4 * renderScale) {
             ForEach(chipItems.prefix(4)) { chip in
                 Capsule()
                     .fill(chipColor(for: chip).opacity(0.26))
@@ -287,20 +285,26 @@ private struct SettingsDashboardLayoutMiniature: View {
                         Capsule()
                             .strokeBorder(chipColor(for: chip).opacity(0.18), lineWidth: 0.5)
                     }
-                    .frame(width: chipWidth(for: chip), height: 13)
+                    .frame(width: chipWidth(for: chip) * renderScale, height: 13 * renderScale)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var emptyState: some View {
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .stroke(.secondary.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+        RoundedRectangle(cornerRadius: 16 * renderScale, style: .continuous)
+            .stroke(
+                .secondary.opacity(0.35),
+                style: StrokeStyle(
+                    lineWidth: max(0.5, renderScale),
+                    dash: [4 * renderScale, 4 * renderScale]
+                )
+            )
             .frame(maxWidth: .infinity)
-            .frame(height: 126)
+            .frame(height: 126 * renderScale)
             .overlay {
                 Text("No Cards")
-                    .font(.caption.weight(.medium))
+                    .font(.system(size: 12 * renderScale, weight: .medium))
                     .foregroundStyle(.secondary)
             }
     }
@@ -338,6 +342,7 @@ private struct SettingsDashboardLayoutMiniature: View {
 
 private struct SettingsDashboardLayoutPreviewTile: View {
     let item: DashboardItemConfiguration
+    let renderScale: CGFloat
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -348,16 +353,16 @@ private struct SettingsDashboardLayoutPreviewTile: View {
             }
             .overlay(alignment: .topLeading) {
                 if item.role == .card {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    RoundedRectangle(cornerRadius: 6 * renderScale, style: .continuous)
                         .fill(Color(.tertiarySystemGroupedBackground).opacity(0.60))
-                        .frame(width: 13, height: 13)
-                        .padding(5)
+                        .frame(width: 13 * renderScale, height: 13 * renderScale)
+                        .padding(5 * renderScale)
                 } else if item.role == .heading {
                     Capsule()
                         .fill(.secondary.opacity(0.45))
-                        .frame(width: 44, height: 5)
-                        .padding(.top, 7)
-                        .padding(.leading, 2)
+                        .frame(width: 44 * renderScale, height: 5 * renderScale)
+                        .padding(.top, 7 * renderScale)
+                        .padding(.leading, 2 * renderScale)
                 }
             }
     }
@@ -385,7 +390,7 @@ private struct SettingsDashboardLayoutPreviewTile: View {
     }
 
     private var cornerRadius: CGFloat {
-        item.role == .chip ? 10 : 8
+        (item.role == .chip ? 10 : 8) * renderScale
     }
 }
 

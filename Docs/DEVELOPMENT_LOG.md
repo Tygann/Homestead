@@ -9,8 +9,10 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added profile-scoped device-local enabled dashboard IDs alongside the existing local selected dashboard ID, while keeping saved definitions and order in the schema-v6 iCloud snapshot and preserving the legacy selected-only default.
 - Added native horizontally paged Home dashboards with dashboard-ID-scoped rendering and mutations, settled selection persistence, local page dots, independent page state, and edit-mode page-change rejection.
 - Reworked Settings dashboard rows around native visibility toggles, protected the final enabled page, retained native detail navigation and reordering, and documented the synced-definition versus local-visibility split.
-- Repaired the shared Appearance/dashboard-detail phone miniature with an explicit aspect-ratio size contract so scaled wallpaper and dashboard content stays clipped inside the phone while following controls lay out below it.
+- Repaired the shared Appearance/dashboard-detail phone miniature with an explicit aspect-ratio size contract so wallpaper and dashboard content stays clipped inside the phone while following controls lay out below it.
 - Added focused XCTest coverage for legacy defaults, local/profile persistence, iCloud exclusion, enable/disable/fallback policies, create/duplicate/delete/reorder/sync behavior, explicit action scoping, and preview sizing, plus deterministic paging/settings/preview fixtures.
+- Refined the local page indicator to a fixed four-dot window with compact native spacing and smaller edge dots for undisplayed pages, and reserved its clearance inside each vertical dashboard scroller so cards no longer sit beneath the indicator or floating navigation.
+- Removed the phone preview's post-layout scale transform and now render every shared frame, wallpaper, miniature, and chrome dimension directly at the requested width, fixing Form/List and Xcode Canvas clipping in both consumers.
 
 ### Entity Controls, Frontend Handoff, And Dashboard Parity
 

@@ -21,7 +21,8 @@ struct PreviewDependencies {
 
     static func dashboardSample(
         pageCount: Int,
-        disablesLastDashboard: Bool = false
+        disablesLastDashboard: Bool = false,
+        selectedPageIndex: Int = 0
     ) -> PreviewDependencies {
         let dependencies = makeSample()
         guard pageCount > 1 else { return dependencies }
@@ -48,9 +49,30 @@ struct PreviewDependencies {
                 id: emptyDashboardID,
                 title: "Quiet Room"
             )
-            if disablesLastDashboard {
-                _ = dependencies.dashboardConfiguration.setDashboardEnabled(false, id: emptyDashboardID)
+        }
+
+        if pageCount > 3 {
+            let additionalNames = ["Energy", "Security", "Media", "Upstairs", "Outdoors"]
+            for index in 3..<pageCount {
+                let name = additionalNames[(index - 3) % additionalNames.count]
+                let dashboardID = dependencies.dashboardConfiguration.createDashboard(named: name)
+                dependencies.dashboardConfiguration.setDashboardDisplayTitle(
+                    id: dashboardID,
+                    title: name
+                )
             }
+        }
+
+        let enabledDashboards = dependencies.dashboardConfiguration.enabledDashboards
+        if disablesLastDashboard, let lastDashboardID = enabledDashboards.last?.id {
+            _ = dependencies.dashboardConfiguration.setDashboardEnabled(false, id: lastDashboardID)
+        }
+
+        let visibleDashboards = dependencies.dashboardConfiguration.enabledDashboards
+        if visibleDashboards.indices.contains(selectedPageIndex) {
+            _ = dependencies.dashboardConfiguration.selectDashboard(
+                id: visibleDashboards[selectedPageIndex].id
+            )
         }
 
         return dependencies

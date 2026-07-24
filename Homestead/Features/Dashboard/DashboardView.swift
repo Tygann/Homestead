@@ -14,6 +14,9 @@ struct DashboardView: View {
             ForEach(enabledDashboards) { dashboard in
                 DashboardPageView(
                     dashboardID: dashboard.id,
+                    bottomContentClearance: enabledDashboards.count > 1
+                        ? DashboardPageIndicatorMetrics.reservedHeight
+                        : 0,
                     isEditingDashboard: Binding(
                         get: { editingDashboardID == dashboard.id },
                         set: { isEditing in
@@ -28,14 +31,14 @@ struct DashboardView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .homesteadWallpaperBackground()
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .overlay(alignment: .bottom) {
             if enabledDashboards.count > 1 {
                 DashboardPageIndicator(
                     dashboards: enabledDashboards,
                     selectedDashboardID: dashboardConfiguration.selectedDashboardID,
                     selectDashboard: selectDashboard
                 )
-                .padding(.vertical, AppSpacing.xSmall)
+                .padding(.bottom, DashboardPageIndicatorMetrics.bottomSpacing)
             }
         }
         .onChange(of: dashboardConfiguration.selectedDashboardID) { oldID, newID in
@@ -93,14 +96,65 @@ struct DashboardView: View {
     }
 }
 
+nonisolated enum DashboardPageIndicatorMetrics {
+    static let maximumVisibleDots = 4
+    static let capsuleSize = CGSize(width: 52, height: 20)
+    static let bottomSpacing: CGFloat = 4
+    static let reservedHeight = capsuleSize.height + (bottomSpacing * 2)
+}
+
+nonisolated struct DashboardPageIndicatorLayout: Equatable {
+    struct Dot: Equatable {
+        let pageIndex: Int
+        let scale: CGFloat
+    }
+
+    let dots: [Dot]
+
+    init(pageCount: Int, selectedIndex: Int) {
+        let resolvedPageCount = max(0, pageCount)
+        guard resolvedPageCount > 0 else {
+            dots = []
+            return
+        }
+
+        let resolvedSelectedIndex = min(max(0, selectedIndex), resolvedPageCount - 1)
+        let visibleCount = min(DashboardPageIndicatorMetrics.maximumVisibleDots, resolvedPageCount)
+        let maximumStartIndex = resolvedPageCount - visibleCount
+        let startIndex: Int
+
+        // Keep four stable slots and use a smaller edge dot when the window omits pages.
+        if resolvedSelectedIndex < visibleCount - 1 {
+            startIndex = 0
+        } else {
+            startIndex = min(
+                resolvedSelectedIndex - (visibleCount - 2),
+                maximumStartIndex
+            )
+        }
+
+        let endIndex = startIndex + visibleCount - 1
+        dots = (startIndex...endIndex).map { pageIndex in
+            let indicatesEarlierPages = pageIndex == startIndex && startIndex > 0
+            let indicatesLaterPages = pageIndex == endIndex && endIndex < resolvedPageCount - 1
+            return Dot(
+                pageIndex: pageIndex,
+                scale: indicatesEarlierPages || indicatesLaterPages ? 0.62 : 1
+            )
+        }
+    }
+}
+
 private struct DashboardPageIndicator: View {
     let dashboards: [SavedDashboardConfiguration]
     let selectedDashboardID: UUID
     let selectDashboard: (UUID) -> Void
 
     var body: some View {
-        HStack(spacing: 7) {
-            ForEach(dashboards) { dashboard in
+        HStack(spacing: 0) {
+            ForEach(layout.dots, id: \.pageIndex) { dot in
+                let dashboard = dashboards[dot.pageIndex]
+
                 Button {
                     selectDashboard(dashboard.id)
                 } label: {
@@ -110,8 +164,9 @@ private struct DashboardPageIndicator: View {
                                 ? Color.primary
                                 : Color.secondary.opacity(0.42)
                         )
-                        .frame(width: 6, height: 6)
-                        .frame(width: 18, height: 18)
+                        .frame(width: 5, height: 5)
+                        .scaleEffect(dot.scale)
+                        .frame(width: 10, height: DashboardPageIndicatorMetrics.capsuleSize.height)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -119,9 +174,15 @@ private struct DashboardPageIndicator: View {
                 .accessibilityValue(dashboard.id == selectedDashboardID ? "Current page" : "")
             }
         }
-        .padding(.horizontal, AppSpacing.medium)
-        .frame(minHeight: 20)
-        .background(.thinMaterial, in: Capsule())
+        .frame(
+            width: DashboardPageIndicatorMetrics.capsuleSize.width,
+            height: DashboardPageIndicatorMetrics.capsuleSize.height
+        )
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay {
+            Capsule()
+                .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Dashboard pages")
         .accessibilityValue(accessibilityValue)
@@ -140,6 +201,13 @@ private struct DashboardPageIndicator: View {
         }
     }
 
+    private var layout: DashboardPageIndicatorLayout {
+        DashboardPageIndicatorLayout(
+            pageCount: dashboards.count,
+            selectedIndex: dashboards.firstIndex(where: { $0.id == selectedDashboardID }) ?? 0
+        )
+    }
+
     private var accessibilityValue: String {
         guard let index = dashboards.firstIndex(where: { $0.id == selectedDashboardID }) else {
             return ""
@@ -155,6 +223,7 @@ private struct DashboardPageView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let dashboardID: UUID
+    let bottomContentClearance: CGFloat
     @Binding var isEditingDashboard: Bool
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var iconPickerContext: DashboardIconPickerContext?
@@ -219,6 +288,11 @@ private struct DashboardPageView: View {
             .refreshable {
                 await homeAssistantService.refreshStates()
                 cameraRefreshGeneration += 1
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear
+                    .frame(height: bottomContentClearance)
+                    .accessibilityHidden(true)
             }
             .navigationTitle(
                 dashboardConfiguration.dashboard(id: dashboardID)?.resolvedDisplayTitle
