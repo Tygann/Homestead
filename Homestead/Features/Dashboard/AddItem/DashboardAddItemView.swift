@@ -8,9 +8,15 @@ struct DashboardAddItemView: View {
     @State private var searchText = ""
     @State private var galleryFilter: DashboardAddGalleryFilter = .all
     @State private var plannedCardNotice: DashboardPlannedGalleryCard?
+    private let dashboardID: UUID
     private let onAddItem: (UUID) -> Void
 
-    init(initialMode: DashboardAddItemMode, onAddItem: @escaping (UUID) -> Void = { _ in }) {
+    init(
+        dashboardID: UUID,
+        initialMode: DashboardAddItemMode,
+        onAddItem: @escaping (UUID) -> Void = { _ in }
+    ) {
+        self.dashboardID = dashboardID
         _mode = State(initialValue: initialMode)
         self.onAddItem = onAddItem
     }
@@ -37,7 +43,7 @@ struct DashboardAddItemView: View {
             .navigationDestination(for: DashboardAddRoute.self) { route in
                 switch route {
                 case .cards(let source):
-                    DashboardChooseCardView(source: source, add: add)
+                    DashboardChooseCardView(dashboardID: dashboardID, source: source, add: add)
                 case .configure(let kind):
                     DashboardPresentationReviewView(kind: kind, add: addAndDismiss)
                 case .review(let source, let kind):
@@ -77,7 +83,7 @@ struct DashboardAddItemView: View {
             stateStore: stateStore,
             searchText: searchText
         )
-        let sourceCounts = dashboardConfiguration.sourceCounts
+        let sourceCounts = dashboardConfiguration.sourceCounts(for: dashboardID)
 
         return List {
             if !presentation.summaryCandidates.isEmpty {
@@ -298,7 +304,11 @@ struct DashboardAddItemView: View {
     }
 
     private func add(_ source: DashboardAddSource, _ presentation: DashboardPresentationConfiguration) {
-        guard let itemID = dashboardConfiguration.add(source: source.reference, presentation: presentation) else { return }
+        guard let itemID = dashboardConfiguration.add(
+            source: source.reference,
+            presentation: presentation,
+            to: dashboardID
+        ) else { return }
         HapticFeedback.selection()
         onAddItem(itemID)
     }
@@ -307,13 +317,17 @@ struct DashboardAddItemView: View {
         _ source: DashboardAddSource,
         _ presentation: DashboardPresentationConfiguration
     ) {
-        guard dashboardConfiguration.add(source: source.reference, presentation: presentation) != nil else { return }
+        guard dashboardConfiguration.add(
+            source: source.reference,
+            presentation: presentation,
+            to: dashboardID
+        ) != nil else { return }
         HapticFeedback.selection()
         dismiss()
     }
 
     private func addHeader(_ title: String) {
-        let itemID = dashboardConfiguration.addHeader(title: title)
+        let itemID = dashboardConfiguration.addHeader(title: title, to: dashboardID)
         HapticFeedback.selection()
         onAddItem(itemID)
     }

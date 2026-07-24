@@ -553,6 +553,12 @@ final class DashboardConfiguration {
         }
     }
 
+    private(set) var enabledDashboardIDs: Set<UUID> {
+        didSet {
+            if !isSwitchingProfile { saveEnabledDashboardIDs() }
+        }
+    }
+
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var activeProfileID: UUID?
     @ObservationIgnored private var isSwitchingProfile = false
@@ -562,6 +568,9 @@ final class DashboardConfiguration {
     }
     @ObservationIgnored private var selectedDashboardIDKey: String {
         Self.selectedDashboardIDKey(profileID: activeProfileID)
+    }
+    @ObservationIgnored private var enabledDashboardIDsKey: String {
+        Self.enabledDashboardIDsKey(profileID: activeProfileID)
     }
     @ObservationIgnored private let obsoleteKeys = [
         "dashboardItems",
@@ -597,17 +606,27 @@ final class DashboardConfiguration {
         protectsNewerDashboardSchema = state.isNewerSchema
         let normalizedDashboards = Self.normalizedDashboards(state.document?.dashboards ?? [])
         dashboards = normalizedDashboards
-        selectedDashboardID = Self.loadSelectedDashboardID(
+        let loadedSelectedDashboardID = Self.loadSelectedDashboardID(
             from: defaults,
             key: selectedKey,
             dashboards: normalizedDashboards
         )
+        selectedDashboardID = loadedSelectedDashboardID
+        enabledDashboardIDs = Self.loadEnabledDashboardIDs(
+            from: defaults,
+            key: Self.enabledDashboardIDsKey(profileID: profileID),
+            dashboards: normalizedDashboards,
+            selectedDashboardID: loadedSelectedDashboardID
+        )
 
         if state.shouldCreateFreshDocument {
             selectedDashboardID = dashboards[0].id
+            enabledDashboardIDs = [selectedDashboardID]
         }
+        reconcileLocalDashboardState(previousDashboardOrder: normalizedDashboards.map(\.id))
         saveDashboards()
         saveSelectedDashboardID()
+        saveEnabledDashboardIDs()
     }
 
     var hasCustomLayout: Bool { !items.isEmpty }
@@ -644,6 +663,9 @@ final class DashboardConfiguration {
         return true
     }
     var selectedDashboard: SavedDashboardConfiguration { dashboards.first { $0.id == selectedDashboardID } ?? dashboards[0] }
+    var enabledDashboards: [SavedDashboardConfiguration] {
+        dashboards.filter { enabledDashboardIDs.contains($0.id) }
+    }
     var items: [DashboardItemConfiguration] { selectedDashboard.items }
     var setupState: DashboardSetupState { selectedDashboard.setupState }
     var presentationCounts: [DashboardPresentationIdentity: Int] {
@@ -678,9 +700,17 @@ final class DashboardConfiguration {
             key: selectedDashboardIDKey,
             dashboards: normalized
         )
+        enabledDashboardIDs = Self.loadEnabledDashboardIDs(
+            from: defaults,
+            key: enabledDashboardIDsKey,
+            dashboards: normalized,
+            selectedDashboardID: selectedDashboardID
+        )
+        reconcileLocalDashboardState(previousDashboardOrder: normalized.map(\.id))
         isSwitchingProfile = false
         saveDashboards()
         saveSelectedDashboardID()
+        saveEnabledDashboardIDs()
     }
 
     func removeProfileData(_ profileID: UUID) {
@@ -689,26 +719,42 @@ final class DashboardConfiguration {
         defaults.removeObject(forKey: Self.backupDocumentKey(for: key))
         defaults.removeObject(forKey: Self.rejectedDocumentKey(for: key))
         defaults.removeObject(forKey: Self.selectedDashboardIDKey(profileID: profileID))
+        defaults.removeObject(forKey: Self.enabledDashboardIDsKey(profileID: profileID))
     }
 
     func reconcile(with entityBoxes: [HAEntityState]) {
         let boxesByID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
-        let compatibleItems = DashboardConfigurationValidator.normalizedItems(items).filter { item in
-            guard case .entity(let entityID) = item.source,
-                  case .card(let card) = item.presentation,
-                  let entityBox = boxesByID[entityID] else {
-                return true
+        var updatedDashboards = dashboards
+        var didChange = false
+        for index in updatedDashboards.indices {
+            let currentItems = updatedDashboards[index].items
+            let compatibleItems = DashboardConfigurationValidator.normalizedItems(currentItems).filter { item in
+                guard case .entity(let entityID) = item.source,
+                      case .card(let card) = item.presentation,
+                      let entityBox = boxesByID[entityID] else {
+                    return true
+                }
+                return DashboardPresentationCatalog.isCompatible(card, with: entityBox)
             }
-            return DashboardPresentationCatalog.isCompatible(card, with: entityBox)
+            if compatibleItems != currentItems {
+                updatedDashboards[index].items = compatibleItems
+                didChange = true
+            }
         }
-        if compatibleItems != items { updateSelectedDashboardItems(compatibleItems) }
-
+        if didChange { dashboards = updatedDashboards }
     }
 
     // MARK: Queries
 
     func visibleItems(fromAvailableEntityIDs availableIDs: Set<String>) -> [DashboardItemConfiguration] {
-        items.filter { item in
+        visibleItems(dashboardID: selectedDashboardID, fromAvailableEntityIDs: availableIDs)
+    }
+
+    func visibleItems(
+        dashboardID: UUID,
+        fromAvailableEntityIDs availableIDs: Set<String>
+    ) -> [DashboardItemConfiguration] {
+        items(for: dashboardID).filter { item in
             switch item.content {
             case .heading:
                 true
@@ -725,6 +771,40 @@ final class DashboardConfiguration {
 
     func itemRole(for itemID: UUID) -> DashboardItemRole? {
         items.first { $0.id == itemID }?.role
+    }
+
+    func itemRole(for reference: DashboardItemReference) -> DashboardItemRole? {
+        item(for: reference)?.role
+    }
+
+    func dashboard(id: UUID) -> SavedDashboardConfiguration? {
+        dashboards.first { $0.id == id }
+    }
+
+    func items(for dashboardID: UUID) -> [DashboardItemConfiguration] {
+        dashboard(id: dashboardID)?.items ?? []
+    }
+
+    func setupState(for dashboardID: UUID) -> DashboardSetupState {
+        dashboard(id: dashboardID)?.setupState ?? .notChosen
+    }
+
+    func sourceCounts(for dashboardID: UUID) -> [DashboardSourceReference: Int] {
+        items(for: dashboardID).reduce(into: [:]) { counts, item in
+            guard let source = item.source else { return }
+            counts[source, default: 0] += 1
+        }
+    }
+
+    func presentationCount(
+        dashboardID: UUID,
+        source: DashboardSourceReference,
+        presentation: DashboardPresentationConfiguration
+    ) -> Int {
+        items(for: dashboardID).reduce(into: 0) { count, item in
+            guard item.source == source, item.presentation?.kind == presentation.kind else { return }
+            count += 1
+        }
     }
 
     func item(for reference: DashboardItemReference) -> DashboardItemConfiguration? {
@@ -823,6 +903,15 @@ final class DashboardConfiguration {
 
     @discardableResult
     func add(source: DashboardSourceReference, presentation: DashboardPresentationConfiguration) -> UUID? {
+        add(source: source, presentation: presentation, to: selectedDashboardID)
+    }
+
+    @discardableResult
+    func add(
+        source: DashboardSourceReference,
+        presentation: DashboardPresentationConfiguration,
+        to dashboardID: UUID
+    ) -> UUID? {
         guard let item = DashboardConfigurationValidator.normalizedItem(
             .sourced(source: source, presentation: presentation)
         ) else { return nil }
@@ -830,7 +919,7 @@ final class DashboardConfiguration {
         // Summary chips are dashboard-wide aggregates. Entity-backed items are
         // independent presentations and may intentionally repeat.
         if case .summary = source,
-           let existing = items.first(where: {
+           let existing = items(for: dashboardID).first(where: {
                guard let itemSource = $0.source, let itemPresentation = $0.presentation else { return false }
                return DashboardPresentationIdentity(source: itemSource, presentation: itemPresentation)
                    == DashboardPresentationIdentity(source: source, presentation: presentation)
@@ -838,22 +927,34 @@ final class DashboardConfiguration {
             return existing.id
         }
 
-        appendSelectedDashboardItem(item, setupState: .manual)
+        appendDashboardItem(item, to: dashboardID, setupState: .manual)
         return item.id
     }
 
     @discardableResult
     func addHeader(title: String) -> UUID {
+        addHeader(title: title, to: selectedDashboardID)
+    }
+
+    @discardableResult
+    func addHeader(title: String, to dashboardID: UUID) -> UUID {
         let item = DashboardItemConfiguration.header(title: normalizedHeaderTitle(title))
-        appendSelectedDashboardItem(item, setupState: .manual)
+        appendDashboardItem(item, to: dashboardID, setupState: .manual)
         return item.id
     }
 
     func renameHeader(id: UUID, title: String) {
-        guard let index = items.firstIndex(where: { $0.id == id && $0.role == .heading }) else { return }
-        var updated = items
-        updated[index].content = .heading(DashboardHeadingConfiguration(title: normalizedHeaderTitle(title)))
-        updateSelectedDashboardItems(updated, setupState: .manual)
+        renameHeader(
+            DashboardItemReference(dashboardID: selectedDashboardID, itemID: id),
+            title: title
+        )
+    }
+
+    func renameHeader(_ reference: DashboardItemReference, title: String) {
+        guard item(for: reference)?.role == .heading else { return }
+        _ = updateItem(for: reference) { item in
+            item.content = .heading(DashboardHeadingConfiguration(title: normalizedHeaderTitle(title)))
+        }
     }
 
     func renameDisplayItem(id: UUID, displayNameOverride: String?) {
@@ -966,8 +1067,7 @@ final class DashboardConfiguration {
     }
 
     func removeItem(id: UUID) {
-        let updated = items.filter { $0.id != id }
-        updateSelectedDashboardItems(updated, setupState: updated.isEmpty ? .intentionallyEmpty : .manual)
+        _ = removeItem(for: DashboardItemReference(dashboardID: selectedDashboardID, itemID: id))
     }
 
     func move(from source: IndexSet, to destination: Int) {
@@ -993,18 +1093,58 @@ final class DashboardConfiguration {
     }
 
     func moveVisibleGridItem(id: UUID, before targetID: UUID?, visibleGridItemIDs: [UUID]) {
-        moveVisibleItems(id: id, before: targetID, visibleItemIDs: visibleGridItemIDs)
+        moveVisibleGridItem(
+            DashboardItemReference(dashboardID: selectedDashboardID, itemID: id),
+            before: targetID,
+            visibleGridItemIDs: visibleGridItemIDs
+        )
+    }
+
+    func moveVisibleGridItem(
+        _ reference: DashboardItemReference,
+        before targetID: UUID?,
+        visibleGridItemIDs: [UUID]
+    ) {
+        moveVisibleItems(
+            reference,
+            before: targetID,
+            visibleItemIDs: visibleGridItemIDs
+        )
     }
 
     func moveVisibleChipItem(id: UUID, before targetID: UUID?, visibleChipItemIDs: [UUID]) {
-        moveVisibleItems(id: id, before: targetID, visibleItemIDs: visibleChipItemIDs)
+        moveVisibleChipItem(
+            DashboardItemReference(dashboardID: selectedDashboardID, itemID: id),
+            before: targetID,
+            visibleChipItemIDs: visibleChipItemIDs
+        )
+    }
+
+    func moveVisibleChipItem(
+        _ reference: DashboardItemReference,
+        before targetID: UUID?,
+        visibleChipItemIDs: [UUID]
+    ) {
+        moveVisibleItems(
+            reference,
+            before: targetID,
+            visibleItemIDs: visibleChipItemIDs
+        )
     }
 
     @discardableResult
     func applySuggestedSetup(using candidates: [DashboardSuggestionCandidate]) -> Bool {
+        applySuggestedSetup(using: candidates, to: selectedDashboardID)
+    }
+
+    @discardableResult
+    func applySuggestedSetup(
+        using candidates: [DashboardSuggestionCandidate],
+        to dashboardID: UUID
+    ) -> Bool {
         let suggestedItems = DashboardSuggestedSetup.items(from: candidates)
         guard !suggestedItems.isEmpty else { return false }
-        updateSelectedDashboardItems(suggestedItems, setupState: .suggested)
+        updateDashboardItems(suggestedItems, dashboardID: dashboardID, setupState: .suggested)
         return true
     }
 
@@ -1037,16 +1177,50 @@ final class DashboardConfiguration {
     @discardableResult
     func applySyncSnapshot(_ snapshot: DashboardConfigurationSyncSnapshot) -> Bool {
         guard snapshot.isCompatible, !protectsNewerDashboardSchema else { return false }
+        let previousOrder = dashboards.map(\.id)
         dashboards = Self.normalizedDashboards(snapshot.dashboards)
-        ensureSelectedDashboardExists()
+        reconcileLocalDashboardState(previousDashboardOrder: previousOrder)
         return true
     }
 
     @discardableResult
     func selectDashboard(id: UUID) -> Bool {
-        guard dashboards.contains(where: { $0.id == id }) else { ensureSelectedDashboardExists(); return false }
+        guard enabledDashboardIDs.contains(id),
+              dashboards.contains(where: { $0.id == id }) else {
+            reconcileLocalDashboardState(previousDashboardOrder: dashboards.map(\.id))
+            return false
+        }
         selectedDashboardID = id
         return true
+    }
+
+    @discardableResult
+    func setDashboardEnabled(_ isEnabled: Bool, id: UUID) -> Bool {
+        guard dashboards.contains(where: { $0.id == id }) else {
+            reconcileLocalDashboardState(previousDashboardOrder: dashboards.map(\.id))
+            return false
+        }
+        if isEnabled {
+            enabledDashboardIDs.insert(id)
+            return true
+        }
+        guard enabledDashboardIDs.contains(id), enabledDashboardIDs.count > 1 else {
+            return false
+        }
+
+        let previousOrder = dashboards.map(\.id)
+        enabledDashboardIDs.remove(id)
+        if selectedDashboardID == id {
+            selectedDashboardID = nearestEnabledDashboardID(
+                to: id,
+                previousDashboardOrder: previousOrder
+            ) ?? enabledDashboards[0].id
+        }
+        return true
+    }
+
+    func canDisableDashboard(id: UUID) -> Bool {
+        enabledDashboardIDs.contains(id) && enabledDashboardIDs.count > 1
     }
 
     @discardableResult
@@ -1059,15 +1233,13 @@ final class DashboardConfiguration {
             setupState: .notChosen
         )
         dashboards.append(dashboard)
-        selectedDashboardID = dashboard.id
+        enabledDashboardIDs.insert(dashboard.id)
         return dashboard.id
     }
 
     @discardableResult
     func duplicateSelectedDashboard() -> UUID {
-        let id = duplicateDashboard(id: selectedDashboardID)
-        selectedDashboardID = id
-        return id
+        duplicateDashboard(id: selectedDashboardID)
     }
 
     @discardableResult
@@ -1081,6 +1253,7 @@ final class DashboardConfiguration {
             setupState: source.items.isEmpty ? .intentionallyEmpty : .manual
         )
         dashboards.append(dashboard)
+        enabledDashboardIDs.insert(dashboard.id)
         return dashboard.id
     }
 
@@ -1106,8 +1279,24 @@ final class DashboardConfiguration {
     }
 
     func deleteDashboard(id: UUID) {
+        let previousOrder = dashboards.map(\.id)
+        let wasSelected = selectedDashboardID == id
         dashboards = Self.normalizedDashboards(dashboards.filter { $0.id != id })
-        ensureSelectedDashboardExists()
+        enabledDashboardIDs.remove(id)
+        if enabledDashboardIDs.isEmpty {
+            if let fallback = nearestDashboardID(to: id, previousDashboardOrder: previousOrder) {
+                enabledDashboardIDs = [fallback]
+            } else {
+                enabledDashboardIDs = [dashboards[0].id]
+            }
+        }
+        if wasSelected {
+            selectedDashboardID = nearestEnabledDashboardID(
+                to: id,
+                previousDashboardOrder: previousOrder
+            ) ?? enabledDashboards[0].id
+        }
+        reconcileLocalDashboardState(previousDashboardOrder: previousOrder)
     }
 
     func moveDashboards(from source: IndexSet, to destination: Int) {
@@ -1117,26 +1306,32 @@ final class DashboardConfiguration {
         let target = destination - source.filter { $0 < destination }.count
         updated.insert(contentsOf: moving, at: target)
         dashboards = updated
-        ensureSelectedDashboardExists()
+        reconcileLocalDashboardState(previousDashboardOrder: dashboards.map(\.id))
     }
 
     // MARK: Private Helpers
 
-    private func moveVisibleItems(id movingID: UUID, before targetID: UUID?, visibleItemIDs: [UUID]) {
+    private func moveVisibleItems(
+        _ reference: DashboardItemReference,
+        before targetID: UUID?,
+        visibleItemIDs: [UUID]
+    ) {
+        let movingID = reference.itemID
         let ordered = visibleItemIDs.reduce(into: [UUID]()) { if !$0.contains($1) { $0.append($1) } }
         guard ordered.contains(movingID), targetID != movingID, targetID.map(ordered.contains) ?? true else { return }
         var reordered = ordered.filter { $0 != movingID }
         reordered.insert(movingID, at: targetID.flatMap(reordered.firstIndex(of:)) ?? reordered.count)
         guard reordered != ordered else { return }
         let visibleSet = Set(ordered)
-        let byID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+        let dashboardItems = items(for: reference.dashboardID)
+        let byID = Dictionary(uniqueKeysWithValues: dashboardItems.map { ($0.id, $0) })
         var iterator = reordered.makeIterator()
-        var updated = items
+        var updated = dashboardItems
         for index in updated.indices where visibleSet.contains(updated[index].id) {
             guard let id = iterator.next(), let item = byID[id] else { return }
             updated[index] = item
         }
-        updateSelectedDashboardItems(updated, setupState: .manual)
+        updateDashboardItems(updated, dashboardID: reference.dashboardID, setupState: .manual)
     }
 
     private func saveDashboards() {
@@ -1150,34 +1345,132 @@ final class DashboardConfiguration {
         defaults.set(selectedDashboardID.uuidString, forKey: selectedDashboardIDKey)
     }
 
+    private func saveEnabledDashboardIDs() {
+        guard !protectsNewerDashboardSchema else { return }
+        let orderedIDs = dashboards
+            .map(\.id)
+            .filter(enabledDashboardIDs.contains)
+            .map(\.uuidString)
+        defaults.set(orderedIDs, forKey: enabledDashboardIDsKey)
+    }
+
     private func updateSelectedDashboardItems(
         _ items: [DashboardItemConfiguration],
         setupState: DashboardSetupState? = nil
     ) {
-        updateSelectedDashboard {
+        updateDashboardItems(items, dashboardID: selectedDashboardID, setupState: setupState)
+    }
+
+    private func updateDashboardItems(
+        _ items: [DashboardItemConfiguration],
+        dashboardID: UUID,
+        setupState: DashboardSetupState? = nil
+    ) {
+        updateDashboard(id: dashboardID) {
             $0.items = DashboardConfigurationValidator.normalizedItems(items)
             if let setupState { $0.setupState = setupState }
         }
     }
 
-    private func appendSelectedDashboardItem(_ item: DashboardItemConfiguration, setupState: DashboardSetupState) {
-        updateSelectedDashboard {
+    private func appendDashboardItem(
+        _ item: DashboardItemConfiguration,
+        to dashboardID: UUID,
+        setupState: DashboardSetupState
+    ) {
+        updateDashboard(id: dashboardID) {
             $0.items.append(item)
             $0.setupState = setupState
         }
     }
 
     private func updateSelectedDashboard(_ update: (inout SavedDashboardConfiguration) -> Void) {
-        ensureSelectedDashboardExists()
-        guard let index = dashboards.firstIndex(where: { $0.id == selectedDashboardID }) else { return }
+        updateDashboard(id: selectedDashboardID, update)
+    }
+
+    private func updateDashboard(
+        id dashboardID: UUID,
+        _ update: (inout SavedDashboardConfiguration) -> Void
+    ) {
+        reconcileLocalDashboardState(previousDashboardOrder: dashboards.map(\.id))
+        guard let index = dashboards.firstIndex(where: { $0.id == dashboardID }) else { return }
         var updated = dashboards
         update(&updated[index])
         dashboards = updated
     }
 
     private func ensureSelectedDashboardExists() {
-        if dashboards.isEmpty { dashboards = [Self.defaultDashboard()] }
-        if !dashboards.contains(where: { $0.id == selectedDashboardID }) { selectedDashboardID = dashboards[0].id }
+        reconcileLocalDashboardState(previousDashboardOrder: dashboards.map(\.id))
+    }
+
+    private func reconcileLocalDashboardState(previousDashboardOrder: [UUID]) {
+        if dashboards.isEmpty {
+            dashboards = [Self.defaultDashboard()]
+        }
+
+        let availableIDs = Set(dashboards.map(\.id))
+        enabledDashboardIDs.formIntersection(availableIDs)
+        if enabledDashboardIDs.isEmpty {
+            let fallback = availableIDs.contains(selectedDashboardID)
+                ? selectedDashboardID
+                : nearestDashboardID(
+                    to: selectedDashboardID,
+                    previousDashboardOrder: previousDashboardOrder
+                ) ?? dashboards[0].id
+            enabledDashboardIDs = [fallback]
+        }
+
+        guard enabledDashboardIDs.contains(selectedDashboardID) else {
+            selectedDashboardID = nearestEnabledDashboardID(
+                to: selectedDashboardID,
+                previousDashboardOrder: previousDashboardOrder
+            ) ?? enabledDashboards[0].id
+            return
+        }
+    }
+
+    private func nearestEnabledDashboardID(
+        to unavailableID: UUID,
+        previousDashboardOrder: [UUID]
+    ) -> UUID? {
+        nearestID(
+            to: unavailableID,
+            candidates: enabledDashboardIDs,
+            previousDashboardOrder: previousDashboardOrder
+        )
+    }
+
+    private func nearestDashboardID(
+        to unavailableID: UUID,
+        previousDashboardOrder: [UUID]
+    ) -> UUID? {
+        nearestID(
+            to: unavailableID,
+            candidates: Set(dashboards.map(\.id)),
+            previousDashboardOrder: previousDashboardOrder
+        )
+    }
+
+    private func nearestID(
+        to unavailableID: UUID,
+        candidates: Set<UUID>,
+        previousDashboardOrder: [UUID]
+    ) -> UUID? {
+        guard !candidates.isEmpty else { return nil }
+        guard let unavailableIndex = previousDashboardOrder.firstIndex(of: unavailableID) else {
+            return dashboards.first(where: { candidates.contains($0.id) })?.id
+        }
+
+        if unavailableIndex > previousDashboardOrder.startIndex {
+            for index in previousDashboardOrder.indices.reversed() where index < unavailableIndex {
+                let candidate = previousDashboardOrder[index]
+                if candidates.contains(candidate) { return candidate }
+            }
+        }
+        for index in previousDashboardOrder.indices where index > unavailableIndex {
+            let candidate = previousDashboardOrder[index]
+            if candidates.contains(candidate) { return candidate }
+        }
+        return dashboards.first(where: { candidates.contains($0.id) })?.id
     }
 
     private func normalizedHeaderTitle(_ title: String) -> String {
@@ -1246,6 +1539,7 @@ final class DashboardConfiguration {
 
     private static let legacyDocumentKey = "homestead.dashboard.configuration.v3"
     private static let legacySelectedDashboardIDKey = "homestead.dashboard.selectedDashboardID.v3"
+    private static let legacyEnabledDashboardIDsKey = "homestead.dashboard.enabledDashboardIDs.v1"
 
     private static func documentKey(profileID: UUID?) -> String {
         guard let profileID else { return legacyDocumentKey }
@@ -1257,12 +1551,31 @@ final class DashboardConfiguration {
         return "\(legacySelectedDashboardIDKey).\(profileID.uuidString.lowercased())"
     }
 
+    private static func enabledDashboardIDsKey(profileID: UUID?) -> String {
+        guard let profileID else { return legacyEnabledDashboardIDsKey }
+        return "\(legacyEnabledDashboardIDsKey).\(profileID.uuidString.lowercased())"
+    }
+
     private static func backupDocumentKey(for documentKey: String) -> String { "\(documentKey).backup" }
     private static func rejectedDocumentKey(for documentKey: String) -> String { "\(documentKey).rejected" }
 
     private static func loadSelectedDashboardID(from defaults: UserDefaults, key: String, dashboards: [SavedDashboardConfiguration]) -> UUID {
         if let value = defaults.string(forKey: key), let id = UUID(uuidString: value), dashboards.contains(where: { $0.id == id }) { return id }
         return dashboards[0].id
+    }
+
+    private static func loadEnabledDashboardIDs(
+        from defaults: UserDefaults,
+        key: String,
+        dashboards: [SavedDashboardConfiguration],
+        selectedDashboardID: UUID
+    ) -> Set<UUID> {
+        guard let values = defaults.stringArray(forKey: key) else {
+            return [selectedDashboardID]
+        }
+        let availableIDs = Set(dashboards.map(\.id))
+        let storedIDs = Set(values.compactMap(UUID.init(uuidString:))).intersection(availableIDs)
+        return storedIDs.isEmpty ? [selectedDashboardID] : storedIDs
     }
 
     private static func normalizedDashboards(_ dashboards: [SavedDashboardConfiguration]) -> [SavedDashboardConfiguration] {

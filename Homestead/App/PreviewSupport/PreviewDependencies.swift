@@ -19,6 +19,43 @@ struct PreviewDependencies {
         makeSample()
     }
 
+    static func dashboardSample(
+        pageCount: Int,
+        disablesLastDashboard: Bool = false
+    ) -> PreviewDependencies {
+        let dependencies = makeSample()
+        guard pageCount > 1 else { return dependencies }
+
+        let climateDashboardID = dependencies.dashboardConfiguration.createDashboard(named: "Climate")
+        dependencies.dashboardConfiguration.setDashboardDisplayTitle(
+            id: climateDashboardID,
+            title: "Climate"
+        )
+        _ = dependencies.dashboardConfiguration.add(
+            source: .entity("climate.downstairs"),
+            presentation: .card(.control(layout: .wide)),
+            to: climateDashboardID
+        )
+        _ = dependencies.dashboardConfiguration.add(
+            source: .entity("sensor.hallway_temperature"),
+            presentation: .card(.chart(layout: .wide)),
+            to: climateDashboardID
+        )
+
+        if pageCount > 2 {
+            let emptyDashboardID = dependencies.dashboardConfiguration.createDashboard(named: "Quiet Room")
+            dependencies.dashboardConfiguration.setDashboardDisplayTitle(
+                id: emptyDashboardID,
+                title: "Quiet Room"
+            )
+            if disablesLastDashboard {
+                _ = dependencies.dashboardConfiguration.setDashboardEnabled(false, id: emptyDashboardID)
+            }
+        }
+
+        return dependencies
+    }
+
     static func settingsSample(_ scenario: PreviewSettingsScenario) -> PreviewDependencies {
         let isDegraded = scenario == .degraded
         let base = makeSample(
@@ -904,6 +941,7 @@ private extension UserDefaults {
         defaults.removeObject(forKey: "homestead.dashboard.selectedDashboardID.v2")
         defaults.removeObject(forKey: "homestead.dashboard.configuration.v3")
         defaults.removeObject(forKey: "homestead.dashboard.selectedDashboardID.v3")
+        defaults.removeObject(forKey: "homestead.dashboard.enabledDashboardIDs.v1")
         return defaults
     }
 

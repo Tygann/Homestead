@@ -1,11 +1,21 @@
 import SwiftUI
 import UIKit
 
+nonisolated enum SettingsDashboardPhonePreviewMetrics {
+    static let aspectRatio: CGFloat = 0.49
+
+    static func size(forWidth width: CGFloat) -> CGSize {
+        let resolvedWidth = max(0, width)
+        return CGSize(width: resolvedWidth, height: resolvedWidth / aspectRatio)
+    }
+}
+
 struct SettingsDashboardPhonePreview: View {
     private static let viewportWidth: CGFloat = 178
-    private static let viewportHeight: CGFloat = viewportWidth / 0.49
+    private static let viewportHeight: CGFloat = viewportWidth / SettingsDashboardPhonePreviewMetrics.aspectRatio
     private static let contentPadding: CGFloat = 11
 
+    let width: CGFloat
     let items: [DashboardItemConfiguration]
     let dashboardTitle: String?
     let wallpaperURL: URL?
@@ -15,12 +25,14 @@ struct SettingsDashboardPhonePreview: View {
     @State private var previewImage: UIImage?
 
     init(
+        width: CGFloat = 178,
         items: [DashboardItemConfiguration],
         dashboardTitle: String? = nil,
         wallpaperURL: URL? = nil,
         wallpaperRevision: Int = 0,
         accessibilityLabel: String = "Dashboard Preview"
     ) {
+        self.width = width
         self.items = items
         self.dashboardTitle = dashboardTitle
         self.wallpaperURL = wallpaperURL
@@ -29,23 +41,19 @@ struct SettingsDashboardPhonePreview: View {
     }
 
     var body: some View {
-        Color.clear
-        .aspectRatio(0.49, contentMode: .fit)
-        .overlay {
-            GeometryReader { proxy in
-                let scale = proxy.size.width / Self.viewportWidth
+        let size = SettingsDashboardPhonePreviewMetrics.size(forWidth: width)
+        let scale = size.width / Self.viewportWidth
 
-                previewCanvas
-                    .frame(width: Self.viewportWidth, height: Self.viewportHeight)
-                    .scaleEffect(scale, anchor: .topLeading)
-                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+        previewCanvas
+            .frame(width: Self.viewportWidth, height: Self.viewportHeight)
+            .scaleEffect(scale, anchor: .topLeading)
+            .frame(width: size.width, height: size.height, alignment: .topLeading)
+            .clipped()
+            .shadow(color: .black.opacity(0.08), radius: 14, y: 8)
+            .accessibilityLabel(accessibilityLabel)
+            .task(id: previewTaskID) {
+                loadPreviewImage()
             }
-        }
-        .shadow(color: .black.opacity(0.08), radius: 14, y: 8)
-        .accessibilityLabel(accessibilityLabel)
-        .task(id: previewTaskID) {
-            loadPreviewImage()
-        }
     }
 
     private var previewCanvas: some View {

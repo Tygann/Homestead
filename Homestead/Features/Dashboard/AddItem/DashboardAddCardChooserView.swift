@@ -4,6 +4,7 @@ struct DashboardChooseCardView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
+    let dashboardID: UUID
     let source: DashboardAddSource
     let add: (DashboardAddSource, DashboardPresentationConfiguration) -> Void
 
@@ -32,6 +33,7 @@ struct DashboardChooseCardView: View {
             let descriptor = DashboardPresentationCatalog.descriptor(for: kind)
             let isRecommended = recommendation?.kind == kind
             let presentationCount = dashboardConfiguration.presentationCount(
+                dashboardID: dashboardID,
                 source: source.reference,
                 presentation: presentation
             )

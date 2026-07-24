@@ -447,6 +447,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         let reference = DashboardItemReference(dashboardID: sourceDashboardID, itemID: cardID)
 
         let selectedDashboardID = configuration.createDashboard(named: "Other")
+        XCTAssertTrue(configuration.selectDashboard(id: selectedDashboardID))
         XCTAssertEqual(configuration.selectedDashboardID, selectedDashboardID)
         XCTAssertTrue(configuration.items.isEmpty)
 
@@ -482,7 +483,8 @@ final class DashboardConfigurationXCTests: XCTestCase {
             ]
         )
 
-        _ = configuration.createDashboard(named: "Other")
+        let otherDashboardID = configuration.createDashboard(named: "Other")
+        XCTAssertTrue(configuration.selectDashboard(id: otherDashboardID))
         XCTAssertTrue(configuration.applyCardUpdate(
             DashboardCardUpdate(
                 entityID: "sensor.bedroom_temperature",
@@ -584,7 +586,8 @@ final class DashboardConfigurationXCTests: XCTestCase {
             ]
         )
 
-        _ = configuration.createDashboard(named: "Other")
+        let otherDashboardID = configuration.createDashboard(named: "Other")
+        XCTAssertTrue(configuration.selectDashboard(id: otherDashboardID))
         XCTAssertTrue(configuration.setGaugeZoneConfiguration(zones, for: reference))
 
         let store = HAStateStore()
@@ -985,7 +988,8 @@ final class DashboardConfigurationXCTests: XCTestCase {
         let configuration = DashboardConfiguration(defaults: defaults)
         let firstID = configuration.selectedDashboardID
         let secondID = configuration.createDashboard(named: "iPad")
-        XCTAssertEqual(configuration.selectedDashboardID, secondID)
+        XCTAssertEqual(configuration.selectedDashboardID, firstID)
+        XCTAssertTrue(configuration.selectDashboard(id: secondID))
 
         configuration.applySyncSnapshot(DashboardConfigurationSyncSnapshot(dashboards: [
             SavedDashboardConfiguration(
@@ -1006,6 +1010,184 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(configuration.selectedDashboardID, secondID)
         XCTAssertEqual(configuration.selectedDashboard.resolvedName, "Tablet")
         XCTAssertEqual(configuration.items.first?.entityID, "light.tablet")
+    }
+
+    func testLegacyVisibilityDefaultsToPreviouslySelectedDashboardOnly() throws {
+        let defaults = makeDefaults()
+        let first = makeDashboard(items: [])
+        let second = makeDashboard(items: [])
+        let third = makeDashboard(items: [])
+        defaults.set(
+            try JSONEncoder().encode(DashboardConfigurationDocument(dashboards: [first, second, third])),
+            forKey: "homestead.dashboard.configuration.v3"
+        )
+        defaults.set(second.id.uuidString, forKey: "homestead.dashboard.selectedDashboardID.v3")
+
+        let configuration = DashboardConfiguration(defaults: defaults)
+
+        XCTAssertEqual(configuration.selectedDashboardID, second.id)
+        XCTAssertEqual(configuration.enabledDashboardIDs, [second.id])
+        XCTAssertEqual(configuration.enabledDashboards.map(\.id), [second.id])
+    }
+
+    func testEnabledDashboardsAreLocalAndExcludedFromSyncSnapshot() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let firstID = configuration.selectedDashboardID
+        let secondID = configuration.createDashboard(named: "Second")
+
+        XCTAssertEqual(configuration.enabledDashboardIDs, [firstID, secondID])
+
+        let encoded = try JSONEncoder().encode(configuration.syncSnapshot)
+        let json = try XCTUnwrap(String(data: encoded, encoding: .utf8))
+        XCTAssertFalse(json.contains("enabledDashboard"))
+        XCTAssertFalse(json.contains("selectedDashboard"))
+    }
+
+    func testAtLeastOneDashboardAlwaysRemainsEnabled() {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let onlyID = configuration.selectedDashboardID
+
+        XCTAssertFalse(configuration.setDashboardEnabled(false, id: onlyID))
+        XCTAssertEqual(configuration.enabledDashboardIDs, [onlyID])
+
+        let secondID = configuration.createDashboard(named: "Second")
+        XCTAssertTrue(configuration.setDashboardEnabled(false, id: secondID))
+        XCTAssertFalse(configuration.setDashboardEnabled(false, id: onlyID))
+        XCTAssertEqual(configuration.enabledDashboardIDs, [onlyID])
+    }
+
+    func testSettledSelectionAndDisablingSelectedDashboardPreferPrecedingEnabledPage() {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let firstID = configuration.selectedDashboardID
+        let secondID = configuration.createDashboard(named: "Second")
+        let thirdID = configuration.createDashboard(named: "Third")
+
+        XCTAssertTrue(configuration.selectDashboard(id: secondID))
+        XCTAssertEqual(configuration.selectedDashboardID, secondID)
+        XCTAssertTrue(configuration.setDashboardEnabled(false, id: secondID))
+        XCTAssertEqual(configuration.selectedDashboardID, firstID)
+        XCTAssertEqual(configuration.enabledDashboards.map(\.id), [firstID, thirdID])
+    }
+
+    func testDeletingSelectedDashboardPrefersPrecedingEnabledPage() {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let firstID = configuration.selectedDashboardID
+        let secondID = configuration.createDashboard(named: "Second")
+        let thirdID = configuration.createDashboard(named: "Third")
+        XCTAssertTrue(configuration.selectDashboard(id: secondID))
+
+        configuration.deleteDashboard(id: secondID)
+
+        XCTAssertEqual(configuration.selectedDashboardID, firstID)
+        XCTAssertEqual(configuration.enabledDashboards.map(\.id), [firstID, thirdID])
+    }
+
+    func testCreationAndDuplicationEnableNewDashboardWithoutChangingCurrentPage() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let selectedID = configuration.selectedDashboardID
+        _ = configuration.add(source: .entity("light.kitchen"), presentation: .chip)
+
+        let createdID = configuration.createDashboard(named: "Created")
+        let duplicateID = configuration.duplicateDashboard(id: selectedID, named: "Duplicate")
+
+        XCTAssertEqual(configuration.selectedDashboardID, selectedID)
+        XCTAssertTrue(configuration.enabledDashboardIDs.contains(createdID))
+        XCTAssertTrue(configuration.enabledDashboardIDs.contains(duplicateID))
+        XCTAssertEqual(
+            try XCTUnwrap(configuration.dashboard(id: duplicateID)).items.first?.entityID,
+            "light.kitchen"
+        )
+    }
+
+    func testReorderingChangesEnabledPageOrderWithoutChangingSelection() {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let firstID = configuration.selectedDashboardID
+        let secondID = configuration.createDashboard(named: "Second")
+        let thirdID = configuration.createDashboard(named: "Third")
+        XCTAssertTrue(configuration.selectDashboard(id: secondID))
+
+        configuration.moveDashboards(from: IndexSet(integer: 2), to: 0)
+
+        XCTAssertEqual(configuration.enabledDashboards.map(\.id), [thirdID, firstID, secondID])
+        XCTAssertEqual(configuration.selectedDashboardID, secondID)
+    }
+
+    func testSyncReconciliationPreservesValidLocalVisibilityAndRemovesMissingIDs() {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let firstID = configuration.selectedDashboardID
+        let secondID = configuration.createDashboard(named: "Second")
+        let thirdID = configuration.createDashboard(named: "Third")
+        XCTAssertTrue(configuration.setDashboardEnabled(false, id: firstID))
+        XCTAssertTrue(configuration.selectDashboard(id: secondID))
+        let replacementID = UUID()
+
+        XCTAssertTrue(configuration.applySyncSnapshot(DashboardConfigurationSyncSnapshot(dashboards: [
+            SavedDashboardConfiguration(id: secondID, name: "Second Synced", items: []),
+            SavedDashboardConfiguration(id: replacementID, name: "Replacement", items: [])
+        ])))
+
+        XCTAssertEqual(configuration.enabledDashboardIDs, [secondID])
+        XCTAssertEqual(configuration.selectedDashboardID, secondID)
+        XCTAssertFalse(configuration.enabledDashboardIDs.contains(thirdID))
+    }
+
+    func testProfileSwitchingIsolatesEnabledPagesAndSelection() {
+        let defaults = makeDefaults()
+        let firstProfileID = UUID()
+        let secondProfileID = UUID()
+        let configuration = DashboardConfiguration(defaults: defaults, profileID: firstProfileID)
+        let firstSelectedID = configuration.selectedDashboardID
+        let firstAdditionalID = configuration.createDashboard(named: "First Additional")
+
+        configuration.activateProfile(secondProfileID)
+        let secondSelectedID = configuration.selectedDashboardID
+        XCTAssertNotEqual(secondSelectedID, firstSelectedID)
+        XCTAssertEqual(configuration.enabledDashboardIDs, [secondSelectedID])
+        _ = configuration.createDashboard(named: "Second Additional")
+
+        configuration.activateProfile(firstProfileID)
+        XCTAssertEqual(configuration.selectedDashboardID, firstSelectedID)
+        XCTAssertEqual(configuration.enabledDashboardIDs, [firstSelectedID, firstAdditionalID])
+    }
+
+    func testDashboardActionsRemainScopedToExplicitDashboardID() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let firstID = configuration.selectedDashboardID
+        let secondID = configuration.createDashboard(named: "Second")
+        let addedID = try XCTUnwrap(configuration.add(
+            source: .entity("light.second"),
+            presentation: .card(.control(layout: .square)),
+            to: secondID
+        ))
+        _ = configuration.addHeader(title: "Second Header", to: secondID)
+
+        XCTAssertTrue(configuration.items(for: firstID).isEmpty)
+        XCTAssertEqual(configuration.items(for: secondID).count, 2)
+
+        configuration.renameHeader(
+            DashboardItemReference(
+                dashboardID: secondID,
+                itemID: try XCTUnwrap(configuration.items(for: secondID).last?.id)
+            ),
+            title: "Renamed"
+        )
+        XCTAssertTrue(configuration.removeItem(
+            for: DashboardItemReference(dashboardID: secondID, itemID: addedID)
+        ))
+        XCTAssertTrue(configuration.items(for: firstID).isEmpty)
+        XCTAssertEqual(configuration.items(for: secondID).first?.resolvedTitle, "Renamed")
+    }
+
+    func testPhonePreviewMetricsPreserveAspectRatioAtRepresentativeWidths() {
+        for width: CGFloat in [140, 162, 178, 240, 320] {
+            let size = SettingsDashboardPhonePreviewMetrics.size(forWidth: width)
+            XCTAssertEqual(size.width, width, accuracy: 0.001)
+            XCTAssertEqual(
+                size.width / size.height,
+                SettingsDashboardPhonePreviewMetrics.aspectRatio,
+                accuracy: 0.001
+            )
+        }
     }
 
     func testCatalogRejectsIncompatibleEntityPresentationDuringReconciliation() throws {

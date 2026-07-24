@@ -1,12 +1,161 @@
 import SwiftUI
+import UIKit
 
 struct DashboardView: View {
+    @Environment(HAStateStore.self) private var stateStore
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var editingDashboardID: UUID?
+
+    var body: some View {
+        let enabledDashboards = dashboardConfiguration.enabledDashboards
+
+        TabView(selection: selectedDashboardBinding) {
+            ForEach(enabledDashboards) { dashboard in
+                DashboardPageView(
+                    dashboardID: dashboard.id,
+                    isEditingDashboard: Binding(
+                        get: { editingDashboardID == dashboard.id },
+                        set: { isEditing in
+                            editingDashboardID = isEditing ? dashboard.id : nil
+                        }
+                    )
+                )
+                .tag(dashboard.id)
+                .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
+                .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .homesteadWallpaperBackground()
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if enabledDashboards.count > 1 {
+                DashboardPageIndicator(
+                    dashboards: enabledDashboards,
+                    selectedDashboardID: dashboardConfiguration.selectedDashboardID,
+                    selectDashboard: selectDashboard
+                )
+                .padding(.vertical, AppSpacing.xSmall)
+            }
+        }
+        .onChange(of: dashboardConfiguration.selectedDashboardID) { oldID, newID in
+            guard oldID != newID,
+                  let dashboard = dashboardConfiguration.dashboard(id: newID) else {
+                return
+            }
+            UIAccessibility.post(
+                notification: .pageScrolled,
+                argument: "\(dashboard.resolvedDisplayTitle), \(pageAccessibilityValue(for: newID))"
+            )
+        }
+        .onAppear {
+            reconcileDashboardConfigurationIfReady()
+        }
+        .onChange(of: stateStore.entityCatalogSignature) { _, _ in
+            reconcileDashboardConfigurationIfReady()
+        }
+        .onChange(of: stateStore.hasLoadedInitialSnapshot) { _, _ in
+            reconcileDashboardConfigurationIfReady()
+        }
+        .onChange(of: stateStore.hasEntities) { _, _ in
+            reconcileDashboardConfigurationIfReady()
+        }
+    }
+
+    private var selectedDashboardBinding: Binding<UUID> {
+        Binding(
+            get: { dashboardConfiguration.selectedDashboardID },
+            set: { dashboardID in
+                guard editingDashboardID == nil else { return }
+                dashboardConfiguration.selectDashboard(id: dashboardID)
+            }
+        )
+    }
+
+    private func selectDashboard(_ dashboardID: UUID) {
+        guard editingDashboardID == nil else { return }
+        var transaction = Transaction()
+        transaction.animation = reduceMotion ? nil : .snappy(duration: 0.28)
+        _ = withTransaction(transaction) {
+            dashboardConfiguration.selectDashboard(id: dashboardID)
+        }
+    }
+
+    private func pageAccessibilityValue(for dashboardID: UUID) -> String {
+        let ids = dashboardConfiguration.enabledDashboards.map(\.id)
+        guard let index = ids.firstIndex(of: dashboardID) else { return "" }
+        return "Page \(index + 1) of \(ids.count)"
+    }
+
+    private func reconcileDashboardConfigurationIfReady() {
+        guard stateStore.hasEntities else { return }
+        dashboardConfiguration.reconcile(with: stateStore.allEntityBoxes())
+    }
+}
+
+private struct DashboardPageIndicator: View {
+    let dashboards: [SavedDashboardConfiguration]
+    let selectedDashboardID: UUID
+    let selectDashboard: (UUID) -> Void
+
+    var body: some View {
+        HStack(spacing: 7) {
+            ForEach(dashboards) { dashboard in
+                Button {
+                    selectDashboard(dashboard.id)
+                } label: {
+                    Circle()
+                        .fill(
+                            dashboard.id == selectedDashboardID
+                                ? Color.primary
+                                : Color.secondary.opacity(0.42)
+                        )
+                        .frame(width: 6, height: 6)
+                        .frame(width: 18, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Show \(dashboard.resolvedDisplayTitle)")
+                .accessibilityValue(dashboard.id == selectedDashboardID ? "Current page" : "")
+            }
+        }
+        .padding(.horizontal, AppSpacing.medium)
+        .frame(minHeight: 20)
+        .background(.thinMaterial, in: Capsule())
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Dashboard pages")
+        .accessibilityValue(accessibilityValue)
+        .accessibilityAdjustableAction { direction in
+            guard let selectedIndex = dashboards.firstIndex(where: { $0.id == selectedDashboardID }) else {
+                return
+            }
+            switch direction {
+            case .increment where selectedIndex < dashboards.count - 1:
+                selectDashboard(dashboards[selectedIndex + 1].id)
+            case .decrement where selectedIndex > 0:
+                selectDashboard(dashboards[selectedIndex - 1].id)
+            default:
+                break
+            }
+        }
+    }
+
+    private var accessibilityValue: String {
+        guard let index = dashboards.firstIndex(where: { $0.id == selectedDashboardID }) else {
+            return ""
+        }
+        return "\(dashboards[index].resolvedDisplayTitle), page \(index + 1) of \(dashboards.count)"
+    }
+}
+
+private struct DashboardPageView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isEditingDashboard = false
+    let dashboardID: UUID
+    @Binding var isEditingDashboard: Bool
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var iconPickerContext: DashboardIconPickerContext?
     @State private var cardEditorReference: DashboardItemReference?
@@ -16,7 +165,6 @@ struct DashboardView: View {
     @State private var headerTitleDraft = ""
     @State private var displayTitleDraft = ""
     @State private var cameraRefreshGeneration = 0
-    @State private var dashboardReconciliationGeneration = 0
     @State private var highlightedDashboardItemID: UUID?
     @State private var pendingScrollDashboardItemID: UUID?
     @State private var isConfirmingSuggestedSetup = false
@@ -28,7 +176,6 @@ struct DashboardView: View {
     @Namespace private var summaryTransitionNamespace
     
     var body: some View {
-        let _ = dashboardReconciliationGeneration
         let visibleItemsSnapshot = visibleDashboardItems
 
         ScrollViewReader { scrollProxy in
@@ -52,7 +199,7 @@ struct DashboardView: View {
                         EmptyDashboardCard()
                     } else if visibleItemsSnapshot.isEmpty {
                         DashboardEmptyStateView(
-                            suggestedSetupActionTitle: dashboardConfiguration.setupState == .notChosen
+                            suggestedSetupActionTitle: dashboardConfiguration.setupState(for: dashboardID) == .notChosen
                                 ? "Use Suggested Setup"
                                 : "Restore Suggested Setup",
                             addToDashboard: {
@@ -73,8 +220,10 @@ struct DashboardView: View {
                 await homeAssistantService.refreshStates()
                 cameraRefreshGeneration += 1
             }
-            .homesteadWallpaperBackground()
-            .navigationTitle(dashboardConfiguration.selectedDashboard.resolvedDisplayTitle)
+            .navigationTitle(
+                dashboardConfiguration.dashboard(id: dashboardID)?.resolvedDisplayTitle
+                    ?? "Dashboard"
+            )
             //        .navigationSubtitle(connectionSettings.baseURL)
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
@@ -85,7 +234,7 @@ struct DashboardView: View {
                         }
                     }
                 } else {
-                    if dashboardConfiguration.setupState != .notChosen {
+                    if dashboardConfiguration.setupState(for: dashboardID) != .notChosen {
                         ToolbarItem(placement: .topBarTrailing) {
                             optionsMenu
                         }
@@ -99,7 +248,11 @@ struct DashboardView: View {
                 }
             }
             .sheet(item: $addSheetMode) { mode in
-                DashboardAddItemView(initialMode: mode, onAddItem: dashboardItemWasAdded)
+                DashboardAddItemView(
+                    dashboardID: dashboardID,
+                    initialMode: mode,
+                    onAddItem: dashboardItemWasAdded
+                )
             }
             .sheet(item: $iconPickerContext) { context in
                 DashboardIconPickerView(
@@ -107,7 +260,10 @@ struct DashboardView: View {
                     selectedSystemName: context.selectedSystemName,
                     recommendation: context.recommendation,
                     onSelectionChange: { iconName in
-                        dashboardConfiguration.setIconNameOverride(iconName, forItemID: context.id)
+                        dashboardConfiguration.setIconNameOverride(
+                            iconName,
+                            for: DashboardItemReference(dashboardID: dashboardID, itemID: context.id)
+                        )
                     }
                 )
             }
@@ -161,18 +317,6 @@ struct DashboardView: View {
             } message: {
                 Text("This replaces the cards currently saved to this dashboard.")
             }
-            .onAppear {
-                reconcileDashboardConfigurationIfReady()
-            }
-            .onChange(of: stateStore.entityCatalogSignature) { _, _ in
-                reconcileDashboardConfigurationIfReady()
-            }
-            .onChange(of: stateStore.hasLoadedInitialSnapshot) { _, _ in
-                reconcileDashboardConfigurationIfReady()
-            }
-            .onChange(of: stateStore.hasEntities) { _, _ in
-                reconcileDashboardConfigurationIfReady()
-            }
             .onChange(of: isEditingDashboard) { _, isEditing in
                 if !isEditing {
                     endDashboardGridDrag()
@@ -200,7 +344,10 @@ struct DashboardView: View {
     
     private var visibleDashboardItems: [DashboardItemConfiguration] {
         return dashboardConfiguration
-            .visibleItems(fromAvailableEntityIDs: stateStore.availableEntityIDs)
+            .visibleItems(
+                dashboardID: dashboardID,
+                fromAvailableEntityIDs: stateStore.availableEntityIDs
+            )
             .compactMap { item in
                 guard item.role == .card, let entityID = item.entityID else {
                     return item
@@ -234,17 +381,8 @@ struct DashboardView: View {
         chipDragState.previewItemIDs ?? visibleDashboardChipItemIDs
     }
 
-    private func reconcileDashboardConfigurationIfReady() {
-        guard stateStore.hasEntities else {
-            return
-        }
-        
-        dashboardConfiguration.reconcile(with: stateStore.allEntityBoxes())
-        dashboardReconciliationGeneration &+= 1
-    }
-
     private func requestSuggestedSetup() {
-        if dashboardConfiguration.items.isEmpty {
+        if dashboardConfiguration.items(for: dashboardID).isEmpty {
             applySuggestedSetup()
         } else {
             isConfirmingSuggestedSetup = true
@@ -253,7 +391,8 @@ struct DashboardView: View {
 
     private func applySuggestedSetup() {
         let applied = dashboardConfiguration.applySuggestedSetup(
-            using: stateStore.dashboardSuggestionCandidates()
+            using: stateStore.dashboardSuggestionCandidates(),
+            to: dashboardID
         )
         if !applied {
             addSheetMode = .items
@@ -286,7 +425,7 @@ struct DashboardView: View {
 
     private func addHeaderAndRename() {
         let title = "New Section"
-        let itemID = dashboardConfiguration.addHeader(title: title)
+        let itemID = dashboardConfiguration.addHeader(title: title, to: dashboardID)
         dashboardItemWasAdded(itemID)
         headerTitleDraft = title
         renamingHeaderID = itemID
@@ -319,7 +458,9 @@ struct DashboardView: View {
     }
 
     private func dashboardScrollID(for itemID: UUID) -> String {
-        switch dashboardConfiguration.itemRole(for: itemID) {
+        switch dashboardConfiguration.itemRole(
+            for: DashboardItemReference(dashboardID: dashboardID, itemID: itemID)
+        ) {
         case .heading:
             "header-\(itemID)"
         case .card:
@@ -344,7 +485,10 @@ struct DashboardView: View {
             return
         }
 
-        dashboardConfiguration.renameHeader(id: renamingHeaderID, title: headerTitleDraft)
+        dashboardConfiguration.renameHeader(
+            DashboardItemReference(dashboardID: dashboardID, itemID: renamingHeaderID),
+            title: headerTitleDraft
+        )
         self.renamingHeaderID = nil
         headerTitleDraft = ""
     }
@@ -355,7 +499,7 @@ struct DashboardView: View {
         }
 
         dashboardConfiguration.renameDisplayItem(
-            id: renamingDisplayItemID,
+            DashboardItemReference(dashboardID: dashboardID, itemID: renamingDisplayItemID),
             displayNameOverride: displayTitleDraft
         )
         self.renamingDisplayItemID = nil
@@ -367,7 +511,10 @@ struct DashboardView: View {
             return
         }
 
-        dashboardConfiguration.renameDisplayItem(id: renamingDisplayItemID, displayNameOverride: nil)
+        dashboardConfiguration.renameDisplayItem(
+            DashboardItemReference(dashboardID: dashboardID, itemID: renamingDisplayItemID),
+            displayNameOverride: nil
+        )
         self.renamingDisplayItemID = nil
         displayTitleDraft = ""
     }
@@ -548,7 +695,7 @@ struct DashboardView: View {
                     entityID: item.entityID,
                     surfaceContext: .home,
                     dashboardItemReference: DashboardItemReference(
-                        dashboardID: dashboardConfiguration.selectedDashboardID,
+                        dashboardID: dashboardID,
                         itemID: item.id
                     ),
                     transitionSourceID: cardTransitionID(for: item)
@@ -789,7 +936,7 @@ struct DashboardView: View {
             gridDragState.activeTranslation = dropTranslation
             gridDragState.phase = .dropping
             dashboardConfiguration.moveVisibleGridItem(
-                id: itemID,
+                DashboardItemReference(dashboardID: dashboardID, itemID: itemID),
                 before: targetItemID,
                 visibleGridItemIDs: visibleItemIDs
             )
@@ -957,7 +1104,7 @@ struct DashboardView: View {
             chipDragState.activeTranslation = dropTranslation
             chipDragState.phase = .dropping
             dashboardConfiguration.moveVisibleChipItem(
-                id: itemID,
+                DashboardItemReference(dashboardID: dashboardID, itemID: itemID),
                 before: targetItemID,
                 visibleChipItemIDs: visibleItemIDs
             )
@@ -1091,7 +1238,9 @@ struct DashboardView: View {
         Divider()
 
         Button(role: .destructive) {
-            dashboardConfiguration.removeItem(id: item.id)
+            dashboardConfiguration.removeItem(
+                for: DashboardItemReference(dashboardID: dashboardID, itemID: item.id)
+            )
         } label: {
             Label("Remove Header", systemImage: "minus.circle")
         }
@@ -1101,7 +1250,7 @@ struct DashboardView: View {
     private func cardEditMenuContent(for item: DashboardCardItem) -> some View {
         Button {
             cardEditorReference = DashboardItemReference(
-                dashboardID: dashboardConfiguration.selectedDashboardID,
+                dashboardID: dashboardID,
                 itemID: item.id
             )
         } label: {
@@ -1111,7 +1260,9 @@ struct DashboardView: View {
         Divider()
 
         Button(role: .destructive) {
-            dashboardConfiguration.removeItem(id: item.id)
+            dashboardConfiguration.removeItem(
+                for: DashboardItemReference(dashboardID: dashboardID, itemID: item.id)
+            )
         } label: {
             Label("Remove Card", systemImage: "minus.circle")
         }
@@ -1134,7 +1285,9 @@ struct DashboardView: View {
         Divider()
 
         Button(role: .destructive) {
-            dashboardConfiguration.removeItem(id: item.id)
+            dashboardConfiguration.removeItem(
+                for: DashboardItemReference(dashboardID: dashboardID, itemID: item.id)
+            )
         } label: {
             Label("Remove Chip", systemImage: "minus.circle")
         }

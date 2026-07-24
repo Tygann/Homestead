@@ -80,14 +80,13 @@ struct AppearanceSettingsView: View {
 
             VStack(spacing: AppSpacing.medium) {
                 SettingsDashboardPhonePreview(
+                    width: 162,
                     items: dashboardConfiguration.selectedDashboard.items,
                     dashboardTitle: dashboardConfiguration.selectedDashboard.resolvedDisplayTitle,
                     wallpaperURL: appearanceSettings.storedWallpaperURL,
                     wallpaperRevision: appearanceSettings.wallpaperRevision,
                     accessibilityLabel: "Wallpaper Preview"
                 )
-                .frame(width: 162)
-
                 wallpaperPicker
 
                 if appearanceSettings.hasWallpaper {

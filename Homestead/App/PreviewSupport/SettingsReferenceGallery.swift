@@ -1,5 +1,6 @@
 #if DEBUG
 import SwiftUI
+import UIKit
 
 struct SettingsReferenceGallery: View {
     var body: some View {
@@ -9,6 +10,48 @@ struct SettingsReferenceGallery: View {
                     NavigationLink("Root Settings") {
                         SettingsView()
                             .withPreviewEnvironment(.settingsSample(.healthy))
+                    }
+                }
+
+                Section("Dashboard Paging") {
+                    NavigationLink("One Home Page") {
+                        DashboardView()
+                            .withPreviewEnvironment(.dashboardSample(pageCount: 1))
+                    }
+
+                    NavigationLink("Several Home Pages") {
+                        DashboardView()
+                            .withPreviewEnvironment(.dashboardSample(pageCount: 3))
+                    }
+
+                    NavigationLink("Several Pages with Wallpaper") {
+                        DashboardWallpaperPreviewHost()
+                            .withPreviewEnvironment(.dashboardSample(pageCount: 3))
+                    }
+
+                    NavigationLink("Visibility and Reordering") {
+                        DashboardSettingsView()
+                            .withPreviewEnvironment(
+                                .dashboardSample(pageCount: 3, disablesLastDashboard: true)
+                            )
+                    }
+
+                    NavigationLink("Appearance Phone Preview") {
+                        AppearanceSettingsPreviewHost()
+                            .withPreviewEnvironment(.dashboardSample(pageCount: 3))
+                    }
+
+                    NavigationLink("Dashboard Detail Phone Preview") {
+                        DashboardDetailPreviewReference()
+                            .withPreviewEnvironment(.dashboardSample(pageCount: 3))
+                    }
+
+                    NavigationLink("Accessibility Dynamic Type") {
+                        DashboardSettingsView()
+                            .environment(\.dynamicTypeSize, .accessibility3)
+                            .withPreviewEnvironment(
+                                .dashboardSample(pageCount: 3, disablesLastDashboard: true)
+                            )
                     }
                 }
 
@@ -70,6 +113,70 @@ struct SettingsReferenceGallery: View {
                 }
             }
             .navigationTitle("Settings Reference")
+        }
+    }
+}
+
+struct AppearanceSettingsPreviewHost: View {
+    @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
+
+    var body: some View {
+        AppearanceSettingsView()
+            .task {
+                guard !appearanceSettings.hasWallpaper else { return }
+                try? await appearanceSettings.importWallpaper(from: SamplePreviewWallpaper.data)
+                appearanceSettings.isWallpaperEnabled = false
+            }
+    }
+}
+
+private struct DashboardWallpaperPreviewHost: View {
+    @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
+
+    var body: some View {
+        DashboardView()
+            .task {
+                guard !appearanceSettings.hasWallpaper else {
+                    appearanceSettings.isWallpaperEnabled = true
+                    return
+                }
+                try? await appearanceSettings.importWallpaper(from: SamplePreviewWallpaper.data)
+            }
+    }
+}
+
+private enum SamplePreviewWallpaper {
+    static var data: Data {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 900, height: 1_600))
+        return renderer.jpegData(withCompressionQuality: 0.9) { context in
+            let colors = [
+                UIColor.systemIndigo.cgColor,
+                UIColor.systemPink.cgColor,
+                UIColor.systemOrange.cgColor
+            ] as CFArray
+            let gradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: colors,
+                locations: [0, 0.52, 1]
+            )
+            context.cgContext.drawLinearGradient(
+                gradient!,
+                start: .zero,
+                end: CGPoint(x: 900, y: 1_600),
+                options: []
+            )
+        }
+    }
+}
+
+private struct DashboardDetailPreviewReference: View {
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+
+    var body: some View {
+        if let dashboard = dashboardConfiguration.dashboards.first {
+            DashboardDetailSettingsView(
+                dashboard: dashboard
+            )
         }
     }
 }

@@ -15,9 +15,6 @@ struct DashboardSettingsView: View {
                     DashboardSettingsRow(
                         dashboard: dashboard,
                         isSelected: isSelected(dashboard),
-                        useOnThisDevice: {
-                            dashboardConfiguration.selectDashboard(id: dashboard.id)
-                        },
                         rename: {
                             beginRenaming(dashboard)
                         },
@@ -41,7 +38,11 @@ struct DashboardSettingsView: View {
                     dashboardConfiguration.moveDashboards(from: source, to: destination)
                 }
             } footer: {
-                Text("Dashboards sync with iCloud. This device keeps its own current dashboard.")
+                Text(
+                    "Dashboard pages and their order sync with iCloud. "
+                    + "Which pages appear on this device stays local. "
+                    + "At least one dashboard must remain visible."
+                )
             }
         }
         .environment(\.editMode, $editMode)
@@ -191,11 +192,7 @@ struct DashboardSettingsView: View {
     private func dashboardDetail(for dashboardID: UUID) -> some View {
         if let dashboard = dashboardConfiguration.dashboards.first(where: { $0.id == dashboardID }) {
             DashboardDetailSettingsView(
-                dashboard: dashboard,
-                isSelected: dashboard.id == dashboardConfiguration.selectedDashboardID,
-                useOnThisDevice: {
-                    dashboardConfiguration.selectDashboard(id: dashboard.id)
-                }
+                dashboard: dashboard
             )
         } else {
             ContentUnavailableView("Dashboard Unavailable", systemImage: "rectangle.dashed")
@@ -206,10 +203,10 @@ struct DashboardSettingsView: View {
 
 private struct DashboardSettingsRow<Detail: View>: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
     let dashboard: SavedDashboardConfiguration
     let isSelected: Bool
-    let useOnThisDevice: () -> Void
     let rename: () -> Void
     let duplicate: () -> Void
     let reorder: () -> Void
@@ -220,18 +217,23 @@ private struct DashboardSettingsRow<Detail: View>: View {
 
     var body: some View {
         if isReordering {
-            DashboardSettingsRowLabel(
-                name: dashboard.resolvedName,
-                isSelected: isSelected
-            )
+            rowContent
         } else {
-            NavigationLink(destination: detail) {
-                DashboardSettingsRowLabel(
-                    name: dashboard.resolvedName,
-                    isSelected: isSelected
-                )
+            ZStack(alignment: .trailing) {
+                NavigationLink(destination: detail) {
+                    DashboardSettingsRowLabel(
+                        name: dashboard.resolvedName,
+                        isSelected: isSelected
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.trailing, 64)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens dashboard settings")
+
+                dashboardToggle
+                    .zIndex(1)
             }
-            .accessibilityHint("Opens dashboard settings")
             .contextMenu {
                 dashboardActions
                     .preferredColorScheme(colorScheme)
@@ -242,28 +244,48 @@ private struct DashboardSettingsRow<Detail: View>: View {
                 }
                 .accessibilityLabel("Delete")
             }
-            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                if !isSelected {
-                    Button(action: useOnThisDevice) {
-                        Image(systemName: "checkmark.circle")
-                    }
-                    .tint(.accentColor)
-                    .accessibilityLabel("Use on This Device")
-                }
-            }
         }
+    }
+
+    private var rowContent: some View {
+        HStack(spacing: AppSpacing.medium) {
+            DashboardSettingsRowLabel(
+                name: dashboard.resolvedName,
+                isSelected: isSelected
+            )
+
+            Spacer(minLength: AppSpacing.medium)
+            dashboardToggle
+        }
+    }
+
+    private var dashboardToggle: some View {
+        Toggle(
+            "Show \(dashboard.resolvedName) on Home",
+            isOn: Binding(
+                get: { dashboardConfiguration.enabledDashboardIDs.contains(dashboard.id) },
+                set: { isEnabled in
+                    dashboardConfiguration.setDashboardEnabled(isEnabled, id: dashboard.id)
+                }
+            )
+        )
+        .labelsHidden()
+        .buttonStyle(.borderless)
+        .disabled(isEnabled && !dashboardConfiguration.canDisableDashboard(id: dashboard.id))
+        .accessibilityLabel("Show \(dashboard.resolvedName) on Home")
+        .accessibilityHint(
+            isEnabled && !dashboardConfiguration.canDisableDashboard(id: dashboard.id)
+                ? "At least one dashboard must remain visible"
+                : "Controls whether this dashboard appears as a Home page"
+        )
+    }
+
+    private var isEnabled: Bool {
+        dashboardConfiguration.enabledDashboardIDs.contains(dashboard.id)
     }
 
     @ViewBuilder
     private var dashboardActions: some View {
-        if !isSelected {
-            Section {
-                Button(action: useOnThisDevice) {
-                    Label("Use on This Device", systemImage: "checkmark.circle")
-                }
-            }
-        }
-
         Section {
             Button(action: rename) {
                 Label("Rename", systemImage: "pencil")
@@ -309,13 +331,11 @@ private struct DashboardSettingsRowLabel: View {
     }
 }
 
-private struct DashboardDetailSettingsView: View {
+struct DashboardDetailSettingsView: View {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
     let dashboard: SavedDashboardConfiguration
-    let isSelected: Bool
-    let useOnThisDevice: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var namingAction: DashboardDetailNamingAction?
@@ -328,13 +348,13 @@ private struct DashboardDetailSettingsView: View {
         List {
             Section {
                 SettingsDashboardPhonePreview(
+                    width: 178,
                     items: dashboard.items,
                     dashboardTitle: dashboard.resolvedDisplayTitle,
                     wallpaperURL: appearanceSettings.activeWallpaperURL,
                     wallpaperRevision: appearanceSettings.wallpaperRevision,
                     accessibilityLabel: "\(dashboard.resolvedName) Preview"
                 )
-                    .frame(width: 178)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, AppSpacing.large)
                     .listRowBackground(Color.clear)
@@ -372,22 +392,29 @@ private struct DashboardDetailSettingsView: View {
                 }
 
                 if isSelected {
-                    LabeledContent("This Device", value: "Using")
+                    LabeledContent("Current Home Page", value: "Visible")
                 }
+
+                Toggle(
+                    "Show on Home",
+                    isOn: Binding(
+                        get: { isEnabled },
+                        set: { isEnabled in
+                            dashboardConfiguration.setDashboardEnabled(isEnabled, id: dashboard.id)
+                        }
+                    )
+                )
+                .disabled(isEnabled && !dashboardConfiguration.canDisableDashboard(id: dashboard.id))
+                .accessibilityLabel("Show \(dashboard.resolvedName) on Home")
+                .accessibilityHint(
+                    isEnabled && !dashboardConfiguration.canDisableDashboard(id: dashboard.id)
+                        ? "At least one dashboard must remain visible"
+                        : "Controls whether this dashboard appears as a Home page"
+                )
             }
 
             Section {
                 VStack {
-                    if !isSelected {
-                        Button(action: useOnThisDevice) {
-                            Text("Use on This Device")
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                    }
-
                     Button {
                         beginDuplicating()
                     } label: {
@@ -456,6 +483,14 @@ private struct DashboardDetailSettingsView: View {
 
     private var cardCountText: String {
         cardCount.formatted()
+    }
+
+    private var isSelected: Bool {
+        dashboard.id == dashboardConfiguration.selectedDashboardID
+    }
+
+    private var isEnabled: Bool {
+        dashboardConfiguration.enabledDashboardIDs.contains(dashboard.id)
     }
 
     private var cardCount: Int {

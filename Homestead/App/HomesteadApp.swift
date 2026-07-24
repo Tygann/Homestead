@@ -206,7 +206,7 @@ struct HomesteadApp: App {
         switch previewScreen {
         case .appearance:
             NavigationStack {
-                AppearanceSettingsView()
+                AppearanceSettingsPreviewHost()
             }
         case .dashboardChangeEntity:
             DashboardChangeEntityPreviewScreen()

@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-24
 
+### Local Dashboard Pages And Shared Preview Sizing
+
+- Added profile-scoped device-local enabled dashboard IDs alongside the existing local selected dashboard ID, while keeping saved definitions and order in the schema-v6 iCloud snapshot and preserving the legacy selected-only default.
+- Added native horizontally paged Home dashboards with dashboard-ID-scoped rendering and mutations, settled selection persistence, local page dots, independent page state, and edit-mode page-change rejection.
+- Reworked Settings dashboard rows around native visibility toggles, protected the final enabled page, retained native detail navigation and reordering, and documented the synced-definition versus local-visibility split.
+- Repaired the shared Appearance/dashboard-detail phone miniature with an explicit aspect-ratio size contract so scaled wallpaper and dashboard content stays clipped inside the phone while following controls lay out below it.
+- Added focused XCTest coverage for legacy defaults, local/profile persistence, iCloud exclusion, enable/disable/fallback policies, create/duplicate/delete/reorder/sync behavior, explicit action scoping, and preview sizing, plus deterministic paging/settings/preview fixtures.
+
 ### Entity Controls, Frontend Handoff, And Dashboard Parity
 
 - Added a centralized Home Assistant frontend destination resolver that uses the active routed server address, opens ordinary entities in more-info, sends supported configuration-oriented entities to edit/settings destinations, and presents the result from each entity detail's unobtrusive options menu in an in-app Safari controller with a graceful unsupported-route failure.
