@@ -116,6 +116,40 @@ enum DashboardEntityIconAccentBehavior: Equatable, Sendable {
     case defaultAccent
 }
 
+enum DashboardCardIconPresentation: Equatable, Sendable {
+    case icon(ResolvedIcon)
+    case personProfilePicture(path: String, fallbackIcon: ResolvedIcon)
+
+    static func resolve(
+        iconOverride: String?,
+        personProfilePicturePath: String?,
+        fallbackIcon: ResolvedIcon
+    ) -> DashboardCardIconPresentation {
+        let normalizedOverride = iconOverride?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if normalizedOverride?.isEmpty == false {
+            return .icon(
+                IconResolver.applyingDashboardOverride(
+                    normalizedOverride,
+                    to: fallbackIcon
+                )
+            )
+        }
+
+        let normalizedPicturePath = personProfilePicturePath?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let normalizedPicturePath, !normalizedPicturePath.isEmpty {
+            return .personProfilePicture(
+                path: normalizedPicturePath,
+                fallbackIcon: fallbackIcon
+            )
+        }
+
+        return .icon(fallbackIcon)
+    }
+}
+
 struct DashboardEntityDomainCapability: Equatable, Sendable {
     let domain: EntityDomain
     let cardStyle: DashboardEntityCardStyle
@@ -397,6 +431,7 @@ struct DashboardEntityPresentation {
     let subtitle: String
     let headline: String?
     let icon: ResolvedIcon
+    let iconPresentation: DashboardCardIconPresentation
     let isActive: Bool
     let isAvailable: Bool
     let accentColor: Color
@@ -418,10 +453,18 @@ struct DashboardEntityPresentation {
         let resolvedIconNameOverride = iconNameOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
         let overrideIconName = resolvedIconNameOverride?.isEmpty == false ? resolvedIconNameOverride : nil
         self.sharedFeaturePresentation = sharedFeaturePresentation
-        icon = IconResolver.applyingDashboardOverride(
-            overrideIconName,
-            to: sharedFeaturePresentation?.icon ?? entityBox.homeEntity.resolvedIcon
+        let fallbackIcon = sharedFeaturePresentation?.icon ?? entityBox.homeEntity.resolvedIcon
+        iconPresentation = DashboardCardIconPresentation.resolve(
+            iconOverride: overrideIconName,
+            personProfilePicturePath: entityBox.domain == .person
+                ? entityBox.presenceRecord?.entityPicturePath
+                : nil,
+            fallbackIcon: fallbackIcon
         )
+        switch iconPresentation {
+        case .icon(let resolvedIcon), .personProfilePicture(_, let resolvedIcon):
+            icon = resolvedIcon
+        }
         let pendingCommand = entityBox.pendingCommand
         let capability = DashboardEntityDomainRegistry.capability(for: entityBox.domain)
         self.capability = capability

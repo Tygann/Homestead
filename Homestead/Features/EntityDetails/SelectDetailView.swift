@@ -2,8 +2,8 @@ import SwiftUI
 
 struct SelectDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
-    @Environment(HAStateStore.self) private var stateStore
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var confirmationRequest: ActionConfirmationRequest?
 
     let entityBox: HAEntityState
@@ -21,6 +21,13 @@ struct SelectDetailView: View {
         entityBox.selectEntity?.options ?? []
     }
 
+    private var optionPresentation: EntityOptionSelectionPresentation {
+        EntityOptionSelectionPresentation(
+            options: options,
+            selectedValue: entityBox.pendingCommand?.expectedState ?? entity.state
+        )
+    }
+
     private var serviceDomain: String {
         HomeAssistantService.selectServiceDomain(for: entity.entityID)
     }
@@ -33,7 +40,7 @@ struct SelectDetailView: View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
 
-            if !options.isEmpty {
+            if dynamicTypeSize.isAccessibilitySize && !options.isEmpty {
                 optionPanel
             }
 
@@ -44,49 +51,75 @@ struct SelectDetailView: View {
     }
 
     private var header: some View {
-        EntityDetailHeroCard(
-            icon: presentation.icon,
-            title: "Select",
-            subtitle: EntityDetailHeroSubtitle.updated(entity),
-            status: nil,
-            iconColor: entity.isAvailable ? .accentColor : .secondary,
-            statusColor: entity.isAvailable ? .accentColor : .red,
-            iconBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
-            statusBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12),
-            statePresentation: detailState
-        ) {
-            Text(entity.state.displayStateText)
-                .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                .foregroundStyle(entity.isAvailable ? Color.accentColor : Color.secondary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.6)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize || options.isEmpty {
+                EntityDetailHeroCard(
+                    icon: presentation.icon,
+                    title: "Select",
+                    subtitle: EntityDetailHeroSubtitle.updated(
+                        entity,
+                        summary: optionPresentation.selectedDisplayValue
+                    ),
+                    status: nil,
+                    iconColor: entity.isAvailable ? .accentColor : .secondary,
+                    statusColor: entity.isAvailable ? .accentColor : .red,
+                    iconBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
+                    statusBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12),
+                    statePresentation: detailState
+                ) {
+                    EmptyView()
+                }
+            } else {
+                EntityDetailHeroCard(
+                    icon: presentation.icon,
+                    title: "Select",
+                    subtitle: EntityDetailHeroSubtitle.updated(entity),
+                    status: nil,
+                    iconColor: entity.isAvailable ? .accentColor : .secondary,
+                    statusColor: entity.isAvailable ? .accentColor : .red,
+                    iconBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color(.tertiarySystemGroupedBackground),
+                    statusBackground: entity.isAvailable ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12),
+                    statePresentation: detailState,
+                    accessory: {
+                        optionMenu(style: .heroAccessory)
+                    },
+                    content: {
+                        EmptyView()
+                    }
+                )
+            }
         }
     }
 
     private var optionPanel: some View {
         EntityControlPanel(title: "Controls", systemImage: "filemenu.and.selection") {
-            EntityDetailMenuRow(
-                title: "Current",
-                systemImage: "checkmark.circle",
-                value: entity.state.displayStateText,
-                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: serviceDomain, service: "select_option")
-            ) {
-                ForEach(options, id: \.self) { option in
-                    Button {
-                        confirmOrPerform(domain: serviceDomain, service: "select_option") {
-                            Task { await homeAssistantService.selectOption(entityID: entity.entityID, option: option) }
-                        }
-                    } label: {
-                        if option == entity.state {
-                            Label(option.displayStateText, systemImage: "checkmark")
-                        } else {
-                            Text(option.displayStateText)
-                        }
-                    }
-                    .disabled(option == entity.state)
+            optionMenu(style: .controlRow)
+        }
+    }
+
+    private func optionMenu(style: EntityOptionMenuStyle) -> some View {
+        EntityOptionMenu(
+            presentation: optionPresentation,
+            style: style,
+            isDisabled: isControlDisabled
+        ) { option in
+            confirmOrPerform(domain: serviceDomain, service: "select_option") {
+                Task {
+                    await homeAssistantService.selectOption(
+                        entityID: entity.entityID,
+                        option: option
+                    )
                 }
             }
         }
+    }
+
+    private var isControlDisabled: Bool {
+        detailState.blocksControlInteraction
+            || !homeAssistantService.serviceActionAvailable(
+                domain: serviceDomain,
+                service: "select_option"
+            )
     }
 
     private var contextDetails: some View {

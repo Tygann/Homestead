@@ -138,6 +138,10 @@ final class HAStateStore {
         entityRegistryByID[entityID]
     }
 
+    func entityRegistryUniqueID(for entityID: String) -> String? {
+        organizationByEntityID[entityID]?.uniqueID
+    }
+
     func deviceRegistryMetadata(for deviceID: String) -> HADeviceRegistryDTO? {
         deviceRegistryByID[deviceID]
     }
@@ -936,6 +940,10 @@ final class HAStateStore {
                     numberEntity: EntityMapper.numberEntity(from: dto),
                     textEntity: EntityMapper.textEntity(from: dto),
                     temporalEntity: EntityMapper.temporalEntity(from: dto),
+                    presenceRecord: EntityMapper.presenceRecord(
+                        from: dto,
+                        resolvedIcon: homeEntity.resolvedIcon
+                    ),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
                 updatedEntityBoxesByID[dto.entityID] = entityBox
@@ -954,6 +962,10 @@ final class HAStateStore {
                     numberEntity: EntityMapper.numberEntity(from: dto),
                     textEntity: EntityMapper.textEntity(from: dto),
                     temporalEntity: EntityMapper.temporalEntity(from: dto),
+                    presenceRecord: EntityMapper.presenceRecord(
+                        from: dto,
+                        resolvedIcon: homeEntity.resolvedIcon
+                    ),
                     pendingCommand: pendingCommandsByID[dto.entityID]
                 )
             }
@@ -1018,6 +1030,10 @@ final class HAStateStore {
             numberEntity: numberEntitiesByID[dto.entityID],
             textEntity: EntityMapper.textEntity(from: dto),
             temporalEntity: EntityMapper.temporalEntity(from: dto),
+            presenceRecord: EntityMapper.presenceRecord(
+                from: dto,
+                resolvedIcon: homeEntity.resolvedIcon
+            ),
             pendingCommand: pendingCommandsByID[dto.entityID]
         )
 
@@ -1181,6 +1197,7 @@ final class HAStateStore {
         numberEntity: NumberEntity?,
         textEntity: TextEntity?,
         temporalEntity: TemporalEntity?,
+        presenceRecord: HAPresenceRecord?,
         pendingCommand: HAEntityPendingCommand?
     ) {
         if let entityBox = entityBoxesByID[entityID] {
@@ -1198,6 +1215,7 @@ final class HAStateStore {
                 numberEntity: numberEntity,
                 textEntity: textEntity,
                 temporalEntity: temporalEntity,
+                presenceRecord: presenceRecord,
                 pendingCommand: pendingCommand
             )
         } else {
@@ -1215,6 +1233,7 @@ final class HAStateStore {
                 numberEntity: numberEntity,
                 textEntity: textEntity,
                 temporalEntity: temporalEntity,
+                presenceRecord: presenceRecord,
                 pendingCommand: pendingCommand
             )
         }
@@ -1694,6 +1713,7 @@ final class HAEntityState: Identifiable {
     var numberEntity: NumberEntity?
     var textEntity: TextEntity?
     var temporalEntity: TemporalEntity?
+    var presenceRecord: HAPresenceRecord?
     var pendingCommand: HAEntityPendingCommand?
     private(set) var weatherForecastsByType: [WeatherForecastType: WeatherForecastSnapshot] = [:]
     private(set) var loadingWeatherForecastTypes: Set<WeatherForecastType> = []
@@ -1717,6 +1737,7 @@ final class HAEntityState: Identifiable {
         numberEntity: NumberEntity? = nil,
         textEntity: TextEntity? = nil,
         temporalEntity: TemporalEntity? = nil,
+        presenceRecord: HAPresenceRecord? = nil,
         pendingCommand: HAEntityPendingCommand? = nil
     ) {
         self.homeEntity = homeEntity
@@ -1732,6 +1753,7 @@ final class HAEntityState: Identifiable {
         self.numberEntity = numberEntity
         self.textEntity = textEntity
         self.temporalEntity = temporalEntity
+        self.presenceRecord = presenceRecord
         self.pendingCommand = pendingCommand
     }
 
@@ -1749,6 +1771,7 @@ final class HAEntityState: Identifiable {
         numberEntity: NumberEntity?,
         textEntity: TextEntity?,
         temporalEntity: TemporalEntity?,
+        presenceRecord: HAPresenceRecord?,
         pendingCommand: HAEntityPendingCommand?
     ) {
         self.homeEntity = homeEntity
@@ -1764,6 +1787,7 @@ final class HAEntityState: Identifiable {
         self.numberEntity = numberEntity
         self.textEntity = textEntity
         self.temporalEntity = temporalEntity
+        self.presenceRecord = presenceRecord
         self.pendingCommand = pendingCommand
     }
 

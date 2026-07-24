@@ -128,9 +128,11 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     case history
     case positional
     case environmental
+    case environmentalSingle
     case information
     case presence
     case editableNumber
+    case editableSelect
     case editableText
     case editableTemporal
 
@@ -143,10 +145,12 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .metric: "Metric"
         case .history: "Chart"
         case .positional: "Position"
-        case .environmental: "Climate"
+        case .environmental: "Climate Range"
+        case .environmentalSingle: "Climate Heat"
         case .information: "Weather"
         case .presence: "Presence"
         case .editableNumber: "Number"
+        case .editableSelect: "Select"
         case .editableText: "Text"
         case .editableTemporal: "Date & Time"
         }
@@ -159,10 +163,11 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .metric: "gauge.with.dots.needle.50percent"
         case .history: "chart.xyaxis.line"
         case .positional: "blinds.horizontal.closed"
-        case .environmental: "thermometer.medium"
+        case .environmental, .environmentalSingle: "thermometer.medium"
         case .information: "cloud.sun.fill"
         case .presence: "person.crop.circle.fill"
         case .editableNumber: "slider.horizontal.3"
+        case .editableSelect: "filemenu.and.selection"
         case .editableText: "text.cursor"
         case .editableTemporal: "calendar.badge.clock"
         }
@@ -176,9 +181,11 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .history: "sensor.living_room_temperature"
         case .positional: "cover.primary_shades"
         case .environmental: "climate.downstairs"
+        case .environmentalSingle: "climate.upstairs"
         case .information: "weather.home"
         case .presence: "person.tyler"
         case .editableNumber: "input_number.target_humidity"
+        case .editableSelect: "select.house_mode"
         case .editableText: "input_text.guest_message"
         case .editableTemporal: "input_datetime.quiet_hours_start"
         }
@@ -219,9 +226,11 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .history: "73.4"
         case .positional: "open"
         case .environmental: "heat_cool"
+        case .environmentalSingle: "heat"
         case .information: "partlycloudy"
         case .presence: "home"
         case .editableNumber: "45"
+        case .editableSelect: "Home"
         case .editableText: "Welcome home"
         case .editableTemporal: "22:30:00"
         }
@@ -260,9 +269,8 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             [
                 "friendly_name": .string("Downstairs"),
                 "current_temperature": .number(68),
-                "temperature": .number(70),
                 "target_temp_low": .number(66),
-                "target_temp_high": .number(74),
+                "target_temp_high": .number(67),
                 "temperature_unit": .string("°F"),
                 "min_temp": .number(50),
                 "max_temp": .number(90),
@@ -272,6 +280,17 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
                 "fan_modes": .array([.string("auto"), .string("low"), .string("high")]),
                 "preset_mode": .string("home"),
                 "preset_modes": .array([.string("home"), .string("away"), .string("sleep")])
+            ]
+        case .environmentalSingle:
+            [
+                "friendly_name": .string("Upstairs"),
+                "current_temperature": .number(68),
+                "temperature": .number(70),
+                "temperature_unit": .string("°F"),
+                "min_temp": .number(50),
+                "max_temp": .number(90),
+                "target_temp_step": .number(1),
+                "hvac_modes": .array([.string("off"), .string("heat"), .string("cool")])
             ]
         case .information:
             [
@@ -289,6 +308,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             [
                 "friendly_name": .string("Tyler"),
                 "source": .string("device_tracker.tylers_iphone"),
+                "entity_picture": .string("/api/image/preview-person"),
                 "gps_accuracy": .number(20)
             ]
         case .editableNumber:
@@ -299,6 +319,15 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
                 "min": .number(30),
                 "max": .number(60),
                 "step": .number(1)
+            ]
+        case .editableSelect:
+            [
+                "friendly_name": .string("House Mode"),
+                "options": .array([
+                    .string("Home"),
+                    .string("Away"),
+                    .string("Morning Routine With A Deliberately Long Name")
+                ])
             ]
         case .editableText:
             [
@@ -334,7 +363,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .positional:
             state = isMaximum ? "open" : "closed"
             attributes["current_position"] = .number(isMaximum ? 100 : 0)
-        case .environmental:
+        case .environmental, .environmentalSingle:
             attributes["current_temperature"] = .number(isMaximum ? 90 : 50)
             attributes["temperature"] = .number(isMaximum ? 90 : 50)
             attributes["target_temp_low"] = .number(isMaximum ? 90 : 50)
@@ -345,6 +374,8 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             state = isMaximum ? "home" : "not_home"
         case .editableNumber:
             state = isMaximum ? "60" : "30"
+        case .editableSelect:
+            state = isMaximum ? "Morning Routine With A Deliberately Long Name" : "Home"
         case .editableText:
             state = isMaximum ? String(repeating: "W", count: 64) : ""
         case .editableTemporal:
@@ -555,6 +586,11 @@ private enum EntityDetailReferenceVariant: String, CaseIterable, Identifiable {
 #Preview("Long Content - Accessibility", traits: .fixedLayout(width: 430, height: 932)) {
     EntityDetailReferenceScene(family: .metric, variant: .longContent)
         .dynamicTypeSize(.accessibility5)
+}
+
+#Preview("Select - Accessibility", traits: .fixedLayout(width: 430, height: 932)) {
+    EntityDetailReferenceScene(family: .editableSelect, variant: .live)
+        .dynamicTypeSize(.accessibility3)
 }
 
 @MainActor

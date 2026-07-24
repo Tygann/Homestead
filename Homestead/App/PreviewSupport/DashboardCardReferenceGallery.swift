@@ -8,6 +8,35 @@ struct DashboardCardReferenceGallery: View {
     init() {
         var entityOverrides = [
             HAEntityDTO(
+                entityID: "climate.downstairs",
+                state: "heat_cool",
+                attributes: [
+                    "friendly_name": .string("Downstairs Thermostat"),
+                    "current_temperature": .number(68),
+                    "target_temp_low": .number(66),
+                    "target_temp_high": .number(67),
+                    "temperature_unit": .string("°F"),
+                    "min_temp": .number(50),
+                    "max_temp": .number(90),
+                    "target_temp_step": .number(1),
+                    "hvac_modes": .array([
+                        .string("off"),
+                        .string("heat"),
+                        .string("cool"),
+                        .string("heat_cool")
+                    ])
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "person.tyler",
+                state: "home",
+                attributes: [
+                    "friendly_name": .string("Tyler"),
+                    "entity_picture": .string("/api/image/preview-person"),
+                    "source": .string("device_tracker.tylers_iphone")
+                ]
+            ),
+            HAEntityDTO(
                 entityID: "sensor.chart_unavailable",
                 state: "unavailable",
                 attributes: [
@@ -43,9 +72,21 @@ struct DashboardCardReferenceGallery: View {
                 }
                 .padding(AppSpacing.large)
             }
-            .background(Color(.systemGroupedBackground))
+            .background {
+                if usesWallpaperReference {
+                    LinearGradient(
+                        colors: [.indigo.opacity(0.8), .purple.opacity(0.65), .orange.opacity(0.55)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .ignoresSafeArea()
+                } else {
+                    Color(.systemGroupedBackground)
+                }
+            }
             .navigationTitle("Dashboard Cards")
         }
+        .environment(\.homesteadWallpaperSurfaceActive, usesWallpaperReference)
         .withPreviewEnvironment(dependencies)
     }
 
@@ -55,6 +96,8 @@ struct DashboardCardReferenceGallery: View {
             unavailableSection
         } else if RuntimeEnvironment.dashboardCardReferenceState == "transient" {
             transientSection
+        } else if RuntimeEnvironment.dashboardCardReferenceState == "wallpaper" {
+            cardSection("Wallpaper", size: .large)
         } else if let requestedSize = RuntimeEnvironment.requestedPreviewCardSize {
             cardSection(requestedSize.displayName, size: requestedSize)
         } else {
@@ -96,6 +139,28 @@ struct DashboardCardReferenceGallery: View {
                     kind: .action,
                     size: size
                 )
+
+                if size == .large {
+                    referenceCard(
+                        title: "Large Thermostat",
+                        entityID: "climate.downstairs",
+                        kind: .control,
+                        size: size
+                    )
+                    referenceCard(
+                        title: "Person Profile Picture",
+                        entityID: "person.tyler",
+                        kind: .control,
+                        size: size
+                    )
+                    referenceCard(
+                        title: "Person Icon Override",
+                        entityID: "person.tyler",
+                        kind: .control,
+                        size: size,
+                        iconNameOverride: "star.fill"
+                    )
+                }
             }
         }
     }
@@ -230,18 +295,24 @@ struct DashboardCardReferenceGallery: View {
         title: String,
         entityID: String,
         kind: DashboardPresentationKind,
-        size: DashboardCardSize
+        size: DashboardCardSize,
+        iconNameOverride: String? = nil
     ) -> some View {
         if kind.supportedLayouts.contains(size) {
             DashboardCardView(
                 entityID: entityID,
                 size: size,
                 presentationKind: kind,
+                iconNameOverride: iconNameOverride,
                 isPreview: true
             )
             .accessibilityLabel(title)
             .cardGridSpan(size.layoutMetadata)
         }
+    }
+
+    private var usesWallpaperReference: Bool {
+        RuntimeEnvironment.dashboardCardReferenceState == "wallpaper"
     }
 
     private static func seedWeatherForecast(in store: HAStateStore) {

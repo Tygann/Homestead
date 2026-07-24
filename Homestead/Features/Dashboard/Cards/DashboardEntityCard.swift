@@ -347,9 +347,10 @@ struct DashboardEntityCard: View {
                     feature: feature,
                     isPending: isPending,
                     isActive: presentation.isActive,
-                    fillColor: iconColor,
+                    fillColor: featureFillColor,
                     trackColor: iconBackground,
                     gaugeStyle: .row,
+                    setpointControlStyle: .stepper,
                     isInteractionEnabled: isFeatureInteractionEnabled,
                     actions: featureActions
                 )
@@ -373,7 +374,7 @@ struct DashboardEntityCard: View {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 featureHeader
 
-                if size == .large {
+                if size == .large && !usesLargeThermostatControl(visibleFeatures) {
                     largeFeatureContext(visibleFeatures: visibleFeatures)
                 } else if !showsGauge {
                     Spacer(minLength: AppSpacing.xSmall)
@@ -385,15 +386,29 @@ struct DashboardEntityCard: View {
                             feature: feature,
                             isPending: isPending,
                             isActive: presentation.isActive,
-                            fillColor: iconColor,
+                            fillColor: featureFillColor,
                             trackColor: iconBackground,
                             gaugeStyle: .arc,
+                            setpointControlStyle: usesLargeThermostatControl(visibleFeatures) ? .thermostat : .stepper,
                             isInteractionEnabled: isFeatureInteractionEnabled,
                             actions: featureActions
                         )
                     }
                 }
             }
+        }
+    }
+
+    private func usesLargeThermostatControl(_ visibleFeatures: [DashboardCardFeature]) -> Bool {
+        guard size == .large, entityBox.climateEntity != nil else {
+            return false
+        }
+
+        return visibleFeatures.contains { feature in
+            if case .setpoint = feature.content {
+                return true
+            }
+            return false
         }
     }
 
@@ -625,11 +640,13 @@ struct DashboardEntityCard: View {
             .frame(width: 44, height: 44)
             .overlay(alignment: .topLeading) {
                 if toggle == nil {
-                    CardIconView(
-                        icon: presentation.icon,
+                    DashboardCardIconView(
+                        presentation: presentation.iconPresentation,
                         isActive: presentation.isActive,
                         isAvailable: presentation.isAvailable,
-                        accentColor: presentation.accentColor
+                        accentColor: presentation.accentColor,
+                        displaysProfilePicture: size != .mini,
+                        usesPreviewProfilePicture: isPreview
                     )
                 }
             }
@@ -669,11 +686,13 @@ struct DashboardEntityCard: View {
     }
 
     private var cardIconView: some View {
-        CardIconView(
-            icon: presentation.icon,
+        DashboardCardIconView(
+            presentation: presentation.iconPresentation,
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable,
-            accentColor: presentation.accentColor
+            accentColor: presentation.accentColor,
+            displaysProfilePicture: size != .mini,
+            usesPreviewProfilePicture: isPreview
         )
     }
 
@@ -700,6 +719,10 @@ struct DashboardEntityCard: View {
 
     private var iconColor: Color {
         presentation.isActive ? presentation.accentColor : Color.primary
+    }
+
+    private var featureFillColor: Color {
+        presentation.capability.domain == .climate ? presentation.accentColor : iconColor
     }
 
     private func gaugeStatusColor(for status: GaugePresentationStatus) -> Color {

@@ -1637,6 +1637,30 @@ final class HomeAssistantService {
         }
     }
 
+    func homeAssistantFrontendDestination(
+        settings: HAConnectionSettings,
+        entityID: String
+    ) async -> HomeAssistantFrontendEntityDestination? {
+        currentConnectionSettings = settings
+        await refreshCurrentWiFiSSIDIfNeeded(settings: settings)
+
+        let selection = routeSelection(for: settings)
+        let baseURLString = activeRouteSummary?.baseURLString
+            ?? selection.preferredCandidate?.baseURLString
+            ?? selection.authenticationBaseURLString
+        let rawEntity = stateStore.rawEntity(for: entityID)
+        let isPersonEditable = rawEntity?.attributes["editable"]?.boolValue
+            ?? (rawEntity?.attributes["editable"]?.stringValue?.lowercased() != "false")
+
+        return HomeAssistantFrontendEntityDestinationResolver.destination(
+            baseURLString: baseURLString,
+            entityID: entityID,
+            configurationID: rawEntity?.attributes["id"]?.stringValue,
+            registryUniqueID: stateStore.entityRegistryUniqueID(for: entityID),
+            isPersonEditable: isPersonEditable
+        )
+    }
+
     func toggleSwitch(entityID: String) async {
         await callToggleService(
             domain: "switch",

@@ -542,6 +542,95 @@ struct HomesteadTests {
         #expect(relativeURL.absoluteString == "https://example.com/ha/local/profile.jpg")
     }
 
+    @Test func homeAssistantFrontendDestinationUsesMoreInfoForOrdinaryEntities() throws {
+        let destination = try #require(
+            HomeAssistantFrontendEntityDestinationResolver.destination(
+                baseURLString: "https://example.com/ha",
+                entityID: "light.kitchen"
+            )
+        )
+        let components = try #require(
+            URLComponents(url: destination.url, resolvingAgainstBaseURL: false)
+        )
+        let queryItems = Dictionary(
+            uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value) }
+        )
+
+        #expect(destination.action == .open)
+        #expect(components.path == "/ha/lovelace")
+        #expect(queryItems["more-info-entity-id"] == "light.kitchen")
+        #expect(queryItems["more-info-view"] == nil)
+    }
+
+    @Test func homeAssistantFrontendDestinationUsesDomainSpecificEditRoutes() throws {
+        let automation = try #require(
+            HomeAssistantFrontendEntityDestinationResolver.destination(
+                baseURLString: "https://example.com",
+                entityID: "automation.arrive_home",
+                configurationID: "arrival-123"
+            )
+        )
+        let scene = try #require(
+            HomeAssistantFrontendEntityDestinationResolver.destination(
+                baseURLString: "https://example.com",
+                entityID: "scene.movie_night",
+                configurationID: "scene-456"
+            )
+        )
+        let script = try #require(
+            HomeAssistantFrontendEntityDestinationResolver.destination(
+                baseURLString: "https://example.com",
+                entityID: "script.goodnight",
+                registryUniqueID: "script-789"
+            )
+        )
+
+        #expect(automation.action == .edit)
+        #expect(automation.url.path == "/config/automation/edit/arrival-123")
+        #expect(scene.url.path == "/config/scene/edit/scene-456")
+        #expect(script.url.path == "/config/script/edit/script-789")
+    }
+
+    @Test func homeAssistantFrontendDestinationUsesSettingsForHelpersAndSafeFallbacks() throws {
+        let helper = try #require(
+            HomeAssistantFrontendEntityDestinationResolver.destination(
+                baseURLString: "https://example.com",
+                entityID: "input_select.house_mode"
+            )
+        )
+        let automationWithoutID = try #require(
+            HomeAssistantFrontendEntityDestinationResolver.destination(
+                baseURLString: "https://example.com",
+                entityID: "automation.arrive_home"
+            )
+        )
+        let helperQuery = Dictionary(
+            uniqueKeysWithValues: (
+                URLComponents(url: helper.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            )
+            .map { ($0.name, $0.value) }
+        )
+
+        #expect(helper.action == .edit)
+        #expect(helperQuery["more-info-entity-id"] == "input_select.house_mode")
+        #expect(helperQuery["more-info-view"] == "settings")
+        #expect(automationWithoutID.action == .edit)
+        #expect(automationWithoutID.url.path == "/lovelace")
+        #expect(
+            HomeAssistantFrontendEntityDestinationResolver.destination(
+                baseURLString: "https://example.com",
+                entityID: "not a safe entity"
+            ) == nil
+        )
+        #expect(
+            HomeAssistantFrontendEntityDestinationResolver.destination(
+                baseURLString: "https://example.com",
+                entityID: "automation.arrive_home",
+                configurationID: ".."
+            )?.url.path == "/lovelace"
+        )
+    }
+
     @Test func authAuthorizeURLUsesHomeAssistantOAuthShape() throws {
         let url = try HomeAssistantEndpointBuilder.authAuthorizeURL(
             from: "https://example.com/ha",
@@ -2528,6 +2617,7 @@ struct HomesteadTests {
         let organizationPayload = """
         [{
             "entity_id": "automation.arrival_lights",
+            "unique_id": "arrival-lights-123",
             "labels": ["important"],
             "categories": {"automation": "presence"}
         }]
@@ -2545,6 +2635,7 @@ struct HomesteadTests {
             from: Data(categoryPayload.utf8)
         ).map { $0.withScope(.automation) }
 
+        #expect(organization.first?.uniqueID == "arrival-lights-123")
         #expect(organization.first?.labels == ["important"])
         #expect(organization.first?.categories["automation"] == "presence")
         #expect(categories.first?.name == "Presence")
@@ -3303,6 +3394,34 @@ struct HomesteadTests {
         let clampedRange = adjustment.clampedRange(lowTemperature: 95, highTemperature: 80)
         #expect(clampedRange.lowTemperature == 90)
         #expect(clampedRange.highTemperature == 90)
+    }
+
+    @MainActor
+    @Test func climateSetpointAdjustmentPreservesAdjacentRangeAndOneStepConstraint() {
+        let adjustment = ClimateSetpointAdjustment(
+            minimumTemperature: 50,
+            maximumTemperature: 90,
+            step: 1
+        )
+
+        #expect(
+            adjustment.clampedRange(lowTemperature: 66, highTemperature: 67)
+                == ClimateSetpointRange(lowTemperature: 66, highTemperature: 67)
+        )
+        #expect(
+            adjustment.adjustedLowTemperature(
+                currentLowTemperature: 66,
+                currentHighTemperature: 67,
+                delta: 1
+            ) == ClimateSetpointRange(lowTemperature: 67, highTemperature: 67)
+        )
+        #expect(
+            adjustment.adjustedHighTemperature(
+                currentLowTemperature: 66,
+                currentHighTemperature: 67,
+                delta: -1
+            ) == ClimateSetpointRange(lowTemperature: 66, highTemperature: 66)
+        )
     }
 
     @Test func sensorFormattingHandlesUnitsAndUnavailableStates() {
@@ -9123,6 +9242,57 @@ struct HomesteadTests {
             for: temperatureBox,
             presentation: DashboardEntityPresentation(entityBox: temperatureBox)
         ).isEmpty)
+    }
+
+    @Test func entityOptionSelectionPresentationMarksCurrentOptionAndFormatsLabels() {
+        let presentation = EntityOptionSelectionPresentation(
+            options: ["morning_routine", "Home", "Away"],
+            selectedValue: "morning_routine"
+        )
+
+        #expect(presentation.selectedValue == "morning_routine")
+        #expect(presentation.selectedDisplayValue == "Morning Routine")
+        #expect(presentation.options.map(\.displayValue) == ["Morning Routine", "Home", "Away"])
+        #expect(presentation.options.map(\.isSelected) == [true, false, false])
+    }
+
+    @MainActor
+    @Test func dashboardPersonIconPresentationUsesExplicitOverrideThenPhotoThenFallback() {
+        let fallback = ResolvedIcon.sfSymbol(
+            "person.fill",
+            provenance: .homesteadSemanticMapping
+        )
+
+        let override = DashboardCardIconPresentation.resolve(
+            iconOverride: "star.fill",
+            personProfilePicturePath: "/api/image/person",
+            fallbackIcon: fallback
+        )
+        let photo = DashboardCardIconPresentation.resolve(
+            iconOverride: nil,
+            personProfilePicturePath: "/api/image/person",
+            fallbackIcon: fallback
+        )
+        let resolvedFallback = DashboardCardIconPresentation.resolve(
+            iconOverride: " ",
+            personProfilePicturePath: nil,
+            fallbackIcon: fallback
+        )
+
+        guard case .icon(let overrideIcon) = override else {
+            Issue.record("Expected explicit icon override")
+            return
+        }
+        #expect(overrideIcon.sfSymbolName == "star.fill")
+        #expect(overrideIcon.provenance == .dashboardOverride)
+
+        guard case .personProfilePicture(let path, let photoFallback) = photo else {
+            Issue.record("Expected automatic Person profile picture")
+            return
+        }
+        #expect(path == "/api/image/person")
+        #expect(photoFallback == fallback)
+        #expect(resolvedFallback == .icon(fallback))
     }
 
     @MainActor

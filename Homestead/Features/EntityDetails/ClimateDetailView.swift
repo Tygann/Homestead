@@ -735,9 +735,14 @@ private struct ClimateFloatingMenu<MenuContent: View>: View {
 
 // MARK: - Thermostat Instrument
 
-private enum ClimateThermostatInstrumentMode {
+enum ClimateThermostatInstrumentMode {
     case single(label: String, tint: Color)
     case range
+}
+
+enum ClimateThermostatInstrumentStyle {
+    case detail
+    case dashboardLarge
 }
 
 private enum ClimateThermostatHandle {
@@ -745,7 +750,7 @@ private enum ClimateThermostatHandle {
     case upper
 }
 
-private struct ClimateThermostatInstrument: View {
+struct ClimateThermostatInstrument: View {
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
 
     @Binding var lowerValue: Double
@@ -760,11 +765,10 @@ private struct ClimateThermostatInstrument: View {
     let formatValue: (Double) -> String
     let commitSingleValue: () -> Void
     let commitRange: () -> Void
+    var style: ClimateThermostatInstrumentStyle = .detail
 
     private let arcStartAngle = 150.0
     private let arcLength = 240.0
-    private let instrumentHeight: CGFloat = 230
-    private let precisionControlHeight: CGFloat = 48
 
     var body: some View {
         GeometryReader { proxy in
@@ -798,16 +802,16 @@ private struct ClimateThermostatInstrument: View {
             }
             .coordinateSpace(name: "climateThermostatArc")
         }
-        .frame(height: instrumentHeight)
+        .frame(height: metrics.instrumentHeight)
         .accessibilityElement(children: .contain)
         .opacity(isDisabled ? 0.55 : 1)
     }
 
     private var arcTrack: some View {
-        ClimateThermostatArc()
+        ClimateThermostatArc(metrics: metrics)
             .stroke(
                 Color.secondary.opacity(0.16),
-                style: StrokeStyle(lineWidth: 22, lineCap: .round)
+                style: StrokeStyle(lineWidth: metrics.arcLineWidth, lineCap: .round)
             )
             .accessibilityHidden(true)
     }
@@ -815,7 +819,11 @@ private struct ClimateThermostatInstrument: View {
     @ViewBuilder
     private var selectedArc: some View {
         if usesRange {
-            ClimateThermostatArc(startFraction: lowerFraction, endFraction: upperFraction)
+            ClimateThermostatArc(
+                startFraction: lowerFraction,
+                endFraction: upperFraction,
+                metrics: metrics
+            )
                 .stroke(
                     AngularGradient(
                         colors: [.blue, .orange],
@@ -823,14 +831,18 @@ private struct ClimateThermostatInstrument: View {
                         startAngle: .degrees(arcStartAngle + (arcLength * lowerFraction)),
                         endAngle: .degrees(arcStartAngle + (arcLength * upperFraction))
                     ),
-                    style: StrokeStyle(lineWidth: 22, lineCap: .round)
+                    style: StrokeStyle(lineWidth: metrics.arcLineWidth, lineCap: .round)
                 )
                 .accessibilityHidden(true)
         } else {
-            ClimateThermostatArc(startFraction: 0, endFraction: lowerFraction)
+            ClimateThermostatArc(
+                startFraction: 0,
+                endFraction: lowerFraction,
+                metrics: metrics
+            )
                 .stroke(
                     lowerTint,
-                    style: StrokeStyle(lineWidth: 22, lineCap: .round)
+                    style: StrokeStyle(lineWidth: metrics.arcLineWidth, lineCap: .round)
                 )
                 .accessibilityHidden(true)
         }
@@ -860,10 +872,24 @@ private struct ClimateThermostatInstrument: View {
                             selectedHandle = .upper
                         }
                 }
-                .font(.system(size: 36, weight: .semibold, design: .rounded).monospacedDigit())
+                .font(
+                    .system(
+                        size: metrics.rangeReadoutFontSize,
+                        weight: .semibold,
+                        design: .rounded
+                    )
+                    .monospacedDigit()
+                )
             } else {
                 Text(displayValue(lowerValue))
-                    .font(.system(size: 44, weight: .semibold, design: .rounded).monospacedDigit())
+                    .font(
+                        .system(
+                            size: metrics.singleReadoutFontSize,
+                            weight: .semibold,
+                            design: .rounded
+                        )
+                        .monospacedDigit()
+                    )
                     .foregroundStyle(lowerTint)
             }
         }
@@ -875,8 +901,14 @@ private struct ClimateThermostatInstrument: View {
     private func precisionControls(geometry: DialGeometry) -> some View {
         let leftEndpoint = point(for: 0, geometry: geometry)
         let rightEndpoint = point(for: 1, geometry: geometry)
-        let controlY = leftEndpoint.y + 32
-        let controlWidth = min(max(rightEndpoint.x - leftEndpoint.x - 32, 164), 176)
+        let controlY = leftEndpoint.y + metrics.precisionControlVerticalOffset
+        let controlWidth = min(
+            max(
+                rightEndpoint.x - leftEndpoint.x - metrics.precisionControlHorizontalInset,
+                metrics.minimumPrecisionControlWidth
+            ),
+            metrics.maximumPrecisionControlWidth
+        )
 
         return HStack(spacing: 0) {
             precisionButton(systemImage: "minus", direction: -1)
@@ -889,7 +921,7 @@ private struct ClimateThermostatInstrument: View {
 
             precisionButton(systemImage: "plus", direction: 1)
         }
-        .frame(width: controlWidth, height: precisionControlHeight)
+        .frame(width: controlWidth, height: metrics.precisionControlHeight)
         .background(
             HomesteadSurfaceStyle.controlBackground(
                 isWallpaperActive: isWallpaperSurfaceActive,
@@ -913,7 +945,7 @@ private struct ClimateThermostatInstrument: View {
         } label: {
             Image(systemName: systemImage)
                 .font(.body.weight(.semibold))
-                .frame(width: 52, height: 48)
+                .frame(width: 52, height: metrics.precisionControlHeight)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -936,24 +968,27 @@ private struct ClimateThermostatInstrument: View {
             ZStack {
                 Circle()
                     .fill(Color.white)
-                    .frame(width: 32, height: 32)
-                    .shadow(color: Color.black.opacity(0.18), radius: 5, y: 2)
+                    .frame(width: metrics.handleDiameter, height: metrics.handleDiameter)
+                    .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
 
                 Circle()
-                    .fill(tint)
-                    .frame(width: 20, height: 20)
+                    .stroke(tint.opacity(0.92), lineWidth: 1.5)
+                    .frame(width: metrics.handleDiameter, height: metrics.handleDiameter)
 
-                if isSelected {
+                if usesRange && isSelected {
                     Circle()
-                        .stroke(tint.opacity(0.55), lineWidth: 2)
-                        .frame(width: 38, height: 38)
+                        .fill(tint)
+                        .frame(
+                            width: metrics.selectedIndicatorDiameter,
+                            height: metrics.selectedIndicatorDiameter
+                        )
                 }
             }
-            .frame(width: 44, height: 44)
+            .frame(width: metrics.interactionDiameter, height: metrics.interactionDiameter)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .scaleEffect(isSelected ? 1 : 0.94)
+        .zIndex(isSelected ? 1 : 0)
         .position(point)
         .simultaneousGesture(
             DragGesture(minimumDistance: 4, coordinateSpace: .named("climateThermostatArc"))
@@ -1155,9 +1190,12 @@ private struct ClimateThermostatInstrument: View {
     }
 
     private func dialGeometry(in size: CGSize) -> DialGeometry {
-        let radius = min(max((size.width - 44) / 2, 1), 108)
+        let radius = min(
+            max((size.width - metrics.horizontalDialInset) / 2, 1),
+            metrics.maximumRadius
+        )
         return DialGeometry(
-            center: CGPoint(x: size.width / 2, y: radius + 12),
+            center: CGPoint(x: size.width / 2, y: radius + metrics.centerVerticalInset),
             radius: radius
         )
     }
@@ -1169,6 +1207,47 @@ private struct ClimateThermostatInstrument: View {
             y: geometry.center.y + (geometry.radius * sin(angle))
         )
     }
+
+    private var metrics: ClimateThermostatInstrumentMetrics {
+        switch style {
+        case .detail:
+            ClimateThermostatInstrumentMetrics(
+                instrumentHeight: 230,
+                maximumRadius: 108,
+                horizontalDialInset: 44,
+                centerVerticalInset: 12,
+                arcLineWidth: 22,
+                handleDiameter: 20,
+                selectedIndicatorDiameter: 6,
+                interactionDiameter: 48,
+                rangeReadoutFontSize: 36,
+                singleReadoutFontSize: 44,
+                precisionControlHeight: 48,
+                precisionControlVerticalOffset: 32,
+                precisionControlHorizontalInset: 32,
+                minimumPrecisionControlWidth: 164,
+                maximumPrecisionControlWidth: 176
+            )
+        case .dashboardLarge:
+            ClimateThermostatInstrumentMetrics(
+                instrumentHeight: 210,
+                maximumRadius: 92,
+                horizontalDialInset: 52,
+                centerVerticalInset: 8,
+                arcLineWidth: 20,
+                handleDiameter: 18,
+                selectedIndicatorDiameter: 5,
+                interactionDiameter: 48,
+                rangeReadoutFontSize: 31,
+                singleReadoutFontSize: 38,
+                precisionControlHeight: 44,
+                precisionControlVerticalOffset: 27,
+                precisionControlHorizontalInset: 28,
+                minimumPrecisionControlWidth: 152,
+                maximumPrecisionControlWidth: 168
+            )
+        }
+    }
 }
 
 private struct DialGeometry {
@@ -1179,10 +1258,14 @@ private struct DialGeometry {
 private struct ClimateThermostatArc: Shape {
     var startFraction = 0.0
     var endFraction = 1.0
+    let metrics: ClimateThermostatInstrumentMetrics
 
     func path(in rect: CGRect) -> Path {
-        let radius = min(max((rect.width - 44) / 2, 1), 108)
-        let center = CGPoint(x: rect.midX, y: radius + 12)
+        let radius = min(
+            max((rect.width - metrics.horizontalDialInset) / 2, 1),
+            metrics.maximumRadius
+        )
+        let center = CGPoint(x: rect.midX, y: radius + metrics.centerVerticalInset)
         let startAngle = 150 + (240 * startFraction)
         let endAngle = 150 + (240 * endFraction)
 
@@ -1196,6 +1279,24 @@ private struct ClimateThermostatArc: Shape {
         )
         return path
     }
+}
+
+private struct ClimateThermostatInstrumentMetrics {
+    let instrumentHeight: CGFloat
+    let maximumRadius: CGFloat
+    let horizontalDialInset: CGFloat
+    let centerVerticalInset: CGFloat
+    let arcLineWidth: CGFloat
+    let handleDiameter: CGFloat
+    let selectedIndicatorDiameter: CGFloat
+    let interactionDiameter: CGFloat
+    let rangeReadoutFontSize: CGFloat
+    let singleReadoutFontSize: CGFloat
+    let precisionControlHeight: CGFloat
+    let precisionControlVerticalOffset: CGFloat
+    let precisionControlHorizontalInset: CGFloat
+    let minimumPrecisionControlWidth: CGFloat
+    let maximumPrecisionControlWidth: CGFloat
 }
 
 // MARK: - Accessibility Setpoint Row

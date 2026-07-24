@@ -367,19 +367,23 @@ enum DashboardCardFeatureProvider {
         guard !select.options.isEmpty else { return [] }
 
         let selectedValue = entityBox.pendingCommand?.expectedState ?? select.state
+        let selection = EntityOptionSelectionPresentation(
+            options: select.options,
+            selectedValue: selectedValue
+        )
         return [
             DashboardCardFeature(
                 key: .selectOptions,
                 title: "Options",
                 content: .options(
                     DashboardCardOptionsFeature(
-                        selectedValue: selectedValue,
-                        selectedDisplayValue: selectedValue.displayStateText,
-                        options: select.options.map { option in
+                        selectedValue: selection.selectedValue,
+                        selectedDisplayValue: selection.selectedDisplayValue,
+                        options: selection.options.map { option in
                             DashboardCardOption(
-                                value: option,
-                                displayValue: option.displayStateText,
-                                isSelected: option == selectedValue
+                                value: option.value,
+                                displayValue: option.displayValue,
+                                isSelected: option.isSelected
                             )
                         }
                     )

@@ -9,6 +9,7 @@ nonisolated enum HAOrganizationScope: String, CaseIterable, Codable, Sendable {
 
 nonisolated struct HAEntityOrganizationDTO: Codable, Equatable, Identifiable, Sendable {
     let entityID: String
+    let uniqueID: String?
     let labels: [String]
     let categories: [String: String]
 
@@ -16,12 +17,19 @@ nonisolated struct HAEntityOrganizationDTO: Codable, Equatable, Identifiable, Se
 
     enum CodingKeys: String, CodingKey {
         case entityID = "entity_id"
+        case uniqueID = "unique_id"
         case labels
         case categories
     }
 
-    nonisolated init(entityID: String, labels: [String] = [], categories: [String: String] = [:]) {
+    nonisolated init(
+        entityID: String,
+        uniqueID: String? = nil,
+        labels: [String] = [],
+        categories: [String: String] = [:]
+    ) {
         self.entityID = entityID
+        self.uniqueID = uniqueID
         self.labels = labels
         self.categories = categories
     }
@@ -29,6 +37,7 @@ nonisolated struct HAEntityOrganizationDTO: Codable, Equatable, Identifiable, Se
     nonisolated init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         entityID = try container.decode(String.self, forKey: .entityID)
+        uniqueID = try container.decodeIfPresent(String.self, forKey: .uniqueID)
         labels = try container.decodeIfPresent([String].self, forKey: .labels) ?? []
         categories = try container.decodeIfPresent([String: String].self, forKey: .categories) ?? [:]
     }

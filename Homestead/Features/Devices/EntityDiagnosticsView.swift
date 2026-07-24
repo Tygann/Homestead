@@ -1,7 +1,12 @@
 import SwiftUI
 
 struct EntityDiagnosticsView: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
+    @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(HAStateStore.self) private var stateStore
+    @State private var frontendDestination: HomeAssistantFrontendEntityDestination?
+    @State private var isResolvingFrontendDestination = false
+    @State private var showsFrontendDestinationError = false
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .navigationStack
@@ -34,6 +39,18 @@ struct EntityDiagnosticsView: View {
                 }
             } header: {
                 HomesteadListSectionHeader("State")
+            }
+            .homesteadListRowSurface()
+
+            Section {
+                Button {
+                    openInHomeAssistant(entityID: entity.entityID)
+                } label: {
+                    Label(frontendActionTitle(for: entity), systemImage: "safari")
+                }
+                .disabled(isResolvingFrontendDestination)
+            } footer: {
+                Text("Uses Home Assistant’s web session. You may be asked to sign in.")
             }
             .homesteadListRowSurface()
 
@@ -94,6 +111,44 @@ struct EntityDiagnosticsView: View {
         .homesteadWallpaperBackground(allowsWallpaper: surfaceContext == .home)
         .environment(\.homesteadEntityDetailSurfaceContext, surfaceContext)
         .entityDetailPresentation(title: "Entity Details", style: presentationStyle)
+        .fullScreenCover(item: $frontendDestination) { destination in
+            HomeAssistantSafariView(url: destination.url)
+                .ignoresSafeArea()
+        }
+        .alert("Unable to Open Home Assistant", isPresented: $showsFrontendDestinationError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Homestead could not form a supported destination for this entity and connection.")
+        }
+    }
+
+    private func frontendActionTitle(for entity: HomeEntity) -> String {
+        let rawEntity = stateStore.rawEntity(for: entity.entityID)
+        let isPersonEditable = rawEntity?.attributes["editable"]?.boolValue
+            ?? (rawEntity?.attributes["editable"]?.stringValue?.lowercased() != "false")
+
+        return HomeAssistantFrontendEntityDestinationResolver.destination(
+            baseURLString: connectionSettings.baseURL,
+            entityID: entity.entityID,
+            configurationID: rawEntity?.attributes["id"]?.stringValue,
+            registryUniqueID: stateStore.entityRegistryUniqueID(for: entity.entityID),
+            isPersonEditable: isPersonEditable
+        )?.action.title ?? "Open in Home Assistant"
+    }
+
+    private func openInHomeAssistant(entityID: String) {
+        guard !isResolvingFrontendDestination else { return }
+        isResolvingFrontendDestination = true
+
+        Task {
+            let destination = await homeAssistantService.homeAssistantFrontendDestination(
+                settings: connectionSettings,
+                entityID: entityID
+            )
+            frontendDestination = destination
+            showsFrontendDestinationError = destination == nil
+            isResolvingFrontendDestination = false
+        }
     }
 
     private func displayState(for entityBox: HAEntityState) -> String {

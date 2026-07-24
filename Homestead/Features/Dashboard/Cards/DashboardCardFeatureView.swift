@@ -63,6 +63,11 @@ struct DashboardCardFeatureActions {
     }
 }
 
+enum DashboardCardSetpointControlStyle {
+    case stepper
+    case thermostat
+}
+
 struct DashboardCardFeatureView: View {
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
     @State private var localSetpointValues: [DashboardCardSetpointRole: Double] = [:]
@@ -74,6 +79,7 @@ struct DashboardCardFeatureView: View {
     let fillColor: Color
     let trackColor: Color
     let gaugeStyle: GaugePresentationStyle
+    var setpointControlStyle: DashboardCardSetpointControlStyle = .stepper
     let isInteractionEnabled: Bool
     let actions: DashboardCardFeatureActions
 
@@ -116,28 +122,61 @@ struct DashboardCardFeatureView: View {
         )
     }
 
+    @ViewBuilder
     private func setpointControl(_ setpoint: DashboardCardSetpointFeature) -> some View {
-        HStack(spacing: AppSpacing.small) {
-            ForEach(setpoint.values) { value in
-                let effectiveValue = localSetpointValue(for: value)
-                let bounds = localSetpointBounds(for: value, in: setpoint)
-                InlineStepperControl(
-                    value: displayValue(for: effectiveValue),
-                    isActive: isActive,
-                    decrementAccessibilityLabel: value.decrementAccessibilityLabel,
-                    incrementAccessibilityLabel: value.incrementAccessibilityLabel,
-                    isDecrementDisabled: effectiveValue <= bounds.lowerBound,
-                    isIncrementDisabled: effectiveValue >= bounds.upperBound,
-                    decrement: {
-                        perform(setpoint, changing: value, to: effectiveValue - value.step)
-                    },
-                    increment: {
-                        perform(setpoint, changing: value, to: effectiveValue + value.step)
-                    }
-                )
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(value.accessibilityLabel)
-                .accessibilityValue(displayValue(for: effectiveValue))
+        if setpointControlStyle == .thermostat,
+           let lowerValue = setpoint.values.first(where: { $0.role == .low || $0.role == .target }) {
+            let upperValue = setpoint.values.first(where: { $0.role == .high }) ?? lowerValue
+            let usesRange = setpoint.action == .setClimateTemperatureRange
+
+            ClimateThermostatInstrument(
+                lowerValue: setpointBinding(for: lowerValue),
+                upperValue: setpointBinding(for: upperValue),
+                minimumValue: lowerValue.minimumValue,
+                maximumValue: upperValue.maximumValue,
+                step: lowerValue.step,
+                mode: usesRange ? .range : .single(label: "Set to", tint: fillColor),
+                isDisabled: isPending || !isInteractionEnabled || !actions.canRender(
+                    DashboardCardFeature(
+                        key: .climateSetpoint,
+                        title: "Setpoint",
+                        content: .setpoint(setpoint)
+                    )
+                ),
+                formatValue: { value in
+                    formattedSetpoint(value, reference: lowerValue)
+                },
+                commitSingleValue: {
+                    commitThermostatSingleValue(lowerValue)
+                },
+                commitRange: {
+                    commitThermostatRange(low: lowerValue, high: upperValue, setpoint: setpoint)
+                },
+                style: .dashboardLarge
+            )
+        } else {
+            HStack(spacing: AppSpacing.small) {
+                ForEach(setpoint.values) { value in
+                    let effectiveValue = localSetpointValue(for: value)
+                    let bounds = localSetpointBounds(for: value, in: setpoint)
+                    InlineStepperControl(
+                        value: displayValue(for: effectiveValue),
+                        isActive: isActive,
+                        decrementAccessibilityLabel: value.decrementAccessibilityLabel,
+                        incrementAccessibilityLabel: value.incrementAccessibilityLabel,
+                        isDecrementDisabled: effectiveValue <= bounds.lowerBound,
+                        isIncrementDisabled: effectiveValue >= bounds.upperBound,
+                        decrement: {
+                            perform(setpoint, changing: value, to: effectiveValue - value.step)
+                        },
+                        increment: {
+                            perform(setpoint, changing: value, to: effectiveValue + value.step)
+                        }
+                    )
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(value.accessibilityLabel)
+                    .accessibilityValue(displayValue(for: effectiveValue))
+                }
             }
         }
     }
@@ -163,44 +202,16 @@ struct DashboardCardFeatureView: View {
     }
 
     private func optionsControl(_ options: DashboardCardOptionsFeature) -> some View {
-        Menu {
-            ForEach(options.options) { option in
-                Toggle(
-                    option.displayValue,
-                    isOn: Binding(
-                        get: { option.isSelected },
-                        set: { isSelected in
-                            guard isSelected, !option.isSelected else { return }
-                            HapticFeedback.selection()
-                            actions.selectOption?(option.value)
-                        }
-                    )
-                )
-            }
-        } label: {
-            HStack(spacing: AppSpacing.small) {
-                Text(options.selectedDisplayValue)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-
-                Spacer(minLength: AppSpacing.xSmall)
-
-                Image(systemName: "chevron.down")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
-            }
-            .foregroundStyle(.primary)
-            .padding(.horizontal, AppSpacing.medium)
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(controlBackground, in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
+        EntityOptionMenu(
+            presentation: EntityOptionSelectionPresentation(
+                options: options.options.map(\.value),
+                selectedValue: options.selectedValue
+            ),
+            style: .dashboardCard,
+            isDisabled: isPending || actions.selectOption == nil
+        ) { option in
+            actions.selectOption?(option)
         }
-        .buttonStyle(.plain)
-        .disabled(isPending || actions.selectOption == nil || options.options.isEmpty)
-        .accessibilityLabel("Options")
-        .accessibilityValue(options.selectedDisplayValue)
     }
 
     private func gaugePresentation(_ gauge: DashboardCardGaugeFeature) -> some View {
@@ -256,6 +267,17 @@ struct DashboardCardFeatureView: View {
         localSetpointValues[value.role] ?? value.value
     }
 
+    private func setpointBinding(for value: DashboardCardSetpointValue) -> Binding<Double> {
+        Binding(
+            get: {
+                localSetpointValues[value.role] ?? value.value
+            },
+            set: { updatedValue in
+                localSetpointValues[value.role] = updatedValue
+            }
+        )
+    }
+
     private func localSetpointBounds(
         for value: DashboardCardSetpointValue,
         in setpoint: DashboardCardSetpointFeature
@@ -292,6 +314,55 @@ struct DashboardCardFeatureView: View {
             send()
             pendingSetpointTask = nil
         }
+    }
+
+    private func commitThermostatSingleValue(_ value: DashboardCardSetpointValue) {
+        let targetValue = ClimateSetpointAdjustment(
+            minimumTemperature: value.minimumValue,
+            maximumTemperature: value.maximumValue,
+            step: value.step
+        )
+        .clampedSingleTemperature(localSetpointValue(for: value))
+        localSetpointValues[value.role] = targetValue
+
+        scheduleSetpointSend {
+            actions.setClimateTemperature?(targetValue)
+        }
+    }
+
+    private func commitThermostatRange(
+        low: DashboardCardSetpointValue,
+        high: DashboardCardSetpointValue,
+        setpoint: DashboardCardSetpointFeature
+    ) {
+        let range = setpointAdjustment(for: setpoint).clampedRange(
+            lowTemperature: localSetpointValue(for: low),
+            highTemperature: localSetpointValue(for: high)
+        )
+        localSetpointValues[low.role] = range.lowTemperature
+        localSetpointValues[high.role] = range.highTemperature
+
+        scheduleSetpointSend {
+            actions.setClimateTemperatureRange?(range.lowTemperature, range.highTemperature)
+        }
+    }
+
+    private func formattedSetpoint(
+        _ value: Double,
+        reference: DashboardCardSetpointValue
+    ) -> String {
+        let suffix: String
+        if reference.formattedValue.hasSuffix("°F") {
+            suffix = "°F"
+        } else if reference.formattedValue.hasSuffix("°C") {
+            suffix = "°C"
+        } else if reference.formattedValue.hasSuffix("°") {
+            suffix = "°"
+        } else {
+            suffix = ""
+        }
+
+        return displayValue(for: value) + suffix
     }
 
     private func displayValue(for value: Double) -> String {
