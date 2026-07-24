@@ -10,38 +10,44 @@ struct DashboardView: View {
     var body: some View {
         let enabledDashboards = dashboardConfiguration.enabledDashboards
 
-        ZStack(alignment: .bottom) {
-            TabView(selection: selectedDashboardBinding) {
-                ForEach(enabledDashboards) { dashboard in
-                    DashboardPageView(
-                        dashboardID: dashboard.id,
-                        bottomContentClearance: enabledDashboards.count > 1
-                            ? DashboardPageIndicatorMetrics.reservedHeight
-                            : 0,
-                        toolbarAddRequest: toolbarAddRequest,
-                        isEditingDashboard: Binding(
-                            get: { editingDashboardID == dashboard.id },
-                            set: { isEditing in
-                                editingDashboardID = isEditing ? dashboard.id : nil
-                            }
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                TabView(selection: selectedDashboardBinding) {
+                    ForEach(enabledDashboards) { dashboard in
+                        DashboardPageView(
+                            dashboardID: dashboard.id,
+                            topContentClearance: geometry.safeAreaInsets.top,
+                            bottomContentClearance: enabledDashboards.count > 1
+                                ? DashboardPageIndicatorMetrics.reservedHeight
+                                : 0,
+                            toolbarAddRequest: toolbarAddRequest,
+                            isEditingDashboard: Binding(
+                                get: { editingDashboardID == dashboard.id },
+                                set: { isEditing in
+                                    editingDashboardID = isEditing ? dashboard.id : nil
+                                }
+                            )
                         )
+                        .tag(dashboard.id)
+                        .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
+                        .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+
+                if enabledDashboards.count > 1 {
+                    DashboardPageIndicator(
+                        dashboards: enabledDashboards,
+                        selectedDashboardID: dashboardConfiguration.selectedDashboardID,
+                        selectDashboard: selectDashboard
                     )
-                    .tag(dashboard.id)
-                    .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
-                    .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
+                    .padding(
+                        .bottom,
+                        geometry.safeAreaInsets.bottom + DashboardPageIndicatorMetrics.bottomSpacing
+                    )
                 }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .ignoresSafeArea(.container, edges: .bottom)
-
-            if enabledDashboards.count > 1 {
-                DashboardPageIndicator(
-                    dashboards: enabledDashboards,
-                    selectedDashboardID: dashboardConfiguration.selectedDashboardID,
-                    selectDashboard: selectDashboard
-                )
-                .padding(.bottom, DashboardPageIndicatorMetrics.bottomSpacing)
-            }
+            .ignoresSafeArea(.container, edges: [.top, .bottom])
         }
         .homesteadWallpaperBackground()
         .navigationTitle(selectedDashboardTitle)
@@ -231,11 +237,7 @@ private struct DashboardPageIndicator: View {
             width: DashboardPageIndicatorMetrics.capsuleSize.width,
             height: DashboardPageIndicatorMetrics.capsuleSize.height
         )
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay {
-            Capsule()
-                .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
-        }
+        .glassEffect(.regular, in: .capsule)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Dashboard pages")
         .accessibilityValue(accessibilityValue)
@@ -276,6 +278,7 @@ private struct DashboardPageView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let dashboardID: UUID
+    let topContentClearance: CGFloat
     let bottomContentClearance: CGFloat
     let toolbarAddRequest: DashboardToolbarAddRequest?
     @Binding var isEditingDashboard: Bool
@@ -343,7 +346,11 @@ private struct DashboardPageView: View {
                 await homeAssistantService.refreshStates()
                 cameraRefreshGeneration += 1
             }
-            .contentMargins(.top, AppSpacing.xLarge, for: .scrollContent)
+            .contentMargins(
+                .top,
+                AppSpacing.xLarge + topContentClearance,
+                for: .scrollContent
+            )
             .contentMargins(.bottom, bottomContentClearance, for: .scrollContent)
             .scrollClipDisabled()
             .sheet(item: $addSheetMode) { mode in
