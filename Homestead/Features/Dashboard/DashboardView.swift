@@ -6,6 +6,7 @@ struct DashboardView: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @State private var editingDashboardID: UUID?
     @State private var toolbarAddRequest: DashboardToolbarAddRequest?
+    @State private var dashboardsScrolledFromTop: Set<UUID> = []
 
     var body: some View {
         let enabledDashboards = dashboardConfiguration.enabledDashboards
@@ -21,7 +22,13 @@ struct DashboardView: View {
                             set: { isEditing in
                                 editingDashboardID = isEditing ? dashboard.id : nil
                             }
-                        )
+                        ),
+                        topScrollStateChanged: { isScrolledFromTop in
+                            updateTopScrollState(
+                                isScrolledFromTop,
+                                dashboardID: dashboard.id
+                            )
+                        }
                     )
                     .containerRelativeFrame(.horizontal)
                     .id(dashboard.id)
@@ -35,6 +42,8 @@ struct DashboardView: View {
         .scrollPosition(id: pagerSelectionBinding)
         .scrollIndicators(.hidden)
         .scrollClipDisabled()
+        // The horizontal pager otherwise presents a top effect even when its selected vertical page is at rest.
+        .scrollEdgeEffectHidden(!selectedDashboardIsScrolledFromTop, for: .top)
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if enabledDashboards.count > 1 {
                 DashboardPageIndicator(
@@ -96,6 +105,10 @@ struct DashboardView: View {
             .resolvedDisplayTitle ?? "Dashboard"
     }
 
+    private var selectedDashboardIsScrolledFromTop: Bool {
+        dashboardsScrolledFromTop.contains(dashboardConfiguration.selectedDashboardID)
+    }
+
     private var optionsMenu: some View {
         Menu {
             Button {
@@ -132,6 +145,14 @@ struct DashboardView: View {
     private func selectDashboard(_ dashboardID: UUID) {
         guard editingDashboardID == nil else { return }
         dashboardConfiguration.selectDashboard(id: dashboardID)
+    }
+
+    private func updateTopScrollState(_ isScrolledFromTop: Bool, dashboardID: UUID) {
+        if isScrolledFromTop {
+            dashboardsScrolledFromTop.insert(dashboardID)
+        } else {
+            dashboardsScrolledFromTop.remove(dashboardID)
+        }
     }
 
     private func pageAccessibilityValue(for dashboardID: UUID) -> String {
@@ -283,6 +304,7 @@ private struct DashboardPageView: View {
     let dashboardID: UUID
     let toolbarAddRequest: DashboardToolbarAddRequest?
     @Binding var isEditingDashboard: Bool
+    let topScrollStateChanged: (Bool) -> Void
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var iconPickerContext: DashboardIconPickerContext?
     @State private var cardEditorReference: DashboardItemReference?
@@ -348,6 +370,11 @@ private struct DashboardPageView: View {
                 cameraRefreshGeneration += 1
             }
             .scrollClipDisabled()
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top > 1
+            } action: { _, isScrolledFromTop in
+                topScrollStateChanged(isScrolledFromTop)
+            }
             .sheet(item: $addSheetMode) { mode in
                 DashboardAddItemView(
                     dashboardID: dashboardID,
