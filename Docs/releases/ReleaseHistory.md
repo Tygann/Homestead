@@ -53,6 +53,32 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 112)
+
+- Release Date: 2026-07-24
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build refreshes entity details, weather, dashboard editing, and Sensor Board widgets.
+
+- Control thermostats from a redesigned detail view with clearer modes, setpoints, and history
+- See cleaner entity details, richer forecasts, and surfaces that adapt to your Home wallpaper
+- Edit dashboard cards with an entity-first flow while keeping saved dashboards intact through upgrades
+- Enjoy weather cards that adapt to time of day and load forecasts more reliably
+- Build flexible Sensor Board widgets with interchangeable slots and a new large 3×3 layout
+
+Please test:
+
+- Opening several entity details over both plain and wallpaper dashboard backgrounds
+- Adjusting thermostat modes and temperatures, then reviewing history and weather forecasts
+- Editing an existing dashboard card and confirming your dashboards remain intact
+- Configuring small and large Sensor Board widgets with different sensor combinations
+
+### Internal Summary
+
+Build 112 covers the entity-detail hierarchy and shared control/history grammar; the premium thermostat instrument; contextual wallpaper-aware detail surfaces; weather forecast and solar-phase card refinements; entity-first contextual card editing; ordered dashboard schema migration and recovery; shared chart rendering; configurable small and large Sensor Board widgets; widget consolidation; and the new widget reference gallery after Build 111.
+
 ## Version 1 (Build 111)
 
 - Release Date: 2026-07-21
