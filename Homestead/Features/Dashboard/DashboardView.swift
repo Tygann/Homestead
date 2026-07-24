@@ -10,24 +10,31 @@ struct DashboardView: View {
     var body: some View {
         let enabledDashboards = dashboardConfiguration.enabledDashboards
 
-        TabView(selection: selectedDashboardBinding) {
-            ForEach(enabledDashboards) { dashboard in
-                DashboardPageView(
-                    dashboardID: dashboard.id,
-                    toolbarAddRequest: toolbarAddRequest,
-                    isEditingDashboard: Binding(
-                        get: { editingDashboardID == dashboard.id },
-                        set: { isEditing in
-                            editingDashboardID = isEditing ? dashboard.id : nil
-                        }
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(enabledDashboards) { dashboard in
+                    DashboardPageView(
+                        dashboardID: dashboard.id,
+                        toolbarAddRequest: toolbarAddRequest,
+                        isEditingDashboard: Binding(
+                            get: { editingDashboardID == dashboard.id },
+                            set: { isEditing in
+                                editingDashboardID = isEditing ? dashboard.id : nil
+                            }
+                        )
                     )
-                )
-                .tag(dashboard.id)
-                .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
-                .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
+                    .containerRelativeFrame(.horizontal)
+                    .id(dashboard.id)
+                    .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
+                    .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
+                }
             }
+            .scrollTargetLayout()
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: pagerSelectionBinding)
+        .scrollIndicators(.hidden)
+        .scrollClipDisabled()
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if enabledDashboards.count > 1 {
                 DashboardPageIndicator(
@@ -112,11 +119,11 @@ struct DashboardView: View {
         }
     }
 
-    private var selectedDashboardBinding: Binding<UUID> {
+    private var pagerSelectionBinding: Binding<UUID?> {
         Binding(
-            get: { dashboardConfiguration.selectedDashboardID },
+            get: { Optional(dashboardConfiguration.selectedDashboardID) },
             set: { dashboardID in
-                guard editingDashboardID == nil else { return }
+                guard editingDashboardID == nil, let dashboardID else { return }
                 dashboardConfiguration.selectDashboard(id: dashboardID)
             }
         )
@@ -340,7 +347,7 @@ private struct DashboardPageView: View {
                 await homeAssistantService.refreshStates()
                 cameraRefreshGeneration += 1
             }
-            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+            .scrollClipDisabled()
             .sheet(item: $addSheetMode) { mode in
                 DashboardAddItemView(
                     dashboardID: dashboardID,
