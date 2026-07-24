@@ -24,7 +24,11 @@ struct DashboardCardReferenceGallery: View {
                         .string("heat"),
                         .string("cool"),
                         .string("heat_cool")
-                    ])
+                    ]),
+                    "fan_mode": .string("auto"),
+                    "fan_modes": .array([.string("auto"), .string("low"), .string("high")]),
+                    "preset_mode": .string("home"),
+                    "preset_modes": .array([.string("home"), .string("away"), .string("sleep")])
                 ]
             ),
             HAEntityDTO(
@@ -159,6 +163,15 @@ struct DashboardCardReferenceGallery: View {
                         kind: .control,
                         size: size,
                         iconNameOverride: "star.fill"
+                    )
+                }
+
+                if size == .mini {
+                    referenceCard(
+                        title: "Person Profile Picture",
+                        entityID: "person.tyler",
+                        kind: .control,
+                        size: size
                     )
                 }
             }
@@ -304,7 +317,9 @@ struct DashboardCardReferenceGallery: View {
                 size: size,
                 presentationKind: kind,
                 iconNameOverride: iconNameOverride,
-                isPreview: true
+                isPreview: true,
+                usesPreviewProfilePicture: entityID.hasPrefix("person.")
+                    && iconNameOverride == nil
             )
             .accessibilityLabel(title)
             .cardGridSpan(size.layoutMetadata)

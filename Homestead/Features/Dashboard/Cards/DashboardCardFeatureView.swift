@@ -5,6 +5,9 @@ struct DashboardCardFeatureActions {
     var setFanPercentage: ((Double) -> Void)?
     var setClimateTemperature: ((Double) -> Void)?
     var setClimateTemperatureRange: ((Double, Double) -> Void)?
+    var setClimateHVACMode: ((String) -> Void)?
+    var setClimateFanMode: ((String) -> Void)?
+    var setClimatePresetMode: ((String) -> Void)?
     var openCover: (() -> Void)?
     var stopCover: (() -> Void)?
     var closeCover: (() -> Void)?
@@ -136,7 +139,7 @@ struct DashboardCardFeatureView: View {
                 maximumValue: upperValue.maximumValue,
                 step: lowerValue.step,
                 mode: usesRange ? .range : .single(label: "Set to", tint: fillColor),
-                isDisabled: isPending || !isInteractionEnabled || !actions.canRender(
+                isDisabled: isPending || !actions.canRender(
                     DashboardCardFeature(
                         key: .climateSetpoint,
                         title: "Setpoint",
@@ -152,7 +155,7 @@ struct DashboardCardFeatureView: View {
                 commitRange: {
                     commitThermostatRange(low: lowerValue, high: upperValue, setpoint: setpoint)
                 },
-                style: .dashboardLarge
+                style: .detail
             )
         } else {
             HStack(spacing: AppSpacing.small) {

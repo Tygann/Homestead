@@ -684,7 +684,8 @@ private enum PreviewData {
             state: "home",
             attributes: [
                 "friendly_name": .string("Tyler"),
-                "source": .string("device_tracker.tylers_iphone")
+                "source": .string("device_tracker.tylers_iphone"),
+                "entity_picture": .string("/api/image/preview-person")
             ],
             lastChanged: .now.addingTimeInterval(-1_200),
             lastUpdated: .now.addingTimeInterval(-180)

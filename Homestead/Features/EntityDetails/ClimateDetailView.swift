@@ -271,85 +271,37 @@ struct ClimateDetailView: View {
 
     @ViewBuilder
     private func optionCapsules(_ climate: ClimateEntity) -> some View {
-        if showsHVACModeOptions(climate)
-            && showsFanModeOptions(climate)
-            && showsPresetModeOptions(climate) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: AppSpacing.small) {
-                    modeMenu(climate, prominence: .compact)
-                    fanMenu(climate, prominence: .compact)
-                    presetMenu(climate, prominence: .compact)
+        ClimateCompactOptionControls(
+            climate: climate,
+            isDisabled: detailState.blocksControlInteraction,
+            showsHVACMode: showsHVACModeOptions(climate),
+            showsFanMode: showsFanModeOptions(climate),
+            showsPresetMode: showsPresetModeOptions(climate),
+            setHVACMode: { mode in
+                Task {
+                    await homeAssistantService.setClimateHVACMode(
+                        entityID: entityBox.entityID,
+                        hvacMode: mode
+                    )
                 }
-                stackedOptionCapsules(climate)
-            }
-        } else {
-            stackedOptionCapsules(climate)
-        }
-    }
-
-    private func stackedOptionCapsules(_ climate: ClimateEntity) -> some View {
-        VStack(spacing: AppSpacing.small) {
-            if showsHVACModeOptions(climate) {
-                modeMenu(climate, prominence: .primary)
-            }
-
-            if showsFanModeOptions(climate) || showsPresetModeOptions(climate) {
-                HStack(spacing: AppSpacing.small) {
-                    if showsFanModeOptions(climate) {
-                        fanMenu(climate, prominence: .secondary)
-                    }
-
-                    if showsPresetModeOptions(climate) {
-                        presetMenu(climate, prominence: .secondary)
-                    }
+            },
+            setFanMode: { fanMode in
+                Task {
+                    await homeAssistantService.setClimateFanMode(
+                        entityID: entityBox.entityID,
+                        fanMode: fanMode
+                    )
+                }
+            },
+            setPresetMode: { presetMode in
+                Task {
+                    await homeAssistantService.setClimatePresetMode(
+                        entityID: entityBox.entityID,
+                        presetMode: presetMode
+                    )
                 }
             }
-        }
-    }
-
-    private func modeMenu(
-        _ climate: ClimateEntity,
-        prominence: ClimateFloatingMenuProminence
-    ) -> some View {
-        ClimateFloatingMenu(
-            title: "Mode",
-            systemImage: climate.iconName(forHVACMode: climate.state),
-            value: climate.displayName(forHVACMode: climate.state),
-            prominence: prominence,
-            isDisabled: detailState.blocksControlInteraction
-        ) {
-            hvacModeMenu(climate)
-        }
-    }
-
-    private func fanMenu(
-        _ climate: ClimateEntity,
-        prominence: ClimateFloatingMenuProminence
-    ) -> some View {
-        ClimateFloatingMenu(
-            title: "Fan",
-            systemImage: "fan.fill",
-            value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
-            prominence: prominence,
-            isDisabled: detailState.blocksControlInteraction
-        ) {
-            fanModeMenu(climate)
-        }
-    }
-
-    private func presetMenu(
-        _ climate: ClimateEntity,
-        prominence: ClimateFloatingMenuProminence
-    ) -> some View {
-        ClimateFloatingMenu(
-            title: "Preset",
-            systemImage: "leaf",
-            value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
-            prominence: prominence,
-            isDisabled: detailState.blocksControlInteraction
-        ) {
-            presetModeMenu(climate)
-        }
+        )
     }
 
     @ViewBuilder
@@ -584,13 +536,13 @@ struct ClimateDetailView: View {
 
 // MARK: - Floating Climate Menus
 
-private enum ClimateFloatingMenuProminence {
+enum ClimateFloatingMenuProminence {
     case primary
     case secondary
     case compact
 }
 
-private struct ClimateFloatingMenu<MenuContent: View>: View {
+struct ClimateFloatingMenu<MenuContent: View>: View {
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
 
     let title: String
@@ -730,6 +682,121 @@ private struct ClimateFloatingMenu<MenuContent: View>: View {
         }
         .padding(.horizontal, AppSpacing.small)
         .frame(minWidth: 96, maxWidth: .infinity, minHeight: 48)
+    }
+}
+
+struct ClimateCompactOptionControls: View {
+    let climate: ClimateEntity
+    let isDisabled: Bool
+    let showsHVACMode: Bool
+    let showsFanMode: Bool
+    let showsPresetMode: Bool
+    let setHVACMode: (String) -> Void
+    let setFanMode: (String) -> Void
+    let setPresetMode: (String) -> Void
+
+    var body: some View {
+        if showsHVACMode && showsFanMode && showsPresetMode {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: AppSpacing.small) {
+                    modeMenu(prominence: .compact)
+                    fanMenu(prominence: .compact)
+                    presetMenu(prominence: .compact)
+                }
+
+                stackedControls
+            }
+        } else {
+            stackedControls
+        }
+    }
+
+    private var stackedControls: some View {
+        VStack(spacing: AppSpacing.small) {
+            if showsHVACMode {
+                modeMenu(prominence: .primary)
+            }
+
+            if showsFanMode || showsPresetMode {
+                HStack(spacing: AppSpacing.small) {
+                    if showsFanMode {
+                        fanMenu(prominence: .secondary)
+                    }
+
+                    if showsPresetMode {
+                        presetMenu(prominence: .secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private func modeMenu(prominence: ClimateFloatingMenuProminence) -> some View {
+        ClimateFloatingMenu(
+            title: "Mode",
+            systemImage: climate.iconName(forHVACMode: climate.state),
+            value: climate.displayName(forHVACMode: climate.state),
+            prominence: prominence,
+            isDisabled: isDisabled
+        ) {
+            ForEach(climate.hvacModes, id: \.self) { mode in
+                Button {
+                    setHVACMode(mode)
+                } label: {
+                    Label(
+                        climate.displayName(forHVACMode: mode),
+                        systemImage: mode == climate.state
+                            ? "checkmark"
+                            : climate.iconName(forHVACMode: mode)
+                    )
+                }
+                .disabled(mode == climate.state)
+            }
+        }
+    }
+
+    private func fanMenu(prominence: ClimateFloatingMenuProminence) -> some View {
+        ClimateFloatingMenu(
+            title: "Fan",
+            systemImage: "fan.fill",
+            value: climate.fanMode.map(climate.displayName(forFanMode:)) ?? "Auto",
+            prominence: prominence,
+            isDisabled: isDisabled
+        ) {
+            ForEach(climate.fanModes, id: \.self) { fanMode in
+                Button {
+                    setFanMode(fanMode)
+                } label: {
+                    Label(
+                        climate.displayName(forFanMode: fanMode),
+                        systemImage: fanMode == climate.fanMode ? "checkmark" : "fan.fill"
+                    )
+                }
+                .disabled(fanMode == climate.fanMode)
+            }
+        }
+    }
+
+    private func presetMenu(prominence: ClimateFloatingMenuProminence) -> some View {
+        ClimateFloatingMenu(
+            title: "Preset",
+            systemImage: "leaf",
+            value: climate.presetMode.map(climate.displayName(forPresetMode:)) ?? "None",
+            prominence: prominence,
+            isDisabled: isDisabled
+        ) {
+            ForEach(climate.presetModes, id: \.self) { presetMode in
+                Button {
+                    setPresetMode(presetMode)
+                } label: {
+                    Label(
+                        climate.displayName(forPresetMode: presetMode),
+                        systemImage: presetMode == climate.presetMode ? "checkmark" : "leaf"
+                    )
+                }
+                .disabled(presetMode == climate.presetMode)
+            }
+        }
     }
 }
 

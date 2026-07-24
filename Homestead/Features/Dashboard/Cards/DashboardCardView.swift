@@ -12,6 +12,7 @@ struct DashboardCardView: View {
     var cameraRefreshGeneration = 0
     var isEditing = false
     var isPreview = false
+    var usesPreviewProfilePicture = false
     var detailDestination: EntityDetailDestination?
     var openDetails: ((EntityDetailDestination) -> Void)?
 
@@ -26,6 +27,7 @@ struct DashboardCardView: View {
         contextualAreaName: String? = nil,
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
+        usesPreviewProfilePicture: Bool = false,
         detailDestination: EntityDetailDestination? = nil,
         openDetails: ((EntityDetailDestination) -> Void)? = nil
     ) {
@@ -40,6 +42,7 @@ struct DashboardCardView: View {
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
         self.isPreview = false
+        self.usesPreviewProfilePicture = usesPreviewProfilePicture
         self.detailDestination = detailDestination
         self.openDetails = openDetails
     }
@@ -56,6 +59,7 @@ struct DashboardCardView: View {
         cameraRefreshGeneration: Int = 0,
         isEditing: Bool = false,
         isPreview: Bool,
+        usesPreviewProfilePicture: Bool = false,
         detailDestination: EntityDetailDestination? = nil,
         openDetails: ((EntityDetailDestination) -> Void)? = nil
     ) {
@@ -70,6 +74,7 @@ struct DashboardCardView: View {
         self.cameraRefreshGeneration = cameraRefreshGeneration
         self.isEditing = isEditing
         self.isPreview = isPreview
+        self.usesPreviewProfilePicture = usesPreviewProfilePicture
         self.detailDestination = detailDestination
         self.openDetails = openDetails
     }
@@ -119,7 +124,8 @@ struct DashboardCardView: View {
                 ),
                 featureActions: isPreview ? previewFeatureActions(for: entityBox) : featureActions(for: entityBox),
                 isFeatureInteractionEnabled: !isEditing && !isPreview,
-                isPreview: isPreview
+                isPreview: isPreview,
+                usesPreviewProfilePicture: usesPreviewProfilePicture
             )
             .actionConfirmationDialog(request: $confirmationRequest)
         }
@@ -261,6 +267,63 @@ struct DashboardCardView: View {
         }
     }
 
+    private func setClimateHVACModeAction(for entityBox: HAEntityState) -> ((String) -> Void)? {
+        guard entityBox.climateEntity?.hvacModes.isEmpty == false,
+              homeAssistantService.serviceActionAvailable(
+                domain: "climate",
+                service: "set_hvac_mode"
+              ) else {
+            return nil
+        }
+
+        return { mode in
+            Task {
+                await homeAssistantService.setClimateHVACMode(
+                    entityID: entityBox.entityID,
+                    hvacMode: mode
+                )
+            }
+        }
+    }
+
+    private func setClimateFanModeAction(for entityBox: HAEntityState) -> ((String) -> Void)? {
+        guard entityBox.climateEntity?.fanModes.isEmpty == false,
+              homeAssistantService.serviceActionAvailable(
+                domain: "climate",
+                service: "set_fan_mode"
+              ) else {
+            return nil
+        }
+
+        return { fanMode in
+            Task {
+                await homeAssistantService.setClimateFanMode(
+                    entityID: entityBox.entityID,
+                    fanMode: fanMode
+                )
+            }
+        }
+    }
+
+    private func setClimatePresetModeAction(for entityBox: HAEntityState) -> ((String) -> Void)? {
+        guard entityBox.climateEntity?.presetModes.isEmpty == false,
+              homeAssistantService.serviceActionAvailable(
+                domain: "climate",
+                service: "set_preset_mode"
+              ) else {
+            return nil
+        }
+
+        return { presetMode in
+            Task {
+                await homeAssistantService.setClimatePresetMode(
+                    entityID: entityBox.entityID,
+                    presetMode: presetMode
+                )
+            }
+        }
+    }
+
     private func openCoverAction(for entityBox: HAEntityState) -> (() -> Void)? {
         guard entityBox.coverEntity != nil,
               homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover") else {
@@ -380,6 +443,9 @@ struct DashboardCardView: View {
             setFanPercentage: setFanPercentageAction(for: entityBox),
             setClimateTemperature: setClimateTemperatureAction(for: entityBox),
             setClimateTemperatureRange: setClimateTemperatureRangeAction(for: entityBox),
+            setClimateHVACMode: setClimateHVACModeAction(for: entityBox),
+            setClimateFanMode: setClimateFanModeAction(for: entityBox),
+            setClimatePresetMode: setClimatePresetModeAction(for: entityBox),
             openCover: openCoverAction(for: entityBox),
             stopCover: stopCoverAction(for: entityBox),
             closeCover: closeCoverAction(for: entityBox),
@@ -489,6 +555,7 @@ struct DashboardCardView: View {
     private func previewFeatureActions(for entityBox: HAEntityState) -> DashboardCardFeatureActions {
         let noopSingle: (Double) -> Void = { _ in }
         let noopPair: (Double, Double) -> Void = { _, _ in }
+        let noopOption: (String) -> Void = { _ in }
         let noopCommand: () -> Void = {}
 
         return DashboardCardFeatureActions(
@@ -496,6 +563,9 @@ struct DashboardCardView: View {
             setFanPercentage: entityBox.fanEntity?.supportsPercentageControl == true ? noopSingle : nil,
             setClimateTemperature: entityBox.climateEntity?.targetTemperature != nil ? noopSingle : nil,
             setClimateTemperatureRange: entityBox.climateEntity?.usesTemperatureRange == true ? noopPair : nil,
+            setClimateHVACMode: entityBox.climateEntity?.hvacModes.isEmpty == false ? noopOption : nil,
+            setClimateFanMode: entityBox.climateEntity?.fanModes.isEmpty == false ? noopOption : nil,
+            setClimatePresetMode: entityBox.climateEntity?.presetModes.isEmpty == false ? noopOption : nil,
             openCover: entityBox.coverEntity != nil ? noopCommand : nil,
             stopCover: entityBox.coverEntity != nil ? noopCommand : nil,
             closeCover: entityBox.coverEntity != nil ? noopCommand : nil,

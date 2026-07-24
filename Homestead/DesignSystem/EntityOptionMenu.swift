@@ -52,15 +52,19 @@ struct EntityOptionMenu: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
 
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2.weight(.bold))
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
             }
             .foregroundStyle(.primary)
             .padding(.horizontal, AppSpacing.medium)
-            .frame(minWidth: 96, maxWidth: 156, minHeight: 40)
-            .background(controlBackground, in: Capsule())
-            .contentShape(Capsule())
+            .frame(minWidth: 76, maxWidth: 112)
+            .frame(height: 40)
+            .background(
+                controlBackground,
+                in: RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: AppRadius.icon, style: .continuous))
 
         case .controlRow:
             HStack(spacing: AppSpacing.medium) {

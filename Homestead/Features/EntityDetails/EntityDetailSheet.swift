@@ -47,8 +47,14 @@ struct EntityDetailDestinationView: View {
 }
 
 struct EntityDetailSheet: View {
+    @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(HAStateStore.self) private var stateStore
     @State private var editingCardReference: DashboardItemReference?
+    @State private var frontendDestination: HomeAssistantFrontendEntityDestination?
+    @State private var isResolvingFrontendDestination = false
+    @State private var showsFrontendDestinationError = false
 
     let entityBox: HAEntityState
     var presentationStyle: EntityDetailPresentationStyle = .sheet
@@ -118,17 +124,30 @@ struct EntityDetailSheet: View {
         // contextual card editor that owns the replacement flow.
         .id(entityBox.entityID)
         .toolbar {
-            if let dashboardItemReference {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if dashboardConfiguration.item(for: dashboardItemReference) != nil {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    if let dashboardItemReference,
+                       dashboardConfiguration.item(for: dashboardItemReference) != nil {
                         Button {
                             editingCardReference = dashboardItemReference
                         } label: {
-                            Image(systemName: "pencil")
+                            Label("Edit Card", systemImage: "slider.horizontal.3")
                         }
-                        .accessibilityLabel("Edit Card")
+
+                        Divider()
                     }
+
+                    Button {
+                        openInHomeAssistant()
+                    } label: {
+                        Label(frontendActionTitle, systemImage: "safari")
+                    }
+                    .disabled(isResolvingFrontendDestination)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .bold()
                 }
+                .accessibilityLabel("Entity options")
             }
         }
         .sheet(item: $editingCardReference) { reference in
@@ -136,6 +155,48 @@ struct EntityDetailSheet: View {
                 reference: reference,
                 onEntityReplaced: onCardEntityChange
             )
+        }
+        .fullScreenCover(item: $frontendDestination) { destination in
+            HomeAssistantSafariView(url: destination.url)
+                .ignoresSafeArea()
+        }
+        .alert("Unable to Open Home Assistant", isPresented: $showsFrontendDestinationError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Homestead could not form a supported destination for this entity and connection.")
+        }
+    }
+
+    private var frontendActionTitle: String {
+        frontendDestinationPreview?.action.title ?? "Open in Home Assistant"
+    }
+
+    private var frontendDestinationPreview: HomeAssistantFrontendEntityDestination? {
+        let rawEntity = stateStore.rawEntity(for: entityBox.entityID)
+        let isPersonEditable = rawEntity?.attributes["editable"]?.boolValue
+            ?? (rawEntity?.attributes["editable"]?.stringValue?.lowercased() != "false")
+
+        return HomeAssistantFrontendEntityDestinationResolver.destination(
+            baseURLString: connectionSettings.baseURL,
+            entityID: entityBox.entityID,
+            configurationID: rawEntity?.attributes["id"]?.stringValue,
+            registryUniqueID: stateStore.entityRegistryUniqueID(for: entityBox.entityID),
+            isPersonEditable: isPersonEditable
+        )
+    }
+
+    private func openInHomeAssistant() {
+        guard !isResolvingFrontendDestination else { return }
+        isResolvingFrontendDestination = true
+
+        Task {
+            let destination = await homeAssistantService.homeAssistantFrontendDestination(
+                settings: connectionSettings,
+                entityID: entityBox.entityID
+            )
+            frontendDestination = destination
+            showsFrontendDestinationError = destination == nil
+            isResolvingFrontendDestination = false
         }
     }
 }

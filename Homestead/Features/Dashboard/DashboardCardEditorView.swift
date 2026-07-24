@@ -92,7 +92,8 @@ struct DashboardCardEditorView: View {
                         iconNameOverride: draft.iconNameOverride,
                         gaugeZoneConfiguration: draft.gaugeZoneConfiguration,
                         chartRange: draft.chartConfiguration.range,
-                        isPreview: true
+                        isPreview: true,
+                        usesPreviewProfilePicture: usesSyntheticPersonPicture
                     )
                 }
                 .listRowInsets(EdgeInsets())
@@ -369,6 +370,14 @@ struct DashboardCardEditorView: View {
 
     private var hasUnsavedChanges: Bool {
         isLoaded && draft != initialDraft
+    }
+
+    private var usesSyntheticPersonPicture: Bool {
+        #if DEBUG
+        RuntimeEnvironment.previewScreen == .dashboardCardEditor
+        #else
+        false
+        #endif
     }
 
 }

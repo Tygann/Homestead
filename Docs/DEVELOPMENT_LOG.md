@@ -6,10 +6,10 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Entity Controls, Frontend Handoff, And Dashboard Parity
 
-- Added a centralized Home Assistant frontend destination resolver that uses the active routed server address, opens ordinary entities in more-info, sends supported configuration-oriented entities to edit/settings destinations, and presents the result in an in-app Safari controller with a graceful unsupported-route failure.
-- Refined the shared thermostat instrument around smaller white endpoints, an inset Auto-range selection marker, and retained 48-point interaction targets; the same adaptive controller now powers Climate detail and Large dashboard cards without changing the service, pending-state, constraint, haptic, or accessibility contracts.
-- Replaced Select's oversized current-value hero treatment with a shared compact options menu and an accessibility-size Controls fallback while preserving confirmation and service-domain routing.
-- Extended mapped Person presence records to dashboard presentation and made icon precedence explicit: custom card icon, authenticated cached profile picture, then resolved entity icon.
+- Added a centralized Home Assistant frontend destination resolver that uses the active routed server address, opens ordinary entities in more-info, sends supported configuration-oriented entities to edit/settings destinations, and presents the result from each entity detail's unobtrusive options menu in an in-app Safari controller with a graceful unsupported-route failure.
+- Refined the shared thermostat instrument around smaller white endpoints, an inset Auto-range selection marker, and retained 48-point interaction targets; the same controller now powers a dedicated header-free Large Climate card with Mode, Fan, and Preset controls while preserving the service, pending-state, constraint, haptic, accessibility, and background navigation contracts.
+- Replaced Select's oversized current-value hero treatment with a compact native checked options menu using the dashboard control surface and an accessibility-size Controls fallback while preserving standard hero height, a single-line update subtitle, confirmation, and service-domain routing.
+- Extended mapped Person presence records to dashboard presentation and made icon precedence explicit: custom card icon, authenticated cached profile picture, then resolved entity icon. Photos use a clean circular crop without an extra border, Mini cards center the avatar and name, and Edit Card previews use the same image path.
 - Added deterministic detail/card fixtures for adjacent and single thermostat targets, long Select options, Large thermostat, Person photo/override states, and wallpaper presentation, plus focused resolver, mapping, constraint, option, and precedence tests.
 
 ## 2026-07-23

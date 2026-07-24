@@ -25,6 +25,7 @@ struct DashboardEntityCard: View {
     let featureActions: DashboardCardFeatureActions
     let isFeatureInteractionEnabled: Bool
     let isPreview: Bool
+    let usesPreviewProfilePicture: Bool
 
     var body: some View {
         let visibleFeatureSnapshot = visibleFeatures
@@ -130,52 +131,126 @@ struct DashboardEntityCard: View {
         }
     }
 
+    @ViewBuilder
     private func standardCard(visibleFeatures visibleFeatureSnapshot: [DashboardCardFeature]) -> some View {
+        if usesLargeThermostatControl(visibleFeatureSnapshot) {
+            largeThermostatCard(visibleFeatures: visibleFeatureSnapshot)
+        } else {
+            CardContainer(
+                minHeight: cardContainerMinHeight,
+                padding: cardContainerPadding
+            ) {
+                ZStack(alignment: .topLeading) {
+                    if usesEmbeddedCardInteractions {
+                        cardContent(visibleFeatures: visibleFeatureSnapshot)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: cardContentMinHeight, alignment: .topLeading)
+                    } else if !visibleFeatureSnapshot.isEmpty {
+                        if gaugeFirstPresentation(from: visibleFeatureSnapshot) != nil {
+                            cardContent(visibleFeatures: visibleFeatureSnapshot)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: cardContainerMinHeight, alignment: .topLeading)
+                        } else {
+                            cardContent(visibleFeatures: visibleFeatureSnapshot)
+                                .frame(
+                                    maxWidth: .infinity,
+                                    minHeight: cardContentMinHeight,
+                                    alignment: .topLeading
+                                )
+                        }
+                    } else if let showDetails {
+                        Button(action: showDetails) {
+                            cardContent(visibleFeatures: visibleFeatureSnapshot)
+                                .frame(
+                                    maxWidth: .infinity,
+                                    minHeight: cardContentMinHeight,
+                                    alignment: .topLeading
+                                )
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(HomeCardButtonStyle())
+                        .accessibilityLabel(presentation.accessibilityDetailLabel)
+                        .accessibilityValue(presentation.accessibilityValue)
+                        .accessibilityHint(presentation.accessibilityDetailHint)
+                    } else {
+                        cardContent(visibleFeatures: visibleFeatureSnapshot)
+                            .frame(
+                                maxWidth: .infinity,
+                                minHeight: cardContentMinHeight,
+                                alignment: .topLeading
+                            )
+                    }
+
+                    if let toggle, !usesEmbeddedCardInteractions {
+                        Button(action: toggle) {
+                            interactiveIconView
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isPending || !isPrimaryActionAvailable)
+                        .accessibilityLabel(
+                            presentation.primaryActionAccessibilityLabel ?? presentation.title
+                        )
+                        .accessibilityValue(presentation.accessibilityValue)
+                        .accessibilityHint(presentation.primaryActionAccessibilityHint)
+                    }
+                }
+            }
+        }
+    }
+
+    private func largeThermostatCard(
+        visibleFeatures: [DashboardCardFeature]
+    ) -> some View {
         CardContainer(
             minHeight: cardContainerMinHeight,
             padding: cardContainerPadding
         ) {
-            ZStack(alignment: .topLeading) {
-                if usesEmbeddedCardInteractions {
-                    cardContent(visibleFeatures: visibleFeatureSnapshot)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: cardContentMinHeight, alignment: .topLeading)
-                } else if !visibleFeatureSnapshot.isEmpty {
-                    if gaugeFirstPresentation(from: visibleFeatureSnapshot) != nil {
-                        cardContent(visibleFeatures: visibleFeatureSnapshot)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: cardContainerMinHeight, alignment: .topLeading)
-                    } else {
-                        cardContent(visibleFeatures: visibleFeatureSnapshot)
-                            .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
-                    }
-                } else if let showDetails {
+            ZStack {
+                if let showDetails {
                     Button(action: showDetails) {
-                        cardContent(visibleFeatures: visibleFeatureSnapshot)
-                            .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
+                        Color.clear
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(HomeCardButtonStyle())
+                    .buttonStyle(.plain)
                     .accessibilityLabel(presentation.accessibilityDetailLabel)
                     .accessibilityValue(presentation.accessibilityValue)
                     .accessibilityHint(presentation.accessibilityDetailHint)
-                } else {
-                    cardContent(visibleFeatures: visibleFeatureSnapshot)
-                        .frame(maxWidth: .infinity, minHeight: cardContentMinHeight, alignment: .topLeading)
                 }
 
-                if let toggle, !usesEmbeddedCardInteractions {
-                    Button(action: toggle) {
-                        interactiveIconView
+                VStack(spacing: AppSpacing.small) {
+                    ForEach(visibleFeatures) { feature in
+                        DashboardCardFeatureView(
+                            feature: feature,
+                            isPending: isPending,
+                            isActive: presentation.isActive,
+                            fillColor: featureFillColor,
+                            trackColor: iconBackground,
+                            gaugeStyle: .arc,
+                            setpointControlStyle: .thermostat,
+                            isInteractionEnabled: isFeatureInteractionEnabled,
+                            actions: featureActions
+                        )
                     }
-                    .buttonStyle(.plain)
-                    .disabled(isPending || !isPrimaryActionAvailable)
-                    .accessibilityLabel(presentation.primaryActionAccessibilityLabel ?? presentation.title)
-                    .accessibilityValue(presentation.accessibilityValue)
-                    .accessibilityHint(presentation.primaryActionAccessibilityHint)
-                }
 
+                    if let climate = entityBox.climateEntity,
+                       showsLargeClimateOptions(climate) {
+                        ClimateCompactOptionControls(
+                            climate: climate,
+                            isDisabled: isPending,
+                            showsHVACMode: featureActions.setClimateHVACMode != nil,
+                            showsFanMode: featureActions.setClimateFanMode != nil,
+                            showsPresetMode: featureActions.setClimatePresetMode != nil,
+                            setHVACMode: { featureActions.setClimateHVACMode?($0) },
+                            setFanMode: { featureActions.setClimateFanMode?($0) },
+                            setPresetMode: { featureActions.setClimatePresetMode?($0) }
+                        )
+                        .allowsHitTesting(isFeatureInteractionEnabled)
+                    }
+                }
+                .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity, minHeight: cardContainerMinHeight)
         }
     }
 
@@ -212,7 +287,11 @@ struct DashboardEntityCard: View {
         } else {
             switch size {
             case .mini:
-                miniContent
+                if entityBox.domain == .person {
+                    personMiniContent
+                } else {
+                    miniContent
+                }
             case .compact:
                 compactContent
             case .row:
@@ -253,6 +332,29 @@ struct DashboardEntityCard: View {
         .padding(.horizontal, miniContentHorizontalInset)
         .padding(.vertical, miniContentVerticalInset)
         .frame(maxWidth: .infinity, minHeight: cardContainerMinHeight, alignment: .topLeading)
+    }
+
+    private var personMiniContent: some View {
+        VStack(spacing: AppSpacing.xSmall) {
+            DashboardCardIconView(
+                presentation: presentation.iconPresentation,
+                isActive: presentation.isActive,
+                isAvailable: presentation.isAvailable,
+                accentColor: presentation.accentColor,
+                size: 34,
+                symbolSize: 16,
+                usesPreviewProfilePicture: usesPreviewProfilePicture
+            )
+
+            Text(miniTitleText)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(miniTitleColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .truncationMode(.tail)
+        }
+        .padding(6)
+        .frame(maxWidth: .infinity, minHeight: cardContainerMinHeight, alignment: .center)
     }
 
     private var compactContent: some View {
@@ -410,6 +512,12 @@ struct DashboardEntityCard: View {
             }
             return false
         }
+    }
+
+    private func showsLargeClimateOptions(_ climate: ClimateEntity) -> Bool {
+        (!climate.hvacModes.isEmpty && featureActions.setClimateHVACMode != nil)
+            || (!climate.fanModes.isEmpty && featureActions.setClimateFanMode != nil)
+            || (!climate.presetModes.isEmpty && featureActions.setClimatePresetMode != nil)
     }
 
     @ViewBuilder
@@ -646,7 +754,7 @@ struct DashboardEntityCard: View {
                         isAvailable: presentation.isAvailable,
                         accentColor: presentation.accentColor,
                         displaysProfilePicture: size != .mini,
-                        usesPreviewProfilePicture: isPreview
+                        usesPreviewProfilePicture: usesPreviewProfilePicture
                     )
                 }
             }
@@ -692,7 +800,7 @@ struct DashboardEntityCard: View {
             isAvailable: presentation.isAvailable,
             accentColor: presentation.accentColor,
             displaysProfilePicture: size != .mini,
-            usesPreviewProfilePicture: isPreview
+            usesPreviewProfilePicture: usesPreviewProfilePicture
         )
     }
 

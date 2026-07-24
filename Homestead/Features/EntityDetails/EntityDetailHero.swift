@@ -286,6 +286,7 @@ private struct EntityDetailHeroHeader<Accessory: View>: View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: AppSpacing.medium) {
                 identity
+                    .layoutPriority(1)
                 Spacer(minLength: AppSpacing.medium)
                 trailingContent
             }
@@ -293,6 +294,7 @@ private struct EntityDetailHeroHeader<Accessory: View>: View {
             VStack(alignment: .leading, spacing: AppSpacing.medium) {
                 HStack(alignment: .center, spacing: AppSpacing.medium) {
                     identity
+                        .layoutPriority(1)
                     Spacer(minLength: AppSpacing.medium)
                     accessory
                 }
