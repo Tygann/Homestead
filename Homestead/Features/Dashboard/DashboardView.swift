@@ -11,39 +11,7 @@ struct DashboardView: View {
     var body: some View {
         let enabledDashboards = dashboardConfiguration.enabledDashboards
 
-        ScrollView(.horizontal) {
-            LazyHStack(spacing: 0) {
-                ForEach(enabledDashboards) { dashboard in
-                    DashboardPageView(
-                        dashboardID: dashboard.id,
-                        toolbarAddRequest: toolbarAddRequest,
-                        isEditingDashboard: Binding(
-                            get: { editingDashboardID == dashboard.id },
-                            set: { isEditing in
-                                editingDashboardID = isEditing ? dashboard.id : nil
-                            }
-                        ),
-                        topScrollStateChanged: { isScrolledFromTop in
-                            updateTopScrollState(
-                                isScrolledFromTop,
-                                dashboardID: dashboard.id
-                            )
-                        }
-                    )
-                    .containerRelativeFrame(.horizontal)
-                    .id(dashboard.id)
-                    .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
-                    .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
-                }
-            }
-            .scrollTargetLayout()
-        }
-        .scrollTargetBehavior(.paging)
-        .scrollPosition(id: pagerSelectionBinding)
-        .scrollIndicators(.hidden)
-        .scrollClipDisabled()
-        // The horizontal pager otherwise presents a top effect even when its selected vertical page is at rest.
-        .scrollEdgeEffectHidden(!selectedDashboardIsScrolledFromTop, for: .top)
+        dashboardContent(enabledDashboards)
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if enabledDashboards.count > 1 {
                 DashboardPageIndicator(
@@ -98,6 +66,52 @@ struct DashboardView: View {
         .onChange(of: stateStore.hasEntities) { _, _ in
             reconcileDashboardConfigurationIfReady()
         }
+    }
+
+    @ViewBuilder
+    private func dashboardContent(_ enabledDashboards: [SavedDashboardConfiguration]) -> some View {
+        if enabledDashboards.count == 1, let dashboard = enabledDashboards.first {
+            dashboardPage(dashboard)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(enabledDashboards) { dashboard in
+                        dashboardPage(dashboard)
+                            .containerRelativeFrame(.horizontal)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: pagerSelectionBinding)
+            .scrollIndicators(.hidden)
+            .scrollClipDisabled()
+            // The horizontal pager otherwise presents a top effect even when its selected vertical page is at rest.
+            .scrollEdgeEffectHidden(!selectedDashboardIsScrolledFromTop, for: .top)
+        }
+    }
+
+    private func dashboardPage(_ dashboard: SavedDashboardConfiguration) -> some View {
+        DashboardPageView(
+            dashboardID: dashboard.id,
+            toolbarAddRequest: toolbarAddRequest,
+            isEditingDashboard: Binding(
+                get: { editingDashboardID == dashboard.id },
+                set: { isEditing in
+                    editingDashboardID = isEditing ? dashboard.id : nil
+                }
+            ),
+            topScrollStateChanged: { isScrolledFromTop in
+                updateTopScrollState(
+                    isScrolledFromTop,
+                    dashboardID: dashboard.id
+                )
+            }
+        )
+        .id(dashboard.id)
+        .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
+        .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
     }
 
     private var selectedDashboardTitle: String {
