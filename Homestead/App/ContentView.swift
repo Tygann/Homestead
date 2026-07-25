@@ -404,25 +404,36 @@ private enum AppSheetDestination: Identifiable {
 }
 
 private struct SettingsSheet: View {
-    @State private var path: [SettingsRoute]
+    let initialRoute: SettingsRoute?
     let close: () -> Void
 
-    init(initialRoute: SettingsRoute?, close: @escaping () -> Void) {
-        _path = State(initialValue: initialRoute.map { [$0] } ?? [])
-        self.close = close
-    }
-
+    @ViewBuilder
     var body: some View {
-        NavigationStack(path: $path) {
-            SettingsView()
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: close) {
-                            Image(systemName: "xmark")
+        switch initialRoute {
+        case .dashboards:
+            NavigationStack {
+                DashboardSettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(action: close) {
+                                Image(systemName: "xmark")
+                            }
+                            .accessibilityLabel("Close Dashboards")
                         }
-                        .accessibilityLabel("Close Settings")
                     }
-                }
+            }
+        case nil:
+            NavigationStack {
+                SettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(action: close) {
+                                Image(systemName: "xmark")
+                            }
+                            .accessibilityLabel("Close Settings")
+                        }
+                    }
+            }
         }
     }
 }

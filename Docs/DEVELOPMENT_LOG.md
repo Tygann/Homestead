@@ -12,8 +12,9 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Made multi-dashboard pages target the full physical viewport while restoring safe-area padding inside each page, preventing landscape neighbor bleed and removing the mismatched page-width layout during swipes.
 - Locked only the outer horizontal pager during dashboard editing, preserving vertical scrolling and item drag behavior while preventing page peeking or cross-dashboard movement.
 - Added deterministic Person chip/Mini fixtures plus focused profile-picture, icon-resolution, editor-draft, exact-reference update, and summary-chip protection tests.
-- Added a `Manage Dashboards` action to Home's dashboard options menu that opens the existing Settings dashboard manager directly while retaining a back path to Settings.
+- Added a `Manage Dashboards` action to Home's dashboard options menu that opens the shared dashboard manager directly.
 - Made dashboard ordering discoverable with a standard Edit/Done toolbar action in the dashboard manager.
+- Corrected Home-launched dashboard management to use the shared manager as a modal root with Close, while preserving Back navigation when the same screen is entered from Settings.
 
 ## 2026-07-24
 
