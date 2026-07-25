@@ -23,8 +23,8 @@ struct HomesteadLargeSensorBoardWidget: Widget {
     }
 }
 
-enum HomesteadLargeSensorBoardEditingSlot: Int, AppEnum {
-    case one = 1
+enum HomesteadLargeSensorBoardEditingSlot: String, AppEnum {
+    case one
     case two
     case three
     case four

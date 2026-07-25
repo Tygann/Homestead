@@ -45,8 +45,8 @@ enum HomesteadSensorBoardSlotDisplay: String, AppEnum {
     }
 }
 
-enum HomesteadSensorBoardEditingSlot: Int, AppEnum {
-    case one = 1
+enum HomesteadSensorBoardEditingSlot: String, AppEnum {
+    case one
     case two
     case three
 
