@@ -58,13 +58,20 @@ extension DashboardSummaryKind: Identifiable {
 struct DashboardChipPresentation: Equatable, Sendable {
     let title: String
     let value: String
-    let icon: ResolvedIcon
+    let iconPresentation: DashboardCardIconPresentation
     let isActive: Bool
     let isAvailable: Bool
     let iconTint: DashboardChipIconTint
 
     var accessibilityValue: String {
         value
+    }
+
+    var icon: ResolvedIcon {
+        switch iconPresentation {
+        case .icon(let icon), .personProfilePicture(_, let icon):
+            icon
+        }
     }
 
     init(
@@ -77,7 +84,9 @@ struct DashboardChipPresentation: Equatable, Sendable {
     ) {
         self.title = title
         self.value = value
-        icon = .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+        iconPresentation = .icon(
+            .sfSymbol(systemImage, provenance: .homesteadSemanticMapping)
+        )
         self.isActive = isActive
         self.isAvailable = isAvailable
         self.iconTint = iconTint
@@ -93,7 +102,23 @@ struct DashboardChipPresentation: Equatable, Sendable {
     ) {
         self.title = title
         self.value = value
-        self.icon = icon
+        iconPresentation = .icon(icon)
+        self.isActive = isActive
+        self.isAvailable = isAvailable
+        self.iconTint = iconTint
+    }
+
+    init(
+        title: String,
+        value: String,
+        iconPresentation: DashboardCardIconPresentation,
+        isActive: Bool,
+        isAvailable: Bool,
+        iconTint: DashboardChipIconTint = .status
+    ) {
+        self.title = title
+        self.value = value
+        self.iconPresentation = iconPresentation
         self.isActive = isActive
         self.isAvailable = isAvailable
         self.iconTint = iconTint
@@ -466,7 +491,7 @@ enum DashboardSummaryProvider {
         return DashboardChipPresentation(
             title: presentation.title,
             value: entityBox.mediaPlayerEntity?.displayState ?? presentation.headline ?? presentation.subtitle,
-            icon: presentation.icon,
+            iconPresentation: presentation.iconPresentation,
             isActive: presentation.isActive,
             isAvailable: presentation.isAvailable
         )

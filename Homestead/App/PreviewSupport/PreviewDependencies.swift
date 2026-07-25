@@ -21,6 +21,14 @@ struct PreviewDependencies {
 
     static var dashboardPagingSample: PreviewDependencies {
         let dependencies = dashboardSample(pageCount: 3)
+        _ = dependencies.dashboardConfiguration.add(
+            source: .entity("person.tyler"),
+            presentation: .chip
+        )
+        _ = dependencies.dashboardConfiguration.add(
+            source: .entity("person.tyler"),
+            presentation: .card(.status(layout: .mini))
+        )
         for index in 0..<8 {
             let entityID = index.isMultiple(of: 2) ? "light.bedroom" : "light.kitchen"
             _ = dependencies.dashboardConfiguration.add(

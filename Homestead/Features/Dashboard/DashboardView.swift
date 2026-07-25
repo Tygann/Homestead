@@ -74,21 +74,25 @@ struct DashboardView: View {
             dashboardPage(dashboard)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: 0) {
-                    ForEach(enabledDashboards) { dashboard in
-                        dashboardPage(dashboard)
-                            .containerRelativeFrame(.horizontal)
+            GeometryReader { geometry in
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 0) {
+                        ForEach(enabledDashboards) { dashboard in
+                            dashboardPage(dashboard)
+                                .safeAreaPadding(.horizontal)
+                                .frame(width: geometry.size.width)
+                        }
                     }
+                    .scrollTargetLayout()
+                    .dashboardHorizontalPagingLocked(editingDashboardID != nil)
                 }
-                .scrollTargetLayout()
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: pagerSelectionBinding)
+                .scrollIndicators(.hidden)
+                // The horizontal pager otherwise presents a top effect even when its selected vertical page is at rest.
+                .scrollEdgeEffectHidden(!selectedDashboardIsScrolledFromTop, for: .top)
             }
-            .scrollTargetBehavior(.paging)
-            .scrollPosition(id: pagerSelectionBinding)
-            .scrollIndicators(.hidden)
-            .scrollClipDisabled()
-            // The horizontal pager otherwise presents a top effect even when its selected vertical page is at rest.
-            .scrollEdgeEffectHidden(!selectedDashboardIsScrolledFromTop, for: .top)
+            .ignoresSafeArea(.container, edges: .horizontal)
         }
     }
 
@@ -321,7 +325,7 @@ private struct DashboardPageView: View {
     let topScrollStateChanged: (Bool) -> Void
     @State private var addSheetMode: DashboardAddItemMode?
     @State private var iconPickerContext: DashboardIconPickerContext?
-    @State private var cardEditorReference: DashboardItemReference?
+    @State private var itemEditorReference: DashboardItemReference?
     @State private var selectedEntityDetailDestination: EntityDetailDestination?
     @State private var renamingHeaderID: UUID?
     @State private var renamingDisplayItemID: UUID?
@@ -409,8 +413,8 @@ private struct DashboardPageView: View {
                     }
                 )
             }
-            .sheet(item: $cardEditorReference) { reference in
-                DashboardCardEditorView(reference: reference)
+            .sheet(item: $itemEditorReference) { reference in
+                DashboardItemEditorView(reference: reference)
             }
             .navigationDestination(item: $selectedEntityDetailDestination) { destination in
                 EntityDetailDestinationView(destination: destination)
@@ -821,7 +825,8 @@ private struct DashboardPageView: View {
                     gaugeZoneConfiguration: item.gaugeZoneConfiguration,
                     chartRange: item.chartConfiguration.range,
                     cameraRefreshGeneration: cameraRefreshGeneration,
-                    isEditing: true
+                    isEditing: true,
+                    usesPreviewProfilePicture: usesSyntheticPersonPicture
                 )
                 .frame(maxWidth: .infinity)
             } editMenuContent: {
@@ -837,6 +842,7 @@ private struct DashboardPageView: View {
                 gaugeZoneConfiguration: item.gaugeZoneConfiguration,
                 chartRange: item.chartConfiguration.range,
                 cameraRefreshGeneration: cameraRefreshGeneration,
+                usesPreviewProfilePicture: usesSyntheticPersonPicture,
                 detailDestination: EntityDetailDestination(
                     entityID: item.entityID,
                     surfaceContext: .home,
@@ -951,7 +957,8 @@ private struct DashboardPageView: View {
                 gaugeZoneConfiguration: cardItem.gaugeZoneConfiguration,
                 chartRange: cardItem.chartConfiguration.range,
                 cameraRefreshGeneration: cameraRefreshGeneration,
-                isEditing: true
+                isEditing: true,
+                usesPreviewProfilePicture: usesSyntheticPersonPicture
             )
             .frame(maxWidth: .infinity)
             .background(
@@ -1133,7 +1140,10 @@ private struct DashboardPageView: View {
 
         if let dragStartChipFrame = chipDragState.dragStartFrame,
            let presentation = chipPresentation(for: item, summaryWorkspace: summaryWorkspace) {
-            DashboardChipView(presentation: presentation)
+            DashboardChipView(
+                presentation: presentation,
+                usesPreviewProfilePicture: usesSyntheticPersonPicture
+            )
                 .background(Color(.secondarySystemGroupedBackground), in: Capsule())
                 .frame(width: dragStartChipFrame.width, height: dragStartChipFrame.height)
                 .scaleEffect(chipDragScale)
@@ -1314,7 +1324,10 @@ private struct DashboardPageView: View {
                             )
                             .navigationTransition(.zoom(sourceID: summaryTransitionID(for: item), in: summaryTransitionNamespace))
                         } label: {
-                            DashboardChipView(presentation: presentation)
+                            DashboardChipView(
+                                presentation: presentation,
+                                usesPreviewProfilePicture: usesSyntheticPersonPicture
+                            )
                                 .matchedTransitionSource(id: summaryTransitionID(for: item), in: summaryTransitionNamespace)
                         }
                         .buttonStyle(.plain)
@@ -1323,7 +1336,28 @@ private struct DashboardPageView: View {
                         }
                     }
                 case .entity:
-                    DashboardChipView(presentation: presentation)
+                    Button {
+                        guard let entityID = item.entityID else { return }
+                        selectedEntityDetailDestination = EntityDetailDestination(
+                            entityID: entityID,
+                            surfaceContext: .home,
+                            dashboardItemReference: DashboardItemReference(
+                                dashboardID: dashboardID,
+                                itemID: item.id
+                            ),
+                            transitionSourceID: entityChipTransitionID(for: item)
+                        )
+                    } label: {
+                        DashboardChipView(
+                            presentation: presentation,
+                            usesPreviewProfilePicture: usesSyntheticPersonPicture
+                        )
+                            .matchedTransitionSource(
+                                id: entityChipTransitionID(for: item),
+                                in: cardTransitionNamespace
+                            )
+                    }
+                    .buttonStyle(.plain)
                         .contextMenu {
                             chipEditMenuContent(for: item)
                         }
@@ -1337,7 +1371,10 @@ private struct DashboardPageView: View {
         presentation: DashboardChipPresentation
     ) -> some View {
         let isDragging = chipDragState.draggingItemID == item.id
-        return DashboardChipView(presentation: presentation)
+        return DashboardChipView(
+            presentation: presentation,
+            usesPreviewProfilePicture: usesSyntheticPersonPicture
+        )
             .contentShape(Capsule())
             .dashboardChipItemFrame(id: item.id)
             .opacity(isDragging ? 0 : 1)
@@ -1369,6 +1406,10 @@ private struct DashboardPageView: View {
         "dashboard-summary-\(item.id.uuidString)"
     }
 
+    private func entityChipTransitionID(for item: DashboardChipItem) -> String {
+        "dashboard-entity-chip-\(item.id.uuidString)"
+    }
+
     private func cardTransitionID(for item: DashboardCardItem) -> String {
         "dashboard-card-\(item.id.uuidString)"
     }
@@ -1395,7 +1436,7 @@ private struct DashboardPageView: View {
     @ViewBuilder
     private func cardEditMenuContent(for item: DashboardCardItem) -> some View {
         Button {
-            cardEditorReference = DashboardItemReference(
+            itemEditorReference = DashboardItemReference(
                 dashboardID: dashboardID,
                 itemID: item.id
             )
@@ -1416,16 +1457,29 @@ private struct DashboardPageView: View {
 
     @ViewBuilder
     private func chipEditMenuContent(for item: DashboardChipItem) -> some View {
-        Button {
-            beginRenamingChip(item)
-        } label: {
-            Label("Rename Chip", systemImage: "pencil")
-        }
+        switch item.source {
+        case .entity:
+            Button {
+                itemEditorReference = DashboardItemReference(
+                    dashboardID: dashboardID,
+                    itemID: item.id
+                )
+            } label: {
+                Label("Edit Chip", systemImage: "slider.horizontal.3")
+            }
 
-        Button {
-            presentIconPicker(for: item)
-        } label: {
-            Label("Change Icon", systemImage: "circle.grid.2x2")
+        case .summary:
+            Button {
+                beginRenamingChip(item)
+            } label: {
+                Label("Rename Chip", systemImage: "pencil")
+            }
+
+            Button {
+                presentIconPicker(for: item)
+            } label: {
+                Label("Change Icon", systemImage: "circle.grid.2x2")
+            }
         }
 
         Divider()
@@ -1507,6 +1561,14 @@ private struct DashboardPageView: View {
                 stateStore.entity(for: entityID)?.displayName
             } ?? "Chip"
         }
+    }
+
+    private var usesSyntheticPersonPicture: Bool {
+        #if DEBUG
+        RuntimeEnvironment.previewScreen == .home
+        #else
+        false
+        #endif
     }
     
 }

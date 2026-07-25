@@ -4,24 +4,32 @@ struct DashboardChipView: View {
     @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
 
     let presentation: DashboardChipPresentation
+    var usesPreviewProfilePicture = false
 
     var body: some View {
         HStack(alignment: .center, spacing: 6) {
-            HomesteadIconView(icon: presentation.icon, pointSize: 16)
-                .foregroundStyle(iconColor)
+            DashboardCardIconView(
+                presentation: presentation.iconPresentation,
+                isActive: presentation.isActive,
+                isAvailable: presentation.isAvailable,
+                accentColor: iconColor,
+                size: 22,
+                symbolSize: 16,
+                usesPreviewProfilePicture: usesPreviewProfilePicture,
+                fallbackIconColor: iconColor
+            )
                 .frame(width: 22, height: 22)
-//                .background(iconBackground, in: Circle())
                 .accessibilityHidden(true)
             
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(presentation.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                 
                 Text(presentation.value)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(presentation.isAvailable ? Color.primary : Color.red)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(presentation.isAvailable ? Color.secondary : Color.red)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
             }

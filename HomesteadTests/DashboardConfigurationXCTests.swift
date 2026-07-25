@@ -533,6 +533,57 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(configuration.item(for: reference), original)
     }
 
+    func testTransactionalChipUpdateAppliesAllDraftFieldsToExactChip() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let sourceDashboardID = configuration.selectedDashboardID
+        let chipID = try XCTUnwrap(configuration.add(
+            source: .entity("person.tyler"),
+            presentation: .chip
+        ))
+        let reference = DashboardItemReference(dashboardID: sourceDashboardID, itemID: chipID)
+
+        let otherDashboardID = configuration.createDashboard(named: "Other")
+        XCTAssertTrue(configuration.selectDashboard(id: otherDashboardID))
+        XCTAssertTrue(configuration.applyChipUpdate(
+            DashboardChipUpdate(
+                entityID: "person.quinn",
+                displayNameOverride: "Quinn",
+                iconNameOverride: "person.crop.circle"
+            ),
+            for: reference
+        ))
+
+        let updated = try XCTUnwrap(configuration.item(for: reference))
+        XCTAssertEqual(updated.source, .entity("person.quinn"))
+        XCTAssertEqual(updated.presentation, .chip)
+        XCTAssertEqual(updated.displayNameOverride, "Quinn")
+        XCTAssertEqual(updated.iconNameOverride, "person.crop.circle")
+        XCTAssertTrue(configuration.items.isEmpty)
+    }
+
+    func testTransactionalChipUpdateRejectsSummaryChipWithoutMutation() throws {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let chipID = try XCTUnwrap(configuration.add(
+            source: .summary(.lights),
+            presentation: .chip
+        ))
+        let reference = DashboardItemReference(
+            dashboardID: configuration.selectedDashboardID,
+            itemID: chipID
+        )
+        let original = try XCTUnwrap(configuration.item(for: reference))
+
+        XCTAssertFalse(configuration.applyChipUpdate(
+            DashboardChipUpdate(
+                entityID: "light.kitchen",
+                displayNameOverride: "Kitchen",
+                iconNameOverride: nil
+            ),
+            for: reference
+        ))
+        XCTAssertEqual(configuration.item(for: reference), original)
+    }
+
     func testCompositeCardReferenceDisambiguatesMatchingItemIDs() throws {
         let sharedItemID = UUID()
         let firstDashboardID = UUID()

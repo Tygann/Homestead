@@ -421,7 +421,7 @@ nonisolated enum IconResolver {
         switch deviceClass {
         case "doorbell": return "bell.and.waves.left.and.right.fill"
         case "button": return "button.programmable"
-        case "motion": return "figure.motion"
+        case "motion": return "figure.walk.motion"
         default: return "sensor.tag.radiowaves.forward.fill"
         }
     }
@@ -652,7 +652,7 @@ nonisolated enum IconResolver {
         "mdi:microwave": "microwave.fill",
         "mdi:microwave-off": "microwave.fill",
         "mdi:microwave-oven": "microwave.fill",
-        "mdi:motion-sensor": "figure.motion",
+        "mdi:motion-sensor": "figure.walk.motion",
         "mdi:motion-sensor-off": "figure.stand",
         "mdi:monitor": "desktopcomputer",
         "mdi:movie": "play.tv",

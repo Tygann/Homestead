@@ -10744,7 +10744,7 @@ struct HomesteadTests {
             ("cover", "mdi:blinds-open", "blinds.horizontal.open"),
             ("cover", "mdi:curtains-closed", "curtains.closed"),
             ("cover", "mdi:garage-open", "door.garage.open"),
-            ("binary_sensor", "mdi:motion-sensor", "figure.motion"),
+            ("binary_sensor", "mdi:motion-sensor", "figure.walk.motion"),
             ("binary_sensor", "mdi:smoke-detector", "smoke.fill"),
             ("sensor", "mdi:humidity", "humidity.fill")
         ]

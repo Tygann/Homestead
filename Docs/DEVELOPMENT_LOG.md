@@ -2,6 +2,17 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-25
+
+### Dashboard Chip And Paging Polish
+
+- Reversed the dashboard chip hierarchy so the title is bold/primary and the live value is semibold/secondary, then applied the same two-line hierarchy beneath Mini Person avatars.
+- Extended entity-chip presentation to retain Person profile-picture metadata, added canonical entity-detail navigation with exact dashboard-item context, and added a transactional Edit Chip flow for name, icon, entity replacement, and removal.
+- Repaired Home Assistant `mdi:motion-sensor` rendering by replacing the nonexistent `figure.motion` bridge with the valid `figure.walk.motion` SF Symbol.
+- Made multi-dashboard pages target the full physical viewport while restoring safe-area padding inside each page, preventing landscape neighbor bleed and removing the mismatched page-width layout during swipes.
+- Locked only the outer horizontal pager during dashboard editing, preserving vertical scrolling and item drag behavior while preventing page peeking or cross-dashboard movement.
+- Added deterministic Person chip/Mini fixtures plus focused profile-picture, icon-resolution, editor-draft, exact-reference update, and summary-chip protection tests.
+
 ## 2026-07-24
 
 ### Local Dashboard Pages And Shared Preview Sizing

@@ -122,6 +122,12 @@ nonisolated struct DashboardCardUpdate: Equatable, Sendable {
     let chartConfiguration: DashboardChartConfiguration
 }
 
+nonisolated struct DashboardChipUpdate: Equatable, Sendable {
+    let entityID: String
+    let displayNameOverride: String?
+    let iconNameOverride: String?
+}
+
 nonisolated enum DashboardPresentationConfiguration: Codable, Equatable, Sendable {
     case chip
     case card(DashboardCardConfiguration)
@@ -873,6 +879,30 @@ final class DashboardConfiguration {
             item.chartConfiguration = update.configuration.kind == .chart && update.chartConfiguration != .default
                 ? update.chartConfiguration
                 : nil
+        }
+    }
+
+    @discardableResult
+    func applyChipUpdate(
+        _ update: DashboardChipUpdate,
+        for reference: DashboardItemReference
+    ) -> Bool {
+        let entityID = update.entityID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !entityID.isEmpty,
+              item(for: reference)?.role == .chip,
+              case .entity = item(for: reference)?.source else {
+            return false
+        }
+
+        return updateItem(for: reference) { item in
+            item.content = .sourced(DashboardSourcedItem(
+                source: .entity(entityID),
+                presentation: .chip
+            ))
+            item.displayNameOverride = normalizedOverride(update.displayNameOverride)
+            item.iconNameOverride = normalizedOverride(update.iconNameOverride)
+            item.gaugeZoneConfiguration = nil
+            item.chartConfiguration = nil
         }
     }
 

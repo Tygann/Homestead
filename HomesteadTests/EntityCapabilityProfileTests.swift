@@ -51,6 +51,87 @@ final class EntityCapabilityProfileTests: XCTestCase {
         XCTAssertEqual(draft.update(canonicalName: "Bedroom Temperature").displayNameOverride, "Comfort")
     }
 
+    func testChipEditorNameDraftUsesReplacementCanonicalNameWithoutOverride() {
+        var draft = DashboardChipEditorDraft(
+            item: DashboardChipItem(
+                id: UUID(),
+                source: .entity("person.tyler"),
+                displayNameOverride: nil,
+                iconNameOverride: nil
+            ),
+            canonicalName: "Tyler"
+        )
+        draft.replaceEntity(
+            with: "person.quinn",
+            replacementCanonicalName: "Quinn"
+        )
+
+        XCTAssertEqual(draft.displayName, "Quinn")
+        XCTAssertFalse(draft.usesCustomDisplayName)
+        XCTAssertNil(draft.update(canonicalName: "Quinn Updated").displayNameOverride)
+    }
+
+    func testChipEditorNameDraftPreservesExplicitOverrideAfterReplacement() {
+        var draft = DashboardChipEditorDraft(
+            item: DashboardChipItem(
+                id: UUID(),
+                source: .entity("person.tyler"),
+                displayNameOverride: "Someone Home",
+                iconNameOverride: nil
+            ),
+            canonicalName: "Tyler"
+        )
+        draft.replaceEntity(
+            with: "person.quinn",
+            replacementCanonicalName: "Quinn"
+        )
+
+        XCTAssertEqual(draft.displayName, "Someone Home")
+        XCTAssertTrue(draft.usesCustomDisplayName)
+        XCTAssertEqual(
+            draft.update(canonicalName: "Quinn").displayNameOverride,
+            "Someone Home"
+        )
+    }
+
+    func testPersonChipPrefersHomeAssistantProfilePicture() throws {
+        let store = HAStateStore()
+        store.applyInitialStates([
+            HAEntityDTO(
+                entityID: "person.tyler",
+                state: "home",
+                attributes: [
+                    "friendly_name": .string("Tyler"),
+                    "entity_picture": .string("/api/image/tyler")
+                ]
+            )
+        ])
+
+        let chip = DashboardSummaryProvider.makeEntityChip(
+            entityBox: try XCTUnwrap(store.entityBox(for: "person.tyler"))
+        )
+        guard case .personProfilePicture(let path, let fallbackIcon) = chip.iconPresentation else {
+            return XCTFail("Expected the person chip to prefer its Home Assistant profile picture")
+        }
+
+        XCTAssertEqual(path, "/api/image/tyler")
+        XCTAssertEqual(fallbackIcon.sfSymbolName, "person.fill")
+        XCTAssertEqual(chip.icon, fallbackIcon)
+    }
+
+    func testMotionSensorMDIUsesRenderableMotionSymbol() {
+        let icon = IconResolver.resolveEntity(
+            EntityIconResolutionInput(
+                domain: "binary_sensor",
+                state: "on",
+                explicitIcon: "mdi:motion-sensor"
+            )
+        )
+
+        XCTAssertEqual(icon.asset, .sfSymbol("figure.walk.motion"))
+        XCTAssertEqual(icon.sfSymbolName, "figure.walk.motion")
+    }
+
     func testReferenceDomainsUseDistinctFamiliesAndRoutes() {
         let sensor = EntityCapabilityRegistry.profile(for: .sensor)
         let cover = EntityCapabilityRegistry.profile(for: .cover)

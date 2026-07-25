@@ -12,6 +12,7 @@ struct DashboardCardIconView: View {
     var symbolSize: CGFloat = 21
     var displaysProfilePicture = true
     var usesPreviewProfilePicture = false
+    var fallbackIconColor: Color?
 
     // MARK: - Body
 
@@ -88,14 +89,22 @@ struct DashboardCardIconView: View {
     }
 
     private func fallbackIcon(_ icon: ResolvedIcon) -> some View {
-        CardIconView(
-            icon: icon,
-            isActive: isActive,
-            isAvailable: isAvailable,
-            accentColor: accentColor,
-            size: size,
-            symbolSize: symbolSize
-        )
+        Group {
+            if let fallbackIconColor {
+                HomesteadIconView(icon: icon, pointSize: symbolSize)
+                    .foregroundStyle(fallbackIconColor)
+                    .frame(width: size, height: size)
+            } else {
+                CardIconView(
+                    icon: icon,
+                    isActive: isActive,
+                    isAvailable: isAvailable,
+                    accentColor: accentColor,
+                    size: size,
+                    symbolSize: symbolSize
+                )
+            }
+        }
     }
 
     // MARK: - Helpers

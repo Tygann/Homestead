@@ -156,6 +156,62 @@ extension View {
             }
         }
     }
+
+    func dashboardHorizontalPagingLocked(_ isLocked: Bool) -> some View {
+        background {
+            DashboardHorizontalPagingLock(isLocked: isLocked)
+        }
+    }
+}
+
+private struct DashboardHorizontalPagingLock: UIViewRepresentable {
+    let isLocked: Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.apply(isLocked: isLocked, from: uiView)
+    }
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.unlock()
+    }
+
+    final class Coordinator {
+        private weak var scrollView: UIScrollView?
+        private var requestedIsLocked = false
+
+        func apply(isLocked: Bool, from view: UIView) {
+            requestedIsLocked = isLocked
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self,
+                      let view,
+                      self.requestedIsLocked == isLocked else {
+                    return
+                }
+                let resolvedScrollView = view.nearestAncestorScrollView()
+                if self.scrollView !== resolvedScrollView {
+                    self.scrollView?.isScrollEnabled = true
+                }
+                self.scrollView = resolvedScrollView
+                resolvedScrollView?.isScrollEnabled = !isLocked
+            }
+        }
+
+        func unlock() {
+            requestedIsLocked = false
+            scrollView?.isScrollEnabled = true
+            scrollView = nil
+        }
+    }
 }
 
 private struct DashboardLongPressDragSurface: UIViewRepresentable {
@@ -403,6 +459,12 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
 }
 
 private extension UIView {
+    func nearestAncestorScrollView() -> UIScrollView? {
+        sequence(first: superview, next: { $0?.superview })
+            .compactMap { $0 as? UIScrollView }
+            .first
+    }
+
     func nearestScrollView(for axes: Axis.Set) -> UIScrollView? {
         sequence(first: superview, next: { $0?.superview })
             .compactMap { $0 as? UIScrollView }

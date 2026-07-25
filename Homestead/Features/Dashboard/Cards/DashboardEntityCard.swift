@@ -346,12 +346,21 @@ struct DashboardEntityCard: View {
                 usesPreviewProfilePicture: usesPreviewProfilePicture
             )
 
-            Text(miniTitleText)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(miniTitleColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .truncationMode(.tail)
+            VStack(spacing: 0) {
+                Text(miniTitleText)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .truncationMode(.tail)
+
+                Text(presentation.subtitle)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .truncationMode(.tail)
+            }
         }
         .padding(6)
         .frame(maxWidth: .infinity, minHeight: cardContainerMinHeight, alignment: .center)

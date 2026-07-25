@@ -127,11 +127,14 @@ struct EntityDetailSheet: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     if let dashboardItemReference,
-                       dashboardConfiguration.item(for: dashboardItemReference) != nil {
+                       let dashboardItem = dashboardConfiguration.item(for: dashboardItemReference) {
                         Button {
                             editingCardReference = dashboardItemReference
                         } label: {
-                            Label("Edit Card", systemImage: "slider.horizontal.3")
+                            Label(
+                                dashboardItem.role == .chip ? "Edit Chip" : "Edit Card",
+                                systemImage: "slider.horizontal.3"
+                            )
                         }
 
                         Divider()
@@ -151,7 +154,7 @@ struct EntityDetailSheet: View {
             }
         }
         .sheet(item: $editingCardReference) { reference in
-            DashboardCardEditorView(
+            DashboardItemEditorView(
                 reference: reference,
                 onEntityReplaced: onCardEntityChange
             )
