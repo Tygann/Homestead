@@ -4,6 +4,7 @@ import UIKit
 struct DashboardView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(\.openSettings) private var openSettings
     @State private var editingDashboardID: UUID?
     @State private var toolbarAddRequest: DashboardToolbarAddRequest?
     @State private var dashboardsScrolledFromTop: Set<UUID> = []
@@ -144,10 +145,19 @@ struct DashboardView: View {
             } label: {
                 Label("Edit Dashboard", systemImage: "square.grid.2x2")
             }
+
+            Divider()
+
+            Button {
+                openSettings(.dashboards)
+            } label: {
+                Label("Manage Dashboards", systemImage: "rectangle.grid.2x2")
+            }
         } label: {
             Image(systemName: "ellipsis")
                 .bold()
         }
+        .accessibilityLabel("Dashboard Options")
     }
 
     private var pagerSelectionBinding: Binding<UUID?> {

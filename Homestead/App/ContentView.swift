@@ -71,25 +71,20 @@ struct ContentView: View {
                 mainTabs(chrome: chrome)
             }
         }
-        .environment(\.openSettings, { presentedAppSheet = .settings })
+        .environment(
+            \.openSettings,
+            OpenSettingsAction { route in
+                presentedAppSheet = .settings(route)
+            }
+        )
         .sheet(item: $presentedAppSheet) { destination in
             switch destination {
-            case .settings:
-            NavigationStack {
-                SettingsView()
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button {
-                                presentedAppSheet = nil
-                            } label: {
-                                Image(systemName: "xmark")
-                            }
-                            .accessibilityLabel("Close Settings")
-                        }
-                    }
-            }
-            .accentColor(Color(appearanceSettings.appColor.uiColor))
-            .preferredColorScheme(settingsSheetColorScheme)
+            case .settings(let initialRoute):
+                SettingsSheet(initialRoute: initialRoute) {
+                    presentedAppSheet = nil
+                }
+                .accentColor(Color(appearanceSettings.appColor.uiColor))
+                .preferredColorScheme(settingsSheetColorScheme)
             }
         }
         .sheet(item: $widgetEntityDestination) { destination in
@@ -395,10 +390,41 @@ struct ContentView: View {
 
 }
 
-private enum AppSheetDestination: String, Identifiable {
-    case settings
+private enum AppSheetDestination: Identifiable {
+    case settings(SettingsRoute?)
 
-    var id: String { rawValue }
+    var id: String {
+        switch self {
+        case .settings(.dashboards):
+            "settings-dashboards"
+        case .settings(nil):
+            "settings"
+        }
+    }
+}
+
+private struct SettingsSheet: View {
+    @State private var path: [SettingsRoute]
+    let close: () -> Void
+
+    init(initialRoute: SettingsRoute?, close: @escaping () -> Void) {
+        _path = State(initialValue: initialRoute.map { [$0] } ?? [])
+        self.close = close
+    }
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            SettingsView()
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: close) {
+                            Image(systemName: "xmark")
+                        }
+                        .accessibilityLabel("Close Settings")
+                    }
+                }
+        }
+    }
 }
 
 private struct WidgetEntityDestination: Identifiable {
@@ -427,11 +453,23 @@ private extension NativeNotificationAuthorizationStatus {
 }
 
 private struct OpenSettingsKey: EnvironmentKey {
-    static let defaultValue: () -> Void = {}
+    static let defaultValue = OpenSettingsAction { _ in }
+}
+
+struct OpenSettingsAction {
+    private let action: (SettingsRoute?) -> Void
+
+    init(action: @escaping (SettingsRoute?) -> Void) {
+        self.action = action
+    }
+
+    func callAsFunction(_ route: SettingsRoute? = nil) {
+        action(route)
+    }
 }
 
 extension EnvironmentValues {
-    var openSettings: () -> Void {
+    var openSettings: OpenSettingsAction {
         get { self[OpenSettingsKey.self] }
         set { self[OpenSettingsKey.self] = newValue }
     }
@@ -442,7 +480,9 @@ struct SettingsAccountButton: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
-        Button(action: openSettings) {
+        Button {
+            openSettings()
+        } label: {
             HomeAssistantAvatarView()
                 .frame(width: 44, height: 44)
                 .padding(-6)

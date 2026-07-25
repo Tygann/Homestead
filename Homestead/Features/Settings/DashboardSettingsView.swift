@@ -63,6 +63,14 @@ struct DashboardSettingsView: View {
                     }
                 }
             }
+
+            if dashboardConfiguration.dashboards.count > 1, !editMode.isEditing {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit") {
+                        editMode = .active
+                    }
+                }
+            }
         }
         .alert(namingDialogTitle, isPresented: isNamingDashboard) {
             TextField("Name", text: $dashboardNameDraft)

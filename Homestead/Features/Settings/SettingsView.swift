@@ -1,5 +1,9 @@
 import SwiftUI
 
+enum SettingsRoute: Hashable {
+    case dashboards
+}
+
 // MARK: - Settings View
 struct SettingsView: View {
     @Environment(HAStateStore.self) private var stateStore
@@ -86,9 +90,7 @@ struct SettingsView: View {
                     SettingsNavigationRowLabel("Appearance", systemImage: "circle.righthalf.filled")
                 }
 
-                NavigationLink {
-                    DashboardSettingsView()
-                } label: {
+                NavigationLink(value: SettingsRoute.dashboards) {
                     SettingsNavigationRowLabel("Dashboards", systemImage: "rectangle.grid.2x2")
                 }
             }
@@ -138,6 +140,12 @@ struct SettingsView: View {
                 NavigationLink(destination: AboutView()) {
                     SettingsNavigationRowLabel("About", systemImage: "info.circle")
                 }
+            }
+        }
+        .navigationDestination(for: SettingsRoute.self) { route in
+            switch route {
+            case .dashboards:
+                DashboardSettingsView()
             }
         }
         .navigationTitle("Settings")
