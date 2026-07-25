@@ -141,7 +141,7 @@ struct DashboardView: View {
             Button {
                 editingDashboardID = dashboardConfiguration.selectedDashboardID
             } label: {
-                Label("Edit Dashboard", systemImage: "pencil")
+                Label("Edit Dashboard", systemImage: "square.and.pencil")
             }
 
             Divider()

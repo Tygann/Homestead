@@ -14,7 +14,6 @@ struct DashboardSettingsView: View {
                 ForEach(dashboardConfiguration.dashboards) { dashboard in
                     DashboardSettingsRow(
                         dashboard: dashboard,
-                        isSelected: isSelected(dashboard),
                         rename: {
                             beginRenaming(dashboard)
                         },
@@ -157,10 +156,6 @@ struct DashboardSettingsView: View {
         return dashboardConfiguration.dashboards.first { $0.id == deletingDashboardID }
     }
 
-    private func isSelected(_ dashboard: SavedDashboardConfiguration) -> Bool {
-        dashboard.id == dashboardConfiguration.selectedDashboardID
-    }
-
     private func createDashboard() {
         dashboardNameDraft = "Dashboard"
         namingAction = .create
@@ -216,7 +211,6 @@ private struct DashboardSettingsRow<Detail: View>: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
     let dashboard: SavedDashboardConfiguration
-    let isSelected: Bool
     let rename: () -> Void
     let duplicate: () -> Void
     let reorder: () -> Void
@@ -232,8 +226,7 @@ private struct DashboardSettingsRow<Detail: View>: View {
             ZStack(alignment: .trailing) {
                 NavigationLink(destination: detail) {
                     DashboardSettingsRowLabel(
-                        name: dashboard.resolvedName,
-                        isSelected: isSelected
+                        name: dashboard.resolvedName
                     )
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.trailing, 64)
@@ -260,8 +253,7 @@ private struct DashboardSettingsRow<Detail: View>: View {
     private var rowContent: some View {
         HStack(spacing: AppSpacing.medium) {
             DashboardSettingsRowLabel(
-                name: dashboard.resolvedName,
-                isSelected: isSelected
+                name: dashboard.resolvedName
             )
 
             Spacer(minLength: AppSpacing.medium)
@@ -324,20 +316,11 @@ private struct DashboardSettingsRow<Detail: View>: View {
 
 private struct DashboardSettingsRowLabel: View {
     let name: String
-    let isSelected: Bool
 
     var body: some View {
-        HStack(spacing: AppSpacing.medium) {
-            Image(systemName: "checkmark")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(isSelected ? Color.accentColor : Color.clear)
-                .frame(width: 22)
-                .accessibilityHidden(!isSelected)
-
-            Text(name)
-                .foregroundStyle(.primary)
-        }
-        .padding(.vertical, AppSpacing.xSmall)
+        Text(name)
+            .foregroundStyle(.primary)
+            .padding(.vertical, AppSpacing.xSmall)
     }
 }
 
@@ -399,10 +382,6 @@ struct DashboardDetailSettingsView: View {
 
                 if chipCount > 0 {
                     LabeledContent("Chips", value: chipCount.formatted())
-                }
-
-                if isSelected {
-                    LabeledContent("Current Home Page", value: "Visible")
                 }
 
                 Toggle(
@@ -493,10 +472,6 @@ struct DashboardDetailSettingsView: View {
 
     private var cardCountText: String {
         cardCount.formatted()
-    }
-
-    private var isSelected: Bool {
-        dashboard.id == dashboardConfiguration.selectedDashboardID
     }
 
     private var isEnabled: Bool {
