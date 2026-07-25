@@ -150,10 +150,11 @@ struct EntityBrowserList<Accessory: View>: View {
                     ContentUnavailableView.search(text: currentSearchText)
                 }
             }
+            .modifier(EntityBrowserRefreshModifier(isEnabled: allowsRefresh) {
+                await homeAssistantService.refreshStates()
+            })
+            .modifier(EntityBrowserSearchModifier(searchText: searchTextBinding, isEnabled: showsSearchField))
         }
-        .modifier(EntityBrowserRefreshModifier(isEnabled: allowsRefresh) {
-            await homeAssistantService.refreshStates()
-        })
         .onChange(of: grouping) { _, newValue in
             persistGrouping(newValue)
         }
@@ -164,7 +165,6 @@ struct EntityBrowserList<Accessory: View>: View {
                 }
             }
         }
-        .modifier(EntityBrowserSearchModifier(searchText: searchTextBinding, isEnabled: showsSearchField))
     }
 
     // MARK: - Sections
