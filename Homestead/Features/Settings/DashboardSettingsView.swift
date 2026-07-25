@@ -65,6 +65,8 @@ struct DashboardSettingsView: View {
             }
 
             if dashboardConfiguration.dashboards.count > 1, !editMode.isEditing {
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Edit") {
                         editMode = .active

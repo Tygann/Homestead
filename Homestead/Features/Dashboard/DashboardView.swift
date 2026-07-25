@@ -138,12 +138,10 @@ struct DashboardView: View {
                 Label("Add to Dashboard", systemImage: "rectangle.stack.badge.plus")
             }
 
-            Divider()
-
             Button {
                 editingDashboardID = dashboardConfiguration.selectedDashboardID
             } label: {
-                Label("Edit Dashboard", systemImage: "square.grid.2x2")
+                Label("Edit Dashboard", systemImage: "pencil")
             }
 
             Divider()
@@ -151,7 +149,7 @@ struct DashboardView: View {
             Button {
                 openSettings(.dashboards)
             } label: {
-                Label("Manage Dashboards", systemImage: "rectangle.grid.2x2")
+                Label("Manage Dashboards", systemImage: "rectangle.stack")
             }
         } label: {
             Image(systemName: "ellipsis")
