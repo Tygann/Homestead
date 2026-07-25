@@ -53,6 +53,31 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 113)
+
+- Release Date: 2026-07-24
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build makes dashboards easier to move through, brings clearer controls and support options, and restores flexible Sensor Board setup.
+
+- Swipe between multiple dashboards with native paging that keeps the content and screen chrome feeling at home on iPhone
+- Choose options from clearer, more capable controls across dashboard cards and entity details
+- Find Home Assistant help, diagnostics, and native permission settings in a more organized Settings experience
+- Customize Sensor Board gauges again, including the individual slots in small and large widgets
+
+Please test:
+
+- Swiping between dashboards with one, two, and several pages, including at the top and bottom of a long dashboard
+- Changing Select and Climate controls from both dashboard cards and entity details
+- Opening Settings to review Home Assistant support, diagnostics, and permission access
+- Configuring different gauges in the available Sensor Board widget slots
+
+### Internal Summary
+
+Build 113 covers native local dashboard paging and safe-area refinement; capability-aware option menus, entity controls, diagnostics, and Home Assistant handoff destinations; consolidated Settings support and permission presentation; and restored configurable Sensor Board gauge slots after Build 112.
+
 ## Version 1 (Build 112)
 
 - Release Date: 2026-07-24
