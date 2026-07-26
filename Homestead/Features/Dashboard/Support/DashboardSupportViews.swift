@@ -276,6 +276,8 @@ struct EmptyDashboardCard: View {
 }
 
 struct DashboardEmptyStateView: View {
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
+
     let suggestedSetupActionTitle: String
     let addToDashboard: () -> Void
     let useSuggestedSetup: () -> Void
@@ -287,13 +289,7 @@ struct DashboardEmptyStateView: View {
             Text("Add your favorite controls for quick access to your home.")
         } actions: {
             VStack(spacing: AppSpacing.small) {
-                Button(
-                    "Add to Dashboard",
-                    systemImage: "plus",
-                    action: addToDashboard
-                )
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                addToDashboardButton
 
                 Button(suggestedSetupActionTitle, action: useSuggestedSetup)
                     .buttonStyle(.plain)
@@ -302,5 +298,38 @@ struct DashboardEmptyStateView: View {
         }
         .frame(maxWidth: .infinity)
         .containerRelativeFrame(.vertical, alignment: .center)
+    }
+
+    @ViewBuilder
+    private var addToDashboardButton: some View {
+        let button = Button(
+            "Add to Dashboard",
+            systemImage: "plus",
+            action: addToDashboard
+        )
+        .controlSize(.large)
+
+        if isWallpaperSurfaceActive {
+            button
+                .buttonStyle(.plain)
+                .font(.body)
+                .foregroundStyle(.tint)
+                .padding(.horizontal, AppSpacing.large)
+                .padding(.vertical, AppSpacing.medium)
+                .background(
+                    HomesteadSurfaceStyle.cardBackground(isWallpaperActive: true),
+                    in: Capsule()
+                )
+                .overlay {
+                    Capsule()
+                        .strokeBorder(
+                            HomesteadSurfaceStyle.cardBorder(isWallpaperActive: true),
+                            lineWidth: 0.5
+                        )
+                }
+        } else {
+            button
+                .buttonStyle(.borderedProminent)
+        }
     }
 }
