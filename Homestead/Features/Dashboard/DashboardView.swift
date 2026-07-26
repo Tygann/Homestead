@@ -80,7 +80,7 @@ struct DashboardView: View {
                     LazyHStack(spacing: 0) {
                         ForEach(enabledDashboards) { dashboard in
                             dashboardPage(dashboard)
-                                .safeAreaPadding(.horizontal)
+                                .safeAreaPadding(.horizontal, 0)
                                 .frame(width: geometry.size.width)
                         }
                     }
