@@ -53,6 +53,31 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 114)
+
+- Release Date: 2026-07-26
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build makes dashboard chips more personal and dashboard management easier to reach.
+
+- Tap entity chips to open details, or edit their name, icon, entity, and dashboard placement
+- See clearer chip and Mini card layouts, including profile photos for Person entities
+- Open Manage Dashboards directly from Home to reorder and organize your dashboards
+- Move between dashboards more reliably, with smoother paging and editing behavior
+- Enjoy a cleaner empty-dashboard experience that adapts to your Home wallpaper
+
+Please test:
+
+- Opening and editing several entity chips, including a Person chip with a profile photo
+- Reordering dashboards from Home's Manage Dashboards action
+- Paging between dashboards, then editing cards and chips without changing pages
+
+### Internal Summary
+
+Build 114 covers transactional entity-chip editing and detail navigation, Person imagery, standardized Mini cards, dashboard pager sizing and edit-mode locking, direct Home dashboard management, native dashboard reordering, and wallpaper-aware empty states after Build 113.
+
 ## Version 1 (Build 113)
 
 - Release Date: 2026-07-24
