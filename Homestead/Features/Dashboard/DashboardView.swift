@@ -75,24 +75,22 @@ struct DashboardView: View {
             dashboardPage(dashboard)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            GeometryReader { geometry in
-                ScrollView(.horizontal) {
-                    LazyHStack(spacing: 0) {
-                        ForEach(enabledDashboards) { dashboard in
-                            dashboardPage(dashboard)
-                                .safeAreaPadding(.horizontal, 0)
-                                .frame(width: geometry.size.width)
-                        }
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(enabledDashboards) { dashboard in
+                        dashboardPage(dashboard)
+                            .safeAreaPadding(.horizontal, 0)
+                            .containerRelativeFrame(.horizontal)
                     }
-                    .scrollTargetLayout()
-                    .dashboardHorizontalPagingLocked(editingDashboardID != nil)
                 }
-                .scrollTargetBehavior(.paging)
-                .scrollPosition(id: pagerSelectionBinding)
-                .scrollIndicators(.hidden)
-                // The horizontal pager otherwise presents a top effect even when its selected vertical page is at rest.
-                .scrollEdgeEffectHidden(!selectedDashboardIsScrolledFromTop, for: .top)
+                .scrollTargetLayout()
+                .dashboardHorizontalPagingLocked(editingDashboardID != nil)
             }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: pagerSelectionBinding)
+            .scrollIndicators(.hidden)
+            // The horizontal pager otherwise presents a top effect even when its selected vertical page is at rest.
+            .scrollEdgeEffectHidden(!selectedDashboardIsScrolledFromTop, for: .top)
             .ignoresSafeArea(.container, edges: .horizontal)
         }
     }

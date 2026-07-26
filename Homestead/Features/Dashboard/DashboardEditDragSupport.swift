@@ -188,26 +188,40 @@ private struct DashboardHorizontalPagingLock: UIViewRepresentable {
     final class Coordinator {
         private weak var scrollView: UIScrollView?
         private var requestedIsLocked = false
+        private var isResolutionScheduled = false
 
         func apply(isLocked: Bool, from view: UIView) {
             requestedIsLocked = isLocked
+
+            guard isLocked else {
+                unlockScrollView()
+                return
+            }
+            guard !isResolutionScheduled else { return }
+
+            isResolutionScheduled = true
             DispatchQueue.main.async { [weak self, weak view] in
-                guard let self,
-                      let view,
-                      self.requestedIsLocked == isLocked else {
+                guard let self else { return }
+                self.isResolutionScheduled = false
+
+                guard let view, self.requestedIsLocked else {
                     return
                 }
                 let resolvedScrollView = view.nearestAncestorScrollView()
                 if self.scrollView !== resolvedScrollView {
-                    self.scrollView?.isScrollEnabled = true
+                    self.unlockScrollView()
                 }
                 self.scrollView = resolvedScrollView
-                resolvedScrollView?.isScrollEnabled = !isLocked
+                resolvedScrollView?.isScrollEnabled = false
             }
         }
 
         func unlock() {
             requestedIsLocked = false
+            unlockScrollView()
+        }
+
+        private func unlockScrollView() {
             scrollView?.isScrollEnabled = true
             scrollView = nil
         }
