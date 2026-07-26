@@ -6,7 +6,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### Dashboard Chip And Paging Polish
 
-- Reversed the dashboard chip hierarchy so the title is bold/primary and the live value is semibold/secondary, then applied the same two-line hierarchy beneath Mini Person avatars.
+- Reversed the dashboard chip hierarchy so the title is bold/primary and the live value is semibold/secondary, then standardized every Mini card on the same centered state-aware icon, title, and subtitle hierarchy while preserving Person avatars.
 - Extended entity-chip presentation to retain Person profile-picture metadata, added canonical entity-detail navigation with exact dashboard-item context, and added a transactional Edit Chip flow for name, icon, entity replacement, and removal.
 - Repaired Home Assistant `mdi:motion-sensor` rendering by replacing the nonexistent `figure.motion` bridge with the valid `figure.walk.motion` SF Symbol.
 - Restored native container-relative page sizing inside the full physical viewport, retaining the original paging deceleration while preventing landscape neighbor bleed and duplicate horizontal padding.

@@ -29,6 +29,18 @@ struct PreviewDependencies {
             source: .entity("person.tyler"),
             presentation: .card(.status(layout: .mini))
         )
+        _ = dependencies.dashboardConfiguration.add(
+            source: .entity("light.bedroom"),
+            presentation: .card(.control(layout: .mini))
+        )
+        _ = dependencies.dashboardConfiguration.add(
+            source: .entity("light.kitchen_pendants"),
+            presentation: .card(.status(layout: .mini))
+        )
+        _ = dependencies.dashboardConfiguration.add(
+            source: .entity("scene.movie_night"),
+            presentation: .card(.action(layout: .mini))
+        )
         for index in 0..<8 {
             let entityID = index.isMultiple(of: 2) ? "light.bedroom" : "light.kitchen"
             _ = dependencies.dashboardConfiguration.add(

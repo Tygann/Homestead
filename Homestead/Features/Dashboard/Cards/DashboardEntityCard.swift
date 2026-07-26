@@ -265,7 +265,9 @@ struct DashboardEntityCard: View {
 
     @ViewBuilder
     private func standardCardContent(visibleFeatures: [DashboardCardFeature]) -> some View {
-        if presentationKind == .media, let media = entityBox.mediaPlayerEntity {
+        if size == .mini {
+            miniContent
+        } else if presentationKind == .media, let media = entityBox.mediaPlayerEntity {
             DashboardMediaCardContent(
                 media: media,
                 presentation: presentation,
@@ -287,11 +289,7 @@ struct DashboardEntityCard: View {
         } else {
             switch size {
             case .mini:
-                if entityBox.domain == .person {
-                    personMiniContent
-                } else {
-                    miniContent
-                }
+                miniContent
             case .compact:
                 compactContent
             case .row:
@@ -317,34 +315,8 @@ struct DashboardEntityCard: View {
     }
 
     private var miniContent: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            miniIconPlaceholder
-
-            Text(miniTitleText)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(miniTitleColor)
-                .lineLimit(2)
-                .truncationMode(.tail)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, miniContentHorizontalInset)
-        .padding(.vertical, miniContentVerticalInset)
-        .frame(maxWidth: .infinity, minHeight: cardContainerMinHeight, alignment: .topLeading)
-    }
-
-    private var personMiniContent: some View {
         VStack(spacing: AppSpacing.xSmall) {
-            DashboardCardIconView(
-                presentation: presentation.iconPresentation,
-                isActive: presentation.isActive,
-                isAvailable: presentation.isAvailable,
-                accentColor: presentation.accentColor,
-                size: 34,
-                symbolSize: 16,
-                usesPreviewProfilePicture: usesPreviewProfilePicture
-            )
+            miniIconPlaceholder
 
             VStack(spacing: 0) {
                 Text(miniTitleText)
@@ -773,11 +745,10 @@ struct DashboardEntityCard: View {
         Group {
             if size == .mini {
                 Color.clear
-                    .frame(width: 44, height: 44)
-                    .overlay(alignment: .topLeading) {
-                        miniGlyph
-                            .frame(width: miniIconSize, height: miniIconSize)
-                            .offset(x: miniContentHorizontalInset, y: miniContentVerticalInset)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .overlay {
+                        miniCardIcon
                     }
                     .contentShape(Rectangle())
             } else {
@@ -788,18 +759,24 @@ struct DashboardEntityCard: View {
 
     private var miniIconPlaceholder: some View {
         Color.clear
-            .frame(width: miniIconSize, height: miniIconSize)
+            .frame(width: 34, height: 34)
             .overlay {
                 if toggle == nil {
-                    miniGlyph
+                    miniCardIcon
                 }
             }
     }
 
-    private var miniGlyph: some View {
-        HomesteadIconView(icon: presentation.icon, pointSize: 16)
-            .foregroundStyle(miniIconColor)
-            .accessibilityHidden(true)
+    private var miniCardIcon: some View {
+        DashboardCardIconView(
+            presentation: presentation.iconPresentation,
+            isActive: presentation.isActive,
+            isAvailable: presentation.isAvailable,
+            accentColor: presentation.accentColor,
+            size: 34,
+            symbolSize: 16,
+            usesPreviewProfilePicture: usesPreviewProfilePicture
+        )
     }
 
     private var cardIconView: some View {
@@ -815,23 +792,6 @@ struct DashboardEntityCard: View {
 
     private var miniTitleText: String {
         presentation.title.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var miniTitleColor: Color {
-        guard presentation.isAvailable else {
-            return .secondary
-        }
-
-        return .primary
-    }
-
-    private var miniIconColor: Color {
-        HomesteadSurfaceStyle.iconForeground(
-            isWallpaperActive: isWallpaperSurfaceActive,
-            isActive: presentation.isActive,
-            isAvailable: presentation.isAvailable,
-            accentColor: presentation.accentColor
-        )
     }
 
     private var iconColor: Color {
@@ -888,18 +848,6 @@ struct DashboardEntityCard: View {
         return size == .mini ? 0 : AppSpacing.medium
     }
 
-    private var miniContentHorizontalInset: CGFloat {
-        10
-    }
-
-    private var miniContentVerticalInset: CGFloat {
-        6
-    }
-
-    private var miniIconSize: CGFloat {
-        22
-    }
-
     private var renderedCardHeight: CGFloat {
         size.renderedHeight(
             rowSpacing: AppSpacing.medium,
@@ -921,7 +869,7 @@ struct DashboardEntityCard: View {
     }
 
     private var usesEmbeddedCardInteractions: Bool {
-        presentationKind == .media || presentationKind == .action
+        size != .mini && (presentationKind == .media || presentationKind == .action)
     }
 
     private var weatherForecastTaskID: String {
