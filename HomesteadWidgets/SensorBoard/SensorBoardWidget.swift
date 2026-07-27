@@ -669,6 +669,9 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadSensorBoardWidgetConfigurationIntent,
         in context: Context
     ) async -> HomesteadSensorBoardEntry {
+        guard HomesteadWidgetPlusAccess.isGranted() else {
+            return .placeholder
+        }
         if context.isPreview,
            configuration.slots.allSatisfy({ $0.sensor == nil && $0.chartSensor == nil }) {
             return .placeholder
@@ -681,7 +684,13 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadSensorBoardWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadSensorBoardEntry> {
-        Timeline(
+        guard HomesteadWidgetPlusAccess.isGranted() else {
+            return Timeline(
+                entries: [.placeholder],
+                policy: .after(.now.addingTimeInterval(30 * 60))
+            )
+        }
+        return Timeline(
             entries: [await entry(for: configuration)],
             policy: .after(.now.addingTimeInterval(30 * 60))
         )
@@ -819,10 +828,14 @@ struct HomesteadSensorBoardWidgetView: View {
     let entry: HomesteadSensorBoardEntry
 
     var body: some View {
-        WidgetSensorBoardFace(
-            items: entry.items,
-            destinationsByEntityID: destinations
-        )
+        if HomesteadWidgetPlusAccess.isGranted() {
+            WidgetSensorBoardFace(
+                items: entry.items,
+                destinationsByEntityID: destinations
+            )
+        } else {
+            HomesteadPlusWidgetLockView()
+        }
     }
 
     private var destinations: [String: URL] {

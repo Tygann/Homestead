@@ -6,8 +6,10 @@ struct ICloudSyncSettingsView: View {
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(HomesteadICloudSyncService.self) private var iCloudSyncService
+    @Environment(HomesteadEntitlementStore.self) private var entitlementStore
     @State private var conflictSummary: HomesteadICloudRestoreSummary?
     @State private var errorMessage: String?
+    @State private var isShowingPlus = false
 
     var body: some View {
         Form {
@@ -80,6 +82,11 @@ struct ICloudSyncSettingsView: View {
         } message: {
             Text(errorMessage ?? "Please try again later.")
         }
+        .sheet(isPresented: $isShowingPlus) {
+            NavigationStack {
+                HomesteadPlusView()
+            }
+        }
     }
 
     private var serverSyncDetail: String {
@@ -103,6 +110,10 @@ struct ICloudSyncSettingsView: View {
     }
 
     private func syncNow() {
+        guard entitlementStore.hasPlus else {
+            isShowingPlus = true
+            return
+        }
         iCloudSyncService.syncNow(
             connectionSettings: connectionSettings,
             dashboardConfiguration: dashboardConfiguration,
@@ -114,6 +125,10 @@ struct ICloudSyncSettingsView: View {
     private func setSyncEnabled(_ enabled: Bool) {
         guard enabled else {
             iCloudSyncService.disable()
+            return
+        }
+        guard entitlementStore.hasPlus else {
+            isShowingPlus = true
             return
         }
         switch iCloudSyncService.requestEnable(

@@ -11,6 +11,16 @@ struct SettingsReferenceGallery: View {
                         SettingsView()
                             .withPreviewEnvironment(.settingsSample(.healthy))
                     }
+
+                    NavigationLink("Homestead Plus — Free") {
+                        HomesteadPlusView()
+                            .environment(HomesteadEntitlementStore(previewPlan: .free))
+                    }
+
+                    NavigationLink("Homestead Plus — Lifetime") {
+                        HomesteadPlusView()
+                            .environment(HomesteadEntitlementStore(previewPlan: .lifetime))
+                    }
                 }
 
                 Section("Dashboard Paging") {

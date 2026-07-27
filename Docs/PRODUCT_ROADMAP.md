@@ -46,9 +46,11 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 - Cloud-first setup bootstrap and opt-in automatic iCloud key-value sync for small Homestead-owned preferences. Server profile metadata and per-server dashboard bundles sync without credentials; the active server and current dashboard selection remain device-local.
 - User-initiated local Home Assistant discovery through the advertised `_home-assistant._tcp` Bonjour service, with manual sign-in address entry as fallback.
 - App-facing model mapping through `EntityMapper`, with SwiftUI avoiding direct Home Assistant DTO use.
+- StoreKit-backed Homestead Plus with monthly, annual trial, and lifetime choices. Core daily control, one server, one dashboard, wallpaper, and standard single-item widgets remain free; Plus unlocks creation of additional dashboards, additional servers, iCloud sync, Sensor Boards, and advanced Sensor widget presentations. Entitlement changes preserve all user configuration.
 
 ## Near-Term Priorities
 
+- Configure and submit the matching Homestead Plus products in App Store Connect, exercise the ordinary annual trial with all four TestFlight testers, validate sandbox renewal/expiration and offer-code redemption, then issue four complimentary lifetime codes after approval.
 - Device-test the completed Chart, Weather, Media, and Action card families in dense live dashboards, including unavailable/pending states and real Media Player capability combinations, then capture the physical-device performance baseline.
 - Device-test the medium and large Sensor Board layouts with real sensor names, ranges, icons, history, and unavailable states; keep additional mixed layouts curated rather than introducing a free-form widget canvas.
 - Polish and device-test the expanded WidgetKit/App Intents surface, then consider Control Center controls for the safest common actions.

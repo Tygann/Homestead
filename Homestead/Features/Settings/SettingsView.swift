@@ -2,6 +2,7 @@ import SwiftUI
 
 enum SettingsRoute: Hashable {
     case dashboards
+    case plus
 }
 
 // MARK: - Settings View
@@ -9,6 +10,7 @@ struct SettingsView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(HomesteadEntitlementStore.self) private var entitlementStore
     @State private var isShowingRatePlaceholder = false
 
     var body: some View {
@@ -22,6 +24,21 @@ struct SettingsView: View {
         let availableUpdateCount = stateStore.updateEntities.count { $0.status == .available }
 
         Form {
+            Section {
+                NavigationLink {
+                    HomesteadPlusView()
+                } label: {
+                    SettingsNavigationRowLabel(systemImage: "house.and.flag") {
+                        HStack {
+                            Text("Homestead Plus")
+                            Spacer()
+                            Text(entitlementStore.statusTitle)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
             Section {
                 NavigationLink(destination: HomeAssistantSettingsView()) {
                     HomeAssistantSettingsRow(
@@ -146,6 +163,8 @@ struct SettingsView: View {
             switch route {
             case .dashboards:
                 DashboardSettingsView()
+            case .plus:
+                HomesteadPlusView()
             }
         }
         .navigationTitle("Settings")

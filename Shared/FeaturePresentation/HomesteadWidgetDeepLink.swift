@@ -5,6 +5,7 @@ import Foundation
 enum HomesteadWidgetDeepLink {
     private static let scheme = "homestead"
     private static let entityHost = "entity"
+    private static let plusHost = "plus"
 
     static func entityURL(entityID: String) -> URL {
         let referenceID: String
@@ -20,6 +21,14 @@ enum HomesteadWidgetDeepLink {
         components.host = entityHost
         components.path = "/\(referenceID)"
         return components.url ?? URL(string: "\(scheme)://\(entityHost)/\(referenceID)")!
+    }
+
+    static var plusURL: URL {
+        URL(string: "\(scheme)://\(plusHost)")!
+    }
+
+    static func isPlusURL(_ url: URL) -> Bool {
+        url.scheme == scheme && url.host == plusHost
     }
 
     static func entityID(from url: URL) -> String? {

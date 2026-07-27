@@ -16,6 +16,7 @@ struct HomesteadApp: App {
     @State private var appearanceSettings: HomesteadAppearanceSettings
     @State private var tabSettings: HomesteadTabSettings
     @State private var iCloudSyncService: HomesteadICloudSyncService
+    @State private var entitlementStore: HomesteadEntitlementStore
     @State private var setupCoordinator: HomesteadSetupCoordinator
     private let usesLivePreviewLaunch: Bool
     private let previewScreen: HomesteadPreviewScreen?
@@ -38,6 +39,7 @@ struct HomesteadApp: App {
             _appearanceSettings = State(initialValue: dependencies.appearanceSettings)
             _tabSettings = State(initialValue: dependencies.tabSettings)
             _iCloudSyncService = State(initialValue: dependencies.iCloudSyncService)
+            _entitlementStore = State(initialValue: HomesteadEntitlementStore(previewPlan: .free))
             _setupCoordinator = State(initialValue: HomesteadSetupCoordinator(initialPhase: .ready))
             usesLivePreviewLaunch = false
             self.previewScreen = previewScreen
@@ -61,6 +63,7 @@ struct HomesteadApp: App {
             _appearanceSettings = State(initialValue: dependencies.appearanceSettings)
             _tabSettings = State(initialValue: dependencies.tabSettings)
             _iCloudSyncService = State(initialValue: dependencies.iCloudSyncService)
+            _entitlementStore = State(initialValue: HomesteadEntitlementStore(previewPlan: .free))
             _setupCoordinator = State(initialValue: HomesteadSetupCoordinator(initialPhase: .ready))
             usesLivePreviewLaunch = true
             previewScreen = nil
@@ -82,7 +85,8 @@ struct HomesteadApp: App {
         let appearanceSettings = HomesteadAppearanceSettings(profileID: connectionProfileStore.activeProfileID)
         let tabSettings = HomesteadTabSettings()
         let dashboardConfiguration = DashboardConfiguration(profileID: connectionProfileStore.activeProfileID)
-        let iCloudSyncService = HomesteadICloudSyncService()
+        let iCloudSyncService = HomesteadICloudSyncService(hasPlusAccess: false)
+        let entitlementStore = HomesteadEntitlementStore()
         let setupCoordinator = HomesteadSetupCoordinator()
         let homeAssistantService = HomeAssistantService(
             stateStore: stateStore,
@@ -122,6 +126,7 @@ struct HomesteadApp: App {
         _appearanceSettings = State(initialValue: appearanceSettings)
         _tabSettings = State(initialValue: tabSettings)
         _iCloudSyncService = State(initialValue: iCloudSyncService)
+        _entitlementStore = State(initialValue: entitlementStore)
         _setupCoordinator = State(initialValue: setupCoordinator)
         usesLivePreviewLaunch = false
         previewScreen = nil
@@ -141,6 +146,7 @@ struct HomesteadApp: App {
                 .environment(appearanceSettings)
                 .environment(tabSettings)
                 .environment(iCloudSyncService)
+                .environment(entitlementStore)
                 .environment(setupCoordinator)
                 .environment(setupCoordinator.discoveryService)
                 .accentColor(Color(appearanceSettings.appColor.uiColor))
@@ -160,6 +166,10 @@ struct HomesteadApp: App {
 #endif
 
                     guard !RuntimeEnvironment.isRunningForPreviews else { return }
+                    // Current entitlements are available independently of the
+                    // product catalog, so App Store latency never blocks setup.
+                    await entitlementStore.refreshEntitlements()
+                    updateICloudPlusAccess()
                     await setupCoordinator.start(
                         iCloud: iCloudSyncService,
                         connectionSettings: connectionSettings,
@@ -170,6 +180,9 @@ struct HomesteadApp: App {
                     )
                     await nativeNotificationService.refreshAuthorizationStatus()
                     await nativeNotificationService.registerForRemoteNotificationsIfAllowed()
+                    Task {
+                        await entitlementStore.prepare()
+                    }
                 }
                 .onChange(of: connectionSettings.syncSnapshot) { _, _ in
                     syncPreferencesToICloud(.connection)
@@ -185,6 +198,9 @@ struct HomesteadApp: App {
                 }
                 .onChange(of: appearanceSettings.syncSnapshot) { _, _ in
                     syncPreferencesToICloud(.appearance)
+                }
+                .onChange(of: entitlementStore.hasPlus) { _, _ in
+                    updateICloudPlusAccess()
                 }
         }
     }
@@ -238,6 +254,26 @@ struct HomesteadApp: App {
             actionConfirmationSettings: actionConfirmationSettings,
             appearanceSettings: appearanceSettings
         )
+    }
+
+    private func updateICloudPlusAccess() {
+        iCloudSyncService.setPlusAccess(entitlementStore.hasPlus)
+        guard entitlementStore.hasPlus else { return }
+
+        iCloudSyncService.startObserving(
+            connectionSettings: connectionSettings,
+            dashboardConfiguration: dashboardConfiguration,
+            actionConfirmationSettings: actionConfirmationSettings,
+            appearanceSettings: appearanceSettings
+        )
+        if iCloudSyncService.isEnabled, iCloudSyncService.bootstrapState == .complete {
+            iCloudSyncService.syncNow(
+                connectionSettings: connectionSettings,
+                dashboardConfiguration: dashboardConfiguration,
+                actionConfirmationSettings: actionConfirmationSettings,
+                appearanceSettings: appearanceSettings
+            )
+        }
     }
 
 #if DEBUG

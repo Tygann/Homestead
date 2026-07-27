@@ -11,6 +11,7 @@ struct ContentView: View {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(HomesteadTabSettings.self) private var tabSettings
     @Environment(NativeNotificationService.self) private var nativeNotificationService
+    @Environment(HomesteadEntitlementStore.self) private var entitlementStore
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -117,7 +118,10 @@ struct ContentView: View {
             case .active:
                 guard setupCoordinator.phase == .ready || hasSignedInSession else { return }
                 homeAssistantService.applicationWillEnterForeground()
-                Task { await homeAssistantService.resume(settings: connectionSettings) }
+                Task {
+                    await entitlementStore.refreshEntitlements()
+                    await homeAssistantService.resume(settings: connectionSettings)
+                }
             case .background:
                 homeAssistantService.applicationDidEnterBackground()
             case .inactive:
@@ -127,6 +131,10 @@ struct ContentView: View {
             }
         }
         .onOpenURL { url in
+            if HomesteadWidgetDeepLink.isPlusURL(url) {
+                presentedAppSheet = .settings(.plus)
+                return
+            }
             guard let reference = HomesteadWidgetDeepLink.entityReference(
                 from: url,
                 fallbackProfileID: connectionSettings.activeProfileID
@@ -397,6 +405,8 @@ private enum AppSheetDestination: Identifiable {
         switch self {
         case .settings(.dashboards):
             "settings-dashboards"
+        case .settings(.plus):
+            "settings-plus"
         case .settings(nil):
             "settings"
         }
@@ -419,6 +429,18 @@ private struct SettingsSheet: View {
                                 Image(systemName: "xmark")
                             }
                             .accessibilityLabel("Close Dashboards")
+                        }
+                    }
+            }
+        case .plus:
+            NavigationStack {
+                HomesteadPlusView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(action: close) {
+                                Image(systemName: "xmark")
+                            }
+                            .accessibilityLabel("Close Homestead Plus")
                         }
                     }
             }

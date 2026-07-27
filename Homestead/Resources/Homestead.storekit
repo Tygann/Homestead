@@ -1,0 +1,148 @@
+{
+  "identifier" : "B69C8F06-7F34-4C63-A3DE-38BC438F5EE9",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "69.99",
+      "familyShareable" : true,
+      "internalID" : "D42DB630-F699-4C41-B298-11A82C584EDB",
+      "localizations" : [
+        {
+          "description" : "Permanent access to all on-device Homestead Plus features.",
+          "displayName" : "Homestead Plus Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.tyler.Homestead.plus.lifetime",
+      "referenceName" : "Homestead Plus Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "3DC5331B-B4DA-40E3-914C-C7572C33BCE6",
+      "localizations" : [
+        {
+          "description" : "Advanced personalization and Apple integrations for Homestead.",
+          "displayName" : "Homestead Plus",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Homestead Plus",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+            {
+              "eligibility" : [
+                "new",
+                "existing",
+                "expired"
+              ],
+              "internalID" : "B662535C-B43F-43C8-AEC8-C4682E44ED6A",
+              "isStackable" : false,
+              "numberOfPeriods" : 1,
+              "paymentMode" : "free",
+              "referenceName" : "Homestead Plus Annual Test Code",
+              "subscriptionPeriod" : "P1Y"
+            }
+          ],
+          "displayPrice" : "24.99",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "E3B2F820-B9DC-46EE-AEB2-98C2A9536024",
+          "introductoryOffer" : {
+            "internalID" : "A7A34378-D8DD-44F2-A792-A0DD056A0EA6",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P2W"
+          },
+          "localizations" : [
+            {
+              "description" : "Homestead Plus with a 14-day introductory trial.",
+              "displayName" : "Homestead Plus Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.tyler.Homestead.plus.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Homestead Plus Annual",
+          "subscriptionGroupID" : "3DC5331B-B4DA-40E3-914C-C7572C33BCE6"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "940E4387-AD9C-467A-A4AB-8CEFE70E7588",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Monthly access to Homestead Plus.",
+              "displayName" : "Homestead Plus Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.tyler.Homestead.plus.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Homestead Plus Monthly",
+          "subscriptionGroupID" : "3DC5331B-B4DA-40E3-914C-C7572C33BCE6"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

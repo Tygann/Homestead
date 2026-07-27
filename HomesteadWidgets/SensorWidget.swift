@@ -384,6 +384,23 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
     private func entry(for configuration: HomesteadSensorChartWidgetConfigurationIntent) async -> HomesteadSensorChartEntry {
         let gaugeConfiguration = configuration.gaugeWidgetConfiguration
         let display = gaugeConfiguration.display
+        if display != .reading, !HomesteadWidgetPlusAccess.isGranted() {
+            return HomesteadSensorChartEntry(
+                date: Date(),
+                entityID: nil,
+                displayName: "Homestead Plus",
+                valueText: "",
+                subtitle: "",
+                systemImage: "lock.fill",
+                display: display,
+                samples: [],
+                valueDomain: 0...1,
+                summaryText: "",
+                isAlerting: false,
+                isAvailable: false,
+                isConfigured: true
+            )
+        }
         let configuredSensor = configuration.sensor
         let latestConfiguredSnapshot = configuredSensor.flatMap { sensor in
             HomesteadWidgetSharedStore.sensorSnapshot(entityID: sensor.id)
@@ -601,9 +618,17 @@ struct HomesteadSensorChartWidgetView: View {
     let entry: HomesteadSensorChartEntry
 
     var body: some View {
-        deepLinkedContent {
-            familyContent
+        if requiresPlus {
+            HomesteadPlusWidgetLockView()
+        } else {
+            deepLinkedContent {
+                familyContent
+            }
         }
+    }
+
+    private var requiresPlus: Bool {
+        entry.display != .reading && !HomesteadWidgetPlusAccess.isGranted()
     }
 
     @ViewBuilder

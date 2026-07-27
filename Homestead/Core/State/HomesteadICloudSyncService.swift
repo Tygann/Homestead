@@ -18,6 +18,7 @@ enum HomesteadSyncSection: String, CaseIterable, Sendable {
 
 enum HomesteadICloudSyncStatus: Equatable, Sendable {
     case disabled
+    case requiresPlus
     case checking
     case restoreAvailable
     case ready
@@ -30,6 +31,7 @@ enum HomesteadICloudSyncStatus: Equatable, Sendable {
     var title: String {
         switch self {
         case .disabled: "Off"
+        case .requiresPlus: "Plus Required"
         case .checking: "Checking iCloud"
         case .restoreAvailable: "Setup Available"
         case .ready: "Ready"
@@ -45,6 +47,8 @@ enum HomesteadICloudSyncStatus: Equatable, Sendable {
         switch self {
         case .disabled:
             "iCloud sync is off for this device."
+        case .requiresPlus:
+            "Your local preferences are preserved. Homestead Plus is required to resume syncing."
         case .checking:
             "Checking iCloud for an existing Homestead setup."
         case .restoreAvailable:
@@ -146,6 +150,7 @@ final class HomesteadICloudSyncService {
     private(set) var lastSyncDate: Date?
     private(set) var lastRemoteChangeDate: Date?
     private(set) var isEnabled: Bool
+    private(set) var hasPlusAccess: Bool
     private(set) var isApplyingRemote = false
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -161,10 +166,12 @@ final class HomesteadICloudSyncService {
 
     init(
         defaults: UserDefaults = .standard,
-        store: HomesteadICloudKeyValueStore = NSUbiquitousKeyValueStore.default
+        store: HomesteadICloudKeyValueStore = NSUbiquitousKeyValueStore.default,
+        hasPlusAccess: Bool = true
     ) {
         self.defaults = defaults
         self.store = store
+        self.hasPlusAccess = hasPlusAccess
         let storedIsEnabled = defaults.bool(forKey: Keys.isEnabled)
         let storedLastSyncDate = defaults.object(forKey: Keys.lastSyncDate) as? Date
         isEnabled = storedIsEnabled
@@ -199,6 +206,7 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) {
+        guard hasPlusAccess else { return }
         guard changeObserver == nil else { return }
 
         changeObserver = NotificationCenter.default.addObserver(
@@ -229,6 +237,11 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) {
+        guard hasPlusAccess else {
+            bootstrapState = .complete
+            status = isEnabled ? .requiresPlus : .disabled
+            return
+        }
         bootstrapState = .checking
         status = .checking
 
@@ -275,6 +288,11 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) {
+        guard hasPlusAccess else {
+            bootstrapState = .complete
+            status = isEnabled ? .requiresPlus : .disabled
+            return
+        }
         guard let remote = pendingRemotePayload else {
             bootstrapState = .complete
             return
@@ -303,6 +321,10 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) -> HomesteadICloudEnableResult {
+        guard hasPlusAccess else {
+            status = .requiresPlus
+            return .unavailable("Homestead Plus is required to sync preferences with iCloud.")
+        }
         status = .syncing
         guard store.synchronize() else {
             let message = "iCloud did not respond. Check iCloud availability for this device."
@@ -353,6 +375,10 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) {
+        guard hasPlusAccess else {
+            status = isEnabled ? .requiresPlus : .disabled
+            return
+        }
         switch resolution {
         case .useICloud:
             if let remote = pendingRemotePayload {
@@ -398,6 +424,11 @@ final class HomesteadICloudSyncService {
         localSectionUpdates[section] = now
         defaults.set(now, forKey: Keys.sectionDate(section))
 
+        guard hasPlusAccess else {
+            status = .requiresPlus
+            return
+        }
+
         uploadTask?.cancel()
         uploadTask = Task { @MainActor [weak self, weak connectionSettings, weak dashboardConfiguration, weak actionConfirmationSettings, weak appearanceSettings] in
             try? await Task.sleep(for: .milliseconds(450))
@@ -418,7 +449,7 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) {
-        guard isEnabled else { return }
+        guard hasPlusAccess, isEnabled else { return }
         status = .syncing
         _ = store.synchronize()
         if let remote = remotePayload() {
@@ -438,6 +469,19 @@ final class HomesteadICloudSyncService {
             actionConfirmationSettings: actionConfirmationSettings,
             appearanceSettings: appearanceSettings
         )
+    }
+
+    func setPlusAccess(_ hasAccess: Bool) {
+        hasPlusAccess = hasAccess
+        guard !hasAccess else {
+            status = isEnabled ? .ready : .disabled
+            return
+        }
+
+        uploadTask?.cancel()
+        uploadTask = nil
+        pendingRemotePayload = nil
+        status = isEnabled ? .requiresPlus : .disabled
     }
 
     func makePayload(
@@ -488,7 +532,7 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) {
-        guard isEnabled, bootstrapState == .complete else { return }
+        guard hasPlusAccess, isEnabled, bootstrapState == .complete else { return }
         status = .syncing
         var payload = makePayload(
             connectionSettings: connectionSettings,
@@ -529,6 +573,7 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) {
+        guard hasPlusAccess else { return }
         if reason == NSUbiquitousKeyValueStoreQuotaViolationChange {
             status = .quotaExceeded
             return
@@ -588,6 +633,7 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) {
+        guard hasPlusAccess else { return }
         isApplyingRemote = true
         defer { isApplyingRemote = false }
 
@@ -639,6 +685,7 @@ final class HomesteadICloudSyncService {
         actionConfirmationSettings: ActionConfirmationSettings,
         appearanceSettings: HomesteadAppearanceSettings
     ) {
+        guard hasPlusAccess else { return }
         isApplyingRemote = true
         connectionSettings.applySyncSnapshot(remote.connection.value)
         if let profiles = remote.connection.value.profiles {

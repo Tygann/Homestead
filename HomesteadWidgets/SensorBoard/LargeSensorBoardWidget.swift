@@ -1262,6 +1262,9 @@ struct HomesteadLargeSensorBoardTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadLargeSensorBoardWidgetConfigurationIntent,
         in context: Context
     ) async -> HomesteadSensorBoardEntry {
+        guard HomesteadWidgetPlusAccess.isGranted() else {
+            return .largePlaceholder
+        }
         if context.isPreview,
            configuration.slots.allSatisfy({ $0.sensor == nil && $0.chartSensor == nil }) {
             return .largePlaceholder
@@ -1274,7 +1277,13 @@ struct HomesteadLargeSensorBoardTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadLargeSensorBoardWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadSensorBoardEntry> {
-        Timeline(
+        guard HomesteadWidgetPlusAccess.isGranted() else {
+            return Timeline(
+                entries: [.largePlaceholder],
+                policy: .after(.now.addingTimeInterval(30 * 60))
+            )
+        }
+        return Timeline(
             entries: [await HomesteadSensorBoardEntryBuilder.entry(slots: configuration.slots)],
             policy: .after(.now.addingTimeInterval(30 * 60))
         )
@@ -1287,11 +1296,15 @@ struct HomesteadLargeSensorBoardWidgetView: View {
     let entry: HomesteadSensorBoardEntry
 
     var body: some View {
-        WidgetSensorBoardFace(
-            items: entry.items,
-            layout: .large,
-            destinationsByEntityID: destinations
-        )
+        if HomesteadWidgetPlusAccess.isGranted() {
+            WidgetSensorBoardFace(
+                items: entry.items,
+                layout: .large,
+                destinationsByEntityID: destinations
+            )
+        } else {
+            HomesteadPlusWidgetLockView()
+        }
     }
 
     private var destinations: [String: URL] {

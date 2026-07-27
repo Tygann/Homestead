@@ -7,6 +7,7 @@ struct HomeAssistantServersView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
+    @Environment(HomesteadEntitlementStore.self) private var entitlementStore
     @Environment(\.dismiss) private var dismiss
     @State private var switchingProfileID: UUID?
     @State private var switchErrorMessage: String?
@@ -60,7 +61,7 @@ struct HomeAssistantServersView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    presentedSheet = .addServer
+                    presentedSheet = canAddServer ? .addServer : .plus
                 } label: {
                     Label("Add Server", systemImage: "plus")
                 }
@@ -74,6 +75,10 @@ struct HomeAssistantServersView: View {
                     AddHomeAssistantServerView {
                         shouldDismissAfterAddingServer = true
                     }
+                }
+            case .plus:
+                NavigationStack {
+                    HomesteadPlusView()
                 }
             }
         }
@@ -111,6 +116,13 @@ struct HomeAssistantServersView: View {
 
     private var isOperationInProgress: Bool {
         switchingProfileID != nil || removingProfileID != nil
+    }
+
+    private var canAddServer: Bool {
+        HomesteadPlusCapabilityPolicy.canAddServer(
+            hasPlus: entitlementStore.hasPlus,
+            configuredServerCount: connectionSettings.profileStore.configuredProfiles.count
+        )
     }
 
     private var isConfirmingRemoval: Binding<Bool> {
@@ -217,6 +229,7 @@ struct HomeAssistantServersView: View {
 
 private enum ServerSheetDestination: String, Identifiable {
     case addServer
+    case plus
 
     var id: String { rawValue }
 }
@@ -270,6 +283,7 @@ struct AddHomeAssistantServerView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
+    @Environment(HomesteadEntitlementStore.self) private var entitlementStore
     @Environment(\.dismiss) private var dismiss
 
     private let onServerAdded: () -> Void
@@ -277,6 +291,7 @@ struct AddHomeAssistantServerView: View {
     @State private var draftAddress = ""
     @State private var selectedInstance: HomeAssistantDiscoveredInstance?
     @State private var isAdding = false
+    @State private var isShowingPlus = false
 
     init(onServerAdded: @escaping () -> Void = {}) {
         self.onServerAdded = onServerAdded
@@ -357,9 +372,21 @@ struct AddHomeAssistantServerView: View {
             }
         }
         .onDisappear { discoveryService.stop() }
+        .sheet(isPresented: $isShowingPlus) {
+            NavigationStack {
+                HomesteadPlusView()
+            }
+        }
     }
 
     private func addServer() {
+        guard HomesteadPlusCapabilityPolicy.canAddServer(
+            hasPlus: entitlementStore.hasPlus,
+            configuredServerCount: connectionSettings.profileStore.configuredProfiles.count
+        ) else {
+            isShowingPlus = true
+            return
+        }
         isAdding = true
         discoveryService.stop()
         Task {

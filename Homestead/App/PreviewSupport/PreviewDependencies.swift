@@ -535,6 +535,7 @@ extension View {
     @MainActor
     func withPreviewEnvironment(_ dependencies: PreviewDependencies) -> some View {
         let setupCoordinator = HomesteadSetupCoordinator(initialPhase: .ready)
+        let entitlementStore = HomesteadEntitlementStore(previewPlan: .free)
         return environment(dependencies.stateStore)
             .environment(dependencies.connectionSettings)
             .environment(dependencies.homeAssistantService)
@@ -544,6 +545,7 @@ extension View {
             .environment(dependencies.actionConfirmationSettings)
             .environment(dependencies.tabSettings)
             .environment(dependencies.iCloudSyncService)
+            .environment(entitlementStore)
             .environment(setupCoordinator)
             .environment(setupCoordinator.discoveryService)
             .withPreviewAccentColor(dependencies.appearanceSettings)

@@ -2,6 +2,15 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-27
+
+### Homestead Plus Monetization
+
+- Added StoreKit 2 monthly, annual, and lifetime products behind one verified app-facing entitlement, with a checked-in local StoreKit configuration, 14-day annual trial, restore, offer-code redemption, subscription management, and Family Sharing-ready product metadata.
+- Kept core daily Home Assistant control free, including one server, one dashboard, wallpaper, standard notifications, and standard single-item widgets. Plus gates additional dashboard/server creation, Homestead iCloud sync, Sensor Boards, and advanced Sensor chart/gauge widget presentations.
+- Preserved user configuration through entitlement changes: existing dashboards and servers remain usable, iCloud retains its enabled intent while reads/writes pause, and premium widget configurations render a Plus-required deep link instead of stale data.
+- Documented the privacy contract, App Store Connect setup/review/tester-code workflow, and durable StoreKit architecture decision without adding a Homestead account, RevenueCat, or receipt server.
+
 ## 2026-07-25
 
 ### Dashboard Chip And Paging Polish
