@@ -468,25 +468,20 @@ private struct HomesteadPlusPlanRow: View {
     var body: some View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
                     titleAndBadge
                     detailText
                     trailingContent
                 }
             } else {
-                VStack(alignment: .leading, spacing: AppSpacing.small) {
-                    HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                        Text(title)
-                            .font(.headline)
-                        bestValueBadge
-                        Spacer(minLength: AppSpacing.small)
+                HStack(alignment: .center, spacing: AppSpacing.medium) {
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        titleAndBadge
+                        detailText
                     }
 
-                    HStack(alignment: .center, spacing: AppSpacing.medium) {
-                        detailText
-                        Spacer(minLength: AppSpacing.small)
-                        trailingContent
-                    }
+                    Spacer(minLength: AppSpacing.small)
+                    trailingContent
                 }
             }
         }
@@ -523,8 +518,9 @@ private struct HomesteadPlusPlanRow: View {
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(Color.accentColor)
                 .padding(.horizontal, AppSpacing.small)
-                .padding(.vertical, 3)
+                .padding(.vertical, 2)
                 .background(Color.accentColor.opacity(0.14), in: Capsule())
+                .fixedSize()
                 .accessibilityLabel("Best value")
         }
     }
