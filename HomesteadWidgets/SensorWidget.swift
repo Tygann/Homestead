@@ -388,7 +388,7 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
             return HomesteadSensorChartEntry(
                 date: Date(),
                 entityID: nil,
-                displayName: "Homestead Plus",
+                displayName: "Homestead+",
                 valueText: "",
                 subtitle: "",
                 systemImage: "lock.fill",

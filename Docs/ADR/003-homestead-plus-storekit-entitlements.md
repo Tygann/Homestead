@@ -1,4 +1,4 @@
-# ADR 3: Homestead Plus StoreKit Entitlements
+# ADR 3: Homestead+ StoreKit Entitlements
 
 ## Status
 

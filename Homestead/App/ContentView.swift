@@ -433,17 +433,7 @@ private struct SettingsSheet: View {
                     }
             }
         case .plus:
-            NavigationStack {
-                HomesteadPlusView()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(action: close) {
-                                Image(systemName: "xmark")
-                            }
-                            .accessibilityLabel("Close Homestead Plus")
-                        }
-                    }
-            }
+            HomesteadPlusSheet()
         case nil:
             NavigationStack {
                 SettingsView()

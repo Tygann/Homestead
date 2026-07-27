@@ -48,7 +48,7 @@ enum HomesteadICloudSyncStatus: Equatable, Sendable {
         case .disabled:
             "iCloud sync is off for this device."
         case .requiresPlus:
-            "Your local preferences are preserved. Homestead Plus is required to resume syncing."
+            "Your local preferences are preserved. Homestead+ is required to resume syncing."
         case .checking:
             "Checking iCloud for an existing Homestead setup."
         case .restoreAvailable:
@@ -323,7 +323,7 @@ final class HomesteadICloudSyncService {
     ) -> HomesteadICloudEnableResult {
         guard hasPlusAccess else {
             status = .requiresPlus
-            return .unavailable("Homestead Plus is required to sync preferences with iCloud.")
+            return .unavailable("Homestead+ is required to sync preferences with iCloud.")
         }
         status = .syncing
         guard store.synchronize() else {

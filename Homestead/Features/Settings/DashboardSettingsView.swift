@@ -106,9 +106,7 @@ struct DashboardSettingsView: View {
             }
         }
         .sheet(isPresented: $isShowingPlus) {
-            NavigationStack {
-                HomesteadPlusView()
-            }
+            HomesteadPlusSheet(context: .additionalDashboard)
         }
     }
 
@@ -503,9 +501,7 @@ struct DashboardDetailSettingsView: View {
             Button("Cancel", role: .cancel) {}
         }
         .sheet(isPresented: $isShowingPlus) {
-            NavigationStack {
-                HomesteadPlusView()
-            }
+            HomesteadPlusSheet(context: .additionalDashboard)
         }
     }
 

@@ -25,21 +25,6 @@ struct SettingsView: View {
 
         Form {
             Section {
-                NavigationLink {
-                    HomesteadPlusView()
-                } label: {
-                    SettingsNavigationRowLabel(systemImage: "house.and.flag") {
-                        HStack {
-                            Text("Homestead Plus")
-                            Spacer()
-                            Text(entitlementStore.statusTitle)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            }
-
-            Section {
                 NavigationLink(destination: HomeAssistantSettingsView()) {
                     HomeAssistantSettingsRow(
                         title: accountTitle,
@@ -52,6 +37,21 @@ struct SettingsView: View {
                     PeopleSettingsView()
                 } label: {
                     PeopleSettingsRow(records: visiblePeopleRecords)
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    HomesteadPlusView()
+                } label: {
+                    SettingsNavigationRowLabel(systemImage: "house.and.flag") {
+                        HStack {
+                            Text("Homestead+")
+                            Spacer()
+                            Text(entitlementStore.statusTitle)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
 

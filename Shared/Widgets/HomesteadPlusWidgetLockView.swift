@@ -18,7 +18,7 @@ struct HomesteadPlusWidgetLockView: View {
                     .widgetLabel("Plus")
             } else if family == .accessoryRectangular {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Homestead Plus")
+                    Text("Homestead+")
                         .font(.headline)
                     Text("Open Homestead")
                         .font(.caption)
@@ -29,7 +29,7 @@ struct HomesteadPlusWidgetLockView: View {
                     Image(systemName: "lock.fill")
                         .font(.title2)
                         .foregroundStyle(Color.accentColor)
-                    Text("Homestead Plus")
+                    Text("Homestead+")
                         .font(.headline)
                     Text("Open Homestead to restore access.")
                         .font(.caption)

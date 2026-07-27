@@ -77,9 +77,7 @@ struct HomeAssistantServersView: View {
                     }
                 }
             case .plus:
-                NavigationStack {
-                    HomesteadPlusView()
-                }
+                HomesteadPlusSheet(context: .additionalServer)
             }
         }
         .confirmationDialog(
@@ -373,9 +371,7 @@ struct AddHomeAssistantServerView: View {
         }
         .onDisappear { discoveryService.stop() }
         .sheet(isPresented: $isShowingPlus) {
-            NavigationStack {
-                HomesteadPlusView()
-            }
+            HomesteadPlusSheet(context: .additionalServer)
         }
     }
 

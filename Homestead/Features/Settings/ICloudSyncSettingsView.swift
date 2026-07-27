@@ -83,9 +83,7 @@ struct ICloudSyncSettingsView: View {
             Text(errorMessage ?? "Please try again later.")
         }
         .sheet(isPresented: $isShowingPlus) {
-            NavigationStack {
-                HomesteadPlusView()
-            }
+            HomesteadPlusSheet(context: .iCloudSync)
         }
     }
 

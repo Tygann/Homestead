@@ -156,12 +156,12 @@ final class HomesteadEntitlementStore {
             }
             await refreshEntitlements()
             purchaseState = products.isEmpty
-                ? .unavailable("Homestead Plus is not available from the App Store right now.")
+                ? .unavailable("Homestead+ is not available from the App Store right now.")
                 : .available
         } catch {
             isEligibleForAnnualTrial = nil
             await refreshEntitlements()
-            purchaseState = .unavailable("The App Store could not load Homestead Plus. Please try again.")
+            purchaseState = .unavailable("The App Store could not load Homestead+. Please try again.")
         }
     }
 
