@@ -130,6 +130,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     case environmental
     case environmentalSingle
     case information
+    case media
     case presence
     case editableNumber
     case editableSelect
@@ -148,6 +149,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .environmental: "Climate Range"
         case .environmentalSingle: "Climate Heat"
         case .information: "Weather"
+        case .media: "Media"
         case .presence: "Presence"
         case .editableNumber: "Number"
         case .editableSelect: "Select"
@@ -165,6 +167,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .positional: "blinds.horizontal.closed"
         case .environmental, .environmentalSingle: "thermometer.medium"
         case .information: "cloud.sun.fill"
+        case .media: "play.tv.fill"
         case .presence: "person.crop.circle.fill"
         case .editableNumber: "slider.horizontal.3"
         case .editableSelect: "filemenu.and.selection"
@@ -183,6 +186,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .environmental: "climate.downstairs"
         case .environmentalSingle: "climate.upstairs"
         case .information: "weather.home"
+        case .media: "media_player.living_room"
         case .presence: "person.tyler"
         case .editableNumber: "input_number.target_humidity"
         case .editableSelect: "select.house_mode"
@@ -228,6 +232,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .environmental: "heat_cool"
         case .environmentalSingle: "heat"
         case .information: "partlycloudy"
+        case .media: "playing"
         case .presence: "home"
         case .editableNumber: "45"
         case .editableSelect: "Home"
@@ -304,6 +309,15 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
                 "supported_features": .number(7),
                 "attribution": .string("Weather forecast from met.no, delivered by the Norwegian Meteorological Institute.")
             ]
+        case .media:
+            [
+                "friendly_name": .string("Living Room TV"),
+                "volume_level": .number(0.42),
+                "source": .string("Apple TV"),
+                "source_list": .array([.string("Apple TV"), .string("Music"), .string("Game Console")]),
+                "media_title": .string("Morning Mix"),
+                "media_artist": .string("Homestead Radio")
+            ]
         case .presence:
             [
                 "friendly_name": .string("Tyler"),
@@ -370,6 +384,9 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             attributes["target_temp_high"] = .number(isMaximum ? 90 : 50)
         case .information:
             attributes["temperature"] = .number(isMaximum ? 110 : -5)
+        case .media:
+            state = isMaximum ? "playing" : "idle"
+            attributes["volume_level"] = .number(isMaximum ? 1 : 0)
         case .presence:
             state = isMaximum ? "home" : "not_home"
         case .editableNumber:

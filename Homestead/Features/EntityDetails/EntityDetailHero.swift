@@ -251,7 +251,11 @@ struct EntityDetailHeroCard<Content: View, Accessory: View>: View {
                 statusColor: statusColor,
                 iconBackground: iconBackground,
                 statusBackground: statusBackground,
-                accessory: { accessory }
+                accessory: {
+                    if statePresentation?.status == nil {
+                        accessory
+                    }
+                }
             )
 
             content
@@ -283,24 +287,12 @@ private struct EntityDetailHeroHeader<Accessory: View>: View {
     @ViewBuilder let accessory: Accessory
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .center, spacing: AppSpacing.medium) {
-                identity
-                    .layoutPriority(1)
-                Spacer(minLength: AppSpacing.medium)
-                trailingContent
-            }
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            identity
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                HStack(alignment: .center, spacing: AppSpacing.medium) {
-                    identity
-                        .layoutPriority(1)
-                    Spacer(minLength: AppSpacing.medium)
-                    accessory
-                }
-
-                statusBadge
-            }
+            trailingContent
+                .fixedSize(horizontal: true, vertical: false)
         }
     }
 
@@ -344,7 +336,7 @@ private struct EntityDetailHeroHeader<Accessory: View>: View {
             Text(status)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(statusColor)
-                .fixedSize(horizontal: false, vertical: true)
+                .fixedSize(horizontal: true, vertical: true)
                 .padding(.horizontal, AppSpacing.medium)
                 .padding(.vertical, AppSpacing.small)
                 .background(
