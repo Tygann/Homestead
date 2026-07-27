@@ -669,7 +669,9 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadSensorBoardWidgetConfigurationIntent,
         in context: Context
     ) async -> HomesteadSensorBoardEntry {
-        guard HomesteadWidgetPlusAccess.isGranted() else {
+        guard HomesteadWidgetPlusPolicy.allowsSensorBoard(
+            hasPlus: HomesteadWidgetPlusAccess.isGranted()
+        ) else {
             return .placeholder
         }
         if context.isPreview,
@@ -684,7 +686,9 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
         for configuration: HomesteadSensorBoardWidgetConfigurationIntent,
         in context: Context
     ) async -> Timeline<HomesteadSensorBoardEntry> {
-        guard HomesteadWidgetPlusAccess.isGranted() else {
+        guard HomesteadWidgetPlusPolicy.allowsSensorBoard(
+            hasPlus: HomesteadWidgetPlusAccess.isGranted()
+        ) else {
             return Timeline(
                 entries: [.placeholder],
                 policy: .after(.now.addingTimeInterval(30 * 60))
@@ -828,7 +832,9 @@ struct HomesteadSensorBoardWidgetView: View {
     let entry: HomesteadSensorBoardEntry
 
     var body: some View {
-        if HomesteadWidgetPlusAccess.isGranted() {
+        if HomesteadWidgetPlusPolicy.allowsSensorBoard(
+            hasPlus: HomesteadWidgetPlusAccess.isGranted()
+        ) {
             WidgetSensorBoardFace(
                 items: entry.items,
                 destinationsByEntityID: destinations

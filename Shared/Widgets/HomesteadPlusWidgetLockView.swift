@@ -8,15 +8,33 @@ nonisolated enum HomesteadWidgetPlusAccess {
     }
 }
 
+nonisolated enum HomesteadWidgetPlusPolicy {
+    static func allowsSensorDisplay(
+        _ display: HomesteadSensorWidgetDisplay,
+        hasPlus: Bool
+    ) -> Bool {
+        hasPlus || display == .reading
+    }
+
+    static func allowsSensorBoard(hasPlus: Bool) -> Bool {
+        hasPlus
+    }
+}
+
 struct HomesteadPlusWidgetLockView: View {
     @Environment(\.widgetFamily) private var family
+    private let previewFamily: WidgetFamily?
+
+    init(previewFamily: WidgetFamily? = nil) {
+        self.previewFamily = previewFamily
+    }
 
     var body: some View {
         Group {
-            if family == .accessoryCircular {
+            if resolvedFamily == .accessoryCircular {
                 Image(systemName: "lock.fill")
                     .widgetLabel("Plus")
-            } else if family == .accessoryRectangular {
+            } else if resolvedFamily == .accessoryRectangular {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Homestead+")
                         .font(.headline)
@@ -42,5 +60,9 @@ struct HomesteadPlusWidgetLockView: View {
         .widgetURL(HomesteadWidgetDeepLink.plusURL)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Homestead Plus required. Open Homestead to restore access.")
+    }
+
+    private var resolvedFamily: WidgetFamily {
+        previewFamily ?? family
     }
 }

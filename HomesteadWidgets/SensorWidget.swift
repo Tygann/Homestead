@@ -384,7 +384,10 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
     private func entry(for configuration: HomesteadSensorChartWidgetConfigurationIntent) async -> HomesteadSensorChartEntry {
         let gaugeConfiguration = configuration.gaugeWidgetConfiguration
         let display = gaugeConfiguration.display
-        if display != .reading, !HomesteadWidgetPlusAccess.isGranted() {
+        if !HomesteadWidgetPlusPolicy.allowsSensorDisplay(
+            display,
+            hasPlus: HomesteadWidgetPlusAccess.isGranted()
+        ) {
             return HomesteadSensorChartEntry(
                 date: Date(),
                 entityID: nil,
@@ -628,7 +631,10 @@ struct HomesteadSensorChartWidgetView: View {
     }
 
     private var requiresPlus: Bool {
-        entry.display != .reading && !HomesteadWidgetPlusAccess.isGranted()
+        !HomesteadWidgetPlusPolicy.allowsSensorDisplay(
+            entry.display,
+            hasPlus: HomesteadWidgetPlusAccess.isGranted()
+        )
     }
 
     @ViewBuilder

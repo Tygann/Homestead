@@ -17,13 +17,56 @@ struct SettingsReferenceGallery: View {
                             .environment(HomesteadEntitlementStore(previewPlan: .free))
                     }
 
+                    NavigationLink("Homestead+ — Annual") {
+                        HomesteadPlusView()
+                            .environment(HomesteadEntitlementStore(previewPlan: .annual))
+                    }
+
                     NavigationLink("Homestead+ — Lifetime") {
                         HomesteadPlusView()
                             .environment(HomesteadEntitlementStore(previewPlan: .lifetime))
                     }
 
+                    NavigationLink("Homestead+ — Pending") {
+                        HomesteadPlusView()
+                            .environment(HomesteadEntitlementStore(
+                                previewPlan: .free,
+                                purchaseState: .pending
+                            ))
+                    }
+
+                    NavigationLink("Homestead+ — App Store Unavailable") {
+                        HomesteadPlusView()
+                            .environment(HomesteadEntitlementStore(
+                                previewPlan: .free,
+                                purchaseState: .unavailable(
+                                    "The App Store is unavailable in this preview."
+                                )
+                            ))
+                    }
+
+                    NavigationLink("Homestead+ — Purchase Error") {
+                        HomesteadPlusView()
+                            .environment(HomesteadEntitlementStore(
+                                previewPlan: .free,
+                                purchaseState: .failed(
+                                    "The purchase could not be completed in this preview."
+                                )
+                            ))
+                    }
+
                     NavigationLink("Homestead+ — Dashboard Gate") {
                         HomesteadPlusView(context: .additionalDashboard)
+                            .environment(HomesteadEntitlementStore(previewPlan: .free))
+                    }
+
+                    NavigationLink("Homestead+ — Server Gate") {
+                        HomesteadPlusView(context: .additionalServer)
+                            .environment(HomesteadEntitlementStore(previewPlan: .free))
+                    }
+
+                    NavigationLink("Homestead+ — iCloud Gate") {
+                        HomesteadPlusView(context: .iCloudSync)
                             .environment(HomesteadEntitlementStore(previewPlan: .free))
                     }
 

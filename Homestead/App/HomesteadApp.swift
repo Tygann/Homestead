@@ -257,6 +257,7 @@ struct HomesteadApp: App {
     }
 
     private func updateICloudPlusAccess() {
+        let didGainPlusAccess = !iCloudSyncService.hasPlusAccess && entitlementStore.hasPlus
         iCloudSyncService.setPlusAccess(entitlementStore.hasPlus)
         guard entitlementStore.hasPlus else { return }
 
@@ -266,6 +267,18 @@ struct HomesteadApp: App {
             actionConfirmationSettings: actionConfirmationSettings,
             appearanceSettings: appearanceSettings
         )
+        if HomesteadPlusICloudBootstrapPolicy.shouldRecheckRemoteSetup(
+            didGainPlusAccess: didGainPlusAccess,
+            isSyncEnabled: iCloudSyncService.isEnabled,
+            bootstrapState: iCloudSyncService.bootstrapState
+        ) {
+            iCloudSyncService.bootstrap(
+                connectionSettings: connectionSettings,
+                dashboardConfiguration: dashboardConfiguration,
+                actionConfirmationSettings: actionConfirmationSettings,
+                appearanceSettings: appearanceSettings
+            )
+        }
         if iCloudSyncService.isEnabled, iCloudSyncService.bootstrapState == .complete {
             iCloudSyncService.syncNow(
                 connectionSettings: connectionSettings,
@@ -292,6 +305,16 @@ struct HomesteadApp: App {
         _ = dashboardConfiguration.add(source: .entity(entityID), presentation: .card(card))
     }
 #endif
+}
+
+enum HomesteadPlusICloudBootstrapPolicy {
+    static func shouldRecheckRemoteSetup(
+        didGainPlusAccess: Bool,
+        isSyncEnabled: Bool,
+        bootstrapState: HomesteadICloudBootstrapState
+    ) -> Bool {
+        didGainPlusAccess && !isSyncEnabled && bootstrapState == .complete
+    }
 }
 
 extension HomesteadAppearanceMode {

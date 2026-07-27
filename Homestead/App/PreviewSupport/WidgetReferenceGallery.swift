@@ -60,6 +60,7 @@ struct WidgetReferenceGallery: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
+                    plusLockPreviews
                     largeSensorBoardPreview
                     sensorBoardPreview
                     mediumSensorPreview
@@ -79,6 +80,19 @@ struct WidgetReferenceGallery: View {
     }
 
     // MARK: - Widget Families
+
+    private var plusLockPreviews: some View {
+        referenceSection("Homestead+ Locked") {
+            HStack(alignment: .top, spacing: 12) {
+                systemWidget("Advanced Sensor") {
+                    HomesteadPlusWidgetLockView(previewFamily: .systemSmall)
+                }
+                systemWidget("Sensor Board") {
+                    HomesteadPlusWidgetLockView(previewFamily: .systemSmall)
+                }
+            }
+        }
+    }
 
     private var coreWidgetPreviews: some View {
         referenceSection("Core Widgets") {
