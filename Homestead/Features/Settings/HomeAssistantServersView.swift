@@ -17,6 +17,7 @@ struct HomeAssistantServersView: View {
     @State private var removalFailureMessage: String?
     @State private var presentedSheet: ServerSheetDestination?
     @State private var shouldDismissAfterAddingServer = false
+    @State private var shouldPresentAddServerAfterPlus = false
 
     var body: some View {
         List {
@@ -61,7 +62,7 @@ struct HomeAssistantServersView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    presentedSheet = canAddServer ? .addServer : .plus
+                    beginAddingServer()
                 } label: {
                     Label("Add Server", systemImage: "plus")
                 }
@@ -218,7 +219,26 @@ struct HomeAssistantServersView: View {
         }
     }
 
+    private func beginAddingServer() {
+        if canAddServer {
+            presentedSheet = .addServer
+        } else {
+            shouldPresentAddServerAfterPlus = true
+            presentedSheet = .plus
+        }
+    }
+
     private func handleSheetDismissal() {
+        if shouldPresentAddServerAfterPlus {
+            shouldPresentAddServerAfterPlus = false
+            guard entitlementStore.hasPlus else { return }
+            Task { @MainActor in
+                await Task.yield()
+                presentedSheet = .addServer
+            }
+            return
+        }
+
         guard shouldDismissAfterAddingServer else { return }
         shouldDismissAfterAddingServer = false
         dismiss()
@@ -290,6 +310,7 @@ struct AddHomeAssistantServerView: View {
     @State private var selectedInstance: HomeAssistantDiscoveredInstance?
     @State private var isAdding = false
     @State private var isShowingPlus = false
+    @State private var shouldContinueAfterPlus = false
 
     init(onServerAdded: @escaping () -> Void = {}) {
         self.onServerAdded = onServerAdded
@@ -370,7 +391,7 @@ struct AddHomeAssistantServerView: View {
             }
         }
         .onDisappear { discoveryService.stop() }
-        .sheet(isPresented: $isShowingPlus) {
+        .sheet(isPresented: $isShowingPlus, onDismiss: resumePendingServerAddition) {
             HomesteadPlusSheet(context: .additionalServer)
         }
     }
@@ -380,6 +401,7 @@ struct AddHomeAssistantServerView: View {
             hasPlus: entitlementStore.hasPlus,
             configuredServerCount: connectionSettings.profileStore.configuredProfiles.count
         ) else {
+            shouldContinueAfterPlus = true
             isShowingPlus = true
             return
         }
@@ -404,6 +426,16 @@ struct AddHomeAssistantServerView: View {
             }
             onServerAdded()
             dismiss()
+        }
+    }
+
+    private func resumePendingServerAddition() {
+        guard shouldContinueAfterPlus else { return }
+        shouldContinueAfterPlus = false
+        guard entitlementStore.hasPlus else { return }
+        Task { @MainActor in
+            await Task.yield()
+            addServer()
         }
     }
 }

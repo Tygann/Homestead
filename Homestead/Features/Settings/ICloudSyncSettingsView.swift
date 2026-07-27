@@ -10,6 +10,7 @@ struct ICloudSyncSettingsView: View {
     @State private var conflictSummary: HomesteadICloudRestoreSummary?
     @State private var errorMessage: String?
     @State private var isShowingPlus = false
+    @State private var pendingPlusAction: ICloudPlusContinuation?
 
     var body: some View {
         Form {
@@ -82,7 +83,7 @@ struct ICloudSyncSettingsView: View {
         } message: {
             Text(errorMessage ?? "Please try again later.")
         }
-        .sheet(isPresented: $isShowingPlus) {
+        .sheet(isPresented: $isShowingPlus, onDismiss: resumePendingPlusAction) {
             HomesteadPlusSheet(context: .iCloudSync)
         }
     }
@@ -109,6 +110,7 @@ struct ICloudSyncSettingsView: View {
 
     private func syncNow() {
         guard entitlementStore.hasPlus else {
+            pendingPlusAction = .syncNow
             isShowingPlus = true
             return
         }
@@ -126,6 +128,7 @@ struct ICloudSyncSettingsView: View {
             return
         }
         guard entitlementStore.hasPlus else {
+            pendingPlusAction = .enable
             isShowingPlus = true
             return
         }
@@ -154,6 +157,28 @@ struct ICloudSyncSettingsView: View {
         )
         conflictSummary = nil
     }
+
+    private func resumePendingPlusAction() {
+        guard let action = HomesteadPlusContinuationPolicy.consume(
+            &pendingPlusAction,
+            hasPlus: entitlementStore.hasPlus
+        ) else { return }
+
+        Task { @MainActor in
+            await Task.yield()
+            switch action {
+            case .enable:
+                setSyncEnabled(true)
+            case .syncNow:
+                syncNow()
+            }
+        }
+    }
+}
+
+private enum ICloudPlusContinuation {
+    case enable
+    case syncNow
 }
 
 private struct SettingsSyncIncludedRow: View {

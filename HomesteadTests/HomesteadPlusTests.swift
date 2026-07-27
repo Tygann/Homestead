@@ -93,6 +93,24 @@ final class HomesteadPlusTests: XCTestCase {
         ))
     }
 
+    func testContinuationPolicyResumesAndConsumesActionAfterPlusUnlocks() {
+        var pendingAction: String? = "create-dashboard"
+
+        let action = HomesteadPlusContinuationPolicy.consume(&pendingAction, hasPlus: true)
+
+        XCTAssertEqual(action, "create-dashboard")
+        XCTAssertNil(pendingAction)
+    }
+
+    func testContinuationPolicyClearsActionWhenPurchaseSheetClosesWithoutPlus() {
+        var pendingAction: String? = "enable-icloud"
+
+        let action = HomesteadPlusContinuationPolicy.consume(&pendingAction, hasPlus: false)
+
+        XCTAssertNil(action)
+        XCTAssertNil(pendingAction)
+    }
+
     func testExtensionCacheRequiresFreshVerifiedPlusAccess() throws {
         let suiteName = "HomesteadPlusTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

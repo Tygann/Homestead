@@ -21,6 +21,17 @@ struct SettingsReferenceGallery: View {
                         HomesteadPlusView()
                             .environment(HomesteadEntitlementStore(previewPlan: .lifetime))
                     }
+
+                    NavigationLink("Homestead+ — Dashboard Gate") {
+                        HomesteadPlusView(context: .additionalDashboard)
+                            .environment(HomesteadEntitlementStore(previewPlan: .free))
+                    }
+
+                    NavigationLink("Homestead+ — Accessibility") {
+                        HomesteadPlusView()
+                            .environment(\.dynamicTypeSize, .accessibility3)
+                            .environment(HomesteadEntitlementStore(previewPlan: .free))
+                    }
                 }
 
                 Section("Dashboard Paging") {

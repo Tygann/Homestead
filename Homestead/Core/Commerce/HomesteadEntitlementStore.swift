@@ -97,6 +97,14 @@ nonisolated enum HomesteadPlusCapabilityPolicy {
     }
 }
 
+nonisolated enum HomesteadPlusContinuationPolicy {
+    static func consume<Action>(_ pendingAction: inout Action?, hasPlus: Bool) -> Action? {
+        let action = pendingAction
+        pendingAction = nil
+        return hasPlus ? action : nil
+    }
+}
+
 @MainActor
 @Observable
 final class HomesteadEntitlementStore {

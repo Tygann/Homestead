@@ -9,6 +9,7 @@ struct DashboardSettingsView: View {
     @State private var deletingDashboardID: UUID?
     @State private var editMode: EditMode = .inactive
     @State private var isShowingPlus = false
+    @State private var pendingPlusNamingAction: DashboardNamingAction?
 
     var body: some View {
         List {
@@ -105,7 +106,7 @@ struct DashboardSettingsView: View {
                 deletingDashboardID = nil
             }
         }
-        .sheet(isPresented: $isShowingPlus) {
+        .sheet(isPresented: $isShowingPlus, onDismiss: resumePendingPlusAction) {
             HomesteadPlusSheet(context: .additionalDashboard)
         }
     }
@@ -163,20 +164,18 @@ struct DashboardSettingsView: View {
 
     private func createDashboard() {
         guard canCreateDashboard else {
-            isShowingPlus = true
+            presentPlus(for: .create)
             return
         }
-        dashboardNameDraft = "Dashboard"
-        namingAction = .create
+        prepareNaming(.create)
     }
 
     private func beginDuplicating(_ dashboard: SavedDashboardConfiguration) {
         guard canCreateDashboard else {
-            isShowingPlus = true
+            presentPlus(for: .duplicate(dashboard.id))
             return
         }
-        dashboardNameDraft = "Copy of \(dashboard.resolvedName)"
-        namingAction = .duplicate(dashboard.id)
+        prepareNaming(.duplicate(dashboard.id))
     }
 
     private func beginRenaming(_ dashboard: SavedDashboardConfiguration) {
@@ -193,14 +192,14 @@ struct DashboardSettingsView: View {
         case .create:
             guard canCreateDashboard else {
                 resetNamingState()
-                isShowingPlus = true
+                presentPlus(for: .create)
                 return
             }
             dashboardConfiguration.createDashboard(named: dashboardNameDraft)
         case .duplicate(let dashboardID):
             guard canCreateDashboard else {
                 resetNamingState()
-                isShowingPlus = true
+                presentPlus(for: .duplicate(dashboardID))
                 return
             }
             dashboardConfiguration.duplicateDashboard(id: dashboardID, named: dashboardNameDraft)
@@ -216,6 +215,37 @@ struct DashboardSettingsView: View {
             hasPlus: entitlementStore.hasPlus,
             existingDashboardCount: dashboardConfiguration.dashboards.count
         )
+    }
+
+    private func presentPlus(for action: DashboardNamingAction) {
+        pendingPlusNamingAction = action
+        isShowingPlus = true
+    }
+
+    private func resumePendingPlusAction() {
+        guard let action = HomesteadPlusContinuationPolicy.consume(
+            &pendingPlusNamingAction,
+            hasPlus: entitlementStore.hasPlus
+        ) else { return }
+        prepareNaming(action)
+    }
+
+    private func prepareNaming(_ action: DashboardNamingAction) {
+        switch action {
+        case .create:
+            dashboardNameDraft = "Dashboard"
+        case .duplicate(let dashboardID):
+            guard let dashboard = dashboardConfiguration.dashboards.first(where: { $0.id == dashboardID }) else {
+                return
+            }
+            dashboardNameDraft = "Copy of \(dashboard.resolvedName)"
+        case .rename(let dashboardID):
+            guard let dashboard = dashboardConfiguration.dashboards.first(where: { $0.id == dashboardID }) else {
+                return
+            }
+            dashboardNameDraft = dashboard.resolvedName
+        }
+        namingAction = action
     }
 
     private func resetNamingState() {
@@ -368,6 +398,7 @@ struct DashboardDetailSettingsView: View {
     @State private var dashboardTitleDraft = ""
     @State private var isConfirmingDelete = false
     @State private var isShowingPlus = false
+    @State private var pendingPlusNamingAction: DashboardDetailNamingAction?
 
     var body: some View {
         List {
@@ -500,7 +531,7 @@ struct DashboardDetailSettingsView: View {
 
             Button("Cancel", role: .cancel) {}
         }
-        .sheet(isPresented: $isShowingPlus) {
+        .sheet(isPresented: $isShowingPlus, onDismiss: resumePendingPlusAction) {
             HomesteadPlusSheet(context: .additionalDashboard)
         }
     }
@@ -559,11 +590,10 @@ struct DashboardDetailSettingsView: View {
 
     private func beginDuplicating() {
         guard canCreateDashboard else {
-            isShowingPlus = true
+            presentPlus(for: .duplicate)
             return
         }
-        dashboardNameDraft = "Copy of \(dashboard.resolvedName)"
-        namingAction = .duplicate
+        prepareNaming(.duplicate)
     }
 
     private func commitDashboardName() {
@@ -575,7 +605,7 @@ struct DashboardDetailSettingsView: View {
         case .duplicate:
             guard canCreateDashboard else {
                 resetNamingState()
-                isShowingPlus = true
+                presentPlus(for: .duplicate)
                 return
             }
             dashboardConfiguration.duplicateDashboard(id: dashboard.id, named: dashboardNameDraft)
@@ -591,6 +621,29 @@ struct DashboardDetailSettingsView: View {
             hasPlus: entitlementStore.hasPlus,
             existingDashboardCount: dashboardConfiguration.dashboards.count
         )
+    }
+
+    private func presentPlus(for action: DashboardDetailNamingAction) {
+        pendingPlusNamingAction = action
+        isShowingPlus = true
+    }
+
+    private func resumePendingPlusAction() {
+        guard let action = HomesteadPlusContinuationPolicy.consume(
+            &pendingPlusNamingAction,
+            hasPlus: entitlementStore.hasPlus
+        ) else { return }
+        prepareNaming(action)
+    }
+
+    private func prepareNaming(_ action: DashboardDetailNamingAction) {
+        switch action {
+        case .duplicate:
+            dashboardNameDraft = "Copy of \(dashboard.resolvedName)"
+        case .rename:
+            dashboardNameDraft = dashboard.resolvedName
+        }
+        namingAction = action
     }
 
     private func resetNamingState() {

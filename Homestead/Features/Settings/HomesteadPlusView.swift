@@ -17,10 +17,22 @@ enum HomesteadPlusPresentationContext {
             "Keep Homestead in sync with Homestead+"
         }
     }
+
+    var systemImage: String {
+        switch self {
+        case .additionalDashboard:
+            "rectangle.stack"
+        case .additionalServer:
+            "server.rack"
+        case .iCloudSync:
+            "icloud"
+        }
+    }
 }
 
 struct HomesteadPlusSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(HomesteadEntitlementStore.self) private var entitlementStore
 
     let context: HomesteadPlusPresentationContext?
 
@@ -42,6 +54,10 @@ struct HomesteadPlusSheet: View {
                     }
                 }
         }
+        .onChange(of: entitlementStore.hasPlus) { hadPlus, hasPlus in
+            guard context != nil, !hadPlus, hasPlus else { return }
+            dismiss()
+        }
     }
 }
 
@@ -60,6 +76,7 @@ struct HomesteadPlusView: View {
         List {
             heroSection
             featuresSection
+            currentPlanSection
             purchaseSection
             accountSection
             legalSection
@@ -97,7 +114,7 @@ struct HomesteadPlusView: View {
     private var heroSection: some View {
         Section {
             VStack(spacing: AppSpacing.medium) {
-                Image(systemName: "house.and.flag.fill")
+                Image(systemName: context?.systemImage ?? "house.and.flag.fill")
                     .font(.system(size: 42, weight: .semibold))
                     .foregroundStyle(Color.accentColor)
                     .accessibilityHidden(true)
@@ -130,62 +147,103 @@ struct HomesteadPlusView: View {
 
     private var featuresSection: some View {
         Section("Included with Homestead+") {
-            PlusFeatureRow(
+            SettingsManagementOverviewRow(
                 title: "Multiple Dashboards",
-                subtitle: "Create separate views for rooms, routines, or people.",
+                subtitle: "Create dashboards for rooms and routines.",
                 systemImage: "rectangle.stack"
             )
-            PlusFeatureRow(
+            SettingsManagementOverviewRow(
                 title: "Multiple Servers",
-                subtitle: "Switch between more than one Home Assistant home.",
+                subtitle: "Connect multiple Home Assistant servers.",
                 systemImage: "server.rack"
             )
-            PlusFeatureRow(
+            SettingsManagementOverviewRow(
                 title: "iCloud Sync",
-                subtitle: "Keep Homestead preferences in sync across devices.",
+                subtitle: "Sync Homestead preferences across devices.",
                 systemImage: "icloud"
             )
-            PlusFeatureRow(
+            SettingsManagementOverviewRow(
                 title: "Advanced Widgets",
                 subtitle: "Use Sensor Boards, charts, gauges, and zones.",
                 systemImage: "gauge.with.dots.needle.50percent"
             )
-            PlusFeatureRow(
+            SettingsManagementOverviewRow(
                 title: "Family Sharing",
                 subtitle: "Available for up to five additional family members.",
-                systemImage: "person.3"
+                systemImage: "person.2"
             )
         }
     }
 
     @ViewBuilder
-    private var purchaseSection: some View {
-        if entitlementStore.plan == .lifetime {
-            Section {
-                Label("Lifetime access is active.", systemImage: "checkmark.seal.fill")
-                    .foregroundStyle(Color.accentColor)
+    private var currentPlanSection: some View {
+        if entitlementStore.hasPlus {
+            Section("Your Plan") {
+                LabeledContent {
+                    Label("Active", systemImage: "checkmark")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                } label: {
+                    Label(currentPlanTitle, systemImage: "checkmark.seal.fill")
+                        .foregroundStyle(.primary)
+                }
+
+                if entitlementStore.plan == .monthly
+                    || entitlementStore.plan == .annual
+                    || entitlementStore.plan == .trial {
+                    Button {
+                        manageSubscription()
+                    } label: {
+                        Label("Manage Subscription", systemImage: "person.crop.circle")
+                    }
+                }
             }
-        } else if !entitlementStore.availableProducts.isEmpty {
+        }
+    }
+
+    private var currentPlanTitle: String {
+        switch entitlementStore.plan {
+        case .free:
+            "Free"
+        case .trial:
+            "Annual Trial"
+        case .monthly:
+            "Monthly"
+        case .annual:
+            "Annual"
+        case .lifetime:
+            "Lifetime"
+        }
+    }
+
+    @ViewBuilder
+    private var purchaseSection: some View {
+        if entitlementStore.plan != .lifetime, !entitlementStore.availableProducts.isEmpty {
             Section {
                 if let annualProduct = entitlementStore.product(.annual) {
                     ProductView(annualProduct)
                         .productViewStyle(HomesteadPlusProductRowStyle(
                             plan: .annual,
-                            detail: annualDetail(for: annualProduct)
+                            detail: annualDetail(for: annualProduct),
+                            actionTitle: entitlementStore.isEligibleForAnnualTrial == true
+                                ? "Try Free"
+                                : annualProduct.displayPrice
                         ))
                 }
                 if let monthlyProduct = entitlementStore.product(.monthly) {
                     ProductView(monthlyProduct)
                         .productViewStyle(HomesteadPlusProductRowStyle(
                             plan: .monthly,
-                            detail: "Renews monthly"
+                            detail: "Renews monthly",
+                            actionTitle: monthlyProduct.displayPrice
                         ))
                 }
                 if let lifetimeProduct = entitlementStore.product(.lifetime) {
                     ProductView(lifetimeProduct)
                         .productViewStyle(HomesteadPlusProductRowStyle(
                             plan: .lifetime,
-                            detail: "One-time purchase"
+                            detail: "One-time purchase",
+                            actionTitle: lifetimeProduct.displayPrice
                         ))
                 }
             } header: {
@@ -193,7 +251,7 @@ struct HomesteadPlusView: View {
             } footer: {
                 Text("Annual and monthly renew automatically. Lifetime is one payment for permanent Homestead+ access.")
             }
-        } else {
+        } else if entitlementStore.plan != .lifetime {
 #if DEBUG
             if entitlementStore.purchaseState == .available {
                 previewPurchaseOptions
@@ -243,18 +301,19 @@ struct HomesteadPlusView: View {
     private var previewPurchaseOptions: some View {
         Section {
             PlusPreviewProductRow(
-                title: "Homestead+ Annual",
+                title: "Annual",
                 detail: "14 days free, then $24.99/year",
                 price: "$24.99",
+                actionTitle: "Try Free",
                 isBestValue: true
             )
             PlusPreviewProductRow(
-                title: "Homestead+ Monthly",
+                title: "Monthly",
                 detail: "Renews monthly",
                 price: "$4.99"
             )
             PlusPreviewProductRow(
-                title: "Homestead+ Lifetime",
+                title: "Lifetime",
                 detail: "One-time purchase",
                 price: "$69.99"
             )
@@ -281,14 +340,6 @@ struct HomesteadPlusView: View {
                 Label("Redeem Code", systemImage: "ticket")
             }
             .disabled(isBusy)
-
-            if entitlementStore.plan == .monthly || entitlementStore.plan == .annual || entitlementStore.plan == .trial {
-                Button {
-                    manageSubscription()
-                } label: {
-                    Label("Manage Subscription", systemImage: "person.crop.circle")
-                }
-            }
 
             if isBusy {
                 HStack {
@@ -368,45 +419,21 @@ struct HomesteadPlusView: View {
     }
 }
 
-private struct PlusFeatureRow: View {
-    let title: String
-    let subtitle: String
-    let systemImage: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: AppSpacing.medium) {
-            Image(systemName: systemImage)
-                .font(.body)
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 24, alignment: .center)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(title)
-                    .foregroundStyle(.primary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, AppSpacing.xSmall)
-    }
-}
-
 private struct HomesteadPlusProductRowStyle: ProductViewStyle {
     let plan: HomesteadPlusProduct
     let detail: String
+    let actionTitle: String
 
     func makeBody(configuration: Configuration) -> some View {
         Group {
-            if let product = configuration.product {
+            if configuration.product != nil {
                 Button {
                     configuration.purchase()
                 } label: {
                     HomesteadPlusPlanRow(
-                        title: product.displayName,
+                        title: plan.purchaseTitle,
                         detail: detail,
-                        trailingText: configuration.hasCurrentEntitlement ? "Current" : product.displayPrice,
+                        trailingText: configuration.hasCurrentEntitlement ? "Current" : actionTitle,
                         isBestValue: plan == .annual,
                         isCurrent: configuration.hasCurrentEntitlement
                     )
@@ -430,6 +457,8 @@ private struct HomesteadPlusProductRowStyle: ProductViewStyle {
 }
 
 private struct HomesteadPlusPlanRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let title: String
     let detail: String
     let trailingText: String
@@ -437,42 +466,109 @@ private struct HomesteadPlusPlanRow: View {
     let isCurrent: Bool
 
     var body: some View {
-        HStack(spacing: AppSpacing.medium) {
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                HStack(spacing: AppSpacing.small) {
-                    Text(title)
-                        .font(.headline)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                    titleAndBadge
+                    detailText
+                    trailingContent
+                }
+            } else {
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
+                        Text(title)
+                            .font(.headline)
+                        bestValueBadge
+                        Spacer(minLength: AppSpacing.small)
+                    }
 
-                    if isBestValue {
-                        Text("Best Value")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
-                            .padding(.horizontal, AppSpacing.small)
-                            .padding(.vertical, 3)
-                            .background(Color.accentColor.opacity(0.14), in: Capsule())
-                            .accessibilityLabel("Best value")
+                    HStack(alignment: .center, spacing: AppSpacing.medium) {
+                        detailText
+                        Spacer(minLength: AppSpacing.small)
+                        trailingContent
                     }
                 }
-
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: AppSpacing.small)
-
-            if isCurrent {
-                Label(trailingText, systemImage: "checkmark")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-                    .labelStyle(.titleAndIcon)
-            } else {
-                Text(trailingText)
-                    .font(.headline)
             }
         }
         .contentShape(Rectangle())
         .padding(.vertical, AppSpacing.xSmall)
+    }
+
+    private var titleAndBadge: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: AppSpacing.small) {
+                Text(title)
+                    .font(.headline)
+                bestValueBadge
+            }
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(title)
+                    .font(.headline)
+                bestValueBadge
+            }
+        }
+    }
+
+    private var detailText: some View {
+        Text(detail)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private var bestValueBadge: some View {
+        if isBestValue {
+            Text("Best Value")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, AppSpacing.small)
+                .padding(.vertical, 3)
+                .background(Color.accentColor.opacity(0.14), in: Capsule())
+                .accessibilityLabel("Best value")
+        }
+    }
+
+    @ViewBuilder
+    private var trailingContent: some View {
+        if isCurrent {
+            Label(trailingText, systemImage: "checkmark")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+                .labelStyle(.titleAndIcon)
+        } else {
+            if dynamicTypeSize.isAccessibilitySize {
+                purchaseActionText
+                    .padding(.horizontal, AppSpacing.medium)
+                    .padding(.vertical, AppSpacing.small)
+                    .background(Color.accentColor.opacity(0.14), in: Capsule())
+            } else {
+                purchaseActionText
+                    .frame(minWidth: 84)
+                    .padding(.vertical, AppSpacing.small)
+                    .background(Color.accentColor.opacity(0.14), in: Capsule())
+            }
+        }
+    }
+
+    private var purchaseActionText: some View {
+        Text(trailingText)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.accentColor)
+            .fixedSize()
+    }
+}
+
+private extension HomesteadPlusProduct {
+    var purchaseTitle: String {
+        switch self {
+        case .monthly:
+            "Monthly"
+        case .annual:
+            "Annual"
+        case .lifetime:
+            "Lifetime"
+        }
     }
 }
 
@@ -481,13 +577,14 @@ private struct PlusPreviewProductRow: View {
     let title: String
     let detail: String
     let price: String
+    var actionTitle: String?
     var isBestValue = false
 
     var body: some View {
         HomesteadPlusPlanRow(
             title: title,
             detail: detail,
-            trailingText: price,
+            trailingText: actionTitle ?? price,
             isBestValue: isBestValue,
             isCurrent: false
         )
@@ -545,5 +642,13 @@ nonisolated enum HomesteadPlusLinks {
 #Preview("Homestead+ — Dashboard Gate") {
     HomesteadPlusSheet(context: .additionalDashboard)
         .environment(HomesteadEntitlementStore(previewPlan: .free))
+}
+
+#Preview("Homestead+ — Accessibility") {
+    NavigationStack {
+        HomesteadPlusView()
+    }
+    .environment(\.dynamicTypeSize, .accessibility3)
+    .environment(HomesteadEntitlementStore(previewPlan: .free))
 }
 #endif
