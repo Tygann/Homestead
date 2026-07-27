@@ -142,7 +142,7 @@ struct HomesteadPlusView: View {
         if entitlementStore.hasPlus {
             return "Homestead+ is active"
         }
-        return context?.title ?? "More ways to make Homestead yours"
+        return context?.title ?? "Make Homestead yours"
     }
 
     private var featuresSection: some View {
@@ -249,7 +249,7 @@ struct HomesteadPlusView: View {
             } header: {
                 Text("Choose a Plan")
             } footer: {
-                Text("Annual and monthly renew automatically. Lifetime is one payment for permanent Homestead+ access.")
+                Text("Annual and monthly renew automatically until canceled. Lifetime is a one-time purchase.")
             }
         } else if entitlementStore.plan != .lifetime {
 #if DEBUG
@@ -320,7 +320,7 @@ struct HomesteadPlusView: View {
         } header: {
             Text("Choose a Plan")
         } footer: {
-            Text("Annual and monthly renew automatically. Lifetime is one payment for permanent Homestead+ access.")
+            Text("Annual and monthly renew automatically until canceled. Lifetime is a one-time purchase.")
         }
     }
 #endif
