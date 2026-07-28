@@ -1,6 +1,4 @@
 import Foundation
-import SwiftUI
-import UIKit
 
 nonisolated enum GaugePresentationStatus: String, CaseIterable, Codable, Equatable, Sendable {
     case nominal
@@ -30,38 +28,13 @@ nonisolated struct GaugePresentationSection: Equatable, Sendable {
     }
 }
 
-nonisolated struct GaugeZoneColor: Codable, Equatable, Sendable {
-    let red: Double
-    let green: Double
-    let blue: Double
-    let opacity: Double
-
-    init(red: Double, green: Double, blue: Double, opacity: Double = 1) {
-        self.red = min(max(red, 0), 1)
-        self.green = min(max(green, 0), 1)
-        self.blue = min(max(blue, 0), 1)
-        self.opacity = min(max(opacity, 0), 1)
-    }
-
-    init(color: Color) {
-        var red: CGFloat = 0
-        var green: CGFloat = 0
-        var blue: CGFloat = 0
-        var opacity: CGFloat = 1
-        UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &opacity)
-        self.init(red: Double(red), green: Double(green), blue: Double(blue), opacity: Double(opacity))
-    }
-
-    var color: Color {
-        Color(.sRGB, red: red, green: green, blue: blue, opacity: opacity)
-    }
-
+nonisolated extension GaugeZoneColor {
     static func standard(for status: GaugePresentationStatus) -> Self {
         switch status {
-        case .nominal: Self(red: 0.19, green: 0.82, blue: 0.35)
-        case .low: Self(red: 0.0, green: 0.57, blue: 0.96)
-        case .high, .warning: Self(red: 1.0, green: 0.56, blue: 0.15)
-        case .critical: Self(red: 1.0, green: 0.23, blue: 0.27)
+        case .nominal: .green
+        case .low: .blue
+        case .high, .warning: .orange
+        case .critical: .red
         }
     }
 }
@@ -567,7 +540,7 @@ private extension GaugePresentation {
                     GaugePresentationSection(
                         range: range.lowerBound...4.5,
                         status: .warning,
-                        color: GaugeZoneColor.standard(for: .low)
+                        color: GaugeZoneColor.standard(for: GaugePresentationStatus.low)
                     ),
                     GaugePresentationSection(range: 4.5...15.5, status: .low),
                     GaugePresentationSection(range: 15.5...26.5, status: .nominal),
@@ -583,7 +556,7 @@ private extension GaugePresentation {
                 GaugePresentationSection(
                     range: range.lowerBound...40,
                     status: .warning,
-                    color: GaugeZoneColor.standard(for: .low)
+                    color: GaugeZoneColor.standard(for: GaugePresentationStatus.low)
                 ),
                 GaugePresentationSection(range: 40...60, status: .low),
                 GaugePresentationSection(range: 60...80, status: .nominal),

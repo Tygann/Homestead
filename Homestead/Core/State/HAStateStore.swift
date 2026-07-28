@@ -48,9 +48,10 @@ final class HAStateStore {
     @ObservationIgnored private var cachedDashboardSummaryWorkspace: DashboardSummaryWorkspace?
     @ObservationIgnored private var isApplyingSnapshotBatch = false
     @ObservationIgnored private var snapshotBatchNeedsWidgetSave = false
-    @ObservationIgnored private var lastPersistedWidgetSensors: [WidgetSensorSnapshot]?
-    @ObservationIgnored private var gaugeWidgetReloadTask: Task<Void, Never>?
-    @ObservationIgnored private var lastGaugeWidgetReloadDate: Date?
+    @ObservationIgnored private var lastPersistedWidgetPayload: WidgetSnapshotPersistence.Payload?
+    @ObservationIgnored private var pendingWidgetReloadKinds: Set<HomesteadWidgetKind> = []
+    @ObservationIgnored private var widgetReloadTask: Task<Void, Never>?
+    @ObservationIgnored private var lastWidgetReloadDate: Date?
 
     // MARK: - Public API
 
@@ -1240,8 +1241,9 @@ final class HAStateStore {
     }
 
     private func saveWidgetSnapshots() {
-        if let legacyProfileID = WidgetSharedStore.legacyWidgetProfileID,
-           dataSourceID != "profile-\(legacyProfileID.uuidString.lowercased())" {
+        guard let dataSourceID,
+              dataSourceID.hasPrefix("profile-"),
+              let profileID = UUID(uuidString: String(dataSourceID.dropFirst("profile-".count))) else {
             return
         }
         let contextForEntityID: (String) -> WidgetEntityContext = { entityID in
@@ -1252,6 +1254,8 @@ final class HAStateStore {
         }
 
         let payload = WidgetSnapshotPersistence.save(
+            profileID: profileID,
+            serverName: WidgetSharedStore.serverDisplayName(profileID: profileID),
             entitiesByID: entitiesByID,
             lightEntitiesByID: lightEntitiesByID,
             coverEntitiesByID: coverEntitiesByID,
@@ -1259,27 +1263,35 @@ final class HAStateStore {
             sensorEntitiesByID: sensorEntitiesByID,
             contextForEntityID: contextForEntityID,
         )
-        guard lastPersistedWidgetSensors != payload.sensors else { return }
-        lastPersistedWidgetSensors = payload.sensors
-        scheduleGaugeWidgetReload()
+        let changedKinds = WidgetSnapshotPersistence.changedWidgetKinds(
+            from: lastPersistedWidgetPayload,
+            to: payload
+        )
+        lastPersistedWidgetPayload = payload
+        scheduleWidgetReload(for: changedKinds)
     }
 
-    private func scheduleGaugeWidgetReload() {
-        guard gaugeWidgetReloadTask == nil else { return }
+    private func scheduleWidgetReload(for kinds: Set<HomesteadWidgetKind>) {
+        guard !kinds.isEmpty else { return }
+        pendingWidgetReloadKinds.formUnion(kinds)
+        guard widgetReloadTask == nil else { return }
 
         let minimumReloadInterval: TimeInterval = 30
         let now = Date()
-        let nextReloadDate = lastGaugeWidgetReloadDate?
+        let nextReloadDate = lastWidgetReloadDate?
             .addingTimeInterval(minimumReloadInterval) ?? now.addingTimeInterval(1)
         let delay = max(nextReloadDate.timeIntervalSince(now), 1)
 
-        gaugeWidgetReloadTask = Task { @MainActor [weak self] in
+        widgetReloadTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             guard let self, !Task.isCancelled else { return }
-            lastGaugeWidgetReloadDate = Date()
-            gaugeWidgetReloadTask = nil
-            WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.sensorBoard.rawValue)
-            WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.largeSensorBoard.rawValue)
+            let kinds = pendingWidgetReloadKinds
+            pendingWidgetReloadKinds.removeAll()
+            lastWidgetReloadDate = Date()
+            widgetReloadTask = nil
+            for kind in kinds {
+                WidgetCenter.shared.reloadTimelines(ofKind: kind.rawValue)
+            }
         }
     }
 

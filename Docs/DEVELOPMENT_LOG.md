@@ -2,6 +2,17 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-28
+
+### Shared Dashboard And Widget Presentation Architecture
+
+- Replaced raw widget entity identity and single-profile snapshot arrays with server-scoped references and per-server snapshot envelopes. Removed beta fallback routing so a missing server cannot redirect a widget action or deep link to another Home Assistant instance while retaining all six stable widget kind strings.
+- Added a surface-neutral entity presentation core for availability, semantic/active state, capability affordances, eligibility, Home Assistant display precision, unit normalization, icon semantics, chart contracts, and exact gauge-zone colors. Dashboard cards and widgets now adapt these contracts instead of owning parallel decisions.
+- Made Control and Action interactions re-fetch current state and availability from the configured server before executing; standardized server-removed, unavailable, disconnected, and last-known-good behavior across widget timelines and deep links.
+- Standardized native App Intent labels/order/defaults and server-aware entity grouping/search. New Sensor widgets default to free Reading. Medium and large Sensor Boards retain selected-slot progressive disclosure while sharing one slot model and one entry builder.
+- Batched Sensor Board state and documented REST history loading once per configured server, kept partial slot failures isolated, and shared the same chart, gauge, color, deep-link, and fallback foundations as the standard Sensor widget.
+- Added production single-item widget face reuse, complete production dashboard-card gallery coverage, generated App Intent metadata inspection, and focused semantic/storage/history/action/deep-link/Sensor Board tests.
+
 ## 2026-07-27
 
 ### Homestead+ Monetization

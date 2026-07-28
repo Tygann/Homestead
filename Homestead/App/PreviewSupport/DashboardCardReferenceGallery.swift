@@ -126,6 +126,7 @@ struct DashboardCardReferenceGallery: View {
         } else if let requestedSize = RuntimeEnvironment.requestedPreviewCardSize {
             cardSection(requestedSize.displayName, size: requestedSize)
         } else {
+            chipSection
             cardSection("Compact", size: .compact)
             cardSection("Square", size: .square)
             cardSection("Wide", size: .wide)
@@ -141,9 +142,45 @@ struct DashboardCardReferenceGallery: View {
 
             CardGrid {
                 referenceCard(
+                    title: "Control",
+                    entityID: "light.living_room_lamps",
+                    kind: .control,
+                    size: size
+                )
+                referenceCard(
+                    title: "Status",
+                    entityID: "binary_sensor.front_door",
+                    kind: .status,
+                    size: size
+                )
+                referenceCard(
+                    title: "Circular Gauge",
+                    entityID: "sensor.front_door_battery",
+                    kind: .circularGauge,
+                    size: size
+                )
+                referenceCard(
+                    title: "Segmented Gauge",
+                    entityID: "sensor.living_room_humidity",
+                    kind: .segmentedGauge,
+                    size: size
+                )
+                referenceCard(
+                    title: "Bar Gauge",
+                    entityID: "sensor.hallway_temperature",
+                    kind: .barGauge,
+                    size: size
+                )
+                referenceCard(
                     title: "Chart",
                     entityID: "sensor.hallway_temperature",
                     kind: .chart,
+                    size: size
+                )
+                referenceCard(
+                    title: "Camera",
+                    entityID: "camera.driveway",
+                    kind: .camera,
                     size: size
                 )
                 referenceCard(
@@ -205,6 +242,21 @@ struct DashboardCardReferenceGallery: View {
                     )
                 }
             }
+        }
+    }
+
+    private var chipSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Text("Chips")
+                .font(.title2.weight(.bold))
+
+            DashboardChipView(presentation: DashboardChipPresentation(
+                title: "Lights",
+                value: "3 on",
+                systemImage: "lightbulb.fill",
+                isActive: true,
+                isAvailable: true
+            ))
         }
     }
 

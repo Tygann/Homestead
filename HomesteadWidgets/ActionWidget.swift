@@ -44,7 +44,21 @@ struct RunHomesteadActionIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        try await HAWidgetActionClient().triggerAction(domain: domain, entityID: entityID)
+        guard let reference = HomesteadWidgetSharedStore.reference(for: entityID) else {
+            throw HAWidgetActionError.missingCredentials
+        }
+        guard HomesteadWidgetSharedStore.isServerAvailable(profileID: reference.profileID) else {
+            throw HAWidgetActionError.serverRemoved
+        }
+        let client = HAWidgetActionClient(profileID: reference.profileID)
+        let semantic = try await client.fetchSemanticPresentation(
+            entityID: reference.entityID,
+            domain: domain
+        )
+        guard semantic.isAvailable else {
+            throw HAWidgetActionError.entityUnavailable
+        }
+        try await client.triggerAction(domain: domain, entityID: reference.entityID)
         WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.action.rawValue)
         return .result()
     }
@@ -60,10 +74,14 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
     let systemImage: String
     let areaName: String?
     let deviceName: String?
+    var serverName: String = "Home Assistant"
+    var isServerAvailable: Bool = true
+    var isAvailable: Bool = true
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: "\(pickerDisplayName)",
+            subtitle: "\(pickerSubtitle)",
             image: DisplayRepresentation.Image(systemName: systemImage)
         )
     }
@@ -77,10 +95,21 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
     }
 
     var pickerGroupTitle: String {
-        HomesteadWidgetEntityPickerText.groupName(
+        HomesteadWidgetEntityPickerText.serverScopedGroupName(
+            serverName: serverName,
             areaName: areaName,
             deviceName: deviceName,
             fallback: fallbackGroupTitle
+        )
+    }
+
+    var pickerSubtitle: String {
+        guard isServerAvailable else { return "Server Removed" }
+        guard isAvailable else { return "Unavailable" }
+        return HomesteadWidgetEntityPickerText.contextDescription(
+            serverName: serverName,
+            areaName: areaName,
+            deviceName: deviceName
         )
     }
 
@@ -102,6 +131,7 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
                 HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
                 areaName,
                 deviceName,
+                serverName,
                 id
             ]
         )
@@ -132,17 +162,7 @@ struct HomesteadActionEntityQuery: EntityQuery, EntityStringQuery, EnumerableEnt
     }
 
     private func flatEntities() -> [HomesteadActionEntity] {
-        HomesteadWidgetSharedStore.actionSnapshots.map { snapshot in
-            let presentation = snapshot.sharedPresentation
-            return HomesteadActionEntity(
-                id: snapshot.entityID,
-                displayName: presentation.title,
-                domain: snapshot.domain,
-                systemImage: presentation.icon.fallbackSFSymbol,
-                areaName: snapshot.areaName,
-                deviceName: snapshot.deviceName
-            )
-        }
+        HomesteadActionSnapshotBuilder.entities()
     }
 
     private func collection(from entities: [HomesteadActionEntity]) -> IntentItemCollection<HomesteadActionEntity> {
@@ -161,6 +181,8 @@ struct HomesteadActionEntry: TimelineEntry {
     let domain: String
     let systemImage: String
     let isConfigured: Bool
+    var isAvailable: Bool = true
+    var statusText: String? = nil
 }
 
 struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
@@ -171,7 +193,9 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
             displayName: "Movie Time",
             domain: "scene",
             systemImage: "sparkles",
-            isConfigured: true
+            isConfigured: true,
+            isAvailable: true,
+            statusText: nil
         )
     }
 
@@ -183,7 +207,7 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
             return placeholder(in: context)
         }
 
-        return entry(for: configuration)
+        return await entry(for: configuration)
     }
 
     func timeline(
@@ -198,17 +222,16 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
         }
 
         return Timeline(
-            entries: [entry(for: configuration)],
+            entries: [await entry(for: configuration)],
             policy: .after(Date().addingTimeInterval(60 * 60))
         )
     }
 
-    private func entry(for configuration: HomesteadActionWidgetConfigurationIntent) -> HomesteadActionEntry {
+    private func entry(for configuration: HomesteadActionWidgetConfigurationIntent) async -> HomesteadActionEntry {
         let configuredAction = configuration.action
-        let latestConfiguredSnapshot = configuredAction.flatMap { action in
-            HomesteadWidgetSharedStore.actionSnapshot(entityID: action.id)
-        }
-        let selectedAction = latestConfiguredSnapshot.map(Self.entity) ?? configuredAction
+        let selectedAction = configuredAction.flatMap {
+            HomesteadActionSnapshotBuilder.entity(identifier: $0.id)
+        } ?? configuredAction
 
         guard let selectedAction else {
             return HomesteadActionEntry(
@@ -217,30 +240,64 @@ struct HomesteadActionTimelineProvider: AppIntentTimelineProvider {
                 displayName: "Choose Action",
                 domain: "scene",
                 systemImage: "sparkles",
-                isConfigured: false
+                isConfigured: false,
+                isAvailable: false,
+                statusText: "Choose Action"
             )
         }
 
+        guard let reference = HomesteadWidgetSharedStore.reference(for: selectedAction.id),
+              HomesteadWidgetSharedStore.isServerAvailable(profileID: reference.profileID) else {
+            return HomesteadActionEntry(
+                date: Date(),
+                entityID: selectedAction.id,
+                displayName: selectedAction.displayName,
+                domain: selectedAction.domain,
+                systemImage: selectedAction.systemImage,
+                isConfigured: true,
+                isAvailable: false,
+                statusText: "Server Removed"
+            )
+        }
+
+        let livePresentation = try? await HAWidgetActionClient(profileID: reference.profileID)
+            .fetchSemanticPresentation(entityID: reference.entityID, domain: selectedAction.domain)
+        let isAvailable = livePresentation?.isAvailable ?? selectedAction.isAvailable
         return HomesteadActionEntry(
             date: Date(),
             entityID: selectedAction.id,
             displayName: selectedAction.displayName,
             domain: selectedAction.domain,
             systemImage: selectedAction.systemImage,
-            isConfigured: true
+            isConfigured: true,
+            isAvailable: isAvailable,
+            statusText: isAvailable ? nil : "Unavailable"
         )
     }
 
-    private static func entity(from snapshot: WidgetActionSnapshot) -> HomesteadActionEntity {
-        let presentation = snapshot.sharedPresentation
-        return HomesteadActionEntity(
-            id: snapshot.entityID,
-            displayName: presentation.title,
-            domain: snapshot.domain,
-            systemImage: presentation.icon.fallbackSFSymbol,
-            areaName: snapshot.areaName,
-            deviceName: snapshot.deviceName
-        )
+}
+
+private enum HomesteadActionSnapshotBuilder {
+    static func entities() -> [HomesteadActionEntity] {
+        HomesteadWidgetSharedStore.scopedActionSnapshots.map { scoped in
+            let snapshot = scoped.value
+            let presentation = snapshot.sharedPresentation
+            return HomesteadActionEntity(
+                id: scoped.reference.encodedID,
+                displayName: presentation.title,
+                domain: snapshot.domain,
+                systemImage: presentation.icon.fallbackSFSymbol,
+                areaName: snapshot.areaName,
+                deviceName: snapshot.deviceName,
+                serverName: scoped.serverName,
+                isServerAvailable: scoped.isServerAvailable,
+                isAvailable: presentation.isAvailable
+            )
+        }
+    }
+
+    static func entity(identifier: String) -> HomesteadActionEntity? {
+        entities().first { $0.id == identifier }
     }
 }
 
@@ -257,13 +314,13 @@ struct HomesteadActionWidgetView: View {
 
     @ViewBuilder
     private var familyContent: some View {
-        switch family {
-        case .accessoryCircular:
-            accessoryCircular
-        case .accessoryRectangular:
-            accessoryRectangular
-        default:
-            systemSmall
+        HomesteadWidgetSingleItemFace(
+            family: faceFamily,
+            title: entry.displayName,
+            supportingText: supportingText,
+            titleLineLimit: entry.isConfigured ? 3 : 2
+        ) {
+            actionButton
         }
     }
 
@@ -277,32 +334,17 @@ struct HomesteadActionWidgetView: View {
         }
     }
 
-    private var systemSmall: some View {
-        HomesteadWidgetSmallTile(
-            title: entry.displayName,
-            supportingText: supportingText,
-            titleLineLimit: entry.isConfigured ? 3 : 2
-        ) {
-            actionButton
-        }
-    }
-
-    private var accessoryCircular: some View {
-        actionButton
-    }
-
-    private var accessoryRectangular: some View {
-        HomesteadWidgetRectangularTile(
-            title: entry.displayName,
-            value: supportingText
-        ) {
-            actionButton
+    private var faceFamily: HomesteadWidgetFaceFamily {
+        switch family {
+        case .accessoryCircular: .accessoryCircular
+        case .accessoryRectangular: .accessoryRectangular
+        default: .systemSmall
         }
     }
 
     @ViewBuilder
     private var actionButton: some View {
-        if let entityID = entry.entityID, entry.isConfigured {
+        if let entityID = entry.entityID, entry.isConfigured, entry.isAvailable {
             Button(intent: RunHomesteadActionIntent(entityID: entityID, domain: entry.domain)) {
                 actionIcon
             }
@@ -321,10 +363,10 @@ struct HomesteadActionWidgetView: View {
 
     private var supportingText: String? {
         guard entry.isConfigured else {
-            return "Open Homestead"
+            return WidgetStateText.openHomestead
         }
 
-        return nil
+        return entry.statusText
     }
 }
 

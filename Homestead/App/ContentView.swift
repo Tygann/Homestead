@@ -19,6 +19,7 @@ struct ContentView: View {
     @State private var presentedAppSheet: AppSheetDestination?
     @State private var isShowingNotificationSetupPrompt = false
     @State private var widgetEntityDestination: WidgetEntityDestination?
+    @State private var widgetLinkErrorMessage: String?
 
     var body: some View {
         let chrome = AppChromePresentation.make(
@@ -113,6 +114,19 @@ struct ContentView: View {
         } message: {
             Text("Homestead can show alerts sent by Home Assistant on this device.")
         }
+        .alert(
+            "Widget Unavailable",
+            isPresented: Binding(
+                get: { widgetLinkErrorMessage != nil },
+                set: { if !$0 { widgetLinkErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                widgetLinkErrorMessage = nil
+            }
+        } message: {
+            Text(widgetLinkErrorMessage ?? "")
+        }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
@@ -135,19 +149,23 @@ struct ContentView: View {
                 presentedAppSheet = .settings(.plus)
                 return
             }
-            guard let reference = HomesteadWidgetDeepLink.entityReference(
-                from: url,
-                fallbackProfileID: connectionSettings.activeProfileID
-            ) else {
+            guard let reference = HomesteadWidgetDeepLink.entityReference(from: url) else {
+                if HomesteadWidgetDeepLink.entityID(from: url) != nil {
+                    widgetLinkErrorMessage = "This beta widget configuration needs to be recreated so it can select a Home Assistant server."
+                }
                 return
             }
             Task {
                 if reference.profileID != connectionSettings.activeProfileID {
-                    _ = await homeAssistantService.switchActiveProfile(
+                    let didSwitch = await homeAssistantService.switchActiveProfile(
                         to: reference.profileID,
                         settings: connectionSettings,
                         dashboardConfiguration: dashboardConfiguration
                     )
+                    guard didSwitch else {
+                        widgetLinkErrorMessage = "The Home Assistant server configured for this widget is no longer available."
+                        return
+                    }
                 }
                 widgetEntityDestination = WidgetEntityDestination(entityID: reference.entityID)
             }

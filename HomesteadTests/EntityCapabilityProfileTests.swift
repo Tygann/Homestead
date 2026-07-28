@@ -363,7 +363,10 @@ final class EntityCapabilityProfileTests: XCTestCase {
 
         let presentation = try XCTUnwrap(sensor.gaugePresentation)
         XCTAssertEqual(presentation.sections.first?.status, .warning)
-        XCTAssertEqual(presentation.sections.first?.color, GaugeZoneColor.standard(for: .low))
+        XCTAssertEqual(
+            presentation.sections.first?.color,
+            GaugeZoneColor.standard(for: GaugePresentationStatus.low)
+        )
         XCTAssertEqual(presentation.sections.last?.color, nil)
     }
 

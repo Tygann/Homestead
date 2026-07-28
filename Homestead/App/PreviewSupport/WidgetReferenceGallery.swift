@@ -330,7 +330,8 @@ struct WidgetReferenceGallery: View {
         color: Color,
         titleLineLimit: Int = 2
     ) -> some View {
-        HomesteadWidgetSmallTile(
+        HomesteadWidgetSingleItemFace(
+            family: .systemSmall,
             title: title,
             value: value,
             supportingText: supportingText,
@@ -347,7 +348,11 @@ struct WidgetReferenceGallery: View {
         icon: String,
         color: Color
     ) -> some View {
-        HomesteadWidgetRectangularTile(title: title, value: value) {
+        HomesteadWidgetSingleItemFace(
+            family: .accessoryRectangular,
+            title: title,
+            value: value
+        ) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(color)

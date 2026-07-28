@@ -1,206 +1,30 @@
 import Foundation
 
 enum WidgetSharedStore {
-    static let appGroupID = "group.com.tyler.Homestead"
-    nonisolated static let keychainAccessGroup = "XKQ424HQ33.com.tyler.Homestead.shared"
+    static let appGroupID = WidgetStorageContract.appGroupID
+    nonisolated static let keychainAccessGroup = WidgetStorageContract.keychainAccessGroup
 
-    private static let baseURLKey = "homeAssistantBaseURL"
-    private static let serverProfilesKey = "homeAssistantServerProfiles"
-    private static let activeProfileIDKey = "homeAssistantActiveProfileID"
-    private static let legacyWidgetProfileIDKey = "homeAssistantLegacyWidgetProfileID"
-    private static let lightSnapshotsKey = "widgetLightSnapshots"
-    private static let switchSnapshotsKey = "widgetSwitchSnapshots"
-    private static let coverSnapshotsKey = "widgetCoverSnapshots"
-    private static let fanSnapshotsKey = "widgetFanSnapshots"
-    private static let lockSnapshotsKey = "widgetLockSnapshots"
-    private static let sensorSnapshotsKey = "widgetSensorSnapshots"
-    private static let presenceSnapshotsKey = "widgetPresenceSnapshots"
-    private static let actionSnapshotsKey = "widgetActionSnapshots"
-
-    static func saveBaseURL(_ baseURL: String) {
-        sharedDefaults?.set(baseURL, forKey: baseURLKey)
-    }
-
-    static func saveActiveProfileID(_ profileID: UUID) {
-        sharedDefaults?.set(profileID.uuidString, forKey: activeProfileIDKey)
-    }
-
-    static func saveServerProfiles(_ profiles: [HAConnectionProfile], activeProfileID: UUID) {
+    static func saveServerProfiles(_ profiles: [HAConnectionProfile]) {
         let widgetProfiles = profiles.filter(\.hasServerURL).map {
             WidgetServerProfile(id: $0.id, displayName: $0.resolvedDisplayName, baseURLString: $0.baseURL)
         }
         guard let data = try? JSONEncoder().encode(widgetProfiles) else { return }
-        sharedDefaults?.set(data, forKey: serverProfilesKey)
-        if sharedDefaults?.string(forKey: legacyWidgetProfileIDKey) == nil {
-            sharedDefaults?.set(activeProfileID.uuidString, forKey: legacyWidgetProfileIDKey)
+        sharedDefaults?.set(data, forKey: WidgetStorageContract.Key.serverProfiles)
+    }
+
+    static func serverDisplayName(profileID: UUID) -> String {
+        guard let data = sharedDefaults?.data(forKey: WidgetStorageContract.Key.serverProfiles),
+              let profiles = try? JSONDecoder().decode([WidgetServerProfile].self, from: data) else {
+            return "Home Assistant"
         }
-        saveActiveProfileID(activeProfileID)
-    }
-
-    static var legacyWidgetProfileID: UUID? {
-        sharedDefaults?.string(forKey: legacyWidgetProfileIDKey).flatMap(UUID.init(uuidString:))
-    }
-
-    static func saveLightSnapshots(
-        _ lights: [LightEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
-        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
-    ) {
-        let snapshots = lightSnapshots(
-            from: lights,
-            contextForEntityID: contextForEntityID,
-            iconForEntityID: iconForEntityID
-        )
-
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: lightSnapshotsKey)
-    }
-
-    static func saveLightSnapshotPayload(_ snapshots: [WidgetLightSnapshot]) {
-        save(snapshots, forKey: lightSnapshotsKey)
-    }
-
-    static func saveSwitchSnapshots(
-        _ entities: [HomeEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
-    ) {
-        let snapshots = switchSnapshots(from: entities, contextForEntityID: contextForEntityID)
-
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: switchSnapshotsKey)
-    }
-
-    static func saveSwitchSnapshotPayload(_ snapshots: [WidgetSwitchSnapshot]) {
-        save(snapshots, forKey: switchSnapshotsKey)
-    }
-
-    static func saveCoverSnapshots(
-        _ covers: [CoverEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
-        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
-    ) {
-        let snapshots = coverSnapshots(
-            from: covers,
-            contextForEntityID: contextForEntityID,
-            iconForEntityID: iconForEntityID
-        )
-
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: coverSnapshotsKey)
-    }
-
-    static func saveCoverSnapshotPayload(_ snapshots: [WidgetCoverSnapshot]) {
-        save(snapshots, forKey: coverSnapshotsKey)
-    }
-
-    static func saveFanSnapshots(
-        _ fans: [FanEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
-        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
-    ) {
-        let snapshots = fanSnapshots(
-            from: fans,
-            contextForEntityID: contextForEntityID,
-            iconForEntityID: iconForEntityID
-        )
-
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: fanSnapshotsKey)
-    }
-
-    static func saveFanSnapshotPayload(_ snapshots: [WidgetFanSnapshot]) {
-        save(snapshots, forKey: fanSnapshotsKey)
-    }
-
-    static func saveLockSnapshots(
-        _ entities: [HomeEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
-    ) {
-        let snapshots = lockSnapshots(from: entities, contextForEntityID: contextForEntityID)
-
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: lockSnapshotsKey)
-    }
-
-    static func saveLockSnapshotPayload(_ snapshots: [WidgetLockSnapshot]) {
-        save(snapshots, forKey: lockSnapshotsKey)
-    }
-
-    static func saveSensorSnapshots(
-        _ sensors: [SensorEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
-        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
-    ) {
-        let snapshots = sensorSnapshots(
-            from: sensors,
-            contextForEntityID: contextForEntityID,
-            iconForEntityID: iconForEntityID
-        )
-
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: sensorSnapshotsKey)
-    }
-
-    static func saveSensorSnapshotPayload(_ snapshots: [WidgetSensorSnapshot]) {
-        save(snapshots, forKey: sensorSnapshotsKey)
-    }
-
-    static func savePresenceSnapshots(
-        _ entities: [HomeEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
-    ) {
-        let snapshots = presenceSnapshots(from: entities, contextForEntityID: contextForEntityID)
-
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: presenceSnapshotsKey)
-    }
-
-    static func savePresenceSnapshotPayload(_ snapshots: [WidgetPresenceSnapshot]) {
-        save(snapshots, forKey: presenceSnapshotsKey)
-    }
-
-    static func saveActionSnapshots(
-        _ entities: [HomeEntity],
-        contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
-    ) {
-        let snapshots = actionSnapshots(from: entities, contextForEntityID: contextForEntityID)
-
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: actionSnapshotsKey)
-    }
-
-    static func saveActionSnapshotPayload(_ snapshots: [WidgetActionSnapshot]) {
-        save(snapshots, forKey: actionSnapshotsKey)
+        return profiles.first(where: { $0.id == profileID })?.displayName ?? "Home Assistant"
     }
 
     static func lightSnapshots(
         from lights: [LightEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
-        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
+        iconForEntityID: (String) -> ResolvedIcon? = { _ in nil },
+        isAvailableForEntityID: (String) -> Bool = { _ in true }
     ) -> [WidgetLightSnapshot] {
         lights
             .sorted { lhs, rhs in
@@ -218,7 +42,8 @@ enum WidgetSharedStore {
                     brightnessPercentage: light.brightnessPercentage,
                     areaName: context.areaName,
                     deviceName: context.deviceName,
-                    icon: icon
+                    icon: icon,
+                    isAvailable: isAvailableForEntityID(light.entityID)
                 )
             }
     }
@@ -241,7 +66,8 @@ enum WidgetSharedStore {
                     systemImage: entity.iconName,
                     areaName: context.areaName,
                     deviceName: context.deviceName,
-                    icon: entity.resolvedIcon
+                    icon: entity.resolvedIcon,
+                    isAvailable: entity.isAvailable
                 )
             }
     }
@@ -415,7 +241,8 @@ enum WidgetSharedStore {
                 WidgetGaugeSection(
                     lowerBound: section.range.lowerBound,
                     upperBound: section.range.upperBound,
-                    color: WidgetGaugeColor.standard(for: widgetGaugeStatus(from: section.status))
+                    color: section.color
+                        ?? GaugeZoneColor.widgetStandard(for: widgetGaugeStatus(from: section.status))
                 )
             },
             accessibilityLabel: gauge.accessibilityLabel,
@@ -471,21 +298,14 @@ enum WidgetSharedStore {
                     systemImage: entity.iconName,
                     areaName: context.areaName,
                     deviceName: context.deviceName,
-                    icon: entity.resolvedIcon
+                    icon: entity.resolvedIcon,
+                    isAvailable: entity.isAvailable
                 )
             }
     }
 
     private static var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
-    }
-
-    private static func save<T: Encodable>(_ value: T, forKey key: String) {
-        guard let data = try? JSONEncoder().encode(value) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: key)
     }
 
     private static func presenceStatusText(for state: String) -> String {

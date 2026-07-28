@@ -2,6 +2,8 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
+// MARK: - Sensor Widget
+
 struct HomesteadSensorChartWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
@@ -26,11 +28,11 @@ struct HomesteadSensorChartWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Sensor")
     var sensor: HomesteadSensorEntity?
 
-    @Parameter(title: "Display Name")
-    var customDisplayName: String?
+    @Parameter(title: "Display", default: .reading)
+    var display: HomesteadSensorWidgetDisplay
 
-    @Parameter(title: "Display")
-    var display: HomesteadSensorWidgetDisplay?
+    @Parameter(title: "Name")
+    var customDisplayName: String?
 
     @Parameter(title: "Scale", default: .automatic)
     var gaugeScale: HomesteadGaugeScale
@@ -81,8 +83,8 @@ struct HomesteadSensorChartWidgetConfigurationIntent: WidgetConfigurationIntent 
                 When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.automatic) {
                     Summary {
                         \.$sensor
-                        \.$customDisplayName
                         \.$display
+                        \.$customDisplayName
                         \.$gaugeScale
                         \.$gaugeMinimum
                         \.$gaugeMaximum
@@ -91,8 +93,8 @@ struct HomesteadSensorChartWidgetConfigurationIntent: WidgetConfigurationIntent 
                 } otherwise: {
                     Summary {
                         \.$sensor
-                        \.$customDisplayName
                         \.$display
+                        \.$customDisplayName
                         \.$gaugeScale
                         \.$gaugeMinimum
                         \.$gaugeMaximum
@@ -112,16 +114,16 @@ struct HomesteadSensorChartWidgetConfigurationIntent: WidgetConfigurationIntent 
                 When(\.$zoneCount, .equalTo, HomesteadGaugeZoneCount.automatic) {
                     Summary {
                         \.$sensor
-                        \.$customDisplayName
                         \.$display
+                        \.$customDisplayName
                         \.$gaugeScale
                         \.$zoneCount
                     }
                 } otherwise: {
                     Summary {
                         \.$sensor
-                        \.$customDisplayName
                         \.$display
+                        \.$customDisplayName
                         \.$gaugeScale
                         \.$zoneCount
                         \.$zone1Color
@@ -139,8 +141,8 @@ struct HomesteadSensorChartWidgetConfigurationIntent: WidgetConfigurationIntent 
         } otherwise: {
             Summary {
                 \.$sensor
-                \.$customDisplayName
                 \.$display
+                \.$customDisplayName
             }
         }
     }
@@ -159,6 +161,8 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
     let unit: String?
     let areaName: String?
     let deviceName: String?
+    var serverName: String = "Home Assistant"
+    var isServerAvailable: Bool = true
     let isNumeric: Bool
     let isAlerting: Bool
     let isAvailable: Bool
@@ -174,6 +178,7 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: "\(pickerDisplayName)",
+            subtitle: "\(pickerSubtitle)",
             image: DisplayRepresentation.Image(systemName: systemImage)
         )
     }
@@ -187,10 +192,21 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
     }
 
     var pickerGroupTitle: String {
-        HomesteadWidgetEntityPickerText.groupName(
+        HomesteadWidgetEntityPickerText.serverScopedGroupName(
+            serverName: serverName,
             areaName: areaName,
             deviceName: deviceName,
             fallback: "Sensors"
+        )
+    }
+
+    var pickerSubtitle: String {
+        guard isServerAvailable else { return "Server Removed" }
+        guard isAvailable else { return "Unavailable" }
+        return HomesteadWidgetEntityPickerText.contextDescription(
+            serverName: serverName,
+            areaName: areaName,
+            deviceName: deviceName
         )
     }
 
@@ -207,6 +223,7 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
                 hasGauge ? "gauge" : nil,
                 areaName,
                 deviceName,
+                serverName,
                 id
             ]
         )
@@ -237,7 +254,7 @@ struct HomesteadSensorEntityQuery: EntityQuery, EntityStringQuery, EnumerableEnt
     }
 
     private func flatEntities() -> [HomesteadSensorEntity] {
-        HomesteadWidgetSharedStore.sensorSnapshots.map(Self.entity)
+        HomesteadSensorSnapshotBuilder.entities()
     }
 
     private func collection(from entities: [HomesteadSensorEntity]) -> IntentItemCollection<HomesteadSensorEntity> {
@@ -248,9 +265,25 @@ struct HomesteadSensorEntityQuery: EntityQuery, EntityStringQuery, EnumerableEnt
         )
     }
 
-    private static func entity(from snapshot: WidgetSensorSnapshot) -> HomesteadSensorEntity {
-        HomesteadSensorEntity(
-            id: snapshot.entityID,
+}
+
+private enum HomesteadSensorSnapshotBuilder {
+    static func entities() -> [HomesteadSensorEntity] {
+        HomesteadWidgetSharedStore.scopedSensorSnapshots.map { scoped in
+            entity(from: scoped)
+        }
+    }
+
+    static func entity(identifier: String) -> HomesteadSensorEntity? {
+        entities().first { $0.id == identifier }
+    }
+
+    private static func entity(
+        from scoped: WidgetScopedSnapshot<WidgetSensorSnapshot>
+    ) -> HomesteadSensorEntity {
+        let snapshot = scoped.value
+        return HomesteadSensorEntity(
+            id: scoped.reference.encodedID,
             displayName: snapshot.displayName,
             valueText: snapshot.valueText,
             subtitle: snapshot.subtitle,
@@ -258,6 +291,8 @@ struct HomesteadSensorEntityQuery: EntityQuery, EntityStringQuery, EnumerableEnt
             unit: snapshot.unit,
             areaName: snapshot.areaName,
             deviceName: snapshot.deviceName,
+            serverName: scoped.serverName,
+            isServerAvailable: scoped.isServerAvailable,
             isNumeric: snapshot.isNumeric == true,
             isAlerting: snapshot.isAlerting,
             isAvailable: snapshot.isAvailable,
@@ -328,7 +363,9 @@ struct HomesteadSensorChartEntry: TimelineEntry {
             interpolationStyle: chartInterpolationStyle,
             rangeTitle: "6H",
             changeSummaryText: nil,
-            emptyLabel: subtitle == "Needs connection" ? "Chart unavailable" : "No recent chart"
+            emptyLabel: subtitle == WidgetStateText.needsConnection
+                ? WidgetStateText.chartUnavailable
+                : WidgetStateText.noRecentData
         )
     }
 }
@@ -408,14 +445,16 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
         let latestConfiguredSnapshot = configuredSensor.flatMap { sensor in
             HomesteadWidgetSharedStore.sensorSnapshot(entityID: sensor.id)
         }
-        let selectedSensor = latestConfiguredSnapshot.map(Self.entity) ?? configuredSensor
+        let selectedSensor = configuredSensor.flatMap {
+            HomesteadSensorSnapshotBuilder.entity(identifier: $0.id)
+        } ?? configuredSensor
 
         guard let selectedSensor else {
             return HomesteadSensorChartEntry(
                 date: Date(),
                 entityID: nil,
                 displayName: "Choose Sensor",
-                valueText: "Open Homestead",
+                valueText: WidgetStateText.openHomestead,
                 subtitle: "",
                 systemImage: "gauge.medium",
                 display: display,
@@ -453,6 +492,16 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
         displayName: String,
         cachedGauge: WidgetGaugePresentation?
     ) async -> HomesteadSensorChartEntry {
+        guard let reference = HomesteadWidgetSharedStore.reference(for: selectedSensor.id),
+              HomesteadWidgetSharedStore.isServerAvailable(profileID: reference.profileID) else {
+            return unavailableEntry(
+                for: selectedSensor,
+                displayName: displayName,
+                display: .chart,
+                cachedGauge: cachedGauge,
+                message: "Server Removed"
+            )
+        }
         guard selectedSensor.isNumeric else {
             return HomesteadSensorChartEntry(
                 date: Date(),
@@ -474,8 +523,8 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
         }
 
         do {
-            let series = try await HAWidgetActionClient().fetchSensorHistory(
-                entityID: selectedSensor.id,
+            let series = try await HAWidgetActionClient(profileID: reference.profileID).fetchSensorHistory(
+                entityID: reference.entityID,
                 displayName: selectedSensor.displayName,
                 unit: selectedSensor.unit
             )
@@ -508,12 +557,12 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
                 entityID: selectedSensor.id,
                 displayName: displayName,
                 valueText: selectedSensor.valueText,
-                subtitle: "Needs connection",
+                subtitle: WidgetStateText.needsConnection,
                 systemImage: selectedSensor.systemImage,
                 display: .chart,
                 samples: [],
                 valueDomain: 0...1,
-                summaryText: "Needs connection",
+                summaryText: WidgetStateText.needsConnection,
                 isAlerting: selectedSensor.isAlerting,
                 isAvailable: selectedSensor.isAvailable,
                 isConfigured: true,
@@ -532,15 +581,26 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
         display: HomesteadSensorWidgetDisplay,
         cachedGauge: WidgetGaugePresentation?
     ) async -> HomesteadSensorChartEntry {
+        guard let reference = HomesteadWidgetSharedStore.reference(for: selectedSensor.id),
+              HomesteadWidgetSharedStore.isServerAvailable(profileID: reference.profileID) else {
+            return unavailableEntry(
+                for: selectedSensor,
+                displayName: displayName,
+                display: display,
+                cachedGauge: cachedGauge,
+                message: "Server Removed"
+            )
+        }
         do {
-            let state = try await HAWidgetActionClient().fetchSensorState(entityID: selectedSensor.id)
+            let state = try await HAWidgetActionClient(profileID: reference.profileID)
+                .fetchSensorState(entityID: reference.entityID)
             let liveGauge = state.numericValue.flatMap { value in
                 cachedGauge?.updating(value: value, valueText: state.valueText)
             } ?? cachedGauge
 
             return HomesteadSensorChartEntry(
                 date: Date(),
-                entityID: state.entityID,
+                entityID: selectedSensor.id,
                 displayName: displayName,
                 valueText: state.valueText,
                 subtitle: state.subtitle,
@@ -561,7 +621,7 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
                 entityID: selectedSensor.id,
                 displayName: displayName,
                 valueText: selectedSensor.valueText,
-                subtitle: "Needs connection",
+                subtitle: WidgetStateText.needsConnection,
                 systemImage: selectedSensor.systemImage,
                 display: display,
                 samples: [],
@@ -576,23 +636,32 @@ struct HomesteadSensorChartTimelineProvider: AppIntentTimelineProvider {
         }
     }
 
-    private static func entity(from snapshot: WidgetSensorSnapshot) -> HomesteadSensorEntity {
-        HomesteadSensorEntity(
-            id: snapshot.entityID,
-            displayName: snapshot.displayName,
-            valueText: snapshot.valueText,
-            subtitle: snapshot.subtitle,
-            systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
-            unit: snapshot.unit,
-            areaName: snapshot.areaName,
-            deviceName: snapshot.deviceName,
-            isNumeric: snapshot.isNumeric == true,
-            isAlerting: snapshot.isAlerting,
-            isAvailable: snapshot.isAvailable,
-            hasGauge: snapshot.gauge != nil,
-            icon: snapshot.resolvedIcon,
-            historyChartInterpolationStyle: snapshot.historyChartInterpolationStyle,
-            chartAccentColor: snapshot.chartAccentColor
+    private func unavailableEntry(
+        for sensor: HomesteadSensorEntity,
+        displayName: String,
+        display: HomesteadSensorWidgetDisplay,
+        cachedGauge: WidgetGaugePresentation?,
+        message: String
+    ) -> HomesteadSensorChartEntry {
+        HomesteadSensorChartEntry(
+            date: .now,
+            entityID: sensor.id,
+            displayName: displayName,
+            valueText: sensor.valueText,
+            subtitle: message,
+            systemImage: sensor.systemImage,
+            display: display,
+            samples: [],
+            valueDomain: 0...1,
+            summaryText: message,
+            isAlerting: sensor.isAlerting,
+            isAvailable: false,
+            isConfigured: true,
+            icon: sensor.resolvedIcon,
+            gauge: cachedGauge,
+            chartUnitText: sensor.unit,
+            chartInterpolationStyle: sensor.historyChartInterpolationStyle ?? .linear,
+            chartAccentColor: sensor.chartAccentColor
         )
     }
 

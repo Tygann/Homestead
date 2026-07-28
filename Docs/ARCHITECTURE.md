@@ -40,6 +40,12 @@ Views should not decode Home Assistant JSON or hold independent entity caches.
 
 Entity detail views use a shared grammar rather than a universal type-erased layout. Typed family/domain views compose shared scaffold, hero, section, control, history/activity, and diagnostics components. The complete UI and extension contract is documented in `Docs/ENTITY_DETAIL_DESIGN.md` and ADR 2.
 
+## Dashboard And Widget Presentation
+
+`Shared/EntityPresentation` is the cross-process semantic boundary for dashboard cards and widgets: server-scoped identity, availability, active state, presentation affordances/eligibility, Home Assistant display precision, unit normalization, icon semantics, chart behavior, and gauge-zone color. Dashboard cards adapt live `HAEntityState`; WidgetKit adapts compact per-server snapshots and profile-scoped live refresh. Their containers, editors, interactions, timelines, families, and refresh policies remain deliberately separate.
+
+The complete ownership, configuration, compatibility, and verification contract is documented in `Docs/DASHBOARD_WIDGET_ARCHITECTURE.md` and ADR 4.
+
 ## Service layer
 
 SwiftUI views call `HomeAssistantService`, not `HAWebSocketClient`. The service exposes intent-level methods such as `toggleLight(entityID:)`, `turnOnLight(entityID:)`, `turnOffLight(entityID:)`, and `callService(domain:service:entityID:)`.
@@ -48,7 +54,7 @@ This keeps transport details out of cards and leaves room for optimistic updates
 
 ## Credentials And Native App Registration
 
-`HAConnectionSettings` stores the Home Assistant base URL plus Homestead-owned internal URL, external URL, and home-network metadata in `UserDefaults`; the base URL is also mirrored to shared widget defaults. Homestead supports the official Home Assistant native app OAuth2/IndieAuth flow as its only login path. `HomeAssistantService` builds the documented `/auth/authorize` URL with `https://connect.homesteadcontrol.com` as the OAuth client ID and `homestead://auth` as the native callback. The client ID website is served by the `homestead-api` Worker and whitelists that callback with Home Assistant's documented `rel="redirect_uri"` link. Authorization opens through `ASWebAuthenticationSession`; Homestead then exchanges the returned authorization code at `/auth/token` and stores the returned refresh token plus short-lived access-token metadata in Keychain through `KeychainHAOAuthTokenStore`.
+`HAConnectionSettings` stores the Home Assistant base URL plus Homestead-owned internal URL, external URL, and home-network metadata in `UserDefaults`. The widget app group receives a credential-free list of server profiles and compact per-server snapshots; profile-scoped OAuth credentials remain in the shared Keychain access group. Homestead supports the official Home Assistant native app OAuth2/IndieAuth flow as its only login path. `HomeAssistantService` builds the documented `/auth/authorize` URL with `https://connect.homesteadcontrol.com` as the OAuth client ID and `homestead://auth` as the native callback. The client ID website is served by the `homestead-api` Worker and whitelists that callback with Home Assistant's documented `rel="redirect_uri"` link. Authorization opens through `ASWebAuthenticationSession`; Homestead then exchanges the returned authorization code at `/auth/token` and stores the returned refresh token plus short-lived access-token metadata in Keychain through `KeychainHAOAuthTokenStore`.
 
 Before WebSocket connect, reconnect, camera snapshot HTTP requests, mobile-app registration, or other documented HTTP calls, `HomeAssistantService` asks `HAOAuthManager` for a valid current access token. If the access token is expired or close to expiry, or if a WebSocket auth attempt is rejected, the manager refreshes through `/auth/token` using the stored refresh token and updates Keychain. `HomeAssistantService` resolves the active internal/external route from saved settings and iOS network state, then gives `HAWebSocketClient`, `HAHTTPClient`, and `HAMobileAppClient` an `HAConnectionConfiguration` whose active base URL may differ from the signed-in server identity. Cache scope, OAuth refresh, and mobile-app registration identity remain anchored to the signed-in server. SwiftUI never handles raw OAuth DTOs, tokens, or URL switching decisions.
 

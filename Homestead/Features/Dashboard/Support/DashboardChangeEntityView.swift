@@ -287,9 +287,9 @@ private struct DashboardChangeEntityPreviewSample {
                 upperBound: 90,
                 boundaries: [68, 76],
                 colors: [
-                    .standard(for: .low),
-                    .standard(for: .nominal),
-                    .standard(for: .high)
+                    .standard(for: GaugePresentationStatus.low),
+                    .standard(for: GaugePresentationStatus.nominal),
+                    .standard(for: GaugePresentationStatus.high)
                 ]
             ),
             forItemID: itemID

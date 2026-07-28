@@ -5,10 +5,21 @@ import Testing
 struct HomesteadWidgetDeepLinkTests {
     @Test
     func entityURLsRoundTrip() {
-        let entityID = "sensor.living_room_temperature"
-        let url = HomesteadWidgetDeepLink.entityURL(entityID: entityID)
+        let reference = EntityPresentationReference(
+            profileID: UUID(uuidString: "8F683A67-8FD8-43AA-A499-BB46739CA6E3")!,
+            entityID: "sensor.living_room_temperature"
+        )
+        let url = HomesteadWidgetDeepLink.entityURL(entityID: reference.encodedID)
 
-        #expect(HomesteadWidgetDeepLink.entityID(from: url) == entityID)
+        #expect(HomesteadWidgetDeepLink.entityID(from: url) == reference.encodedID)
+        #expect(HomesteadWidgetDeepLink.entityReference(from: url) == reference)
+    }
+
+    @Test
+    func rawLegacyEntityURLDoesNotSilentlyAdoptTheActiveServer() {
+        let url = HomesteadWidgetDeepLink.entityURL(entityID: "sensor.legacy")
+
+        #expect(HomesteadWidgetDeepLink.entityReference(from: url) == nil)
     }
 
     @Test

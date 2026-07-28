@@ -163,6 +163,13 @@ rm -rf ~/Library/Developer/XCTestDevices/*
 - Avoid heavy materials, large shadows, and implicit animations in scrolling dashboard grids unless profiling supports the change.
 - Mention any UI verification that was not practical in the final response.
 
+### Dashboard And Widget Contract Changes
+
+- Run the focused entity-presentation, dashboard-catalog, snapshot, deep-link, entitlement, and Sensor Board tests.
+- Build the widget extension and inspect its generated `Metadata.appintents/extract.actionsdata` after changing parameters, defaults, AppEnums, or summaries.
+- Inspect both deterministic production galleries with `--preview-screen dashboard-cards` and `--preview-screen widgets`.
+- For App Intent changes, add a widget and open Edit Widget in the simulator when possible. Treat simulator inspection as partial evidence; the system owns this UI, and physical-device behavior, picker grouping, tint modes, VoiceOver, and existing-widget migration still require device validation.
+
 ## Commit Behavior
 
 - Keep commits focused and name the user-visible or architectural outcome.

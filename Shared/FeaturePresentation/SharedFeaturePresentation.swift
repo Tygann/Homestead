@@ -135,9 +135,9 @@ nonisolated enum SharedFeatureCatalog {
             systemImage: "thermometer.medium",
             category: .sensors,
             subjectKind: .sensor,
-            supportedSurfaces: [.widget],
+            supportedSurfaces: [.dashboard, .widget],
             dashboardPresentationIDs: ["chart"],
-            relatedWidgetKinds: [.sensor, .sensorBoard],
+            relatedWidgetKinds: [.sensor, .sensorBoard, .largeSensorBoard],
             affordances: [.read, .history]
         ),
         SharedFeatureDescriptor(
@@ -147,7 +147,7 @@ nonisolated enum SharedFeatureCatalog {
             category: .sensors,
             subjectKind: .sensor,
             supportedSurfaces: [.dashboard, .widget],
-            dashboardPresentationIDs: ["gauge"],
+            dashboardPresentationIDs: ["circularGauge", "segmentedGauge", "barGauge"],
             relatedWidgetKinds: [.sensor, .sensorBoard, .largeSensorBoard],
             affordances: [.read, .gauge]
         ),

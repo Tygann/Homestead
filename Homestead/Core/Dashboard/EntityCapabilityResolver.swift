@@ -22,62 +22,71 @@ nonisolated enum PresentationAvailability: Equatable, Sendable {
     }
 }
 
-nonisolated enum EntityAffordance: Equatable, Sendable {
-    case primaryAction
-    case level
-    case setpoint
-    case options
-    case commands
-    case numericReading
-    case history
-    case media
-    case camera
-    case trigger
-    case genericActions
-}
-
 nonisolated struct EntityCapabilities: Equatable, Sendable {
     let domain: EntityDomain
     let deviceClass: String?
     let stateClass: SensorStateClass?
-    let affordances: Set<EntityAffordance>
+    let affordances: Set<EntityPresentationAffordance>
 }
 
 @MainActor
 enum EntityCapabilityResolver {
+    static func presentationInput(
+        for entityBox: HAEntityState,
+        serviceRegistry: HAServiceRegistry = .empty
+    ) -> EntityPresentationInput {
+        let presentation = DashboardEntityPresentation(entityBox: entityBox)
+        let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
+        var runtimeAffordances: Set<EntityPresentationAffordance> = []
+
+        if presentation.primaryAction != nil { runtimeAffordances.insert(.primaryAction) }
+        if DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: .square) {
+            runtimeAffordances.insert(.history)
+        }
+
+        for feature in features {
+            switch feature.content {
+            case .level:
+                runtimeAffordances.insert(.level)
+            case .setpoint:
+                runtimeAffordances.insert(.setpoint)
+            case .options:
+                runtimeAffordances.insert(.options)
+            case .commandGroup:
+                runtimeAffordances.insert(.commands)
+            case .gauge:
+                runtimeAffordances.insert(.gauge)
+            }
+        }
+
+        return EntityPresentationInput(
+            entityID: entityBox.entityID,
+            domain: entityBox.domain,
+            state: entityBox.homeEntity.state,
+            displayName: entityBox.homeEntity.displayName,
+            deviceClass: entityBox.sensorEntity?.deviceClass,
+            stateClass: entityBox.sensorEntity?.stateClass?.rawValue,
+            unit: entityBox.sensorEntity?.unit,
+            numericValue: entityBox.sensorEntity?.numericValue,
+            displayPrecision: entityBox.sensorEntity?.displayPrecision,
+            icon: entityBox.homeEntity.resolvedIcon,
+            runtimeAffordances: runtimeAffordances,
+            hasGaugeSpecification: entityBox.sensorEntity?.gaugePresentation != nil
+        )
+    }
+
     static func capabilities(
         for entityBox: HAEntityState,
         serviceRegistry: HAServiceRegistry = .empty
     ) -> EntityCapabilities {
-        let presentation = DashboardEntityPresentation(entityBox: entityBox)
-        let features = DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation)
-        var affordances: Set<EntityAffordance> = []
-
-        if presentation.primaryAction != nil { affordances.insert(.primaryAction) }
-        if entityBox.domain == .camera { affordances.insert(.camera) }
-        if entityBox.domain == .mediaPlayer { affordances.insert(.media) }
-        if [.scene, .script, .button].contains(entityBox.domain) { affordances.insert(.trigger) }
-        if DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: .square) {
-            affordances.insert(.history)
-        }
-        if entityBox.sensorEntity?.numericValue != nil { affordances.insert(.numericReading) }
-        if !serviceRegistry.actions(for: entityBox.entityID).isEmpty { affordances.insert(.genericActions) }
-
-        for feature in features {
-            switch feature.content {
-            case .level: affordances.insert(.level)
-            case .setpoint: affordances.insert(.setpoint)
-            case .options: affordances.insert(.options)
-            case .commandGroup: affordances.insert(.commands)
-            case .gauge: affordances.insert(.numericReading)
-            }
-        }
+        let input = presentationInput(for: entityBox, serviceRegistry: serviceRegistry)
+        let semantic = EntityPresentationResolver.resolve(input)
 
         return EntityCapabilities(
             domain: entityBox.domain,
             deviceClass: entityBox.sensorEntity?.deviceClass,
             stateClass: entityBox.sensorEntity?.stateClass,
-            affordances: affordances
+            affordances: semantic.affordances
         )
     }
 }

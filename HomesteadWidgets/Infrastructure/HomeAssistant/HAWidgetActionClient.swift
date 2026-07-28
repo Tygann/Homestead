@@ -1,7 +1,11 @@
 import Foundation
 
+// MARK: - Widget Home Assistant Client
+
 enum HAWidgetActionError: LocalizedError {
     case missingCredentials
+    case serverRemoved
+    case entityUnavailable
     case invalidURL
     case authenticationFailed
     case unexpectedResponse
@@ -11,6 +15,10 @@ enum HAWidgetActionError: LocalizedError {
         switch self {
         case .missingCredentials:
             "Home Assistant credentials are not available to the widget."
+        case .serverRemoved:
+            "The configured Home Assistant server is no longer available."
+        case .entityUnavailable:
+            "The configured Home Assistant entity is unavailable."
         case .invalidURL:
             "The Home Assistant URL is invalid."
         case .authenticationFailed:
@@ -31,6 +39,7 @@ struct HAWidgetLightState: Sendable {
     let icon: ResolvedIcon
 
     var isOn: Bool { state == "on" }
+    var isAvailable: Bool { EntityAvailability.resolve(state: state).isAvailable }
 }
 
 struct HAWidgetSwitchState: Sendable {
@@ -134,10 +143,6 @@ struct HAWidgetSensorHistorySeries: Equatable, Sendable {
     let endDate: Date
     let samples: [HAWidgetHistorySample]
 
-    var isEmpty: Bool {
-        samples.isEmpty
-    }
-
     var latestSample: HAWidgetHistorySample? {
         samples.last
     }
@@ -148,20 +153,6 @@ struct HAWidgetSensorHistorySeries: Equatable, Sendable {
 
     var maximumValue: Double? {
         samples.map(\.value).max()
-    }
-
-    var valueDomain: ClosedRange<Double> {
-        guard let minimumValue, let maximumValue else {
-            return 0...1
-        }
-
-        guard minimumValue != maximumValue else {
-            let padding = max(abs(minimumValue) * 0.05, 1)
-            return (minimumValue - padding)...(maximumValue + padding)
-        }
-
-        let padding = (maximumValue - minimumValue) * 0.12
-        return (minimumValue - padding)...(maximumValue + padding)
     }
 
     var latestValueText: String? {
@@ -179,12 +170,11 @@ struct HAWidgetSensorHistorySeries: Equatable, Sendable {
     }
 
     func formatValue(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = maximumFractionDigits
-        formatter.minimumFractionDigits = 0
-
-        let numberText = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        let numberText = EntityPresentationResolver.formattedNumber(
+            value,
+            displayPrecision: maximumFractionDigits,
+            deviceClass: nil
+        )
         guard let unit, !unit.isEmpty else {
             return numberText
         }
@@ -203,10 +193,18 @@ struct HAWidgetSensorHistorySeries: Equatable, Sendable {
     }
 }
 
+struct HAWidgetSensorHistoryRequest: Equatable, Sendable {
+    let entityID: String
+    let displayName: String
+    let unit: String?
+}
+
 final class HAWidgetActionClient: Sendable {
+    private let profileID: UUID
     private let session: URLSession
 
-    init(session: URLSession = .shared) {
+    init(profileID: UUID, session: URLSession = .shared) {
+        self.profileID = profileID
         self.session = session
     }
 
@@ -396,20 +394,64 @@ final class HAWidgetActionClient: Sendable {
                 let displayName = attributes?["friendly_name"] as? String ?? entityID
                 let unit = attributes?["unit_of_measurement"] as? String
                 let deviceClass = attributes?["device_class"] as? String
-                let isAvailable = !["unknown", "unavailable"].contains(stateValue)
+                let displayPrecision = (attributes?["display_precision"] as? NSNumber)?.intValue
+                let icon = resolvedIcon(domain: "sensor", state: stateValue, attributes: attributes)
+                let semantic = EntityPresentationResolver.resolve(
+                    EntityPresentationInput(
+                        entityID: entityID,
+                        domain: .sensor,
+                        state: stateValue,
+                        displayName: displayName,
+                        deviceClass: deviceClass,
+                        stateClass: attributes?["state_class"] as? String,
+                        unit: unit,
+                        numericValue: Double(stateValue),
+                        displayPrecision: displayPrecision,
+                        icon: icon
+                    )
+                )
+                let isAvailable = semantic.isAvailable
                 let isAlerting = isAvailable && deviceClass == "battery" && (Double(stateValue) ?? 100) <= 20
 
                 result[entityID] = HAWidgetSensorState(
                     entityID: entityID,
                     displayName: displayName,
-                    valueText: sensorValueText(value: stateValue, unit: unit, deviceClass: deviceClass),
+                    valueText: semantic.valueText,
                     subtitle: sensorSubtitle(value: stateValue, deviceClass: deviceClass, isAlerting: isAlerting),
-                    icon: resolvedIcon(domain: "sensor", state: stateValue, attributes: attributes),
+                    icon: icon,
                     isAlerting: isAlerting,
                     isAvailable: isAvailable,
                     numericValue: Double(stateValue)
                 )
             }
+        }
+    }
+
+    func fetchSemanticPresentation(
+        entityID: String,
+        domain: String
+    ) async throws -> EntitySemanticPresentation {
+        try await withConnectedSocket { task in
+            let object = try await stateObject(entityID: entityID, over: task)
+            guard let state = object["state"] as? String else {
+                throw HAWidgetActionError.unexpectedResponse
+            }
+            let attributes = object["attributes"] as? [String: Any]
+            let resolvedDomain = EntityDomain(entityID: "\(domain).placeholder")
+            return EntityPresentationResolver.resolve(
+                EntityPresentationInput(
+                    entityID: entityID,
+                    domain: resolvedDomain,
+                    state: state,
+                    displayName: attributes?["friendly_name"] as? String ?? entityID,
+                    deviceClass: attributes?["device_class"] as? String,
+                    stateClass: attributes?["state_class"] as? String,
+                    unit: attributes?["unit_of_measurement"] as? String,
+                    numericValue: Double(state),
+                    displayPrecision: (attributes?["display_precision"] as? NSNumber)?.intValue,
+                    icon: resolvedIcon(domain: domain, state: state, attributes: attributes)
+                )
+            )
         }
     }
 
@@ -454,18 +496,43 @@ final class HAWidgetActionClient: Sendable {
         unit: String?,
         endingAt endDate: Date = Date()
     ) async throws -> HAWidgetSensorHistorySeries {
-        guard let baseURL = HomesteadWidgetSharedStore.baseURL else {
+        let request = HAWidgetSensorHistoryRequest(
+            entityID: entityID,
+            displayName: displayName,
+            unit: unit
+        )
+        guard let series = try await fetchSensorHistories(
+            [request],
+            endingAt: endDate
+        )[entityID] else {
+            throw HAWidgetActionError.unexpectedResponse
+        }
+        return series
+    }
+
+    func fetchSensorHistories(
+        _ requests: [HAWidgetSensorHistoryRequest],
+        endingAt endDate: Date = Date()
+    ) async throws -> [String: HAWidgetSensorHistorySeries] {
+        let uniqueRequests = Dictionary(
+            requests.map { ($0.entityID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        guard !uniqueRequests.isEmpty else { return [:] }
+        guard let baseURL = HomesteadWidgetSharedStore.baseURL(profileID: profileID) else {
             throw HAWidgetActionError.missingCredentials
         }
 
-        let token = try await HomesteadWidgetSharedStore.validAccessToken()
+        let token = try await HomesteadWidgetSharedStore.validAccessToken(profileID: profileID)
         let startDate = endDate.addingTimeInterval(-(6 * 60 * 60))
-        let url = try historyURL(
-            from: baseURL,
-            entityID: entityID,
+        guard let url = WidgetHistoryRequest.url(
+            baseURLString: baseURL,
+            entityIDs: uniqueRequests.keys.sorted(),
             startDate: startDate,
             endDate: endDate
-        )
+        ) else {
+            throw HAWidgetActionError.invalidURL
+        }
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -478,31 +545,32 @@ final class HAWidgetActionClient: Sendable {
 
         let historyResponse = try JSONDecoder().decode(HAWidgetHistoryResponse.self, from: data)
         let interval = DateInterval(start: startDate, end: endDate)
-        let samples = historyResponse.series
-            .flatMap { $0 }
-            .compactMap { state -> HAWidgetHistorySample? in
-                let resolvedEntityID = state.entityID?.nonEmptyValue ?? entityID
-                guard resolvedEntityID == entityID,
-                      interval.contains(state.lastChanged) || state.lastChanged == interval.end,
-                      let value = Double(state.state),
-                      value.isFinite else {
-                    return nil
+        return historyResponse.series.reduce(into: [:]) { result, states in
+            guard let entityID = states.compactMap(\.entityID).first,
+                  let request = uniqueRequests[entityID] else {
+                return
+            }
+            let samples = states
+                .compactMap { state -> HAWidgetHistorySample? in
+                    guard interval.contains(state.lastChanged) || state.lastChanged == interval.end,
+                          let value = Double(state.state),
+                          value.isFinite else {
+                        return nil
+                    }
+                    return HAWidgetHistorySample(occurredAt: state.lastChanged, value: value)
                 }
+                .sorted { $0.occurredAt < $1.occurredAt }
+                .cappedForWidget(maximumCount: 240)
 
-                return HAWidgetHistorySample(occurredAt: state.lastChanged, value: value)
-            }
-            .sorted { lhs, rhs in
-                lhs.occurredAt < rhs.occurredAt
-            }
-
-        return HAWidgetSensorHistorySeries(
-            entityID: entityID,
-            displayName: displayName,
-            unit: unit,
-            startDate: startDate,
-            endDate: endDate,
-            samples: samples
-        )
+            result[entityID] = HAWidgetSensorHistorySeries(
+                entityID: entityID,
+                displayName: request.displayName,
+                unit: request.unit,
+                startDate: startDate,
+                endDate: endDate,
+                samples: samples
+            )
+        }
     }
 
     private func callService(domain: String, service: String, entityID: String) async throws {
@@ -556,10 +624,10 @@ final class HAWidgetActionClient: Sendable {
     private func withConnectedSocket<T>(
         _ operation: (URLSessionWebSocketTask) async throws -> T
     ) async throws -> T {
-        guard let baseURL = HomesteadWidgetSharedStore.baseURL else {
+        guard let baseURL = HomesteadWidgetSharedStore.baseURL(profileID: profileID) else {
             throw HAWidgetActionError.missingCredentials
         }
-        let token = try await HomesteadWidgetSharedStore.validAccessToken()
+        let token = try await HomesteadWidgetSharedStore.validAccessToken(profileID: profileID)
 
         let url = try webSocketURL(from: baseURL)
         let task = session.webSocketTask(with: url)
@@ -633,49 +701,6 @@ final class HAWidgetActionClient: Sendable {
         let pathParts = [basePath, "api", "websocket"].filter { !$0.isEmpty }
         components.path = "/" + pathParts.joined(separator: "/")
         components.query = nil
-        components.fragment = nil
-
-        guard let url = components.url else {
-            throw HAWidgetActionError.invalidURL
-        }
-
-        return url
-    }
-
-    private func historyURL(
-        from baseURLString: String,
-        entityID: String,
-        startDate: Date,
-        endDate: Date
-    ) throws -> URL {
-        let trimmedString = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedString = trimmedString.contains("://") ? trimmedString : "\(defaultScheme(forHostOnlyBaseURL: trimmedString))://\(trimmedString)"
-
-        guard var components = URLComponents(string: normalizedString),
-              let scheme = components.scheme,
-              let host = components.host?.lowercased(),
-              !entityID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw HAWidgetActionError.invalidURL
-        }
-
-        switch normalizedScheme(scheme, host: host) {
-        case "http", "ws":
-            components.scheme = "http"
-        case "https", "wss":
-            components.scheme = "https"
-        default:
-            throw HAWidgetActionError.invalidURL
-        }
-
-        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let pathParts = [basePath, "api", "history", "period", historyTimestamp(from: startDate)].filter { !$0.isEmpty }
-        components.path = "/" + pathParts.joined(separator: "/")
-        components.queryItems = [
-            URLQueryItem(name: "filter_entity_id", value: entityID),
-            URLQueryItem(name: "end_time", value: historyTimestamp(from: endDate)),
-            URLQueryItem(name: "minimal_response", value: nil),
-            URLQueryItem(name: "no_attributes", value: nil)
-        ]
         components.fragment = nil
 
         guard let url = components.url else {
@@ -831,26 +856,6 @@ final class HAWidgetActionClient: Sendable {
         }
     }
 
-    private func sensorValueText(value: String, unit: String?, deviceClass: String?) -> String {
-        switch value {
-        case "unknown":
-            return "Unknown"
-        case "unavailable":
-            return "Unavailable"
-        default:
-            break
-        }
-
-        let formattedValue = formattedSensorNumber(value, deviceClass: deviceClass)
-            ?? value.replacingOccurrences(of: "_", with: " ").capitalized
-        guard let unitText = sensorDisplayUnit(unit, deviceClass: deviceClass), !unitText.isEmpty else {
-            return formattedValue
-        }
-
-        let separator = unitText.hasPrefix("°") || unitText == "%" ? "" : " "
-        return "\(formattedValue)\(separator)\(unitText)"
-    }
-
     private func sensorSubtitle(value: String, deviceClass: String?, isAlerting: Bool) -> String {
         guard !["unknown", "unavailable"].contains(value) else {
             return "Sensor unavailable"
@@ -871,42 +876,6 @@ final class HAWidgetActionClient: Sendable {
         return deviceClass.replacingOccurrences(of: "_", with: " ").capitalized
     }
 
-    private func formattedSensorNumber(_ value: String, deviceClass: String?) -> String? {
-        guard let number = Double(value) else {
-            return nil
-        }
-
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = maximumSensorFractionDigits(deviceClass: deviceClass)
-        formatter.minimumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: number))
-    }
-
-    private func maximumSensorFractionDigits(deviceClass: String?) -> Int {
-        switch deviceClass {
-        case "humidity", "battery", "illuminance", "signal_strength":
-            0
-        case "temperature":
-            1
-        case "energy", "energy_distance", "energy_storage", "power", "apparent_power", "reactive_power", "reactive_energy", "gas", "water", "moisture", "carbon_dioxide", "carbon_monoxide", "pm1", "pm10", "pm25", "pm4", "volatile_organic_compounds", "volatile_organic_compounds_parts":
-            2
-        default:
-            1
-        }
-    }
-
-    private func sensorDisplayUnit(_ unit: String?, deviceClass: String?) -> String? {
-        switch (deviceClass, unit) {
-        case ("temperature", "F"):
-            "°F"
-        case ("temperature", "C"):
-            "°C"
-        default:
-            unit
-        }
-    }
-
     private func presenceStatusText(for state: String) -> String {
         switch state {
         case "home":
@@ -922,12 +891,6 @@ final class HAWidgetActionClient: Sendable {
         }
     }
 
-    private func historyTimestamp(from date: Date) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        return formatter.string(from: date)
-    }
 }
 
 private struct HAWidgetHistoryResponse: Decodable {
@@ -981,5 +944,15 @@ private extension String {
     var nonEmptyValue: String? {
         let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue
+    }
+}
+
+private extension Array where Element == HAWidgetHistorySample {
+    func cappedForWidget(maximumCount: Int) -> [Element] {
+        guard maximumCount > 2, count > maximumCount else { return self }
+        let stride = Double(count - 1) / Double(maximumCount - 1)
+        return (0..<maximumCount).map { index in
+            self[Int((Double(index) * stride).rounded())]
+        }
     }
 }

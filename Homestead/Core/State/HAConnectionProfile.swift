@@ -65,7 +65,6 @@ final class HAConnectionProfileStore {
     private(set) var activeProfileID: UUID {
         didSet {
             defaults.set(activeProfileID.uuidString, forKey: Keys.activeProfileID)
-            WidgetSharedStore.saveActiveProfileID(activeProfileID)
         }
     }
 
@@ -249,7 +248,7 @@ final class HAConnectionProfileStore {
     }
 
     private func publishWidgetProfiles() {
-        WidgetSharedStore.saveServerProfiles(profiles, activeProfileID: activeProfileID)
+        WidgetSharedStore.saveServerProfiles(profiles)
     }
 
     private enum Keys {

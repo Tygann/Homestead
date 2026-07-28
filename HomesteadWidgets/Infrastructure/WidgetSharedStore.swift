@@ -2,21 +2,19 @@ import AppIntents
 import Foundation
 import Security
 
-enum HomesteadWidgetSharedStore {
-    static let appGroupID = "group.com.tyler.Homestead"
-    static let keychainAccessGroup = "XKQ424HQ33.com.tyler.Homestead.shared"
+// MARK: - Widget App-Group Store
 
-    private static let baseURLKey = "homeAssistantBaseURL"
-    private static let serverProfilesKey = "homeAssistantServerProfiles"
-    private static let legacyWidgetProfileIDKey = "homeAssistantLegacyWidgetProfileID"
-    private static let lightSnapshotsKey = "widgetLightSnapshots"
-    private static let switchSnapshotsKey = "widgetSwitchSnapshots"
-    private static let coverSnapshotsKey = "widgetCoverSnapshots"
-    private static let fanSnapshotsKey = "widgetFanSnapshots"
-    private static let lockSnapshotsKey = "widgetLockSnapshots"
-    private static let sensorSnapshotsKey = "widgetSensorSnapshots"
-    private static let presenceSnapshotsKey = "widgetPresenceSnapshots"
-    private static let actionSnapshotsKey = "widgetActionSnapshots"
+struct WidgetScopedSnapshot<Value> {
+    let reference: EntityPresentationReference
+    let serverName: String
+    let isServerAvailable: Bool
+    let value: Value
+}
+
+enum HomesteadWidgetSharedStore {
+    static let appGroupID = WidgetStorageContract.appGroupID
+    static let keychainAccessGroup = WidgetStorageContract.keychainAccessGroup
+
     private static let optimisticLightStatesKey = "widgetOptimisticLightStates"
     private static let optimisticSwitchStatesKey = "widgetOptimisticSwitchStates"
     private static let optimisticFanStatesKey = "widgetOptimisticFanStates"
@@ -25,24 +23,86 @@ enum HomesteadWidgetSharedStore {
     private static let oauthClientID = "https://connect.homesteadcontrol.com"
     private static let tokenRefreshLeeway: TimeInterval = 60
 
-    static var legacyWidgetProfileID: UUID? {
-        sharedDefaults?.string(forKey: legacyWidgetProfileIDKey).flatMap(UUID.init(uuidString:))
-    }
-
     static var serverProfiles: [WidgetServerProfile] {
-        guard let data = sharedDefaults?.data(forKey: serverProfilesKey) else { return [] }
+        guard let data = sharedDefaults?.data(forKey: WidgetStorageContract.Key.serverProfiles) else { return [] }
         return (try? JSONDecoder().decode([WidgetServerProfile].self, from: data)) ?? []
     }
 
-    static var baseURL: String? {
-        guard let profileID = legacyWidgetProfileID else {
-            return sharedDefaults?.string(forKey: baseURLKey)
-        }
+    static var serverSnapshots: [WidgetServerSnapshot] {
+        WidgetServerSnapshotStore.snapshots
+    }
+
+    static var scopedLightSnapshots: [WidgetScopedSnapshot<WidgetLightSnapshot>] {
+        scoped(\.lights, entityID: \.entityID)
+    }
+
+    static var scopedSwitchSnapshots: [WidgetScopedSnapshot<WidgetSwitchSnapshot>] {
+        scoped(\.switches, entityID: \.entityID)
+    }
+
+    static var scopedCoverSnapshots: [WidgetScopedSnapshot<WidgetCoverSnapshot>] {
+        scoped(\.covers, entityID: \.entityID)
+    }
+
+    static var scopedFanSnapshots: [WidgetScopedSnapshot<WidgetFanSnapshot>] {
+        scoped(\.fans, entityID: \.entityID)
+    }
+
+    static var scopedLockSnapshots: [WidgetScopedSnapshot<WidgetLockSnapshot>] {
+        scoped(\.locks, entityID: \.entityID)
+    }
+
+    static var scopedSensorSnapshots: [WidgetScopedSnapshot<WidgetSensorSnapshot>] {
+        scoped(\.sensors, entityID: \.entityID)
+    }
+
+    static var scopedPresenceSnapshots: [WidgetScopedSnapshot<WidgetPresenceSnapshot>] {
+        scoped(\.presence, entityID: \.entityID)
+    }
+
+    static var scopedActionSnapshots: [WidgetScopedSnapshot<WidgetActionSnapshot>] {
+        scoped(\.actions, entityID: \.entityID)
+    }
+
+    static func reference(for identifier: String) -> EntityPresentationReference? {
+        EntityPresentationReference(encodedID: identifier)
+    }
+
+    static func baseURL(profileID: UUID) -> String? {
         return serverProfiles.first(where: { $0.id == profileID })?.baseURLString
     }
 
-    static func validAccessToken() async throws -> String {
-        guard let credential = try readOAuthCredential() else {
+    static func serverName(profileID: UUID) -> String {
+        serverProfiles.first(where: { $0.id == profileID })?.displayName
+            ?? serverSnapshots.first(where: { $0.profileID == profileID })?.serverName
+            ?? "Server Removed"
+    }
+
+    static func isServerAvailable(profileID: UUID) -> Bool {
+        serverProfiles.contains { $0.id == profileID }
+    }
+
+    private static func scoped<Value>(
+        _ values: KeyPath<WidgetServerSnapshot, [Value]>,
+        entityID: KeyPath<Value, String>
+    ) -> [WidgetScopedSnapshot<Value>] {
+        serverSnapshots.flatMap { server in
+            server[keyPath: values].map { value in
+                WidgetScopedSnapshot(
+                    reference: EntityPresentationReference(
+                        profileID: server.profileID,
+                        entityID: value[keyPath: entityID]
+                    ),
+                    serverName: serverName(profileID: server.profileID),
+                    isServerAvailable: isServerAvailable(profileID: server.profileID),
+                    value: value
+                )
+            }
+        }
+    }
+
+    static func validAccessToken(profileID: UUID) async throws -> String {
+        guard let credential = try readOAuthCredential(profileID: profileID) else {
             throw HAWidgetActionError.missingCredentials
         }
 
@@ -56,16 +116,12 @@ enum HomesteadWidgetSharedStore {
             expiresIn: response.expiresIn,
             tokenType: response.tokenType
         )
-        try saveOAuthCredential(refreshedCredential)
+        try saveOAuthCredential(refreshedCredential, profileID: profileID)
         return refreshedCredential.accessToken
     }
 
-    static func savedOAuthCredentialForDiagnostics() throws -> WidgetOAuthCredential? {
-        try readOAuthCredential()
-    }
-
-    private static func readOAuthCredential() throws -> WidgetOAuthCredential? {
-        var query = baseOAuthCredentialQuery
+    private static func readOAuthCredential(profileID: UUID) throws -> WidgetOAuthCredential? {
+        var query = baseOAuthCredentialQuery(profileID: profileID)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
@@ -84,9 +140,12 @@ enum HomesteadWidgetSharedStore {
         return try WidgetOAuthCredential.decoder.decode(WidgetOAuthCredential.self, from: data)
     }
 
-    private static func saveOAuthCredential(_ credential: WidgetOAuthCredential) throws {
+    private static func saveOAuthCredential(
+        _ credential: WidgetOAuthCredential,
+        profileID: UUID
+    ) throws {
         let data = try WidgetOAuthCredential.encoder.encode(credential)
-        var query = baseOAuthCredentialQuery
+        var query = baseOAuthCredentialQuery(profileID: profileID)
         let updateStatus = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
 
         if updateStatus == errSecSuccess {
@@ -130,108 +189,11 @@ enum HomesteadWidgetSharedStore {
         return try JSONDecoder().decode(WidgetOAuthTokenResponse.self, from: data)
     }
 
-    static var lightSnapshots: [WidgetLightSnapshot] {
-        guard let data = sharedDefaults?.data(forKey: lightSnapshotsKey),
-              let snapshots = try? JSONDecoder().decode([WidgetLightSnapshot].self, from: data) else {
-            return []
-        }
-
-        return snapshots
-    }
-
-    static func lightSnapshot(entityID: String) -> WidgetLightSnapshot? {
-        lightSnapshots.first { $0.entityID == entityID }
-    }
-
-    static var switchSnapshots: [WidgetSwitchSnapshot] {
-        guard let data = sharedDefaults?.data(forKey: switchSnapshotsKey),
-              let snapshots = try? JSONDecoder().decode([WidgetSwitchSnapshot].self, from: data) else {
-            return []
-        }
-
-        return snapshots
-    }
-
-    static func switchSnapshot(entityID: String) -> WidgetSwitchSnapshot? {
-        switchSnapshots.first { $0.entityID == entityID }
-    }
-
-    static var coverSnapshots: [WidgetCoverSnapshot] {
-        guard let data = sharedDefaults?.data(forKey: coverSnapshotsKey),
-              let snapshots = try? JSONDecoder().decode([WidgetCoverSnapshot].self, from: data) else {
-            return []
-        }
-
-        return snapshots
-    }
-
-    static func coverSnapshot(entityID: String) -> WidgetCoverSnapshot? {
-        coverSnapshots.first { $0.entityID == entityID }
-    }
-
-    static var fanSnapshots: [WidgetFanSnapshot] {
-        guard let data = sharedDefaults?.data(forKey: fanSnapshotsKey),
-              let snapshots = try? JSONDecoder().decode([WidgetFanSnapshot].self, from: data) else {
-            return []
-        }
-
-        return snapshots
-    }
-
-    static func fanSnapshot(entityID: String) -> WidgetFanSnapshot? {
-        fanSnapshots.first { $0.entityID == entityID }
-    }
-
-    static var lockSnapshots: [WidgetLockSnapshot] {
-        guard let data = sharedDefaults?.data(forKey: lockSnapshotsKey),
-              let snapshots = try? JSONDecoder().decode([WidgetLockSnapshot].self, from: data) else {
-            return []
-        }
-
-        return snapshots
-    }
-
-    static func lockSnapshot(entityID: String) -> WidgetLockSnapshot? {
-        lockSnapshots.first { $0.entityID == entityID }
-    }
-
-    static var sensorSnapshots: [WidgetSensorSnapshot] {
-        guard let data = sharedDefaults?.data(forKey: sensorSnapshotsKey),
-              let snapshots = try? JSONDecoder().decode([WidgetSensorSnapshot].self, from: data) else {
-            return []
-        }
-
-        return snapshots
-    }
-
     static func sensorSnapshot(entityID: String) -> WidgetSensorSnapshot? {
-        sensorSnapshots.first { $0.entityID == entityID }
-    }
-
-    static var presenceSnapshots: [WidgetPresenceSnapshot] {
-        guard let data = sharedDefaults?.data(forKey: presenceSnapshotsKey),
-              let snapshots = try? JSONDecoder().decode([WidgetPresenceSnapshot].self, from: data) else {
-            return []
-        }
-
-        return snapshots
-    }
-
-    static func presenceSnapshot(entityID: String) -> WidgetPresenceSnapshot? {
-        presenceSnapshots.first { $0.entityID == entityID }
-    }
-
-    static var actionSnapshots: [WidgetActionSnapshot] {
-        guard let data = sharedDefaults?.data(forKey: actionSnapshotsKey),
-              let snapshots = try? JSONDecoder().decode([WidgetActionSnapshot].self, from: data) else {
-            return []
-        }
-
-        return snapshots
-    }
-
-    static func actionSnapshot(entityID: String) -> WidgetActionSnapshot? {
-        actionSnapshots.first { $0.entityID == entityID }
+        guard let reference = reference(for: entityID) else { return nil }
+        return serverSnapshots
+            .first(where: { $0.profileID == reference.profileID })?
+            .sensors.first { $0.entityID == reference.entityID }
     }
 
     static func optimisticLightState(entityID: String) -> Bool? {
@@ -262,75 +224,18 @@ enum HomesteadWidgetSharedStore {
     }
 
     static func updateLightSnapshot(entityID: String, isOn: Bool) {
-        let updatedSnapshots = lightSnapshots.map { snapshot in
-            guard snapshot.entityID == entityID else {
-                return snapshot
-            }
-
-            return WidgetLightSnapshot(
-                entityID: snapshot.entityID,
-                displayName: snapshot.displayName,
-                isOn: isOn,
-                brightnessPercentage: snapshot.brightnessPercentage,
-                areaName: snapshot.areaName,
-                deviceName: snapshot.deviceName,
-                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
-                icon: snapshot.icon
-            )
-        }
-
-        saveLightSnapshots(updatedSnapshots)
-
         var optimisticStates = optimisticLightStates
         optimisticStates[entityID] = OptimisticLightState(isOn: isOn, updatedAt: Date())
         saveOptimisticLightStates(optimisticStates)
     }
 
     static func updateSwitchSnapshot(entityID: String, isOn: Bool) {
-        let updatedSnapshots = switchSnapshots.map { snapshot in
-            guard snapshot.entityID == entityID else {
-                return snapshot
-            }
-
-            return WidgetSwitchSnapshot(
-                entityID: snapshot.entityID,
-                displayName: snapshot.displayName,
-                isOn: isOn,
-                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
-                areaName: snapshot.areaName,
-                deviceName: snapshot.deviceName,
-                icon: snapshot.icon
-            )
-        }
-
-        saveSwitchSnapshots(updatedSnapshots)
-
         var optimisticStates = optimisticSwitchStates
         optimisticStates[entityID] = OptimisticSwitchState(isOn: isOn, updatedAt: Date())
         saveOptimisticSwitchStates(optimisticStates)
     }
 
     static func updateFanSnapshot(entityID: String, isOn: Bool) {
-        let updatedSnapshots = fanSnapshots.map { snapshot in
-            guard snapshot.entityID == entityID else {
-                return snapshot
-            }
-
-            return WidgetFanSnapshot(
-                entityID: snapshot.entityID,
-                displayName: snapshot.displayName,
-                isOn: isOn,
-                statusText: isOn ? "On" : "Off",
-                isAvailable: snapshot.isAvailable,
-                areaName: snapshot.areaName,
-                deviceName: snapshot.deviceName,
-                systemImage: snapshot.resolvedIcon.fallbackSFSymbol,
-                icon: snapshot.icon
-            )
-        }
-
-        saveFanSnapshots(updatedSnapshots)
-
         var optimisticStates = optimisticFanStates
         optimisticStates[entityID] = OptimisticFanState(isOn: isOn, updatedAt: Date())
         saveOptimisticFanStates(optimisticStates)
@@ -367,30 +272,6 @@ enum HomesteadWidgetSharedStore {
         return states
     }
 
-    private static func saveLightSnapshots(_ snapshots: [WidgetLightSnapshot]) {
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: lightSnapshotsKey)
-    }
-
-    private static func saveSwitchSnapshots(_ snapshots: [WidgetSwitchSnapshot]) {
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: switchSnapshotsKey)
-    }
-
-    private static func saveFanSnapshots(_ snapshots: [WidgetFanSnapshot]) {
-        guard let data = try? JSONEncoder().encode(snapshots) else {
-            return
-        }
-
-        sharedDefaults?.set(data, forKey: fanSnapshotsKey)
-    }
-
     private static func saveOptimisticLightStates(_ states: [String: OptimisticLightState]) {
         guard let data = try? JSONEncoder().encode(states) else {
             return
@@ -415,18 +296,8 @@ enum HomesteadWidgetSharedStore {
         sharedDefaults?.set(data, forKey: optimisticFanStatesKey)
     }
 
-    private static func switchSystemImage(isOn: Bool, fallback: String) -> String {
-        guard fallback == "lightswitch.on.fill" || fallback == "lightswitch.off.fill" else {
-            return fallback
-        }
-
-        return isOn ? "lightswitch.on.fill" : "lightswitch.off.fill"
-    }
-
-    private static var baseOAuthCredentialQuery: [String: Any] {
-        let account = legacyWidgetProfileID.map {
-            "\(oauthCredentialAccount).\($0.uuidString.lowercased())"
-        } ?? oauthCredentialAccount
+    private static func baseOAuthCredentialQuery(profileID: UUID) -> [String: Any] {
+        let account = "\(oauthCredentialAccount).\(profileID.uuidString.lowercased())"
         return [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: tokenService,
@@ -587,6 +458,35 @@ enum HomesteadWidgetEntityPickerText {
         fallback: String
     ) -> String {
         contextName(areaName: areaName, deviceName: deviceName) ?? fallback
+    }
+
+    static func serverScopedGroupName(
+        serverName: String,
+        areaName: String?,
+        deviceName: String?,
+        fallback: String
+    ) -> String {
+        let localGroup = groupName(
+            areaName: areaName,
+            deviceName: deviceName,
+            fallback: fallback
+        )
+        guard HomesteadWidgetSharedStore.serverSnapshots.count > 1 else {
+            return localGroup
+        }
+        return "\(serverName) · \(localGroup)"
+    }
+
+    static func contextDescription(
+        serverName: String,
+        areaName: String?,
+        deviceName: String?
+    ) -> String {
+        let context = contextName(areaName: areaName, deviceName: deviceName)
+        guard HomesteadWidgetSharedStore.serverSnapshots.count > 1 else {
+            return context ?? serverName
+        }
+        return [serverName, context].compactMap { $0 }.joined(separator: " · ")
     }
 
     private static func nonEmptyValue(_ value: String?) -> String? {

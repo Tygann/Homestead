@@ -9,6 +9,7 @@ nonisolated struct WidgetLightSnapshot: Codable, Equatable, Sendable {
     let deviceName: String?
     var systemImage: String? = nil
     var icon: ResolvedIcon? = nil
+    var isAvailable: Bool = true
 
     var resolvedIcon: ResolvedIcon {
         icon ?? legacyIcon(fallback: "lightbulb.fill")
@@ -23,6 +24,7 @@ nonisolated struct WidgetSwitchSnapshot: Codable, Equatable, Sendable {
     let areaName: String?
     let deviceName: String?
     var icon: ResolvedIcon? = nil
+    var isAvailable: Bool = true
 
     var resolvedIcon: ResolvedIcon {
         icon ?? legacyIcon(fallback: isOn ? "lightswitch.on.fill" : "lightswitch.off.fill")
@@ -130,69 +132,6 @@ nonisolated struct WidgetSensorLiveReading: Equatable, Sendable {
     let icon: ResolvedIcon
 }
 
-nonisolated enum HomesteadWidgetItemKind: String, Codable, Equatable, Sendable {
-    case sensorGauge
-}
-
-nonisolated struct HomesteadWidgetItem: Identifiable, Codable, Equatable, Sendable {
-    let id: String
-    let kind: HomesteadWidgetItemKind
-    let displayName: String
-    let icon: ResolvedIcon
-    let valueText: String
-    let unitText: String?
-    let isAvailable: Bool
-    let gauge: WidgetGaugePresentation?
-    let accessibilityLabel: String
-    let accessibilityValue: String
-
-    static func sensorGauge(from snapshot: WidgetSensorSnapshot) -> Self? {
-        guard let gauge = snapshot.gauge else { return nil }
-        let presentation = snapshot.sharedPresentation
-
-        return Self(
-            id: snapshot.entityID,
-            kind: .sensorGauge,
-            displayName: presentation.title,
-            icon: presentation.icon,
-            valueText: gauge.valueText,
-            unitText: gauge.unitText,
-            isAvailable: presentation.isAvailable,
-            gauge: gauge,
-            accessibilityLabel: presentation.accessibilityLabel,
-            accessibilityValue: presentation.accessibilityValue ?? gauge.accessibilityValue
-        )
-    }
-
-    func updating(with reading: WidgetSensorLiveReading) -> Self {
-        guard reading.entityID == id else { return self }
-
-        let resolvedGauge = reading.numericValue.map {
-            gauge?.updating(value: $0, valueText: reading.valueText)
-        } ?? gauge
-        let resolvedIcon: ResolvedIcon
-        switch icon.provenance {
-        case .dashboardOverride, .appOverride, .haRegistryIcon:
-            resolvedIcon = icon
-        case .haExplicitIcon, .haSemanticMapping, .homesteadSemanticMapping, .fallback:
-            resolvedIcon = reading.icon
-        }
-
-        return Self(
-            id: id,
-            kind: kind,
-            displayName: displayName,
-            icon: resolvedIcon,
-            valueText: reading.valueText,
-            unitText: resolvedGauge?.unitText ?? unitText,
-            isAvailable: reading.isAvailable,
-            gauge: resolvedGauge,
-            accessibilityLabel: accessibilityLabel,
-            accessibilityValue: reading.isAvailable ? reading.valueText : "Unavailable"
-        )
-    }
-}
-
 nonisolated enum WidgetGaugeStatus: String, Codable, Equatable, Sendable {
     case nominal
     case low
@@ -226,7 +165,7 @@ nonisolated enum WidgetGaugeColor: String, Codable, Equatable, Sendable {
 nonisolated struct WidgetGaugeSection: Codable, Equatable, Sendable {
     let lowerBound: Double
     let upperBound: Double
-    let color: WidgetGaugeColor
+    let color: GaugeZoneColor
 }
 
 nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
@@ -247,7 +186,7 @@ nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
         return min(max(normalized, 0), 1)
     }
 
-    var currentColor: WidgetGaugeColor {
+    var currentColor: GaugeZoneColor {
         sections.first(where: { value >= $0.lowerBound && value <= $0.upperBound })?.color
             ?? (value < lowerBound ? sections.first?.color : sections.last?.color)
             ?? .green
@@ -273,7 +212,7 @@ nonisolated struct WidgetGaugePresentation: Codable, Equatable, Sendable {
         lowerBound: Double,
         boundaries: [Double],
         upperBound: Double,
-        colors: [WidgetGaugeColor]
+        colors: [GaugeZoneColor]
     ) -> WidgetGaugePresentation {
         let values = [lowerBound] + boundaries + [upperBound]
         guard colors.count == boundaries.count + 1,
@@ -353,6 +292,7 @@ nonisolated struct WidgetActionSnapshot: Codable, Equatable, Sendable {
     let areaName: String?
     let deviceName: String?
     var icon: ResolvedIcon? = nil
+    var isAvailable: Bool = true
 
     var resolvedIcon: ResolvedIcon {
         icon ?? legacyIcon(fallback: domain == "scene" ? "sparkles" : "play.circle")

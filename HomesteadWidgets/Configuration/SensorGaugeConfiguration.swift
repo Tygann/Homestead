@@ -1,10 +1,12 @@
 import Foundation
 
+// MARK: - Gauge Configuration
+
 extension HomesteadSensorChartWidgetConfigurationIntent {
     var gaugeWidgetConfiguration: HomesteadGaugeWidgetConfiguration {
         HomesteadGaugeWidgetConfiguration(
             customDisplayName: customDisplayName,
-            display: display ?? .chart,
+            display: display,
             gaugeScale: gaugeScale,
             gaugeMinimum: gaugeMinimum,
             gaugeMaximum: gaugeMaximum,

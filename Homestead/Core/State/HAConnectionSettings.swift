@@ -7,7 +7,6 @@ final class HAConnectionSettings {
     var baseURL: String {
         didSet {
             defaults.set(baseURL, forKey: Keys.baseURL)
-            WidgetSharedStore.saveBaseURL(baseURL)
             profileStore.updateActiveProfile { $0.baseURL = baseURL }
         }
     }
@@ -117,7 +116,6 @@ final class HAConnectionSettings {
             resolvedProfileStore.updateActiveProfile { $0.baseURL = baseURL }
         }
 
-        WidgetSharedStore.saveBaseURL(self.baseURL)
     }
 
     @discardableResult

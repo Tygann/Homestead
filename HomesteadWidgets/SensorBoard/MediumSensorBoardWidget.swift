@@ -2,6 +2,8 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
+// MARK: - Medium Sensor Board
+
 // MARK: - Widget Configuration
 
 struct HomesteadSensorBoardWidget: Widget {
@@ -69,8 +71,8 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     var display1: HomesteadSensorBoardSlotDisplay
 
     @Parameter(title: "Slot 1 Sensor") var sensor1: HomesteadSensorEntity?
-    @Parameter(title: "Slot 1 Chart Sensor") var chartSensor1: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 1 Display Name") var customDisplayName1: String?
+    @Parameter(title: "Slot 1 Sensor") var chartSensor1: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 1 Name") var customDisplayName1: String?
 
     @Parameter(title: "Slot 1 Scale", default: .automatic)
     var gaugeScale1: HomesteadGaugeScale
@@ -97,8 +99,8 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     var display2: HomesteadSensorBoardSlotDisplay
 
     @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
-    @Parameter(title: "Slot 2 Chart Sensor") var chartSensor2: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 2 Display Name") var customDisplayName2: String?
+    @Parameter(title: "Slot 2 Sensor") var chartSensor2: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 2 Name") var customDisplayName2: String?
 
     @Parameter(title: "Slot 2 Scale", default: .automatic)
     var gaugeScale2: HomesteadGaugeScale
@@ -125,8 +127,8 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     var display3: HomesteadSensorBoardSlotDisplay
 
     @Parameter(title: "Slot 3 Sensor") var sensor3: HomesteadSensorEntity?
-    @Parameter(title: "Slot 3 Chart Sensor") var chartSensor3: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 3 Display Name") var customDisplayName3: String?
+    @Parameter(title: "Slot 3 Sensor") var chartSensor3: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 3 Name") var customDisplayName3: String?
 
     @Parameter(title: "Slot 3 Scale", default: .automatic)
     var gaugeScale3: HomesteadGaugeScale
@@ -504,7 +506,7 @@ struct HomesteadSensorBoardSlotConfiguration {
 // MARK: - Chart Entity Picker
 
 struct HomesteadChartSensorEntity: AppEntity, Identifiable {
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Chart Sensor")
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Sensor")
     static var defaultQuery = HomesteadChartSensorEntityQuery()
 
     let id: String
@@ -513,6 +515,8 @@ struct HomesteadChartSensorEntity: AppEntity, Identifiable {
     let unit: String?
     let areaName: String?
     let deviceName: String?
+    var serverName: String = "Home Assistant"
+    var isServerAvailable: Bool = true
     let isAvailable: Bool
     let icon: ResolvedIcon
     var historyChartInterpolationStyle: HomesteadChartInterpolationStyle? = nil
@@ -521,6 +525,7 @@ struct HomesteadChartSensorEntity: AppEntity, Identifiable {
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: "\(pickerDisplayName)",
+            subtitle: "\(pickerSubtitle)",
             image: DisplayRepresentation.Image(systemName: icon.fallbackSFSymbol)
         )
     }
@@ -534,17 +539,28 @@ struct HomesteadChartSensorEntity: AppEntity, Identifiable {
     }
 
     var pickerGroupTitle: String {
-        HomesteadWidgetEntityPickerText.groupName(
+        HomesteadWidgetEntityPickerText.serverScopedGroupName(
+            serverName: serverName,
             areaName: areaName,
             deviceName: deviceName,
             fallback: "Numeric Sensors"
         )
     }
 
+    var pickerSubtitle: String {
+        guard isServerAvailable else { return "Server Removed" }
+        guard isAvailable else { return "Unavailable" }
+        return HomesteadWidgetEntityPickerText.contextDescription(
+            serverName: serverName,
+            areaName: areaName,
+            deviceName: deviceName
+        )
+    }
+
     func matches(_ query: String) -> Bool {
         HomesteadWidgetEntityPickerText.matches(
             query: query,
-            values: [displayName, pickerDisplayName, valueText, areaName, deviceName, id, "chart", "chart"]
+            values: [displayName, pickerDisplayName, valueText, areaName, deviceName, serverName, id, "chart"]
         )
     }
 }
@@ -573,8 +589,8 @@ struct HomesteadChartSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
     }
 
     private func allItems() -> [HomesteadChartSensorEntity] {
-        HomesteadWidgetSharedStore.sensorSnapshots
-            .filter { $0.isNumeric == true }
+        HomesteadWidgetSharedStore.scopedSensorSnapshots
+            .filter { $0.value.isNumeric == true }
             .map(Self.entity(from:))
     }
 
@@ -588,14 +604,19 @@ struct HomesteadChartSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
         )
     }
 
-    private static func entity(from snapshot: WidgetSensorSnapshot) -> HomesteadChartSensorEntity {
-        HomesteadChartSensorEntity(
-            id: snapshot.entityID,
+    private static func entity(
+        from scoped: WidgetScopedSnapshot<WidgetSensorSnapshot>
+    ) -> HomesteadChartSensorEntity {
+        let snapshot = scoped.value
+        return HomesteadChartSensorEntity(
+            id: scoped.reference.encodedID,
             displayName: snapshot.displayName,
             valueText: snapshot.valueText,
             unit: snapshot.unit,
             areaName: snapshot.areaName,
             deviceName: snapshot.deviceName,
+            serverName: scoped.serverName,
+            isServerAvailable: scoped.isServerAvailable,
             isAvailable: snapshot.isAvailable,
             icon: snapshot.resolvedIcon,
             historyChartInterpolationStyle: snapshot.historyChartInterpolationStyle,
@@ -711,60 +732,48 @@ enum HomesteadSensorBoardEntryBuilder {
     static func entry(
         slots: [HomesteadSensorBoardSlotConfiguration]
     ) async -> HomesteadSensorBoardEntry {
-        let snapshotsByEntityID = HomesteadWidgetSharedStore.sensorSnapshots.reduce(into: [:]) { result, snapshot in
-            result[snapshot.entityID] = snapshot
+        let snapshotsByIdentifier = HomesteadWidgetSharedStore.scopedSensorSnapshots.reduce(into: [:]) { result, scoped in
+            result[scoped.reference.encodedID] = scoped.value
         }
-        let compactEntityIDs = Set(
-            slots.compactMap { slot in
-                slot.display == .chart ? nil : slot.sensor?.id
-            }
-        )
-        let liveReadingsByEntityID: [String: WidgetSensorLiveReading]
-
-        do {
-            liveReadingsByEntityID = try await HAWidgetActionClient()
-                .fetchSensorStates(entityIDs: compactEntityIDs)
-                .mapValues(\.liveReading)
-        } catch {
-            liveReadingsByEntityID = [:]
-        }
-
+        async let liveResult = loadLiveReadings(slots: slots)
+        async let historyResult = loadHistories(slots: slots)
+        let (liveReadingsByIdentifier, histories) = await (liveResult, historyResult)
         var items = Array<WidgetSensorBoardItem?>(repeating: nil, count: slots.count)
-        await withTaskGroup(of: (Int, WidgetSensorBoardChartItem).self) { group in
-            for (index, slot) in slots.enumerated() {
-                switch slot.display {
-                case .chart:
-                    guard let sensor = slot.chartSensor else { continue }
-                    let snapshot = snapshotsByEntityID[sensor.id]
-                    group.addTask {
-                        let item = await Self.makeChartItem(
-                            sensor: sensor,
-                            customDisplayName: slot.customChartDisplayName,
-                            snapshot: snapshot
-                        )
-                        return (index, item)
-                    }
-                case .automatic, .gauge, .reading:
-                    guard let sensor = slot.sensor,
-                          let presentation = slot.display.compactPresentation else {
-                        continue
-                    }
-                    let snapshot = snapshotsByEntityID[sensor.id] ?? sensor.fallbackSnapshot
-                    let item = WidgetSensorBoardCompactItem.sensor(
-                        from: snapshot,
-                        customDisplayName: slot.customDisplayName,
-                        presentation: presentation
-                    )
-                    let updatedItem = liveReadingsByEntityID[sensor.id].map(item.updating(with:)) ?? item
-                    let configuredItem = slot.display == .gauge
-                        ? updatedItem.applyingGaugeConfiguration(slot.gaugeConfiguration)
-                        : updatedItem
-                    items[index] = .compact(configuredItem)
-                }
-            }
 
-            for await (index, item) in group {
-                items[index] = .chart(item)
+        for (index, slot) in slots.enumerated() {
+            switch slot.display {
+            case .chart:
+                guard let sensor = slot.chartSensor,
+                      let reference = HomesteadWidgetSharedStore.reference(for: sensor.id) else {
+                    continue
+                }
+                items[index] = .chart(
+                    makeChartItem(
+                        sensor: sensor,
+                        customDisplayName: slot.customChartDisplayName,
+                        snapshot: snapshotsByIdentifier[sensor.id],
+                        series: histories.seriesByIdentifier[sensor.id],
+                        connectionFailed: histories.failedProfiles.contains(reference.profileID)
+                            || !HomesteadWidgetSharedStore.isServerAvailable(profileID: reference.profileID)
+                    )
+                )
+            case .automatic, .gauge, .reading:
+                guard let sensor = slot.sensor,
+                      let reference = HomesteadWidgetSharedStore.reference(for: sensor.id),
+                      let presentation = slot.display.compactPresentation else {
+                    continue
+                }
+                let snapshot = snapshotsByIdentifier[sensor.id] ?? sensor.fallbackSnapshot
+                let item = WidgetSensorBoardCompactItem.sensor(
+                    from: snapshot,
+                    customDisplayName: slot.customDisplayName,
+                    presentation: presentation
+                )
+                let updatedItem = liveReadingsByIdentifier[sensor.id].map(item.updating(with:)) ?? item
+                let configuredItem = slot.display == .gauge
+                    ? updatedItem.applyingGaugeConfiguration(slot.gaugeConfiguration)
+                    : updatedItem
+                items[index] = .compact(configuredItem.scoped(to: reference))
             }
         }
 
@@ -775,23 +784,114 @@ enum HomesteadSensorBoardEntryBuilder {
         )
     }
 
+    private static func loadLiveReadings(
+        slots: [HomesteadSensorBoardSlotConfiguration]
+    ) async -> [String: WidgetSensorLiveReading] {
+        let references = slots.compactMap { slot -> EntityPresentationReference? in
+            guard slot.display != .chart, let identifier = slot.sensor?.id else { return nil }
+            return HomesteadWidgetSharedStore.reference(for: identifier)
+        }
+        let grouped = Dictionary(grouping: references, by: \.profileID)
+
+        return await withTaskGroup(of: [String: WidgetSensorLiveReading].self) { group in
+            for (profileID, references) in grouped {
+                guard HomesteadWidgetSharedStore.isServerAvailable(profileID: profileID) else { continue }
+                group.addTask {
+                    do {
+                        let readings = try await HAWidgetActionClient(profileID: profileID)
+                            .fetchSensorStates(entityIDs: Set(references.map(\.entityID)))
+                            .mapValues(\.liveReading)
+                        return references.reduce(into: [:]) { result, reference in
+                            result[reference.encodedID] = readings[reference.entityID]
+                        }
+                    } catch {
+                        return [:]
+                    }
+                }
+            }
+
+            var result: [String: WidgetSensorLiveReading] = [:]
+            for await values in group {
+                result.merge(values, uniquingKeysWith: { _, latest in latest })
+            }
+            return result
+        }
+    }
+
+    private static func loadHistories(
+        slots: [HomesteadSensorBoardSlotConfiguration]
+    ) async -> HistoryLoadResult {
+        let sensors = slots.compactMap { $0.display == .chart ? $0.chartSensor : nil }
+        let grouped = Dictionary(grouping: sensors) {
+            HomesteadWidgetSharedStore.reference(for: $0.id)?.profileID
+        }
+
+        return await withTaskGroup(of: HistoryLoadResult.self) { group in
+            for (optionalProfileID, sensors) in grouped {
+                guard let profileID = optionalProfileID,
+                      HomesteadWidgetSharedStore.isServerAvailable(profileID: profileID) else {
+                    if let profileID = optionalProfileID {
+                        group.addTask {
+                            HistoryLoadResult(seriesByIdentifier: [:], failedProfiles: [profileID])
+                        }
+                    }
+                    continue
+                }
+                group.addTask {
+                    do {
+                        let requests = sensors.compactMap { sensor -> HAWidgetSensorHistoryRequest? in
+                            guard let reference = HomesteadWidgetSharedStore.reference(for: sensor.id) else {
+                                return nil
+                            }
+                            return HAWidgetSensorHistoryRequest(
+                                entityID: reference.entityID,
+                                displayName: sensor.displayName,
+                                unit: sensor.unit
+                            )
+                        }
+                        let fetched = try await HAWidgetActionClient(profileID: profileID)
+                            .fetchSensorHistories(requests)
+                        let scoped = sensors.reduce(
+                            into: [String: HAWidgetSensorHistorySeries]()
+                        ) { result, sensor in
+                            guard let reference = HomesteadWidgetSharedStore.reference(for: sensor.id) else {
+                                return
+                            }
+                            result[sensor.id] = fetched[reference.entityID]
+                        }
+                        return HistoryLoadResult(seriesByIdentifier: scoped, failedProfiles: [])
+                    } catch {
+                        return HistoryLoadResult(seriesByIdentifier: [:], failedProfiles: [profileID])
+                    }
+                }
+            }
+
+            var result = HistoryLoadResult(seriesByIdentifier: [:], failedProfiles: [])
+            for await partial in group {
+                result.seriesByIdentifier.merge(
+                    partial.seriesByIdentifier,
+                    uniquingKeysWith: { _, latest in latest }
+                )
+                result.failedProfiles.formUnion(partial.failedProfiles)
+            }
+            return result
+        }
+    }
+
     private static func makeChartItem(
         sensor: HomesteadChartSensorEntity,
         customDisplayName: String?,
-        snapshot: WidgetSensorSnapshot?
-    ) async -> WidgetSensorBoardChartItem {
+        snapshot: WidgetSensorSnapshot?,
+        series: HAWidgetSensorHistorySeries?,
+        connectionFailed: Bool
+    ) -> WidgetSensorBoardChartItem {
         let trimmedName = customDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let displayName = trimmedName.isEmpty ? sensor.displayName : trimmedName
         let interpolationStyle = snapshot?.historyChartInterpolationStyle
             ?? sensor.historyChartInterpolationStyle
             ?? .linear
 
-        do {
-            let series = try await HAWidgetActionClient().fetchSensorHistory(
-                entityID: sensor.id,
-                displayName: sensor.displayName,
-                unit: sensor.unit
-            )
+        if let series {
             return WidgetSensorBoardChartItem(
                 id: sensor.id,
                 displayName: displayName,
@@ -808,21 +908,26 @@ enum HomesteadSensorBoardEntryBuilder {
                 interpolationStyle: interpolationStyle,
                 accentColor: snapshot?.chartAccentColor ?? sensor.chartAccentColor ?? .accent
             )
-        } catch {
-            return WidgetSensorBoardChartItem(
-                id: sensor.id,
-                displayName: displayName,
-                icon: snapshot?.resolvedIcon ?? sensor.icon,
-                valueText: snapshot?.valueText ?? sensor.valueText,
-                unitText: snapshot?.unit ?? sensor.unit,
-                supportingText: "Needs connection",
-                isAvailable: snapshot?.isAvailable ?? sensor.isAvailable,
-                samples: [],
-                valueDomain: 0...1,
-                interpolationStyle: interpolationStyle,
-                accentColor: snapshot?.chartAccentColor ?? sensor.chartAccentColor ?? .accent
-            )
         }
+
+        return WidgetSensorBoardChartItem(
+            id: sensor.id,
+            displayName: displayName,
+            icon: snapshot?.resolvedIcon ?? sensor.icon,
+            valueText: snapshot?.valueText ?? sensor.valueText,
+            unitText: snapshot?.unit ?? sensor.unit,
+            supportingText: connectionFailed ? WidgetStateText.needsConnection : WidgetStateText.noRecentData,
+            isAvailable: !connectionFailed && (snapshot?.isAvailable ?? sensor.isAvailable),
+            samples: [],
+            valueDomain: 0...1,
+            interpolationStyle: interpolationStyle,
+            accentColor: snapshot?.chartAccentColor ?? sensor.chartAccentColor ?? .accent
+        )
+    }
+
+    private struct HistoryLoadResult {
+        var seriesByIdentifier: [String: HAWidgetSensorHistorySeries]
+        var failedProfiles: Set<UUID>
     }
 }
 

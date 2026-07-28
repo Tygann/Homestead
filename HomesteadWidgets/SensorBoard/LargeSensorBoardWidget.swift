@@ -60,8 +60,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 1 Display", default: .automatic)
     var display1: HomesteadSensorBoardSlotDisplay
     @Parameter(title: "Slot 1 Sensor") var sensor1: HomesteadSensorEntity?
-    @Parameter(title: "Slot 1 Chart Sensor") var chartSensor1: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 1 Display Name") var customDisplayName1: String?
+    @Parameter(title: "Slot 1 Sensor") var chartSensor1: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 1 Name") var customDisplayName1: String?
 
     @Parameter(title: "Slot 1 Scale", default: .automatic)
     var gaugeScale1: HomesteadGaugeScale
@@ -87,8 +87,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 2 Display", default: .automatic)
     var display2: HomesteadSensorBoardSlotDisplay
     @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
-    @Parameter(title: "Slot 2 Chart Sensor") var chartSensor2: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 2 Display Name") var customDisplayName2: String?
+    @Parameter(title: "Slot 2 Sensor") var chartSensor2: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 2 Name") var customDisplayName2: String?
 
     @Parameter(title: "Slot 2 Scale", default: .automatic)
     var gaugeScale2: HomesteadGaugeScale
@@ -114,8 +114,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 3 Display", default: .chart)
     var display3: HomesteadSensorBoardSlotDisplay
     @Parameter(title: "Slot 3 Sensor") var sensor3: HomesteadSensorEntity?
-    @Parameter(title: "Slot 3 Chart Sensor") var chartSensor3: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 3 Display Name") var customDisplayName3: String?
+    @Parameter(title: "Slot 3 Sensor") var chartSensor3: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 3 Name") var customDisplayName3: String?
 
     @Parameter(title: "Slot 3 Scale", default: .automatic)
     var gaugeScale3: HomesteadGaugeScale
@@ -141,8 +141,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 4 Display", default: .automatic)
     var display4: HomesteadSensorBoardSlotDisplay
     @Parameter(title: "Slot 4 Sensor") var sensor4: HomesteadSensorEntity?
-    @Parameter(title: "Slot 4 Chart Sensor") var chartSensor4: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 4 Display Name") var customDisplayName4: String?
+    @Parameter(title: "Slot 4 Sensor") var chartSensor4: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 4 Name") var customDisplayName4: String?
 
     @Parameter(title: "Slot 4 Scale", default: .automatic)
     var gaugeScale4: HomesteadGaugeScale
@@ -168,8 +168,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 5 Display", default: .automatic)
     var display5: HomesteadSensorBoardSlotDisplay
     @Parameter(title: "Slot 5 Sensor") var sensor5: HomesteadSensorEntity?
-    @Parameter(title: "Slot 5 Chart Sensor") var chartSensor5: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 5 Display Name") var customDisplayName5: String?
+    @Parameter(title: "Slot 5 Sensor") var chartSensor5: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 5 Name") var customDisplayName5: String?
 
     @Parameter(title: "Slot 5 Scale", default: .automatic)
     var gaugeScale5: HomesteadGaugeScale
@@ -195,8 +195,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 6 Display", default: .chart)
     var display6: HomesteadSensorBoardSlotDisplay
     @Parameter(title: "Slot 6 Sensor") var sensor6: HomesteadSensorEntity?
-    @Parameter(title: "Slot 6 Chart Sensor") var chartSensor6: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 6 Display Name") var customDisplayName6: String?
+    @Parameter(title: "Slot 6 Sensor") var chartSensor6: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 6 Name") var customDisplayName6: String?
 
     @Parameter(title: "Slot 6 Scale", default: .automatic)
     var gaugeScale6: HomesteadGaugeScale
@@ -222,8 +222,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 7 Display", default: .automatic)
     var display7: HomesteadSensorBoardSlotDisplay
     @Parameter(title: "Slot 7 Sensor") var sensor7: HomesteadSensorEntity?
-    @Parameter(title: "Slot 7 Chart Sensor") var chartSensor7: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 7 Display Name") var customDisplayName7: String?
+    @Parameter(title: "Slot 7 Sensor") var chartSensor7: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 7 Name") var customDisplayName7: String?
 
     @Parameter(title: "Slot 7 Scale", default: .automatic)
     var gaugeScale7: HomesteadGaugeScale
@@ -249,8 +249,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 8 Display", default: .automatic)
     var display8: HomesteadSensorBoardSlotDisplay
     @Parameter(title: "Slot 8 Sensor") var sensor8: HomesteadSensorEntity?
-    @Parameter(title: "Slot 8 Chart Sensor") var chartSensor8: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 8 Display Name") var customDisplayName8: String?
+    @Parameter(title: "Slot 8 Sensor") var chartSensor8: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 8 Name") var customDisplayName8: String?
 
     @Parameter(title: "Slot 8 Scale", default: .automatic)
     var gaugeScale8: HomesteadGaugeScale
@@ -276,8 +276,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 9 Display", default: .chart)
     var display9: HomesteadSensorBoardSlotDisplay
     @Parameter(title: "Slot 9 Sensor") var sensor9: HomesteadSensorEntity?
-    @Parameter(title: "Slot 9 Chart Sensor") var chartSensor9: HomesteadChartSensorEntity?
-    @Parameter(title: "Slot 9 Display Name") var customDisplayName9: String?
+    @Parameter(title: "Slot 9 Sensor") var chartSensor9: HomesteadChartSensorEntity?
+    @Parameter(title: "Slot 9 Name") var customDisplayName9: String?
 
     @Parameter(title: "Slot 9 Scale", default: .automatic)
     var gaugeScale9: HomesteadGaugeScale

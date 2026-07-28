@@ -49,7 +49,7 @@ enum HomesteadGaugeZoneColor: String, AppEnum {
         .gray: "Gray"
     ]
 
-    var widgetColor: WidgetGaugeColor {
+    var widgetColor: GaugeZoneColor {
         switch self {
         case .blue: .blue
         case .green: .green

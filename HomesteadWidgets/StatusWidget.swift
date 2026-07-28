@@ -22,7 +22,7 @@ struct HomesteadStatusWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Status"
     static var description = IntentDescription("Choose a Home Assistant status entity.")
 
-    @Parameter(title: "Entity")
+    @Parameter(title: "Status")
     var entity: HomesteadStatusEntity?
 }
 
@@ -38,6 +38,8 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
     let systemImage: String
     let areaName: String?
     let deviceName: String?
+    var serverName: String = "Home Assistant"
+    var isServerAvailable: Bool = true
     let isHighlighted: Bool
     let isAlerting: Bool
     let isAvailable: Bool
@@ -50,6 +52,7 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: "\(pickerDisplayName)",
+            subtitle: "\(pickerSubtitle)",
             image: DisplayRepresentation.Image(systemName: systemImage)
         )
     }
@@ -63,10 +66,21 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
     }
 
     var pickerGroupTitle: String {
-        HomesteadWidgetEntityPickerText.groupName(
+        HomesteadWidgetEntityPickerText.serverScopedGroupName(
+            serverName: serverName,
             areaName: areaName,
             deviceName: deviceName,
             fallback: domain == "person" ? "People" : "Sensors"
+        )
+    }
+
+    var pickerSubtitle: String {
+        guard isServerAvailable else { return "Server Removed" }
+        guard isAvailable else { return "Unavailable" }
+        return HomesteadWidgetEntityPickerText.contextDescription(
+            serverName: serverName,
+            areaName: areaName,
+            deviceName: deviceName
         )
     }
 
@@ -82,6 +96,7 @@ struct HomesteadStatusEntity: AppEntity, Identifiable {
                 HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
                 areaName,
                 deviceName,
+                serverName,
                 id
             ]
         )
@@ -202,7 +217,7 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
                 entityID: nil,
                 domain: "status",
                 displayName: "Choose Status",
-                valueText: "Open Homestead",
+                valueText: WidgetStateText.openHomestead,
                 subtitle: "",
                 systemImage: "gauge.medium",
                 isHighlighted: false,
@@ -221,7 +236,7 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
                 domain: selectedEntity.domain,
                 displayName: selectedEntity.displayName,
                 valueText: selectedEntity.valueText,
-                subtitle: "Needs connection",
+                subtitle: WidgetStateText.needsConnection,
                 systemImage: selectedEntity.systemImage,
                 isHighlighted: selectedEntity.isHighlighted,
                 isAlerting: selectedEntity.isAlerting,
@@ -233,12 +248,18 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
     }
 
     private func liveEntry(for entity: HomesteadStatusEntity) async throws -> HomesteadStatusEntry {
+        guard let reference = HomesteadWidgetSharedStore.reference(for: entity.id),
+              HomesteadWidgetSharedStore.isServerAvailable(profileID: reference.profileID) else {
+            throw HAWidgetActionError.serverRemoved
+        }
+        let client = HAWidgetActionClient(profileID: reference.profileID)
+
         switch entity.domain {
         case "sensor":
-            let state = try await HAWidgetActionClient().fetchSensorState(entityID: entity.id)
+            let state = try await client.fetchSensorState(entityID: reference.entityID)
             return HomesteadStatusEntry(
                 date: Date(),
-                entityID: state.entityID,
+                entityID: entity.id,
                 domain: entity.domain,
                 displayName: state.displayName,
                 valueText: state.valueText,
@@ -251,10 +272,10 @@ struct HomesteadStatusTimelineProvider: AppIntentTimelineProvider {
                 icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "person":
-            let state = try await HAWidgetActionClient().fetchPresenceState(entityID: entity.id)
+            let state = try await client.fetchPresenceState(entityID: reference.entityID)
             return HomesteadStatusEntry(
                 date: Date(),
-                entityID: state.entityID,
+                entityID: entity.id,
                 domain: entity.domain,
                 displayName: state.displayName,
                 valueText: state.statusText,
@@ -286,10 +307,11 @@ private enum HomesteadStatusSnapshotBuilder {
     }
 
     private static func sensorEntities() -> [HomesteadStatusEntity] {
-        HomesteadWidgetSharedStore.sensorSnapshots.map { snapshot in
+        HomesteadWidgetSharedStore.scopedSensorSnapshots.map { scoped in
+            let snapshot = scoped.value
             let presentation = snapshot.sharedPresentation
             return HomesteadStatusEntity(
-                id: snapshot.entityID,
+                id: scoped.reference.encodedID,
                 domain: "sensor",
                 displayName: presentation.title,
                 valueText: presentation.valueText ?? "",
@@ -297,6 +319,8 @@ private enum HomesteadStatusSnapshotBuilder {
                 systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
+                serverName: scoped.serverName,
+                isServerAvailable: scoped.isServerAvailable,
                 isHighlighted: false,
                 isAlerting: snapshot.isAlerting,
                 isAvailable: presentation.isAvailable,
@@ -306,10 +330,11 @@ private enum HomesteadStatusSnapshotBuilder {
     }
 
     private static func presenceEntities() -> [HomesteadStatusEntity] {
-        HomesteadWidgetSharedStore.presenceSnapshots.map { snapshot in
+        HomesteadWidgetSharedStore.scopedPresenceSnapshots.map { scoped in
+            let snapshot = scoped.value
             let presentation = snapshot.sharedPresentation
             return HomesteadStatusEntity(
-                id: snapshot.entityID,
+                id: scoped.reference.encodedID,
                 domain: "person",
                 displayName: presentation.title,
                 valueText: presentation.valueText ?? "",
@@ -317,6 +342,8 @@ private enum HomesteadStatusSnapshotBuilder {
                 systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
+                serverName: scoped.serverName,
+                isServerAvailable: scoped.isServerAvailable,
                 isHighlighted: snapshot.isHome,
                 isAlerting: false,
                 isAvailable: presentation.isAvailable,
@@ -339,13 +366,19 @@ struct HomesteadStatusWidgetView: View {
 
     @ViewBuilder
     private var familyContent: some View {
-        switch family {
-        case .accessoryCircular:
-            accessoryCircular
-        case .accessoryRectangular:
-            accessoryRectangular
-        default:
-            systemSmall
+        HomesteadWidgetSingleItemFace(
+            family: faceFamily,
+            title: entry.displayName,
+            value: entry.valueText,
+            supportingText: supportingText,
+            valueColor: valueColor
+        ) {
+            if family == .accessoryRectangular {
+                HomesteadIconView(icon: entry.resolvedIcon, pointSize: 16)
+                    .foregroundStyle(iconColor)
+            } else {
+                statusIcon
+            }
         }
     }
 
@@ -368,28 +401,11 @@ struct HomesteadStatusWidgetView: View {
         }
     }
 
-    private var systemSmall: some View {
-        HomesteadWidgetSmallTile(
-            title: entry.displayName,
-            value: entry.valueText,
-            supportingText: supportingText,
-            valueColor: valueColor
-        ) {
-            statusIcon
-        }
-    }
-
-    private var accessoryCircular: some View {
-        statusIcon
-    }
-
-    private var accessoryRectangular: some View {
-        HomesteadWidgetRectangularTile(
-            title: entry.displayName,
-            value: entry.valueText
-        ) {
-            HomesteadIconView(icon: entry.resolvedIcon, pointSize: 16)
-                .foregroundStyle(iconColor)
+    private var faceFamily: HomesteadWidgetFaceFamily {
+        switch family {
+        case .accessoryCircular: .accessoryCircular
+        case .accessoryRectangular: .accessoryRectangular
+        default: .systemSmall
         }
     }
 

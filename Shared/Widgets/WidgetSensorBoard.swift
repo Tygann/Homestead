@@ -69,6 +69,18 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
             gauge: updatedGauge
         )
     }
+
+    func scoped(to reference: EntityPresentationReference) -> Self {
+        Self(
+            id: reference.encodedID,
+            displayName: displayName,
+            icon: icon,
+            valueText: valueText,
+            isAvailable: isAvailable,
+            requestedPresentation: requestedPresentation,
+            gauge: gauge
+        )
+    }
 }
 
 nonisolated struct WidgetSensorBoardChartItem: Identifiable, Equatable, Sendable {

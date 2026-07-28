@@ -22,7 +22,7 @@ struct HomesteadControlWidgetConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Homestead Control"
     static var description = IntentDescription("Choose a controllable Home Assistant entity.")
 
-    @Parameter(title: "Entity")
+    @Parameter(title: "Control")
     var entity: HomesteadControlEntity?
 }
 
@@ -48,33 +48,54 @@ struct RunHomesteadControlIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
+        guard let reference = HomesteadWidgetSharedStore.reference(for: entityID),
+              HomesteadWidgetSharedStore.isServerAvailable(profileID: reference.profileID) else {
+            throw HAWidgetActionError.missingCredentials
+        }
+        let client = HAWidgetActionClient(profileID: reference.profileID)
+
         switch (domain, action) {
-        case ("light", "turn_on"), ("light", "turn_off"):
+        case ("light", "toggle"):
+            let state = try await client.fetchLightState(entityID: reference.entityID)
+            guard state.isAvailable else { throw HAWidgetActionError.serviceCallFailed }
             try await runOptimisticToggle(
-                currentState: HomesteadWidgetSharedStore.lightSnapshot(entityID: entityID)?.isOn,
-                turnOn: action == "turn_on",
+                currentState: state.isOn,
+                turnOn: !state.isOn,
                 update: { HomesteadWidgetSharedStore.updateLightSnapshot(entityID: entityID, isOn: $0) },
-                serviceCall: { try await HAWidgetActionClient().setLight(entityID: entityID, isOn: $0) }
+                serviceCall: { try await client.setLight(entityID: reference.entityID, isOn: $0) }
             )
-        case ("switch", "turn_on"), ("switch", "turn_off"):
+        case ("switch", "toggle"):
+            let state = try await client.fetchSwitchState(entityID: reference.entityID)
+            guard EntityAvailability.resolve(state: state.state).isAvailable else {
+                throw HAWidgetActionError.serviceCallFailed
+            }
             try await runOptimisticToggle(
-                currentState: HomesteadWidgetSharedStore.switchSnapshot(entityID: entityID)?.isOn,
-                turnOn: action == "turn_on",
+                currentState: state.isOn,
+                turnOn: !state.isOn,
                 update: { HomesteadWidgetSharedStore.updateSwitchSnapshot(entityID: entityID, isOn: $0) },
-                serviceCall: { try await HAWidgetActionClient().setSwitch(entityID: entityID, isOn: $0) }
+                serviceCall: { try await client.setSwitch(entityID: reference.entityID, isOn: $0) }
             )
-        case ("fan", "turn_on"), ("fan", "turn_off"):
+        case ("fan", "toggle"):
+            let state = try await client.fetchFanState(entityID: reference.entityID)
+            guard state.isAvailable else { throw HAWidgetActionError.serviceCallFailed }
             try await runOptimisticToggle(
-                currentState: HomesteadWidgetSharedStore.fanSnapshot(entityID: entityID)?.isOn,
-                turnOn: action == "turn_on",
+                currentState: state.isOn,
+                turnOn: !state.isOn,
                 update: { HomesteadWidgetSharedStore.updateFanSnapshot(entityID: entityID, isOn: $0) },
-                serviceCall: { try await HAWidgetActionClient().setFan(entityID: entityID, isOn: $0) }
+                serviceCall: { try await client.setFan(entityID: reference.entityID, isOn: $0) }
             )
-        case ("cover", "open_cover"), ("cover", "close_cover"), ("cover", "stop_cover"):
-            try await HAWidgetActionClient().runCoverService(entityID: entityID, service: action)
+        case ("cover", "resolve_cover"):
+            let state = try await client.fetchCoverState(entityID: reference.entityID)
+            guard state.isAvailable else { throw HAWidgetActionError.serviceCallFailed }
+            let service = state.isMoving ? "stop_cover" : state.isOpen ? "close_cover" : "open_cover"
+            try await client.runCoverService(entityID: reference.entityID, service: service)
             WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.control.rawValue)
         case ("lock", "lock"):
-            try await HAWidgetActionClient().lock(entityID: entityID)
+            let state = try await client.fetchLockState(entityID: reference.entityID)
+            guard state.isAvailable else { throw HAWidgetActionError.serviceCallFailed }
+            if !state.isLocked {
+                try await client.lock(entityID: reference.entityID)
+            }
             WidgetCenter.shared.reloadTimelines(ofKind: HomesteadWidgetKind.control.rawValue)
         default:
             throw HAWidgetActionError.serviceCallFailed
@@ -116,6 +137,8 @@ struct HomesteadControlEntity: AppEntity, Identifiable {
     let systemImage: String
     let areaName: String?
     let deviceName: String?
+    var serverName: String = "Home Assistant"
+    var isServerAvailable: Bool = true
     let isActive: Bool
     let isMoving: Bool
     let isAvailable: Bool
@@ -128,6 +151,7 @@ struct HomesteadControlEntity: AppEntity, Identifiable {
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: "\(pickerDisplayName)",
+            subtitle: "\(pickerSubtitle)",
             image: DisplayRepresentation.Image(systemName: systemImage)
         )
     }
@@ -141,11 +165,22 @@ struct HomesteadControlEntity: AppEntity, Identifiable {
     }
 
     var pickerGroupTitle: String {
-        HomesteadWidgetEntityPickerText.groupName(
+        HomesteadWidgetEntityPickerText.serverScopedGroupName(
+            serverName: serverName,
             areaName: areaName,
             deviceName: deviceName,
             fallback: HomesteadWidgetEntityPickerText.pluralDisplayName(forDomain: domain)
         )
+    }
+
+    var pickerSubtitle: String {
+        isServerAvailable
+            ? HomesteadWidgetEntityPickerText.contextDescription(
+                serverName: serverName,
+                areaName: areaName,
+                deviceName: deviceName
+            )
+            : "Server Removed"
     }
 
     func matches(_ query: String) -> Bool {
@@ -159,6 +194,7 @@ struct HomesteadControlEntity: AppEntity, Identifiable {
                 HomesteadWidgetEntityPickerText.displayName(forDomain: domain),
                 areaName,
                 deviceName,
+                serverName,
                 id
             ]
         )
@@ -219,24 +255,12 @@ struct HomesteadControlEntry: TimelineEntry {
     }
 
     var action: String? {
-        guard isConfigured, isAvailable else {
-            return nil
-        }
-
-        switch domain {
-        case "light", "switch", "fan":
-            return isActive ? "turn_off" : "turn_on"
-        case "cover":
-            if isMoving {
-                return "stop_cover"
-            }
-
-            return isActive ? "close_cover" : "open_cover"
-        case "lock":
-            return isActive ? nil : "lock"
-        default:
-            return nil
-        }
+        WidgetControlActionResolver.action(
+            domain: domain,
+            isConfigured: isConfigured,
+            isAvailable: isAvailable,
+            isActive: isActive
+        )?.rawValue
     }
 }
 
@@ -302,7 +326,7 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                     entityID: nil,
                     domain: "control",
                     displayName: "Choose Control",
-                    statusText: "Open Homestead",
+                    statusText: WidgetStateText.openHomestead,
                     systemImage: "switch.2",
                     isActive: false,
                     isMoving: false,
@@ -329,7 +353,7 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                     entityID: selectedEntity.id,
                     domain: selectedEntity.domain,
                     displayName: selectedEntity.displayName,
-                    statusText: "Needs connection",
+                    statusText: WidgetStateText.needsConnection,
                     systemImage: selectedEntity.systemImage,
                     isActive: selectedEntity.isActive,
                     isMoving: selectedEntity.isMoving,
@@ -376,27 +400,33 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
     }
 
     private func liveEntry(for entity: HomesteadControlEntity) async throws -> HomesteadControlEntry {
+        guard let reference = HomesteadWidgetSharedStore.reference(for: entity.id),
+              HomesteadWidgetSharedStore.isServerAvailable(profileID: reference.profileID) else {
+            throw HAWidgetActionError.missingCredentials
+        }
+        let client = HAWidgetActionClient(profileID: reference.profileID)
+
         switch entity.domain {
         case "light":
-            let state = try await HAWidgetActionClient().fetchLightState(entityID: entity.id)
+            let state = try await client.fetchLightState(entityID: reference.entityID)
             return HomesteadControlEntry(
                 date: Date(),
-                entityID: state.entityID,
+                entityID: entity.id,
                 domain: entity.domain,
                 displayName: state.displayName,
                 statusText: lightStatusText(isOn: state.isOn, brightnessPercentage: state.brightnessPercentage),
                 systemImage: "lightbulb.fill",
                 isActive: state.isOn,
                 isMoving: false,
-                isAvailable: true,
+                isAvailable: state.isAvailable,
                 isConfigured: true,
                 icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "switch":
-            let state = try await HAWidgetActionClient().fetchSwitchState(entityID: entity.id)
+            let state = try await client.fetchSwitchState(entityID: reference.entityID)
             return HomesteadControlEntry(
                 date: Date(),
-                entityID: state.entityID,
+                entityID: entity.id,
                 domain: entity.domain,
                 displayName: state.displayName,
                 statusText: statusText(for: state.state),
@@ -408,10 +438,10 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "cover":
-            let state = try await HAWidgetActionClient().fetchCoverState(entityID: entity.id)
+            let state = try await client.fetchCoverState(entityID: reference.entityID)
             return HomesteadControlEntry(
                 date: Date(),
-                entityID: state.entityID,
+                entityID: entity.id,
                 domain: entity.domain,
                 displayName: state.displayName,
                 statusText: state.statusText,
@@ -423,10 +453,10 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "fan":
-            let state = try await HAWidgetActionClient().fetchFanState(entityID: entity.id)
+            let state = try await client.fetchFanState(entityID: reference.entityID)
             return HomesteadControlEntry(
                 date: Date(),
-                entityID: state.entityID,
+                entityID: entity.id,
                 domain: entity.domain,
                 displayName: state.displayName,
                 statusText: state.statusText,
@@ -438,10 +468,10 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "lock":
-            let state = try await HAWidgetActionClient().fetchLockState(entityID: entity.id)
+            let state = try await client.fetchLockState(entityID: reference.entityID)
             return HomesteadControlEntry(
                 date: Date(),
-                entityID: state.entityID,
+                entityID: entity.id,
                 domain: entity.domain,
                 displayName: state.displayName,
                 statusText: state.statusText,
@@ -508,16 +538,19 @@ private enum HomesteadControlSnapshotBuilder {
     }
 
     private static func lightEntities() -> [HomesteadControlEntity] {
-        HomesteadWidgetSharedStore.lightSnapshots.map { snapshot in
+        HomesteadWidgetSharedStore.scopedLightSnapshots.map { scoped in
+            let snapshot = scoped.value
             let presentation = snapshot.sharedPresentation
             return HomesteadControlEntity(
-                id: snapshot.entityID,
+                id: scoped.reference.encodedID,
                 domain: "light",
                 displayName: presentation.title,
                 statusText: presentation.subtitle ?? "",
                 systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
+                serverName: scoped.serverName,
+                isServerAvailable: scoped.isServerAvailable,
                 isActive: snapshot.isOn,
                 isMoving: false,
                 isAvailable: presentation.isAvailable,
@@ -527,16 +560,19 @@ private enum HomesteadControlSnapshotBuilder {
     }
 
     private static func switchEntities() -> [HomesteadControlEntity] {
-        HomesteadWidgetSharedStore.switchSnapshots.map { snapshot in
+        HomesteadWidgetSharedStore.scopedSwitchSnapshots.map { scoped in
+            let snapshot = scoped.value
             let presentation = snapshot.sharedPresentation
             return HomesteadControlEntity(
-                id: snapshot.entityID,
+                id: scoped.reference.encodedID,
                 domain: "switch",
                 displayName: presentation.title,
                 statusText: presentation.statusText ?? "",
                 systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
+                serverName: scoped.serverName,
+                isServerAvailable: scoped.isServerAvailable,
                 isActive: snapshot.isOn,
                 isMoving: false,
                 isAvailable: presentation.isAvailable,
@@ -546,16 +582,19 @@ private enum HomesteadControlSnapshotBuilder {
     }
 
     private static func fanEntities() -> [HomesteadControlEntity] {
-        HomesteadWidgetSharedStore.fanSnapshots.map { snapshot in
+        HomesteadWidgetSharedStore.scopedFanSnapshots.map { scoped in
+            let snapshot = scoped.value
             let presentation = snapshot.sharedPresentation
             return HomesteadControlEntity(
-                id: snapshot.entityID,
+                id: scoped.reference.encodedID,
                 domain: "fan",
                 displayName: presentation.title,
                 statusText: presentation.statusText ?? "",
                 systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
+                serverName: scoped.serverName,
+                isServerAvailable: scoped.isServerAvailable,
                 isActive: snapshot.isOn,
                 isMoving: false,
                 isAvailable: presentation.isAvailable,
@@ -565,16 +604,19 @@ private enum HomesteadControlSnapshotBuilder {
     }
 
     private static func coverEntities() -> [HomesteadControlEntity] {
-        HomesteadWidgetSharedStore.coverSnapshots.map { snapshot in
+        HomesteadWidgetSharedStore.scopedCoverSnapshots.map { scoped in
+            let snapshot = scoped.value
             let presentation = snapshot.sharedPresentation
             return HomesteadControlEntity(
-                id: snapshot.entityID,
+                id: scoped.reference.encodedID,
                 domain: "cover",
                 displayName: presentation.title,
                 statusText: presentation.statusText ?? "",
                 systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
+                serverName: scoped.serverName,
+                isServerAvailable: scoped.isServerAvailable,
                 isActive: snapshot.isOpen,
                 isMoving: snapshot.isMoving,
                 isAvailable: presentation.isAvailable,
@@ -584,16 +626,19 @@ private enum HomesteadControlSnapshotBuilder {
     }
 
     private static func lockEntities() -> [HomesteadControlEntity] {
-        HomesteadWidgetSharedStore.lockSnapshots.map { snapshot in
+        HomesteadWidgetSharedStore.scopedLockSnapshots.map { scoped in
+            let snapshot = scoped.value
             let presentation = snapshot.sharedPresentation
             return HomesteadControlEntity(
-                id: snapshot.entityID,
+                id: scoped.reference.encodedID,
                 domain: "lock",
                 displayName: presentation.title,
                 statusText: presentation.statusText ?? "",
                 systemImage: presentation.icon.fallbackSFSymbol,
                 areaName: snapshot.areaName,
                 deviceName: snapshot.deviceName,
+                serverName: scoped.serverName,
+                isServerAvailable: scoped.isServerAvailable,
                 isActive: snapshot.isLocked,
                 isMoving: false,
                 isAvailable: presentation.isAvailable,
@@ -628,13 +673,18 @@ struct HomesteadControlWidgetView: View {
 
     @ViewBuilder
     private var familyContent: some View {
-        switch family {
-        case .accessoryCircular:
-            accessoryCircular
-        case .accessoryRectangular:
-            accessoryRectangular
-        default:
-            systemSmall
+        HomesteadWidgetSingleItemFace(
+            family: faceFamily,
+            title: entry.displayName,
+            value: entry.statusText,
+            valueColor: entry.isActive || entry.isMoving ? .primary : .secondary
+        ) {
+            if family == .accessoryRectangular {
+                HomesteadIconView(icon: displayedIcon, pointSize: 16)
+                    .foregroundStyle(iconColor)
+            } else {
+                widgetButton
+            }
         }
     }
 
@@ -648,27 +698,11 @@ struct HomesteadControlWidgetView: View {
         }
     }
 
-    private var systemSmall: some View {
-        HomesteadWidgetSmallTile(
-            title: entry.displayName,
-            value: entry.statusText,
-            valueColor: entry.isActive || entry.isMoving ? .primary : .secondary
-        ) {
-            widgetButton
-        }
-    }
-
-    private var accessoryCircular: some View {
-        widgetButton
-    }
-
-    private var accessoryRectangular: some View {
-        HomesteadWidgetRectangularTile(
-            title: entry.displayName,
-            value: entry.statusText
-        ) {
-            HomesteadIconView(icon: displayedIcon, pointSize: 16)
-                .foregroundStyle(iconColor)
+    private var faceFamily: HomesteadWidgetFaceFamily {
+        switch family {
+        case .accessoryCircular: .accessoryCircular
+        case .accessoryRectangular: .accessoryRectangular
+        default: .systemSmall
         }
     }
 

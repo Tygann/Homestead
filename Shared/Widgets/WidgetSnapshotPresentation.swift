@@ -12,7 +12,7 @@ nonisolated extension WidgetLightSnapshot {
             valueText: isOn ? brightnessPercentage.map { "\($0)%" } : "Off",
             statusText: isOn ? "On" : "Off",
             icon: resolvedIcon,
-            availability: .available,
+            availability: isAvailable ? .available : .unavailable(reason: "Light unavailable"),
             affordances: [.read, .primaryAction],
             accessibilityLabel: "\(displayName) light",
             accessibilityValue: isOn ? brightnessPercentage.map { "On, \($0)%" } ?? "On" : "Off"
@@ -30,7 +30,7 @@ nonisolated extension WidgetSwitchSnapshot {
             valueText: isOn ? "On" : "Off",
             statusText: isOn ? "On" : "Off",
             icon: resolvedIcon,
-            availability: .available,
+            availability: isAvailable ? .available : .unavailable(reason: "Switch unavailable"),
             affordances: [.read, .primaryAction],
             accessibilityLabel: "\(displayName) switch",
             accessibilityValue: isOn ? "On" : "Off"
@@ -120,7 +120,7 @@ nonisolated extension WidgetActionSnapshot {
             valueText: nil,
             statusText: nil,
             icon: resolvedIcon,
-            availability: .available,
+            availability: isAvailable ? .available : .unavailable(reason: "Action unavailable"),
             affordances: [.read, .primaryAction],
             accessibilityLabel: "\(displayName) action",
             accessibilityValue: nil

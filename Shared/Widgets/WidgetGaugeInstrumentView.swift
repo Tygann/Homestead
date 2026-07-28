@@ -251,6 +251,10 @@ func widgetGaugeColor(for color: WidgetGaugeColor) -> Color {
     }
 }
 
+func widgetGaugeColor(for color: GaugeZoneColor) -> Color {
+    color.color
+}
+
 func gaugeSectionBackgroundOpacity(current: GaugeVisualStatus, section: GaugeVisualStatus) -> Double {
     switch current {
     case .nominal:
@@ -365,7 +369,7 @@ struct WidgetGaugeBarView: View {
         return min(max(normalizedValue, 0), 1)
     }
 
-    private func sectionBackgroundOpacity(for color: WidgetGaugeColor) -> Double {
+    private func sectionBackgroundOpacity(for color: GaugeZoneColor) -> Double {
         color == gauge.currentColor ? 0.34 : 0.22
     }
 

@@ -77,11 +77,14 @@ enum DashboardPresentationCatalog {
         for entityBox: HAEntityState
     ) -> PresentationAvailability {
         let capabilities = EntityCapabilityResolver.capabilities(for: entityBox)
+        let input = EntityCapabilityResolver.presentationInput(for: entityBox)
         switch descriptor(for: kind).sourceRequirement {
         case .anyItem, .anyEntity:
             return .available
         case .controllable:
-            let controlAffordances: Set<EntityAffordance> = [.primaryAction, .level, .setpoint, .options, .commands]
+            let controlAffordances: Set<EntityPresentationAffordance> = [
+                .primaryAction, .level, .setpoint, .options, .commands
+            ]
             return !capabilities.affordances.isDisjoint(with: controlAffordances)
                 ? .available
                 : .unavailable(.unsupportedDomain)
@@ -95,7 +98,7 @@ enum DashboardPresentationCatalog {
                 ? .configurable("Review the suggested range and zones.")
                 : .available
         case .history:
-            return capabilities.affordances.contains(.history)
+            return EntityPresentationResolver.eligibility(of: .chart, for: input).isSelectable
                 ? .available
                 : .unavailable(.requiresNumericState)
         case .domain(let domain):

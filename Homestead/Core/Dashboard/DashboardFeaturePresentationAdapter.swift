@@ -13,7 +13,9 @@ enum DashboardFeaturePresentationAdapter {
                 ?? fallbackPresentation(for: entityState, titleOverride: titleOverride)
         }
 
-        let dashboardPresentation = DashboardEntityPresentation(entityBox: entityState)
+        let semantic = EntityPresentationResolver.resolve(
+            EntityCapabilityResolver.presentationInput(for: entityState)
+        )
         let subjectKind: SharedFeatureSubjectKind = switch entityState.domain {
         case .scene, .script, .button, .automation:
             .action
@@ -24,24 +26,24 @@ enum DashboardFeaturePresentationAdapter {
         }
 
         var affordances: Set<SharedFeatureAffordance> = [.read]
-        if dashboardPresentation.primaryAction != nil {
+        if semantic.affordances.contains(.primaryAction) {
             affordances.insert(.primaryAction)
         }
 
         let presentation = SharedFeaturePresentation(
             subjectID: entityState.entityID,
             subjectKind: subjectKind,
-            title: dashboardPresentation.title,
-            subtitle: dashboardPresentation.subtitle,
-            valueText: dashboardPresentation.headline,
-            statusText: dashboardPresentation.subtitle,
-            icon: dashboardPresentation.icon,
-            availability: dashboardPresentation.isAvailable
+            title: semantic.title,
+            subtitle: semantic.statusText,
+            valueText: semantic.valueText,
+            statusText: semantic.statusText,
+            icon: semantic.icon,
+            availability: semantic.isAvailable
                 ? .available
                 : .unavailable(reason: "Entity unavailable"),
             affordances: affordances,
-            accessibilityLabel: dashboardPresentation.title,
-            accessibilityValue: dashboardPresentation.accessibilityValue
+            accessibilityLabel: semantic.title,
+            accessibilityValue: semantic.valueText
         )
 
         return presentation.applyingTitleOverride(titleOverride)
@@ -53,8 +55,11 @@ enum DashboardFeaturePresentationAdapter {
     ) -> SharedFeaturePresentation? {
         guard let sensor = entityState.sensorEntity else { return nil }
 
+        let semantic = EntityPresentationResolver.resolve(
+            EntityCapabilityResolver.presentationInput(for: entityState)
+        )
         let gauge = sensor.gaugePresentation
-        let availability: SharedFeatureAvailability = sensor.isAvailable
+        let availability: SharedFeatureAvailability = semantic.isAvailable
             ? .available
             : .unavailable(reason: "Sensor unavailable")
 
@@ -69,15 +74,15 @@ enum DashboardFeaturePresentationAdapter {
         let presentation = SharedFeaturePresentation(
             subjectID: entityState.entityID,
             subjectKind: .sensor,
-            title: sensor.displayName,
+            title: semantic.title,
             subtitle: sensor.displaySubtitle,
-            valueText: sensor.formattedValue,
+            valueText: semantic.valueText,
             statusText: sensor.isAvailable ? sensor.displaySubtitle : "Unavailable",
-            icon: entityState.homeEntity.resolvedIcon,
+            icon: semantic.icon,
             availability: availability,
             affordances: affordances,
             accessibilityLabel: "\(sensor.displayName) sensor",
-            accessibilityValue: sensor.formattedValue
+            accessibilityValue: semantic.valueText
         )
 
         return presentation.applyingTitleOverride(titleOverride)
