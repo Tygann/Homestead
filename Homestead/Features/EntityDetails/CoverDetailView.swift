@@ -53,7 +53,7 @@ struct CoverDetailView: View {
             iconColor: coverIconColor(cover),
             statusColor: coverBadgeColor(cover),
             iconBackground: coverStatusBackground(cover),
-            statusBackground: coverHeroStatus(cover) == "Unavailable" ? Color.red.opacity(0.12) : coverStatusBackground(cover),
+            statusBackground: coverStatusBackground(cover),
             statePresentation: detailState,
             accessory: {
                 Text(cover.positionPercentage.map { "\($0)%" } ?? cover.displayState)
@@ -180,8 +180,6 @@ struct CoverDetailView: View {
     }
 
     private func coverHeroStatus(_ cover: CoverEntity) -> String? {
-        if !entityBox.homeEntity.isAvailable { return "Unavailable" }
-        if entityBox.pendingCommand != nil { return "Updating" }
         switch cover.state {
         case "opening": return "Opening"
         case "closing": return "Closing"

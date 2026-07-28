@@ -252,7 +252,9 @@ struct EntityDetailHeroCard<Content: View, Accessory: View>: View {
                 iconBackground: iconBackground,
                 statusBackground: statusBackground,
                 accessory: {
-                    if statePresentation?.status == nil {
+                    // The hero has one trailing slot. Operational or domain status
+                    // replaces normal controls and values instead of sitting beside them.
+                    if status == nil {
                         accessory
                     }
                 }

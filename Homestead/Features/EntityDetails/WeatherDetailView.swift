@@ -74,11 +74,9 @@ struct WeatherDetailView: View {
             icon: presentation.icon,
             title: "Weather",
             subtitle: EntityDetailHeroSubtitle.updated(entity),
-            status: weather.isAvailable ? nil : "Unavailable",
+            status: nil,
             iconColor: iconColor(weather),
-            statusColor: weather.isAvailable ? presentation.accentColor : .red,
             iconBackground: iconBackground(weather),
-            statusBackground: weather.isAvailable ? nil : Color.red.opacity(0.12),
             statePresentation: detailState,
             accessory: {
                 Text(weather.primaryReadingText)
