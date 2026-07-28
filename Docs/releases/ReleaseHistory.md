@@ -53,7 +53,7 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
-## Version 1 (Build 115)
+## Version 1 (Build 116)
 
 - Release Date: 2026-07-28
 - Channel: TestFlight
@@ -75,7 +75,7 @@ Please test:
 
 ### Internal Summary
 
-Build 115 covers the StoreKit 2 Homestead+ entitlement and purchase experience, cached entitlement sharing with widgets, premium scale-feature gates, iCloud and widget handling, purchase-flow polish and verification, and unified entity-detail hero status placement after Build 114.
+Build 116 covers the StoreKit 2 Homestead+ entitlement and purchase experience, cached entitlement sharing with widgets, premium scale-feature gates, iCloud and widget handling, purchase-flow polish and verification, and unified entity-detail hero status placement after Build 114.
 
 ## Version 1 (Build 114)
 
