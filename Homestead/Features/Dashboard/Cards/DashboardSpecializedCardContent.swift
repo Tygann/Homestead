@@ -18,64 +18,103 @@ struct DashboardChartCardContent: View {
     let state: DashboardChartCardState
     let size: DashboardCardSize
 
+    @ViewBuilder
     var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .bottomLeading) {
-                chartLayer
-                    .frame(height: chartHeight(for: proxy.size.height))
+        if presentation.isAvailable {
+            GeometryReader { proxy in
+                ZStack(alignment: .bottomLeading) {
+                    chartLayer
+                        .frame(height: chartHeight(for: proxy.size.height))
 
-                VStack(alignment: .leading, spacing: chartHeaderSpacing) {
-                    HStack(spacing: AppSpacing.small) {
-                        HomesteadIconView(icon: presentation.icon, pointSize: 18, weight: .semibold)
-                            .foregroundStyle(presentation.accentColor)
-                            .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: chartHeaderSpacing) {
+                        HStack(spacing: AppSpacing.small) {
+                            HomesteadIconView(icon: presentation.icon, pointSize: 18, weight: .semibold)
+                                .foregroundStyle(presentation.accentColor)
+                                .accessibilityHidden(true)
 
-                        Text(presentation.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
+                            Text(presentation.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.78)
 
-                        Spacer(minLength: AppSpacing.small)
+                            Spacer(minLength: AppSpacing.small)
 
-                        if showsTrailingSummary {
-                            HStack(spacing: 3) {
-                                Text(loadedRangeTitle)
+                            if showsTrailingSummary {
+                                HStack(spacing: 3) {
+                                    Text(loadedRangeTitle)
 
-                                if let compactChangeSummaryText {
-                                    Text("·")
-                                    Text(compactChangeSummaryText)
+                                    if let compactChangeSummaryText {
+                                        Text("·")
+                                        Text(compactChangeSummaryText)
+                                    }
                                 }
-                            }
-                            .font(.caption2.monospacedDigit().weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        }
-                    }
-
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text(displayValueText)
-                            .font(.system(size: valueFontSize, weight: .regular, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.72)
-                            .monospacedDigit()
-
-                        if let displayUnitText {
-                            Text(displayUnitText)
-                                .font(.title3.weight(.semibold))
+                                .font(.caption2.monospacedDigit().weight(.semibold))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
+                            }
                         }
 
-                        Spacer(minLength: AppSpacing.small)
-                    }
+                        HStack(alignment: .firstTextBaseline, spacing: 2) {
+                            Text(displayValueText)
+                                .font(.system(size: valueFontSize, weight: .regular, design: .rounded))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                                .monospacedDigit()
 
-                    if showsContextSummary {
-                        Text(contextSummaryText)
+                            if let displayUnitText {
+                                Text(displayUnitText)
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer(minLength: AppSpacing.small)
+                        }
+
+                        if showsContextSummary {
+                            Text(contextSummaryText)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(contextSummaryColor)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(AppSpacing.medium)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(accessibilityValue)
+            .modifier(DashboardChartAccessibilityModifier(state: state))
+        } else {
+            unavailableContent
+        }
+    }
+
+    private var unavailableContent: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .bottomLeading) {
+                if case .loaded(let chartPresentation) = state {
+                    chart(chartPresentation)
+                        .frame(height: chartHeight(for: proxy.size.height))
+                }
+
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    DashboardUnavailableCardHeader(
+                        title: presentation.title,
+                        iconPresentation: presentation.iconPresentation,
+                        accentColor: presentation.accentColor
+                    )
+
+                    if case .loaded = state {
+                        Spacer(minLength: 0)
+
+                        Text("Last recorded")
                             .font(.caption.weight(.medium))
-                            .foregroundStyle(contextSummaryColor)
-                            .lineLimit(1)
+                            .foregroundStyle(.secondary)
+                            .padding(.bottom, chartHeight(for: proxy.size.height))
                     }
                 }
                 .padding(AppSpacing.medium)
@@ -83,8 +122,8 @@ struct DashboardChartCardContent: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityValue(accessibilityValue)
+        .accessibilityLabel(presentation.title)
+        .accessibilityValue(unavailableAccessibilityValue)
         .modifier(DashboardChartAccessibilityModifier(state: state))
     }
 
@@ -191,6 +230,13 @@ struct DashboardChartCardContent: View {
         case .failed:
             "\(measurementTitle) · Chart unavailable"
         }
+    }
+
+    private var unavailableAccessibilityValue: String {
+        if case .loaded = state {
+            return "Unavailable, showing the last recorded chart"
+        }
+        return "Unavailable"
     }
 
     private var contextSummaryColor: Color {
@@ -381,28 +427,15 @@ struct DashboardWeatherCardContent: View {
 
     private var unavailableContent: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            HStack(spacing: AppSpacing.small) {
-                Image(systemName: "cloud.slash")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-                    .accessibilityHidden(true)
-
-                Text(weather.displayName)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-            }
+            DashboardUnavailableCardHeader(
+                title: weather.displayName,
+                iconPresentation: .icon(
+                    .sfSymbol("cloud.fill", provenance: .homesteadSemanticMapping)
+                ),
+                accentColor: .secondary
+            )
 
             Spacer(minLength: 0)
-
-            Text("—")
-                .font(.system(size: currentTemperatureFontSize, weight: .regular, design: .rounded))
-                .foregroundStyle(.secondary)
-
-            Text("Unavailable")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
         }
         .padding(AppSpacing.medium)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -1078,97 +1111,42 @@ struct DashboardMediaCardContent: View {
     }
 
     private var compactContent: some View {
-        HStack(spacing: AppSpacing.small) {
-            playPauseIconButton
-
-            Group {
-                if let showDetails {
-                    Button(action: showDetails) { compactIdentity }
-                        .buttonStyle(.plain)
-                } else {
-                    compactIdentity
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var compactIdentity: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-            Text(presentation.title)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-            Text(compactSubtitle)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
+        mediaHeader(subtitle: compactSubtitle)
     }
 
     private var rowContent: some View {
-        HStack(spacing: AppSpacing.medium) {
-            DashboardSpecializedCardHeader(
-                presentation: presentation,
-                subtitle: compactSubtitle,
-                showDetails: showDetails
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            playPauseButton
-        }
+        mediaHeader(subtitle: compactSubtitle)
     }
 
     private var squareContent: some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
-            DashboardSpecializedCardHeader(
-                presentation: presentation,
-                subtitle: media.displayState,
-                showDetails: showDetails
-            )
+            mediaHeader(subtitle: media.displayState)
 
             nowPlayingContent(titleFont: .headline.weight(.bold), titleLineLimit: 2)
 
             Spacer(minLength: 0)
 
-            HStack {
-                Spacer(minLength: 0)
-                playPauseButton
-                Spacer(minLength: 0)
+            if supportsVolumeControl {
+                volumeControl
             }
         }
     }
 
     private var wideContent: some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
-            HStack(alignment: .top, spacing: AppSpacing.large) {
-                DashboardSpecializedCardHeader(
-                    presentation: presentation,
-                    subtitle: media.displayState,
-                    showDetails: showDetails
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
+            mediaHeader(subtitle: media.displayState)
 
-                nowPlayingContent(titleFont: .headline.weight(.bold), titleLineLimit: 1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            nowPlayingContent(titleFont: .headline.weight(.bold), titleLineLimit: 1)
 
             Spacer(minLength: 0)
 
-            controls
+            secondaryControls
         }
     }
 
     private var largeContent: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            DashboardSpecializedCardHeader(
-                presentation: presentation,
-                subtitle: media.displayState,
-                showDetails: showDetails
-            )
+            mediaHeader(subtitle: media.displayState)
 
             Spacer(minLength: 0)
 
@@ -1176,8 +1154,21 @@ struct DashboardMediaCardContent: View {
 
             Spacer(minLength: 0)
 
-            controls
+            secondaryControls
         }
+    }
+
+    private func mediaHeader(subtitle: String) -> some View {
+        DashboardSpecializedCardHeader(
+            presentation: presentation,
+            subtitle: subtitle,
+            showDetails: showDetails,
+            iconAction: playPause,
+            iconActionLabel: media.isPlaying
+                ? "Pause \(presentation.title)"
+                : "Play \(presentation.title)",
+            isIconActionEnabled: !isPending && media.isAvailable && playPause != nil
+        )
     }
 
     @ViewBuilder
@@ -1205,29 +1196,11 @@ struct DashboardMediaCardContent: View {
         }
     }
 
-    private var controls: some View {
+    @ViewBuilder
+    private var secondaryControls: some View {
         HStack(spacing: AppSpacing.small) {
-            playPauseButton
-
-            if size == .wide || size == .large {
-                Image(systemName: "speaker.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-
-                Slider(
-                    value: $localVolume,
-                    in: 0...100,
-                    step: 1,
-                    onEditingChanged: { isEditing in
-                        guard !isEditing else { return }
-                        setVolume?(localVolume)
-                    }
-                )
-                .tint(presentation.accentColor)
-                .disabled(isPending || setVolume == nil)
-                .accessibilityLabel("Volume")
-                .accessibilityValue("\(Int(localVolume.rounded())) percent")
+            if supportsVolumeControl {
+                volumeControl
             }
 
             if size == .large,
@@ -1249,38 +1222,31 @@ struct DashboardMediaCardContent: View {
         }
     }
 
-    private var mediaControlSize: CGFloat {
-        size == .large ? 40 : 34
-    }
+    private var volumeControl: some View {
+        HStack(spacing: AppSpacing.small) {
+            Image(systemName: "speaker.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
 
-    private var playPauseButton: some View {
-        Button(action: { playPause?() }) {
-            Image(systemName: media.isPlaying ? "pause.fill" : "play.fill")
-                .font(.headline.weight(.semibold))
-                .frame(width: mediaControlSize, height: mediaControlSize)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(media.isPlaying ? Color.white : Color.primary)
-        .background(
-            media.isPlaying ? presentation.accentColor : Color(.tertiarySystemFill),
-            in: Circle()
-        )
-        .disabled(isPending || !media.isAvailable || playPause == nil)
-        .accessibilityLabel(media.isPlaying ? "Pause" : "Play")
-    }
-
-    private var playPauseIconButton: some View {
-        Button(action: { playPause?() }) {
-            DashboardCardIconView(
-                presentation: presentation.iconPresentation,
-                isActive: presentation.isActive,
-                isAvailable: presentation.isAvailable,
-                accentColor: presentation.accentColor
+            Slider(
+                value: $localVolume,
+                in: 0...100,
+                step: 1,
+                onEditingChanged: { isEditing in
+                    guard !isEditing else { return }
+                    setVolume?(localVolume)
+                }
             )
+            .tint(presentation.accentColor)
+            .disabled(isPending)
+            .accessibilityLabel("Volume")
+            .accessibilityValue("\(Int(localVolume.rounded())) percent")
         }
-        .buttonStyle(.plain)
-        .disabled(isPending || !media.isAvailable || playPause == nil)
-        .accessibilityLabel(media.isPlaying ? "Pause \(presentation.title)" : "Play \(presentation.title)")
+    }
+
+    private var supportsVolumeControl: Bool {
+        media.isAvailable && setVolume != nil
     }
 
     private var compactSubtitle: String {
@@ -1323,14 +1289,9 @@ struct DashboardActionCardContent: View {
                 largeContent
             } else {
                 VStack(alignment: .leading, spacing: AppSpacing.small) {
-                    DashboardSpecializedCardHeader(
-                        presentation: presentation,
-                        subtitle: actionKind,
-                        showDetails: showDetails
-                    )
+                    actionHeader
 
                     Spacer(minLength: 0)
-                    actionButton
                 }
             }
         }
@@ -1338,43 +1299,12 @@ struct DashboardActionCardContent: View {
     }
 
     private var compactContent: some View {
-        HStack(spacing: AppSpacing.small) {
-            actionIconButton
-
-            Group {
-                if let showDetails {
-                    Button(action: showDetails) { compactIdentity }
-                        .buttonStyle(.plain)
-                } else {
-                    compactIdentity
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var compactIdentity: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-            Text(presentation.title)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-            Text(presentation.isAvailable ? actionKind : "Unavailable")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
+        actionHeader
     }
 
     private var horizontalContent: some View {
         HStack(spacing: AppSpacing.large) {
-            DashboardSpecializedCardHeader(
-                presentation: presentation,
-                subtitle: actionKind,
-                showDetails: showDetails
-            )
+            actionHeader
             .frame(maxWidth: .infinity, alignment: .leading)
 
             compactActionButton
@@ -1383,11 +1313,7 @@ struct DashboardActionCardContent: View {
 
     private var largeContent: some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            DashboardSpecializedCardHeader(
-                presentation: presentation,
-                subtitle: actionKind,
-                showDetails: showDetails
-            )
+            actionHeader
 
             Spacer(minLength: 0)
 
@@ -1407,18 +1333,15 @@ struct DashboardActionCardContent: View {
         }
     }
 
-    private var actionIconButton: some View {
-        Button(action: { trigger?() }) {
-            DashboardCardIconView(
-                presentation: presentation.iconPresentation,
-                isActive: presentation.isActive,
-                isAvailable: presentation.isAvailable,
-                accentColor: presentation.accentColor
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(isPending || !presentation.isAvailable || trigger == nil)
-        .accessibilityLabel("\(actionTitle) \(presentation.title)")
+    private var actionHeader: some View {
+        DashboardSpecializedCardHeader(
+            presentation: presentation,
+            subtitle: presentation.isAvailable ? actionKind : "Unavailable",
+            showDetails: showDetails,
+            iconAction: trigger,
+            iconActionLabel: "\(actionTitle) \(presentation.title)",
+            isIconActionEnabled: !isPending && presentation.isAvailable && trigger != nil
+        )
     }
 
     private var compactActionButton: some View {
@@ -1493,52 +1416,106 @@ struct DashboardActionCardContent: View {
     }
 }
 
-// MARK: - Shared Header
+// MARK: - Shared Headers
+
+private struct DashboardUnavailableCardHeader: View {
+    let title: String
+    let iconPresentation: DashboardCardIconPresentation
+    let accentColor: Color
+
+    var body: some View {
+        HStack(spacing: AppSpacing.small) {
+            DashboardCardIconView(
+                presentation: iconPresentation,
+                isActive: false,
+                isAvailable: false,
+                accentColor: accentColor
+            )
+
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .truncationMode(.tail)
+
+                Text("Unavailable")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
 
 private struct DashboardSpecializedCardHeader: View {
     let presentation: DashboardEntityPresentation
     let subtitle: String
     let showDetails: (() -> Void)?
+    var iconAction: (() -> Void)? = nil
+    var iconActionLabel: String? = nil
+    var isIconActionEnabled = true
 
     var body: some View {
-        Group {
-            if let showDetails {
-                Button(action: showDetails) { content }
+        HStack(alignment: .center, spacing: AppSpacing.small) {
+            if let iconAction {
+                Button(action: iconAction) {
+                    icon
+                }
+                .buttonStyle(.plain)
+                .disabled(!isIconActionEnabled)
+                .accessibilityLabel(iconActionLabel ?? presentation.title)
+            } else {
+                icon
+            }
+
+            Group {
+                if let showDetails {
+                    Button(action: showDetails) {
+                        identity
+                    }
                     .buttonStyle(.plain)
                     .accessibilityLabel(presentation.accessibilityDetailLabel)
                     .accessibilityValue(presentation.accessibilityValue)
                     .accessibilityHint(presentation.accessibilityDetailHint)
-            } else {
-                content
+                } else {
+                    identity
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .contentShape(Rectangle())
     }
 
-    private var content: some View {
-        HStack(alignment: .center, spacing: AppSpacing.medium) {
-            DashboardCardIconView(
-                presentation: presentation.iconPresentation,
-                isActive: presentation.isActive,
-                isAvailable: presentation.isAvailable,
-                accentColor: presentation.accentColor
-            )
+    private var icon: some View {
+        DashboardCardIconView(
+            presentation: presentation.iconPresentation,
+            isActive: presentation.isActive,
+            isAvailable: presentation.isAvailable,
+            accentColor: presentation.accentColor
+        )
+    }
 
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text(presentation.title)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+    private var identity: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text(presentation.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .truncationMode(.tail)
 
-                Text(subtitle)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(presentation.isAvailable ? Color.secondary : Color.red)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-
-            Spacer(minLength: 0)
+            Text(subtitle)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .truncationMode(.tail)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
 }

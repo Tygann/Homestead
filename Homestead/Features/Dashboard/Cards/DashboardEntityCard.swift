@@ -352,7 +352,8 @@ struct DashboardEntityCard: View {
 
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .frame(height: cardContentMinHeight)
     }
 
     private var miniContent: some View {
