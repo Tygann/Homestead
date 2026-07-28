@@ -53,6 +53,30 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 115)
+
+- Release Date: 2026-07-28
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build introduces Homestead+ and makes entity details feel more consistent.
+
+- Start a Homestead+ trial or choose a monthly, annual, or lifetime plan
+- Unlock additional dashboards and Home Assistant servers, iCloud dashboard sync, and the full Sensor Board widget lineup
+- Keep everyday Home Assistant control, your first dashboard and server, and wallpaper personalization free
+- See cleaner, more consistent status placement across entity details
+
+Please test:
+
+- Starting a trial or purchase, restoring purchases, and confirming Homestead+ access updates correctly
+- Adding extra dashboards and servers, enabling iCloud sync, and opening each Sensor Board widget size
+- Confirming existing premium configurations remain intact if Homestead+ access ends
+
+### Internal Summary
+
+Build 115 covers the StoreKit 2 Homestead+ entitlement and purchase experience, cached entitlement sharing with widgets, premium scale-feature gates, iCloud and widget handling, purchase-flow polish and verification, and unified entity-detail hero status placement after Build 114.
+
 ## Version 1 (Build 114)
 
 - Release Date: 2026-07-26
