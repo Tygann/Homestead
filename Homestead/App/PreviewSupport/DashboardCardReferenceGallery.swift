@@ -57,6 +57,27 @@ struct DashboardCardReferenceGallery: View {
                     "temperature_unit": .string("°F"),
                     "supported_features": .number(3)
                 ]
+            ),
+            HAEntityDTO(
+                entityID: "script.good_morning",
+                state: "off",
+                attributes: [
+                    "friendly_name": .string("Good Morning")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "media_player.unavailable",
+                state: "unavailable",
+                attributes: [
+                    "friendly_name": .string("Bedroom Speaker")
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "scene.unavailable",
+                state: "unavailable",
+                attributes: [
+                    "friendly_name": .string("Evening Lights")
+                ]
             )
         ]
         entityOverrides.append(Self.sunFixture(
@@ -143,17 +164,26 @@ struct DashboardCardReferenceGallery: View {
                     kind: .action,
                     size: size
                 )
+                referenceCard(
+                    title: "Script",
+                    entityID: "script.good_morning",
+                    kind: .action,
+                    size: size
+                )
+
+                if size == .square || size == .large {
+                    referenceCard(
+                        title: "Person Profile Picture",
+                        entityID: "person.tyler",
+                        kind: .control,
+                        size: size
+                    )
+                }
 
                 if size == .large {
                     referenceCard(
                         title: "Large Thermostat",
                         entityID: "climate.downstairs",
-                        kind: .control,
-                        size: size
-                    )
-                    referenceCard(
-                        title: "Person Profile Picture",
-                        entityID: "person.tyler",
                         kind: .control,
                         size: size
                     )
@@ -195,6 +225,18 @@ struct DashboardCardReferenceGallery: View {
                     entityID: "weather.unavailable",
                     kind: .weather,
                     size: .square
+                )
+                referenceCard(
+                    title: "Unavailable Media",
+                    entityID: "media_player.unavailable",
+                    kind: .media,
+                    size: .compact
+                )
+                referenceCard(
+                    title: "Unavailable Action",
+                    entityID: "scene.unavailable",
+                    kind: .action,
+                    size: .compact
                 )
 
                 if let unavailableBox = dependencies.stateStore.entityBox(for: "sensor.chart_unavailable"),

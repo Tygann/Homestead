@@ -267,6 +267,8 @@ struct DashboardEntityCard: View {
     private func standardCardContent(visibleFeatures: [DashboardCardFeature]) -> some View {
         if size == .mini {
             miniContent
+        } else if usesPresenceCard {
+            presenceContent
         } else if presentationKind == .media, let media = entityBox.mediaPlayerEntity {
             DashboardMediaCardContent(
                 media: media,
@@ -312,6 +314,45 @@ struct DashboardEntityCard: View {
                 }
             }
         }
+    }
+
+    private var presenceContent: some View {
+        VStack(spacing: size == .large ? AppSpacing.large : AppSpacing.medium) {
+            Spacer(minLength: 0)
+
+            DashboardCardIconView(
+                presentation: presentation.iconPresentation,
+                isActive: presentation.isActive,
+                isAvailable: presentation.isAvailable,
+                accentColor: presentation.accentColor,
+                size: size == .large ? 104 : 72,
+                symbolSize: size == .large ? 46 : 32,
+                usesPreviewProfilePicture: usesPreviewProfilePicture
+            )
+
+            VStack(spacing: AppSpacing.xSmall) {
+                Text(presentation.title)
+                    .font(size == .large ? .title2.weight(.bold) : .headline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+
+                Text(presentation.isAvailable ? presentation.subtitle : "Unavailable")
+                    .font(size == .large ? .headline.weight(.medium) : .subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            if size == .large, let presenceContext {
+                Label(presenceContext, systemImage: "location.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var miniContent: some View {
@@ -866,6 +907,15 @@ struct DashboardEntityCard: View {
             compatibleFeatures = []
         }
         return size.visibleFeatures(from: compatibleFeatures).filter { featureActions.canRender($0) }
+    }
+
+    private var usesPresenceCard: Bool {
+        presentation.capability.domain == .person && (size == .square || size == .large)
+    }
+
+    private var presenceContext: String? {
+        let context = entityBox.presenceRecord?.context
+        return context?.areaName ?? context?.floorName
     }
 
     private var usesEmbeddedCardInteractions: Bool {
