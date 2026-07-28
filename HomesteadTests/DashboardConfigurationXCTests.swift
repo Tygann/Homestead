@@ -781,7 +781,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
     func testCatalogOnlyBuildsCardPresentationsWithSupportedLayouts() {
         XCTAssertNil(DashboardPresentationCatalog.cardConfiguration(kind: .chip, layout: .compact))
         XCTAssertEqual(DashboardPresentationCatalog.descriptor(for: .chart).title, "Chart")
-        XCTAssertEqual(DashboardPresentationKind.chart.defaultLayout, .wide)
+        XCTAssertEqual(DashboardPresentationKind.chart.defaultLayout, .square)
 
         for kind in DashboardPresentationKind.allCases {
             if let defaultLayout = kind.defaultLayout {
@@ -873,6 +873,45 @@ final class DashboardConfigurationXCTests: XCTestCase {
             large.unscaledCardSize.width * large.scale,
             row.unscaledCardSize.width,
             accuracy: 0.001
+        )
+    }
+
+    func testDashboardCardContentLayoutSubtractsContainerPaddingOnce() {
+        for size in DashboardCardSize.allCases {
+            let renderedHeight = size.renderedHeight(
+                rowSpacing: AppSpacing.medium,
+                cardPadding: AppSpacing.medium
+            )
+
+            let standardMetrics = DashboardCardContentLayoutMetrics(
+                renderedHeight: renderedHeight,
+                containerPadding: AppSpacing.medium
+            )
+            XCTAssertEqual(
+                standardMetrics.interiorHeight,
+                renderedHeight - (AppSpacing.medium * 2),
+                accuracy: 0.001,
+                "\(size.displayName) should expose its complete padded interior."
+            )
+
+            let gaugeMetrics = DashboardCardContentLayoutMetrics(
+                renderedHeight: renderedHeight,
+                containerPadding: AppSpacing.small
+            )
+            XCTAssertEqual(
+                gaugeMetrics.interiorHeight,
+                renderedHeight - (AppSpacing.small * 2),
+                accuracy: 0.001,
+                "\(size.displayName) gauge content should use the gauge padding exactly once."
+            )
+        }
+
+        XCTAssertEqual(
+            DashboardCardContentLayoutMetrics(
+                renderedHeight: 20,
+                containerPadding: 16
+            ).interiorHeight,
+            0
         )
     }
 
@@ -1422,7 +1461,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: light).kind, .control)
         XCTAssertEqual(
             DashboardPresentationCatalog.recommendation(for: temperature),
-            .card(.chart(layout: .wide))
+            .card(.chart(layout: .square))
         )
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: battery).kind, .status)
         XCTAssertEqual(DashboardPresentationCatalog.recommendation(for: camera).kind, .camera)

@@ -1150,12 +1150,38 @@ struct DashboardMediaCardContent: View {
 
             Spacer(minLength: 0)
 
-            nowPlayingContent(titleFont: .largeTitle.weight(.bold), titleLineLimit: 2)
+            largeNowPlayingContent
 
             Spacer(minLength: 0)
 
             secondaryControls
         }
+    }
+
+    private var largeNowPlayingContent: some View {
+        VStack(spacing: AppSpacing.xSmall) {
+            if let nowPlayingTitle {
+                Text(nowPlayingTitle)
+                    .font(.title.weight(.bold))
+                    .foregroundStyle(media.isAvailable ? Color.primary : Color.secondary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.78)
+            } else {
+                Text(media.isAvailable ? media.displayState : "Unavailable")
+                    .font(.title.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            if let context = nowPlayingContext {
+                Text(context)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func mediaHeader(subtitle: String) -> some View {

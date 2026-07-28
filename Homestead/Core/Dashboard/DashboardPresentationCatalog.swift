@@ -133,7 +133,7 @@ enum DashboardPresentationCatalog {
 
         if DashboardHistoryCardPresentation.isEligible(entityBox: entityBox, size: .square),
            entityBox.sensorEntity?.deviceClass != "battery" {
-            return .card(.chart(layout: .wide))
+            return .card(.chart(layout: .square))
         }
 
         if hasControls(entityBox) {

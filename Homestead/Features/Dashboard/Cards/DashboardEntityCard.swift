@@ -144,7 +144,7 @@ struct DashboardEntityCard: View {
                     if usesEmbeddedCardInteractions {
                         cardContent(visibleFeatures: visibleFeatureSnapshot)
                             .frame(maxWidth: .infinity)
-                            .frame(height: cardContentMinHeight, alignment: .topLeading)
+                            .frame(height: cardContainerMinHeight, alignment: .topLeading)
                     } else if !visibleFeatureSnapshot.isEmpty {
                         if gaugeFirstPresentation(from: visibleFeatureSnapshot) != nil {
                             cardContent(visibleFeatures: visibleFeatureSnapshot)
@@ -154,7 +154,7 @@ struct DashboardEntityCard: View {
                             cardContent(visibleFeatures: visibleFeatureSnapshot)
                                 .frame(
                                     maxWidth: .infinity,
-                                    minHeight: cardContentMinHeight,
+                                    minHeight: cardContainerMinHeight,
                                     alignment: .topLeading
                                 )
                         }
@@ -163,7 +163,7 @@ struct DashboardEntityCard: View {
                             cardContent(visibleFeatures: visibleFeatureSnapshot)
                                 .frame(
                                     maxWidth: .infinity,
-                                    minHeight: cardContentMinHeight,
+                                    minHeight: cardContainerMinHeight,
                                     alignment: .topLeading
                                 )
                                 .contentShape(Rectangle())
@@ -176,7 +176,7 @@ struct DashboardEntityCard: View {
                         cardContent(visibleFeatures: visibleFeatureSnapshot)
                             .frame(
                                 maxWidth: .infinity,
-                                minHeight: cardContentMinHeight,
+                                minHeight: cardContainerMinHeight,
                                 alignment: .topLeading
                             )
                     }
@@ -353,7 +353,7 @@ struct DashboardEntityCard: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: cardContentMinHeight)
+        .frame(height: cardContainerMinHeight)
     }
 
     private var miniContent: some View {
@@ -874,12 +874,11 @@ struct DashboardEntityCard: View {
         return cameraCardBorder
     }
 
-    private var cardContentMinHeight: CGFloat {
-        max(0, cardContainerMinHeight - (cardContainerPadding * 2))
-    }
-
     private var cardContainerMinHeight: CGFloat {
-        max(0, renderedCardHeight - (cardContainerPadding * 2))
+        DashboardCardContentLayoutMetrics(
+            renderedHeight: renderedCardHeight,
+            containerPadding: cardContainerPadding
+        ).interiorHeight
     }
 
     private var cardContainerPadding: CGFloat {
@@ -1067,6 +1066,17 @@ struct DashboardEntityCard: View {
             guard !Task.isCancelled else { return }
             historyPhase = .failed
         }
+    }
+}
+
+// MARK: - Layout Metrics
+
+nonisolated struct DashboardCardContentLayoutMetrics: Equatable, Sendable {
+    let renderedHeight: CGFloat
+    let containerPadding: CGFloat
+
+    var interiorHeight: CGFloat {
+        max(0, renderedHeight - (containerPadding * 2))
     }
 }
 
