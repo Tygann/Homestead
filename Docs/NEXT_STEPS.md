@@ -246,9 +246,9 @@ Recommended reasoning level: High.
 - Hardened Home Assistant WebSocket notification decoding so both the documented root-level event payload and nested `event.data` payload variants can present local notifications and send HA confirmations.
 - Kept the connected-session WebSocket notification decoder available, while remote APNs delivery now uses Home Assistant's `push_url` path through `https://api.homesteadcontrol.com/mobile-app/push`.
 - Added a native Settings > Updates page backed by Home Assistant `.update` entities.
-- Added typed update mapping and presentation helpers for installed/latest version, title/name, release summary/notes URL, skipped state, in-progress/unavailable state, entity/device/area/floor context, grouping, filtering, and search.
-- Added official Home Assistant update service actions for install, skip, and clear skipped update through WebSocket `call_service`, gated by `HomeAssistantService.serviceActionAvailable(...)` and confirmation UX for install backup choices.
-- Kept private frontend repairs, system health, admin, and update-metadata endpoints out of scope.
+- Added typed update mapping and presentation helpers for installed/latest version, title/name, release-note capability, on-demand full Markdown notes with summary/URL fallbacks, skipped state, in-progress/unavailable state, entity/device/area/floor context, grouping, filtering, and search.
+- Added official Home Assistant update service actions for install, skip, and clear skipped update through WebSocket `call_service`, gated by `HomeAssistantService.serviceActionAvailable(...)` and update-entity feature support. Individual installs are direct, while entities advertising `BACKUP` show an inline opt-in switch; Update All retains one batch confirmation.
+- Uses the official admin-only WebSocket `update/release_notes` command for complete changelogs while keeping private frontend repairs, system health, admin, and update-metadata endpoints out of scope.
 - Added a native Settings > Apps page backed by Home Assistant Core's WebSocket `supervisor/api` bridge to Supervisor `/addons`, mapping installed Supervisor apps/add-ons into app-facing rows with version, update availability, artwork, and Running/Stopped/Unknown status while treating non-Supervisor installs as unavailable.
 - Kept Settings > Apps rows compact by moving descriptions and richer metadata into a read-only app detail page.
 - Added a focused History/Charts pass for numeric `sensor.*` entities using Home Assistant's documented REST history endpoint only.

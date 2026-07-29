@@ -32,6 +32,7 @@ enum HAWebSocketMessageType {
     nonisolated static var automationConfig: String { "automation/config" }
     nonisolated static var scriptConfig: String { "script/config" }
     nonisolated static var traceList: String { "trace/list" }
+    nonisolated static var updateReleaseNotes: String { "update/release_notes" }
     nonisolated static var weatherSubscribeForecast: String { "weather/subscribe_forecast" }
 }
 
@@ -121,6 +122,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case automationConfig(id: Int, entityID: String)
     case scriptConfig(id: Int, entityID: String)
     case traceList(id: Int, domain: String, itemID: String)
+    case updateReleaseNotes(id: Int, entityID: String)
     case subscribeWeatherForecast(id: Int, entityID: String, forecastType: WeatherForecastType)
     case callService(
         id: Int,
@@ -229,6 +231,10 @@ enum HAWebSocketRequest: Encodable, Sendable {
             try container.encode(HAWebSocketMessageType.traceList, forKey: .type)
             try container.encode(domain, forKey: .domain)
             try container.encode(itemID, forKey: .itemID)
+        case .updateReleaseNotes(let id, let entityID):
+            try container.encode(id, forKey: .id)
+            try container.encode(HAWebSocketMessageType.updateReleaseNotes, forKey: .type)
+            try container.encode(entityID, forKey: .entityID)
         case .subscribeWeatherForecast(let id, let entityID, let forecastType):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.weatherSubscribeForecast, forKey: .type)

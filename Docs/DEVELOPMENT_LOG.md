@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-07-29
 
+### Native Update Release Notes
+
+- Added Home Assistant's official admin-only WebSocket `update/release_notes` request for update entities that advertise the `RELEASE_NOTES` feature.
+- Rendered full changelogs on demand in Settings > Updates with native headings, nested lists, emphasis, links, quotes, and code blocks, while retaining state-provided summaries and release URLs as non-admin/error fallbacks.
+- Aligned update details with Home Assistant's entity contract: relative state-change time replaces the inaccurate `Last checked` row, redundant device names are suppressed, install requires the `INSTALL` feature, and `BACKUP` produces an inline opt-in switch instead of an individual-install confirmation.
+- Reworked the detail around an App Store-inspired identity row with a capsule Update button and plain `What’s New` content. Backup is a quiet divided option beneath the hero, Skip moved into the overflow menu, and redundant leading version headings are removed from fetched notes. Update All retains one batch confirmation.
+- Added deterministic Matter, long Samba, loading, and failed-fetch detail fixtures plus focused transport, mapping, service, and Markdown-structure coverage.
+
 ### TestFlight Entitlement Recovery
 
 - Confirmed a real TestFlight annual trial was active in Apple's sandbox while Homestead remained on the Free tier and explicit purchase restoration failed.

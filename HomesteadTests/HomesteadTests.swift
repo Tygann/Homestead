@@ -2958,6 +2958,7 @@ struct HomesteadTests {
                 "latest_version": .string("2026.6.1"),
                 "release_summary": .string("Fixes and polish."),
                 "release_url": .string("https://www.home-assistant.io/blog/2026/06/01/release-20266/"),
+                "supported_features": .number(17),
                 "entity_picture": .string("/api/image/core-update"),
                 "device_class": .string("firmware")
             ],
@@ -2981,6 +2982,7 @@ struct HomesteadTests {
         #expect(update.latestVersion == "2026.6.1")
         #expect(update.releaseSummary == "Fixes and polish.")
         #expect(update.releaseURLString?.contains("release-20266") == true)
+        #expect(update.supportsReleaseNotes)
         #expect(update.entityPicturePath == "/api/image/core-update")
         #expect(update.status == .available)
         #expect(update.iconSystemName == "memorychip.fill")
@@ -6037,12 +6039,16 @@ struct HomesteadTests {
     @Test func updateSettingsActionAvailabilityMatchesStatusAndServiceCatalog() throws {
         let available = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
             entityID: "update.core",
-            state: "on"
+            state: "on",
+            attributes: ["supported_features": .number(1)]
         )))
         let skipped = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
             entityID: "update.router",
             state: "off",
-            attributes: ["skipped_version": .string("7.2")]
+            attributes: [
+                "skipped_version": .string("7.2"),
+                "supported_features": .number(1)
+            ]
         )))
         let availableServices: Set<String> = [
             "update.install",
@@ -6078,12 +6084,18 @@ struct HomesteadTests {
         let availableCore = HAEntityDTO(
             entityID: "update.home_assistant_core_update",
             state: "on",
-            attributes: ["friendly_name": .string("Home Assistant Core")]
+            attributes: [
+                "friendly_name": .string("Home Assistant Core"),
+                "supported_features": .number(1)
+            ]
         )
         let availableRouter = HAEntityDTO(
             entityID: "update.router_firmware",
             state: "on",
-            attributes: ["friendly_name": .string("Router Firmware")]
+            attributes: [
+                "friendly_name": .string("Router Firmware"),
+                "supported_features": .number(1)
+            ]
         )
         let currentBridge = HAEntityDTO(
             entityID: "update.bridge",
@@ -11105,6 +11117,9 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     private(set) var fetchSupervisorAppsCount = 0
     private(set) var fetchSupervisorInfoCount = 0
     private(set) var fetchOperatingSystemInfoCount = 0
+    private(set) var updateReleaseNotesEntityIDs: [String] = []
+    var updateReleaseNotes: String?
+    var updateReleaseNotesError: Error?
 
     init(currentUser: HACurrentUserDTO? = nil, states: [HAEntityDTO] = []) {
         self.currentUser = currentUser
@@ -11254,6 +11269,14 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return operatingSystemInfo
+    }
+
+    func fetchUpdateReleaseNotes(entityID: String) async throws -> String? {
+        updateReleaseNotesEntityIDs.append(entityID)
+        if let updateReleaseNotesError {
+            throw updateReleaseNotesError
+        }
+        return updateReleaseNotes
     }
 
     func fetchAutomationConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO {

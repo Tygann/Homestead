@@ -9,6 +9,7 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
     let skippedVersion: String?
     let releaseSummary: String?
     let releaseURLString: String?
+    let supportedFeatures: HAUpdateEntityFeatures
     let entityPicturePath: String?
     let deviceClass: String?
     let isAvailable: Bool
@@ -17,11 +18,26 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
     let progress: Double?
     let state: String
     let resolvedIcon: ResolvedIcon
+    let lastChanged: Date?
     let lastUpdated: Date?
     let context: HAUpdateContext
 
     var id: String { entityID }
     var isSkipped: Bool { skippedVersion != nil }
+    var supportsInstall: Bool { supportedFeatures.contains(.install) }
+    var supportsSpecificVersion: Bool { supportedFeatures.contains(.specificVersion) }
+    var supportsBackup: Bool { supportedFeatures.contains(.backup) }
+    var supportsReleaseNotes: Bool { supportedFeatures.contains(.releaseNotes) }
+    var displayTitle: String { title.trimmingUpdateSuffix }
+
+    var distinctDeviceName: String? {
+        guard let deviceName = context.deviceName?.nonEmptyUpdateValue else {
+            return nil
+        }
+
+        let comparedNames = [displayTitle, title, name].map(\.normalizedUpdateName)
+        return comparedNames.contains(deviceName.normalizedUpdateName) ? nil : deviceName
+    }
 
     var status: HAUpdateStatus {
         if !isAvailable {
@@ -99,6 +115,16 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
 
         return searchableText.localizedCaseInsensitiveContains(trimmedQuery)
     }
+}
+
+struct HAUpdateEntityFeatures: OptionSet, Equatable, Sendable {
+    let rawValue: Int
+
+    static let install = HAUpdateEntityFeatures(rawValue: 1 << 0)
+    static let specificVersion = HAUpdateEntityFeatures(rawValue: 1 << 1)
+    static let progress = HAUpdateEntityFeatures(rawValue: 1 << 2)
+    static let backup = HAUpdateEntityFeatures(rawValue: 1 << 3)
+    static let releaseNotes = HAUpdateEntityFeatures(rawValue: 1 << 4)
 }
 
 struct HAUpdateContext: Equatable, Sendable {
@@ -407,24 +433,27 @@ struct HAUpdateSettingsActionAvailability: Equatable, Sendable {
         let clearSkippedServiceAvailable = serviceActionAvailable("update", "clear_skipped")
 
         return HAUpdateSettingsActionAvailability(
-            canInstall: installServiceAvailable && update.status == .available,
+            canInstall: installServiceAvailable && update.supportsInstall && update.status == .available,
             canSkip: skipServiceAvailable && update.status == .available,
             canClearSkipped: clearSkippedServiceAvailable && update.status == .skipped,
             installUnavailableReason: unavailableReason(
                 update: update,
                 serviceAvailable: installServiceAvailable,
+                featureAvailable: update.supportsInstall,
                 requiredStatus: .available,
                 action: "Install"
             ),
             skipUnavailableReason: unavailableReason(
                 update: update,
                 serviceAvailable: skipServiceAvailable,
+                featureAvailable: true,
                 requiredStatus: .available,
                 action: "Skip"
             ),
             clearSkippedUnavailableReason: unavailableReason(
                 update: update,
                 serviceAvailable: clearSkippedServiceAvailable,
+                featureAvailable: true,
                 requiredStatus: .skipped,
                 action: "Clear skipped"
             )
@@ -434,11 +463,16 @@ struct HAUpdateSettingsActionAvailability: Equatable, Sendable {
     private static func unavailableReason(
         update: HAUpdateEntity,
         serviceAvailable: Bool,
+        featureAvailable: Bool,
         requiredStatus: HAUpdateStatus,
         action: String
     ) -> String? {
         guard serviceAvailable else {
             return "\(action) is not available on this Home Assistant server."
+        }
+
+        guard featureAvailable else {
+            return "This update does not support \(action.lowercased())."
         }
 
         guard update.isAvailable else {
@@ -491,6 +525,9 @@ extension EntityMapper {
             skippedVersion: dto.attributes["skipped_version"]?.stringValue?.nonEmptyUpdateValue,
             releaseSummary: dto.attributes["release_summary"]?.stringValue?.nonEmptyUpdateValue,
             releaseURLString: dto.attributes["release_url"]?.stringValue?.nonEmptyUpdateValue,
+            supportedFeatures: HAUpdateEntityFeatures(
+                rawValue: dto.attributes["supported_features"]?.intValue ?? 0
+            ),
             entityPicturePath: dto.attributes["entity_picture"]?.stringValue?.nonEmptyUpdateValue,
             deviceClass: dto.attributes["device_class"]?.stringValue?.nonEmptyUpdateValue,
             isAvailable: !["unavailable", "unknown"].contains(state),
@@ -499,6 +536,7 @@ extension EntityMapper {
             progress: inProgress.progress,
             state: state,
             resolvedIcon: resolvedIcon ?? homeEntity(from: dto).resolvedIcon,
+            lastChanged: dto.lastChanged,
             lastUpdated: dto.lastUpdated,
             context: HAUpdateContext(
                 deviceID: deviceID?.nonEmptyUpdateValue,
@@ -526,6 +564,26 @@ extension EntityMapper {
         case .object, .array, .null, nil:
             return (false, nil)
         }
+    }
+}
+
+private extension String {
+    var trimmingUpdateSuffix: String {
+        let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffix = " Update"
+        guard let range = trimmedValue.range(of: suffix, options: [.caseInsensitive, .backwards]),
+              range.upperBound == trimmedValue.endIndex else {
+            return trimmedValue
+        }
+
+        let result = trimmedValue[..<range.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.isEmpty ? trimmedValue : result
+    }
+
+    var normalizedUpdateName: String {
+        trimmingUpdateSuffix
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

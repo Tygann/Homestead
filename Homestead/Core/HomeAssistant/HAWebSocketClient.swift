@@ -26,6 +26,7 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func fetchAutomationConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO
     func fetchScriptConfiguration(entityID: String) async throws -> HAAutomationConfigurationResponseDTO
     func fetchAutomationTraces(itemID: String) async throws -> [HAAutomationTraceDTO]
+    func fetchUpdateReleaseNotes(entityID: String) async throws -> String?
     func subscribeToStateChanges() async throws
     func subscribeToRegistryChanges() async throws
     func unsubscribeFromStateChanges() async throws
@@ -356,6 +357,24 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         let response = try await sendRequest(.traceList(id: id, domain: "automation", itemID: itemID), id: id)
         guard let result = response.result else { throw HAWebSocketError.missingResult }
         return try result.decoded([HAAutomationTraceDTO].self)
+    }
+
+    func fetchUpdateReleaseNotes(entityID: String) async throws -> String? {
+        let id = makeRequestID()
+        let response = try await sendRequest(
+            .updateReleaseNotes(id: id, entityID: entityID),
+            id: id
+        )
+
+        guard let result = response.result else {
+            return nil
+        }
+
+        guard let releaseNotes = result.stringValue else {
+            throw HAWebSocketError.requestFailed("Home Assistant returned invalid update release notes.")
+        }
+
+        return releaseNotes
     }
 
     func subscribeToStateChanges() async throws {

@@ -240,6 +240,8 @@ struct HomesteadApp: App {
             ContentView()
         case .settings:
             SettingsReferenceGallery()
+        case .updates:
+            UpdateDetailReferenceScreen()
         case .widgets:
             WidgetReferenceGallery()
         }

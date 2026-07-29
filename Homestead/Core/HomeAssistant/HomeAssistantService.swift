@@ -1005,9 +1005,13 @@ final class HomeAssistantService {
         )
     }
 
-    func installAvailableUpdates(_ updates: [HAUpdateEntity], backup: Bool) async {
-        for update in updates where update.status == .available {
-            await installUpdate(entityID: update.entityID, backup: backup)
+    func installAvailableUpdates(_ updates: [HAUpdateEntity], backup: Bool? = nil) async {
+        for update in updates where update.status == .available && update.supportsInstall {
+            await installUpdate(
+                entityID: update.entityID,
+                backup: backup,
+                version: update.supportsSpecificVersion ? update.latestVersion : nil
+            )
         }
     }
 
@@ -1027,6 +1031,10 @@ final class HomeAssistantService {
             entityID: entityID,
             successTitle: "Skipped update cleared"
         )
+    }
+
+    func fetchUpdateReleaseNotes(entityID: String) async throws -> String? {
+        try await client.fetchUpdateReleaseNotes(entityID: entityID)
     }
 
     func fetchCameraSnapshot(entityID: String) async throws -> Data {
