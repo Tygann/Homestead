@@ -160,52 +160,24 @@ private struct UpdateRowContent: View {
 }
 
 struct UpdateIconView: View {
-    @Environment(HAConnectionSettings.self) private var connectionSettings
-    @Environment(HomeAssistantService.self) private var homeAssistantService
-
     let update: HAUpdateEntity
     let size: CGFloat
 
     var body: some View {
-        HomeAssistantAsyncImage(
-            id: taskID,
-            request: {
-                guard let entityPicturePath = update.entityPicturePath else {
-                    return nil
-                }
-
-                return await homeAssistantService.homeAssistantImageRequest(
-                    settings: connectionSettings,
-                    pathOrURL: entityPicturePath
+        SoftwareArtworkIconView(
+            id: update.entityID,
+            imagePath: update.entityPicturePath,
+            size: size
+        ) {
+            HomesteadIconView(icon: update.resolvedIcon, pointSize: size * 0.42)
+                .foregroundStyle(update.status.tint)
+                .frame(width: size, height: size)
+                .background(
+                    update.status.tint.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: max(10, size * 0.22), style: .continuous)
                 )
-            }
-        ) { image in
-            if let image {
-                image
-                    .resizable()
-                    .scaledToFit()
-                    .padding(3)
-            } else {
-                HomesteadIconView(icon: update.resolvedIcon, pointSize: size * 0.42)
-                    .foregroundStyle(update.status.tint)
-                    .frame(width: size, height: size)
-                    .background(update.status.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .accessibilityHidden(true)
     }
-
-    private var taskID: String {
-        [
-            connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
-            homeAssistantService.authState.title,
-            homeAssistantService.connectionStatus.title,
-            update.entityPicturePath ?? "no-picture"
-        ].joined(separator: "|")
-    }
-
 }
 
 private struct UpdateRowAction: View {

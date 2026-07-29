@@ -137,7 +137,9 @@ private struct SupervisorAppRow: View {
     let app: HASupervisorApp
 
     var body: some View {
-        Label {
+        HStack(spacing: AppSpacing.small) {
+            SupervisorAppArtworkView(app: app, kind: .icon, height: 52)
+
             HStack(alignment: .center, spacing: AppSpacing.medium) {
                 VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                     Text(app.name)
@@ -172,10 +174,8 @@ private struct SupervisorAppRow: View {
                     .padding(.vertical, 4)
                     .background(statusTint.opacity(0.12), in: Capsule())
             }
-            .padding(.vertical, AppSpacing.xSmall)
-        } icon: {
-            SupervisorAppArtworkView(app: app, kind: .icon, height: 34)
         }
+        .padding(.vertical, AppSpacing.xSmall)
     }
 
     private var versionText: String? {

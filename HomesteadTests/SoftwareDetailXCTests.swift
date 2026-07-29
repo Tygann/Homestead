@@ -2,6 +2,25 @@ import XCTest
 @testable import Homestead
 
 final class SoftwareDetailXCTests: XCTestCase {
+    func testSoftwareRelativeTimeUsesCompactAppStoreStyleUnits() {
+        let referenceDate = Date(timeIntervalSince1970: 2_000_000_000)
+
+        XCTAssertEqual(
+            SoftwareRelativeTimeFormatter.string(
+                for: referenceDate.addingTimeInterval(-4 * 3_600),
+                relativeTo: referenceDate
+            ),
+            "4h ago"
+        )
+        XCTAssertEqual(
+            SoftwareRelativeTimeFormatter.string(
+                for: referenceDate.addingTimeInterval(-13 * 3_600),
+                relativeTo: referenceDate
+            ),
+            "13h ago"
+        )
+    }
+
     func testSupervisorAppInfoDecodesDetailMetadata() throws {
         let payload = """
         {

@@ -38,6 +38,8 @@ Recommended reasoning level: High.
 
 ## Completed Chunk
 
+- Unified Apps and Updates around one App Store-inspired software detail surface. Authenticated add-on banners now use a fully opaque artwork-derived blurred backdrop with `backgroundExtensionEffect()` confined to the top toolbar extension, while the crisp banner has no side gradients or masks. Apps and Updates share the same 52-point rounded icon renderer, transparent icons receive contrast-adjusted artwork-derived backdrops, and last-changed times use compact units such as `4h ago`.
+
 - Centralized entity frontend handoff in the entity toolbar menu, modernized Select's detail control with a compact dashboard-surface native checked menu, shared the full Climate control composition with header-free Large dashboard cards, and standardized centered Mini presentation with state-aware icons plus Person photo/icon-override precedence.
 
 - Replaced Climate's compact target rows at standard text sizes with a native-feeling 240-degree thermostat instrument. Single targets use one semantic handle; Heat/Cool exposes a blue low endpoint, warm high endpoint, selected-span gradient, direct dragging with step haptics, degree-free visual values, and a unified precision capsule. Mode, Fan, and Preset now share one adaptive compact row when space permits, with a stacked fallback and native accessibility-size rows; the existing Home Assistant command pipeline remains unchanged.

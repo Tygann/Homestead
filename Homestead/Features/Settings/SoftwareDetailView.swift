@@ -748,9 +748,7 @@ struct SoftwareDetailView: View {
     }
 
     private func relativeDescription(for date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: date, relativeTo: Date())
+        SoftwareRelativeTimeFormatter.string(for: date)
     }
 
     private func validURL(_ value: String?) -> URL? {
@@ -799,6 +797,29 @@ struct SoftwareDetailView: View {
                 }
             }
         )
+    }
+}
+
+nonisolated enum SoftwareRelativeTimeFormatter {
+    static func string(for date: Date, relativeTo referenceDate: Date = Date()) -> String {
+        let elapsed = max(0, referenceDate.timeIntervalSince(date))
+
+        switch elapsed {
+        case ..<60:
+            return "Now"
+        case ..<3_600:
+            return "\(Int(elapsed / 60))m ago"
+        case ..<86_400:
+            return "\(Int(elapsed / 3_600))h ago"
+        case ..<604_800:
+            return "\(Int(elapsed / 86_400))d ago"
+        case ..<2_592_000:
+            return "\(Int(elapsed / 604_800))w ago"
+        case ..<31_536_000:
+            return "\(Int(elapsed / 2_592_000))mo ago"
+        default:
+            return "\(Int(elapsed / 31_536_000))y ago"
+        }
     }
 }
 
