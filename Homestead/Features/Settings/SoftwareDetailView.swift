@@ -111,6 +111,7 @@ struct SoftwareDetailView: View {
     private var heroArtwork: some View {
         if let app, app.hasLogo {
             SupervisorAppArtworkView(app: app, kind: .logo, height: 220)
+                .containerRelativeFrame(.horizontal)
                 .frame(maxWidth: .infinity)
         }
     }

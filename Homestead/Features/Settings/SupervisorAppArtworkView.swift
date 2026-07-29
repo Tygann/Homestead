@@ -63,25 +63,31 @@ struct SupervisorAppArtworkView: View {
                 .scaledToFit()
                 .padding(imagePadding)
         case .logo:
-            ZStack {
-                Color(.secondarySystemBackground)
+            GeometryReader { proxy in
+                ZStack {
+                    Color(.secondarySystemBackground)
 
-                image
-                    .resizable()
-                    .scaledToFill()
-                    .saturation(1.2)
-                    .scaleEffect(1.18)
-                    .blur(radius: 32, opaque: true)
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .saturation(1.2)
+                        .scaleEffect(1.18)
+                        .blur(radius: 32, opaque: true)
 
-                bannerContrastOverlay
+                    bannerContrastOverlay
 
-                image
-                    .resizable()
-                    .scaledToFit()
-                    .padding(.horizontal, AppSpacing.large)
-                    .padding(.vertical, AppSpacing.medium)
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(
+                            width: max(0, proxy.size.width - (AppSpacing.large * 2)),
+                            height: max(0, proxy.size.height - (AppSpacing.medium * 2))
+                        )
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
             }
-            .clipped()
         }
     }
 
