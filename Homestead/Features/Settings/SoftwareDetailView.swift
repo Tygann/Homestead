@@ -40,7 +40,6 @@ struct SoftwareDetailView: View {
                         heroArtwork
                         identitySection
                         metadataSection
-                        lifecycleControlsSection
 
                         if let update, update.supportsBackup, actionAvailability(for: update).canInstall {
                             sectionDivider
@@ -70,7 +69,7 @@ struct SoftwareDetailView: View {
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            updateActionsMenu
+            softwareActionsMenu
         }
         .confirmationDialog(
             lifecycleConfirmationTitle,
@@ -165,9 +164,11 @@ struct SoftwareDetailView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
 
+                Spacer(minLength: AppSpacing.xSmall)
+
                 primaryAction
-                    .padding(.top, AppSpacing.xSmall)
             }
+            .frame(height: identityArtworkSize, alignment: .top)
 
             Spacer(minLength: 0)
         }
@@ -178,10 +179,14 @@ struct SoftwareDetailView: View {
     @ViewBuilder
     private var identityArtwork: some View {
         if let app {
-            SupervisorAppArtworkView(app: app, kind: .icon, height: 82)
+            SupervisorAppArtworkView(app: app, kind: .icon, height: identityArtworkSize)
         } else if let update {
-            UpdateIconView(update: update, size: 82)
+            UpdateIconView(update: update, size: identityArtworkSize)
         }
+    }
+
+    private var identityArtworkSize: CGFloat {
+        108
     }
 
     private var identitySubtitle: String {
@@ -218,6 +223,13 @@ struct SoftwareDetailView: View {
             Text("Update Available")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.orange)
+        } else if update?.status == .upToDate || (update == nil && app?.updateAvailable == false) {
+            Text("Up to Date")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, AppSpacing.medium)
+                .padding(.vertical, AppSpacing.xSmall)
+                .background(Color.secondary.opacity(0.14), in: Capsule())
         } else if let update {
             Text(update.status.title)
                 .font(.caption.weight(.semibold))
@@ -289,63 +301,6 @@ struct SoftwareDetailView: View {
         }
 
         return items
-    }
-
-    // MARK: - App Controls
-
-    @ViewBuilder
-    private var lifecycleControlsSection: some View {
-        if homeAssistantService.currentUserIsAdmin, let app {
-            switch app.status {
-            case .running:
-                sectionDivider
-                lifecycleControls(
-                    actions: [.stop, .restart]
-                )
-            case .stopped:
-                sectionDivider
-                lifecycleControls(
-                    actions: [.start]
-                )
-            case .unknown:
-                EmptyView()
-            }
-        }
-    }
-
-    private func lifecycleControls(actions: [HASupervisorAppLifecycleAction]) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Text("Controls")
-                .font(.title2.bold())
-
-            HStack(spacing: AppSpacing.small) {
-                ForEach(actions, id: \.self) { action in
-                    lifecycleButton(action)
-                }
-            }
-        }
-        .padding(.horizontal, AppSpacing.medium)
-        .padding(.vertical, AppSpacing.medium)
-    }
-
-    private func lifecycleButton(_ action: HASupervisorAppLifecycleAction) -> some View {
-        Button {
-            requestLifecycleAction(action)
-        } label: {
-            Label(action.title, systemImage: action.systemImage)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
-        .tint(action == .stop ? .red : .accentColor)
-        .disabled(lifecycleActionInProgress != nil)
-        .overlay {
-            if lifecycleActionInProgress == action {
-                ProgressView()
-                    .controlSize(.small)
-            }
-        }
-        .opacity(lifecycleActionInProgress == action ? 0.6 : 1)
     }
 
     // MARK: - Update Sections
@@ -639,34 +594,85 @@ struct SoftwareDetailView: View {
     }
 
     @ToolbarContentBuilder
-    private var updateActionsMenu: some ToolbarContent {
-        if let update {
-            let availability = actionAvailability(for: update)
-
-            if availability.canSkip || availability.canClearSkipped {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        if availability.canSkip {
-                            Button {
-                                Task { await homeAssistantService.skipUpdate(entityID: update.entityID) }
-                            } label: {
-                                Label("Skip This Version", systemImage: "forward")
-                            }
-                        }
-
-                        if availability.canClearSkipped {
-                            Button {
-                                Task { await homeAssistantService.clearSkippedUpdate(entityID: update.entityID) }
-                            } label: {
-                                Label("Show This Version Again", systemImage: "arrow.uturn.backward")
-                            }
-                        }
-                    } label: {
-                        Label("More", systemImage: "ellipsis")
-                    }
+    private var softwareActionsMenu: some ToolbarContent {
+        if hasSoftwareMenuActions {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    lifecycleMenuActions
+                    updateMenuActions
+                } label: {
+                    Label("More", systemImage: "ellipsis")
                 }
             }
         }
+    }
+
+    private var hasSoftwareMenuActions: Bool {
+        if !lifecycleActions.isEmpty {
+            return true
+        }
+
+        guard let update else { return false }
+        let availability = actionAvailability(for: update)
+        return availability.canSkip || availability.canClearSkipped
+    }
+
+    private var lifecycleActions: [HASupervisorAppLifecycleAction] {
+        guard homeAssistantService.currentUserIsAdmin, let app else { return [] }
+
+        switch app.status {
+        case .running:
+            return [.stop, .restart]
+        case .stopped:
+            return [.start]
+        case .unknown:
+            return []
+        }
+    }
+
+    @ViewBuilder
+    private var lifecycleMenuActions: some View {
+        ForEach(lifecycleActions, id: \.self) { action in
+            Button(role: action == .stop ? .destructive : nil) {
+                requestLifecycleAction(action)
+            } label: {
+                Label(action.title, systemImage: action.systemImage)
+            }
+            .disabled(lifecycleActionInProgress != nil)
+        }
+
+        if !lifecycleActions.isEmpty, hasUpdateMenuActions {
+            Divider()
+        }
+    }
+
+    @ViewBuilder
+    private var updateMenuActions: some View {
+        if let update {
+            let availability = actionAvailability(for: update)
+
+            if availability.canSkip {
+                Button {
+                    Task { await homeAssistantService.skipUpdate(entityID: update.entityID) }
+                } label: {
+                    Label("Skip This Version", systemImage: "forward")
+                }
+            }
+
+            if availability.canClearSkipped {
+                Button {
+                    Task { await homeAssistantService.clearSkippedUpdate(entityID: update.entityID) }
+                } label: {
+                    Label("Show This Version Again", systemImage: "arrow.uturn.backward")
+                }
+            }
+        }
+    }
+
+    private var hasUpdateMenuActions: Bool {
+        guard let update else { return false }
+        let availability = actionAvailability(for: update)
+        return availability.canSkip || availability.canClearSkipped
     }
 
     // MARK: - Loading

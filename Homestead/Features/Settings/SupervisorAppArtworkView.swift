@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SupervisorAppArtworkView: View {
     enum Kind: Equatable {
@@ -10,38 +11,25 @@ struct SupervisorAppArtworkView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(\.colorScheme) private var colorScheme
 
+    @State private var loadedImage: UIImage?
+    @State private var artworkPalette: SupervisorArtworkPalette?
+
     let app: HASupervisorApp
     let kind: Kind
     let height: CGFloat
 
     var body: some View {
-        Group {
-            if kind == .logo {
-                authenticatedArtwork
-                    .backgroundExtensionEffect()
-            } else {
-                authenticatedArtwork
-            }
-        }
+        authenticatedArtwork
         .accessibilityHidden(true)
     }
 
     private var authenticatedArtwork: some View {
-        HomeAssistantAsyncImage(
-            id: taskID,
-            request: {
-                guard let imagePath else {
-                    return nil
-                }
-
-                return await homeAssistantService.homeAssistantImageRequest(
-                    settings: connectionSettings,
-                    pathOrURL: imagePath
+        Group {
+            if let loadedImage {
+                loadedArtwork(
+                    Image(uiImage: loadedImage),
+                    palette: artworkPalette
                 )
-            }
-        ) { image in
-            if let image {
-                loadedArtwork(image)
             } else {
                 fallbackArtwork
             }
@@ -51,49 +39,45 @@ struct SupervisorAppArtworkView: View {
             height: height
         )
         .frame(maxWidth: kind == .logo ? .infinity : nil)
-        .clipShape(clipShape)
+        .modifier(SupervisorArtworkClipModifier(kind: kind, cornerRadius: iconCornerRadius))
+        .task(id: taskID) {
+            await loadArtwork()
+        }
     }
 
     @ViewBuilder
-    private func loadedArtwork(_ image: Image) -> some View {
+    private func loadedArtwork(
+        _ image: Image,
+        palette: SupervisorArtworkPalette?
+    ) -> some View {
         switch kind {
         case .icon:
             GeometryReader { proxy in
                 ZStack {
-                    Color(.secondarySystemBackground)
-
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .scaleEffect(1.08)
-                        .blur(radius: height * 0.18, opaque: true)
+                    Color.clear
 
                     image
                         .resizable()
                         .scaledToFit()
-                        .frame(
-                            width: max(0, proxy.size.width - (imagePadding * 2)),
-                            height: max(0, proxy.size.height - (imagePadding * 2))
-                        )
-
-                    bannerContrastOverlay
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .shadow(color: iconContrastHalo, radius: 2)
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .clipped()
+                .overlay {
+                    RoundedRectangle(cornerRadius: iconCornerRadius, style: .continuous)
+                        .strokeBorder(iconBorderColor, lineWidth: 0.5)
+                }
             }
         case .logo:
             GeometryReader { proxy in
                 ZStack {
-                    Color(.secondarySystemBackground)
-
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .saturation(1.1)
-                        .scaleEffect(1.08)
-                        .blur(radius: 44, opaque: true)
+                    bannerBackdrop(palette)
+                        .frame(
+                            width: proxy.size.width,
+                            height: proxy.size.height + bannerTopExtension
+                        )
+                        .offset(y: -(bannerTopExtension / 2))
 
                     image
                         .resizable()
@@ -102,31 +86,80 @@ struct SupervisorAppArtworkView: View {
                             width: max(0, proxy.size.width - (AppSpacing.small * 2)),
                             height: max(0, proxy.size.height - (AppSpacing.medium * 2))
                         )
-                        .mask {
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .clear, location: 0),
-                                    .init(color: .black, location: 0.12),
-                                    .init(color: .black, location: 0.88),
-                                    .init(color: .clear, location: 1)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        }
-
-                    bannerContrastOverlay
+                        .mask(verticalBannerFeather)
+                        .mask(horizontalBannerFeather)
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
-                .clipped()
             }
         }
     }
 
-    private var bannerContrastOverlay: Color {
+    @MainActor
+    private func loadArtwork() async {
+        loadedImage = nil
+        artworkPalette = nil
+
+        guard let imagePath,
+              let request = await homeAssistantService.homeAssistantImageRequest(
+                settings: connectionSettings,
+                pathOrURL: imagePath
+              ),
+              let image = await HomeAssistantImageCache.shared.image(for: request),
+              !Task.isCancelled else {
+            return
+        }
+
+        loadedImage = image
+        artworkPalette = SupervisorArtworkPalette(image: image)
+    }
+
+    private func bannerBackdrop(_ palette: SupervisorArtworkPalette?) -> some View {
+        LinearGradient(
+            colors: palette?.colors ?? [
+                Color(.secondarySystemBackground),
+                Color(.tertiarySystemBackground)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    private var iconContrastHalo: Color {
         colorScheme == .dark
-            ? Color.black.opacity(0.04)
-            : Color.white.opacity(0.02)
+            ? Color.white.opacity(0.2)
+            : Color.black.opacity(0.14)
+    }
+
+    private var iconBorderColor: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.12)
+            : Color.black.opacity(0.1)
+    }
+
+    private var verticalBannerFeather: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0),
+                .init(color: .black, location: 0.08),
+                .init(color: .black, location: 0.92),
+                .init(color: .clear, location: 1)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private var horizontalBannerFeather: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0),
+                .init(color: .black, location: 0.06),
+                .init(color: .black, location: 0.94),
+                .init(color: .clear, location: 1)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
     }
 
     private var imagePath: String? {
@@ -146,10 +179,6 @@ struct SupervisorAppArtworkView: View {
             imagePath ?? "no-image",
             kind == .logo ? "logo" : "icon"
         ].joined(separator: "|")
-    }
-
-    private var imagePadding: CGFloat {
-        kind == .icon ? height * 0.06 : height * 0.12
     }
 
     @ViewBuilder
@@ -183,13 +212,133 @@ struct SupervisorAppArtworkView: View {
         }
     }
 
-    private var clipShape: AnyShape {
-        switch kind {
-        case .icon:
-            AnyShape(RoundedRectangle(cornerRadius: max(10, height * 0.22), style: .continuous))
-        case .logo:
-            AnyShape(Rectangle())
+    private var iconCornerRadius: CGFloat {
+        max(10, height * 0.22)
+    }
+
+    private var bannerTopExtension: CGFloat {
+        180
+    }
+}
+
+private struct SupervisorArtworkClipModifier: ViewModifier {
+    let kind: SupervisorAppArtworkView.Kind
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        if kind == .icon {
+            content.clipShape(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
+        } else {
+            content
         }
+    }
+}
+
+private struct SupervisorArtworkPalette {
+    let colors: [Color]
+
+    init?(image: UIImage) {
+        let sampleSize = CGSize(width: 12, height: 12)
+        let renderer = UIGraphicsImageRenderer(size: sampleSize)
+        let sample = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: sampleSize))
+        }
+
+        guard let cgImage = sample.cgImage else {
+            return nil
+        }
+
+        let width = 12
+        let height = 12
+        let bytesPerPixel = 4
+        let bytesPerRow = width * bytesPerPixel
+        var pixels = [UInt8](repeating: 0, count: height * bytesPerRow)
+
+        guard let context = CGContext(
+            data: &pixels,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue |
+                CGBitmapInfo.byteOrder32Big.rawValue
+        ) else {
+            return nil
+        }
+
+        context.interpolationQuality = .medium
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        let sampledColors = pixels.withUnsafeBufferPointer { buffer in
+            guard let bytes = buffer.baseAddress else {
+                return (UIColor?.none, UIColor?.none)
+            }
+
+            let leadingColor = Self.averageColor(
+                bytes: bytes,
+                bytesPerPixel: bytesPerPixel,
+                bytesPerRow: bytesPerRow,
+                xRange: 0..<max(1, width / 3),
+                yRange: 0..<height
+            )
+            let trailingColor = Self.averageColor(
+                bytes: bytes,
+                bytesPerPixel: bytesPerPixel,
+                bytesPerRow: bytesPerRow,
+                xRange: max(0, width - max(1, width / 3))..<width,
+                yRange: 0..<height
+            )
+            return (leadingColor, trailingColor)
+        }
+
+        guard let leadingColor = sampledColors.0 ?? sampledColors.1,
+              let trailingColor = sampledColors.1 ?? sampledColors.0 else {
+            return nil
+        }
+
+        colors = [Color(uiColor: leadingColor), Color(uiColor: trailingColor)]
+    }
+
+    private static func averageColor(
+        bytes: UnsafePointer<UInt8>,
+        bytesPerPixel: Int,
+        bytesPerRow: Int,
+        xRange: Range<Int>,
+        yRange: Range<Int>
+    ) -> UIColor? {
+        guard bytesPerPixel >= 4 else { return nil }
+
+        var redTotal = 0.0
+        var greenTotal = 0.0
+        var blueTotal = 0.0
+        var weightTotal = 0.0
+
+        for y in yRange {
+            for x in xRange {
+                let offset = (y * bytesPerRow) + (x * bytesPerPixel)
+                let red = Double(bytes[offset])
+                let green = Double(bytes[offset + 1])
+                let blue = Double(bytes[offset + 2])
+                let alpha = Double(bytes[offset + 3]) / 255
+
+                guard alpha > 0.08 else { continue }
+                redTotal += red * alpha
+                greenTotal += green * alpha
+                blueTotal += blue * alpha
+                weightTotal += alpha
+            }
+        }
+
+        guard weightTotal > 0 else { return nil }
+        return UIColor(
+            red: redTotal / weightTotal / 255,
+            green: greenTotal / weightTotal / 255,
+            blue: blueTotal / weightTotal / 255,
+            alpha: 1
+        )
     }
 }
 
