@@ -27,6 +27,14 @@ struct SettingsReferenceGallery: View {
                             .environment(HomesteadEntitlementStore(previewPlan: .lifetime))
                     }
 
+                    NavigationLink("Homestead+ — Lifetime with Subscription") {
+                        HomesteadPlusView()
+                            .environment(HomesteadEntitlementStore(
+                                previewPlan: .lifetime,
+                                previewActiveSubscriptionPlan: .monthly
+                            ))
+                    }
+
                     NavigationLink("Homestead+ — Pending") {
                         HomesteadPlusView()
                             .environment(HomesteadEntitlementStore(

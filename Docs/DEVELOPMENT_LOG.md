@@ -28,6 +28,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Connected native StoreKit purchase-view completions to the app-facing entitlement store, retained verified active access across multiple subscription-group statuses, and allowed a verified purchase to unlock immediately while the current-entitlements sequence catches up.
 - Made restore recheck existing entitlements even when `AppStore.sync()` fails, retained stable StoreKit error domains/codes in user-visible failures, and added privacy-safe StoreKit logging instead of silently discarding verification and subscription-status errors.
 - Preserved the delayed-Plus iCloud bootstrap contract so a clean reinstall can offer restoration of a previously uploaded setup after entitlement recovery.
+- Resolved overlapping sandbox subscription records to one current plan, kept Lifetime access authoritative while retaining management for an existing recurring subscription, warned before Lifetime purchases that recurring billing continues until separately canceled, and removed the active plan from the compact alternative-plan list.
 
 ## 2026-07-28
 

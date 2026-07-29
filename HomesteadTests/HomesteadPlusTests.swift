@@ -26,10 +26,7 @@ final class HomesteadPlusTests: XCTestCase {
             .monthly
         )
         XCTAssertEqual(
-            HomesteadEntitlementResolver.plan(from: [
-                activeEntitlement(.monthly),
-                activeEntitlement(.annual)
-            ]),
+            HomesteadEntitlementResolver.plan(from: [activeEntitlement(.annual)]),
             .annual
         )
         XCTAssertEqual(
@@ -42,6 +39,47 @@ final class HomesteadPlusTests: XCTestCase {
                 )
             ]),
             .free
+        )
+    }
+
+    func testEntitlementResolverUsesNewestSubscriptionWhenStoreKitReturnsMultipleActiveProducts() {
+        let olderAnnual = HomesteadVerifiedEntitlement(
+            productID: HomesteadPlusProduct.annual.rawValue,
+            purchaseDate: .now.addingTimeInterval(-60),
+            expirationDate: .now.addingTimeInterval(3_600),
+            revocationDate: nil,
+            isIntroductoryOffer: false,
+            subscriptionStatusGrantsAccess: true
+        )
+        let newerMonthly = HomesteadVerifiedEntitlement(
+            productID: HomesteadPlusProduct.monthly.rawValue,
+            purchaseDate: .now,
+            expirationDate: .now.addingTimeInterval(1_800),
+            revocationDate: nil,
+            isIntroductoryOffer: false,
+            subscriptionStatusGrantsAccess: true
+        )
+
+        XCTAssertEqual(
+            HomesteadEntitlementResolver.subscriptionPlan(from: [olderAnnual, newerMonthly]),
+            .monthly
+        )
+        XCTAssertEqual(
+            HomesteadEntitlementResolver.plan(from: [olderAnnual, newerMonthly]),
+            .monthly
+        )
+    }
+
+    func testEntitlementResolverTracksSubscriptionAlongsideLifetimeAccess() {
+        let entitlements = [
+            activeEntitlement(.monthly),
+            activeEntitlement(.lifetime)
+        ]
+
+        XCTAssertEqual(HomesteadEntitlementResolver.plan(from: entitlements), .lifetime)
+        XCTAssertEqual(
+            HomesteadEntitlementResolver.subscriptionPlan(from: entitlements),
+            .monthly
         )
     }
 

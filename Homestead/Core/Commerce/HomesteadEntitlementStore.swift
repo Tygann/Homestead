@@ -44,6 +44,7 @@ nonisolated enum HomesteadPlusProduct: String, CaseIterable, Sendable {
 
 nonisolated struct HomesteadVerifiedEntitlement: Equatable, Sendable {
     let productID: String
+    let purchaseDate: Date
     let expirationDate: Date?
     let revocationDate: Date?
     let isIntroductoryOffer: Bool
@@ -59,12 +60,14 @@ nonisolated struct HomesteadVerifiedEntitlement: Equatable, Sendable {
 
     init(
         productID: String,
+        purchaseDate: Date = .distantPast,
         expirationDate: Date?,
         revocationDate: Date?,
         isIntroductoryOffer: Bool,
         subscriptionStatusGrantsAccess: Bool? = nil
     ) {
         self.productID = productID
+        self.purchaseDate = purchaseDate
         self.expirationDate = expirationDate
         self.revocationDate = revocationDate
         self.isIntroductoryOffer = isIntroductoryOffer
@@ -78,13 +81,34 @@ nonisolated enum HomesteadEntitlementResolver {
         if active.contains(where: { $0.productID == HomesteadPlusProduct.lifetime.rawValue }) {
             return .lifetime
         }
-        if let annual = active.first(where: { $0.productID == HomesteadPlusProduct.annual.rawValue }) {
-            return annual.isIntroductoryOffer ? .trial : .annual
-        }
-        if active.contains(where: { $0.productID == HomesteadPlusProduct.monthly.rawValue }) {
+        return subscriptionPlan(from: active) ?? .free
+    }
+
+    static func subscriptionPlan(
+        from entitlements: [HomesteadVerifiedEntitlement]
+    ) -> HomesteadPlusPlan? {
+        let subscription = entitlements
+            .filter {
+                $0.isActive && (
+                    $0.productID == HomesteadPlusProduct.annual.rawValue
+                        || $0.productID == HomesteadPlusProduct.monthly.rawValue
+                )
+            }
+            .max {
+                if $0.purchaseDate != $1.purchaseDate {
+                    return $0.purchaseDate < $1.purchaseDate
+                }
+                return ($0.expirationDate ?? .distantFuture) < ($1.expirationDate ?? .distantFuture)
+            }
+
+        switch subscription?.productID {
+        case HomesteadPlusProduct.annual.rawValue:
+            return subscription?.isIntroductoryOffer == true ? .trial : .annual
+        case HomesteadPlusProduct.monthly.rawValue:
             return .monthly
+        default:
+            return nil
         }
-        return .free
     }
 }
 
@@ -140,6 +164,7 @@ final class HomesteadEntitlementStore {
     )
 
     private(set) var plan: HomesteadPlusPlan
+    private(set) var activeSubscriptionPlan: HomesteadPlusPlan?
     private(set) var purchaseState: HomesteadPurchaseState
     private(set) var availableProducts: [Product]
     private(set) var isEligibleForAnnualTrial: Bool?
@@ -152,10 +177,12 @@ final class HomesteadEntitlementStore {
 
     init(
         previewPlan: HomesteadPlusPlan? = nil,
+        previewActiveSubscriptionPlan: HomesteadPlusPlan? = nil,
         previewAnnualTrialEligibility: Bool? = nil,
         purchaseState: HomesteadPurchaseState = .loading
     ) {
         plan = previewPlan ?? .free
+        activeSubscriptionPlan = previewActiveSubscriptionPlan ?? previewPlan?.subscriptionPlan
         self.purchaseState = if previewPlan != nil, purchaseState == .loading {
             .available
         } else {
@@ -218,6 +245,7 @@ final class HomesteadEntitlementStore {
     func refreshEntitlements() async {
         guard usesStoreKit else { return }
         var verifiedByProductID: [String: HomesteadVerifiedEntitlement] = [:]
+        var activeSubscriptionStatusesByProductID: [String: HomesteadVerifiedEntitlement] = [:]
 
         for await result in Transaction.currentEntitlements {
             switch result {
@@ -228,6 +256,7 @@ final class HomesteadEntitlementStore {
                 HomesteadEntitlementMergePolicy.merge(
                     HomesteadVerifiedEntitlement(
                         productID: transaction.productID,
+                        purchaseDate: transaction.purchaseDate,
                         expirationDate: transaction.expirationDate,
                         revocationDate: transaction.revocationDate,
                         isIntroductoryOffer: transaction.offer?.type == .introductory
@@ -263,16 +292,24 @@ final class HomesteadEntitlementStore {
                         case .expired, .inBillingRetryPeriod, .revoked: false
                         default: false
                         }
+                        let entitlement = HomesteadVerifiedEntitlement(
+                            productID: transaction.productID,
+                            purchaseDate: transaction.purchaseDate,
+                            expirationDate: transaction.expirationDate,
+                            revocationDate: transaction.revocationDate,
+                            isIntroductoryOffer: transaction.offer?.type == .introductory,
+                            subscriptionStatusGrantsAccess: grantsAccess
+                        )
                         HomesteadEntitlementMergePolicy.merge(
-                            HomesteadVerifiedEntitlement(
-                                productID: transaction.productID,
-                                expirationDate: transaction.expirationDate,
-                                revocationDate: transaction.revocationDate,
-                                isIntroductoryOffer: transaction.offer?.type == .introductory,
-                                subscriptionStatusGrantsAccess: grantsAccess
-                            ),
+                            entitlement,
                             into: &verifiedByProductID
                         )
+                        if grantsAccess {
+                            HomesteadEntitlementMergePolicy.merge(
+                                entitlement,
+                                into: &activeSubscriptionStatusesByProductID
+                            )
+                        }
                     case .unverified(let transaction, let error):
                         Self.logger.error(
                             "Subscription status verification failed for \(transaction.productID, privacy: .public): \(String(describing: error), privacy: .public)"
@@ -286,7 +323,16 @@ final class HomesteadEntitlementStore {
             }
         }
 
-        plan = HomesteadEntitlementResolver.plan(from: Array(verifiedByProductID.values))
+        let entitlements = Array(verifiedByProductID.values)
+        let subscriptionEntitlements = activeSubscriptionStatusesByProductID.isEmpty
+            ? entitlements
+            : Array(activeSubscriptionStatusesByProductID.values)
+        activeSubscriptionPlan = HomesteadEntitlementResolver.subscriptionPlan(
+            from: subscriptionEntitlements
+        )
+        plan = entitlements.contains {
+            $0.productID == HomesteadPlusProduct.lifetime.rawValue && $0.isActive
+        } ? .lifetime : (activeSubscriptionPlan ?? .free)
         publishExtensionEntitlement()
     }
 
@@ -309,6 +355,7 @@ final class HomesteadEntitlementStore {
             case .verified(let transaction):
                 let purchasedEntitlement = HomesteadVerifiedEntitlement(
                     productID: transaction.productID,
+                    purchaseDate: transaction.purchaseDate,
                     expirationDate: transaction.expirationDate,
                     revocationDate: transaction.revocationDate,
                     isIntroductoryOffer: transaction.offer?.type == .introductory
@@ -319,6 +366,9 @@ final class HomesteadEntitlementStore {
                     // The verified purchase itself is authoritative even if the
                     // current-entitlements sequence has not caught up yet.
                     plan = HomesteadEntitlementResolver.plan(from: [purchasedEntitlement])
+                    activeSubscriptionPlan = HomesteadEntitlementResolver.subscriptionPlan(
+                        from: [purchasedEntitlement]
+                    )
                     publishExtensionEntitlement()
                 }
                 purchaseState = hasPlus
@@ -404,5 +454,16 @@ final class HomesteadEntitlementStore {
             HomesteadPlusProduct.lifetime.rawValue
         ]
         return (order.firstIndex(of: lhs.id) ?? .max) < (order.firstIndex(of: rhs.id) ?? .max)
+    }
+}
+
+private extension HomesteadPlusPlan {
+    var subscriptionPlan: HomesteadPlusPlan? {
+        switch self {
+        case .trial, .monthly, .annual:
+            self
+        case .free, .lifetime:
+            nil
+        }
     }
 }
