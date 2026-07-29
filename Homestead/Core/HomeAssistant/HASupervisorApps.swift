@@ -212,6 +212,27 @@ nonisolated enum HASupervisorAppStatus: Equatable, Sendable {
     }
 }
 
+nonisolated enum HASupervisorAppLifecycleAction: String, Equatable, Sendable {
+    case start
+    case stop
+    case restart
+
+    var title: String {
+        rawValue.capitalized
+    }
+
+    var systemImage: String {
+        switch self {
+        case .start:
+            return "play.fill"
+        case .stop:
+            return "stop.fill"
+        case .restart:
+            return "arrow.clockwise"
+        }
+    }
+}
+
 nonisolated enum HASupervisorAppsUnavailableReason: Equatable, Sendable {
     case notConfigured
     case unsupported
@@ -253,37 +274,90 @@ nonisolated private extension String {
     }
 
     func supervisorAppDescription(appName: String) -> String {
-        let redundantTitle = "# home assistant app: \(appName)".lowercased()
+        let lines = components(separatedBy: .newlines)
+        var references: [String: String] = [:]
+        for (identifier, url) in lines.compactMap(\.markdownReferenceDefinition) {
+            references[identifier] = url
+        }
+        let normalizedAppName = appName.lowercased()
         var omittedAboutHeading = false
+        var renderedLines: [String] = []
 
-        return components(separatedBy: .newlines)
-            .filter { line in
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                let normalized = trimmed.lowercased()
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let normalized = trimmed.lowercased()
+            let headingText = trimmed
+                .drop(while: { $0 == "#" || $0.isWhitespace })
+                .lowercased()
 
-                if normalized == redundantTitle {
-                    return false
-                }
-
-                if !omittedAboutHeading, normalized == "## about" {
-                    omittedAboutHeading = true
-                    return false
-                }
-
-                if trimmed.hasPrefix("![") {
-                    return false
-                }
-
-                if trimmed.hasPrefix("["),
-                   let definitionEnd = trimmed.range(of: "]:"),
-                   definitionEnd.lowerBound > trimmed.startIndex {
-                    return false
-                }
-
-                return true
+            if headingText == normalizedAppName ||
+                headingText == "home assistant app: \(normalizedAppName)" {
+                continue
             }
+
+            if !omittedAboutHeading, normalized == "## about" {
+                omittedAboutHeading = true
+                continue
+            }
+
+            if line.markdownReferenceDefinition != nil {
+                continue
+            }
+
+            if trimmed.contains("![") || normalized.contains("<img") {
+                continue
+            }
+
+            var renderedLine = line
+            for (identifier, url) in references {
+                renderedLine = renderedLine.replacingOccurrences(
+                    of: "[\(identifier)]",
+                    with: "(\(url))",
+                    options: .caseInsensitive
+                )
+            }
+
+            renderedLine = renderedLine.removingHTMLTags
+
+            if renderedLine.trimmingCharacters(in: .whitespaces).isEmpty,
+               renderedLines.last?.trimmingCharacters(in: .whitespaces).isEmpty == true {
+                continue
+            }
+
+            renderedLines.append(renderedLine)
+        }
+
+        return renderedLines
             .joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var markdownReferenceDefinition: (String, String)? {
+        let trimmed = trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("["),
+              let closingBracket = trimmed.firstIndex(of: "]"),
+              closingBracket < trimmed.endIndex,
+              trimmed.index(after: closingBracket) < trimmed.endIndex,
+              trimmed[trimmed.index(after: closingBracket)] == ":" else {
+            return nil
+        }
+
+        let identifier = String(trimmed[trimmed.index(after: trimmed.startIndex)..<closingBracket])
+        let valueStart = trimmed.index(closingBracket, offsetBy: 2)
+        let value = trimmed[valueStart...].trimmingCharacters(in: .whitespaces)
+        let url = value.split(whereSeparator: \.isWhitespace).first.map(String.init)?
+            .trimmingCharacters(in: CharacterSet(charactersIn: "<>"))
+
+        guard !identifier.isEmpty, let url, !url.isEmpty else { return nil }
+        return (identifier, url)
+    }
+
+    var removingHTMLTags: String {
+        replacingOccurrences(
+            of: #"<[^>]+>"#,
+            with: "",
+            options: .regularExpression
+        )
     }
 }
 

@@ -8,6 +8,9 @@ struct SoftwareDetailView: View {
     @State private var createBackup = false
     @State private var loadedAppDetails: HASupervisorAppDetails?
     @State private var releaseNotesState = SoftwareReleaseNotesState.idle
+    @State private var lifecycleActionInProgress: HASupervisorAppLifecycleAction?
+    @State private var pendingLifecycleAction: HASupervisorAppLifecycleAction?
+    @State private var lifecycleErrorMessage: String?
 
     private let initialApp: HASupervisorApp?
     private let initialAppDetails: HASupervisorAppDetails?
@@ -37,6 +40,7 @@ struct SoftwareDetailView: View {
                         heroArtwork
                         identitySection
                         metadataSection
+                        lifecycleControlsSection
 
                         if let update, update.supportsBackup, actionAvailability(for: update).canInstall {
                             sectionDivider
@@ -67,6 +71,36 @@ struct SoftwareDetailView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             updateActionsMenu
+        }
+        .confirmationDialog(
+            lifecycleConfirmationTitle,
+            isPresented: lifecycleConfirmationIsPresented,
+            titleVisibility: .visible
+        ) {
+            if let pendingLifecycleAction {
+                Button(
+                    pendingLifecycleAction.title,
+                    role: pendingLifecycleAction == .stop ? .destructive : nil
+                ) {
+                    performLifecycleAction(pendingLifecycleAction)
+                }
+            }
+
+            Button("Cancel", role: .cancel) {
+                pendingLifecycleAction = nil
+            }
+        } message: {
+            Text(lifecycleConfirmationMessage)
+        }
+        .alert(
+            "Unable to Control App",
+            isPresented: lifecycleErrorIsPresented
+        ) {
+            Button("OK", role: .cancel) {
+                lifecycleErrorMessage = nil
+            }
+        } message: {
+            Text(lifecycleErrorMessage ?? "Home Assistant could not complete the request.")
         }
     }
 
@@ -129,7 +163,7 @@ struct SoftwareDetailView: View {
                 Text(identitySubtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(3)
 
                 primaryAction
                     .padding(.top, AppSpacing.xSmall)
@@ -151,8 +185,10 @@ struct SoftwareDetailView: View {
     }
 
     private var identitySubtitle: String {
-        if let app {
-            return app.status.title
+        if let description = app?.description?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !description.isEmpty {
+            return description
         }
 
         return update?.status.title ?? "Status unavailable"
@@ -253,6 +289,63 @@ struct SoftwareDetailView: View {
         }
 
         return items
+    }
+
+    // MARK: - App Controls
+
+    @ViewBuilder
+    private var lifecycleControlsSection: some View {
+        if homeAssistantService.currentUserIsAdmin, let app {
+            switch app.status {
+            case .running:
+                sectionDivider
+                lifecycleControls(
+                    actions: [.stop, .restart]
+                )
+            case .stopped:
+                sectionDivider
+                lifecycleControls(
+                    actions: [.start]
+                )
+            case .unknown:
+                EmptyView()
+            }
+        }
+    }
+
+    private func lifecycleControls(actions: [HASupervisorAppLifecycleAction]) -> some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            Text("Controls")
+                .font(.title2.bold())
+
+            HStack(spacing: AppSpacing.small) {
+                ForEach(actions, id: \.self) { action in
+                    lifecycleButton(action)
+                }
+            }
+        }
+        .padding(.horizontal, AppSpacing.medium)
+        .padding(.vertical, AppSpacing.medium)
+    }
+
+    private func lifecycleButton(_ action: HASupervisorAppLifecycleAction) -> some View {
+        Button {
+            requestLifecycleAction(action)
+        } label: {
+            Label(action.title, systemImage: action.systemImage)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .tint(action == .stop ? .red : .accentColor)
+        .disabled(lifecycleActionInProgress != nil)
+        .overlay {
+            if lifecycleActionInProgress == action {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        }
+        .opacity(lifecycleActionInProgress == action ? 0.6 : 1)
     }
 
     // MARK: - Update Sections
@@ -509,6 +602,42 @@ struct SoftwareDetailView: View {
         }
     }
 
+    private func requestLifecycleAction(_ action: HASupervisorAppLifecycleAction) {
+        switch action {
+        case .start:
+            performLifecycleAction(action)
+        case .stop, .restart:
+            pendingLifecycleAction = action
+        }
+    }
+
+    private func performLifecycleAction(_ action: HASupervisorAppLifecycleAction) {
+        pendingLifecycleAction = nil
+        guard lifecycleActionInProgress == nil, let slug = supervisorAppSlug else { return }
+
+        lifecycleActionInProgress = action
+        Task {
+            do {
+                let details = try await homeAssistantService.performSupervisorAppLifecycleAction(
+                    settings: connectionSettings,
+                    slug: slug,
+                    action: action
+                )
+                loadedAppDetails = details
+
+                if action == .restart {
+                    try? await Task.sleep(for: .seconds(1.5))
+                    if !Task.isCancelled {
+                        await loadAppDetails()
+                    }
+                }
+            } catch {
+                lifecycleErrorMessage = error.localizedDescription
+            }
+            lifecycleActionInProgress = nil
+        }
+    }
+
     @ToolbarContentBuilder
     private var updateActionsMenu: some ToolbarContent {
         if let update {
@@ -626,6 +755,44 @@ struct SoftwareDetailView: View {
         }
 
         return url
+    }
+
+    private var lifecycleConfirmationTitle: String {
+        guard let pendingLifecycleAction else { return "Control App?" }
+        return "\(pendingLifecycleAction.title) \(displayName)?"
+    }
+
+    private var lifecycleConfirmationMessage: String {
+        switch pendingLifecycleAction {
+        case .stop:
+            return "\(displayName) will be unavailable until it is started again."
+        case .restart:
+            return "\(displayName) will be briefly unavailable while it restarts."
+        case .start, .none:
+            return ""
+        }
+    }
+
+    private var lifecycleConfirmationIsPresented: Binding<Bool> {
+        Binding(
+            get: { pendingLifecycleAction != nil },
+            set: { isPresented in
+                if !isPresented {
+                    pendingLifecycleAction = nil
+                }
+            }
+        )
+    }
+
+    private var lifecycleErrorIsPresented: Binding<Bool> {
+        Binding(
+            get: { lifecycleErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    lifecycleErrorMessage = nil
+                }
+            }
+        )
     }
 }
 

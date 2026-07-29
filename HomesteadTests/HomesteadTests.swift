@@ -11118,6 +11118,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var connectErrorsByBaseURL: [String: Error] = [:]
     private(set) var fetchSupervisorAppsCount = 0
     private(set) var supervisorAppInfoSlugs: [String] = []
+    private(set) var supervisorAppLifecycleActions: [(slug: String, action: HASupervisorAppLifecycleAction)] = []
     private(set) var fetchSupervisorInfoCount = 0
     private(set) var fetchOperatingSystemInfoCount = 0
     private(set) var updateReleaseNotesEntityIDs: [String] = []
@@ -11266,6 +11267,13 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return supervisorAppInfo
+    }
+
+    func performSupervisorAppLifecycleAction(
+        slug: String,
+        action: HASupervisorAppLifecycleAction
+    ) async throws {
+        supervisorAppLifecycleActions.append((slug, action))
     }
 
     func fetchSupervisorInfo() async throws -> HASupervisorInfoDTO {

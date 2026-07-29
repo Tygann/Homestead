@@ -17,9 +17,14 @@ struct UpdateDetailReferenceScreen: View {
     var body: some View {
         NavigationStack {
             SoftwareDetailView(
-                appDetails: fixture.appDetails,
                 updateEntityID: fixture.entity.entityID,
-                releaseNotesProvider: { _ in try await fixture.fetchReleaseNotes() }
+                releaseNotesProvider: { _ in try await fixture.fetchReleaseNotes() },
+                appDetailsProvider: { _ in
+                    guard let details = fixture.appDetails else {
+                        throw HAWebSocketError.missingResult
+                    }
+                    return details
+                }
             )
         }
         .withPreviewEnvironment(dependencies)
@@ -50,6 +55,9 @@ private enum UpdateDetailReferenceFixture: String, Sendable {
             attributes["release_url"] = .string(
                 "https://github.com/home-assistant-libs/python-matter-server/releases"
             )
+        }
+        if self != .generic {
+            attributes["entity_picture"] = .string("/api/hassio/addons/\(slug)/icon")
         }
 
         return HAEntityDTO(

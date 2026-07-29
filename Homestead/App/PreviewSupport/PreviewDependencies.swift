@@ -286,7 +286,8 @@ struct PreviewDependencies {
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
             pushRelayTokenStore: InMemoryPushRelayTokenStore(),
             nativeNotificationService: nativeNotificationService,
-            authManager: HAOAuthManager(tokenStore: tokenStore)
+            authManager: HAOAuthManager(tokenStore: tokenStore),
+            currentUserIsAdmin: true
         )
 
         return PreviewDependencies(

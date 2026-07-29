@@ -509,6 +509,11 @@ final class HAStateStore {
     }
 
     func supervisorAppSlug(forUpdateEntityID entityID: String) -> String? {
+        if let entityPicturePath = updateEntity(for: entityID)?.entityPicturePath,
+           let slug = Self.supervisorAppSlug(fromEntityPicturePath: entityPicturePath) {
+            return slug
+        }
+
         guard entityRegistryByID[entityID]?.platform?.lowercased() == "hassio" else {
             return nil
         }
@@ -528,6 +533,21 @@ final class HAStateStore {
         }
 
         return String(uniqueID.dropLast(suffix.count)).nonEmptyValue
+    }
+
+    private static func supervisorAppSlug(fromEntityPicturePath value: String) -> String? {
+        let path = URL(string: value)?.path ?? value
+        let components = path.split(separator: "/", omittingEmptySubsequences: true)
+
+        guard components.count == 5,
+              components[0] == "api",
+              components[1] == "hassio",
+              components[2] == "addons",
+              components[4] == "icon" else {
+            return nil
+        }
+
+        return String(components[3]).nonEmptyValue
     }
 
     func presenceRecords() -> [HAPresenceRecord] {

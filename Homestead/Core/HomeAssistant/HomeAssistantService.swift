@@ -18,6 +18,7 @@ final class HomeAssistantService {
     private(set) var authState: HAAuthState = .signedOut
     private(set) var currentUserDisplayName: String?
     private(set) var currentUserEntityPicturePath: String?
+    private(set) var currentUserIsAdmin = false
     private(set) var isNetworkAvailable = true
     private(set) var suppressesTransientConnectionHealth = false
     private(set) var serviceRegistry: HAServiceRegistry = .empty
@@ -97,7 +98,8 @@ final class HomeAssistantService {
         currentWiFiNetworkProvider: (any CurrentWiFiNetworkProviding)? = nil,
         dashboardHistoryCache: DashboardHistoryCache = DashboardHistoryCache(),
         networkContext: HAConnectionNetworkContext = .availableExternal,
-        automaticallyRegistersMobileApp: Bool = true
+        automaticallyRegistersMobileApp: Bool = true,
+        currentUserIsAdmin: Bool = false
     ) {
         self.stateStore = stateStore
         self.client = client
@@ -122,6 +124,7 @@ final class HomeAssistantService {
         self.stateCache = stateCache
         self.networkContext = networkContext
         self.automaticallyRegistersMobileApp = automaticallyRegistersMobileApp
+        self.currentUserIsAdmin = currentUserIsAdmin
         self.connectionStatus = connectionStatus == .disconnected && authState.isSignedIn
             ? .preparing
             : connectionStatus
@@ -384,6 +387,7 @@ final class HomeAssistantService {
         currentUserID = nil
         currentUserDisplayName = nil
         currentUserEntityPicturePath = nil
+        currentUserIsAdmin = false
         serviceRegistry = .empty
         serverConfiguration = nil
         serverEnvironment = nil
@@ -1140,6 +1144,39 @@ final class HomeAssistantService {
         guard !normalizedSlug.isEmpty else {
             throw HAWebSocketError.requestFailed("The Home Assistant app identifier is missing.")
         }
+
+        return HASupervisorAppDetails(
+            dto: try await client.fetchSupervisorAppInfo(slug: normalizedSlug)
+        )
+    }
+
+    func performSupervisorAppLifecycleAction(
+        settings: HAConnectionSettings,
+        slug: String,
+        action: HASupervisorAppLifecycleAction
+    ) async throws -> HASupervisorAppDetails {
+        currentConnectionSettings = settings
+        guard settings.hasServerURL else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        guard connectionStatus == .connected else {
+            throw HAWebSocketError.notConnected
+        }
+
+        guard currentUserIsAdmin else {
+            throw HAWebSocketError.requestFailed("Administrator access is required to control apps.")
+        }
+
+        let normalizedSlug = slug.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedSlug.isEmpty else {
+            throw HAWebSocketError.requestFailed("The Home Assistant app identifier is missing.")
+        }
+
+        try await client.performSupervisorAppLifecycleAction(
+            slug: normalizedSlug,
+            action: action
+        )
 
         return HASupervisorAppDetails(
             dto: try await client.fetchSupervisorAppInfo(slug: normalizedSlug)
@@ -2030,10 +2067,12 @@ final class HomeAssistantService {
         currentUserID = currentUser.id
         let displayName = currentUser.name?.trimmingCharacters(in: .whitespacesAndNewlines)
         currentUserDisplayName = displayName?.isEmpty == false ? displayName : nil
+        currentUserIsAdmin = currentUser.isAdmin == true
         refreshCurrentUserEntityPicturePath()
     }
 
     private func applyCachedCurrentUser(_ currentUser: HAStateCacheCurrentUser?) {
+        currentUserIsAdmin = false
         guard let currentUser else {
             refreshCurrentUserEntityPicturePath()
             return

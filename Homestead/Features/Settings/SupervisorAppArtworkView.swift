@@ -58,10 +58,30 @@ struct SupervisorAppArtworkView: View {
     private func loadedArtwork(_ image: Image) -> some View {
         switch kind {
         case .icon:
-            image
-                .resizable()
-                .scaledToFit()
-                .padding(imagePadding)
+            GeometryReader { proxy in
+                ZStack {
+                    Color(.secondarySystemBackground)
+
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .scaleEffect(1.08)
+                        .blur(radius: height * 0.18, opaque: true)
+
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(
+                            width: max(0, proxy.size.width - (imagePadding * 2)),
+                            height: max(0, proxy.size.height - (imagePadding * 2))
+                        )
+
+                    bannerContrastOverlay
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
+            }
         case .logo:
             GeometryReader { proxy in
                 ZStack {
@@ -71,19 +91,31 @@ struct SupervisorAppArtworkView: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: proxy.size.width, height: proxy.size.height)
-                        .saturation(1.2)
-                        .scaleEffect(1.18)
-                        .blur(radius: 32, opaque: true)
-
-                    bannerContrastOverlay
+                        .saturation(1.1)
+                        .scaleEffect(1.08)
+                        .blur(radius: 44, opaque: true)
 
                     image
                         .resizable()
                         .scaledToFit()
                         .frame(
-                            width: max(0, proxy.size.width - (AppSpacing.large * 2)),
+                            width: max(0, proxy.size.width - (AppSpacing.small * 2)),
                             height: max(0, proxy.size.height - (AppSpacing.medium * 2))
                         )
+                        .mask {
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .clear, location: 0),
+                                    .init(color: .black, location: 0.12),
+                                    .init(color: .black, location: 0.88),
+                                    .init(color: .clear, location: 1)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        }
+
+                    bannerContrastOverlay
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .clipped()
@@ -93,8 +125,8 @@ struct SupervisorAppArtworkView: View {
 
     private var bannerContrastOverlay: Color {
         colorScheme == .dark
-            ? Color.black.opacity(0.12)
-            : Color.white.opacity(0.08)
+            ? Color.black.opacity(0.04)
+            : Color.white.opacity(0.02)
     }
 
     private var imagePath: String? {
