@@ -88,6 +88,66 @@ final class HomesteadPlusTests: XCTestCase {
         XCTAssertEqual(billingRetryPlan, .free)
     }
 
+    func testEntitlementMergePolicyKeepsActiveStatusWhenInactiveStatusArrivesLater() {
+        var entitlements: [String: HomesteadVerifiedEntitlement] = [:]
+        let active = HomesteadVerifiedEntitlement(
+            productID: HomesteadPlusProduct.annual.rawValue,
+            expirationDate: .now.addingTimeInterval(60),
+            revocationDate: nil,
+            isIntroductoryOffer: true,
+            subscriptionStatusGrantsAccess: true
+        )
+        let inactive = HomesteadVerifiedEntitlement(
+            productID: HomesteadPlusProduct.annual.rawValue,
+            expirationDate: .now.addingTimeInterval(-60),
+            revocationDate: nil,
+            isIntroductoryOffer: false,
+            subscriptionStatusGrantsAccess: false
+        )
+
+        HomesteadEntitlementMergePolicy.merge(active, into: &entitlements)
+        HomesteadEntitlementMergePolicy.merge(inactive, into: &entitlements)
+
+        XCTAssertEqual(entitlements[HomesteadPlusProduct.annual.rawValue], active)
+        XCTAssertEqual(HomesteadEntitlementResolver.plan(from: Array(entitlements.values)), .trial)
+    }
+
+    func testEntitlementMergePolicyReplacesInactiveStatusWithActiveStatus() {
+        var entitlements: [String: HomesteadVerifiedEntitlement] = [:]
+        let inactive = HomesteadVerifiedEntitlement(
+            productID: HomesteadPlusProduct.annual.rawValue,
+            expirationDate: .now.addingTimeInterval(-60),
+            revocationDate: nil,
+            isIntroductoryOffer: false,
+            subscriptionStatusGrantsAccess: false
+        )
+        let active = HomesteadVerifiedEntitlement(
+            productID: HomesteadPlusProduct.annual.rawValue,
+            expirationDate: .now.addingTimeInterval(60),
+            revocationDate: nil,
+            isIntroductoryOffer: true,
+            subscriptionStatusGrantsAccess: true
+        )
+
+        HomesteadEntitlementMergePolicy.merge(inactive, into: &entitlements)
+        HomesteadEntitlementMergePolicy.merge(active, into: &entitlements)
+
+        XCTAssertEqual(entitlements[HomesteadPlusProduct.annual.rawValue], active)
+        XCTAssertEqual(HomesteadEntitlementResolver.plan(from: Array(entitlements.values)), .trial)
+    }
+
+    func testStoreKitDiagnosticIncludesStableErrorDomainAndCode() {
+        let error = NSError(domain: "StoreKitTest", code: 42)
+
+        XCTAssertEqual(
+            HomesteadStoreKitDiagnostics.userFacingMessage(
+                "Purchases could not be synchronized.",
+                error: error
+            ),
+            "Purchases could not be synchronized. (StoreKitTest 42)"
+        )
+    }
+
     func testDashboardPolicyGrandfathersExistingDashboardsWithoutAllowingCreation() {
         XCTAssertTrue(HomesteadPlusCapabilityPolicy.canCreateDashboard(
             hasPlus: false,

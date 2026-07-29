@@ -88,6 +88,9 @@ struct HomesteadPlusView: View {
                 await entitlementStore.prepare()
             }
         }
+        .onInAppPurchaseCompletion { _, result in
+            await entitlementStore.handlePurchaseResult(result)
+        }
         .offerCodeRedemption(isPresented: $isRedeemingCode) { result in
             Task {
                 if case .failure = result {

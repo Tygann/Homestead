@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 import StoreKit
 import WidgetKit
 
@@ -87,6 +88,31 @@ nonisolated enum HomesteadEntitlementResolver {
     }
 }
 
+nonisolated enum HomesteadEntitlementMergePolicy {
+    static func merge(
+        _ candidate: HomesteadVerifiedEntitlement,
+        into entitlements: inout [String: HomesteadVerifiedEntitlement]
+    ) {
+        guard let existing = entitlements[candidate.productID] else {
+            entitlements[candidate.productID] = candidate
+            return
+        }
+
+        // StoreKit can return more than one status for a subscription group.
+        // Never let an older inactive status replace verified active access.
+        if candidate.isActive || !existing.isActive {
+            entitlements[candidate.productID] = candidate
+        }
+    }
+}
+
+nonisolated enum HomesteadStoreKitDiagnostics {
+    static func userFacingMessage(_ message: String, error: any Error) -> String {
+        let nsError = error as NSError
+        return "\(message) (\(nsError.domain) \(nsError.code))"
+    }
+}
+
 nonisolated enum HomesteadPlusCapabilityPolicy {
     static func canCreateDashboard(hasPlus: Bool, existingDashboardCount: Int) -> Bool {
         hasPlus || existingDashboardCount == 0
@@ -108,6 +134,11 @@ nonisolated enum HomesteadPlusContinuationPolicy {
 @MainActor
 @Observable
 final class HomesteadEntitlementStore {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.tyler.Homestead",
+        category: "StoreKit"
+    )
+
     private(set) var plan: HomesteadPlusPlan
     private(set) var purchaseState: HomesteadPurchaseState
     private(set) var availableProducts: [Product]
@@ -138,9 +169,20 @@ final class HomesteadEntitlementStore {
             updatesTask = Task { [weak self] in
                 for await result in Transaction.updates {
                     guard let self else { return }
-                    if case .verified(let transaction) = result {
+                    switch result {
+                    case .verified(let transaction):
                         await self.refreshEntitlements()
                         await transaction.finish()
+                    case .unverified(_, let error):
+                        Self.logger.error(
+                            "Transaction update verification failed: \(String(describing: error), privacy: .public)"
+                        )
+                        self.purchaseState = .failed(
+                            HomesteadStoreKitDiagnostics.userFacingMessage(
+                                "The App Store returned a purchase that could not be verified.",
+                                error: error
+                            )
+                        )
                     }
                 }
             }
@@ -178,41 +220,68 @@ final class HomesteadEntitlementStore {
         var verifiedByProductID: [String: HomesteadVerifiedEntitlement] = [:]
 
         for await result in Transaction.currentEntitlements {
-            guard case .verified(let transaction) = result,
-                  HomesteadPlusProduct.allIDs.contains(transaction.productID) else {
-                continue
+            switch result {
+            case .verified(let transaction):
+                guard HomesteadPlusProduct.allIDs.contains(transaction.productID) else {
+                    continue
+                }
+                HomesteadEntitlementMergePolicy.merge(
+                    HomesteadVerifiedEntitlement(
+                        productID: transaction.productID,
+                        expirationDate: transaction.expirationDate,
+                        revocationDate: transaction.revocationDate,
+                        isIntroductoryOffer: transaction.offer?.type == .introductory
+                    ),
+                    into: &verifiedByProductID
+                )
+            case .unverified(let transaction, let error):
+                guard HomesteadPlusProduct.allIDs.contains(transaction.productID) else {
+                    continue
+                }
+                Self.logger.error(
+                    "Current entitlement verification failed for \(transaction.productID, privacy: .public): \(String(describing: error), privacy: .public)"
+                )
             }
-            verifiedByProductID[transaction.productID] = HomesteadVerifiedEntitlement(
-                productID: transaction.productID,
-                expirationDate: transaction.expirationDate,
-                revocationDate: transaction.revocationDate,
-                isIntroductoryOffer: transaction.offer?.type == .introductory
-            )
         }
 
         // Subscription status carries grace-period state that cannot be inferred
         // reliably from a transaction's expiration date alone.
         for product in availableProducts {
-            guard let subscription = product.subscription,
-                  let statuses = try? await subscription.status else {
+            guard let subscription = product.subscription else {
                 continue
             }
-            for status in statuses {
-                guard case .verified(let transaction) = status.transaction,
-                      HomesteadPlusProduct.allIDs.contains(transaction.productID) else {
-                    continue
+
+            do {
+                for status in try await subscription.status {
+                    switch status.transaction {
+                    case .verified(let transaction):
+                        guard HomesteadPlusProduct.allIDs.contains(transaction.productID) else {
+                            continue
+                        }
+                        let grantsAccess = switch status.state {
+                        case .subscribed, .inGracePeriod: true
+                        case .expired, .inBillingRetryPeriod, .revoked: false
+                        default: false
+                        }
+                        HomesteadEntitlementMergePolicy.merge(
+                            HomesteadVerifiedEntitlement(
+                                productID: transaction.productID,
+                                expirationDate: transaction.expirationDate,
+                                revocationDate: transaction.revocationDate,
+                                isIntroductoryOffer: transaction.offer?.type == .introductory,
+                                subscriptionStatusGrantsAccess: grantsAccess
+                            ),
+                            into: &verifiedByProductID
+                        )
+                    case .unverified(let transaction, let error):
+                        Self.logger.error(
+                            "Subscription status verification failed for \(transaction.productID, privacy: .public): \(String(describing: error), privacy: .public)"
+                        )
+                    }
                 }
-                let grantsAccess = switch status.state {
-                case .subscribed, .inGracePeriod: true
-                case .expired, .inBillingRetryPeriod, .revoked: false
-                default: false
-                }
-                verifiedByProductID[transaction.productID] = HomesteadVerifiedEntitlement(
-                    productID: transaction.productID,
-                    expirationDate: transaction.expirationDate,
-                    revocationDate: transaction.revocationDate,
-                    isIntroductoryOffer: transaction.offer?.type == .introductory,
-                    subscriptionStatusGrantsAccess: grantsAccess
+            } catch {
+                Self.logger.error(
+                    "Subscription status request failed for \(product.id, privacy: .public): \(String(describing: error), privacy: .public)"
                 )
             }
         }
@@ -225,24 +294,63 @@ final class HomesteadEntitlementStore {
         guard usesStoreKit else { return }
         purchaseState = .purchasing
         do {
-            switch try await product.purchase() {
-            case .success(let result):
-                guard case .verified(let transaction) = result else {
-                    purchaseState = .failed("The App Store could not verify this purchase.")
-                    return
-                }
+            await handlePurchaseResult(.success(try await product.purchase()))
+        } catch {
+            await handlePurchaseResult(.failure(error))
+        }
+    }
+
+    func handlePurchaseResult(_ result: Result<Product.PurchaseResult, any Error>) async {
+        guard usesStoreKit else { return }
+
+        switch result {
+        case .success(.success(let verificationResult)):
+            switch verificationResult {
+            case .verified(let transaction):
+                let purchasedEntitlement = HomesteadVerifiedEntitlement(
+                    productID: transaction.productID,
+                    expirationDate: transaction.expirationDate,
+                    revocationDate: transaction.revocationDate,
+                    isIntroductoryOffer: transaction.offer?.type == .introductory
+                )
                 await transaction.finish()
                 await refreshEntitlements()
-                purchaseState = .available
-            case .pending:
-                purchaseState = .pending
-            case .userCancelled:
-                purchaseState = .available
-            @unknown default:
-                purchaseState = .failed("The App Store returned an unknown purchase result.")
+                if !hasPlus, purchasedEntitlement.isActive {
+                    // The verified purchase itself is authoritative even if the
+                    // current-entitlements sequence has not caught up yet.
+                    plan = HomesteadEntitlementResolver.plan(from: [purchasedEntitlement])
+                    publishExtensionEntitlement()
+                }
+                purchaseState = hasPlus
+                    ? .available
+                    : .failed("The purchase completed, but Homestead+ access was not returned by the App Store.")
+            case .unverified(_, let error):
+                Self.logger.error(
+                    "Purchase verification failed: \(String(describing: error), privacy: .public)"
+                )
+                purchaseState = .failed(
+                    HomesteadStoreKitDiagnostics.userFacingMessage(
+                        "The App Store could not verify this purchase.",
+                        error: error
+                    )
+                )
             }
-        } catch {
-            purchaseState = .failed("The purchase could not be completed. Please try again.")
+        case .success(.pending):
+            purchaseState = .pending
+        case .success(.userCancelled):
+            purchaseState = .available
+        case .success:
+            purchaseState = .failed("The App Store returned an unknown purchase result.")
+        case .failure(let error):
+            Self.logger.error(
+                "Purchase request failed: \(String(describing: error), privacy: .public)"
+            )
+            purchaseState = .failed(
+                HomesteadStoreKitDiagnostics.userFacingMessage(
+                    "The purchase could not be completed.",
+                    error: error
+                )
+            )
         }
     }
 
@@ -252,9 +360,25 @@ final class HomesteadEntitlementStore {
         do {
             try await AppStore.sync()
             await refreshEntitlements()
-            purchaseState = .available
+            purchaseState = hasPlus
+                ? .available
+                : .failed("No active Homestead+ purchase was found for this App Store account.")
         } catch {
-            purchaseState = .failed("Purchases could not be restored. Please try again.")
+            Self.logger.error(
+                "App Store sync failed: \(String(describing: error), privacy: .public)"
+            )
+
+            // The receipt can already contain a valid entitlement even when the
+            // explicit App Store synchronization request fails.
+            await refreshEntitlements()
+            purchaseState = hasPlus
+                ? .available
+                : .failed(
+                    HomesteadStoreKitDiagnostics.userFacingMessage(
+                        "Purchases could not be synchronized.",
+                        error: error
+                    )
+                )
         }
     }
 
