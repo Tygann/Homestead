@@ -499,6 +499,37 @@ final class HAStateStore {
         updateEntities.first { $0.entityID == entityID }
     }
 
+    func updateEntity(forSupervisorAppSlug slug: String) -> HAUpdateEntity? {
+        let normalizedSlug = slug.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedSlug.isEmpty else { return nil }
+
+        return updateEntities.first { update in
+            supervisorAppSlug(forUpdateEntityID: update.entityID) == normalizedSlug
+        }
+    }
+
+    func supervisorAppSlug(forUpdateEntityID entityID: String) -> String? {
+        guard entityRegistryByID[entityID]?.platform?.lowercased() == "hassio" else {
+            return nil
+        }
+
+        if let deviceID = entityRegistryByID[entityID]?.deviceID,
+           let device = deviceRegistryByID[deviceID],
+           let identifier = device.identifiers.first(where: { identifier in
+               identifier.count >= 2 && identifier[0].lowercased() == "hassio"
+           }) {
+            return identifier[1].nonEmptyValue
+        }
+
+        let suffix = "_version_latest"
+        guard let uniqueID = organizationByEntityID[entityID]?.uniqueID?.nonEmptyValue,
+              uniqueID.hasSuffix(suffix) else {
+            return nil
+        }
+
+        return String(uniqueID.dropLast(suffix.count)).nonEmptyValue
+    }
+
     func presenceRecords() -> [HAPresenceRecord] {
         let presenceDTOs = rawEntitiesByID.values.filter { dto in
             let domain = EntityDomain(entityID: dto.entityID)
@@ -1315,6 +1346,8 @@ final class HAStateStore {
             from: dto,
             deviceID: deviceID,
             deviceName: device?.displayName,
+            deviceManufacturer: device?.manufacturer,
+            deviceModel: device?.model,
             areaID: areaContext?.areaID,
             areaName: areaContext?.name,
             floorID: areaContext?.floorID,

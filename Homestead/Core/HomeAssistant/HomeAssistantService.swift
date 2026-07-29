@@ -1123,6 +1123,29 @@ final class HomeAssistantService {
         }
     }
 
+    func fetchSupervisorAppDetails(
+        settings: HAConnectionSettings,
+        slug: String
+    ) async throws -> HASupervisorAppDetails {
+        currentConnectionSettings = settings
+        guard settings.hasServerURL else {
+            throw HAWebSocketError.invalidURL
+        }
+
+        guard connectionStatus == .connected else {
+            throw HAWebSocketError.notConnected
+        }
+
+        let normalizedSlug = slug.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedSlug.isEmpty else {
+            throw HAWebSocketError.requestFailed("The Home Assistant app identifier is missing.")
+        }
+
+        return HASupervisorAppDetails(
+            dto: try await client.fetchSupervisorAppInfo(slug: normalizedSlug)
+        )
+    }
+
     func fetchHistory(
         settings: HAConnectionSettings,
         request: HAHistoryRequest,

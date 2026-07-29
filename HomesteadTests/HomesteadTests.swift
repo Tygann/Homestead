@@ -11103,6 +11103,7 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var serviceRegistry: HAServiceRegistry = .empty
     var servicesForTarget: [String] = []
     var supervisorAppsResponse = HASupervisorAppsResponseDTO(addons: [])
+    var supervisorAppInfo: HASupervisorAppInfoDTO?
     var supervisorInfo = HASupervisorInfoDTO(version: nil)
     var operatingSystemInfo = HAOperatingSystemInfoDTO(version: nil)
     var automationConfiguration = HAAutomationConfigurationResponseDTO(config: [:])
@@ -11110,11 +11111,13 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var fetchServicesDelay: Duration?
     var fetchServicesError: Error?
     var supervisorAppsError: Error?
+    var supervisorAppInfoError: Error?
     var supervisorInfoError: Error?
     var operatingSystemInfoError: Error?
     var connectResults: [Result<Void, Error>] = []
     var connectErrorsByBaseURL: [String: Error] = [:]
     private(set) var fetchSupervisorAppsCount = 0
+    private(set) var supervisorAppInfoSlugs: [String] = []
     private(set) var fetchSupervisorInfoCount = 0
     private(set) var fetchOperatingSystemInfoCount = 0
     private(set) var updateReleaseNotesEntityIDs: [String] = []
@@ -11249,6 +11252,20 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return supervisorAppsResponse
+    }
+
+    func fetchSupervisorAppInfo(slug: String) async throws -> HASupervisorAppInfoDTO {
+        supervisorAppInfoSlugs.append(slug)
+
+        if let supervisorAppInfoError {
+            throw supervisorAppInfoError
+        }
+
+        guard let supervisorAppInfo else {
+            throw HAWebSocketError.missingResult
+        }
+
+        return supervisorAppInfo
     }
 
     func fetchSupervisorInfo() async throws -> HASupervisorInfoDTO {

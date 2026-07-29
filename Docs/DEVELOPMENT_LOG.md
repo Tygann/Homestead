@@ -12,6 +12,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Reworked the detail around an App Store-inspired identity row with a capsule Update button and plain `What’s New` content. Backup is a quiet divided option beneath the hero, Skip moved into the overflow menu, and redundant leading version headings are removed from fetched notes. Update All retains one batch confirmation.
 - Added deterministic Matter, long Samba, loading, and failed-fetch detail fixtures plus focused transport, mapping, service, and Markdown-structure coverage.
 
+### Shared Apps And Updates Detail
+
+- Kept Settings > Apps and Settings > Updates as separate discovery lists while routing both into one App Store-inspired software detail surface.
+- Enriched Supervisor apps through Core's official `supervisor/api` bridge to `/addons/<slug>/info`, using the horizontal `logo` as hero artwork, the square `icon` as identity artwork, and exposed descriptions, release channel, automatic-update setting, minimum Home Assistant version, architectures, website, and repository as supporting content.
+- Composed the logo hero over a color-carrying blurred copy of the same authenticated artwork, then extended the whole banner behind the transparent navigation toolbar with SwiftUI's native `backgroundExtensionEffect()`. Unsupported README badge markup and redundant app/About headings are omitted from the app-facing description.
+- Linked Supervisor apps to their `.update` entities through Home Assistant's registry-owned `hassio` device identifier with the add-on update unique ID as a fallback; generic Core, OS, firmware, and integration updates continue to use entity and device metadata without name/version heuristics.
+- Added current-app and generic-firmware deterministic fixtures alongside the existing update states, plus focused decoding, service, registry-resolution, release-note, and simulator presentation verification.
+
 ### TestFlight Entitlement Recovery
 
 - Confirmed a real TestFlight annual trial was active in Apple's sandbox while Homestead remained on the Free tier and explicit purchase restoration failed.

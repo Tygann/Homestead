@@ -251,6 +251,7 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
     let manufacturer: String?
     let model: String?
     let labels: [String]
+    let identifiers: [[String]]
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -260,6 +261,7 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
         case manufacturer
         case model
         case labels
+        case identifiers
     }
 
     nonisolated init(
@@ -269,7 +271,8 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
         areaID: String? = nil,
         manufacturer: String? = nil,
         model: String? = nil,
-        labels: [String] = []
+        labels: [String] = [],
+        identifiers: [[String]] = []
     ) {
         self.id = id
         self.name = name
@@ -278,6 +281,7 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
         self.manufacturer = manufacturer
         self.model = model
         self.labels = labels
+        self.identifiers = identifiers
     }
 
     nonisolated init(from decoder: Decoder) throws {
@@ -290,6 +294,7 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
         manufacturer = try container.decodeIfPresent(String.self, forKey: .manufacturer)
         model = try container.decodeIfPresent(String.self, forKey: .model)
         labels = try container.decodeIfPresent([String].self, forKey: .labels) ?? []
+        identifiers = try container.decodeIfPresent([[String]].self, forKey: .identifiers) ?? []
     }
 }
 

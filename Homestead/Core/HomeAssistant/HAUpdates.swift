@@ -12,6 +12,7 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
     let supportedFeatures: HAUpdateEntityFeatures
     let entityPicturePath: String?
     let deviceClass: String?
+    let autoUpdate: Bool?
     let isAvailable: Bool
     let hasUpdate: Bool
     let isInProgress: Bool
@@ -130,6 +131,8 @@ struct HAUpdateEntityFeatures: OptionSet, Equatable, Sendable {
 struct HAUpdateContext: Equatable, Sendable {
     let deviceID: String?
     let deviceName: String?
+    let deviceManufacturer: String?
+    let deviceModel: String?
     let areaID: String?
     let areaName: String?
     let floorID: String?
@@ -503,6 +506,8 @@ extension EntityMapper {
         from dto: HAEntityDTO,
         deviceID: String? = nil,
         deviceName: String? = nil,
+        deviceManufacturer: String? = nil,
+        deviceModel: String? = nil,
         areaID: String? = nil,
         areaName: String? = nil,
         floorID: String? = nil,
@@ -530,6 +535,7 @@ extension EntityMapper {
             ),
             entityPicturePath: dto.attributes["entity_picture"]?.stringValue?.nonEmptyUpdateValue,
             deviceClass: dto.attributes["device_class"]?.stringValue?.nonEmptyUpdateValue,
+            autoUpdate: dto.attributes["auto_update"]?.boolValue,
             isAvailable: !["unavailable", "unknown"].contains(state),
             hasUpdate: state == "on",
             isInProgress: inProgress.isInProgress,
@@ -541,6 +547,8 @@ extension EntityMapper {
             context: HAUpdateContext(
                 deviceID: deviceID?.nonEmptyUpdateValue,
                 deviceName: deviceName?.nonEmptyUpdateValue,
+                deviceManufacturer: deviceManufacturer?.nonEmptyUpdateValue,
+                deviceModel: deviceModel?.nonEmptyUpdateValue,
                 areaID: areaID?.nonEmptyUpdateValue,
                 areaName: areaName?.nonEmptyUpdateValue,
                 floorID: floorID?.nonEmptyUpdateValue,

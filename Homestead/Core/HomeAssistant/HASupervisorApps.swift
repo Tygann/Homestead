@@ -32,6 +32,44 @@ nonisolated struct HASupervisorAppDTO: Decodable, Equatable, Sendable {
     }
 }
 
+nonisolated struct HASupervisorAppInfoDTO: Decodable, Equatable, Sendable {
+    let name: String
+    let slug: String
+    let description: String?
+    let longDescription: String?
+    let version: String?
+    let versionLatest: String?
+    let updateAvailable: Bool?
+    let icon: Bool?
+    let logo: Bool?
+    let state: String?
+    let repository: String?
+    let url: String?
+    let stage: String?
+    let autoUpdate: Bool?
+    let homeAssistant: String?
+    let architectures: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case slug
+        case description
+        case longDescription = "long_description"
+        case version
+        case versionLatest = "version_latest"
+        case updateAvailable = "update_available"
+        case icon
+        case logo
+        case state
+        case repository
+        case url
+        case stage
+        case autoUpdate = "auto_update"
+        case homeAssistant = "homeassistant"
+        case architectures = "arch"
+    }
+}
+
 nonisolated struct HASupervisorApp: Identifiable, Equatable, Sendable {
     let id: String
     let slug: String
@@ -103,6 +141,47 @@ nonisolated struct HASupervisorApp: Identifiable, Equatable, Sendable {
             status: HASupervisorAppStatus(supervisorState: dto.state)
         )
     }
+
+    fileprivate init(infoDTO: HASupervisorAppInfoDTO) {
+        let slug = infoDTO.slug.nonEmptyValue ?? infoDTO.name.nonEmptyValue ?? "unknown"
+
+        self.init(
+            id: slug,
+            slug: slug,
+            name: infoDTO.name.nonEmptyValue ?? slug,
+            description: infoDTO.description?.nonEmptyValue,
+            installedVersion: infoDTO.version?.nonEmptyValue,
+            latestVersion: infoDTO.versionLatest?.nonEmptyValue,
+            updateAvailable: infoDTO.updateAvailable == true,
+            hasIcon: infoDTO.icon == true,
+            hasLogo: infoDTO.logo == true,
+            status: HASupervisorAppStatus(supervisorState: infoDTO.state)
+        )
+    }
+}
+
+nonisolated struct HASupervisorAppDetails: Equatable, Sendable {
+    let app: HASupervisorApp
+    let longDescription: String?
+    let repositoryURLString: String?
+    let websiteURLString: String?
+    let stage: String?
+    let autoUpdate: Bool?
+    let minimumHomeAssistantVersion: String?
+    let supportedArchitectures: [String]
+
+    init(dto: HASupervisorAppInfoDTO) {
+        app = HASupervisorApp(infoDTO: dto)
+        longDescription = dto.longDescription?
+            .supervisorAppDescription(appName: app.name)
+            .nonEmptyValue
+        repositoryURLString = dto.repository?.nonEmptyValue
+        websiteURLString = dto.url?.nonEmptyValue
+        stage = dto.stage?.nonEmptyValue
+        autoUpdate = dto.autoUpdate
+        minimumHomeAssistantVersion = dto.homeAssistant?.nonEmptyValue
+        supportedArchitectures = dto.architectures ?? []
+    }
 }
 
 nonisolated enum HASupervisorAppStatus: Equatable, Sendable {
@@ -171,6 +250,40 @@ nonisolated private extension String {
     var nonEmptyValue: String? {
         let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedValue.isEmpty ? nil : trimmedValue
+    }
+
+    func supervisorAppDescription(appName: String) -> String {
+        let redundantTitle = "# home assistant app: \(appName)".lowercased()
+        var omittedAboutHeading = false
+
+        return components(separatedBy: .newlines)
+            .filter { line in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                let normalized = trimmed.lowercased()
+
+                if normalized == redundantTitle {
+                    return false
+                }
+
+                if !omittedAboutHeading, normalized == "## about" {
+                    omittedAboutHeading = true
+                    return false
+                }
+
+                if trimmed.hasPrefix("![") {
+                    return false
+                }
+
+                if trimmed.hasPrefix("["),
+                   let definitionEnd = trimmed.range(of: "]:"),
+                   definitionEnd.lowerBound > trimmed.startIndex {
+                    return false
+                }
+
+                return true
+            }
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
