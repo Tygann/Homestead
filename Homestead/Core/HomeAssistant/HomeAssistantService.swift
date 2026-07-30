@@ -2861,68 +2861,102 @@ final class HomeAssistantService {
     }
 
     private func fetchRegistryMetadataIfAvailable(configuration: HAConnectionConfiguration) async -> HARegistryMetadataSnapshot? {
-        do {
-            async let entityRegistry = client.fetchEntityRegistryForDisplay()
-            async let deviceRegistry = client.fetchDeviceRegistry()
+        let previous = stateStore.registryMetadataSnapshot()
+        async let entityRegistryResult = registryFetchResult {
+            try await self.client.fetchEntityRegistryForDisplay()
+        }
+        async let deviceRegistryResult = registryFetchResult {
+            try await self.client.fetchDeviceRegistry()
+        }
+        async let areaRegistryResult = registryFetchResult {
+            try await self.client.fetchAreaRegistry()
+        }
+        async let floorRegistryResult = registryFetchResult {
+            try await self.client.fetchFloorRegistry()
+        }
 
-            let registryMetadata = try await (entityRegistry, deviceRegistry)
-            let areas: [HAAreaRegistryDTO]
-            let floors: [HAFloorRegistryDTO]
+        let (entityResult, deviceResult, areaResult, floorResult) = await (
+            entityRegistryResult,
+            deviceRegistryResult,
+            areaRegistryResult,
+            floorRegistryResult
+        )
+        let entities = registryValue(
+            entityResult.map(\.entities),
+            fallback: previous?.entities ?? [],
+            section: "entity"
+        )
+        let devices = registryValue(
+            deviceResult,
+            fallback: previous?.devices ?? [],
+            section: "device"
+        )
+        let areas = registryValue(
+            areaResult,
+            fallback: previous?.areas ?? [],
+            section: "area"
+        )
+        let floors = registryValue(
+            floorResult,
+            fallback: previous?.floors ?? [],
+            section: "floor"
+        )
 
-            do {
-                areas = try await client.fetchAreaRegistry()
-            } catch {
-                areas = []
-                #if DEBUG
-                print("Home Assistant area registry metadata failed: \(error.localizedDescription)")
-                #endif
-            }
+        async let organizationResult = try? client.fetchEntityOrganization()
+        async let labelResult = try? client.fetchLabelRegistry()
+        async let automationCategoriesResult = try? client.fetchCategoryRegistry(scope: .automation)
+        async let sceneCategoriesResult = try? client.fetchCategoryRegistry(scope: .scene)
+        async let scriptCategoriesResult = try? client.fetchCategoryRegistry(scope: .script)
+        async let helperCategoriesResult = try? client.fetchCategoryRegistry(scope: .helper)
 
-            do {
-                floors = try await client.fetchFloorRegistry()
-            } catch {
-                floors = []
-                #if DEBUG
-                print("Home Assistant floor registry metadata failed: \(error.localizedDescription)")
-                #endif
-            }
+        let organization = await organizationResult ?? []
+        let labels = await labelResult ?? []
+        let categories = await [
+            automationCategoriesResult,
+            sceneCategoriesResult,
+            scriptCategoriesResult,
+            helperCategoriesResult
+        ].compactMap { $0 }.flatMap { $0 }
 
-            async let organizationResult = try? client.fetchEntityOrganization()
-            async let labelResult = try? client.fetchLabelRegistry()
-            async let automationCategoriesResult = try? client.fetchCategoryRegistry(scope: .automation)
-            async let sceneCategoriesResult = try? client.fetchCategoryRegistry(scope: .scene)
-            async let scriptCategoriesResult = try? client.fetchCategoryRegistry(scope: .script)
-            async let helperCategoriesResult = try? client.fetchCategoryRegistry(scope: .helper)
-
-            let organization = await organizationResult ?? []
-            let labels = await labelResult ?? []
-            let categories = await [
-                automationCategoriesResult,
-                sceneCategoriesResult,
-                scriptCategoriesResult,
-                helperCategoriesResult
-            ].compactMap { $0 }.flatMap { $0 }
-
-            let metadata = HARegistryMetadataSnapshot(
-                entities: registryMetadata.0.entities,
-                devices: registryMetadata.1,
-                areas: areas,
-                floors: floors,
-                organization: organization,
-                labels: labels,
-                categories: categories
-            )
-            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
-                return nil
-            }
-            stateStore.applyRegistryMetadata(metadata)
-            return metadata
-        } catch {
-            // Entity/device metadata improves organization, but live state should still work without it.
-            #if DEBUG
-            print("Home Assistant entity/device registry metadata failed: \(error.localizedDescription)")
-            #endif
+        let metadata = HARegistryMetadataSnapshot(
+            entities: entities,
+            devices: devices,
+            areas: areas,
+            floors: floors,
+            organization: organization,
+            labels: labels,
+            categories: categories
+        )
+        guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
             return nil
+        }
+        stateStore.applyRegistryMetadata(metadata)
+        return metadata
+    }
+
+    private func registryFetchResult<Value: Sendable>(
+        _ fetch: @escaping @Sendable () async throws -> Value
+    ) async -> Result<Value, Error> {
+        do {
+            return .success(try await fetch())
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    private func registryValue<Value>(
+        _ result: Result<Value, Error>,
+        fallback: Value,
+        section: String
+    ) -> Value {
+        switch result {
+        case .success(let value):
+            return value
+        case .failure(let error):
+            #if DEBUG
+            print("Home Assistant \(section) registry metadata failed: \(String(reflecting: error))")
+            #endif
+            return fallback
         }
     }
 

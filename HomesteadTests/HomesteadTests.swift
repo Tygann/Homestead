@@ -11085,6 +11085,12 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     var currentUser: HACurrentUserDTO?
     var states: [HAEntityDTO]
     var entityRegistryEntities: [HAEntityRegistryDisplayDTO] = []
+    var deviceRegistry: [HADeviceRegistryDTO] = []
+    var areaRegistry: [HAAreaRegistryDTO] = []
+    var floorRegistry: [HAFloorRegistryDTO] = []
+    var deviceRegistryError: Error?
+    var areaRegistryError: Error?
+    var floorRegistryError: Error?
     var entityOrganization: [HAEntityOrganizationDTO] = []
     var labelRegistry: [HALabelRegistryDTO] = []
     var categoryRegistry: [HACategoryRegistryDTO] = []
@@ -11189,15 +11195,24 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func fetchDeviceRegistry() async throws -> [HADeviceRegistryDTO] {
-        []
+        if let deviceRegistryError {
+            throw deviceRegistryError
+        }
+        return deviceRegistry
     }
 
     func fetchAreaRegistry() async throws -> [HAAreaRegistryDTO] {
-        []
+        if let areaRegistryError {
+            throw areaRegistryError
+        }
+        return areaRegistry
     }
 
     func fetchFloorRegistry() async throws -> [HAFloorRegistryDTO] {
-        []
+        if let floorRegistryError {
+            throw floorRegistryError
+        }
+        return floorRegistry
     }
 
     func fetchLabelRegistry() async throws -> [HALabelRegistryDTO] {

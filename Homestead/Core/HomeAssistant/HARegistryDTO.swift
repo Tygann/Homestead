@@ -294,7 +294,16 @@ nonisolated struct HADeviceRegistryDTO: Codable, Equatable, Identifiable, Sendab
         manufacturer = try container.decodeIfPresent(String.self, forKey: .manufacturer)
         model = try container.decodeIfPresent(String.self, forKey: .model)
         labels = try container.decodeIfPresent([String].self, forKey: .labels) ?? []
-        identifiers = try container.decodeIfPresent([[String]].self, forKey: .identifiers) ?? []
+        let rawIdentifiers = try container.decodeIfPresent([JSONValue].self, forKey: .identifiers) ?? []
+        identifiers = rawIdentifiers.compactMap { value in
+            guard case .array(let parts) = value,
+                  parts.count >= 2,
+                  let domain = parts[0].stringValue?.nonEmptyValue,
+                  let identifier = parts[1].stringValue?.nonEmptyValue else {
+                return nil
+            }
+            return [domain, identifier]
+        }
     }
 }
 
@@ -376,5 +385,12 @@ private extension KeyedDecodingContainer {
         default:
             return nil
         }
+    }
+}
+
+private nonisolated extension String {
+    var nonEmptyValue: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
