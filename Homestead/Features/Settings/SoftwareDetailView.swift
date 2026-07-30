@@ -148,6 +148,10 @@ struct SoftwareDetailView: View {
                 .containerRelativeFrame(.horizontal)
                 .frame(maxWidth: .infinity)
                 .backgroundExtensionEffect()
+                .safeAreaInset(edge: .top) {
+                    EmptyView()
+                        .padding(25)
+                }
                 .clipped()
         }
     }

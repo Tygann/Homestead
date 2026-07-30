@@ -44,7 +44,6 @@ struct CollapsibleUpdateReleaseNotesView: View {
                 collapsedSummary
             }
         }
-        .foregroundStyle(.secondary)
     }
 
     private var collapsedSummary: some View {
