@@ -45,6 +45,7 @@ nonisolated struct HASupervisorAppInfoDTO: Decodable, Equatable, Sendable {
     let state: String?
     let repository: String?
     let url: String?
+    let rating: Int?
     let stage: String?
     let autoUpdate: Bool?
     let homeAssistant: String?
@@ -63,6 +64,7 @@ nonisolated struct HASupervisorAppInfoDTO: Decodable, Equatable, Sendable {
         case state
         case repository
         case url
+        case rating
         case stage
         case autoUpdate = "auto_update"
         case homeAssistant = "homeassistant"
@@ -165,6 +167,7 @@ nonisolated struct HASupervisorAppDetails: Equatable, Sendable {
     let longDescription: String?
     let repositoryURLString: String?
     let websiteURLString: String?
+    let rating: Int?
     let stage: String?
     let autoUpdate: Bool?
     let minimumHomeAssistantVersion: String?
@@ -177,6 +180,7 @@ nonisolated struct HASupervisorAppDetails: Equatable, Sendable {
             .nonEmptyValue
         repositoryURLString = dto.repository?.nonEmptyValue
         websiteURLString = dto.url?.nonEmptyValue
+        rating = dto.rating
         stage = dto.stage?.nonEmptyValue
         autoUpdate = dto.autoUpdate
         minimumHomeAssistantVersion = dto.homeAssistant?.nonEmptyValue

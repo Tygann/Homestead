@@ -36,6 +36,7 @@ final class SoftwareDetailXCTests: XCTestCase {
             "state": "started",
             "repository": "https://github.com/home-assistant/addons",
             "url": "https://github.com/home-assistant-libs/python-matter-server",
+            "rating": 7,
             "stage": "stable",
             "auto_update": false,
             "homeassistant": "2026.7.0",
@@ -54,6 +55,7 @@ final class SoftwareDetailXCTests: XCTestCase {
             details.longDescription,
             "Connect and manage Matter devices.\n\n[View the documentation](https://www.home-assistant.io/)"
         )
+        XCTAssertEqual(details.rating, 7)
         XCTAssertEqual(details.stage, "stable")
         XCTAssertEqual(details.autoUpdate, false)
         XCTAssertEqual(details.minimumHomeAssistantVersion, "2026.7.0")
@@ -173,6 +175,7 @@ final class SoftwareDetailXCTests: XCTestCase {
             state: "started",
             repository: nil,
             url: nil,
+            rating: 7,
             stage: "stable",
             autoUpdate: false,
             homeAssistant: "2026.7.0",
@@ -277,6 +280,7 @@ final class SoftwareDetailXCTests: XCTestCase {
             state: state,
             repository: nil,
             url: nil,
+            rating: 7,
             stage: "stable",
             autoUpdate: false,
             homeAssistant: "2026.7.0",

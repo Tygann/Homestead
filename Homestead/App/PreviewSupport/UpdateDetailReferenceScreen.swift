@@ -85,6 +85,7 @@ private enum UpdateDetailReferenceFixture: String, Sendable {
             state: "started",
             repository: repositoryURLString,
             url: websiteURLString,
+            rating: 7,
             stage: "stable",
             autoUpdate: false,
             homeAssistant: "2026.7.0",

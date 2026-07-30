@@ -302,7 +302,8 @@ struct SoftwareDetailView: View {
                         }
                         .frame(minWidth: 104)
                         .foregroundStyle(item.tint)
-                        .accessibilityElement(children: .combine)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(item.accessibilityLabel)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -354,6 +355,16 @@ struct SoftwareDetailView: View {
                 value: update.status.shortTitle,
                 detail: "Update state",
                 tint: update.status.tint
+            ))
+        }
+
+        if let rating = appDetails?.rating {
+            items.append(SoftwareMetadataItem(
+                id: "rating",
+                title: "Rating",
+                value: "\(rating)",
+                detail: "Out of 8",
+                accessibilityLabel: "Security rating \(rating) out of 8. Higher is more secure."
             ))
         }
 
@@ -973,7 +984,25 @@ private struct SoftwareMetadataItem: Identifiable {
     let title: String
     let value: String
     var detail: String?
+    let accessibilityLabel: String
     var tint: Color = .secondary
+
+    init(
+        id: String,
+        title: String,
+        value: String,
+        detail: String? = nil,
+        accessibilityLabel: String? = nil,
+        tint: Color = .secondary
+    ) {
+        self.id = id
+        self.title = title
+        self.value = value
+        self.detail = detail
+        self.accessibilityLabel = accessibilityLabel
+            ?? [title, value, detail].compactMap { $0 }.joined(separator: ", ")
+        self.tint = tint
+    }
 }
 
 private struct SoftwareInformationRow: Identifiable {
