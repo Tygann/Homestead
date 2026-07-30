@@ -238,6 +238,10 @@ struct HomesteadApp: App {
             EntityDetailReferenceGallery()
         case .home:
             ContentView()
+        case .notifications:
+            NavigationStack {
+                NativeNotificationSettingsView()
+            }
         case .settings:
             SettingsReferenceGallery()
         case .updates:

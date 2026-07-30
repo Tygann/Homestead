@@ -5,6 +5,7 @@ final class PreviewScreenRouteTests: XCTestCase {
     func testKnownPreviewRoutesUseCanonicalArguments() {
         XCTAssertEqual(HomesteadPreviewScreen(argumentValue: "widgets"), .widgets)
         XCTAssertEqual(HomesteadPreviewScreen(argumentValue: "settings"), .settings)
+        XCTAssertEqual(HomesteadPreviewScreen(argumentValue: "notifications"), .notifications)
         XCTAssertEqual(HomesteadPreviewScreen(argumentValue: "updates"), .updates)
         XCTAssertEqual(HomesteadPreviewScreen(argumentValue: "home"), .home)
         XCTAssertNil(HomesteadPreviewScreen(argumentValue: "gauge-widget"))

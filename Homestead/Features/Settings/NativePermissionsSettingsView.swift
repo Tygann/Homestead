@@ -38,17 +38,6 @@ struct NativePermissionsSettingsView: View {
                     action: handleLocationAction
                 )
 
-                NativePermissionStatusRow(
-                    title: "Camera",
-                    message: cameraMessage,
-                    systemImage: "camera.fill",
-                    presentation: .make(
-                        status: nativePermissionService.status.camera,
-                        isRequesting: nativePermissionService.isRequestingCameraAccess
-                    ),
-                    action: handleCameraAction
-                )
-
                 if let message = errorMessage {
                     Label {
                         Text(message)
@@ -101,15 +90,6 @@ struct NativePermissionsSettingsView: View {
         switch action {
         case .allow:
             Task { await nativePermissionService.requestLocationAccess() }
-        case .openSettings:
-            openIOSSettings()
-        }
-    }
-
-    private func handleCameraAction(_ action: NativePermissionRowAction) {
-        switch action {
-        case .allow:
-            Task { await nativePermissionService.requestCameraAccess() }
         case .openSettings:
             openIOSSettings()
         }
@@ -179,26 +159,6 @@ struct NativePermissionsSettingsView: View {
         }
     }
 
-    private var cameraMessage: String {
-        switch nativePermissionService.status.camera {
-        case .allowed:
-            return "Ready for camera-based setup and scanning features."
-        case .limited:
-            return "Camera access is limited."
-        case .denied:
-            return "Turn on camera access in Settings."
-        case .restricted:
-            return "Camera access is restricted on this device."
-        case .notDetermined:
-            return "Allow for camera-based setup and scanning features."
-        case .unavailable:
-            return "Camera access is unavailable on this device."
-        case .managedBySystem:
-            return "Camera access is managed by the system."
-        case .unknown:
-            return "Homestead is checking camera access."
-        }
-    }
 }
 
 // MARK: - Permission Status Row

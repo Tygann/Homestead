@@ -4,6 +4,7 @@ import UIKit
 // MARK: - Native Notification Settings View
 struct NativeNotificationSettingsView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(NativeNotificationService.self) private var nativeNotificationService
@@ -11,62 +12,83 @@ struct NativeNotificationSettingsView: View {
     var body: some View {
         Form {
             Section {
-                notificationStatusHeader
+                NotificationSettingsStatusRow(
+                    title: "Notifications",
+                    message: permissionMessage,
+                    systemImage: permissionSystemImage,
+                    status: permissionDetailText,
+                    tint: nativePermissionTint
+                )
 
                 if let message = nativeNotificationService.lastErrorMessage {
                     Text(UserFacingErrorPresentation.message(forRawMessage: message))
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }
-            } footer: {
-                Text("Use Settings to adjust banners, sounds, badges, lock screen visibility, and notification grouping.")
-            }
 
-            Section {
                 if shouldShowAllowNotificationsAction {
                     Button {
                         Task { await nativeNotificationService.requestAuthorization() }
                     } label: {
-                        Text(nativeNotificationService.isRequestingAuthorization ? "Requesting Permission" : "Allow Notifications")
+                        SettingsNavigationRowLabel(
+                            nativeNotificationService.isRequestingAuthorization
+                                ? "Requesting Permission"
+                                : "Allow Notifications",
+                            systemImage: "bell.badge"
+                        )
                     }
                     .disabled(nativeNotificationService.isRequestingAuthorization)
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.plain)
                 }
 
-                Button {
-                    openIOSNotificationSettings()
-                } label: {
-                    Label("Open Homestead in Settings", systemImage: "gearshape")
+                if shouldShowNotificationSettingsAction {
+                    Button {
+                        openIOSNotificationSettings()
+                    } label: {
+                        SettingsNavigationRowLabel("Notification Settings", systemImage: "gearshape")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens Homestead’s notification settings in the Settings app")
                 }
-                .frame(maxWidth: .infinity)
+            } header: {
+                Text("System")
+            } footer: {
+                Text("Banners, sounds, badges, Lock Screen alerts, and notification grouping are managed by iOS.")
             }
 
             Section {
-                homeAssistantStatusHeader
+                NotificationSettingsStatusRow(
+                    title: "Notification Delivery",
+                    message: homeAssistantStatusMessage,
+                    systemImage: "house.badge.wifi",
+                    status: homeAssistantStatusBadgeText,
+                    tint: homeAssistantStatusTint
+                )
 
                 if shouldShowMobileAppRegistrationAction {
                     Button {
                         Task { await homeAssistantService.registerMobileApp(settings: connectionSettings) }
                     } label: {
-                        Text(mobileAppButtonTitle)
+                        SettingsNavigationRowLabel(
+                            mobileAppButtonTitle,
+                            systemImage: "arrow.triangle.2.circlepath"
+                        )
                     }
                     .disabled(!canRegisterMobileApp)
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.plain)
                 }
-
             } header: {
                 Text("Home Assistant")
             } footer: {
-                Text("Homestead receives Home Assistant notifications on this device.")
+                Text("This device must be registered with Home Assistant before it can receive notifications.")
             }
 
             Section {
-                DisclosureGroup("Details") {
+                DisclosureGroup("Delivery Details") {
                     LabeledContent("Permission", value: permissionDetailText)
                     LabeledContent("Alerts", value: nativeNotificationService.status.alertSetting.settingsTitle)
                     LabeledContent("Sounds", value: nativeNotificationService.status.soundSetting.settingsTitle)
                     LabeledContent("Badges", value: nativeNotificationService.status.badgeSetting.settingsTitle)
-                    LabeledContent("Account", value: accountReadinessTitle)
                     LabeledContent("Device Setup", value: mobileAppReadinessTitle)
                     LabeledContent("Background Delivery", value: nativeNotificationService.remoteRegistrationState.settingsTitle)
                     LabeledContent("Notification Delivery", value: homeAssistantService.mobileAppPushNotificationState.settingsTitle)
@@ -94,73 +116,23 @@ struct NativeNotificationSettingsView: View {
                     }
                     .disabled(nativeNotificationService.isRefreshing)
                 }
+            } footer: {
+                Text("Use these details if notifications aren’t arriving as expected.")
             }
         }
         .navigationTitle("Notifications")
         .toolbarTitleDisplayMode(.inline)
         .task(id: notificationRefreshTaskID) {
-            await nativeNotificationService.refreshAuthorizationStatus()
-            await nativeNotificationService.registerForRemoteNotificationsIfAllowed()
-            homeAssistantService.refreshMobileAppRegistrationState(settings: connectionSettings)
+            await refreshStatus()
         }
-    }
-
-    private var notificationStatusHeader: some View {
-        Label {
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                HStack(spacing: AppSpacing.small) {
-                    Text(permissionTitle)
-                        .font(.headline)
-
-                    Spacer()
-
-                    Text(permissionBadgeText)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(nativePermissionTint)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(nativePermissionTint.opacity(0.12), in: Capsule())
-                }
-
-                Text(permissionMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.vertical, AppSpacing.xSmall)
-        } icon: {
-            Image(systemName: permissionSystemImage)
-                .foregroundStyle(nativePermissionTint)
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task { await refreshStatus() }
         }
     }
 
     private var nativePermissionTint: Color {
         nativeNotificationService.status.authorizationStatus.settingsTint
-    }
-
-    private var permissionTitle: String {
-        switch nativeNotificationService.status.authorizationStatus {
-        case .authorized, .provisional, .ephemeral:
-            return "Notifications"
-        case .denied:
-            return "Notifications"
-        case .notDetermined:
-            return "Notifications"
-        case .unknown:
-            return "Notifications"
-        }
-    }
-
-    private var permissionBadgeText: String {
-        switch nativeNotificationService.status.authorizationStatus {
-        case .authorized, .provisional, .ephemeral:
-            return "On"
-        case .denied:
-            return "Not Allowed"
-        case .notDetermined:
-            return "Needs Setup"
-        case .unknown:
-            return "Checking"
-        }
     }
 
     private var permissionDetailText: String {
@@ -212,36 +184,13 @@ struct NativeNotificationSettingsView: View {
         nativeNotificationService.status.authorizationStatus.canRequestInApp
     }
 
-    private var homeAssistantStatusHeader: some View {
-        Label {
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                HStack(spacing: AppSpacing.small) {
-                    Text(homeAssistantStatusTitle)
-                        .font(.headline)
-
-                    Spacer()
-
-                    Text(homeAssistantStatusBadgeText)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(homeAssistantStatusTint)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(homeAssistantStatusTint.opacity(0.12), in: Capsule())
-                }
-
-                Text(homeAssistantStatusMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.vertical, AppSpacing.xSmall)
-        } icon: {
-            Image(systemName: "house.badge.wifi")
-                .foregroundStyle(homeAssistantStatusTint)
+    private var shouldShowNotificationSettingsAction: Bool {
+        switch nativeNotificationService.status.authorizationStatus {
+        case .authorized, .provisional, .ephemeral, .denied:
+            return true
+        case .notDetermined, .unknown:
+            return false
         }
-    }
-
-    private var homeAssistantStatusTitle: String {
-        "Home Assistant"
     }
 
     private var homeAssistantStatusBadgeText: String {
@@ -297,6 +246,10 @@ struct NativeNotificationSettingsView: View {
             return "Sign in with Home Assistant before receiving notifications."
         }
 
+        guard nativeNotificationService.status.authorizationStatus.isAllowed else {
+            return "Allow system notifications before delivery can finish."
+        }
+
         switch homeAssistantService.mobileAppRegistrationState {
         case .unregistered:
             return "Set up this device for Home Assistant notifications."
@@ -320,27 +273,6 @@ struct NativeNotificationSettingsView: View {
             return remoteDeliveryMessage
         case .failed(let message):
             return HAConnectionIssuePresentation.fallbackMessage(forRawMessage: message)
-        }
-    }
-
-    private var accountReadinessTitle: String {
-        if hasServerMismatch {
-            return "Server mismatch"
-        }
-
-        guard connectionSettings.hasServerURL else {
-            return "Server needed"
-        }
-
-        switch homeAssistantService.authState {
-        case .signedIn:
-            return "Signed in"
-        case .signingIn, .refreshing:
-            return "Checking"
-        case .accessTokenExpired, .refreshFailed:
-            return "Needs sign-in"
-        case .signedOut:
-            return "Signed out"
         }
     }
 
@@ -475,12 +407,94 @@ struct NativeNotificationSettingsView: View {
         ].joined(separator: "|")
     }
 
+    private func refreshStatus() async {
+        await nativeNotificationService.refreshAuthorizationStatus()
+        await nativeNotificationService.registerForRemoteNotificationsIfAllowed()
+        homeAssistantService.refreshMobileAppRegistrationState(settings: connectionSettings)
+    }
+
     private func openIOSNotificationSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+        guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else {
             return
         }
 
         openURL(url)
+    }
+}
+
+// MARK: - Status Row
+
+private struct NotificationSettingsStatusRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    let title: String
+    let message: String
+    let systemImage: String
+    let status: String
+    let tint: Color
+
+    var body: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                accessibilityLayout
+            } else {
+                standardLayout
+            }
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var standardLayout: some View {
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            statusIcon
+            statusCopy
+            Spacer(minLength: AppSpacing.small)
+            statusText
+        }
+    }
+
+    private var accessibilityLayout: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            HStack(spacing: AppSpacing.medium) {
+                statusIcon
+                Text(title)
+                    .font(.body)
+            }
+
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            statusText
+        }
+    }
+
+    private var statusIcon: some View {
+        Image(systemName: systemImage)
+            .foregroundStyle(tint)
+            .frame(width: 28)
+            .accessibilityHidden(true)
+    }
+
+    private var statusCopy: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text(title)
+                .font(.body)
+
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var statusText: some View {
+        Text(status)
+            .font(.subheadline)
+            .foregroundStyle(tint)
     }
 }
 
