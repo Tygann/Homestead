@@ -23,7 +23,7 @@ struct DashboardView: View {
                 .padding(.vertical, DashboardPageIndicatorMetrics.bottomSpacing)
             }
         }
-        .homesteadWallpaperBackground()
+        .homesteadWallpaperBackground(dashboardID: dashboardConfiguration.selectedDashboardID)
         .navigationTitle(selectedDashboardTitle)
         .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
@@ -113,6 +113,7 @@ struct DashboardView: View {
             }
         )
         .id(dashboard.id)
+        .environment(\.homesteadWallpaperDashboardID, dashboard.id)
         .accessibilityLabel("\(dashboard.resolvedDisplayTitle), dashboard page")
         .accessibilityValue(pageAccessibilityValue(for: dashboard.id))
     }

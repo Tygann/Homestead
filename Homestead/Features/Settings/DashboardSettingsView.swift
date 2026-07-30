@@ -1,7 +1,9 @@
+import PhotosUI
 import SwiftUI
 
 // MARK: - Dashboard Settings View
 struct DashboardSettingsView: View {
+    @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(HomesteadEntitlementStore.self) private var entitlementStore
     @State private var namingAction: DashboardNamingAction?
@@ -97,6 +99,7 @@ struct DashboardSettingsView: View {
         ) {
             Button("Delete Dashboard", role: .destructive) {
                 if let deletingDashboardID {
+                    appearanceSettings.removeDashboardWallpaper(for: deletingDashboardID)
                     dashboardConfiguration.deleteDashboard(id: deletingDashboardID)
                 }
                 deletingDashboardID = nil
@@ -202,7 +205,11 @@ struct DashboardSettingsView: View {
                 presentPlus(for: .duplicate(dashboardID))
                 return
             }
-            dashboardConfiguration.duplicateDashboard(id: dashboardID, named: dashboardNameDraft)
+            let duplicateID = dashboardConfiguration.duplicateDashboard(
+                id: dashboardID,
+                named: dashboardNameDraft
+            )
+            appearanceSettings.copyDashboardBackground(from: dashboardID, to: duplicateID)
         case .rename(let dashboardID):
             dashboardConfiguration.renameDashboard(id: dashboardID, name: dashboardNameDraft)
         }
@@ -399,6 +406,9 @@ struct DashboardDetailSettingsView: View {
     @State private var isConfirmingDelete = false
     @State private var isShowingPlus = false
     @State private var pendingPlusNamingAction: DashboardDetailNamingAction?
+    @State private var selectedWallpaperPhoto: PhotosPickerItem?
+    @State private var isImportingWallpaper = false
+    @State private var wallpaperImportErrorMessage: String?
 
     var body: some View {
         List {
@@ -407,8 +417,8 @@ struct DashboardDetailSettingsView: View {
                     width: 178,
                     items: dashboard.items,
                     dashboardTitle: dashboard.resolvedDisplayTitle,
-                    wallpaperURL: appearanceSettings.activeWallpaperURL,
-                    wallpaperRevision: appearanceSettings.wallpaperRevision,
+                    wallpaperURL: appearanceSettings.resolvedWallpaperURL(for: dashboard.id),
+                    wallpaperRevision: appearanceSettings.wallpaperPresentationRevision(for: dashboard.id),
                     accessibilityLabel: "\(dashboard.resolvedName) Preview"
                 )
                     .frame(maxWidth: .infinity)
@@ -417,7 +427,9 @@ struct DashboardDetailSettingsView: View {
                     .listRowInsets(EdgeInsets())
             }
 
-            Section("Names") {
+            backgroundSection
+
+            Section {
                 Button {
                     beginRenaming()
                 } label: {
@@ -496,6 +508,9 @@ struct DashboardDetailSettingsView: View {
         .navigationTitle(dashboard.resolvedName)
         .toolbarTitleDisplayMode(.inline)
         .safeAreaPadding(.bottom, AppSpacing.xLarge)
+        .task(id: selectedWallpaperPhoto) {
+            await importSelectedWallpaper()
+        }
         .alert("Dashboard Title", isPresented: $isEditingDashboardTitle) {
             TextField("Dashboard Title", text: $dashboardTitleDraft)
 
@@ -519,12 +534,18 @@ struct DashboardDetailSettingsView: View {
                 commitDashboardName()
             }
         }
+        .alert("Couldn't Use Photo", isPresented: wallpaperImportErrorBinding) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(wallpaperImportErrorMessage ?? "Choose another photo and try again.")
+        }
         .confirmationDialog(
             "Delete \(dashboard.resolvedName)?",
             isPresented: $isConfirmingDelete,
             titleVisibility: .visible
         ) {
             Button("Delete Dashboard", role: .destructive) {
+                appearanceSettings.removeDashboardWallpaper(for: dashboard.id)
                 dashboardConfiguration.deleteDashboard(id: dashboard.id)
                 dismiss()
             }
@@ -533,6 +554,97 @@ struct DashboardDetailSettingsView: View {
         }
         .sheet(isPresented: $isShowingPlus, onDismiss: resumePendingPlusAction) {
             HomesteadPlusSheet(context: .additionalDashboard)
+        }
+    }
+
+    private var backgroundSection: some View {
+        Section {
+            Picker("Background", selection: dashboardBackgroundBinding) {
+                ForEach(DashboardBackgroundChoice.allCases) { choice in
+                    Text(choice.displayName)
+                        .tag(choice)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(.secondary)
+
+            if dashboardBackgroundChoice == .customWallpaper {
+                dashboardWallpaperActions
+            }
+        } footer: {
+            Text("Default uses the wallpaper selected in Appearance.")
+        }
+    }
+
+    @ViewBuilder
+    private var dashboardWallpaperActions: some View {
+        if isImportingWallpaper {
+            HStack(spacing: AppSpacing.small) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(hasCustomDashboardWallpaper ? "Updating Wallpaper…" : "Adding Wallpaper…")
+            }
+            .foregroundStyle(.secondary)
+        } else {
+            PhotosPicker(
+                selection: $selectedWallpaperPhoto,
+                matching: .images,
+                photoLibrary: .shared()
+            ) {
+                Text(hasCustomDashboardWallpaper ? "Change Wallpaper" : "Choose Wallpaper")
+            }
+
+            if hasCustomDashboardWallpaper {
+                Button("Remove Custom Wallpaper", role: .destructive) {
+                    appearanceSettings.removeDashboardWallpaper(for: dashboard.id)
+                }
+            }
+        }
+    }
+
+    private var dashboardBackgroundChoice: DashboardBackgroundChoice {
+        appearanceSettings.dashboardBackgroundChoice(for: dashboard.id)
+    }
+
+    private var dashboardBackgroundBinding: Binding<DashboardBackgroundChoice> {
+        Binding(
+            get: { dashboardBackgroundChoice },
+            set: { appearanceSettings.setDashboardBackgroundChoice($0, for: dashboard.id) }
+        )
+    }
+
+    private var hasCustomDashboardWallpaper: Bool {
+        appearanceSettings.hasCustomDashboardWallpaper(for: dashboard.id)
+    }
+
+    private var wallpaperImportErrorBinding: Binding<Bool> {
+        Binding(
+            get: { wallpaperImportErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    wallpaperImportErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private func importSelectedWallpaper() async {
+        guard let selectedWallpaperPhoto else { return }
+
+        isImportingWallpaper = true
+        defer {
+            isImportingWallpaper = false
+            self.selectedWallpaperPhoto = nil
+        }
+
+        do {
+            guard let data = try await selectedWallpaperPhoto.loadTransferable(type: Data.self) else {
+                throw HomesteadAppearanceSettingsError.invalidImage
+            }
+            try await appearanceSettings.importDashboardWallpaper(from: data, for: dashboard.id)
+        } catch {
+            wallpaperImportErrorMessage = (error as? LocalizedError)?.errorDescription
+                ?? error.localizedDescription
         }
     }
 
@@ -608,7 +720,11 @@ struct DashboardDetailSettingsView: View {
                 presentPlus(for: .duplicate)
                 return
             }
-            dashboardConfiguration.duplicateDashboard(id: dashboard.id, named: dashboardNameDraft)
+            let duplicateID = dashboardConfiguration.duplicateDashboard(
+                id: dashboard.id,
+                named: dashboardNameDraft
+            )
+            appearanceSettings.copyDashboardBackground(from: dashboard.id, to: duplicateID)
         case .rename:
             dashboardConfiguration.renameDashboard(id: dashboard.id, name: dashboardNameDraft)
         }

@@ -11,6 +11,7 @@ nonisolated enum HomesteadPreviewScreen: String, Sendable {
     case dashboardChangeEntity = "dashboard-change-entity"
     case dashboardCardEditor = "dashboard-card-editor"
     case dashboardCards = "dashboard-cards"
+    case dashboardSettings = "dashboard-settings"
     case entityDetailCard = "entity-detail-card"
     case entityDetails = "entity-details"
     case home
@@ -35,6 +36,8 @@ extension HomesteadPreviewScreen {
             self = .dashboardCardEditor
         case Self.dashboardCards.rawValue:
             self = .dashboardCards
+        case Self.dashboardSettings.rawValue:
+            self = .dashboardSettings
         case Self.entityDetailCard.rawValue:
             self = .entityDetailCard
         case Self.entityDetails.rawValue:

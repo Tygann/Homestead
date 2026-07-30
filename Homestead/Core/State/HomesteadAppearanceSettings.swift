@@ -82,6 +82,25 @@ nonisolated enum HomesteadAppColor: String, CaseIterable, Codable, Identifiable,
     }
 }
 
+nonisolated enum DashboardBackgroundChoice: String, CaseIterable, Codable, Identifiable, Sendable {
+    case defaultWallpaper
+    case noWallpaper
+    case customWallpaper
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .defaultWallpaper:
+            "Default Wallpaper"
+        case .noWallpaper:
+            "No Wallpaper"
+        case .customWallpaper:
+            "Custom Wallpaper"
+        }
+    }
+}
+
 enum HomesteadAppearanceSettingsError: LocalizedError {
     case invalidImage
     case unableToEncodeImage
@@ -114,6 +133,9 @@ final class HomesteadAppearanceSettings {
     private var wallpaperProfiles: [UUID: WallpaperProfileState] {
         didSet { saveWallpaperProfiles() }
     }
+    private var dashboardBackgrounds: [UUID: [UUID: DashboardBackgroundState]] {
+        didSet { saveDashboardBackgrounds() }
+    }
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let fileManager: FileManager
@@ -133,6 +155,9 @@ final class HomesteadAppearanceSettings {
         activeProfileID = profileID
         wallpaperProfiles = defaults.data(forKey: Keys.wallpaperProfiles).flatMap {
             try? JSONDecoder().decode([UUID: WallpaperProfileState].self, from: $0)
+        } ?? [:]
+        dashboardBackgrounds = defaults.data(forKey: Keys.dashboardBackgrounds).flatMap {
+            try? JSONDecoder().decode([UUID: [UUID: DashboardBackgroundState]].self, from: $0)
         } ?? [:]
         appearanceMode = defaults.string(forKey: Keys.appearanceMode).flatMap(HomesteadAppearanceMode.init(rawValue:)) ?? .system
         appColor = defaults.string(forKey: Keys.appColor).flatMap(HomesteadAppColor.init(rawValue:)) ?? .blue
@@ -167,6 +192,50 @@ final class HomesteadAppearanceSettings {
         hasWallpaper ? wallpaperURL : nil
     }
 
+    func dashboardBackgroundChoice(for dashboardID: UUID) -> DashboardBackgroundChoice {
+        dashboardBackgrounds[activeProfileID]?[dashboardID]?.choice ?? .defaultWallpaper
+    }
+
+    func setDashboardBackgroundChoice(_ choice: DashboardBackgroundChoice, for dashboardID: UUID) {
+        var profileBackgrounds = dashboardBackgrounds[activeProfileID] ?? [:]
+        var state = profileBackgrounds[dashboardID] ?? DashboardBackgroundState()
+        state.choice = choice
+        profileBackgrounds[dashboardID] = state
+        dashboardBackgrounds[activeProfileID] = profileBackgrounds
+    }
+
+    func hasCustomDashboardWallpaper(for dashboardID: UUID) -> Bool {
+        fileManager.fileExists(atPath: dashboardWallpaperURL(for: dashboardID).path)
+    }
+
+    func storedDashboardWallpaperURL(for dashboardID: UUID) -> URL? {
+        hasCustomDashboardWallpaper(for: dashboardID) ? dashboardWallpaperURL(for: dashboardID) : nil
+    }
+
+    func resolvedWallpaperURL(for dashboardID: UUID?) -> URL? {
+        guard let dashboardID else {
+            return activeWallpaperURL
+        }
+
+        switch dashboardBackgroundChoice(for: dashboardID) {
+        case .defaultWallpaper:
+            return activeWallpaperURL
+        case .noWallpaper:
+            return nil
+        case .customWallpaper:
+            return storedDashboardWallpaperURL(for: dashboardID) ?? activeWallpaperURL
+        }
+    }
+
+    func wallpaperPresentationRevision(for dashboardID: UUID?) -> Int {
+        guard let dashboardID else {
+            return wallpaperRevision
+        }
+
+        let dashboardRevision = dashboardBackgrounds[activeProfileID]?[dashboardID]?.revision ?? 0
+        return wallpaperRevision &* 31 &+ dashboardRevision
+    }
+
     var syncSnapshot: HomesteadAppearanceSettingsSyncSnapshot {
         HomesteadAppearanceSettingsSyncSnapshot(
             appearanceMode: appearanceMode,
@@ -185,31 +254,30 @@ final class HomesteadAppearanceSettings {
     }
 
     func importWallpaper(from imageData: Data) async throws {
-        guard let image = UIImage(data: imageData) else {
-            throw HomesteadAppearanceSettingsError.invalidImage
-        }
-
-        guard let optimizedData = Self.optimizedJPEGData(
-            from: image,
-            maximumDimension: maximumWallpaperDimension
-        ) else {
-            throw HomesteadAppearanceSettingsError.unableToEncodeImage
-        }
-
-        do {
-            try fileManager.createDirectory(
-                at: profileStorageDirectory(for: activeProfileID),
-                withIntermediateDirectories: true
-            )
-        } catch {
-            throw HomesteadAppearanceSettingsError.unableToCreateStorageDirectory
-        }
-
-        try optimizedData.write(to: wallpaperURL, options: [.atomic])
+        try writeOptimizedWallpaper(
+            from: imageData,
+            to: wallpaperURL,
+            directory: profileStorageDirectory(for: activeProfileID)
+        )
         updateActiveWallpaperState { state in
             state.isEnabled = true
             state.revision += 1
         }
+    }
+
+    func importDashboardWallpaper(from imageData: Data, for dashboardID: UUID) async throws {
+        try writeOptimizedWallpaper(
+            from: imageData,
+            to: dashboardWallpaperURL(for: dashboardID),
+            directory: dashboardStorageDirectory(for: dashboardID)
+        )
+
+        var profileBackgrounds = dashboardBackgrounds[activeProfileID] ?? [:]
+        var state = profileBackgrounds[dashboardID] ?? DashboardBackgroundState()
+        state.choice = .customWallpaper
+        state.revision += 1
+        profileBackgrounds[dashboardID] = state
+        dashboardBackgrounds[activeProfileID] = profileBackgrounds
     }
 
     func removeWallpaper() {
@@ -223,9 +291,43 @@ final class HomesteadAppearanceSettings {
         }
     }
 
+    func removeDashboardWallpaper(for dashboardID: UUID) {
+        try? fileManager.removeItem(at: dashboardStorageDirectory(for: dashboardID))
+        var profileBackgrounds = dashboardBackgrounds[activeProfileID] ?? [:]
+        profileBackgrounds.removeValue(forKey: dashboardID)
+        dashboardBackgrounds[activeProfileID] = profileBackgrounds
+    }
+
+    func copyDashboardBackground(from sourceID: UUID, to destinationID: UUID) {
+        removeDashboardWallpaper(for: destinationID)
+
+        let sourceState = dashboardBackgrounds[activeProfileID]?[sourceID] ?? DashboardBackgroundState()
+        var copiedState = sourceState
+
+        if sourceState.choice == .customWallpaper,
+           let sourceURL = storedDashboardWallpaperURL(for: sourceID) {
+            do {
+                try fileManager.createDirectory(
+                    at: dashboardStorageDirectory(for: destinationID),
+                    withIntermediateDirectories: true
+                )
+                try fileManager.copyItem(at: sourceURL, to: dashboardWallpaperURL(for: destinationID))
+                copiedState.revision += 1
+            } catch {
+                copiedState = DashboardBackgroundState()
+            }
+        }
+
+        guard copiedState != DashboardBackgroundState() else { return }
+        var profileBackgrounds = dashboardBackgrounds[activeProfileID] ?? [:]
+        profileBackgrounds[destinationID] = copiedState
+        dashboardBackgrounds[activeProfileID] = profileBackgrounds
+    }
+
     func removeProfileData(_ profileID: UUID) {
         try? fileManager.removeItem(at: profileStorageDirectory(for: profileID))
         wallpaperProfiles.removeValue(forKey: profileID)
+        dashboardBackgrounds.removeValue(forKey: profileID)
     }
 
     func applySyncSnapshot(_ snapshot: HomesteadAppearanceSettingsSyncSnapshot) {
@@ -259,6 +361,17 @@ final class HomesteadAppearanceSettings {
             .appendingPathComponent(profileID.uuidString.lowercased(), isDirectory: true)
     }
 
+    private func dashboardStorageDirectory(for dashboardID: UUID) -> URL {
+        profileStorageDirectory(for: activeProfileID)
+            .appendingPathComponent("Dashboards", isDirectory: true)
+            .appendingPathComponent(dashboardID.uuidString.lowercased(), isDirectory: true)
+    }
+
+    private func dashboardWallpaperURL(for dashboardID: UUID) -> URL {
+        dashboardStorageDirectory(for: dashboardID)
+            .appendingPathComponent(wallpaperFileName, isDirectory: false)
+    }
+
     private func updateActiveWallpaperState(_ update: (inout WallpaperProfileState) -> Void) {
         var state = wallpaperProfiles[activeProfileID] ?? WallpaperProfileState()
         update(&state)
@@ -268,6 +381,39 @@ final class HomesteadAppearanceSettings {
     private func saveWallpaperProfiles() {
         guard let data = try? JSONEncoder().encode(wallpaperProfiles) else { return }
         defaults.set(data, forKey: Keys.wallpaperProfiles)
+    }
+
+    private func saveDashboardBackgrounds() {
+        guard let data = try? JSONEncoder().encode(dashboardBackgrounds) else { return }
+        defaults.set(data, forKey: Keys.dashboardBackgrounds)
+    }
+
+    private func writeOptimizedWallpaper(
+        from imageData: Data,
+        to url: URL,
+        directory: URL
+    ) throws {
+        guard let image = UIImage(data: imageData) else {
+            throw HomesteadAppearanceSettingsError.invalidImage
+        }
+
+        guard let optimizedData = Self.optimizedJPEGData(
+            from: image,
+            maximumDimension: maximumWallpaperDimension
+        ) else {
+            throw HomesteadAppearanceSettingsError.unableToEncodeImage
+        }
+
+        do {
+            try fileManager.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true
+            )
+        } catch {
+            throw HomesteadAppearanceSettingsError.unableToCreateStorageDirectory
+        }
+
+        try optimizedData.write(to: url, options: [.atomic])
     }
 
     private static func defaultStorageDirectory(fileManager: FileManager) -> URL {
@@ -305,6 +451,7 @@ final class HomesteadAppearanceSettings {
         static let appearanceMode = "homestead.appearance.mode"
         static let appColor = "homestead.appearance.appColor"
         static let wallpaperProfiles = "homestead.appearance.wallpaperProfiles.v1"
+        static let dashboardBackgrounds = "homestead.appearance.dashboardBackgrounds.v1"
     }
 }
 
@@ -326,5 +473,10 @@ nonisolated struct HomesteadAppearanceSettingsSyncSnapshot: Codable, Equatable, 
 
 private struct WallpaperProfileState: Codable, Equatable {
     var isEnabled = false
+    var revision = 0
+}
+
+private struct DashboardBackgroundState: Codable, Equatable {
+    var choice: DashboardBackgroundChoice = .defaultWallpaper
     var revision = 0
 }

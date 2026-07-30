@@ -6,6 +6,8 @@ import UIKit
 struct AppearanceSettingsTests {
     private static let primaryProfileID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
     private static let secondaryProfileID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+    private static let primaryDashboardID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
+    private static let secondaryDashboardID = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
 
     @Test @MainActor func appearanceSettingsPersistsAppColor() throws {
         let defaults = testUserDefaults()
@@ -176,5 +178,150 @@ struct AppearanceSettingsTests {
         settings.activateProfile(Self.primaryProfileID)
         #expect(!settings.hasWallpaper)
         #expect(!settings.isWallpaperEnabled)
+    }
+
+    @Test @MainActor func dashboardBackgroundChoicePersistsPerProfileAndDashboard() throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(
+            profileID: Self.primaryProfileID,
+            defaults: defaults,
+            storageDirectory: directory
+        )
+        settings.setDashboardBackgroundChoice(.noWallpaper, for: Self.primaryDashboardID)
+        settings.setDashboardBackgroundChoice(.customWallpaper, for: Self.secondaryDashboardID)
+
+        let reloadedSettings = HomesteadAppearanceSettings(
+            profileID: Self.primaryProfileID,
+            defaults: defaults,
+            storageDirectory: directory
+        )
+        #expect(reloadedSettings.dashboardBackgroundChoice(for: Self.primaryDashboardID) == .noWallpaper)
+        #expect(reloadedSettings.dashboardBackgroundChoice(for: Self.secondaryDashboardID) == .customWallpaper)
+
+        reloadedSettings.activateProfile(Self.secondaryProfileID)
+        #expect(reloadedSettings.dashboardBackgroundChoice(for: Self.primaryDashboardID) == .defaultWallpaper)
+    }
+
+    @Test @MainActor func dashboardBackgroundResolvesDefaultNoneAndCustomWallpaper() async throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(
+            profileID: Self.primaryProfileID,
+            defaults: defaults,
+            storageDirectory: directory
+        )
+        try await settings.importWallpaper(from: testImageData(color: .systemRed))
+        let defaultWallpaperURL = try #require(settings.activeWallpaperURL)
+
+        #expect(settings.resolvedWallpaperURL(for: Self.primaryDashboardID) == defaultWallpaperURL)
+
+        settings.setDashboardBackgroundChoice(.noWallpaper, for: Self.primaryDashboardID)
+        #expect(settings.resolvedWallpaperURL(for: Self.primaryDashboardID) == nil)
+
+        settings.setDashboardBackgroundChoice(.customWallpaper, for: Self.primaryDashboardID)
+        #expect(settings.resolvedWallpaperURL(for: Self.primaryDashboardID) == defaultWallpaperURL)
+
+        try await settings.importDashboardWallpaper(
+            from: testImageData(color: .systemBlue),
+            for: Self.primaryDashboardID
+        )
+        let customWallpaperURL = try #require(
+            settings.storedDashboardWallpaperURL(for: Self.primaryDashboardID)
+        )
+        #expect(customWallpaperURL != defaultWallpaperURL)
+        #expect(settings.resolvedWallpaperURL(for: Self.primaryDashboardID) == customWallpaperURL)
+
+        settings.setDashboardBackgroundChoice(.defaultWallpaper, for: Self.primaryDashboardID)
+        #expect(settings.resolvedWallpaperURL(for: Self.primaryDashboardID) == defaultWallpaperURL)
+    }
+
+    @Test @MainActor func removingDashboardWallpaperReturnsToDefault() async throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(
+            profileID: Self.primaryProfileID,
+            defaults: defaults,
+            storageDirectory: directory
+        )
+        try await settings.importWallpaper(from: testImageData(color: .systemRed))
+        try await settings.importDashboardWallpaper(
+            from: testImageData(color: .systemBlue),
+            for: Self.primaryDashboardID
+        )
+
+        settings.removeDashboardWallpaper(for: Self.primaryDashboardID)
+
+        #expect(!settings.hasCustomDashboardWallpaper(for: Self.primaryDashboardID))
+        #expect(settings.dashboardBackgroundChoice(for: Self.primaryDashboardID) == .defaultWallpaper)
+        #expect(settings.resolvedWallpaperURL(for: Self.primaryDashboardID) == settings.activeWallpaperURL)
+    }
+
+    @Test @MainActor func copyingDashboardBackgroundCreatesIndependentCustomImage() async throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(
+            profileID: Self.primaryProfileID,
+            defaults: defaults,
+            storageDirectory: directory
+        )
+        try await settings.importDashboardWallpaper(
+            from: testImageData(color: .systemBlue),
+            for: Self.primaryDashboardID
+        )
+        let originalData = try Data(contentsOf: #require(
+            settings.storedDashboardWallpaperURL(for: Self.primaryDashboardID)
+        ))
+
+        settings.copyDashboardBackground(
+            from: Self.primaryDashboardID,
+            to: Self.secondaryDashboardID
+        )
+
+        let copiedURL = try #require(
+            settings.storedDashboardWallpaperURL(for: Self.secondaryDashboardID)
+        )
+        #expect(settings.dashboardBackgroundChoice(for: Self.secondaryDashboardID) == .customWallpaper)
+        #expect(try Data(contentsOf: copiedURL) == originalData)
+
+        try await settings.importDashboardWallpaper(
+            from: testImageData(color: .systemPurple),
+            for: Self.primaryDashboardID
+        )
+        #expect(try Data(contentsOf: copiedURL) == originalData)
+    }
+
+    @Test @MainActor func removingDashboardWallpaperDoesNotAffectOtherDashboards() async throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(
+            profileID: Self.primaryProfileID,
+            defaults: defaults,
+            storageDirectory: directory
+        )
+        try await settings.importDashboardWallpaper(
+            from: testImageData(color: .systemBlue),
+            for: Self.primaryDashboardID
+        )
+        try await settings.importDashboardWallpaper(
+            from: testImageData(color: .systemGreen),
+            for: Self.secondaryDashboardID
+        )
+
+        settings.removeDashboardWallpaper(for: Self.primaryDashboardID)
+
+        #expect(!settings.hasCustomDashboardWallpaper(for: Self.primaryDashboardID))
+        #expect(settings.hasCustomDashboardWallpaper(for: Self.secondaryDashboardID))
+        #expect(settings.dashboardBackgroundChoice(for: Self.secondaryDashboardID) == .customWallpaper)
     }
 }

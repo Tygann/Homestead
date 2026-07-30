@@ -268,7 +268,7 @@ private enum SamplePreviewWallpaper {
     }
 }
 
-private struct DashboardDetailPreviewReference: View {
+struct DashboardDetailPreviewReference: View {
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
 
     var body: some View {

@@ -1,17 +1,30 @@
 import SwiftUI
 import UIKit
 
+private struct HomesteadWallpaperDashboardIDKey: EnvironmentKey {
+    static let defaultValue: UUID? = nil
+}
+
+extension EnvironmentValues {
+    var homesteadWallpaperDashboardID: UUID? {
+        get { self[HomesteadWallpaperDashboardIDKey.self] }
+        set { self[HomesteadWallpaperDashboardIDKey.self] = newValue }
+    }
+}
+
 struct HomesteadWallpaperBackground: View {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
     @Environment(\.colorScheme) private var colorScheme
     @State private var wallpaperImage: UIImage?
+
+    let dashboardID: UUID?
 
     var body: some View {
         ZStack {
             Color(.systemGroupedBackground)
                 .ignoresSafeArea()
 
-            if appearanceSettings.activeWallpaperURL != nil, let wallpaperImage {
+            if wallpaperURL != nil, let wallpaperImage {
                 GeometryReader { proxy in
                     Image(uiImage: wallpaperImage)
                         .resizable()
@@ -38,14 +51,17 @@ struct HomesteadWallpaperBackground: View {
 
     private var wallpaperTaskID: String {
         [
-            appearanceSettings.isWallpaperEnabled.description,
-            appearanceSettings.wallpaperRevision.description,
-            appearanceSettings.activeWallpaperURL?.path ?? "none"
+            appearanceSettings.wallpaperPresentationRevision(for: dashboardID).description,
+            wallpaperURL?.path ?? "none"
         ].joined(separator: "|")
     }
 
+    private var wallpaperURL: URL? {
+        appearanceSettings.resolvedWallpaperURL(for: dashboardID)
+    }
+
     private func loadWallpaperImage() {
-        guard let url = appearanceSettings.activeWallpaperURL,
+        guard let url = wallpaperURL,
               let image = UIImage(contentsOfFile: url.path) else {
             wallpaperImage = nil
             return
@@ -56,22 +72,34 @@ struct HomesteadWallpaperBackground: View {
 }
 
 extension View {
-    func homesteadWallpaperBackground(allowsWallpaper: Bool = true) -> some View {
-        modifier(HomesteadWallpaperBackgroundModifier(allowsWallpaper: allowsWallpaper))
+    func homesteadWallpaperBackground(
+        allowsWallpaper: Bool = true,
+        dashboardID: UUID? = nil
+    ) -> some View {
+        modifier(
+            HomesteadWallpaperBackgroundModifier(
+                allowsWallpaper: allowsWallpaper,
+                dashboardID: dashboardID
+            )
+        )
     }
 }
 
 private struct HomesteadWallpaperBackgroundModifier: ViewModifier {
     @Environment(HomesteadAppearanceSettings.self) private var appearanceSettings
+    @Environment(\.homesteadWallpaperDashboardID) private var inheritedDashboardID
 
     let allowsWallpaper: Bool
+    let dashboardID: UUID?
 
     func body(content: Content) -> some View {
-        let isWallpaperActive = allowsWallpaper && appearanceSettings.activeWallpaperURL != nil
+        let resolvedDashboardID = dashboardID ?? inheritedDashboardID
+        let isWallpaperActive = allowsWallpaper
+            && appearanceSettings.resolvedWallpaperURL(for: resolvedDashboardID) != nil
 
         ZStack {
             if isWallpaperActive {
-                HomesteadWallpaperBackground()
+                HomesteadWallpaperBackground(dashboardID: resolvedDashboardID)
             } else {
                 Color(.systemGroupedBackground)
                     .ignoresSafeArea()

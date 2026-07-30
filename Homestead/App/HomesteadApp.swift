@@ -232,6 +232,11 @@ struct HomesteadApp: App {
             DashboardCardEditorPreviewScreen()
         case .dashboardCards:
             DashboardCardReferenceGallery()
+        case .dashboardSettings:
+            NavigationStack {
+                DashboardDetailPreviewReference()
+            }
+            .withPreviewEnvironment(.dashboardSample(pageCount: 3))
         case .entityDetailCard:
             EntityDetailCardContextPreviewScreen()
         case .entityDetails:
