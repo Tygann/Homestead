@@ -76,17 +76,6 @@ struct LogbookSettingsView: View {
         .refreshable {
             await refreshLogbook(updatesPresetRange: true)
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await refreshLogbook(updatesPresetRange: true) }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .disabled(isLoading)
-                .accessibilityLabel("Refresh logbook")
-            }
-        }
         .task(id: queryTaskID) {
             await refreshLogbook(updatesPresetRange: false)
         }

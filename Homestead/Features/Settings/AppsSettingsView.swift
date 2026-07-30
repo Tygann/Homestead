@@ -29,17 +29,6 @@ struct AppsSettingsView: View {
         .refreshable {
             await refreshApps()
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task { await refreshApps() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .disabled(isRefreshing)
-                .accessibilityLabel("Refresh apps")
-            }
-        }
         .task(id: loadTaskID) {
             await refreshApps()
         }
