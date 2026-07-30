@@ -96,7 +96,7 @@ struct SettingsView: View {
                 NavigationLink {
                     LogbookSettingsView()
                 } label: {
-                    SettingsNavigationRowLabel("Logbook", systemImage: "list.bullet.clipboard")
+                    SettingsNavigationRowLabel("Activity", systemImage: "list.bullet.clipboard")
                 }
             }
 

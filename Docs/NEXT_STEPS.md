@@ -240,7 +240,7 @@ Recommended reasoning level: High.
 - Preserved Home Assistant custom-zone casing exactly in user-facing presence copy, so states like `PCS` are not title-cased or prefixed.
 - Added a generic authenticated Home Assistant image request helper in `HomeAssistantService`, a shared in-memory avatar image cache, and focused tests for presence mapping, people-only presentation behavior, and image request URL/auth shape.
 - Kept true Home Assistant user/admin management and assigned-device editing out of scope; no private frontend user/admin endpoints or unconfirmed person-management APIs were added.
-- Added a read-only Settings > Logbook page backed by Home Assistant's documented REST logbook endpoint.
+- Renamed the read-only Settings > Logbook surface to Activity to match current Home Assistant terminology, replaced its stacked range/filter/status forms with compact range and filter sheets, and adopted a state-aware connected timeline with HA-style activity context and entity-detail navigation.
 - Added typed logbook request/DTO support, an authenticated HTTP client path, app-facing `HAActivityRow` models, grouped/searchable presentation helpers, and focused regression tests for URL shape, decoding, mapping, filtering, and service auth handoff.
 - Kept domain filtering and search local to Homestead; server requests use only the documented logbook start timestamp, `end_time`, and `entity` parameters.
 - Added native iOS notification permission/status models and a `NativeNotificationService` separate from Home Assistant mobile-app registration state.

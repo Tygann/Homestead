@@ -1443,9 +1443,11 @@ struct HomesteadTests {
         #expect(rows[0].attributionName == "Tyler")
         #expect(rows[0].triggerText == "triggered by action Light: Turn on")
         #expect(rows[0].iconSystemName == EntityDomain.light.systemImage)
+        #expect(rows[0].timelineTone == .active)
         #expect(rows[0].matches(query: "pendant"))
         #expect(rows[1].title == "Automation")
         #expect(rows[1].iconSystemName == "list.bullet.clipboard")
+        #expect(rows[1].timelineTone == .active)
     }
 
     @Test func logbookStateChangesMapToHomeAssistantStyleActivityMessages() throws {
@@ -1495,6 +1497,12 @@ struct HomesteadTests {
             "was opened",
             "was closed"
         ])
+        #expect(rows.map(\.timelineTone) == [
+            .inactive,
+            .inactive,
+            .active,
+            .inactive
+        ])
     }
 
     @Test func securityActivityUsesStateSpecificIconsAndAttribution() throws {
@@ -1524,10 +1532,12 @@ struct HomesteadTests {
 
         #expect(rows[0].message == "was unlocked")
         #expect(rows[0].iconSystemName == "lock.open.fill")
+        #expect(rows[0].timelineTone == .active)
         #expect(rows[0].triggerText == nil)
         #expect(rows[0].attributionName == nil)
         #expect(rows[1].message == "was locked")
         #expect(rows[1].iconSystemName == "lock.fill")
+        #expect(rows[1].timelineTone == .inactive)
         #expect(rows[1].triggerText == "triggered by action Lock: Lock lock")
         #expect(rows[1].attributionName == "Tyler")
     }

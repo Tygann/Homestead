@@ -114,6 +114,33 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
 
     var iconSystemName: String { resolvedIcon.sfSymbolName }
 
+    var timelineTone: HAHistoryTimelineTone {
+        if let state = state?.lowercased() {
+            if ["unavailable", "unknown", "jammed"].contains(state) {
+                return .unavailable
+            }
+
+            if [
+                "on", "open", "opening", "unlocked", "unlocking", "home",
+                "playing", "active", "detected", "triggered"
+            ].contains(state) {
+                return .active
+            }
+
+            return .inactive
+        }
+
+        let activityMessage = message.lowercased()
+        if ["unavailable", "unknown", "jammed"].contains(where: activityMessage.contains) {
+            return .unavailable
+        }
+        if ["turned on", "opened", "unlocked", "triggered", "playing", "active"].contains(where: activityMessage.contains) {
+            return .active
+        }
+
+        return .inactive
+    }
+
     var detailText: String {
         let details = [
             entityID,

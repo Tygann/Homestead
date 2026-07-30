@@ -744,6 +744,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Added a read-only Settings > Logbook page backed by Home Assistant's documented REST logbook API.
 - Added typed logbook request/DTO support, app-facing activity row models, grouped/searchable presentation helpers, date range controls, and entity/domain filtering.
+- Renamed the user-facing surface to Activity, consolidated its range and filter controls into focused sheets, and replaced the diagnostic-style list with a connected, state-aware timeline that retains Home Assistant context and opens entity details.
 - Kept server calls to the documented start timestamp, `end_time`, and `entity` API shape, with domain filtering and search handled locally.
 
 ### Notifications
