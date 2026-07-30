@@ -377,7 +377,7 @@ struct SoftwareDetailView: View {
     private var whatsNewSection: some View {
         if let update, update.showsUpdateDetails {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
-                sectionDivider
+                nestedSectionDivider
 
                 Text("What’s New")
                     .font(.title3.bold())
@@ -460,7 +460,7 @@ struct SoftwareDetailView: View {
     private var aboutSection: some View {
         if let aboutText {
             VStack(alignment: .leading, spacing: AppSpacing.small) {
-                sectionDivider
+                nestedSectionDivider
 
                 Text("About")
                     .font(.title2.bold())
@@ -484,7 +484,7 @@ struct SoftwareDetailView: View {
 
         if !rows.isEmpty || !links.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                sectionDivider
+                nestedSectionDivider
 
                 Text("Information")
                     .font(.title2.bold())
@@ -848,7 +848,14 @@ struct SoftwareDetailView: View {
 
     private var sectionDivider: some View {
         Divider()
-            .padding(.horizontal, AppSpacing.medium)
+            .padding(.horizontal, 14)
+    }
+
+    // Section content uses a 20-point inset; extend its divider back to the
+    // 14-point App Store-style page inset.
+    private var nestedSectionDivider: some View {
+        Divider()
+            .padding(.horizontal, -6)
     }
 
     private func relativeDescription(for date: Date) -> String {
