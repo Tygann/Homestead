@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-07-30
+
+### Notification Settings Stability And Polish
+
+- Rebuilt Settings > Notifications as one compact access card with separate System Notifications and Home Assistant Delivery outcomes, inline Allow/Set Up/Retry accessories, concise one-line footers, and a single iOS Notification Settings handoff. Removed the lower-level delivery disclosure from the user-facing screen.
+- Separated passive permission refresh from remote-notification registration, made APNs registration idempotent while active or complete, and kept routine background re-registration from replacing stable delivery readiness with transient setup UI.
+- Added deterministic ready and needs-setup notification preview states plus focused regression coverage for registration idempotency.
+
 ## 2026-07-29
 
 ### Native Update Release Notes

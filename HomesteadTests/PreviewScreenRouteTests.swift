@@ -15,4 +15,10 @@ final class PreviewScreenRouteTests: XCTestCase {
         XCTAssertNil(HomesteadPreviewScreen(argumentValue: nil))
         XCTAssertNil(HomesteadPreviewScreen(argumentValue: "unknown"))
     }
+
+    func testNotificationPreviewStatesUseCanonicalArguments() {
+        XCTAssertEqual(HomesteadPreviewNotificationState(rawValue: "ready"), .ready)
+        XCTAssertEqual(HomesteadPreviewNotificationState(rawValue: "needs-setup"), .needsSetup)
+        XCTAssertNil(HomesteadPreviewNotificationState(rawValue: "unknown"))
+    }
 }

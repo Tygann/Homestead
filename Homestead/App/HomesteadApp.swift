@@ -24,9 +24,16 @@ struct HomesteadApp: App {
     init() {
 #if DEBUG
         if let previewScreen = RuntimeEnvironment.previewScreen {
-            let dependencies = previewScreen == .home
-                ? PreviewDependencies.dashboardPagingSample
-                : PreviewDependencies.sample
+            let dependencies = switch previewScreen {
+            case .home:
+                PreviewDependencies.dashboardPagingSample
+            case .notifications:
+                RuntimeEnvironment.previewNotificationState == .needsSetup
+                    ? PreviewDependencies.sample
+                    : PreviewDependencies.settingsSample(.healthy)
+            default:
+                PreviewDependencies.sample
+            }
             HomesteadAppDelegate.nativeNotificationService = dependencies.nativeNotificationService
             _stateStore = State(initialValue: dependencies.stateStore)
             _connectionProfileStore = State(initialValue: dependencies.connectionSettings.profileStore)

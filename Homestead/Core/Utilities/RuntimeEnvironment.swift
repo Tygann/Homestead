@@ -21,6 +21,11 @@ nonisolated enum HomesteadPreviewScreen: String, Sendable {
     case widgets
 }
 
+nonisolated enum HomesteadPreviewNotificationState: String, Sendable {
+    case ready
+    case needsSetup = "needs-setup"
+}
+
 extension HomesteadPreviewScreen {
     nonisolated init?(argumentValue: String?) {
         guard let argumentValue else {
@@ -67,6 +72,13 @@ extension RuntimeEnvironment {
 
     nonisolated static var previewScreen: HomesteadPreviewScreen? {
         HomesteadPreviewScreen(argumentValue: argumentValue(after: "--preview-screen"))
+    }
+
+    nonisolated static var previewNotificationState: HomesteadPreviewNotificationState {
+        guard let value = argumentValue(after: "--preview-notification-state") else {
+            return .ready
+        }
+        return HomesteadPreviewNotificationState(rawValue: value) ?? .ready
     }
 
     nonisolated static var livePreviewEntityID: String? {

@@ -109,6 +109,13 @@ final class NativeNotificationService {
             return
         }
 
+        switch remoteRegistrationState {
+        case .registeringWithAPNS, .registeringWithBackend, .registered:
+            return
+        case .notRegistered, .failed:
+            break
+        }
+
         remoteRegistrationState = .registeringWithAPNS
         await remoteRegistrationClient.registerForRemoteNotifications()
     }

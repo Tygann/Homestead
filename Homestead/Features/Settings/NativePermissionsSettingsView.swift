@@ -56,7 +56,7 @@ struct NativePermissionsSettingsView: View {
                 Button {
                     openIOSSettings()
                 } label: {
-                    SettingsNavigationRowLabel("Open Homestead in Settings", systemImage: "gearshape")
+                    SettingsNavigationRowLabel("Homestead Settings", systemImage: "gearshape")
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Opens Homestead’s permissions in the Settings app")
@@ -244,7 +244,12 @@ private struct NativePermissionStatusRow: View {
                 action(rowAction)
             }
             .buttonStyle(.borderless)
-            .font(.subheadline.weight(.semibold))
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Color.accentColor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.accentColor.opacity(0.12), in: Capsule())
+            .fixedSize()
             .accessibilityLabel("\(title) \(self.title)")
 
         case .progress(let title):
