@@ -1441,7 +1441,7 @@ struct HomesteadTests {
         #expect(rows[0].contextUserID == "user-123")
         #expect(rows[0].contextName == "Tyler")
         #expect(rows[0].attributionName == "Tyler")
-        #expect(rows[0].triggerText == "triggered by action Light: Turn on")
+        #expect(rows[0].triggerText == "By action: Light • Turn on")
         #expect(rows[0].iconSystemName == EntityDomain.light.systemImage)
         #expect(rows[0].timelineTone == .active)
         #expect(rows[0].matches(query: "pendant"))
@@ -1538,8 +1538,67 @@ struct HomesteadTests {
         #expect(rows[1].message == "was locked")
         #expect(rows[1].iconSystemName == "lock.fill")
         #expect(rows[1].timelineTone == .inactive)
-        #expect(rows[1].triggerText == "triggered by action Lock: Lock lock")
+        #expect(rows[1].triggerText == "By action: Lock • Lock lock")
         #expect(rows[1].attributionName == "Tyler")
+    }
+
+    @Test func logbookContextResolvesHomeAssistantTriggerDescriptions() throws {
+        let date = try testDate("2026-06-13T15:30:00Z")
+        let rows = HAActivityRow.makeRows(
+            from: [
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Summary - Lights",
+                    state: "4",
+                    domain: "sensor",
+                    entityID: "sensor.summary_lights",
+                    contextSource: "triggered by state of binary_sensor.garage_presence_sensor"
+                ),
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Office Ceiling Light",
+                    state: "on",
+                    domain: "light",
+                    entityID: "light.office_ceiling",
+                    contextName: "Garage • Light • Handler",
+                    contextDomain: "automation"
+                )
+            ],
+            entityDisplayName: { entityID in
+                switch entityID {
+                case "binary_sensor.garage_presence_sensor":
+                    "Garage Presence Sensor"
+                default:
+                    nil
+                }
+            }
+        )
+
+        #expect(rows[0].triggerText == "By state change: Garage Presence Sensor")
+        #expect(rows[1].triggerText == "By automation: Garage • Light • Handler")
+    }
+
+    @Test func logbookHistoricalValuesUseEntityMetadataWithoutUsingCurrentState() throws {
+        let date = try testDate("2026-06-13T15:30:00Z")
+        let rows = HAActivityRow.makeRows(
+            from: [
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Rolling Code Counter",
+                    state: "6853.0",
+                    domain: "sensor",
+                    entityID: "sensor.rolling_code_counter"
+                )
+            ],
+            entityDisplayName: { _ in nil },
+            historicalStateDisplayValue: { entityID, historicalState in
+                #expect(entityID == "sensor.rolling_code_counter")
+                #expect(historicalState == "6853.0")
+                return "6,853"
+            }
+        )
+
+        #expect(rows[0].statusText == "6,853")
     }
 
     @Test func activityRowsResolveCurrentUserAttributionAndHistoricalDoorIcons() throws {

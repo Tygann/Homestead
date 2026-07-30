@@ -104,6 +104,7 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     let entityID: String?
     let entityDomain: EntityDomain?
     let state: String?
+    let displayValue: String?
     let sourceDomain: String?
     let sourceName: String?
     let contextUserID: String?
@@ -179,7 +180,8 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         from entries: [HALogbookEntryDTO],
         entityDisplayName: (String) -> String?,
         entityDeviceClass: (String) -> String? = { _ in nil },
-        contextUserDisplayName: (String) -> String? = { _ in nil }
+        contextUserDisplayName: (String) -> String? = { _ in nil },
+        historicalStateDisplayValue: (String, String) -> String? = { _, _ in nil }
     ) -> [HAActivityRow] {
         entries.enumerated().map { index, entry in
             HAActivityRow(
@@ -187,7 +189,8 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
                 index: index,
                 entityDisplayName: entityDisplayName,
                 entityDeviceClass: entityDeviceClass,
-                contextUserDisplayName: contextUserDisplayName
+                contextUserDisplayName: contextUserDisplayName,
+                historicalStateDisplayValue: historicalStateDisplayValue
             )
         }
     }
@@ -197,7 +200,8 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         index: Int,
         entityDisplayName: (String) -> String?,
         entityDeviceClass: (String) -> String?,
-        contextUserDisplayName: (String) -> String?
+        contextUserDisplayName: (String) -> String?,
+        historicalStateDisplayValue: (String, String) -> String?
     ) {
         let entityID = entry.entityID?.nonEmptyValue
         let entityDomain = entityID.map(EntityDomain.init(entityID:))
@@ -233,6 +237,12 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         self.entityID = entityID
         self.entityDomain = entityDomain
         self.state = state
+        self.displayValue = if let entityID, let state {
+            historicalStateDisplayValue(entityID, state) ??
+                Self.historicalDisplayValue(state: state, entityDomain: entityDomain)
+        } else {
+            nil
+        }
         self.sourceDomain = sourceDomain
         self.sourceName = sourceName
         let contextUserID = entry.contextUserID?.nonEmptyValue
@@ -243,7 +253,9 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
             contextMessage: entry.contextMessage?.nonEmptyValue,
             contextSource: entry.contextSource?.nonEmptyValue,
             contextDomain: entry.contextDomain?.nonEmptyValue,
-            contextService: entry.contextService?.nonEmptyValue
+            contextService: entry.contextService?.nonEmptyValue,
+            contextName: contextName,
+            entityDisplayName: entityDisplayName
         )
         self.attributionName = contextUserID.flatMap { userID in
             contextName ?? contextUserDisplayName(userID)
@@ -255,6 +267,14 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
                 state: state ?? "unknown"
             )
         } ?? .sfSymbol("list.bullet.clipboard", provenance: .fallback)
+    }
+
+    var statusText: String {
+        if let displayValue {
+            return displayValue
+        }
+
+        return Self.statusText(from: message)
     }
 
     private static func stateMessage(
@@ -311,39 +331,131 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
         contextMessage: String?,
         contextSource: String?,
         contextDomain: String?,
-        contextService: String?
+        contextService: String?,
+        contextName: String?,
+        entityDisplayName: (String) -> String?
     ) -> String? {
+        if contextDomain == "automation", let contextName {
+            return "By automation: \(contextName)"
+        }
+
         if let contextMessage {
-            return "triggered by \(contextMessage)"
+            return contextDescription(
+                from: contextMessage,
+                entityDisplayName: entityDisplayName
+            )
         }
 
         if let contextSource {
-            return "triggered by \(triggerDescription(from: contextSource))"
+            return contextDescription(
+                from: contextSource,
+                entityDisplayName: entityDisplayName
+            )
         }
 
         if let contextDomain, let contextService {
-            return "triggered by action \(formattedState(contextDomain)): \(formattedState(contextService))"
+            return "By action: \(formattedState(contextDomain)) • \(formattedState(contextService))"
         }
 
         return nil
     }
 
-    private static func triggerDescription(from source: String) -> String {
-        let replacements = [
-            "numeric state of": "numeric state of",
-            "state of": "state of",
-            "event": "event",
-            "time pattern": "time pattern",
-            "time": "time",
-            "Home Assistant stopping": "Home Assistant stopping",
-            "Home Assistant starting": "Home Assistant starting"
+    private static func contextDescription(
+        from source: String,
+        entityDisplayName: (String) -> String?
+    ) -> String {
+        let trimmedSource = source
+            .replacingOccurrences(of: "triggered by ", with: "", options: [.anchored, .caseInsensitive])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedSource = resolvingEntityIDs(
+            in: trimmedSource,
+            entityDisplayName: entityDisplayName
+        )
+        let lowercasedSource = resolvedSource.lowercased()
+
+        let prefixes: [(String, String)] = [
+            ("numeric state of ", "By numeric state: "),
+            ("state of ", "By state change: "),
+            ("automation ", "By automation: "),
+            ("action ", "By action: "),
+            ("event ", "By event: ")
         ]
 
-        for (prefix, replacement) in replacements where source.hasPrefix(prefix) {
-            return source.replacingOccurrences(of: prefix, with: replacement, options: [.anchored])
+        for (prefix, replacement) in prefixes where lowercasedSource.hasPrefix(prefix) {
+            let detail = resolvedSource.dropFirst(prefix.count)
+                .replacingOccurrences(of: ": ", with: " • ")
+            return replacement + detail
         }
 
-        return source
+        if lowercasedSource == "time pattern" {
+            return "By time pattern"
+        }
+        if lowercasedSource.hasPrefix("time ") || lowercasedSource == "time" {
+            return "By time: \(resolvedSource.dropFirst("time".count).trimmingCharacters(in: .whitespaces))"
+                .trimmingCharacters(in: CharacterSet(charactersIn: ": "))
+        }
+        if lowercasedSource.hasPrefix("home assistant ") {
+            return "By Home Assistant: \(formattedState(String(resolvedSource.dropFirst("Home Assistant ".count))))"
+        }
+
+        return "By \(resolvedSource)"
+    }
+
+    private static func resolvingEntityIDs(
+        in text: String,
+        entityDisplayName: (String) -> String?
+    ) -> String {
+        guard let expression = try? NSRegularExpression(
+            pattern: #"\b[a-z0-9_]+\.[a-z0-9_]+\b"#,
+            options: [.caseInsensitive]
+        ) else {
+            return text
+        }
+
+        let fullRange = NSRange(text.startIndex..<text.endIndex, in: text)
+        let matches = expression.matches(in: text, range: fullRange).reversed()
+        var resolvedText = text
+
+        for match in matches {
+            guard let range = Range(match.range, in: resolvedText) else {
+                continue
+            }
+            let entityID = String(resolvedText[range])
+            guard let displayName = entityDisplayName(entityID) else {
+                continue
+            }
+            resolvedText.replaceSubrange(range, with: displayName)
+        }
+
+        return resolvedText
+    }
+
+    private static func statusText(from message: String) -> String {
+        let prefixes = ["changed to ", "turned ", "was ", "is ", "became "]
+        for prefix in prefixes where message.hasPrefix(prefix) {
+            let value = message.dropFirst(prefix.count)
+            return value.prefix(1).uppercased() + value.dropFirst()
+        }
+        return message.prefix(1).uppercased() + message.dropFirst()
+    }
+
+    private static func historicalDisplayValue(
+        state: String,
+        entityDomain: EntityDomain?
+    ) -> String? {
+        guard entityDomain == .sensor else {
+            return nil
+        }
+
+        if let date = HADateParser.date(from: state) {
+            return date.formatted(date: .abbreviated, time: .shortened)
+        }
+
+        guard let number = Double(state), number.rounded() == number else {
+            return nil
+        }
+
+        return number.formatted(.number.precision(.fractionLength(0)))
     }
 }
 

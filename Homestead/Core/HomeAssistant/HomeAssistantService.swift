@@ -1086,6 +1086,28 @@ final class HomeAssistantService {
                 }
 
                 return self.currentUserDisplayName
+            },
+            historicalStateDisplayValue: { [stateStore] entityID, state in
+                if let date = HADateParser.date(from: state) {
+                    return date.formatted(date: .abbreviated, time: .shortened)
+                }
+
+                guard let sensor = stateStore.entityBox(for: entityID)?.sensorEntity else {
+                    return nil
+                }
+
+                return SensorEntity(
+                    entityID: sensor.entityID,
+                    displayName: sensor.displayName,
+                    value: state,
+                    unit: sensor.unit,
+                    deviceClass: sensor.deviceClass,
+                    stateClass: sensor.stateClass,
+                    displayPrecision: sensor.displayPrecision,
+                    lastUpdated: nil,
+                    suggestedMinimumValue: sensor.suggestedMinimumValue,
+                    suggestedMaximumValue: sensor.suggestedMaximumValue
+                ).formattedValue
             }
         )
     }

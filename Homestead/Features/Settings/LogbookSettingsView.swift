@@ -16,7 +16,7 @@ struct LogbookSettingsView: View {
     @State private var rows: [HAActivityRow] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var presentedControls: ActivityControlsDestination?
+    @State private var isShowingActivityFilters = false
     @State private var selectedEntityDestination: EntityDetailDestination?
 
     // MARK: - Body
@@ -29,8 +29,6 @@ struct LogbookSettingsView: View {
         )
 
         List {
-            controlsSection
-
             if let errorMessage, !rows.isEmpty {
                 Section {
                     Label("Showing saved activity. Pull to refresh.", systemImage: "exclamationmark.arrow.trianglehead.2.clockwise.rotate.90")
@@ -47,12 +45,23 @@ struct LogbookSettingsView: View {
         .toolbarTitleDisplayMode(.inline)
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
         .toolbar {
-            if isLoading, !rows.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if isLoading, !rows.isEmpty {
                     ProgressView()
                         .controlSize(.small)
                         .accessibilityLabel("Refreshing activity")
                 }
+
+                Button {
+                    isShowingActivityFilters = true
+                } label: {
+                    Image(systemName: hasActiveFilter
+                        ? "line.3.horizontal.decrease.circle.fill"
+                        : "line.3.horizontal.decrease.circle"
+                    )
+                }
+                .accessibilityLabel("Filter Activity")
+                .accessibilityValue(filterAccessibilityValue)
             }
         }
         .refreshable {
@@ -61,21 +70,15 @@ struct LogbookSettingsView: View {
         .task(id: queryTaskID) {
             await refreshLogbook(updatesPresetRange: false)
         }
-        .sheet(item: $presentedControls) { destination in
-            switch destination {
-            case .range:
-                ActivityRangeSheet(
-                    rangePreset: $rangePreset,
-                    startDate: $startDate,
-                    endDate: $endDate
-                )
-            case .filters:
-                ActivityFilterSheet(
-                    selectedDomain: $selectedDomain,
-                    selectedEntityID: $selectedEntityID,
-                    availableDomains: availableDomains
-                )
-            }
+        .sheet(isPresented: $isShowingActivityFilters) {
+            ActivityFilterSheet(
+                rangePreset: $rangePreset,
+                startDate: $startDate,
+                endDate: $endDate,
+                selectedDomain: $selectedDomain,
+                selectedEntityID: $selectedEntityID,
+                availableDomains: availableDomains
+            )
         }
         .navigationDestination(item: $selectedEntityDestination) { destination in
             EntityDetailDestinationView(destination: destination)
@@ -92,50 +95,6 @@ struct LogbookSettingsView: View {
     }
 
     // MARK: - Sections
-
-    private var controlsSection: some View {
-        Section {
-            HStack(spacing: AppSpacing.small) {
-                Button {
-                    presentedControls = .range
-                } label: {
-                    Label(rangePreset.title, systemImage: "calendar")
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                Button {
-                    presentedControls = .filters
-                } label: {
-                    HStack(spacing: AppSpacing.xSmall) {
-                        Image(systemName: "line.3.horizontal.decrease")
-                        Text(filterButtonTitle)
-                            .lineLimit(1)
-                    }
-                }
-                .buttonStyle(.bordered)
-            }
-            .controlSize(.large)
-            .listRowInsets(EdgeInsets(
-                top: AppSpacing.small,
-                leading: AppSpacing.large,
-                bottom: AppSpacing.small,
-                trailing: AppSpacing.large
-            ))
-
-            if hasActiveFilter {
-                Button {
-                    presentedControls = .filters
-                } label: {
-                    Label(activeFilterTitle, systemImage: "line.3.horizontal.decrease.circle.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
-        }
-        .listRowBackground(Color.clear)
-    }
 
     @ViewBuilder
     private func activityContent(_ presentation: HALogbookPresentation) -> some View {
@@ -179,8 +138,11 @@ struct LogbookSettingsView: View {
                     ForEach(Array(section.rows.enumerated()), id: \.element.id) { index, row in
                         activityRow(
                             row,
-                            showsConnector: index < section.rows.count - 1
+                            hasPrevious: index > 0,
+                            hasNext: index < section.rows.count - 1
                         )
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
                     }
                 } header: {
                     Text(section.title)
@@ -194,18 +156,18 @@ struct LogbookSettingsView: View {
     }
 
     @ViewBuilder
-    private func activityRow(_ row: HAActivityRow, showsConnector: Bool) -> some View {
+    private func activityRow(_ row: HAActivityRow, hasPrevious: Bool, hasNext: Bool) -> some View {
         if let entityID = row.entityID, stateStore.entityBox(for: entityID) != nil {
             Button {
                 selectedEntityDestination = EntityDetailDestination(entityID: entityID)
             } label: {
-                HAActivityTimelineRow(row: row, showsConnector: showsConnector)
+                HAActivityTimelineRow(row: row, hasPrevious: hasPrevious, hasNext: hasNext)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityHint("Opens \(row.title) details")
         } else {
-            HAActivityTimelineRow(row: row, showsConnector: showsConnector)
+            HAActivityTimelineRow(row: row, hasPrevious: hasPrevious, hasNext: hasNext)
         }
     }
 
@@ -228,19 +190,10 @@ struct LogbookSettingsView: View {
         selectedDomain != nil || selectedEntityID != nil
     }
 
-    private var filterButtonTitle: String {
-        hasActiveFilter ? "Filter \(selectedFilterCount)" : "Filter"
-    }
-
-    private var selectedFilterCount: Int {
-        [selectedDomain != nil, selectedEntityID != nil].count(where: { $0 })
-    }
-
-    private var activeFilterTitle: String {
-        if let selectedEntityID {
-            return stateStore.entity(for: selectedEntityID)?.displayName ?? selectedEntityID
-        }
-        return selectedDomain?.displayName ?? "All Activity"
+    private var filterAccessibilityValue: String {
+        let target = selectedEntityID.flatMap { stateStore.entity(for: $0)?.displayName } ??
+            selectedDomain?.displayName
+        return [rangePreset.title, target].compactMap { $0 }.joined(separator: ", ")
     }
 
     private var queryTaskID: String {
@@ -299,43 +252,56 @@ struct LogbookSettingsView: View {
 
 struct HAActivityTimelineRow: View {
     let row: HAActivityRow
-    let showsConnector: Bool
+    let hasPrevious: Bool
+    let hasNext: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: AppSpacing.medium) {
-            VStack(spacing: 0) {
-                HomesteadIconView(icon: row.resolvedIcon, pointSize: 13, weight: .bold)
-                    .foregroundStyle(toneColor)
-                    .frame(width: 30, height: 30)
-                    .background(toneColor.opacity(0.14), in: Circle())
-
-                if showsConnector {
+        ZStack(alignment: .topLeading) {
+            GeometryReader { geometry in
+                if hasPrevious {
                     Rectangle()
-                        .fill(Color(.tertiaryLabel).opacity(0.35))
-                        .frame(width: 2)
-                        .frame(minHeight: 42)
+                        .fill(railColor)
+                        .frame(width: 2, height: Self.iconCenterY)
+                        .position(x: Self.iconCenterX, y: Self.iconCenterY / 2)
+                }
+
+                if hasNext {
+                    Rectangle()
+                        .fill(railColor)
+                        .frame(width: 2, height: max(0, geometry.size.height - Self.iconCenterY))
+                        .position(
+                            x: Self.iconCenterX,
+                            y: Self.iconCenterY + max(0, geometry.size.height - Self.iconCenterY) / 2
+                        )
                 }
             }
+            .allowsHitTesting(false)
+
+            HomesteadIconView(icon: row.resolvedIcon, pointSize: 13, weight: .bold)
+                .foregroundStyle(toneColor)
+                .frame(width: Self.iconSize, height: Self.iconSize)
+                .background(toneColor.opacity(0.14), in: Circle())
+                .offset(x: Self.horizontalPadding, y: Self.verticalPadding)
 
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
                     Text(row.title)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
+                        .lineLimit(1)
 
                     Spacer(minLength: AppSpacing.small)
 
-                    Text(statusText)
+                    Text(row.statusText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.trailing)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
 
                 HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                    if let contextText {
-                        Text(contextText)
+                    if let secondaryText {
+                        Text(secondaryText)
                             .lineLimit(1)
                     }
 
@@ -348,17 +314,38 @@ struct HAActivityTimelineRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-                if let attributionText {
-                    Text(attributionText)
+                if let tertiaryText {
+                    Text(tertiaryText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
             }
-            .padding(.bottom, showsConnector ? AppSpacing.small : 0)
+            .padding(.leading, Self.contentLeadingPadding)
+            .padding(.trailing, Self.horizontalPadding)
+            .padding(.vertical, Self.verticalPadding)
+        }
+        .frame(minHeight: 58)
+        .overlay(alignment: .bottomTrailing) {
+            if hasNext {
+                Divider()
+                    .padding(.leading, Self.contentLeadingPadding)
+                    .padding(.trailing, Self.horizontalPadding)
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    private static let horizontalPadding: CGFloat = AppSpacing.large
+    private static let verticalPadding: CGFloat = AppSpacing.medium
+    private static let iconSize: CGFloat = 30
+    private static let iconCenterX = horizontalPadding + iconSize / 2
+    private static let iconCenterY = verticalPadding + iconSize / 2
+    private static let contentLeadingPadding = horizontalPadding + iconSize + AppSpacing.medium
+
+    private var railColor: Color {
+        Color(.tertiaryLabel).opacity(0.35)
     }
 
     private var toneColor: Color {
@@ -372,32 +359,32 @@ struct HAActivityTimelineRow: View {
         }
     }
 
-    private var contextText: String? {
+    private var sourceContextText: String? {
         guard let sourceName = row.sourceName, sourceName != row.title else {
             return nil
         }
         return sourceName
     }
 
-    private var statusText: String {
-        let prefixes = ["changed to ", "turned ", "was ", "is ", "became "]
-        for prefix in prefixes where row.message.hasPrefix(prefix) {
-            let value = row.message.dropFirst(prefix.count)
-            return value.prefix(1).uppercased() + value.dropFirst()
-        }
-        return row.message.prefix(1).uppercased() + row.message.dropFirst()
+    private var secondaryText: String? {
+        sourceContextText
+    }
+
+    private var tertiaryText: String? {
+        attributionText
     }
 
     private var attributionText: String? {
-        let parts = [row.triggerText, row.attributionName.map { "by \($0)" }].compactMap { $0 }
-        return parts.isEmpty ? nil : parts.joined(separator: " • ")
+        let userAttribution = row.attributionName.map { "By \($0)" }
+        let text = [row.triggerText, userAttribution].compactMap { $0 }.joined(separator: " • ")
+        return text.isEmpty ? nil : text
     }
 
     private var accessibilityLabel: String {
         [
             row.title,
-            statusText,
-            contextText,
+            row.statusText,
+            sourceContextText,
             row.occurredAt.formatted(date: .omitted, time: .standard),
             attributionText
         ]
@@ -408,60 +395,12 @@ struct HAActivityTimelineRow: View {
 
 // MARK: - Control Sheets
 
-private struct ActivityRangeSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var rangePreset: LogbookDateRangePreset
-    @Binding var startDate: Date
-    @Binding var endDate: Date
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    ForEach(LogbookDateRangePreset.allCases) { preset in
-                        Button {
-                            rangePreset = preset
-                            if preset != .custom {
-                                let range = preset.range(now: Date(), calendar: .current)
-                                startDate = range.start
-                                endDate = range.end
-                                dismiss()
-                            }
-                        } label: {
-                            HStack {
-                                Text(preset.title)
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                if rangePreset == preset {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if rangePreset == .custom {
-                    Section("Custom Range") {
-                        DatePicker("From", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
-                        DatePicker("To", selection: $endDate, in: startDate..., displayedComponents: [.date, .hourAndMinute])
-                    }
-                }
-            }
-            .navigationTitle("Date Range")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-}
-
 private struct ActivityFilterSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(HAStateStore.self) private var stateStore
+    @Binding var rangePreset: LogbookDateRangePreset
+    @Binding var startDate: Date
+    @Binding var endDate: Date
     @Binding var selectedDomain: EntityDomain?
     @Binding var selectedEntityID: String?
     let availableDomains: [EntityDomain]
@@ -469,7 +408,20 @@ private struct ActivityFilterSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
+                Section("Date Range") {
+                    Picker("Range", selection: $rangePreset) {
+                        ForEach(LogbookDateRangePreset.allCases) { preset in
+                            Text(preset.title).tag(preset)
+                        }
+                    }
+
+                    if rangePreset == .custom {
+                        DatePicker("From", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
+                        DatePicker("To", selection: $endDate, in: startDate..., displayedComponents: [.date, .hourAndMinute])
+                    }
+                }
+
+                Section("Targets") {
                     Picker("Domain", selection: $selectedDomain) {
                         Text("All Domains").tag(Optional<EntityDomain>.none)
                         ForEach(availableDomains, id: \.self) { domain in
@@ -499,6 +451,15 @@ private struct ActivityFilterSheet: View {
             }
             .navigationTitle("Filter Activity")
             .toolbarTitleDisplayMode(.inline)
+            .onChange(of: rangePreset) { _, preset in
+                guard preset != .custom else {
+                    return
+                }
+
+                let range = preset.range(now: Date(), calendar: .current)
+                startDate = range.start
+                endDate = range.end
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -607,13 +568,6 @@ private struct LogbookEntityPickerRow: View {
                 .frame(width: 28)
         }
     }
-}
-
-private enum ActivityControlsDestination: String, Identifiable {
-    case range
-    case filters
-
-    var id: String { rawValue }
 }
 
 private enum LogbookDateRangePreset: CaseIterable, Identifiable, Equatable {
