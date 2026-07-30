@@ -497,19 +497,29 @@ struct DashboardDetailSettingsView: View {
             }
 
             Section {
-                Button {
-                    beginDuplicating()
-                } label: {
-                    Text("Duplicate")
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
+                VStack(spacing: AppSpacing.medium) {
+                    Button {
+                        beginDuplicating()
+                    } label: {
+                        Text("Duplicate")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .tint(.primary)
 
-                Button(role: .destructive) {
-                    isConfirmingDelete = true
-                } label: {
-                    Text("Delete Dashboard")
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    Button(role: .destructive) {
+                        isConfirmingDelete = true
+                    } label: {
+                        Text("Delete Dashboard")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
                 }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } footer: {
                 Text("This permanently deletes this dashboard and its layout.")
             }
