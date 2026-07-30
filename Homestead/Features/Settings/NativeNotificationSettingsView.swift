@@ -97,9 +97,9 @@ struct NativeNotificationSettingsView: View {
     private var systemStatusImage: String {
         switch nativeNotificationService.status.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
-            return "bell.badge.fill"
+            return "bell.badge"
         case .denied:
-            return "bell.slash.fill"
+            return "bell.slash"
         case .notDetermined, .unknown:
             return "bell.badge"
         }

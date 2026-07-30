@@ -30,7 +30,7 @@ struct NativePermissionsSettingsView: View {
                 NativePermissionStatusRow(
                     title: "Location",
                     message: locationMessage,
-                    systemImage: "location.fill",
+                    systemImage: "location",
                     presentation: .make(
                         status: nativePermissionService.status.location,
                         isRequesting: nativePermissionService.isRequestingLocationAccess
