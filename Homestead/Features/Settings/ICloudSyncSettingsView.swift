@@ -15,18 +15,12 @@ struct ICloudSyncSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Sync with iCloud", isOn: Binding(
+                Toggle("iCloud Sync", isOn: Binding(
                     get: { iCloudSyncService.isEnabled },
                     set: { setSyncEnabled($0) }
                 ))
 
-                LabeledContent("Status", value: iCloudSyncService.status.title)
-                if let lastSyncDate = iCloudSyncService.lastSyncDate {
-                    LabeledContent("Last Sync", value: lastSyncDate.formatted(date: .abbreviated, time: .shortened))
-                }
-                if let lastRemoteChangeDate = iCloudSyncService.lastRemoteChangeDate {
-                    LabeledContent("Latest iCloud Change", value: lastRemoteChangeDate.formatted(date: .abbreviated, time: .shortened))
-                }
+                syncStatusRow
 
                 Button {
                     syncNow()
@@ -35,17 +29,17 @@ struct ICloudSyncSettingsView: View {
                 }
                 .disabled(!iCloudSyncService.isEnabled)
             } footer: {
-                Text("Changes sync automatically when enabled. Sync Now checks both this device and iCloud immediately. \(iCloudSyncService.status.detail)")
+                Text(syncFooterText)
             }
 
             Section {
                 SettingsSyncIncludedRow(
-                    title: "Server Settings",
+                    title: "Servers",
                     detail: serverSyncDetail,
                     systemImage: "server.rack"
                 )
                 SettingsSyncIncludedRow(
-                    title: "Dashboard Preferences",
+                    title: "Dashboards",
                     detail: dashboardSyncDetail,
                     systemImage: "rectangle.grid.2x2"
                 )
@@ -88,8 +82,63 @@ struct ICloudSyncSettingsView: View {
         }
     }
 
+    private var syncStatusRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text("Status")
+
+                if let lastSyncDate = iCloudSyncService.lastSyncDate {
+                    Text("Last synced \(lastSyncDate.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer(minLength: AppSpacing.small)
+
+            syncStatusAccessory
+        }
+        .padding(.vertical, AppSpacing.xSmall)
+    }
+
+    @ViewBuilder
+    private var syncStatusAccessory: some View {
+        switch iCloudSyncService.status {
+        case .synced:
+            Label(iCloudSyncService.status.title, systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        case .syncing, .checking:
+            HStack(spacing: AppSpacing.xSmall) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(iCloudSyncService.status.title)
+            }
+            .foregroundStyle(.secondary)
+        case .conflict, .unavailable, .quotaExceeded:
+            Label(iCloudSyncService.status.title, systemImage: "exclamationmark.circle.fill")
+                .foregroundStyle(.orange)
+        default:
+            Text(iCloudSyncService.status.title)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var syncFooterText: String {
+        let automaticSyncText = "Changes sync automatically when enabled."
+        switch iCloudSyncService.status {
+        case .requiresPlus, .restoreAvailable, .conflict, .unavailable, .quotaExceeded:
+            return "\(automaticSyncText) \(iCloudSyncService.status.detail)"
+        default:
+            return automaticSyncText
+        }
+    }
+
     private var serverSyncDetail: String {
-        connectionSettings.hasServerURL ? SettingsHomeAssistantStatus.serverDisplayText(connectionSettings.baseURL) : "No server saved"
+        let serverCount = connectionSettings.profileStore.configuredProfiles.count
+        if serverCount == 0 {
+            return "No servers"
+        }
+        return serverCount == 1 ? "1 server" : "\(serverCount) servers"
     }
 
     private var dashboardSyncDetail: String {
@@ -101,11 +150,7 @@ struct ICloudSyncSettingsView: View {
     }
 
     private var appearanceSyncDetail: String {
-        if appearanceSettings.hasWallpaper {
-            return appearanceSettings.isWallpaperEnabled ? "Wallpaper enabled on devices with the same image" : "Wallpaper off"
-        }
-
-        return "Small appearance preferences only"
+        "Theme and appearance preferences"
     }
 
     private func syncNow() {
