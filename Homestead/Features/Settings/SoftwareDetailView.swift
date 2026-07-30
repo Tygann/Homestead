@@ -169,7 +169,7 @@ struct SoftwareDetailView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(displayName)
-                    .font(.title2.bold())
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
