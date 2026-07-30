@@ -78,6 +78,7 @@ Available sample screens are:
 
 | Value | Purpose |
 | --- | --- |
+| `activity` | Activity timeline rows with deterministic compact, attributed, unavailable, long-title, source-breadcrumb, and state-value examples. |
 | `appearance` | Appearance settings with deterministic sample dependencies. |
 | `dashboard-card-editor` | Unified contextual card editor with exact dashboard-item context. Defaults to a Compact Control fixture; use any implemented `--preview-presentation` plus a supported `--preview-size` to inspect the unlabeled proportional preview and native Card rows. Use `--preview-presentation control --preview-entity climate.editor_thermostat --preview-size square` for the dual-setpoint thermostat fixture. |
 | `dashboard-cards` | Chart, Weather, Media, and Action cards across Compact, Square, Wide, and Large layouts. |

@@ -233,6 +233,8 @@ struct HomesteadApp: App {
     @ViewBuilder
     private func previewScreenView(_ previewScreen: HomesteadPreviewScreen) -> some View {
         switch previewScreen {
+        case .activity:
+            ActivityTimelinePreviewScreen()
         case .appearance:
             NavigationStack {
                 AppearanceSettingsPreviewHost()

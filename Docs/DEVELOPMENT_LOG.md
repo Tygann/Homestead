@@ -746,6 +746,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added typed logbook request/DTO support, app-facing activity row models, grouped/searchable presentation helpers, date range controls, and entity/domain filtering.
 - Renamed the user-facing surface to Activity, consolidated its range and filter controls into focused sheets, and replaced the diagnostic-style list with a connected, state-aware timeline that retains Home Assistant context and opens entity details.
 - Refined the Activity timeline so its rail stays continuous across variable-height rows, normal events stay two lines, trigger attribution appears only when present, one toolbar sheet owns range and target filters, and raw HA context entity IDs resolve through the state store before presentation.
+- Matched Activity to native Settings typography, kept state and time in a stable trailing column, added area/device breadcrumbs when HA omits a distinct source, stopped the rail at each marker edge, aligned its filter symbol with Automations, and added a deterministic `--preview-screen activity` route.
 - Kept server calls to the documented start timestamp, `end_time`, and `entity` API shape, with domain filtering and search handled locally.
 
 ### Notifications

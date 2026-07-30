@@ -55,10 +55,8 @@ struct LogbookSettingsView: View {
                 Button {
                     isShowingActivityFilters = true
                 } label: {
-                    Image(systemName: hasActiveFilter
-                        ? "line.3.horizontal.decrease.circle.fill"
-                        : "line.3.horizontal.decrease.circle"
-                    )
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .foregroundStyle(hasActiveFilter ? Color.accentColor : Color.primary)
                 }
                 .accessibilityLabel("Filter Activity")
                 .accessibilityValue(filterAccessibilityValue)
@@ -157,17 +155,29 @@ struct LogbookSettingsView: View {
 
     @ViewBuilder
     private func activityRow(_ row: HAActivityRow, hasPrevious: Bool, hasNext: Bool) -> some View {
+        let subtitle = activitySubtitle(for: row)
+
         if let entityID = row.entityID, stateStore.entityBox(for: entityID) != nil {
             Button {
                 selectedEntityDestination = EntityDetailDestination(entityID: entityID)
             } label: {
-                HAActivityTimelineRow(row: row, hasPrevious: hasPrevious, hasNext: hasNext)
+                HAActivityTimelineRow(
+                    row: row,
+                    subtitle: subtitle,
+                    hasPrevious: hasPrevious,
+                    hasNext: hasNext
+                )
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityHint("Opens \(row.title) details")
         } else {
-            HAActivityTimelineRow(row: row, hasPrevious: hasPrevious, hasNext: hasNext)
+            HAActivityTimelineRow(
+                row: row,
+                subtitle: subtitle,
+                hasPrevious: hasPrevious,
+                hasNext: hasNext
+            )
         }
     }
 
@@ -194,6 +204,35 @@ struct LogbookSettingsView: View {
         let target = selectedEntityID.flatMap { stateStore.entity(for: $0)?.displayName } ??
             selectedDomain?.displayName
         return [rangePreset.title, target].compactMap { $0 }.joined(separator: ", ")
+    }
+
+    private func activitySubtitle(for row: HAActivityRow) -> String? {
+        if let sourceName = normalizedActivityText(row.sourceName), sourceName != row.title {
+            return sourceName
+        }
+
+        guard let entityID = row.entityID else {
+            return nil
+        }
+
+        let areaName = normalizedActivityText(stateStore.areaName(for: entityID))
+        let deviceID = normalizedActivityText(stateStore.entityRegistryMetadata(for: entityID)?.deviceID)
+        let deviceName = normalizedActivityText(deviceID.flatMap { stateStore.deviceName(forDeviceID: $0) })
+        let parts = [areaName, deviceName]
+            .compactMap { $0 }
+            .filter { $0 != row.title }
+        let uniqueParts = parts.reduce(into: [String]()) { result, part in
+            if !result.contains(part) {
+                result.append(part)
+            }
+        }
+
+        return uniqueParts.isEmpty ? nil : uniqueParts.joined(separator: " › ")
+    }
+
+    private func normalizedActivityText(_ value: String?) -> String? {
+        let trimmedValue = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmedValue.isEmpty ? nil : trimmedValue
     }
 
     private var queryTaskID: String {
@@ -252,6 +291,7 @@ struct LogbookSettingsView: View {
 
 struct HAActivityTimelineRow: View {
     let row: HAActivityRow
+    let subtitle: String?
     let hasPrevious: Bool
     let hasNext: Bool
 
@@ -261,17 +301,18 @@ struct HAActivityTimelineRow: View {
                 if hasPrevious {
                     Rectangle()
                         .fill(railColor)
-                        .frame(width: 2, height: Self.iconCenterY)
-                        .position(x: Self.iconCenterX, y: Self.iconCenterY / 2)
+                        .frame(width: 2, height: Self.iconTopY)
+                        .position(x: Self.iconCenterX, y: Self.iconTopY / 2)
                 }
 
                 if hasNext {
+                    let railHeight = max(0, geometry.size.height - Self.iconBottomY)
                     Rectangle()
                         .fill(railColor)
-                        .frame(width: 2, height: max(0, geometry.size.height - Self.iconCenterY))
+                        .frame(width: 2, height: railHeight)
                         .position(
                             x: Self.iconCenterX,
-                            y: Self.iconCenterY + max(0, geometry.size.height - Self.iconCenterY) / 2
+                            y: Self.iconBottomY + railHeight / 2
                         )
                 }
             }
@@ -286,9 +327,9 @@ struct HAActivityTimelineRow: View {
             VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                 HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
                     Text(row.title)
-                        .font(.body.weight(.semibold))
+                        .font(.body)
                         .foregroundStyle(.primary)
-                        .lineLimit(1)
+                        .lineLimit(titleLineLimit)
 
                     Spacer(minLength: AppSpacing.small)
 
@@ -297,11 +338,13 @@ struct HAActivityTimelineRow: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.trailing)
                         .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
                 }
 
                 HStack(alignment: .firstTextBaseline, spacing: AppSpacing.small) {
-                    if let secondaryText {
-                        Text(secondaryText)
+                    if let subtitle {
+                        Text(subtitle)
                             .lineLimit(1)
                     }
 
@@ -341,7 +384,8 @@ struct HAActivityTimelineRow: View {
     private static let verticalPadding: CGFloat = AppSpacing.medium
     private static let iconSize: CGFloat = 30
     private static let iconCenterX = horizontalPadding + iconSize / 2
-    private static let iconCenterY = verticalPadding + iconSize / 2
+    private static let iconTopY = verticalPadding
+    private static let iconBottomY = verticalPadding + iconSize
     private static let contentLeadingPadding = horizontalPadding + iconSize + AppSpacing.medium
 
     private var railColor: Color {
@@ -359,19 +403,12 @@ struct HAActivityTimelineRow: View {
         }
     }
 
-    private var sourceContextText: String? {
-        guard let sourceName = row.sourceName, sourceName != row.title else {
-            return nil
-        }
-        return sourceName
-    }
-
-    private var secondaryText: String? {
-        sourceContextText
-    }
-
     private var tertiaryText: String? {
         attributionText
+    }
+
+    private var titleLineLimit: Int {
+        subtitle == nil && tertiaryText == nil ? 2 : 1
     }
 
     private var attributionText: String? {
@@ -384,7 +421,7 @@ struct HAActivityTimelineRow: View {
         [
             row.title,
             row.statusText,
-            sourceContextText,
+            subtitle,
             row.occurredAt.formatted(date: .omitted, time: .standard),
             attributionText
         ]
@@ -606,6 +643,84 @@ private enum LogbookDateRangePreset: CaseIterable, Identifiable, Equatable {
         }
     }
 }
+
+#if DEBUG
+struct ActivityTimelinePreviewScreen: View {
+    private let rows = HAActivityRow.makeRows(
+        from: [
+            HALogbookEntryDTO(
+                when: Date(timeIntervalSince1970: 1_775_000_745),
+                name: "Office Ceiling Light",
+                state: "off",
+                domain: "light",
+                entityID: "light.office_ceiling",
+                contextName: "Office • Light • Presence",
+                contextDomain: "automation"
+            ),
+            HALogbookEntryDTO(
+                when: Date(timeIntervalSince1970: 1_775_000_710),
+                name: "Ashton Bedroom Apple TV",
+                state: "playing",
+                domain: "media_player",
+                entityID: "media_player.ashton_bedroom_apple_tv"
+            ),
+            HALogbookEntryDTO(
+                when: Date(timeIntervalSince1970: 1_775_000_680),
+                name: "Front Porch Camera Snapshot",
+                state: "unavailable",
+                domain: "camera",
+                entityID: "camera.front_porch_snapshot"
+            ),
+            HALogbookEntryDTO(
+                when: Date(timeIntervalSince1970: 1_775_000_640),
+                name: "Date & Time",
+                state: "2026-07-30, 16:02",
+                domain: "sensor",
+                entityID: "sensor.date_time"
+            )
+        ],
+        entityDisplayName: { _ in nil }
+    )
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Today") {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        HAActivityTimelineRow(
+                            row: row,
+                            subtitle: subtitle(for: row.entityID),
+                            hasPrevious: index > 0,
+                            hasNext: index < rows.count - 1
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Activity")
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Image(systemName: "line.3.horizontal.decrease")
+                }
+            }
+        }
+    }
+
+    private func subtitle(for entityID: String?) -> String? {
+        switch entityID {
+        case "light.office_ceiling":
+            "Office › Office Ceiling Fan"
+        case "media_player.ashton_bedroom_apple_tv":
+            "Ashton Bedroom"
+        default:
+            nil
+        }
+    }
+}
+#endif
 
 #if DEBUG
 #Preview("Activity Settings") {
