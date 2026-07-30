@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ICloudSyncSettingsView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
@@ -20,14 +21,9 @@ struct ICloudSyncSettingsView: View {
                     set: { setSyncEnabled($0) }
                 ))
 
-                syncStatusRow
-
-                Button {
-                    syncNow()
-                } label: {
-                    Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                if iCloudSyncService.isEnabled {
+                    syncStatusRow
                 }
-                .disabled(!iCloudSyncService.isEnabled)
             } footer: {
                 Text(syncFooterText)
             }
@@ -83,44 +79,103 @@ struct ICloudSyncSettingsView: View {
     }
 
     private var syncStatusRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                Text("Status")
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    syncStatusCopy
 
-                if let lastSyncDate = iCloudSyncService.lastSyncDate {
-                    Text("Last synced \(lastSyncDate.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack {
+                        Spacer()
+                        syncStatusAccessory
+                    }
+                }
+            } else {
+                HStack(alignment: .center, spacing: AppSpacing.medium) {
+                    syncStatusCopy
+                    Spacer(minLength: AppSpacing.small)
+                    syncStatusAccessory
                 }
             }
-
-            Spacer(minLength: AppSpacing.small)
-
-            syncStatusAccessory
         }
         .padding(.vertical, AppSpacing.xSmall)
+    }
+
+    private var syncStatusCopy: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text(syncStatusTitle)
+
+            Text(syncStatusDetail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var syncStatusTitle: String {
+        switch iCloudSyncService.status {
+        case .checking:
+            "Checking iCloud"
+        case .syncing:
+            "Syncing"
+        case .conflict, .restoreAvailable, .requiresPlus, .unavailable, .quotaExceeded:
+            iCloudSyncService.status.title
+        default:
+            iCloudSyncService.lastSyncDate == nil ? "Not Synced Yet" : "Last Synced"
+        }
+    }
+
+    private var syncStatusDetail: String {
+        switch iCloudSyncService.status {
+        case .checking, .syncing, .conflict, .restoreAvailable, .requiresPlus, .unavailable, .quotaExceeded:
+            iCloudSyncService.status.detail
+        default:
+            if let lastSyncDate = iCloudSyncService.lastSyncDate {
+                lastSyncDate.formatted(date: .abbreviated, time: .shortened)
+            } else {
+                "Preferences are ready to sync through iCloud."
+            }
+        }
     }
 
     @ViewBuilder
     private var syncStatusAccessory: some View {
         switch iCloudSyncService.status {
-        case .synced:
-            Label(iCloudSyncService.status.title, systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
         case .syncing, .checking:
             HStack(spacing: AppSpacing.xSmall) {
                 ProgressView()
                     .controlSize(.small)
                 Text(iCloudSyncService.status.title)
+                    .font(.caption.weight(.semibold))
             }
             .foregroundStyle(.secondary)
-        case .conflict, .unavailable, .quotaExceeded:
-            Label(iCloudSyncService.status.title, systemImage: "exclamationmark.circle.fill")
+            .fixedSize()
+            .accessibilityElement(children: .combine)
+        case .requiresPlus:
+            syncActionButton(title: "View Plus")
+        case .unavailable, .quotaExceeded:
+            syncActionButton(title: "Try Again")
+        case .conflict, .restoreAvailable:
+            Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(.orange)
+                .accessibilityLabel(iCloudSyncService.status.title)
         default:
-            Text(iCloudSyncService.status.title)
-                .foregroundStyle(.secondary)
+            syncActionButton(title: "Sync Now")
         }
+    }
+
+    private func syncActionButton(title: String) -> some View {
+        Button(title) {
+            syncNow()
+        }
+        .buttonStyle(.borderless)
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(Color.accentColor)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.accentColor.opacity(0.12), in: Capsule())
+        .fixedSize()
+        .accessibilityLabel("\(title) with iCloud")
     }
 
     private var syncFooterText: String {
