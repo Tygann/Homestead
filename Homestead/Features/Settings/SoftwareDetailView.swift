@@ -153,6 +153,7 @@ struct SoftwareDetailView: View {
                         .padding(25)
                 }
                 .clipped()
+                .stretchySoftwareBanner()
         }
     }
 
@@ -160,19 +161,20 @@ struct SoftwareDetailView: View {
         HStack(alignment: .top, spacing: 16) {
             identityArtwork
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(displayName)
                     .font(.title2.bold())
                     .foregroundStyle(.primary)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(identitySubtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                    .lineLimit(3)
+                    .lineLimit(2)
+                    .padding(.top, 2)
 
-                Spacer(minLength: 2)
+                Spacer(minLength: 0)
 
                 primaryAction
             }
@@ -999,6 +1001,21 @@ private extension HAUpdateStatus {
             .green
         case .unknown:
             .secondary
+        }
+    }
+}
+
+private extension View {
+    func stretchySoftwareBanner() -> some View {
+        visualEffect { content, proxy in
+            content.scaleEffect(
+                x: 1,
+                y: max(
+                    1,
+                    1 + max(0, proxy.frame(in: .scrollView).minY) / max(proxy.size.height, 1)
+                ),
+                anchor: .bottom
+            )
         }
     }
 }
