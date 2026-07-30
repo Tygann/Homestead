@@ -14,27 +14,23 @@ struct ActionConfirmationSettingsView: View {
                         Text(mode.displayName).tag(mode)
                     }
                 }
-                .pickerStyle(.navigationLink)
-
-                HStack {
-                    Text("Behavior")
-                    Spacer()
-                    Text(settings.mode.summary)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.trailing)
-                }
+                .pickerStyle(.menu)
+            } footer: {
+                Text(settings.mode.summary)
             }
 
-            Section {
-                Toggle("Unlocking Locks", isOn: $settings.confirmsLockUnlocks)
-                Toggle("Opening Security Covers", isOn: $settings.confirmsSecurityCoverOpens)
-                Toggle("Activating Scenes", isOn: $settings.confirmsScenes)
-                Toggle("Running Scripts", isOn: $settings.confirmsScripts)
-                Toggle("Other Impactful Actions", isOn: $settings.confirmsOtherImpactfulActions)
-            } header: {
-                Text("Smart Confirmations")
-            } footer: {
-                Text("Smart Confirmations keeps everyday controls fast while asking before actions that may unlock, open, or trigger larger changes.")
+            if settings.mode == .smart {
+                Section {
+                    Toggle("Unlocking Locks", isOn: $settings.confirmsLockUnlocks)
+                    Toggle("Opening Security Covers", isOn: $settings.confirmsSecurityCoverOpens)
+                    Toggle("Activating Scenes", isOn: $settings.confirmsScenes)
+                    Toggle("Running Scripts", isOn: $settings.confirmsScripts)
+                    Toggle("Other Impactful Actions", isOn: $settings.confirmsOtherImpactfulActions)
+                } header: {
+                    Text("Confirm Before")
+                } footer: {
+                    Text("Choose which sensitive actions ask for confirmation.")
+                }
             }
         }
         .navigationTitle("Safety")
