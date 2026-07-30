@@ -116,6 +116,137 @@ struct MultiServerConnectionTests {
         #expect(!json.localizedCaseInsensitiveContains("credential"))
     }
 
+    @Test func profileSyncReconcilesSameServerIntoActiveLocalProfile() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "https://ha.keegan.me",
+            defaults: try makeDefaults(),
+            tokenStore: EmptyTokenStore()
+        )
+        let localID = settings.activeProfileID
+        let remoteID = UUID()
+
+        let mapping = settings.profileStore.mergeSyncSnapshot(
+            HAConnectionProfilesSyncSnapshot(profiles: [
+                HAConnectionProfile(
+                    id: remoteID,
+                    serverName: "Keegdom",
+                    baseURL: "https://ha.keegan.me"
+                )
+            ])
+        )
+
+        #expect(settings.profiles.count == 1)
+        #expect(settings.activeProfileID == localID)
+        #expect(settings.activeProfile.serverName == "Keegdom")
+        #expect(mapping[remoteID] == localID)
+    }
+
+    @Test func profileSyncCollapsesExistingDuplicateIntoActiveProfile() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "https://ha.keegan.me",
+            defaults: try makeDefaults(),
+            tokenStore: EmptyTokenStore()
+        )
+        let duplicateID = settings.profileStore.addProfile(
+            serverName: "Restored Home",
+            baseURL: "https://ha.keegan.me"
+        )
+        #expect(settings.activateProfile(id: duplicateID))
+
+        let mapping = settings.profileStore.mergeSyncSnapshot(
+            HAConnectionProfilesSyncSnapshot(profiles: [
+                HAConnectionProfile(
+                    id: duplicateID,
+                    serverName: "Restored Home",
+                    baseURL: "https://ha.keegan.me"
+                )
+            ])
+        )
+
+        #expect(settings.profiles.count == 1)
+        #expect(settings.activeProfileID == duplicateID)
+        #expect(mapping[duplicateID] == duplicateID)
+    }
+
+    @Test func profileSyncDoesNotMergeDifferentServersWithSharedLocalHostname() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "https://first.example.com",
+            defaults: try makeDefaults(),
+            tokenStore: EmptyTokenStore()
+        )
+        settings.profileStore.updateActiveProfile {
+            $0.internalURL = "http://homeassistant.local:8123"
+            $0.externalURL = "https://first.example.com"
+        }
+        let remoteID = UUID()
+
+        let mapping = settings.profileStore.mergeSyncSnapshot(
+            HAConnectionProfilesSyncSnapshot(profiles: [
+                HAConnectionProfile(
+                    id: remoteID,
+                    baseURL: "https://second.example.com",
+                    internalURL: "http://homeassistant.local:8123",
+                    externalURL: "https://second.example.com"
+                )
+            ])
+        )
+
+        #expect(settings.profiles.count == 2)
+        #expect(mapping[remoteID] == remoteID)
+    }
+
+    @Test func profileSyncCanReconcileIDsWithoutReplacingNewerLocalMetadata() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "https://ha.keegan.me",
+            defaults: try makeDefaults(),
+            tokenStore: EmptyTokenStore()
+        )
+        settings.profileStore.updateActiveProfile {
+            $0.serverName = "Current Name"
+            $0.internalURL = "http://current.local:8123"
+        }
+        let localID = settings.activeProfileID
+
+        let mapping = settings.profileStore.mergeSyncSnapshot(
+            HAConnectionProfilesSyncSnapshot(profiles: [
+                HAConnectionProfile(
+                    id: UUID(),
+                    serverName: "Stale Name",
+                    baseURL: "https://ha.keegan.me",
+                    internalURL: "http://stale.local:8123"
+                )
+            ]),
+            applyingRemoteMetadata: false
+        )
+
+        #expect(settings.profiles.count == 1)
+        #expect(settings.activeProfile.serverName == "Current Name")
+        #expect(settings.activeProfile.internalURL == "http://current.local:8123")
+        #expect(Set(mapping.values) == Set([localID]))
+    }
+
+    @Test func staleProfileSyncDoesNotReaddADeletedRemoteServer() throws {
+        let settings = HAConnectionSettings(
+            baseURL: "https://current.example.com",
+            defaults: try makeDefaults(),
+            tokenStore: EmptyTokenStore()
+        )
+        let deletedRemoteID = UUID()
+
+        _ = settings.profileStore.mergeSyncSnapshot(
+            HAConnectionProfilesSyncSnapshot(profiles: [
+                HAConnectionProfile(
+                    id: deletedRemoteID,
+                    baseURL: "https://deleted.example.com"
+                )
+            ]),
+            applyingRemoteMetadata: false
+        )
+
+        #expect(settings.profiles.count == 1)
+        #expect(settings.profileStore.profile(id: deletedRemoteID) == nil)
+    }
+
     @Test func movingProfilesPersistsOrderWithoutChangingActiveProfile() throws {
         let defaults = try makeDefaults()
         let settings = HAConnectionSettings(

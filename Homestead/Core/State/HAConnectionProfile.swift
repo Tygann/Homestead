@@ -212,22 +212,52 @@ final class HAConnectionProfileStore {
         }
     }
 
-    func mergeSyncSnapshot(_ snapshot: HAConnectionProfilesSyncSnapshot) {
+    @discardableResult
+    func mergeSyncSnapshot(
+        _ snapshot: HAConnectionProfilesSyncSnapshot,
+        applyingRemoteMetadata: Bool = true
+    ) -> [UUID: UUID] {
         var merged = profiles
+        var profileIDMap: [UUID: UUID] = [:]
+
         for remoteProfile in snapshot.profiles where remoteProfile.hasServerURL {
-            if let index = merged.firstIndex(where: { $0.id == remoteProfile.id }) {
-                merged[index].serverName = remoteProfile.serverName
-                merged[index].discoveredName = remoteProfile.discoveredName
-                merged[index].baseURL = remoteProfile.baseURL
-                merged[index].internalURL = remoteProfile.internalURL
-                merged[index].externalURL = remoteProfile.externalURL
-                merged[index].internalNetworkSSIDs = remoteProfile.internalNetworkSSIDs
+            let matchingIDs = merged
+                .filter { Self.representsSameServer($0, remoteProfile) }
+                .map(\.id)
+            let targetID = if matchingIDs.contains(activeProfileID) {
+                activeProfileID
+            } else if matchingIDs.contains(remoteProfile.id) {
+                remoteProfile.id
             } else {
-                merged.append(remoteProfile)
+                matchingIDs.first
+            }
+
+            if let targetID,
+               let targetIndex = merged.firstIndex(where: { $0.id == targetID }) {
+                profileIDMap[remoteProfile.id] = targetID
+                for matchingID in matchingIDs {
+                    profileIDMap[matchingID] = targetID
+                }
+
+                if applyingRemoteMetadata {
+                    merged[targetIndex].serverName = remoteProfile.serverName
+                    merged[targetIndex].discoveredName = remoteProfile.discoveredName
+                    merged[targetIndex].baseURL = remoteProfile.baseURL
+                    merged[targetIndex].internalURL = remoteProfile.internalURL
+                    merged[targetIndex].externalURL = remoteProfile.externalURL
+                    merged[targetIndex].internalNetworkSSIDs = remoteProfile.internalNetworkSSIDs
+                }
+                merged.removeAll { matchingIDs.contains($0.id) && $0.id != targetID }
+            } else {
+                if applyingRemoteMetadata {
+                    merged.append(remoteProfile)
+                }
+                profileIDMap[remoteProfile.id] = remoteProfile.id
             }
         }
         profiles = merged
         publishWidgetProfiles()
+        return profileIDMap
     }
 
     #if DEBUG
@@ -249,6 +279,31 @@ final class HAConnectionProfileStore {
 
     private func publishWidgetProfiles() {
         WidgetSharedStore.saveServerProfiles(profiles)
+    }
+
+    private static func representsSameServer(
+        _ lhs: HAConnectionProfile,
+        _ rhs: HAConnectionProfile
+    ) -> Bool {
+        if let lhsBase = identityKey(for: lhs.baseURL),
+           let rhsBase = identityKey(for: rhs.baseURL),
+           lhsBase == rhsBase {
+            return true
+        }
+        if let lhsExternal = identityKey(for: lhs.externalURL),
+           let rhsExternal = identityKey(for: rhs.externalURL) {
+            return lhsExternal == rhsExternal
+        }
+        return false
+    }
+
+    private static func identityKey(for urlString: String) -> String? {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return HAConnectionConfiguration(
+            baseURLString: trimmed,
+            accessToken: ""
+        ).dataSourceID
     }
 
     private enum Keys {

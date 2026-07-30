@@ -29,6 +29,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Made restore recheck existing entitlements even when `AppStore.sync()` fails, retained stable StoreKit error domains/codes in user-visible failures, and added privacy-safe StoreKit logging instead of silently discarding verification and subscription-status errors.
 - Preserved the delayed-Plus iCloud bootstrap contract so a clean reinstall can offer restoration of a previously uploaded setup after entitlement recovery.
 - Resolved overlapping sandbox subscription records to one current plan, kept Lifetime access authoritative while retaining management for an existing recurring subscription, warned before Lifetime purchases that recurring billing continues until separately canceled, and removed the active plan from the compact alternative-plan list.
+- Reconciled iCloud profile bundles by stable Home Assistant server identity after reinstall, preserving the active local profile ID and credentials while remapping restored dashboards onto it. Existing same-server duplicates collapse automatically, while distinct servers sharing a generic local hostname remain separate and stale iCloud metadata cannot replace newer local routes.
 
 ## 2026-07-28
 

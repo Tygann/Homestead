@@ -426,6 +426,108 @@ final class HomesteadPlusTests: XCTestCase {
     }
 
     @MainActor
+    func testICloudRestoreReconcilesReinstalledServerProfileAndShowsRestoredDashboards() throws {
+        let producerSuite = "HomesteadPlusProfileProducerTests.\(UUID().uuidString)"
+        let consumerSuite = "HomesteadPlusProfileConsumerTests.\(UUID().uuidString)"
+        let producerDefaults = try XCTUnwrap(UserDefaults(suiteName: producerSuite))
+        let consumerDefaults = try XCTUnwrap(UserDefaults(suiteName: consumerSuite))
+        defer {
+            producerDefaults.removePersistentDomain(forName: producerSuite)
+            consumerDefaults.removePersistentDomain(forName: consumerSuite)
+        }
+
+        let store = PlusTestICloudStore()
+        let producerSettings = HAConnectionSettings(
+            baseURL: "https://ha.keegan.me",
+            defaults: producerDefaults,
+            tokenStore: InMemoryHAOAuthTokenStore()
+        )
+        let producerDashboards = DashboardConfiguration(
+            defaults: producerDefaults,
+            profileID: producerSettings.activeProfileID
+        )
+        _ = producerDashboards.add(
+            source: .entity("light.kitchen"),
+            presentation: .chip
+        )
+        let producer = HomesteadICloudSyncService(
+            defaults: producerDefaults,
+            store: store,
+            hasPlusAccess: true
+        )
+        producer.bootstrap(
+            connectionSettings: producerSettings,
+            dashboardConfiguration: producerDashboards,
+            actionConfirmationSettings: ActionConfirmationSettings(defaults: producerDefaults),
+            appearanceSettings: HomesteadAppearanceSettings(
+                profileID: producerSettings.activeProfileID,
+                defaults: producerDefaults
+            )
+        )
+        _ = producer.requestEnable(
+            connectionSettings: producerSettings,
+            dashboardConfiguration: producerDashboards,
+            actionConfirmationSettings: ActionConfirmationSettings(defaults: producerDefaults),
+            appearanceSettings: HomesteadAppearanceSettings(
+                profileID: producerSettings.activeProfileID,
+                defaults: producerDefaults
+            )
+        )
+
+        let consumerSettings = HAConnectionSettings(
+            baseURL: "https://ha.keegan.me",
+            defaults: consumerDefaults,
+            tokenStore: InMemoryHAOAuthTokenStore()
+        )
+        let consumerProfileID = consumerSettings.activeProfileID
+        let consumerDashboards = DashboardConfiguration(
+            defaults: consumerDefaults,
+            profileID: consumerProfileID
+        )
+        let consumerConfirmations = ActionConfirmationSettings(defaults: consumerDefaults)
+        let consumerAppearance = HomesteadAppearanceSettings(
+            profileID: consumerProfileID,
+            defaults: consumerDefaults
+        )
+        let consumer = HomesteadICloudSyncService(
+            defaults: consumerDefaults,
+            store: store,
+            hasPlusAccess: true
+        )
+        consumer.bootstrap(
+            connectionSettings: consumerSettings,
+            dashboardConfiguration: consumerDashboards,
+            actionConfirmationSettings: consumerConfirmations,
+            appearanceSettings: consumerAppearance
+        )
+
+        guard case .conflict = consumer.requestEnable(
+            connectionSettings: consumerSettings,
+            dashboardConfiguration: consumerDashboards,
+            actionConfirmationSettings: consumerConfirmations,
+            appearanceSettings: consumerAppearance
+        ) else {
+            return XCTFail("Expected the restored and local setups to require a choice.")
+        }
+
+        consumer.resolveEnableConflict(
+            .useICloud,
+            connectionSettings: consumerSettings,
+            dashboardConfiguration: consumerDashboards,
+            actionConfirmationSettings: consumerConfirmations,
+            appearanceSettings: consumerAppearance
+        )
+
+        XCTAssertEqual(consumerSettings.profiles.count, 1)
+        XCTAssertEqual(consumerSettings.activeProfileID, consumerProfileID)
+        XCTAssertTrue(
+            consumerDashboards.items.contains {
+                $0.source == .entity("light.kitchen")
+            }
+        )
+    }
+
+    @MainActor
     func testICloudPausesWithoutClearingEnabledIntentAndResumes() throws {
         let suiteName = "HomesteadPlusICloudTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

@@ -637,7 +637,15 @@ final class HomesteadICloudSyncService {
         isApplyingRemote = true
         defer { isApplyingRemote = false }
 
-        if remote.connection.updatedAt > localDate(.connection) {
+        let shouldApplyRemoteConnection = remote.connection.updatedAt > localDate(.connection)
+        let profileIDMap = remote.connection.value.profiles.map {
+            connectionSettings.profileStore.mergeSyncSnapshot(
+                $0,
+                applyingRemoteMetadata: shouldApplyRemoteConnection
+            )
+        } ?? [:]
+
+        if shouldApplyRemoteConnection {
             let localServer = connectionSettings.baseURL.trimmedForSync
             let remoteServer = Self.preferredIdentityBaseURL(
                 baseURL: remote.connection.value.baseURL,
@@ -646,9 +654,6 @@ final class HomesteadICloudSyncService {
             )
             if allowServerReplacement || localServer.isEmpty || normalized(localServer) == normalized(remoteServer) {
                 connectionSettings.applySyncSnapshot(remote.connection.value)
-                if let profiles = remote.connection.value.profiles {
-                    connectionSettings.profileStore.mergeSyncSnapshot(profiles)
-                }
                 recordRemoteDate(remote.connection.updatedAt, section: .connection)
             } else {
                 connectionSettings.applyRoutingSyncSnapshot(remote.connection.value)
@@ -657,7 +662,9 @@ final class HomesteadICloudSyncService {
         if remote.dashboard.updatedAt > localDate(.dashboard) {
             let didApplyDashboard: Bool
             if let profileDashboards = remote.profileDashboards {
-                didApplyDashboard = dashboardConfiguration.applyProfileSyncSnapshots(profileDashboards)
+                didApplyDashboard = dashboardConfiguration.applyProfileSyncSnapshots(
+                    Self.remapProfileDashboards(profileDashboards, using: profileIDMap)
+                )
             } else {
                 didApplyDashboard = dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
             }
@@ -688,12 +695,14 @@ final class HomesteadICloudSyncService {
         guard hasPlusAccess else { return }
         isApplyingRemote = true
         connectionSettings.applySyncSnapshot(remote.connection.value)
-        if let profiles = remote.connection.value.profiles {
-            connectionSettings.profileStore.mergeSyncSnapshot(profiles)
-        }
+        let profileIDMap = remote.connection.value.profiles.map {
+            connectionSettings.profileStore.mergeSyncSnapshot($0)
+        } ?? [:]
         let didApplyDashboard: Bool
         if let profileDashboards = remote.profileDashboards {
-            didApplyDashboard = dashboardConfiguration.applyProfileSyncSnapshots(profileDashboards)
+            didApplyDashboard = dashboardConfiguration.applyProfileSyncSnapshots(
+                Self.remapProfileDashboards(profileDashboards, using: profileIDMap)
+            )
         } else {
             didApplyDashboard = dashboardConfiguration.applySyncSnapshot(remote.dashboard.value)
         }
@@ -707,6 +716,28 @@ final class HomesteadICloudSyncService {
         lastRemoteChangeDate = remote.newestUpdate
         defaults.set(remote.newestUpdate, forKey: Keys.lastRemoteChangeDate)
         status = .synced(remote.newestUpdate)
+    }
+
+    private static func remapProfileDashboards(
+        _ snapshots: [UUID: DashboardConfigurationSyncSnapshot],
+        using profileIDMap: [UUID: UUID]
+    ) -> [UUID: DashboardConfigurationSyncSnapshot] {
+        snapshots
+            .sorted { $0.key.uuidString < $1.key.uuidString }
+            .reduce(into: [:]) { result, entry in
+                let targetID = profileIDMap[entry.key] ?? entry.key
+                guard let existing = result[targetID] else {
+                    result[targetID] = entry.value
+                    return
+                }
+
+                var dashboards = existing.dashboards
+                let existingIDs = Set(dashboards.map(\.id))
+                dashboards.append(
+                    contentsOf: entry.value.dashboards.filter { !existingIDs.contains($0.id) }
+                )
+                result[targetID] = DashboardConfigurationSyncSnapshot(dashboards: dashboards)
+            }
     }
 
     private func restoreSummary(for payload: HomesteadICloudSyncPayload) -> HomesteadICloudRestoreSummary {
