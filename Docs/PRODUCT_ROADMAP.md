@@ -59,6 +59,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 
 ## Later Candidates
 
+- Sync optimized per-server wallpaper images across a person's devices through a separate private CloudKit asset layer, keeping image transfer and failures independent from the existing iCloud key-value preferences payload.
 - Per-dashboard or per-area wallpaper choices if one wallpaper per server proves too limiting.
 - Control Center controls and App Intents for common Home Assistant actions.
 - Live Activities for long-running or glanceable states such as appliances, climate, energy, and presence.
