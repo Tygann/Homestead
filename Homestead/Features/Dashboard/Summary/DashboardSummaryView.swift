@@ -259,7 +259,7 @@ struct DashboardSummaryView: View {
 
     private func loadSecurityActivity(entityIDs: Set<String>) async {
         let cacheKey = securityActivityCacheKey(entityIDs: entityIDs)
-        if let cached = await HASecurityActivityCache.shared.snapshot(for: cacheKey) {
+        if let cached = await HALogbookActivityCache.shared.snapshot(for: cacheKey) {
             securityActivityRows = cached.rows
             lastSecurityActivityLoadAt = cached.loadedAt
 
@@ -299,8 +299,8 @@ struct DashboardSummaryView: View {
                     }
             )
             lastSecurityActivityLoadAt = endDate
-            await HASecurityActivityCache.shared.store(
-                HASecurityActivityCacheSnapshot(
+            await HALogbookActivityCache.shared.store(
+                HALogbookActivityCacheSnapshot(
                     rows: securityActivityRows,
                     loadedAt: endDate
                 ),
@@ -313,6 +313,7 @@ struct DashboardSummaryView: View {
 
     private func securityActivityCacheKey(entityIDs: Set<String>) -> String {
         [
+            "security-activity",
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
             homeAssistantService.activityCacheUserIdentifier,
             entityIDs.sorted().joined(separator: ",")

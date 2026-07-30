@@ -256,6 +256,9 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
             contextService: entry.contextService?.nonEmptyValue,
             contextName: contextName,
             entityDisplayName: entityDisplayName
+        ) ?? Self.messageTriggerText(
+            message,
+            entityDisplayName: entityDisplayName
         )
         self.attributionName = contextUserID.flatMap { userID in
             contextName ?? contextUserDisplayName(userID)
@@ -431,12 +434,30 @@ nonisolated struct HAActivityRow: Identifiable, Equatable, Sendable {
     }
 
     private static func statusText(from message: String) -> String {
+        if message.lowercased().hasPrefix("triggered by ") {
+            return "Triggered"
+        }
+
         let prefixes = ["changed to ", "turned ", "was ", "is ", "became "]
         for prefix in prefixes where message.hasPrefix(prefix) {
             let value = message.dropFirst(prefix.count)
             return value.prefix(1).uppercased() + value.dropFirst()
         }
         return message.prefix(1).uppercased() + message.dropFirst()
+    }
+
+    private static func messageTriggerText(
+        _ message: String,
+        entityDisplayName: (String) -> String?
+    ) -> String? {
+        guard message.lowercased().hasPrefix("triggered by ") else {
+            return nil
+        }
+
+        return contextDescription(
+            from: message,
+            entityDisplayName: entityDisplayName
+        )
     }
 
     private static func historicalDisplayValue(
@@ -555,21 +576,21 @@ nonisolated struct HALogbookPresentation: Equatable, Sendable {
     }
 }
 
-nonisolated struct HASecurityActivityCacheSnapshot: Equatable, Sendable {
+nonisolated struct HALogbookActivityCacheSnapshot: Equatable, Sendable {
     let rows: [HAActivityRow]
     let loadedAt: Date
 }
 
-actor HASecurityActivityCache {
-    static let shared = HASecurityActivityCache()
+actor HALogbookActivityCache {
+    static let shared = HALogbookActivityCache()
 
-    private var snapshotsByKey: [String: HASecurityActivityCacheSnapshot] = [:]
+    private var snapshotsByKey: [String: HALogbookActivityCacheSnapshot] = [:]
 
-    func snapshot(for key: String) -> HASecurityActivityCacheSnapshot? {
+    func snapshot(for key: String) -> HALogbookActivityCacheSnapshot? {
         snapshotsByKey[key]
     }
 
-    func store(_ snapshot: HASecurityActivityCacheSnapshot, for key: String) {
+    func store(_ snapshot: HALogbookActivityCacheSnapshot, for key: String) {
         snapshotsByKey[key] = snapshot
     }
 }

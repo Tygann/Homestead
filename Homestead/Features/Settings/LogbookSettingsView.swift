@@ -7,8 +7,8 @@ struct LogbookSettingsView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(HAStateStore.self) private var stateStore
 
-    @State private var rangePreset: LogbookDateRangePreset = .last24Hours
-    @State private var startDate = Date().addingTimeInterval(-86_400)
+    @State private var rangePreset: LogbookDateRangePreset = .last3Hours
+    @State private var startDate = Date().addingTimeInterval(-10_800)
     @State private var endDate = Date()
     @State private var selectedDomain: EntityDomain?
     @State private var selectedEntityID: String?
@@ -239,10 +239,28 @@ struct LogbookSettingsView: View {
         [
             connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
             homeAssistantService.authState.title,
-            String(startDate.timeIntervalSince1970),
-            String(endDate.timeIntervalSince1970),
+            rangeIdentity,
             selectedEntityID ?? "all"
         ].joined(separator: "|")
+    }
+
+    private var activityCacheKey: String {
+        [
+            "settings-activity",
+            connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            homeAssistantService.activityCacheUserIdentifier,
+            rangeIdentity,
+            selectedEntityID ?? "all"
+        ].joined(separator: "|")
+    }
+
+    private var rangeIdentity: String {
+        switch rangePreset {
+        case .custom:
+            "\(startDate.timeIntervalSince1970)|\(endDate.timeIntervalSince1970)"
+        default:
+            rangePreset.title
+        }
     }
 
     // MARK: - Actions
@@ -257,6 +275,12 @@ struct LogbookSettingsView: View {
             return
         }
 
+        let cacheKey = activityCacheKey
+        if rows.isEmpty,
+           let cached = await HALogbookActivityCache.shared.snapshot(for: cacheKey) {
+            rows = cached.rows
+        }
+
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -267,9 +291,17 @@ struct LogbookSettingsView: View {
                 endDate: endDate,
                 entityID: selectedEntityID
             )
-            rows = try await homeAssistantService.fetchLogbook(
+            let fetchedRows = try await homeAssistantService.fetchLogbook(
                 settings: connectionSettings,
                 request: request
+            )
+            rows = fetchedRows
+            await HALogbookActivityCache.shared.store(
+                HALogbookActivityCacheSnapshot(
+                    rows: fetchedRows,
+                    loadedAt: Date()
+                ),
+                for: cacheKey
             )
         } catch {
             errorMessage = HAConnectionIssuePresentation.message(for: error)
@@ -338,7 +370,7 @@ struct HAActivityTimelineRow: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.trailing)
                         .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                        .minimumScaleFactor(0.82)
                         .layoutPriority(1)
                 }
 
@@ -608,6 +640,7 @@ private struct LogbookEntityPickerRow: View {
 }
 
 private enum LogbookDateRangePreset: CaseIterable, Identifiable, Equatable {
+    case last3Hours
     case last24Hours
     case today
     case yesterday
@@ -618,6 +651,7 @@ private enum LogbookDateRangePreset: CaseIterable, Identifiable, Equatable {
 
     var title: String {
         switch self {
+        case .last3Hours: "Last 3 Hours"
         case .last24Hours: "Last 24 Hours"
         case .today: "Today"
         case .yesterday: "Yesterday"
@@ -628,6 +662,8 @@ private enum LogbookDateRangePreset: CaseIterable, Identifiable, Equatable {
 
     func range(now: Date, calendar: Calendar) -> (start: Date, end: Date) {
         switch self {
+        case .last3Hours:
+            return (now.addingTimeInterval(-10_800), now)
         case .last24Hours:
             return (now.addingTimeInterval(-86_400), now)
         case .today:
@@ -665,6 +701,13 @@ struct ActivityTimelinePreviewScreen: View {
                 entityID: "media_player.ashton_bedroom_apple_tv"
             ),
             HALogbookEntryDTO(
+                when: Date(timeIntervalSince1970: 1_775_000_695),
+                name: "Entryway • Occupancy • Handler",
+                message: "triggered by state of binary_sensor.entryway_entryway_sensor",
+                domain: "automation",
+                entityID: "automation.entryway_occupancy_handler"
+            ),
+            HALogbookEntryDTO(
                 when: Date(timeIntervalSince1970: 1_775_000_680),
                 name: "Front Porch Camera Snapshot",
                 state: "unavailable",
@@ -679,7 +722,9 @@ struct ActivityTimelinePreviewScreen: View {
                 entityID: "sensor.date_time"
             )
         ],
-        entityDisplayName: { _ in nil }
+        entityDisplayName: { entityID in
+            entityID == "binary_sensor.entryway_entryway_sensor" ? "Entryway Sensor Occupancy" : nil
+        }
     )
 
     var body: some View {

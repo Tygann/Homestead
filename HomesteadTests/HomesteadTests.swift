@@ -1562,12 +1562,21 @@ struct HomesteadTests {
                     entityID: "light.office_ceiling",
                     contextName: "Garage • Light • Handler",
                     contextDomain: "automation"
+                ),
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Entryway • Occupancy • Handler",
+                    message: "triggered by state of binary_sensor.entryway_occupancy",
+                    domain: "automation",
+                    entityID: "automation.entryway_occupancy_handler"
                 )
             ],
             entityDisplayName: { entityID in
                 switch entityID {
                 case "binary_sensor.garage_presence_sensor":
                     "Garage Presence Sensor"
+                case "binary_sensor.entryway_occupancy":
+                    "Entryway Sensor Occupancy"
                 default:
                     nil
                 }
@@ -1576,6 +1585,8 @@ struct HomesteadTests {
 
         #expect(rows[0].triggerText == "By state change: Garage Presence Sensor")
         #expect(rows[1].triggerText == "By automation: Garage • Light • Handler")
+        #expect(rows[2].statusText == "Triggered")
+        #expect(rows[2].triggerText == "By state change: Entryway Sensor Occupancy")
     }
 
     @Test func logbookHistoricalValuesUseEntityMetadataWithoutUsingCurrentState() throws {
@@ -1682,7 +1693,7 @@ struct HomesteadTests {
         #expect(presentation.visibleRowCount == 55)
     }
 
-    @Test func securityActivityCacheRetainsRowsAcrossViewLifetimes() async throws {
+    @Test func logbookActivityCacheRetainsRowsAcrossViewLifetimes() async throws {
         let date = try testDate("2026-06-13T15:30:00Z")
         let rows = HAActivityRow.makeRows(
             from: [
@@ -1696,8 +1707,8 @@ struct HomesteadTests {
             ],
             entityDisplayName: { _ in nil }
         )
-        let cache = HASecurityActivityCache()
-        let snapshot = HASecurityActivityCacheSnapshot(rows: rows, loadedAt: date)
+        let cache = HALogbookActivityCache()
+        let snapshot = HALogbookActivityCacheSnapshot(rows: rows, loadedAt: date)
 
         await cache.store(snapshot, for: "test-server|test-user|lock.front_door")
         let restored = await cache.snapshot(for: "test-server|test-user|lock.front_door")
