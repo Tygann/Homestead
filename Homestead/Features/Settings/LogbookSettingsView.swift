@@ -41,6 +41,12 @@ struct LogbookSettingsView: View {
             activityContent(presentation)
         }
         .listStyle(.insetGrouped)
+        .overlay {
+            if isLoading, rows.isEmpty {
+                ProgressView()
+                    .accessibilityLabel("Loading activity")
+            }
+        }
         .navigationTitle("Activity")
         .toolbarTitleDisplayMode(.inline)
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
@@ -97,11 +103,7 @@ struct LogbookSettingsView: View {
     @ViewBuilder
     private func activityContent(_ presentation: HALogbookPresentation) -> some View {
         if isLoading, rows.isEmpty {
-            Section {
-                ProgressView()
-                    .frame(maxWidth: .infinity, minHeight: 180)
-            }
-            .listRowBackground(Color.clear)
+            EmptyView()
         } else if let errorMessage, rows.isEmpty {
             Section {
                 ContentUnavailableView(
