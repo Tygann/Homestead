@@ -298,6 +298,28 @@ final class HomesteadAppearanceSettings {
         dashboardBackgrounds[activeProfileID] = profileBackgrounds
     }
 
+    func reconcileDashboardBackgrounds(
+        for profileID: UUID,
+        validDashboardIDs: Set<UUID>
+    ) {
+        guard var profileBackgrounds = dashboardBackgrounds[profileID] else { return }
+        let removedDashboardIDs = Set(profileBackgrounds.keys).subtracting(validDashboardIDs)
+        guard !removedDashboardIDs.isEmpty else { return }
+
+        for dashboardID in removedDashboardIDs {
+            try? fileManager.removeItem(
+                at: dashboardStorageDirectory(for: dashboardID, profileID: profileID)
+            )
+            profileBackgrounds.removeValue(forKey: dashboardID)
+        }
+
+        if profileBackgrounds.isEmpty {
+            dashboardBackgrounds.removeValue(forKey: profileID)
+        } else {
+            dashboardBackgrounds[profileID] = profileBackgrounds
+        }
+    }
+
     func copyDashboardBackground(from sourceID: UUID, to destinationID: UUID) {
         removeDashboardWallpaper(for: destinationID)
 
@@ -362,7 +384,11 @@ final class HomesteadAppearanceSettings {
     }
 
     private func dashboardStorageDirectory(for dashboardID: UUID) -> URL {
-        profileStorageDirectory(for: activeProfileID)
+        dashboardStorageDirectory(for: dashboardID, profileID: activeProfileID)
+    }
+
+    private func dashboardStorageDirectory(for dashboardID: UUID, profileID: UUID) -> URL {
+        profileStorageDirectory(for: profileID)
             .appendingPathComponent("Dashboards", isDirectory: true)
             .appendingPathComponent(dashboardID.uuidString.lowercased(), isDirectory: true)
     }

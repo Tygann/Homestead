@@ -324,4 +324,36 @@ struct AppearanceSettingsTests {
         #expect(settings.hasCustomDashboardWallpaper(for: Self.secondaryDashboardID))
         #expect(settings.dashboardBackgroundChoice(for: Self.secondaryDashboardID) == .customWallpaper)
     }
+
+    @Test @MainActor func dashboardReconciliationRemovesOnlyOrphanedProfileWallpaper() async throws {
+        let defaults = testUserDefaults()
+        let directory = try temporaryTestDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settings = HomesteadAppearanceSettings(
+            profileID: Self.primaryProfileID,
+            defaults: defaults,
+            storageDirectory: directory
+        )
+        try await settings.importDashboardWallpaper(
+            from: testImageData(color: .systemBlue),
+            for: Self.primaryDashboardID
+        )
+        try await settings.importDashboardWallpaper(
+            from: testImageData(color: .systemGreen),
+            for: Self.secondaryDashboardID
+        )
+        settings.activateProfile(Self.secondaryProfileID)
+
+        settings.reconcileDashboardBackgrounds(
+            for: Self.primaryProfileID,
+            validDashboardIDs: [Self.secondaryDashboardID]
+        )
+
+        settings.activateProfile(Self.primaryProfileID)
+        #expect(!settings.hasCustomDashboardWallpaper(for: Self.primaryDashboardID))
+        #expect(settings.dashboardBackgroundChoice(for: Self.primaryDashboardID) == .defaultWallpaper)
+        #expect(settings.hasCustomDashboardWallpaper(for: Self.secondaryDashboardID))
+        #expect(settings.dashboardBackgroundChoice(for: Self.secondaryDashboardID) == .customWallpaper)
+    }
 }

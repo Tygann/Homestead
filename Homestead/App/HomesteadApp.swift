@@ -190,7 +190,11 @@ struct HomesteadApp: App {
                 .onChange(of: connectionProfileStore.activeProfileID) { _, profileID in
                     appearanceSettings.activateProfile(profileID)
                 }
-                .onChange(of: dashboardConfiguration.syncSnapshot) { _, _ in
+                .onChange(of: dashboardConfiguration.syncSnapshot) { _, snapshot in
+                    appearanceSettings.reconcileDashboardBackgrounds(
+                        for: dashboardConfiguration.activeProfileID ?? appearanceSettings.activeProfileID,
+                        validDashboardIDs: Set(snapshot.dashboards.map(\.id))
+                    )
                     syncPreferencesToICloud(.dashboard)
                 }
                 .onChange(of: actionConfirmationSettings.syncSnapshot) { _, _ in

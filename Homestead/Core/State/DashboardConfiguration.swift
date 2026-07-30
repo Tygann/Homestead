@@ -564,7 +564,7 @@ final class DashboardConfiguration {
     }
 
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private var activeProfileID: UUID?
+    @ObservationIgnored private(set) var activeProfileID: UUID?
     @ObservationIgnored private var isSwitchingProfile = false
     @ObservationIgnored private var protectsNewerDashboardSchema = false
     @ObservationIgnored private var documentKey: String {

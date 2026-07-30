@@ -407,6 +407,8 @@ struct DashboardDetailSettingsView: View {
     @State private var isShowingPlus = false
     @State private var pendingPlusNamingAction: DashboardDetailNamingAction?
     @State private var selectedWallpaperPhoto: PhotosPickerItem?
+    @State private var isShowingWallpaperPicker = false
+    @State private var wallpaperChoiceToRestore: DashboardBackgroundChoice?
     @State private var isImportingWallpaper = false
     @State private var wallpaperImportErrorMessage: String?
 
@@ -511,6 +513,16 @@ struct DashboardDetailSettingsView: View {
         .task(id: selectedWallpaperPhoto) {
             await importSelectedWallpaper()
         }
+        .photosPicker(
+            isPresented: $isShowingWallpaperPicker,
+            selection: $selectedWallpaperPhoto,
+            matching: .images,
+            photoLibrary: .shared()
+        )
+        .onChange(of: isShowingWallpaperPicker) { _, isPresented in
+            guard !isPresented else { return }
+            restoreBackgroundChoiceAfterCancelledPicker()
+        }
         .alert("Dashboard Title", isPresented: $isEditingDashboardTitle) {
             TextField("Dashboard Title", text: $dashboardTitleDraft)
 
@@ -586,11 +598,9 @@ struct DashboardDetailSettingsView: View {
             }
             .foregroundStyle(.secondary)
         } else {
-            PhotosPicker(
-                selection: $selectedWallpaperPhoto,
-                matching: .images,
-                photoLibrary: .shared()
-            ) {
+            Button {
+                presentWallpaperPicker()
+            } label: {
                 Text(hasCustomDashboardWallpaper ? "Change Wallpaper" : "Choose Wallpaper")
             }
 
@@ -609,7 +619,7 @@ struct DashboardDetailSettingsView: View {
     private var dashboardBackgroundBinding: Binding<DashboardBackgroundChoice> {
         Binding(
             get: { dashboardBackgroundChoice },
-            set: { appearanceSettings.setDashboardBackgroundChoice($0, for: dashboard.id) }
+            set: { setDashboardBackgroundChoice($0) }
         )
     }
 
@@ -642,10 +652,53 @@ struct DashboardDetailSettingsView: View {
                 throw HomesteadAppearanceSettingsError.invalidImage
             }
             try await appearanceSettings.importDashboardWallpaper(from: data, for: dashboard.id)
+            wallpaperChoiceToRestore = nil
         } catch {
+            restoreBackgroundChoiceAfterFailedImport()
             wallpaperImportErrorMessage = (error as? LocalizedError)?.errorDescription
                 ?? error.localizedDescription
         }
+    }
+
+    private func setDashboardBackgroundChoice(_ choice: DashboardBackgroundChoice) {
+        let previousChoice = dashboardBackgroundChoice
+        appearanceSettings.setDashboardBackgroundChoice(choice, for: dashboard.id)
+
+        if choice == .customWallpaper, !hasCustomDashboardWallpaper {
+            presentWallpaperPicker(restoring: previousChoice)
+        } else {
+            wallpaperChoiceToRestore = nil
+        }
+    }
+
+    private func presentWallpaperPicker(restoring choice: DashboardBackgroundChoice? = nil) {
+        wallpaperChoiceToRestore = choice
+        isShowingWallpaperPicker = true
+    }
+
+    private func restoreBackgroundChoiceAfterCancelledPicker() {
+        Task { @MainActor in
+            await Task.yield()
+            guard selectedWallpaperPhoto == nil,
+                  !hasCustomDashboardWallpaper,
+                  let wallpaperChoiceToRestore else {
+                return
+            }
+            appearanceSettings.setDashboardBackgroundChoice(
+                wallpaperChoiceToRestore,
+                for: dashboard.id
+            )
+            self.wallpaperChoiceToRestore = nil
+        }
+    }
+
+    private func restoreBackgroundChoiceAfterFailedImport() {
+        guard !hasCustomDashboardWallpaper, let wallpaperChoiceToRestore else { return }
+        appearanceSettings.setDashboardBackgroundChoice(
+            wallpaperChoiceToRestore,
+            for: dashboard.id
+        )
+        self.wallpaperChoiceToRestore = nil
     }
 
     private var cardCountText: String {
