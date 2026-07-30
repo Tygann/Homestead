@@ -427,8 +427,6 @@ struct DashboardDetailSettingsView: View {
                     .listRowInsets(EdgeInsets())
             }
 
-            backgroundSection
-
             Section {
                 Button {
                     beginRenaming()
@@ -451,6 +449,8 @@ struct DashboardDetailSettingsView: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            backgroundSection
 
             Section {
                 LabeledContent("Cards", value: cardCountText)

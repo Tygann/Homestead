@@ -84,8 +84,8 @@ nonisolated enum HomesteadAppColor: String, CaseIterable, Codable, Identifiable,
 
 nonisolated enum DashboardBackgroundChoice: String, CaseIterable, Codable, Identifiable, Sendable {
     case defaultWallpaper
-    case noWallpaper
     case customWallpaper
+    case noWallpaper
 
     var id: String { rawValue }
 
