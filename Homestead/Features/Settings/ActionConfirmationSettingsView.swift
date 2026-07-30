@@ -15,6 +15,7 @@ struct ActionConfirmationSettingsView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .tint(.secondary)
             } footer: {
                 Text(settings.mode.summary)
             }

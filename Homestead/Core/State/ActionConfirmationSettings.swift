@@ -11,22 +11,22 @@ enum ActionConfirmationMode: String, CaseIterable, Codable, Identifiable, Sendab
     var displayName: String {
         switch self {
         case .smart:
-            "Smart Confirmations"
+            "Selected Actions"
         case .all:
-            "Confirm All Actions"
+            "All Actions"
         case .off:
-            "Off"
+            "No Confirmations"
         }
     }
 
     var summary: String {
         switch self {
         case .smart:
-            "Ask before sensitive actions only."
+            "Ask before the actions selected below."
         case .all:
             "Ask before every dashboard action."
         case .off:
-            "Run actions immediately."
+            "Run dashboard actions immediately."
         }
     }
 }
