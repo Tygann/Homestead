@@ -147,7 +147,6 @@ struct SoftwareDetailView: View {
             SupervisorAppArtworkView(app: app, kind: .logo, height: 220)
                 .containerRelativeFrame(.horizontal)
                 .frame(maxWidth: .infinity)
-                .backgroundExtensionEffect()
                 .safeAreaInset(edge: .top, spacing: 0) {
                     Color.clear
                         .frame(height: AppSpacing.large)
@@ -172,9 +171,11 @@ struct SoftwareDetailView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
 
+                Spacer(minLength: 2)
+
                 primaryAction
-                    .padding(.top, 8)
             }
+            .frame(height: identityArtworkSize)
             .frame(maxWidth: .infinity, alignment: .topLeading)
 
             Spacer(minLength: 0)
@@ -209,16 +210,16 @@ struct SoftwareDetailView: View {
     @ViewBuilder
     private var primaryAction: some View {
         if let update, actionAvailability(for: update).canInstall {
-            Button {
+            Button(role: .confirm) {
                 install(update)
             } label: {
                 Text("Update")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minWidth: 72)
+                    .font(.headline)
+                    .frame(width: 72, height: 20)
             }
             .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
-            .controlSize(.small)
+            .glassEffect(.regular, in: .capsule)
+            .clipShape(.capsule)
         } else if let update, update.isInProgress {
             HStack(spacing: AppSpacing.xSmall) {
                 ProgressView()
@@ -233,12 +234,14 @@ struct SoftwareDetailView: View {
                 .foregroundStyle(.orange)
         } else if update?.status == .upToDate || (update == nil && app?.updateAvailable == false) {
             Text("Up to Date")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 72)
+                .font(.headline)
+                .foregroundStyle(.white)
+                .frame(width: 72, height: 20)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.secondary.opacity(0.14), in: Capsule())
+                .padding(.vertical, 5)
+                .background(Color.secondary, in: Capsule())
+                .glassEffect(.regular, in: .capsule)
+                .clipShape(.capsule)
         } else if let update {
             Text(update.status.title)
                 .font(.caption.weight(.semibold))
@@ -265,25 +268,23 @@ struct SoftwareDetailView: View {
 
                         VStack(spacing: 4) {
                             Text(item.title.uppercased())
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
+                                .font(.caption)
+                                .bold()
                                 .lineLimit(1)
 
                             Text(item.value)
                                 .font(.title3.bold())
                                 .fontDesign(.rounded)
-                                .foregroundStyle(item.tint)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
 
                             if let detail = item.detail {
                                 Text(detail)
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
                         }
-                        .frame(minWidth: 96)
+                        .foregroundStyle(item.tint)
                         .accessibilityElement(children: .combine)
                     }
                 }
@@ -368,7 +369,7 @@ struct SoftwareDetailView: View {
                 }
             }
         }
-        .padding(.horizontal, AppSpacing.medium)
+        .padding(.horizontal, 20)
         .padding(.vertical, AppSpacing.small)
     }
 
@@ -405,7 +406,7 @@ struct SoftwareDetailView: View {
                     .font(.subheadline)
                 }
             }
-            .padding(.horizontal, AppSpacing.medium)
+            .padding(.horizontal, 20)
             .padding(.bottom, AppSpacing.medium)
         }
     }
@@ -467,7 +468,7 @@ struct SoftwareDetailView: View {
 
                 UpdateReleaseNotesMarkdownView(markdown: aboutText)
             }
-            .padding(.horizontal, AppSpacing.medium)
+            .padding(.horizontal, 20)
             .padding(.bottom, AppSpacing.medium)
         }
     }
@@ -482,28 +483,69 @@ struct SoftwareDetailView: View {
         let links = informationLinks
 
         if !rows.isEmpty || !links.isEmpty {
-            VStack(alignment: .leading, spacing: AppSpacing.small) {
+            VStack(alignment: .leading, spacing: 0) {
                 sectionDivider
 
                 Text("Information")
                     .font(.title2.bold())
-                    .padding(.top, AppSpacing.medium)
+                    .padding(.top, 20)
+                    .padding(.bottom, 8)
 
-                ForEach(rows) { row in
-                    LabeledContent(row.title, value: row.value)
-                        .font(.subheadline)
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 {
+                        Divider()
+                    }
+
+                    informationRow(row)
                 }
 
-                ForEach(links) { link in
-                    Link(destination: link.url) {
-                        Label(link.title, systemImage: "arrow.up.right")
+                if !rows.isEmpty, !links.isEmpty {
+                    Divider()
+                }
+
+                ForEach(Array(links.enumerated()), id: \.element.id) { index, link in
+                    if index > 0 {
+                        Divider()
                     }
-                    .font(.subheadline)
+
+                    informationLink(link)
                 }
             }
-            .padding(.horizontal, AppSpacing.medium)
+            .padding(.horizontal, 20)
             .padding(.bottom, AppSpacing.medium)
         }
+    }
+
+    private func informationRow(_ row: SoftwareInformationRow) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: AppSpacing.medium) {
+            Text(row.title)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: AppSpacing.medium)
+
+            Text(row.value)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.trailing)
+        }
+        .font(.body)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func informationLink(_ link: SoftwareInformationLink) -> some View {
+        Link(destination: link.url) {
+            HStack(spacing: AppSpacing.medium) {
+                Text(link.title)
+
+                Spacer(minLength: AppSpacing.medium)
+
+                Image(systemName: link.systemImage)
+                    .font(.body)
+            }
+            .contentShape(Rectangle())
+        }
+        .font(.body)
+        .padding(.vertical, 12)
     }
 
     private var informationRows: [SoftwareInformationRow] {
@@ -578,11 +620,21 @@ struct SoftwareDetailView: View {
         var links: [SoftwareInformationLink] = []
 
         if let url = validURL(appDetails?.websiteURLString) {
-            links.append(SoftwareInformationLink(id: "website", title: "Website", url: url))
+            links.append(SoftwareInformationLink(
+                id: "website",
+                title: "Website",
+                systemImage: "safari",
+                url: url
+            ))
         }
 
         if let url = validURL(appDetails?.repositoryURLString) {
-            links.append(SoftwareInformationLink(id: "repository", title: "Repository", url: url))
+            links.append(SoftwareInformationLink(
+                id: "repository",
+                title: "Repository",
+                systemImage: "chevron.left.forwardslash.chevron.right",
+                url: url
+            ))
         }
 
         return links
@@ -890,7 +942,7 @@ private struct SoftwareMetadataItem: Identifiable {
     let title: String
     let value: String
     var detail: String?
-    var tint: Color = .primary
+    var tint: Color = .secondary
 }
 
 private struct SoftwareInformationRow: Identifiable {
@@ -902,6 +954,7 @@ private struct SoftwareInformationRow: Identifiable {
 private struct SoftwareInformationLink: Identifiable {
     let id: String
     let title: String
+    let systemImage: String
     let url: URL
 }
 

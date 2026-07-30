@@ -37,18 +37,19 @@ struct SupervisorAppArtworkView: View {
     // MARK: - Logo
 
     private var authenticatedLogoArtwork: some View {
-        Group {
+        ZStack {
+            fallbackLogo
+
             if let loadedLogo {
                 logoArtwork(
                     Image(uiImage: loadedLogo),
                     palette: logoPalette
                 )
-            } else {
-                fallbackLogo
             }
         }
         .frame(height: height)
         .frame(maxWidth: .infinity)
+        .backgroundExtensionEffect()
         .task(id: logoTaskID) {
             await loadLogoArtwork()
         }
