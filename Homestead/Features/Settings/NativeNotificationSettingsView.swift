@@ -22,7 +22,7 @@ struct NativeNotificationSettingsView: View {
                     title: "System Notifications",
                     message: systemStatusMessage,
                     systemImage: systemStatusImage,
-                    iconTint: systemStatusTint,
+                    iconTint: .accentColor,
                     accessory: systemAccessory,
                     action: handleRowAction
                 )
@@ -31,7 +31,7 @@ struct NativeNotificationSettingsView: View {
                     title: "Home Assistant Delivery",
                     message: homeAssistantStatusMessage,
                     systemImage: "house.badge.wifi",
-                    iconTint: homeAssistantStatusTint,
+                    iconTint: .accentColor,
                     accessory: homeAssistantAccessory,
                     action: handleRowAction
                 )
@@ -103,10 +103,6 @@ struct NativeNotificationSettingsView: View {
         case .notDetermined, .unknown:
             return "bell.badge"
         }
-    }
-
-    private var systemStatusTint: Color {
-        nativeNotificationService.status.authorizationStatus.settingsTint
     }
 
     private var systemAccessory: NotificationSettingsRowAccessory {
@@ -205,13 +201,6 @@ struct NativeNotificationSettingsView: View {
         }
 
         return "Notifications are ready from your Home Assistant server."
-    }
-
-    private var homeAssistantStatusTint: Color {
-        if hasDeliveryFailure {
-            return .red
-        }
-        return isHomeAssistantDeliveryReady ? .green : .secondary
     }
 
     private var isHomeAssistantDeliveryReady: Bool {

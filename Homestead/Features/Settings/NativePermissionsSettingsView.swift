@@ -49,7 +49,7 @@ struct NativePermissionsSettingsView: View {
                     .foregroundStyle(.red)
                 }
             } footer: {
-                Text("The system controls permission decisions. Homestead only requests access when a native feature needs it.")
+                Text("iOS manages these permissions.")
             }
 
             Section {
