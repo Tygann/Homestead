@@ -37,19 +37,18 @@ struct SupervisorAppArtworkView: View {
     // MARK: - Logo
 
     private var authenticatedLogoArtwork: some View {
-        ZStack {
-            fallbackLogo
-
+        Group {
             if let loadedLogo {
                 logoArtwork(
                     Image(uiImage: loadedLogo),
                     palette: logoPalette
                 )
+            } else {
+                fallbackLogo
             }
         }
         .frame(height: height)
         .frame(maxWidth: .infinity)
-        .backgroundExtensionEffect()
         .task(id: logoTaskID) {
             await loadLogoArtwork()
         }
@@ -75,8 +74,8 @@ struct SupervisorAppArtworkView: View {
                         .opacity(0.58)
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
-                .clipped()
                 .compositingGroup()
+                .clipped()
 
                 image
                     .resizable()

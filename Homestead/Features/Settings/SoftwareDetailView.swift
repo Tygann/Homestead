@@ -147,10 +147,7 @@ struct SoftwareDetailView: View {
             SupervisorAppArtworkView(app: app, kind: .logo, height: 220)
                 .containerRelativeFrame(.horizontal)
                 .frame(maxWidth: .infinity)
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    Color.clear
-                        .frame(height: AppSpacing.large)
-                }
+                .backgroundExtensionEffect()
                 .clipped()
         }
     }
@@ -213,13 +210,9 @@ struct SoftwareDetailView: View {
             Button(role: .confirm) {
                 install(update)
             } label: {
-                Text("Update")
-                    .font(.headline)
-                    .frame(width: 72, height: 20)
+                actionPillLabel("Update", tint: Color.accentColor)
             }
-            .buttonStyle(.borderedProminent)
-            .glassEffect(.regular, in: .capsule)
-            .clipShape(.capsule)
+            .buttonStyle(.plain)
         } else if let update, update.isInProgress {
             HStack(spacing: AppSpacing.xSmall) {
                 ProgressView()
@@ -233,20 +226,24 @@ struct SoftwareDetailView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.orange)
         } else if update?.status == .upToDate || (update == nil && app?.updateAvailable == false) {
-            Text("Up to Date")
-                .font(.headline)
-                .foregroundStyle(.white)
-                .frame(width: 72, height: 20)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .background(Color.secondary, in: Capsule())
-                .glassEffect(.regular, in: .capsule)
-                .clipShape(.capsule)
+            actionPillLabel("Up to Date", tint: Color.secondary)
         } else if let update {
             Text(update.status.title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(update.status.tint)
         }
+    }
+
+    private func actionPillLabel(_ title: String, tint: Color) -> some View {
+        Text(title)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+            .frame(width: 88, height: 28)
+            .background(tint, in: Capsule())
+            .glassEffect(.regular, in: .capsule)
+            .clipShape(.capsule)
     }
 
     // MARK: - Metadata
@@ -292,8 +289,6 @@ struct SoftwareDetailView: View {
             }
             .scrollIndicators(.hidden)
             .padding(.vertical, 12)
-
-            sectionDivider
         }
     }
 
