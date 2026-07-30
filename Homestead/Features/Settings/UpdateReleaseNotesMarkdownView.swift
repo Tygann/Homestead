@@ -1,5 +1,110 @@
 import SwiftUI
 
+struct CollapsibleUpdateReleaseNotesView: View {
+    @Binding var isExpanded: Bool
+    @State private var fullTextHeight: CGFloat = 0
+    @State private var collapsedTextHeight: CGFloat = 0
+
+    private let markdown: String
+    private let omittingLeadingHeading: String?
+    private let summary: AttributedString
+
+    init(
+        markdown: String,
+        omittingLeadingHeading: String? = nil,
+        isExpanded: Binding<Bool>
+    ) {
+        self.markdown = markdown
+        self.omittingLeadingHeading = omittingLeadingHeading
+        _isExpanded = isExpanded
+
+        let document = HAUpdateReleaseNotesDocument(markdown: markdown)
+            .omittingLeadingHeading(matching: omittingLeadingHeading)
+        summary = Self.inlineMarkdown(document.summaryText)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            if isExpanded {
+                UpdateReleaseNotesMarkdownView(
+                    markdown: markdown,
+                    omittingLeadingHeading: omittingLeadingHeading
+                )
+
+                if isTruncated {
+                    Button("less") {
+                        withAnimation(.snappy) {
+                            isExpanded = false
+                        }
+                    }
+                    .font(.caption.bold())
+                    .foregroundStyle(Color.accentColor)
+                }
+            } else {
+                collapsedSummary
+            }
+        }
+        .foregroundStyle(.secondary)
+    }
+
+    private var collapsedSummary: some View {
+        Text(summary)
+            .font(.callout)
+            .lineLimit(3)
+            .truncationMode(.tail)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                collapsedTextHeight = height
+            }
+            .background {
+                Text(summary)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .hidden()
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { height in
+                        fullTextHeight = height
+                    }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if isTruncated {
+                    HStack(spacing: 0) {
+                        LinearGradient(
+                            colors: [.clear, Color(.systemBackground)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: 56)
+
+                        Button("more") {
+                            withAnimation(.snappy) {
+                                isExpanded = true
+                            }
+                        }
+                        .font(.caption.bold())
+                        .foregroundStyle(Color.accentColor)
+                        .padding(.leading, 2)
+                        .background(Color(.systemBackground))
+                    }
+                    .frame(height: UIFont.preferredFont(forTextStyle: .callout).lineHeight)
+                }
+            }
+    }
+
+    private var isTruncated: Bool {
+        fullTextHeight > collapsedTextHeight + 1
+    }
+
+    private static func inlineMarkdown(_ source: String) -> AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(
+            interpretedSyntax: .inlineOnlyPreservingWhitespace
+        )
+        return (try? AttributedString(markdown: source, options: options)) ?? AttributedString(source)
+    }
+}
+
 struct UpdateReleaseNotesMarkdownView: View {
     let document: HAUpdateReleaseNotesDocument
 
@@ -71,5 +176,25 @@ struct UpdateReleaseNotesMarkdownView: View {
             interpretedSyntax: .inlineOnlyPreservingWhitespace
         )
         return (try? AttributedString(markdown: source, options: options)) ?? AttributedString(source)
+    }
+}
+
+private extension HAUpdateReleaseNotesDocument {
+    var summaryText: String {
+        blocks.compactMap { block in
+            switch block {
+            case .heading(_, let text), .paragraph(let text), .quote(let text):
+                text
+            case .unorderedListItem(_, let text):
+                "• \(text)"
+            case .orderedListItem(_, let ordinal, let text):
+                "\(ordinal). \(text)"
+            case .code(let text):
+                text
+            case .divider:
+                nil
+            }
+        }
+        .joined(separator: "\n")
     }
 }

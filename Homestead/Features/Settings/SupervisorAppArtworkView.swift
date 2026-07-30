@@ -76,7 +76,6 @@ struct SupervisorAppArtworkView: View {
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .clipped()
                 .compositingGroup()
-                .backgroundExtensionEffect()
 
                 image
                     .resizable()

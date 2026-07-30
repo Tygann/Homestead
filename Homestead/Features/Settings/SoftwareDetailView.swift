@@ -11,6 +11,7 @@ struct SoftwareDetailView: View {
     @State private var lifecycleActionInProgress: HASupervisorAppLifecycleAction?
     @State private var pendingLifecycleAction: HASupervisorAppLifecycleAction?
     @State private var lifecycleErrorMessage: String?
+    @State private var isWhatsNewExpanded = false
 
     private let initialApp: HASupervisorApp?
     private let initialAppDetails: HASupervisorAppDetails?
@@ -146,34 +147,40 @@ struct SoftwareDetailView: View {
             SupervisorAppArtworkView(app: app, kind: .logo, height: 220)
                 .containerRelativeFrame(.horizontal)
                 .frame(maxWidth: .infinity)
+                .backgroundExtensionEffect()
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    Color.clear
+                        .frame(height: AppSpacing.large)
+                }
+                .clipped()
         }
     }
 
     private var identitySection: some View {
-        HStack(alignment: .top, spacing: AppSpacing.medium) {
+        HStack(alignment: .top, spacing: 16) {
             identityArtwork
 
-            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(displayName)
-                    .font(.headline)
+                    .font(.title2.bold())
                     .foregroundStyle(.primary)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.85)
 
                 Text(identitySubtitle)
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
 
-                Spacer(minLength: AppSpacing.xSmall)
-
                 primaryAction
+                    .padding(.top, 8)
             }
-            .frame(height: identityArtworkSize, alignment: .top)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, AppSpacing.medium)
-        .padding(.vertical, AppSpacing.large)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
 
     @ViewBuilder
@@ -207,6 +214,7 @@ struct SoftwareDetailView: View {
             } label: {
                 Text("Update")
                     .font(.subheadline.weight(.semibold))
+                    .frame(minWidth: 72)
             }
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
@@ -227,8 +235,9 @@ struct SoftwareDetailView: View {
             Text("Up to Date")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, AppSpacing.medium)
-                .padding(.vertical, AppSpacing.xSmall)
+                .frame(minWidth: 72)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
                 .background(Color.secondary.opacity(0.14), in: Capsule())
         } else if let update {
             Text(update.status.title)
@@ -245,58 +254,99 @@ struct SoftwareDetailView: View {
         if !items.isEmpty {
             sectionDivider
 
-            HStack(spacing: 0) {
-                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                    if index > 0 {
-                        Divider()
-                            .frame(height: 38)
-                    }
+            ScrollView(.horizontal) {
+                HStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        if index > 0 {
+                            Divider()
+                                .frame(height: 42)
+                                .padding(.horizontal, 14)
+                        }
 
-                    VStack(spacing: 3) {
-                        Text(item.title.uppercased())
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
+                        VStack(spacing: 4) {
+                            Text(item.title.uppercased())
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
 
-                        Text(item.value)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(item.tint)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
+                            Text(item.value)
+                                .font(.title3.bold())
+                                .fontDesign(.rounded)
+                                .foregroundStyle(item.tint)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+
+                            if let detail = item.detail {
+                                Text(detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .frame(minWidth: 96)
+                        .accessibilityElement(children: .combine)
                     }
-                    .frame(maxWidth: .infinity)
-                    .accessibilityElement(children: .combine)
                 }
+                .padding(.horizontal, 20)
             }
-            .padding(.vertical, AppSpacing.medium)
+            .scrollIndicators(.hidden)
+            .padding(.vertical, 12)
+
+            sectionDivider
         }
     }
 
     private var metadataItems: [SoftwareMetadataItem] {
         var items: [SoftwareMetadataItem] = []
 
+        let installedVersion = update?.installedVersion ?? app?.installedVersion
+        let latestVersion = update?.latestVersion ?? app?.latestVersion
+        let hasDistinctUpdate = installedVersion != nil
+            && latestVersion != nil
+            && installedVersion != latestVersion
+
+        if let installedVersion {
+            items.append(SoftwareMetadataItem(
+                id: hasDistinctUpdate ? "installed" : "version",
+                title: hasDistinctUpdate ? "Installed" : "Version",
+                value: installedVersion,
+                detail: hasDistinctUpdate ? "Current version" : "Installed"
+            ))
+        }
+
+        if hasDistinctUpdate, let latestVersion {
+            items.append(SoftwareMetadataItem(
+                id: "latest",
+                title: "Available",
+                value: latestVersion,
+                detail: "Latest version"
+            ))
+        }
+
         if let app {
             items.append(SoftwareMetadataItem(
                 id: "state",
-                title: "State",
+                title: "Status",
                 value: app.status.title,
+                detail: "App state",
                 tint: app.status.tint
             ))
-        }
-
-        if let installedVersion = update?.installedVersion ?? app?.installedVersion {
+        } else if let update {
             items.append(SoftwareMetadataItem(
-                id: "installed",
-                title: "Installed",
-                value: installedVersion
+                id: "status",
+                title: "Status",
+                value: update.status.shortTitle,
+                detail: "Update state",
+                tint: update.status.tint
             ))
         }
 
-        if let latestVersion = update?.latestVersion ?? app?.latestVersion {
+        if !hasDistinctUpdate, let stage = appDetails?.stage {
             items.append(SoftwareMetadataItem(
-                id: "latest",
-                title: "Latest",
-                value: latestVersion
+                id: "channel",
+                title: "Channel",
+                value: stage.capitalized,
+                detail: "Release track"
             ))
         }
 
@@ -329,7 +379,7 @@ struct SoftwareDetailView: View {
                 sectionDivider
 
                 Text("What’s New")
-                    .font(.title2.bold())
+                    .font(.title3.bold())
                     .padding(.top, AppSpacing.medium)
 
                 HStack {
@@ -375,9 +425,10 @@ struct SoftwareDetailView: View {
             }
         case .loaded(let releaseNotes):
             if let releaseNotes {
-                UpdateReleaseNotesMarkdownView(
+                CollapsibleUpdateReleaseNotesView(
                     markdown: releaseNotes,
-                    omittingLeadingHeading: update.latestVersion
+                    omittingLeadingHeading: update.latestVersion,
+                    isExpanded: $isWhatsNewExpanded
                 )
             } else {
                 releaseNotesFallback(update)
@@ -394,9 +445,10 @@ struct SoftwareDetailView: View {
     @ViewBuilder
     private func releaseNotesFallback(_ update: HAUpdateEntity) -> some View {
         if let releaseSummary = update.releaseSummary {
-            UpdateReleaseNotesMarkdownView(
+            CollapsibleUpdateReleaseNotesView(
                 markdown: releaseSummary,
-                omittingLeadingHeading: update.latestVersion
+                omittingLeadingHeading: update.latestVersion,
+                isExpanded: $isWhatsNewExpanded
             )
         }
     }
@@ -837,6 +889,7 @@ private struct SoftwareMetadataItem: Identifiable {
     let id: String
     let title: String
     let value: String
+    var detail: String?
     var tint: Color = .primary
 }
 
