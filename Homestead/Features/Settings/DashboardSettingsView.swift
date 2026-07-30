@@ -415,18 +415,24 @@ struct DashboardDetailSettingsView: View {
     var body: some View {
         List {
             Section {
-                SettingsDashboardPhonePreview(
-                    width: 178,
-                    items: dashboard.items,
-                    dashboardTitle: dashboard.resolvedDisplayTitle,
-                    wallpaperURL: appearanceSettings.resolvedWallpaperURL(for: dashboard.id),
-                    wallpaperRevision: appearanceSettings.wallpaperPresentationRevision(for: dashboard.id),
-                    accessibilityLabel: "\(dashboard.resolvedName) Preview"
-                )
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, AppSpacing.large)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
+                VStack(spacing: AppSpacing.medium) {
+                    SettingsDashboardPhonePreview(
+                        width: 178,
+                        items: dashboard.items,
+                        dashboardTitle: dashboard.resolvedDisplayTitle,
+                        wallpaperURL: appearanceSettings.resolvedWallpaperURL(for: dashboard.id),
+                        wallpaperRevision: appearanceSettings.wallpaperPresentationRevision(for: dashboard.id),
+                        accessibilityLabel: "\(dashboard.resolvedName) Preview"
+                    )
+
+                    if dashboardBackgroundChoice == .customWallpaper {
+                        dashboardWallpaperActions
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.large)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
 
             Section {
@@ -451,7 +457,7 @@ struct DashboardDetailSettingsView: View {
                 }
                 .buttonStyle(.plain)
 
-                Picker("Background", selection: dashboardBackgroundBinding) {
+                Picker("Wallpaper", selection: dashboardBackgroundBinding) {
                     ForEach(DashboardBackgroundChoice.allCases) { choice in
                         Text(choice.displayName)
                             .tag(choice)
@@ -460,12 +466,8 @@ struct DashboardDetailSettingsView: View {
                 .pickerStyle(.menu)
                 .tint(.secondary)
 
-                if dashboardBackgroundChoice == .customWallpaper {
-                    dashboardWallpaperActions
-                }
-
                 Toggle(
-                    "Show on Home",
+                    "Show Dashboard on Home",
                     isOn: Binding(
                         get: { isEnabled },
                         set: { isEnabled in
@@ -594,16 +596,21 @@ struct DashboardDetailSettingsView: View {
             }
             .foregroundStyle(.secondary)
         } else {
-            Button {
-                presentWallpaperPicker()
-            } label: {
-                Text(hasCustomDashboardWallpaper ? "Change Wallpaper" : "Choose Wallpaper")
-            }
-
             if hasCustomDashboardWallpaper {
-                Button("Remove Custom Wallpaper", role: .destructive) {
+                Button("Change Wallpaper") {
+                    presentWallpaperPicker()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Remove Wallpaper", role: .destructive) {
                     appearanceSettings.removeDashboardWallpaper(for: dashboard.id)
                 }
+                .buttonStyle(.bordered)
+            } else {
+                Button("Choose Wallpaper") {
+                    presentWallpaperPicker()
+                }
+                .buttonStyle(.borderedProminent)
             }
         }
     }
