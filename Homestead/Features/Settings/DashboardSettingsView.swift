@@ -467,7 +467,7 @@ struct DashboardDetailSettingsView: View {
                 .tint(.secondary)
 
                 Toggle(
-                    "Show Dashboard on Home",
+                    "Visible on Home",
                     isOn: Binding(
                         get: { isEnabled },
                         set: { isEnabled in
@@ -483,9 +483,7 @@ struct DashboardDetailSettingsView: View {
                         : "Controls whether this dashboard appears as a Home page"
                 )
             } footer: {
-                if let configurationFooterText {
-                    Text(configurationFooterText)
-                }
+                configurationFooter
             }
 
             Section {
@@ -630,18 +628,20 @@ struct DashboardDetailSettingsView: View {
         appearanceSettings.hasCustomDashboardWallpaper(for: dashboard.id)
     }
 
-    private var configurationFooterText: String? {
-        var messages: [String] = []
+    @ViewBuilder
+    private var configurationFooter: some View {
+        if dashboardBackgroundChoice == .defaultWallpaper
+            || (isEnabled && !dashboardConfiguration.canDisableDashboard(id: dashboard.id)) {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                if dashboardBackgroundChoice == .defaultWallpaper {
+                    Text("Uses the wallpaper selected in Appearance.")
+                }
 
-        if dashboardBackgroundChoice == .defaultWallpaper {
-            messages.append("Uses the wallpaper selected in Appearance.")
+                if isEnabled && !dashboardConfiguration.canDisableDashboard(id: dashboard.id) {
+                    Text("At least one dashboard must be shown on Home.")
+                }
+            }
         }
-
-        if isEnabled && !dashboardConfiguration.canDisableDashboard(id: dashboard.id) {
-            messages.append("At least one dashboard must be shown on Home.")
-        }
-
-        return messages.isEmpty ? nil : messages.joined(separator: " ")
     }
 
     private var wallpaperImportErrorBinding: Binding<Bool> {
