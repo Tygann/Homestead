@@ -14,7 +14,7 @@ struct LogbookSettingsView: View {
     @State private var selectedEntityID: String?
     @State private var searchText = ""
     @State private var rows: [HAActivityRow] = []
-    @State private var isLoading = false
+    @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var isShowingActivityFilters = false
     @State private var selectedEntityDestination: EntityDetailDestination?
