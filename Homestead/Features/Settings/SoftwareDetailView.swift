@@ -12,6 +12,7 @@ struct SoftwareDetailView: View {
     @State private var pendingLifecycleAction: HASupervisorAppLifecycleAction?
     @State private var lifecycleErrorMessage: String?
     @State private var isWhatsNewExpanded = false
+    @State private var scrollOffset: CGFloat = 0
 
     private let initialApp: HASupervisorApp?
     private let initialAppDetails: HASupervisorAppDetails?
@@ -55,6 +56,11 @@ struct SoftwareDetailView: View {
                 }
                 .ignoresSafeArea(.container, edges: app?.hasLogo == true ? .top : [])
                 .background(Color(.systemBackground))
+                .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top
+                } action: { _, offset in
+                    scrollOffset = offset
+                }
                 .task(id: appDetailsTaskID) {
                     await loadAppDetails()
                 }
@@ -66,7 +72,7 @@ struct SoftwareDetailView: View {
                     .background(Color(.systemBackground))
             }
         }
-        .navigationTitle("")
+        .navigationTitle(scrollOffset > 350 ? displayName : "")
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
@@ -184,20 +190,28 @@ struct SoftwareDetailView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        // Matches iWatch's 16-point section gap plus 9-point intro inset.
+        .padding(.vertical, 25)
     }
 
     @ViewBuilder
     private var identityArtwork: some View {
-        if let app {
-            SupervisorAppArtworkView(app: app, kind: .icon, height: identityArtworkSize)
-        } else if let update {
-            UpdateIconView(update: update, size: identityArtworkSize)
+        Group {
+            if let app {
+                SupervisorAppArtworkView(app: app, kind: .icon, height: identityArtworkSize)
+            } else if let update {
+                UpdateIconView(update: update, size: identityArtworkSize)
+            }
         }
+        .glassEffect(.regular, in: .rect(cornerRadius: identityArtworkCornerRadius))
     }
 
     private var identityArtworkSize: CGFloat {
         108
+    }
+
+    private var identityArtworkCornerRadius: CGFloat {
+        max(10, identityArtworkSize * 0.22)
     }
 
     private var identitySubtitle: String {
