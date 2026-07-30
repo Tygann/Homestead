@@ -280,7 +280,6 @@ struct SoftwareDetailView: View {
                         if index > 0 {
                             Divider()
                                 .frame(height: 42)
-                                .padding(.horizontal, 14)
                         }
 
                         VStack(spacing: 4) {
@@ -301,6 +300,7 @@ struct SoftwareDetailView: View {
                                     .lineLimit(1)
                             }
                         }
+                        .frame(minWidth: 104)
                         .foregroundStyle(item.tint)
                         .accessibilityElement(children: .combine)
                     }
@@ -357,12 +357,21 @@ struct SoftwareDetailView: View {
             ))
         }
 
-        if !hasDistinctUpdate, let stage = appDetails?.stage {
+        if let stage = appDetails?.stage {
             items.append(SoftwareMetadataItem(
                 id: "channel",
                 title: "Channel",
                 value: stage.capitalized,
                 detail: "Release track"
+            ))
+        }
+
+        if let autoUpdate = update?.autoUpdate ?? appDetails?.autoUpdate {
+            items.append(SoftwareMetadataItem(
+                id: "auto-update",
+                title: "Auto Update",
+                value: autoUpdate ? "On" : "Off",
+                detail: "Update setting"
             ))
         }
 
