@@ -450,15 +450,18 @@ struct DashboardDetailSettingsView: View {
                     )
                 }
                 .buttonStyle(.plain)
-            }
 
-            backgroundSection
+                Picker("Background", selection: dashboardBackgroundBinding) {
+                    ForEach(DashboardBackgroundChoice.allCases) { choice in
+                        Text(choice.displayName)
+                            .tag(choice)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(.secondary)
 
-            Section {
-                LabeledContent("Cards", value: cardCountText)
-
-                if chipCount > 0 {
-                    LabeledContent("Chips", value: chipCount.formatted())
+                if dashboardBackgroundChoice == .customWallpaper {
+                    dashboardWallpaperActions
                 }
 
                 Toggle(
@@ -477,6 +480,18 @@ struct DashboardDetailSettingsView: View {
                         ? "At least one dashboard must remain visible"
                         : "Controls whether this dashboard appears as a Home page"
                 )
+            } footer: {
+                if dashboardBackgroundChoice == .defaultWallpaper {
+                    Text("Uses the wallpaper selected in Appearance.")
+                }
+            }
+
+            Section {
+                LabeledContent("Cards", value: cardCountText)
+
+                if chipCount > 0 {
+                    LabeledContent("Chips", value: chipCount.formatted())
+                }
             }
 
             Section {
@@ -566,25 +581,6 @@ struct DashboardDetailSettingsView: View {
         }
         .sheet(isPresented: $isShowingPlus, onDismiss: resumePendingPlusAction) {
             HomesteadPlusSheet(context: .additionalDashboard)
-        }
-    }
-
-    private var backgroundSection: some View {
-        Section {
-            Picker("Background", selection: dashboardBackgroundBinding) {
-                ForEach(DashboardBackgroundChoice.allCases) { choice in
-                    Text(choice.displayName)
-                        .tag(choice)
-                }
-            }
-            .pickerStyle(.menu)
-            .tint(.secondary)
-
-            if dashboardBackgroundChoice == .customWallpaper {
-                dashboardWallpaperActions
-            }
-        } footer: {
-            Text("Default uses the wallpaper selected in Appearance.")
         }
     }
 
