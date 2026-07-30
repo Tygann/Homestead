@@ -43,8 +43,8 @@ struct DashboardSettingsView: View {
                 }
             } footer: {
                 Text(
-                    "Dashboard pages and their order sync with iCloud. "
-                    + "Which pages appear on this device stays local. "
+                    "Dashboard pages and order sync with iCloud. "
+                    + "Visibility on this device stays local. "
                     + "At least one dashboard must remain visible."
                 )
             }
@@ -483,8 +483,8 @@ struct DashboardDetailSettingsView: View {
                         : "Controls whether this dashboard appears as a Home page"
                 )
             } footer: {
-                if dashboardBackgroundChoice == .defaultWallpaper {
-                    Text("Uses the wallpaper selected in Appearance.")
+                if let configurationFooterText {
+                    Text(configurationFooterText)
                 }
             }
 
@@ -497,23 +497,13 @@ struct DashboardDetailSettingsView: View {
             }
 
             Section {
-                VStack {
-                    Button {
-                        beginDuplicating()
-                    } label: {
-                        Text("Duplicate")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-                    .tint(.primary)
+                Button {
+                    beginDuplicating()
+                } label: {
+                    Text("Duplicate")
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
 
-            Section {
                 Button(role: .destructive) {
                     isConfirmingDelete = true
                 } label: {
@@ -628,6 +618,20 @@ struct DashboardDetailSettingsView: View {
 
     private var hasCustomDashboardWallpaper: Bool {
         appearanceSettings.hasCustomDashboardWallpaper(for: dashboard.id)
+    }
+
+    private var configurationFooterText: String? {
+        var messages: [String] = []
+
+        if dashboardBackgroundChoice == .defaultWallpaper {
+            messages.append("Uses the wallpaper selected in Appearance.")
+        }
+
+        if isEnabled && !dashboardConfiguration.canDisableDashboard(id: dashboard.id) {
+            messages.append("At least one dashboard must be shown on Home.")
+        }
+
+        return messages.isEmpty ? nil : messages.joined(separator: " ")
     }
 
     private var wallpaperImportErrorBinding: Binding<Bool> {

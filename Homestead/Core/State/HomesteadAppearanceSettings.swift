@@ -92,11 +92,11 @@ nonisolated enum DashboardBackgroundChoice: String, CaseIterable, Codable, Ident
     var displayName: String {
         switch self {
         case .defaultWallpaper:
-            "Default Wallpaper"
+            "Default"
         case .noWallpaper:
-            "No Wallpaper"
+            "None"
         case .customWallpaper:
-            "Custom Wallpaper"
+            "Custom"
         }
     }
 }
