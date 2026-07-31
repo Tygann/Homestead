@@ -53,6 +53,32 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 121)
+
+- Release Date: 2026-07-31
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build adds per-dashboard personalization and richer Home Assistant management in Settings.
+
+- Give each dashboard its own wallpaper, including separate appearance and blur choices
+- Review Home Assistant updates and apps in polished detail screens with release notes, version information, and security details when available
+- Explore a redesigned Activity timeline with clearer context, filtering, and loading states
+- Enjoy more consistent dashboard cards and widgets, plus more reliable Homestead+ entitlement and iCloud profile recovery
+- Find simpler notification, permission, iCloud sync, and safety settings
+
+Please test:
+
+- Assigning different wallpapers to multiple dashboards, then switching, editing, and relaunching
+- Opening Home Assistant update and app details, including release notes and available actions
+- Filtering Activity across several event types and time ranges
+- Restoring Homestead+ access and iCloud-synced profiles after a fresh launch or reinstall
+
+### Internal Summary
+
+Build 121 covers per-dashboard wallpaper persistence and controls; native update release notes and unified Supervisor app/update detail presentation; the redesigned Activity timeline; shared dashboard/widget presentation architecture; specialized card refinements; TestFlight entitlement recovery; iCloud profile restoration; registry-decoding resilience; and Settings polish for notifications, permissions, iCloud sync, and action confirmations after Build 116.
+
 ## Version 1 (Build 116)
 
 - Release Date: 2026-07-28
