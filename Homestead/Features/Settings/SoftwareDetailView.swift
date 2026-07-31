@@ -308,7 +308,6 @@ struct SoftwareDetailView: View {
                         .accessibilityLabel(item.accessibilityLabel)
                     }
                 }
-                .padding(.horizontal, 20)
             }
             .scrollIndicators(.hidden)
             .padding(.vertical, 12)
@@ -329,7 +328,7 @@ struct SoftwareDetailView: View {
                 id: hasDistinctUpdate ? "installed" : "version",
                 title: hasDistinctUpdate ? "Installed" : "Version",
                 value: installedVersion,
-                detail: hasDistinctUpdate ? "Current version" : "Installed"
+                detail: hasDistinctUpdate ? "Current" : "Installed"
             ))
         }
 
@@ -338,7 +337,7 @@ struct SoftwareDetailView: View {
                 id: "latest",
                 title: "Available",
                 value: latestVersion,
-                detail: "Latest version"
+                detail: "Latest"
             ))
         }
 
