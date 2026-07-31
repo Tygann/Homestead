@@ -287,21 +287,23 @@ struct SoftwareDetailView: View {
                                 .font(.caption)
                                 .bold()
                                 .lineLimit(1)
+                                .foregroundStyle(.secondary)
 
                             Text(item.value)
                                 .font(.title3.bold())
                                 .fontDesign(.rounded)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
+                                .foregroundStyle(item.tint)
 
                             if let detail = item.detail {
                                 Text(detail)
                                     .font(.caption)
                                     .lineLimit(1)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                         .frame(minWidth: 104)
-                        .foregroundStyle(item.tint)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(item.accessibilityLabel)
                     }
