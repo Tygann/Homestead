@@ -722,10 +722,26 @@ struct ActivityTimelinePreviewScreen: View {
                 state: "2026-07-30, 16:02",
                 domain: "sensor",
                 entityID: "sensor.date_time"
+            ),
+            HALogbookEntryDTO(
+                when: Date(timeIntervalSince1970: 1_775_000_610),
+                name: "Phone Geolocation",
+                state: "37.3349,-122.009,0",
+                entityID: "sensor.phone_geolocation"
             )
         ],
         entityDisplayName: { entityID in
-            entityID == "binary_sensor.entryway_entryway_sensor" ? "Entryway Sensor Occupancy" : nil
+            switch entityID {
+            case "binary_sensor.entryway_entryway_sensor":
+                "Entryway Sensor Occupancy"
+            case "sensor.phone_geolocation":
+                "Phone Geolocation"
+            default:
+                nil
+            }
+        },
+        historicalStateDisplayValue: { entityID, _ in
+            entityID == "sensor.phone_geolocation" ? "Location Updated" : nil
         }
     )
 
@@ -762,6 +778,8 @@ struct ActivityTimelinePreviewScreen: View {
             "Office › Office Ceiling Fan"
         case "media_player.ashton_bedroom_apple_tv":
             "Ashton Bedroom"
+        case "sensor.phone_geolocation":
+            "Office › Phone"
         default:
             nil
         }

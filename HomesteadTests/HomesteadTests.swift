@@ -3539,6 +3539,22 @@ struct HomesteadTests {
             deviceClass: nil,
             lastUpdated: nil
         )
+        let coordinateState = SensorEntity(
+            entityID: "sensor.phone_geolocation",
+            displayName: "Phone Geolocation",
+            value: "37.3349,-122.009,0",
+            unit: nil,
+            deviceClass: nil,
+            lastUpdated: nil
+        )
+        let unrelatedCommaSeparatedState = SensorEntity(
+            entityID: "sensor.color_channels",
+            displayName: "Color Channels",
+            value: "37.3349,-122.009,0",
+            unit: nil,
+            deviceClass: nil,
+            lastUpdated: nil
+        )
         let lowBattery = SensorEntity(
             entityID: "sensor.front_door_battery",
             displayName: "Front Door Battery",
@@ -3584,12 +3600,43 @@ struct HomesteadTests {
         #expect(unavailable.isAvailable == false)
         #expect(unavailable.displaySubtitle == "Sensor unavailable")
         #expect(textState.formattedValue == "Authorized Always")
+        #expect(coordinateState.formattedValue == "37.3349°, -122.009°")
+        #expect(coordinateState.activityFormattedValue == "Location Updated")
+        #expect(unrelatedCommaSeparatedState.formattedValue == "37.3349,-122.009,0")
         #expect(lowBattery.isAlerting == true)
         #expect(lowBattery.displaySubtitle == "Low Battery")
         #expect(waterClear.isAlerting == false)
         #expect(waterClear.displaySubtitle == "Clear")
         #expect(waterDetected.isAlerting == true)
         #expect(waterDetected.displaySubtitle == "Water Detected")
+    }
+
+    @Test func logbookCoordinateSensorUsesCompactLocationStatus() throws {
+        let date = try testDate("2026-08-01T19:55:02Z")
+        let rows = HAActivityRow.makeRows(
+            from: [
+                HALogbookEntryDTO(
+                    when: date,
+                    name: "Phone Geolocation",
+                    state: "37.3349,-122.009,0",
+                    entityID: "sensor.phone_geolocation"
+                )
+            ],
+            entityDisplayName: { _ in "Phone Geolocation" },
+            historicalStateDisplayValue: { entityID, state in
+                SensorEntity(
+                    entityID: entityID,
+                    displayName: "Phone Geolocation",
+                    value: state,
+                    unit: nil,
+                    deviceClass: nil,
+                    lastUpdated: nil
+                ).activityFormattedValue
+            }
+        )
+
+        #expect(rows.first?.title == "Phone Geolocation")
+        #expect(rows.first?.statusText == "Location Updated")
     }
 
     @Test func sensorGaugePresentationInfersSafeRangesAndStatus() {

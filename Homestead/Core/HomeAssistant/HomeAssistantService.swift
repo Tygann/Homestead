@@ -1107,7 +1107,7 @@ final class HomeAssistantService {
                     lastUpdated: nil,
                     suggestedMinimumValue: sensor.suggestedMinimumValue,
                     suggestedMaximumValue: sensor.suggestedMaximumValue
-                ).formattedValue
+                ).activityFormattedValue
             }
         )
     }

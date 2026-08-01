@@ -67,6 +67,10 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         return "\(valueText)\(separator)\(unitText)"
     }
 
+    var activityFormattedValue: String {
+        coordinateValue == nil ? formattedValue : "Location Updated"
+    }
+
     var valueText: String {
         switch value {
         case "unknown":
@@ -77,7 +81,21 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
             break
         }
 
+        if let coordinateValue {
+            return coordinateValue.formattedValue
+        }
+
         return formattedNumber ?? value.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+
+    private var coordinateValue: SensorCoordinateValue? {
+        let normalizedEntityID = entityID.lowercased()
+        let normalizedDisplayName = displayName.lowercased()
+        guard normalizedEntityID.contains("geolocation") || normalizedDisplayName.contains("geolocation") else {
+            return nil
+        }
+
+        return SensorCoordinateValue(rawValue: value)
     }
 
     var unitText: String? {
@@ -206,6 +224,37 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
         case .airQuality, .area, .carbonDioxide, .conductivity, .data, .date, .distance, .duration, .enum, .frequency, .monetary, .particulateMatter, .pH, .precipitation, .speed, .soundPressure, .volatileOrganicCompounds, .volume, .volumeFlowRate, .weight, .windDirection, .temperature, .temperatureDelta, .humidity, .energy, .energyDistance, .energyStorage, .power, .powerFactor, .reactiveEnergy, .reactivePower, .illuminance, .irradiance, .pressure, .signal, .voltage, .current, .uptime, .generic:
             formattedDeviceClass ?? "Sensor"
         }
+    }
+}
+
+private struct SensorCoordinateValue {
+    let latitude: Double
+    let longitude: Double
+
+    init?(rawValue: String) {
+        let components = rawValue
+            .split(separator: ",", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard (2...3).contains(components.count),
+              let latitude = Double(components[0]),
+              let longitude = Double(components[1]),
+              latitude.isFinite,
+              longitude.isFinite,
+              (-90...90).contains(latitude),
+              (-180...180).contains(longitude),
+              components.dropFirst(2).allSatisfy({ Double($0)?.isFinite == true }) else {
+            return nil
+        }
+
+        self.latitude = latitude
+        self.longitude = longitude
+    }
+
+    var formattedValue: String {
+        let coordinateFormat = FloatingPointFormatStyle<Double>.number
+            .precision(.fractionLength(5))
+            .grouping(.never)
+        return "\(latitude.formatted(coordinateFormat))°, \(longitude.formatted(coordinateFormat))°"
     }
 }
 
