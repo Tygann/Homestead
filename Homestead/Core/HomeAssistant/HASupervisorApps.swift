@@ -120,6 +120,14 @@ nonisolated struct HASupervisorApp: Identifiable, Equatable, Sendable {
         installedVersion?.nonEmptyValue
     }
 
+    func matchesSearchText(_ searchText: String) -> Bool {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return true }
+
+        return name.localizedCaseInsensitiveContains(query) ||
+            description?.localizedCaseInsensitiveContains(query) == true
+    }
+
     static func installedApps(from response: HASupervisorAppsResponseDTO) -> [HASupervisorApp] {
         response.addons
             .filter { dto in

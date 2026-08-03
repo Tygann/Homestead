@@ -6,6 +6,7 @@ struct AppsSettingsView: View {
 
     @State private var loadState: AppsSettingsLoadState = .loading
     @State private var isRefreshing = false
+    @State private var searchText = ""
 
     var body: some View {
         List {
@@ -13,10 +14,13 @@ struct AppsSettingsView: View {
             case .loading:
                 loadingSection
             case .loaded(let apps):
+                let visibleApps = filteredApps(apps)
                 if apps.isEmpty {
                     emptySection
+                } else if visibleApps.isEmpty {
+                    noSearchResultsSection
                 } else {
-                    appsSection(apps)
+                    appsSection(visibleApps)
                 }
             case .unavailable(let reason):
                 unavailableSection(reason)
@@ -26,6 +30,7 @@ struct AppsSettingsView: View {
         }
         .navigationTitle("Apps")
         .toolbarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "Search Apps")
         .refreshable {
             await refreshApps()
         }
@@ -44,6 +49,14 @@ struct AppsSettingsView: View {
     private var emptySection: some View {
         Section {
             ContentUnavailableView("No Apps", systemImage: "puzzlepiece.extension")
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+        }
+    }
+
+    private var noSearchResultsSection: some View {
+        Section {
+            ContentUnavailableView.search(text: searchText)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
         }
@@ -102,6 +115,10 @@ struct AppsSettingsView: View {
         ].joined(separator: "|")
     }
 
+    private func filteredApps(_ apps: [HASupervisorApp]) -> [HASupervisorApp] {
+        apps.filter { $0.matchesSearchText(searchText) }
+    }
+
     private func refreshApps() async {
         if !loadState.hasLoadedApps {
             loadState = .loading
@@ -154,14 +171,7 @@ private struct SupervisorAppRow: View {
                     Spacer(minLength: 6)
 
                     if app.updateAvailable {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.up.circle.fill")
-                            Text("Update available")
-                        }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.blue)
-                        .fixedSize(horizontal: true, vertical: true)
-                        .layoutPriority(1)
+                        UpdateAvailabilityLabel()
                     }
                 }
                 .font(.subheadline)
@@ -175,6 +185,30 @@ private struct SupervisorAppRow: View {
 
     private var statusTint: Color {
         app.status.tint
+    }
+}
+
+private struct UpdateAvailabilityLabel: View {
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            label("Update available")
+            label("Update")
+            Image(systemName: "arrow.up.circle.fill")
+                .fixedSize()
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.blue)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Update available")
+        .layoutPriority(1)
+    }
+
+    private func label(_ title: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.up.circle.fill")
+            Text(title)
+        }
+        .fixedSize(horizontal: true, vertical: true)
     }
 }
 

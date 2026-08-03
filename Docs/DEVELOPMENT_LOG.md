@@ -8,6 +8,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 - Moved Supervisor app running state into the secondary metadata line alongside the installed version, leaving the trailing edge available for navigation and an update-only status indicator.
 - Apps keep the installed version as running-state metadata and show update availability as a trailing blue status label without button styling.
+- Added native name/description search and an adaptive update label that shortens to fit constrained widths while retaining its full accessibility meaning.
 
 ### Update Source Grouping
 

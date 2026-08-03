@@ -1808,6 +1808,24 @@ struct HomesteadTests {
         #expect(update.installedVersionText == "1.0.0")
     }
 
+    @Test func supervisorAppSearchMatchesNameAndDescription() {
+        let app = HASupervisorApp(
+            id: "music-assistant",
+            slug: "music_assistant",
+            name: "Music Assistant",
+            description: "Stream your media library",
+            installedVersion: "1.0.0",
+            latestVersion: "1.0.0",
+            updateAvailable: false,
+            status: .running
+        )
+
+        #expect(app.matchesSearchText("music"))
+        #expect(app.matchesSearchText("MEDIA"))
+        #expect(app.matchesSearchText("  "))
+        #expect(!app.matchesSearchText("backup"))
+    }
+
     @Test func logbookPresentationFiltersByDomainAndSearchText() throws {
         let lightTime = try testDate("2026-06-05T15:30:00Z")
         let sensorTime = try testDate("2026-06-04T15:30:00Z")
