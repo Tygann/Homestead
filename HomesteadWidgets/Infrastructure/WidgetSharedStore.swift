@@ -8,6 +8,7 @@ struct WidgetScopedSnapshot<Value> {
     let reference: EntityPresentationReference
     let serverName: String
     let isServerAvailable: Bool
+    let hasMultipleServers: Bool
     let value: Value
 }
 
@@ -86,15 +87,24 @@ enum HomesteadWidgetSharedStore {
         _ values: KeyPath<WidgetServerSnapshot, [Value]>,
         entityID: KeyPath<Value, String>
     ) -> [WidgetScopedSnapshot<Value>] {
-        serverSnapshots.flatMap { server in
-            server[keyPath: values].map { value in
+        let snapshots = serverSnapshots
+        let profilesByID = Dictionary(
+            serverProfiles.map { ($0.id, $0) },
+            uniquingKeysWith: { _, latest in latest }
+        )
+        let hasMultipleServers = snapshots.count > 1
+
+        return snapshots.flatMap { server in
+            let profile = profilesByID[server.profileID]
+            return server[keyPath: values].map { value in
                 WidgetScopedSnapshot(
                     reference: EntityPresentationReference(
                         profileID: server.profileID,
                         entityID: value[keyPath: entityID]
                     ),
-                    serverName: serverName(profileID: server.profileID),
-                    isServerAvailable: isServerAvailable(profileID: server.profileID),
+                    serverName: profile?.displayName ?? server.serverName,
+                    isServerAvailable: profile != nil,
+                    hasMultipleServers: hasMultipleServers,
                     value: value
                 )
             }
@@ -462,6 +472,7 @@ enum HomesteadWidgetEntityPickerText {
 
     static func serverScopedGroupName(
         serverName: String,
+        hasMultipleServers: Bool,
         areaName: String?,
         deviceName: String?,
         fallback: String
@@ -471,7 +482,7 @@ enum HomesteadWidgetEntityPickerText {
             deviceName: deviceName,
             fallback: fallback
         )
-        guard HomesteadWidgetSharedStore.serverSnapshots.count > 1 else {
+        guard hasMultipleServers else {
             return localGroup
         }
         return "\(serverName) · \(localGroup)"
@@ -479,11 +490,12 @@ enum HomesteadWidgetEntityPickerText {
 
     static func contextDescription(
         serverName: String,
+        hasMultipleServers: Bool,
         areaName: String?,
         deviceName: String?
     ) -> String {
         let context = contextName(areaName: areaName, deviceName: deviceName)
-        guard HomesteadWidgetSharedStore.serverSnapshots.count > 1 else {
+        guard hasMultipleServers else {
             return context ?? serverName
         }
         return [serverName, context].compactMap { $0 }.joined(separator: " · ")

@@ -517,6 +517,7 @@ struct HomesteadChartSensorEntity: AppEntity, Identifiable {
     let deviceName: String?
     var serverName: String = "Home Assistant"
     var isServerAvailable: Bool = true
+    var hasMultipleServers: Bool = false
     let isAvailable: Bool
     let icon: ResolvedIcon
     var historyChartInterpolationStyle: HomesteadChartInterpolationStyle? = nil
@@ -541,6 +542,7 @@ struct HomesteadChartSensorEntity: AppEntity, Identifiable {
     var pickerGroupTitle: String {
         HomesteadWidgetEntityPickerText.serverScopedGroupName(
             serverName: serverName,
+            hasMultipleServers: hasMultipleServers,
             areaName: areaName,
             deviceName: deviceName,
             fallback: "Numeric Sensors"
@@ -552,6 +554,7 @@ struct HomesteadChartSensorEntity: AppEntity, Identifiable {
         guard isAvailable else { return "Unavailable" }
         return HomesteadWidgetEntityPickerText.contextDescription(
             serverName: serverName,
+            hasMultipleServers: hasMultipleServers,
             areaName: areaName,
             deviceName: deviceName
         )
@@ -617,6 +620,7 @@ struct HomesteadChartSensorEntityQuery: EntityQuery, EntityStringQuery, Enumerab
             deviceName: snapshot.deviceName,
             serverName: scoped.serverName,
             isServerAvailable: scoped.isServerAvailable,
+            hasMultipleServers: scoped.hasMultipleServers,
             isAvailable: snapshot.isAvailable,
             icon: snapshot.resolvedIcon,
             historyChartInterpolationStyle: snapshot.historyChartInterpolationStyle,

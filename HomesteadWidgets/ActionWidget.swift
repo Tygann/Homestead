@@ -76,6 +76,7 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
     let deviceName: String?
     var serverName: String = "Home Assistant"
     var isServerAvailable: Bool = true
+    var hasMultipleServers: Bool = false
     var isAvailable: Bool = true
 
     var displayRepresentation: DisplayRepresentation {
@@ -97,6 +98,7 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
     var pickerGroupTitle: String {
         HomesteadWidgetEntityPickerText.serverScopedGroupName(
             serverName: serverName,
+            hasMultipleServers: hasMultipleServers,
             areaName: areaName,
             deviceName: deviceName,
             fallback: fallbackGroupTitle
@@ -108,6 +110,7 @@ struct HomesteadActionEntity: AppEntity, Identifiable {
         guard isAvailable else { return "Unavailable" }
         return HomesteadWidgetEntityPickerText.contextDescription(
             serverName: serverName,
+            hasMultipleServers: hasMultipleServers,
             areaName: areaName,
             deviceName: deviceName
         )
@@ -291,6 +294,7 @@ private enum HomesteadActionSnapshotBuilder {
                 deviceName: snapshot.deviceName,
                 serverName: scoped.serverName,
                 isServerAvailable: scoped.isServerAvailable,
+                hasMultipleServers: scoped.hasMultipleServers,
                 isAvailable: presentation.isAvailable
             )
         }

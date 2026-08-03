@@ -139,6 +139,7 @@ struct HomesteadControlEntity: AppEntity, Identifiable {
     let deviceName: String?
     var serverName: String = "Home Assistant"
     var isServerAvailable: Bool = true
+    var hasMultipleServers: Bool = false
     let isActive: Bool
     let isMoving: Bool
     let isAvailable: Bool
@@ -167,6 +168,7 @@ struct HomesteadControlEntity: AppEntity, Identifiable {
     var pickerGroupTitle: String {
         HomesteadWidgetEntityPickerText.serverScopedGroupName(
             serverName: serverName,
+            hasMultipleServers: hasMultipleServers,
             areaName: areaName,
             deviceName: deviceName,
             fallback: HomesteadWidgetEntityPickerText.pluralDisplayName(forDomain: domain)
@@ -177,6 +179,7 @@ struct HomesteadControlEntity: AppEntity, Identifiable {
         isServerAvailable
             ? HomesteadWidgetEntityPickerText.contextDescription(
                 serverName: serverName,
+                hasMultipleServers: hasMultipleServers,
                 areaName: areaName,
                 deviceName: deviceName
             )
@@ -551,6 +554,7 @@ private enum HomesteadControlSnapshotBuilder {
                 deviceName: snapshot.deviceName,
                 serverName: scoped.serverName,
                 isServerAvailable: scoped.isServerAvailable,
+                hasMultipleServers: scoped.hasMultipleServers,
                 isActive: snapshot.isOn,
                 isMoving: false,
                 isAvailable: presentation.isAvailable,
@@ -573,6 +577,7 @@ private enum HomesteadControlSnapshotBuilder {
                 deviceName: snapshot.deviceName,
                 serverName: scoped.serverName,
                 isServerAvailable: scoped.isServerAvailable,
+                hasMultipleServers: scoped.hasMultipleServers,
                 isActive: snapshot.isOn,
                 isMoving: false,
                 isAvailable: presentation.isAvailable,
@@ -595,6 +600,7 @@ private enum HomesteadControlSnapshotBuilder {
                 deviceName: snapshot.deviceName,
                 serverName: scoped.serverName,
                 isServerAvailable: scoped.isServerAvailable,
+                hasMultipleServers: scoped.hasMultipleServers,
                 isActive: snapshot.isOn,
                 isMoving: false,
                 isAvailable: presentation.isAvailable,
@@ -617,6 +623,7 @@ private enum HomesteadControlSnapshotBuilder {
                 deviceName: snapshot.deviceName,
                 serverName: scoped.serverName,
                 isServerAvailable: scoped.isServerAvailable,
+                hasMultipleServers: scoped.hasMultipleServers,
                 isActive: snapshot.isOpen,
                 isMoving: snapshot.isMoving,
                 isAvailable: presentation.isAvailable,
@@ -639,6 +646,7 @@ private enum HomesteadControlSnapshotBuilder {
                 deviceName: snapshot.deviceName,
                 serverName: scoped.serverName,
                 isServerAvailable: scoped.isServerAvailable,
+                hasMultipleServers: scoped.hasMultipleServers,
                 isActive: snapshot.isLocked,
                 isMoving: false,
                 isAvailable: presentation.isAvailable,

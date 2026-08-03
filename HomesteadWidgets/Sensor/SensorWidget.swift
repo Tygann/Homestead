@@ -163,6 +163,7 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
     let deviceName: String?
     var serverName: String = "Home Assistant"
     var isServerAvailable: Bool = true
+    var hasMultipleServers: Bool = false
     let isNumeric: Bool
     let isAlerting: Bool
     let isAvailable: Bool
@@ -194,6 +195,7 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
     var pickerGroupTitle: String {
         HomesteadWidgetEntityPickerText.serverScopedGroupName(
             serverName: serverName,
+            hasMultipleServers: hasMultipleServers,
             areaName: areaName,
             deviceName: deviceName,
             fallback: "Sensors"
@@ -205,6 +207,7 @@ struct HomesteadSensorEntity: AppEntity, Identifiable {
         guard isAvailable else { return "Unavailable" }
         return HomesteadWidgetEntityPickerText.contextDescription(
             serverName: serverName,
+            hasMultipleServers: hasMultipleServers,
             areaName: areaName,
             deviceName: deviceName
         )
@@ -293,6 +296,7 @@ private enum HomesteadSensorSnapshotBuilder {
             deviceName: snapshot.deviceName,
             serverName: scoped.serverName,
             isServerAvailable: scoped.isServerAvailable,
+            hasMultipleServers: scoped.hasMultipleServers,
             isNumeric: snapshot.isNumeric == true,
             isAlerting: snapshot.isAlerting,
             isAvailable: snapshot.isAvailable,
