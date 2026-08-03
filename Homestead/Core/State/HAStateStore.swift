@@ -1364,6 +1364,7 @@ final class HAStateStore {
 
         return EntityMapper.updateEntity(
             from: dto,
+            integrationPlatform: registry?.platform,
             deviceID: deviceID,
             deviceName: device?.displayName,
             deviceManufacturer: device?.manufacturer,

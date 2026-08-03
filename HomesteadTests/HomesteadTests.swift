@@ -3159,17 +3159,65 @@ struct HomesteadTests {
         #expect(areaPresentation.sections.map(\.title) == ["Living Room", "Network Closet", "Server Closet"])
     }
 
-    @Test func updateActionablePresentationShowsOnlyAvailableAndInProgressUpdates() throws {
+    @Test func updateActionablePresentationGroupsByUpdateSourceAndInstallability() throws {
         let core = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
             entityID: "update.home_assistant_core_update",
             state: "on",
-            attributes: ["friendly_name": .string("Home Assistant Core")]
+            attributes: [
+                "friendly_name": .string("Home Assistant Core"),
+                "title": .string("Home Assistant Core"),
+                "supported_features": .number(1)
+            ]
         )))
-        let bridge = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
-            entityID: "update.bridge",
+        let hacsCard = try #require(EntityMapper.updateEntity(
+            from: HAEntityDTO(
+                entityID: "update.hacs_card",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("HACS Card"),
+                    "supported_features": .number(1)
+                ]
+            ),
+            integrationPlatform: "hacs"
+        ))
+        let hacsTheme = try #require(EntityMapper.updateEntity(
+            from: HAEntityDTO(
+                entityID: "update.hacs_theme",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("HACS Theme"),
+                    "supported_features": .number(1)
+                ]
+            ),
+            integrationPlatform: "HACS"
+        ))
+        let integration = try #require(EntityMapper.updateEntity(
+            from: HAEntityDTO(
+                entityID: "update.router",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Router"),
+                    "supported_features": .number(1)
+                ]
+            ),
+            integrationPlatform: "unifi"
+        ))
+        let app = try #require(EntityMapper.updateEntity(
+            from: HAEntityDTO(
+                entityID: "update.app",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("App"),
+                    "supported_features": .number(1)
+                ]
+            ),
+            integrationPlatform: "hassio"
+        ))
+        let notInstallable = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.manual",
             state: "on",
             attributes: [
-                "friendly_name": .string("Bridge"),
+                "friendly_name": .string("Manual"),
                 "in_progress": .number(24)
             ]
         )))
@@ -3188,18 +3236,22 @@ struct HomesteadTests {
         )))
 
         let presentation = HAUpdatePresentation.makeActionable(
-            updates: [current, skipped, bridge, core]
+            updates: [current, skipped, notInstallable, app, integration, hacsTheme, hacsCard, core]
         )
 
-        #expect(presentation.visibleCount == 2)
-        #expect(presentation.sections.map(\.title) == ["Available Updates"])
-        #expect(presentation.sections.first?.updates.map(\.entityID) == [
-            "update.home_assistant_core_update",
-            "update.bridge"
+        #expect(presentation.visibleCount == 6)
+        #expect(presentation.sections.map(\.title) == [
+            "System",
+            "HACS",
+            "Integrations",
+            "Apps",
+            "1 Not Installable Update"
         ])
-        #expect(presentation.summary.availableCount == 1)
+        #expect(presentation.sections[1].updates.map(\.entityID) == ["update.hacs_card", "update.hacs_theme"])
+        #expect(presentation.sections.last?.updates.map(\.entityID) == ["update.manual"])
+        #expect(presentation.summary.availableCount == 5)
         #expect(presentation.summary.inProgressCount == 1)
-        #expect(presentation.summary.totalCount == 4)
+        #expect(presentation.summary.totalCount == 8)
     }
 
     @MainActor
@@ -10191,7 +10243,8 @@ struct HomesteadTests {
                 HAEntityRegistryDisplayDTO(
                     entityID: "update.router_firmware",
                     deviceID: "router-device",
-                    originalName: "Router Firmware"
+                    originalName: "Router Firmware",
+                    platform: "unifi"
                 )
             ],
             devices: [
@@ -10215,6 +10268,7 @@ struct HomesteadTests {
 
         #expect(store.updateEntities.map(\.entityID) == ["update.router_firmware"])
         #expect(update.status == .available)
+        #expect(update.context.integrationPlatform == "unifi")
         #expect(update.context.deviceName == "Router")
         #expect(update.context.areaName == "Network Closet")
         #expect(update.context.floorName == "Basement")

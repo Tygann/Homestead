@@ -66,6 +66,14 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
 
     var iconSystemName: String { resolvedIcon.sfSymbolName }
 
+    var isHomeAssistantSystemUpdate: Bool {
+        [
+            "Home Assistant Core",
+            "Home Assistant Operating System",
+            "Home Assistant Supervisor"
+        ].contains(title)
+    }
+
     var versionSummary: String {
         switch (installedVersion, latestVersion) {
         case (let installed?, let latest?) where installed != latest:
@@ -107,6 +115,7 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
             entityPicturePath,
             deviceClass,
             status.title,
+            context.integrationPlatform,
             context.deviceName,
             context.areaName,
             context.floorName
@@ -129,6 +138,7 @@ struct HAUpdateEntityFeatures: OptionSet, Equatable, Sendable {
 }
 
 struct HAUpdateContext: Equatable, Sendable {
+    let integrationPlatform: String?
     let deviceID: String?
     let deviceName: String?
     let deviceManufacturer: String?
@@ -321,10 +331,66 @@ struct HAUpdatePresentation: Equatable, Sendable {
         let matchingUpdates = sortedUpdates
             .filter { $0.status == .available || $0.status == .inProgress }
             .filter { $0.matches(query: searchText) }
+        let installableUpdates = matchingUpdates.filter(\.supportsInstall)
+        let notInstallableUpdates = matchingUpdates.filter { !$0.supportsInstall }
+        var sections: [HAUpdateSection] = []
 
-        let sections = [
-            HAUpdateSection(id: "available-updates", title: "Available Updates", updates: matchingUpdates)
-        ].filter { !$0.updates.isEmpty }
+        let systemUpdates = installableUpdates.filter(\.isHomeAssistantSystemUpdate)
+        if !systemUpdates.isEmpty {
+            sections.append(HAUpdateSection(id: "system", title: "System", updates: systemUpdates))
+        }
+
+        let nonSystemUpdates = installableUpdates.filter { !$0.isHomeAssistantSystemUpdate }
+        let updatesByPlatform = Dictionary(grouping: nonSystemUpdates) {
+            $0.context.integrationPlatform?.nonEmptyUpdateValue?.lowercased()
+        }
+        let namedPlatforms: Set<String> = Set(updatesByPlatform.compactMap { platform, updates in
+            guard let platform, platform != "hassio", updates.count >= 2 else { return nil }
+            return platform
+        })
+        let namedPlatformGroups = updatesByPlatform
+            .compactMap { platform, updates -> HAUpdateSection? in
+                guard let platform, namedPlatforms.contains(platform) else { return nil }
+                return HAUpdateSection(
+                    id: "integration-\(platform)",
+                    title: integrationTitle(for: platform),
+                    updates: updates.sortedByUpdatePriority
+                )
+            }
+            .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        sections.append(contentsOf: namedPlatformGroups)
+
+        let integrationUpdates = nonSystemUpdates.filter { update in
+            guard let platform = update.context.integrationPlatform?.nonEmptyUpdateValue?.lowercased() else {
+                return true
+            }
+            return platform != "hassio" && !namedPlatforms.contains(platform)
+        }
+        if !integrationUpdates.isEmpty {
+            sections.append(HAUpdateSection(
+                id: "integrations",
+                title: "Integrations",
+                updates: integrationUpdates.sortedByUpdatePriority
+            ))
+        }
+
+        let appUpdates = nonSystemUpdates.filter {
+            $0.context.integrationPlatform?.nonEmptyUpdateValue?.lowercased() == "hassio"
+        }
+        if !appUpdates.isEmpty {
+            sections.append(HAUpdateSection(id: "apps", title: "Apps", updates: appUpdates.sortedByUpdatePriority))
+        }
+
+        if !notInstallableUpdates.isEmpty {
+            let sectionTitle = notInstallableUpdates.count == 1
+                ? "1 Not Installable Update"
+                : "\(notInstallableUpdates.count) Not Installable Updates"
+            sections.append(HAUpdateSection(
+                id: "not-installable",
+                title: sectionTitle,
+                updates: notInstallableUpdates.sortedByUpdatePriority
+            ))
+        }
 
         return HAUpdatePresentation(
             sections: sections,
@@ -387,6 +453,17 @@ struct HAUpdatePresentation: Equatable, Sendable {
             inProgressCount: updates.filter { $0.status == .inProgress }.count,
             unavailableCount: updates.filter { $0.status == .unavailable }.count
         )
+    }
+
+    private static func integrationTitle(for platform: String) -> String {
+        if platform == "hacs" {
+            return "HACS"
+        }
+
+        return platform
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+            .capitalized
     }
 
     private static func groupedSections(
@@ -504,6 +581,7 @@ struct HAUpdateSettingsActionAvailability: Equatable, Sendable {
 extension EntityMapper {
     static func updateEntity(
         from dto: HAEntityDTO,
+        integrationPlatform: String? = nil,
         deviceID: String? = nil,
         deviceName: String? = nil,
         deviceManufacturer: String? = nil,
@@ -545,6 +623,7 @@ extension EntityMapper {
             lastChanged: dto.lastChanged,
             lastUpdated: dto.lastUpdated,
             context: HAUpdateContext(
+                integrationPlatform: integrationPlatform?.nonEmptyUpdateValue,
                 deviceID: deviceID?.nonEmptyUpdateValue,
                 deviceName: deviceName?.nonEmptyUpdateValue,
                 deviceManufacturer: deviceManufacturer?.nonEmptyUpdateValue,

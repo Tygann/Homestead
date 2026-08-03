@@ -2,6 +2,13 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-08-03
+
+### Update Source Grouping
+
+- Grouped actionable Settings > Updates rows using Home Assistant's existing update features and entity-registry platform metadata: System, named multi-update integrations such as HACS, Integrations, Apps, and a final Not Installable section.
+- Kept Homestead's native list presentation and global Update All action while avoiding the frontend-oriented `entity/source` command; missing or single-instance platform metadata safely falls back to Integrations.
+
 ## 2026-07-30
 
 ### Notification Settings Stability And Polish
