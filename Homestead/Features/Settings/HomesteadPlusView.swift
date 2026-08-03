@@ -351,9 +351,9 @@ struct HomesteadPlusView: View {
         .listRowInsets(
             EdgeInsets(
                 top: AppSpacing.xSmall,
-                leading: 0,
+                leading: 2,
                 bottom: AppSpacing.xSmall,
-                trailing: 0
+                trailing: 2
             )
         )
         .listRowSeparator(.hidden)
