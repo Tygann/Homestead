@@ -129,61 +129,55 @@ private struct SupervisorAppRow: View {
         HStack(spacing: AppSpacing.small) {
             SupervisorAppArtworkView(app: app, kind: .icon, height: 52)
 
-            HStack(alignment: .center, spacing: AppSpacing.medium) {
-                VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                    Text(app.name)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                Text(app.name)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
 
-                    HStack(spacing: AppSpacing.small) {
-                        if let versionText {
-                            Text(versionText)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(statusTint)
+                        .frame(width: 7, height: 7)
+                        .accessibilityHidden(true)
 
-                        if app.updateAvailable {
-                            Label("Update", systemImage: "arrow.down.circle.fill")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.orange)
-                                .labelStyle(.titleAndIcon)
-                                .lineLimit(1)
-                        }
+                    Text(app.status.title)
+
+                    if let versionSummary = app.versionSummary {
+                        Text("·")
+                            .accessibilityHidden(true)
+                        Text(versionSummary)
+                            .minimumScaleFactor(0.75)
+                            .allowsTightening(true)
                     }
                 }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
 
-                Spacer(minLength: AppSpacing.small)
+            Spacer(minLength: AppSpacing.small)
 
-                Text(app.status.title)
+            if app.updateAvailable {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.circle.fill")
+                    Text("Update")
+                }
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(statusTint)
+                    .foregroundStyle(.blue)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(statusTint.opacity(0.12), in: Capsule())
+                    .padding(.vertical, 5)
+                    .background(Color(.secondarySystemFill), in: Capsule())
+                    .fixedSize(horizontal: true, vertical: true)
+                    .layoutPriority(1)
             }
         }
         .padding(.vertical, AppSpacing.xSmall)
-    }
-
-    private var versionText: String? {
-        guard let installedVersion = app.installedVersion?.nonEmptyValue else {
-            return nil
-        }
-
-        return installedVersion
+        .accessibilityElement(children: .combine)
     }
 
     private var statusTint: Color {
         app.status.tint
-    }
-}
-
-nonisolated private extension String {
-    var nonEmptyValue: String? {
-        let trimmedValue = trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedValue.isEmpty ? nil : trimmedValue
     }
 }
 

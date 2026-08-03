@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-08-03
 
+### App List Status and Update Presentation
+
+- Moved Supervisor app running state into the secondary metadata line alongside the installed version, leaving the trailing edge available for navigation and an update-only action indicator.
+- Apps with available updates now show both the installed-to-latest version transition and a compact blue Update badge sourced from Supervisor's existing update metadata.
+
 ### Update Source Grouping
 
 - Grouped actionable Settings > Updates rows using Home Assistant's existing update features and entity-registry platform metadata: System, named multi-update integrations such as HACS, Integrations, Apps, and a final Not Installable section.

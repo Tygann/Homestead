@@ -1782,6 +1782,32 @@ struct HomesteadTests {
         #expect(HASupervisorAppStatus(supervisorState: "restarting") == .unknown)
     }
 
+    @Test func supervisorAppVersionSummaryIncludesAvailableUpdate() {
+        let current = HASupervisorApp(
+            id: "current",
+            slug: "current",
+            name: "Current",
+            description: nil,
+            installedVersion: "1.0.0",
+            latestVersion: "1.0.0",
+            updateAvailable: false,
+            status: .running
+        )
+        let update = HASupervisorApp(
+            id: "update",
+            slug: "update",
+            name: "Update",
+            description: nil,
+            installedVersion: "1.0.0",
+            latestVersion: "1.1.0",
+            updateAvailable: true,
+            status: .running
+        )
+
+        #expect(current.versionSummary == "1.0.0")
+        #expect(update.versionSummary == "1.0.0 → 1.1.0")
+    }
+
     @Test func logbookPresentationFiltersByDomainAndSearchText() throws {
         let lightTime = try testDate("2026-06-05T15:30:00Z")
         let sensorTime = try testDate("2026-06-04T15:30:00Z")
