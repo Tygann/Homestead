@@ -255,7 +255,7 @@ struct HomesteadPlusView: View {
                         }
                     }
                 }
-                .padding(AppSpacing.xSmall)
+                .padding(.vertical, AppSpacing.xSmall)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
@@ -320,7 +320,7 @@ struct HomesteadPlusView: View {
                     }
                 }
             }
-            .padding(AppSpacing.xSmall)
+            .padding(.vertical, AppSpacing.xSmall)
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
         }
@@ -442,14 +442,14 @@ struct HomesteadPlusView: View {
             case .monthly:
                 return "Subscribe for \(product.displayPrice)/month"
             case .lifetime:
-                return "Buy Lifetime for \(product.displayPrice)"
+                return "Purchase for \(product.displayPrice)"
             }
         }
 #if DEBUG
         switch selectedPlan {
         case .annual: return "Start Free Trial"
         case .monthly: return "Subscribe for $4.99/month"
-        case .lifetime: return "Buy Lifetime for $69.99"
+        case .lifetime: return "Purchase for $69.99"
         }
 #else
         return "Continue"
@@ -633,7 +633,7 @@ private struct HomesteadPlusPlanChoice: View {
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
         .overlay {
             RoundedRectangle(cornerRadius: 18)
-                .stroke(
+                .strokeBorder(
                     isSelected ? Color.accentColor : Color(uiColor: .separator).opacity(0.45),
                     lineWidth: isSelected ? 2 : 1
                 )
