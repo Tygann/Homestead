@@ -244,20 +244,14 @@ struct HomesteadPlusView: View {
     private var purchaseSection: some View {
         if entitlementStore.plan != .lifetime, !entitlementStore.availableProducts.isEmpty {
             Section(entitlementStore.activeSubscriptionPlan == nil ? "Choose a Plan" : "Other Plans") {
-                VStack(spacing: AppSpacing.small) {
-                    ForEach(availablePlanChoices, id: \.self) { plan in
-                        if let product = entitlementStore.product(plan) {
-                            planChoice(
-                                plan: plan,
-                                detail: planDetail(plan, product: product),
-                                price: planPrice(plan, product: product)
-                            )
-                        }
+                ForEach(availablePlanChoices, id: \.self) { plan in
+                    if let product = entitlementStore.product(plan) {
+                        planChoice(
+                            plan: plan,
+                            detail: planDetail(plan, product: product)
+                        )
                     }
                 }
-                .padding(.vertical, AppSpacing.xSmall)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
             }
         } else if entitlementStore.plan != .lifetime {
 #if DEBUG
@@ -308,21 +302,16 @@ struct HomesteadPlusView: View {
 #if DEBUG
     private var previewPurchaseOptions: some View {
         Section(entitlementStore.activeSubscriptionPlan == nil ? "Choose a Plan" : "Other Plans") {
-            VStack(spacing: AppSpacing.small) {
-                ForEach(availablePlanChoices, id: \.self) { plan in
-                    switch plan {
-                    case .annual:
-                        planChoice(plan: plan, detail: "14 days free, then $24.99/year", price: "$24.99/year")
-                    case .monthly:
-                        planChoice(plan: plan, detail: "Renews monthly", price: "$4.99/month")
-                    case .lifetime:
-                        planChoice(plan: plan, detail: "One-time purchase", price: "$69.99")
-                    }
+            ForEach(availablePlanChoices, id: \.self) { plan in
+                switch plan {
+                case .annual:
+                    planChoice(plan: plan, detail: "14 days free, then $24.99/year")
+                case .monthly:
+                    planChoice(plan: plan, detail: "$4.99/month, renews monthly")
+                case .lifetime:
+                    planChoice(plan: plan, detail: "$69.99 one-time purchase")
                 }
             }
-            .padding(.vertical, AppSpacing.xSmall)
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
         }
     }
 #endif
@@ -347,20 +336,29 @@ struct HomesteadPlusView: View {
         selectedPlan = firstChoice
     }
 
-    private func planChoice(plan: HomesteadPlusProduct, detail: String, price: String) -> some View {
+    private func planChoice(plan: HomesteadPlusProduct, detail: String) -> some View {
         Button {
             selectedPlan = plan
         } label: {
             HomesteadPlusPlanChoice(
                 title: plan.purchaseTitle,
                 detail: detail,
-                price: price,
                 isBestValue: plan == .annual,
                 isSelected: selectedPlan == plan
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(plan.purchaseTitle), \(detail), \(price)")
+        .listRowInsets(
+            EdgeInsets(
+                top: AppSpacing.xSmall,
+                leading: 0,
+                bottom: AppSpacing.xSmall,
+                trailing: 0
+            )
+        )
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .accessibilityLabel("\(plan.purchaseTitle), \(detail)")
         .accessibilityValue(selectedPlan == plan ? "Selected" : "Not selected")
         .accessibilityHint("Selects this Homestead Plus plan.")
     }
@@ -459,16 +457,8 @@ struct HomesteadPlusView: View {
     private func planDetail(_ plan: HomesteadPlusProduct, product: Product) -> String {
         switch plan {
         case .annual: annualDetail(for: product)
-        case .monthly: "Renews monthly"
-        case .lifetime: "One-time purchase"
-        }
-    }
-
-    private func planPrice(_ plan: HomesteadPlusProduct, product: Product) -> String {
-        switch plan {
-        case .annual: "\(product.displayPrice)/year"
-        case .monthly: "\(product.displayPrice)/month"
-        case .lifetime: product.displayPrice
+        case .monthly: "\(product.displayPrice)/month, renews monthly"
+        case .lifetime: "\(product.displayPrice) one-time purchase"
         }
     }
 
@@ -595,38 +585,20 @@ struct HomesteadPlusView: View {
 }
 
 private struct HomesteadPlusPlanChoice: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
     let title: String
     let detail: String
-    let price: String
     let isBestValue: Bool
     let isSelected: Bool
 
     var body: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: AppSpacing.small) {
-                    titleAndBadge
-                    detailText
-                    HStack {
-                        priceText
-                        Spacer()
-                        selectionIndicator
-                    }
-                }
-            } else {
-                HStack(alignment: .center, spacing: AppSpacing.medium) {
-                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                        titleAndBadge
-                        detailText
-                    }
-
-                    Spacer(minLength: AppSpacing.small)
-                    priceText
-                    selectionIndicator
-                }
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                titleAndBadge
+                detailText
             }
+
+            Spacer(minLength: AppSpacing.small)
+            selectionIndicator
         }
         .contentShape(Rectangle())
         .padding(AppSpacing.medium)
@@ -674,13 +646,6 @@ private struct HomesteadPlusPlanChoice: View {
                 .fixedSize()
                 .accessibilityLabel("Best value")
         }
-    }
-
-    private var priceText: some View {
-        Text(price)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
-            .fixedSize()
     }
 
     private var selectionIndicator: some View {
