@@ -66,6 +66,7 @@ struct HomesteadPlusView: View {
     @State private var isRedeemingCode = false
     @State private var isConfirmingLifetimePurchase = false
     @State private var actionErrorMessage: String?
+    @State private var selectedPlan: HomesteadPlusProduct = .annual
 
     let context: HomesteadPlusPresentationContext?
 
@@ -76,18 +77,22 @@ struct HomesteadPlusView: View {
     var body: some View {
         List {
             heroSection
-            featuresSection
             currentPlanSection
             purchaseSection
+            featuresSection
             accountSection
             legalSection
         }
         .navigationTitle("Homestead+")
         .toolbarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            purchaseBar
+        }
         .task {
             if entitlementStore.availableProducts.isEmpty {
                 await entitlementStore.prepare()
             }
+            normalizeSelectedPlan()
         }
         .onInAppPurchaseCompletion { _, result in
             await entitlementStore.handlePurchaseResult(result)
@@ -124,13 +129,16 @@ struct HomesteadPlusView: View {
                 actionErrorMessage = message
             }
         }
+        .onChange(of: availablePlanChoices) { _, choices in
+            normalizeSelectedPlan(choices)
+        }
     }
 
     private var heroSection: some View {
         Section {
-            VStack(spacing: AppSpacing.medium) {
+            VStack(spacing: AppSpacing.small) {
                 Image(systemName: context?.systemImage ?? "house.and.flag.fill")
-                    .font(.system(size: 42, weight: .semibold))
+                    .font(.system(size: 36, weight: .semibold))
                     .foregroundStyle(Color.accentColor)
                     .accessibilityHidden(true)
 
@@ -141,14 +149,14 @@ struct HomesteadPlusView: View {
                 Text(
                     entitlementStore.hasPlus
                         ? "\(entitlementStore.statusTitle) access is available on this device."
-                        : "Core home control stays free. Homestead+ unlocks more personalization, synchronization, and advanced widgets."
+                        : "Add more dashboards, homes, sync, and advanced widgets. Core home control always stays free."
                 )
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, AppSpacing.medium)
+            .padding(.vertical, AppSpacing.small)
             .listRowBackground(Color.clear)
         }
     }
@@ -163,23 +171,18 @@ struct HomesteadPlusView: View {
     private var featuresSection: some View {
         Section("Included with Homestead+") {
             SettingsManagementOverviewRow(
-                title: "Multiple Dashboards",
-                subtitle: "Create dashboards for rooms and routines.",
+                title: "More Dashboards and Homes",
+                subtitle: "Create more dashboards and connect more Home Assistant servers.",
                 systemImage: "rectangle.stack"
             )
             SettingsManagementOverviewRow(
-                title: "Multiple Servers",
-                subtitle: "Connect multiple Home Assistant servers.",
-                systemImage: "server.rack"
-            )
-            SettingsManagementOverviewRow(
-                title: "iCloud Sync",
-                subtitle: "Sync Homestead preferences across devices.",
+                title: "Sync Across Devices",
+                subtitle: "Keep Homestead preferences in sync with iCloud.",
                 systemImage: "icloud"
             )
             SettingsManagementOverviewRow(
-                title: "Advanced Widgets",
-                subtitle: "Use Sensor Boards, charts, gauges, and zones.",
+                title: "Advanced Sensors and Widgets",
+                subtitle: "Use Sensor Boards, charts, gauges, zones, and more.",
                 systemImage: "gauge.with.dots.needle.50percent"
             )
             SettingsManagementOverviewRow(
@@ -239,52 +242,20 @@ struct HomesteadPlusView: View {
     @ViewBuilder
     private var purchaseSection: some View {
         if entitlementStore.plan != .lifetime, !entitlementStore.availableProducts.isEmpty {
-            Section {
-                if entitlementStore.activeSubscriptionPlan != .annual,
-                   entitlementStore.activeSubscriptionPlan != .trial,
-                   let annualProduct = entitlementStore.product(.annual) {
-                    ProductView(annualProduct)
-                        .productViewStyle(HomesteadPlusProductRowStyle(
-                            plan: .annual,
-                            detail: annualDetail(for: annualProduct),
-                            actionTitle: entitlementStore.isEligibleForAnnualTrial == true
-                                ? "Try Free"
-                                : annualProduct.displayPrice
-                        ))
-                }
-                if entitlementStore.activeSubscriptionPlan != .monthly,
-                   let monthlyProduct = entitlementStore.product(.monthly) {
-                    ProductView(monthlyProduct)
-                        .productViewStyle(HomesteadPlusProductRowStyle(
-                            plan: .monthly,
-                            detail: "Renews monthly",
-                            actionTitle: monthlyProduct.displayPrice
-                        ))
-                }
-                if let lifetimeProduct = entitlementStore.product(.lifetime) {
-                    Button {
-                        if entitlementStore.activeSubscriptionPlan == nil {
-                            purchaseLifetime()
-                        } else {
-                            isConfirmingLifetimePurchase = true
+            Section(entitlementStore.activeSubscriptionPlan == nil ? "Choose a Plan" : "Other Plans") {
+                VStack(spacing: AppSpacing.small) {
+                    ForEach(availablePlanChoices, id: \.self) { plan in
+                        if let product = entitlementStore.product(plan) {
+                            planChoice(
+                                plan: plan,
+                                detail: planDetail(plan, product: product),
+                                price: planPrice(plan, product: product)
+                            )
                         }
-                    } label: {
-                        HomesteadPlusPlanRow(
-                            title: HomesteadPlusProduct.lifetime.purchaseTitle,
-                            detail: "One-time purchase",
-                            trailingText: lifetimeProduct.displayPrice,
-                            isBestValue: false,
-                            isCurrent: false
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .disabled(isBusy)
-                    .accessibilityHint("Purchases lifetime Homestead Plus access.")
                 }
-            } header: {
-                Text(entitlementStore.activeSubscriptionPlan == nil ? "Choose a Plan" : "Other Plans")
-            } footer: {
-                Text("Annual and monthly renew automatically until canceled. Lifetime is a one-time purchase.")
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
         } else if entitlementStore.plan != .lifetime {
 #if DEBUG
@@ -334,43 +305,187 @@ struct HomesteadPlusView: View {
 
 #if DEBUG
     private var previewPurchaseOptions: some View {
-        Section {
-            if entitlementStore.activeSubscriptionPlan != .annual,
-               entitlementStore.activeSubscriptionPlan != .trial {
-                PlusPreviewProductRow(
-                    title: "Annual",
-                    detail: "14 days free, then $24.99/year",
-                    price: "$24.99",
-                    actionTitle: "Try Free",
-                    isBestValue: true
-                )
-            }
-            if entitlementStore.activeSubscriptionPlan != .monthly {
-                PlusPreviewProductRow(
-                    title: "Monthly",
-                    detail: "Renews monthly",
-                    price: "$4.99"
-                )
-            }
-            Button {
-                if entitlementStore.activeSubscriptionPlan != nil {
-                    isConfirmingLifetimePurchase = true
+        Section(entitlementStore.activeSubscriptionPlan == nil ? "Choose a Plan" : "Other Plans") {
+            VStack(spacing: AppSpacing.small) {
+                ForEach(availablePlanChoices, id: \.self) { plan in
+                    switch plan {
+                    case .annual:
+                        planChoice(plan: plan, detail: "14 days free, then $24.99/year", price: "$24.99/year")
+                    case .monthly:
+                        planChoice(plan: plan, detail: "Renews monthly", price: "$4.99/month")
+                    case .lifetime:
+                        planChoice(plan: plan, detail: "One-time purchase", price: "$69.99")
+                    }
                 }
-            } label: {
-                PlusPreviewProductRow(
-                    title: "Lifetime",
-                    detail: "One-time purchase",
-                    price: "$69.99"
-                )
             }
-            .buttonStyle(.plain)
-        } header: {
-            Text(entitlementStore.activeSubscriptionPlan == nil ? "Choose a Plan" : "Other Plans")
-        } footer: {
-            Text("Annual and monthly renew automatically until canceled. Lifetime is a one-time purchase.")
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
     }
 #endif
+
+    private var availablePlanChoices: [HomesteadPlusProduct] {
+        var choices: [HomesteadPlusProduct] = []
+        if entitlementStore.activeSubscriptionPlan != .annual,
+           entitlementStore.activeSubscriptionPlan != .trial {
+            choices.append(.annual)
+        }
+        if entitlementStore.activeSubscriptionPlan != .monthly {
+            choices.append(.monthly)
+        }
+        choices.append(.lifetime)
+        guard !entitlementStore.availableProducts.isEmpty else { return choices }
+        return choices.filter { entitlementStore.product($0) != nil }
+    }
+
+    private func normalizeSelectedPlan(_ choices: [HomesteadPlusProduct]? = nil) {
+        let choices = choices ?? availablePlanChoices
+        guard !choices.contains(selectedPlan), let firstChoice = choices.first else { return }
+        selectedPlan = firstChoice
+    }
+
+    private func planChoice(plan: HomesteadPlusProduct, detail: String, price: String) -> some View {
+        Button {
+            selectedPlan = plan
+        } label: {
+            HomesteadPlusPlanChoice(
+                title: plan.purchaseTitle,
+                detail: detail,
+                price: price,
+                isBestValue: plan == .annual,
+                isSelected: selectedPlan == plan
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(plan.purchaseTitle), \(detail), \(price)")
+        .accessibilityValue(selectedPlan == plan ? "Selected" : "Not selected")
+        .accessibilityHint("Selects this Homestead Plus plan.")
+    }
+
+    @ViewBuilder
+    private var purchaseBar: some View {
+        if entitlementStore.plan != .lifetime,
+           shouldShowPurchaseBar,
+           availablePlanChoices.contains(selectedPlan) {
+            VStack(spacing: AppSpacing.small) {
+                Text(selectedPlanSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button(action: purchaseSelectedPlan) {
+                    Text(selectedPlanActionTitle)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppSpacing.small)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .disabled(isBusy)
+                .accessibilityHint("Purchases the selected Homestead Plus plan.")
+            }
+            .padding(.horizontal, AppSpacing.large)
+            .padding(.top, AppSpacing.small)
+            .padding(.bottom, AppSpacing.xSmall)
+            .background(.bar)
+            .overlay(alignment: .top) {
+                Divider()
+            }
+        }
+    }
+
+    private var shouldShowPurchaseBar: Bool {
+        if !entitlementStore.availableProducts.isEmpty {
+            return true
+        }
+#if DEBUG
+        return entitlementStore.purchaseState == .available
+#else
+        return false
+#endif
+    }
+
+    private var selectedPlanSummary: String {
+        if let product = entitlementStore.product(selectedPlan) {
+            switch selectedPlan {
+            case .annual where entitlementStore.isEligibleForAnnualTrial == true:
+                return "14 days free, then \(product.displayPrice)/year"
+            case .annual:
+                return "\(product.displayPrice)/year, renews yearly"
+            case .monthly:
+                return "\(product.displayPrice)/month, renews monthly"
+            case .lifetime:
+                return "\(product.displayPrice) one-time purchase"
+            }
+        }
+#if DEBUG
+        switch selectedPlan {
+        case .annual: return "14 days free, then $24.99/year"
+        case .monthly: return "$4.99/month, renews monthly"
+        case .lifetime: return "$69.99 one-time purchase"
+        }
+#else
+        return ""
+#endif
+    }
+
+    private var selectedPlanActionTitle: String {
+        if let product = entitlementStore.product(selectedPlan) {
+            switch selectedPlan {
+            case .annual where entitlementStore.isEligibleForAnnualTrial == true:
+                return "Start 14-Day Free Trial"
+            case .annual:
+                return "Subscribe for \(product.displayPrice)/year"
+            case .monthly:
+                return "Subscribe for \(product.displayPrice)/month"
+            case .lifetime:
+                return "Buy Lifetime for \(product.displayPrice)"
+            }
+        }
+#if DEBUG
+        switch selectedPlan {
+        case .annual: return "Start 14-Day Free Trial"
+        case .monthly: return "Subscribe for $4.99/month"
+        case .lifetime: return "Buy Lifetime for $69.99"
+        }
+#else
+        return "Continue"
+#endif
+    }
+
+    private func planDetail(_ plan: HomesteadPlusProduct, product: Product) -> String {
+        switch plan {
+        case .annual: annualDetail(for: product)
+        case .monthly: "Renews monthly"
+        case .lifetime: "One-time purchase"
+        }
+    }
+
+    private func planPrice(_ plan: HomesteadPlusProduct, product: Product) -> String {
+        switch plan {
+        case .annual: "\(product.displayPrice)/year"
+        case .monthly: "\(product.displayPrice)/month"
+        case .lifetime: product.displayPrice
+        }
+    }
+
+    private func purchaseSelectedPlan() {
+        if selectedPlan == .lifetime, entitlementStore.activeSubscriptionPlan != nil {
+            isConfirmingLifetimePurchase = true
+            return
+        }
+        guard let product = entitlementStore.product(selectedPlan) else {
+#if DEBUG
+            return
+#else
+            actionErrorMessage = "This plan is not available from the App Store right now."
+            return
+#endif
+        }
+        Task {
+            await entitlementStore.purchase(product)
+        }
+    }
 
     private var accountSection: some View {
         Section("Purchases") {
@@ -476,46 +591,14 @@ struct HomesteadPlusView: View {
     }
 }
 
-private struct HomesteadPlusProductRowStyle: ProductViewStyle {
-    let plan: HomesteadPlusProduct
-    let detail: String
-    let actionTitle: String
-
-    func makeBody(configuration: Configuration) -> some View {
-        Group {
-            if configuration.product != nil {
-                Button {
-                    configuration.purchase()
-                } label: {
-                    HomesteadPlusPlanRow(
-                        title: plan.purchaseTitle,
-                        detail: detail,
-                        trailingText: actionTitle,
-                        isBestValue: plan == .annual,
-                        isCurrent: false
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Purchases this Homestead Plus plan.")
-            } else {
-                HStack {
-                    ProgressView()
-                    Text("Loading plan…")
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-}
-
-private struct HomesteadPlusPlanRow: View {
+private struct HomesteadPlusPlanChoice: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let title: String
     let detail: String
-    let trailingText: String
+    let price: String
     let isBestValue: Bool
-    let isCurrent: Bool
+    let isSelected: Bool
 
     var body: some View {
         Group {
@@ -523,7 +606,11 @@ private struct HomesteadPlusPlanRow: View {
                 VStack(alignment: .leading, spacing: AppSpacing.small) {
                     titleAndBadge
                     detailText
-                    trailingContent
+                    HStack {
+                        priceText
+                        Spacer()
+                        selectionIndicator
+                    }
                 }
             } else {
                 HStack(alignment: .center, spacing: AppSpacing.medium) {
@@ -533,12 +620,21 @@ private struct HomesteadPlusPlanRow: View {
                     }
 
                     Spacer(minLength: AppSpacing.small)
-                    trailingContent
+                    priceText
+                    selectionIndicator
                 }
             }
         }
         .contentShape(Rectangle())
-        .padding(.vertical, AppSpacing.xSmall)
+        .padding(AppSpacing.medium)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(
+                    isSelected ? Color.accentColor : Color(uiColor: .separator).opacity(0.45),
+                    lineWidth: isSelected ? 2 : 1
+                )
+        }
     }
 
     private var titleAndBadge: some View {
@@ -577,33 +673,18 @@ private struct HomesteadPlusPlanRow: View {
         }
     }
 
-    @ViewBuilder
-    private var trailingContent: some View {
-        if isCurrent {
-            Label(trailingText, systemImage: "checkmark")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
-                .labelStyle(.titleAndIcon)
-        } else {
-            if dynamicTypeSize.isAccessibilitySize {
-                purchaseActionText
-                    .padding(.horizontal, AppSpacing.medium)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(Color.accentColor.opacity(0.14), in: Capsule())
-            } else {
-                purchaseActionText
-                    .frame(minWidth: 84)
-                    .padding(.vertical, AppSpacing.small)
-                    .background(Color.accentColor.opacity(0.14), in: Capsule())
-            }
-        }
+    private var priceText: some View {
+        Text(price)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.primary)
+            .fixedSize()
     }
 
-    private var purchaseActionText: some View {
-        Text(trailingText)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Color.accentColor)
-            .fixedSize()
+    private var selectionIndicator: some View {
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+            .accessibilityHidden(true)
     }
 }
 
@@ -619,26 +700,6 @@ private extension HomesteadPlusProduct {
         }
     }
 }
-
-#if DEBUG
-private struct PlusPreviewProductRow: View {
-    let title: String
-    let detail: String
-    let price: String
-    var actionTitle: String?
-    var isBestValue = false
-
-    var body: some View {
-        HomesteadPlusPlanRow(
-            title: title,
-            detail: detail,
-            trailingText: actionTitle ?? price,
-            isBestValue: isBestValue,
-            isCurrent: false
-        )
-    }
-}
-#endif
 
 nonisolated enum HomesteadPlusLinks {
     static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
