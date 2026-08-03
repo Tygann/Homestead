@@ -211,9 +211,33 @@ struct HomesteadPlusView: View {
                         VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
                             Text("Homestead+")
                                 .font(.headline)
-                            Text(currentPlanDescription)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+
+                            HStack(spacing: AppSpacing.small) {
+                                Text(currentPlanDescription)
+                                    .foregroundStyle(.secondary)
+
+                                Spacer(minLength: AppSpacing.small)
+
+                                if entitlementStore.plan != .lifetime {
+                                    Button {
+                                        withAnimation {
+                                            isShowingOtherPlans.toggle()
+                                            if !isShowingOtherPlans {
+                                                selectedPlan = nil
+                                            }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 2) {
+                                            Text(isShowingOtherPlans ? "Hide Plans" : "See All Plans")
+                                            Image(systemName: isShowingOtherPlans ? "chevron.up" : "chevron.right")
+                                                .font(.caption2.weight(.semibold))
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                            .font(.subheadline)
                         }
                     }
 
@@ -239,24 +263,6 @@ struct HomesteadPlusView: View {
                         }
                     }
 
-                    if entitlementStore.plan != .lifetime {
-                        Divider()
-
-                        Button {
-                            withAnimation {
-                                isShowingOtherPlans.toggle()
-                                if !isShowingOtherPlans {
-                                    selectedPlan = nil
-                                }
-                            }
-                        } label: {
-                            Label(
-                                isShowingOtherPlans ? "Hide Other Plans" : "View Other Plans",
-                                systemImage: "rectangle.stack"
-                            )
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
                 }
                 .padding(.vertical, AppSpacing.xSmall)
             }
