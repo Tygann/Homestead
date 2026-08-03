@@ -169,7 +169,7 @@ struct UpdateIconView: View {
             imagePath: update.entityPicturePath,
             size: size
         ) {
-            HomesteadIconView(icon: update.resolvedIcon, pointSize: size * 0.42)
+            HomesteadIconView(icon: update.artworkFallbackIcon, pointSize: size * 0.42)
                 .foregroundStyle(update.status.tint)
                 .frame(width: size, height: size)
                 .background(
@@ -198,6 +198,8 @@ private struct UpdateRowAction: View {
                     .background(Color(.secondarySystemFill), in: Capsule())
             }
             .buttonStyle(.plain)
+        case .available:
+            EmptyView()
         case .inProgress:
             Text(progressText)
                 .font(.caption.weight(.semibold))

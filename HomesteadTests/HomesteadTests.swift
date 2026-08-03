@@ -3103,6 +3103,36 @@ struct HomesteadTests {
         #expect(!unavailable.isAvailable)
     }
 
+    @Test func updateArtworkFallbackUsesPackageIconWithoutReplacingHomeAssistantIcons() throws {
+        let defaultUpdate = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.mushroom",
+            state: "on",
+            attributes: ["friendly_name": .string("Mushroom")]
+        )))
+        let explicitUpdate = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.custom",
+            state: "on",
+            attributes: [
+                "friendly_name": .string("Custom"),
+                "icon": .string("mdi:puzzle")
+            ]
+        )))
+        let firmwareUpdate = try #require(EntityMapper.updateEntity(from: HAEntityDTO(
+            entityID: "update.router_firmware",
+            state: "on",
+            attributes: [
+                "friendly_name": .string("Router Firmware"),
+                "device_class": .string("firmware")
+            ]
+        )))
+
+        #expect(defaultUpdate.artworkFallbackIcon.asset == .materialDesign("package-up"))
+        #expect(defaultUpdate.artworkFallbackIcon.sourceIdentifier == "mdi:package-up")
+        #expect(explicitUpdate.artworkFallbackIcon == explicitUpdate.resolvedIcon)
+        #expect(firmwareUpdate.artworkFallbackIcon == firmwareUpdate.resolvedIcon)
+        #expect(firmwareUpdate.artworkFallbackIcon.asset == .sfSymbol("memorychip.fill"))
+    }
+
     @Test func updatePresentationFiltersSearchesAndGroupsRows() throws {
         let core = try #require(EntityMapper.updateEntity(
             from: HAEntityDTO(

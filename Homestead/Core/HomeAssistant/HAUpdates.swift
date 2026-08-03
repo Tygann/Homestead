@@ -66,6 +66,20 @@ struct HAUpdateEntity: Identifiable, Equatable, Sendable {
 
     var iconSystemName: String { resolvedIcon.sfSymbolName }
 
+    var artworkFallbackIcon: ResolvedIcon {
+        guard deviceClass != "firmware",
+              resolvedIcon.provenance == .haSemanticMapping else {
+            return resolvedIcon
+        }
+
+        return ResolvedIcon(
+            asset: .materialDesign("package-up"),
+            fallbackSFSymbol: "arrow.up.square",
+            provenance: .homesteadSemanticMapping,
+            sourceIdentifier: "mdi:package-up"
+        )
+    }
+
     var isHomeAssistantSystemUpdate: Bool {
         [
             "Home Assistant Core",
