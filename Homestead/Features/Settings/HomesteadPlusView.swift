@@ -198,29 +198,47 @@ struct HomesteadPlusView: View {
     private var currentPlanSection: some View {
         if entitlementStore.hasPlus {
             Section("Your Plan") {
-                HStack(spacing: AppSpacing.medium) {
-                    Label(currentPlanTitle, systemImage: "checkmark.seal.fill")
-                        .foregroundStyle(.primary)
+                VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                    HStack(alignment: .top, spacing: AppSpacing.medium) {
+                        Image(systemName: "house.and.flag.fill")
+                            .font(.title2.weight(.semibold))
+                            .foregroundStyle(Color.accentColor)
+                            .frame(width: 44, height: 44)
+                            .background(Color.white, in: RoundedRectangle(cornerRadius: 11))
+                            .accessibilityHidden(true)
 
-                    Spacer(minLength: AppSpacing.small)
+                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                            Text("Homestead+")
+                                .font(.headline)
+                            Text(currentPlanDescription)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
 
-                    Label("Active", systemImage: "checkmark")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                }
+                    Label(currentPlanPriceDescription, systemImage: "creditcard")
+                        .font(.subheadline)
 
-                if entitlementStore.activeSubscriptionPlan != nil {
-                    Button {
-                        manageSubscription()
-                    } label: {
-                        Label(
-                            entitlementStore.plan == .lifetime
-                                ? "Manage Existing Subscription"
-                                : "Manage Subscription",
-                            systemImage: "person.crop.circle"
-                        )
+                    Label(currentPlanTermDescription, systemImage: "calendar")
+                        .font(.subheadline)
+
+                    if entitlementStore.activeSubscriptionPlan != nil {
+                        Divider()
+
+                        Button {
+                            manageSubscription()
+                        } label: {
+                            Label(
+                                entitlementStore.plan == .lifetime
+                                    ? "Manage Existing Subscription"
+                                    : "Manage Subscription",
+                                systemImage: "person.crop.circle"
+                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                 }
+                .padding(.vertical, AppSpacing.xSmall)
             }
         }
     }
@@ -237,6 +255,66 @@ struct HomesteadPlusView: View {
             "Annual"
         case .lifetime:
             "Lifetime"
+        }
+    }
+
+    private var currentPlanDescription: String {
+        switch entitlementStore.plan {
+        case .free:
+            "Free"
+        case .trial:
+            "Annual trial"
+        case .monthly:
+            "Monthly subscription"
+        case .annual:
+            "Annual subscription"
+        case .lifetime:
+            "Lifetime access"
+        }
+    }
+
+    private var currentPlanPriceDescription: String {
+        if let product = entitlementStore.product(currentPlanProduct) {
+            switch entitlementStore.plan {
+            case .trial:
+                return "\(product.displayPrice)/year after trial"
+            case .monthly:
+                return "\(product.displayPrice)/month"
+            case .annual:
+                return "\(product.displayPrice)/year"
+            case .lifetime:
+                return "\(product.displayPrice) one-time purchase"
+            case .free:
+                break
+            }
+        }
+#if DEBUG
+        switch entitlementStore.plan {
+        case .trial: return "$24.99/year after trial"
+        case .monthly: return "$4.99/month"
+        case .annual: return "$24.99/year"
+        case .lifetime: return "$69.99 one-time purchase"
+        case .free: return "Free"
+        }
+#else
+        return entitlementStore.plan == .lifetime ? "One-time purchase" : "Subscription active"
+#endif
+    }
+
+    private var currentPlanTermDescription: String {
+        entitlementStore.plan == .lifetime
+            ? "Does not expire"
+            : "Managed through the App Store"
+    }
+
+    private var currentPlanProduct: HomesteadPlusProduct {
+        switch entitlementStore.plan {
+        case .trial, .annual:
+            .annual
+        case .monthly:
+            .monthly
+        case .lifetime, .free:
+            .lifetime
         }
     }
 
