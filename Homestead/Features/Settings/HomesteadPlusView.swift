@@ -255,7 +255,7 @@ struct HomesteadPlusView: View {
                         }
                     }
                 }
-                .padding(.vertical, 2)
+                .padding(AppSpacing.xSmall)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
@@ -320,7 +320,7 @@ struct HomesteadPlusView: View {
                     }
                 }
             }
-            .padding(.vertical, 2)
+            .padding(AppSpacing.xSmall)
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
         }
