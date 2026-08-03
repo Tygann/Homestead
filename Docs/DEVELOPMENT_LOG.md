@@ -6,8 +6,8 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ### App List Status and Update Presentation
 
-- Moved Supervisor app running state into the secondary metadata line alongside the installed version, leaving the trailing edge available for navigation and an update-only action indicator.
-- Apps with available updates now show both the installed-to-latest version transition and a compact blue Update badge sourced from Supervisor's existing update metadata.
+- Moved Supervisor app running state into the secondary metadata line alongside the installed version, leaving the trailing edge available for navigation and an update-only status indicator.
+- Apps keep the installed version as running-state metadata and show update availability as a trailing blue status label without button styling.
 
 ### Update Source Grouping
 

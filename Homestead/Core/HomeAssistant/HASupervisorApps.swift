@@ -116,18 +116,8 @@ nonisolated struct HASupervisorApp: Identifiable, Equatable, Sendable {
         hasLogo ? "/api/hassio/addons/\(slug)/logo" : nil
     }
 
-    var versionSummary: String? {
-        guard let installedVersion = installedVersion?.nonEmptyValue else {
-            return nil
-        }
-
-        guard updateAvailable,
-              let latestVersion = latestVersion?.nonEmptyValue,
-              latestVersion != installedVersion else {
-            return installedVersion
-        }
-
-        return "\(installedVersion) → \(latestVersion)"
+    var installedVersionText: String? {
+        installedVersion?.nonEmptyValue
     }
 
     static func installedApps(from response: HASupervisorAppsResponseDTO) -> [HASupervisorApp] {

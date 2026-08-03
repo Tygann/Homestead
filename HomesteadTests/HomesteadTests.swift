@@ -1782,7 +1782,7 @@ struct HomesteadTests {
         #expect(HASupervisorAppStatus(supervisorState: "restarting") == .unknown)
     }
 
-    @Test func supervisorAppVersionSummaryIncludesAvailableUpdate() {
+    @Test func supervisorAppInstalledVersionTextDoesNotIncludeAvailableUpdate() {
         let current = HASupervisorApp(
             id: "current",
             slug: "current",
@@ -1804,8 +1804,8 @@ struct HomesteadTests {
             status: .running
         )
 
-        #expect(current.versionSummary == "1.0.0")
-        #expect(update.versionSummary == "1.0.0 → 1.1.0")
+        #expect(current.installedVersionText == "1.0.0")
+        #expect(update.installedVersionText == "1.0.0")
     }
 
     @Test func logbookPresentationFiltersByDomainAndSearchText() throws {

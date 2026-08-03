@@ -143,33 +143,30 @@ private struct SupervisorAppRow: View {
 
                     Text(app.status.title)
 
-                    if let versionSummary = app.versionSummary {
+                    if let installedVersion = app.installedVersionText {
                         Text("·")
                             .accessibilityHidden(true)
-                        Text(versionSummary)
+                        Text(installedVersion)
                             .minimumScaleFactor(0.75)
                             .allowsTightening(true)
+                    }
+
+                    Spacer(minLength: 6)
+
+                    if app.updateAvailable {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.circle.fill")
+                            Text("Update available")
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.blue)
+                        .fixedSize(horizontal: true, vertical: true)
+                        .layoutPriority(1)
                     }
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-            }
-
-            Spacer(minLength: AppSpacing.small)
-
-            if app.updateAvailable {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.circle.fill")
-                    Text("Update")
-                }
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.blue)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(Color(.secondarySystemFill), in: Capsule())
-                    .fixedSize(horizontal: true, vertical: true)
-                    .layoutPriority(1)
             }
         }
         .padding(.vertical, AppSpacing.xSmall)
