@@ -87,7 +87,22 @@ nonisolated enum HomesteadEntitlementResolver {
     static func subscriptionPlan(
         from entitlements: [HomesteadVerifiedEntitlement]
     ) -> HomesteadPlusPlan? {
-        let subscription = entitlements
+        let subscription = subscriptionEntitlement(from: entitlements)
+
+        switch subscription?.productID {
+        case HomesteadPlusProduct.annual.rawValue:
+            return subscription?.isIntroductoryOffer == true ? .trial : .annual
+        case HomesteadPlusProduct.monthly.rawValue:
+            return .monthly
+        default:
+            return nil
+        }
+    }
+
+    static func subscriptionEntitlement(
+        from entitlements: [HomesteadVerifiedEntitlement]
+    ) -> HomesteadVerifiedEntitlement? {
+        entitlements
             .filter {
                 $0.isActive && (
                     $0.productID == HomesteadPlusProduct.annual.rawValue
@@ -100,15 +115,6 @@ nonisolated enum HomesteadEntitlementResolver {
                 }
                 return ($0.expirationDate ?? .distantFuture) < ($1.expirationDate ?? .distantFuture)
             }
-
-        switch subscription?.productID {
-        case HomesteadPlusProduct.annual.rawValue:
-            return subscription?.isIntroductoryOffer == true ? .trial : .annual
-        case HomesteadPlusProduct.monthly.rawValue:
-            return .monthly
-        default:
-            return nil
-        }
     }
 }
 
@@ -165,6 +171,8 @@ final class HomesteadEntitlementStore {
 
     private(set) var plan: HomesteadPlusPlan
     private(set) var activeSubscriptionPlan: HomesteadPlusPlan?
+    private(set) var activeSubscriptionExpirationDate: Date?
+    private(set) var activeSubscriptionWillAutoRenew: Bool?
     private(set) var purchaseState: HomesteadPurchaseState
     private(set) var availableProducts: [Product]
     private(set) var isEligibleForAnnualTrial: Bool?
@@ -178,11 +186,15 @@ final class HomesteadEntitlementStore {
     init(
         previewPlan: HomesteadPlusPlan? = nil,
         previewActiveSubscriptionPlan: HomesteadPlusPlan? = nil,
+        previewSubscriptionExpirationDate: Date? = nil,
+        previewSubscriptionWillAutoRenew: Bool? = nil,
         previewAnnualTrialEligibility: Bool? = nil,
         purchaseState: HomesteadPurchaseState = .loading
     ) {
         plan = previewPlan ?? .free
         activeSubscriptionPlan = previewActiveSubscriptionPlan ?? previewPlan?.subscriptionPlan
+        activeSubscriptionExpirationDate = previewSubscriptionExpirationDate
+        activeSubscriptionWillAutoRenew = previewSubscriptionWillAutoRenew
         self.purchaseState = if previewPlan != nil, purchaseState == .loading {
             .available
         } else {
@@ -246,6 +258,11 @@ final class HomesteadEntitlementStore {
         guard usesStoreKit else { return }
         var verifiedByProductID: [String: HomesteadVerifiedEntitlement] = [:]
         var activeSubscriptionStatusesByProductID: [String: HomesteadVerifiedEntitlement] = [:]
+        var renewalDetailsByProductID: [String: (
+            purchaseDate: Date,
+            renewalDate: Date?,
+            willAutoRenew: Bool?
+        )] = [:]
 
         for await result in Transaction.currentEntitlements {
             switch result {
@@ -310,6 +327,28 @@ final class HomesteadEntitlementStore {
                                 into: &activeSubscriptionStatusesByProductID
                             )
                         }
+
+                        let renewalDate: Date?
+                        let willAutoRenew: Bool?
+                        switch status.renewalInfo {
+                        case .verified(let renewalInfo):
+                            renewalDate = renewalInfo.renewalDate ?? transaction.expirationDate
+                            willAutoRenew = renewalInfo.autoRenewPreference != nil
+                        case .unverified(_, let error):
+                            renewalDate = transaction.expirationDate
+                            willAutoRenew = nil
+                            Self.logger.error(
+                                "Subscription renewal verification failed for \(transaction.productID, privacy: .public): \(String(describing: error), privacy: .public)"
+                            )
+                        }
+                        if renewalDetailsByProductID[transaction.productID]
+                            .map({ $0.purchaseDate < transaction.purchaseDate }) ?? true {
+                            renewalDetailsByProductID[transaction.productID] = (
+                                purchaseDate: transaction.purchaseDate,
+                                renewalDate: renewalDate,
+                                willAutoRenew: willAutoRenew
+                            )
+                        }
                     case .unverified(let transaction, let error):
                         Self.logger.error(
                             "Subscription status verification failed for \(transaction.productID, privacy: .public): \(String(describing: error), privacy: .public)"
@@ -327,9 +366,21 @@ final class HomesteadEntitlementStore {
         let subscriptionEntitlements = activeSubscriptionStatusesByProductID.isEmpty
             ? entitlements
             : Array(activeSubscriptionStatusesByProductID.values)
+        let activeSubscription = HomesteadEntitlementResolver.subscriptionEntitlement(
+            from: subscriptionEntitlements
+        )
         activeSubscriptionPlan = HomesteadEntitlementResolver.subscriptionPlan(
             from: subscriptionEntitlements
         )
+        if let activeSubscription {
+            let renewalDetails = renewalDetailsByProductID[activeSubscription.productID]
+            activeSubscriptionExpirationDate = renewalDetails?.renewalDate
+                ?? activeSubscription.expirationDate
+            activeSubscriptionWillAutoRenew = renewalDetails?.willAutoRenew
+        } else {
+            activeSubscriptionExpirationDate = nil
+            activeSubscriptionWillAutoRenew = nil
+        }
         plan = entitlements.contains {
             $0.productID == HomesteadPlusProduct.lifetime.rawValue && $0.isActive
         } ? .lifetime : (activeSubscriptionPlan ?? .free)
@@ -369,6 +420,8 @@ final class HomesteadEntitlementStore {
                     activeSubscriptionPlan = HomesteadEntitlementResolver.subscriptionPlan(
                         from: [purchasedEntitlement]
                     )
+                    activeSubscriptionExpirationDate = purchasedEntitlement.expirationDate
+                    activeSubscriptionWillAutoRenew = nil
                     publishExtensionEntitlement()
                 }
                 purchaseState = hasPlus

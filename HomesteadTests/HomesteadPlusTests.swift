@@ -68,6 +68,23 @@ final class HomesteadPlusTests: XCTestCase {
             HomesteadEntitlementResolver.plan(from: [olderAnnual, newerMonthly]),
             .monthly
         )
+        XCTAssertEqual(
+            HomesteadEntitlementResolver.subscriptionEntitlement(from: [olderAnnual, newerMonthly]),
+            newerMonthly
+        )
+    }
+
+    @MainActor
+    func testPreviewStoreExposesSubscriptionRenewalPresentationState() {
+        let renewalDate = Date(timeIntervalSince1970: 1_786_406_400)
+        let store = HomesteadEntitlementStore(
+            previewPlan: .annual,
+            previewSubscriptionExpirationDate: renewalDate,
+            previewSubscriptionWillAutoRenew: true
+        )
+
+        XCTAssertEqual(store.activeSubscriptionExpirationDate, renewalDate)
+        XCTAssertEqual(store.activeSubscriptionWillAutoRenew, true)
     }
 
     func testEntitlementResolverTracksSubscriptionAlongsideLifetimeAccess() {

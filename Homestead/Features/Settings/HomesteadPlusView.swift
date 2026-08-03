@@ -328,9 +328,21 @@ struct HomesteadPlusView: View {
     }
 
     private var currentPlanTermDescription: String {
-        entitlementStore.plan == .lifetime
-            ? "Does not expire"
-            : "Managed through the App Store"
+        guard entitlementStore.plan != .lifetime else {
+            return "Does not expire"
+        }
+        guard let expirationDate = entitlementStore.activeSubscriptionExpirationDate else {
+            return "Managed through the App Store"
+        }
+        let formattedDate = expirationDate.formatted(date: .abbreviated, time: .omitted)
+        switch entitlementStore.activeSubscriptionWillAutoRenew {
+        case true:
+            return "Renews \(formattedDate)"
+        case false:
+            return "Expires \(formattedDate)"
+        case nil:
+            return "Current period ends \(formattedDate)"
+        }
     }
 
     private var currentPlanProduct: HomesteadPlusProduct {
@@ -833,7 +845,13 @@ nonisolated enum HomesteadPlusLinks {
     NavigationStack {
         HomesteadPlusView()
     }
-    .environment(HomesteadEntitlementStore(previewPlan: .annual))
+    .environment(HomesteadEntitlementStore(
+        previewPlan: .annual,
+        previewSubscriptionExpirationDate: Calendar.current.date(
+            from: DateComponents(year: 2026, month: 8, day: 11)
+        ),
+        previewSubscriptionWillAutoRenew: true
+    ))
 }
 
 #Preview("Homestead+ — Unavailable") {

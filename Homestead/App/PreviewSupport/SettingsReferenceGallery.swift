@@ -19,7 +19,13 @@ struct SettingsReferenceGallery: View {
 
                     NavigationLink("Homestead+ — Annual") {
                         HomesteadPlusView()
-                            .environment(HomesteadEntitlementStore(previewPlan: .annual))
+                            .environment(HomesteadEntitlementStore(
+                                previewPlan: .annual,
+                                previewSubscriptionExpirationDate: Calendar.current.date(
+                                    from: DateComponents(year: 2026, month: 8, day: 11)
+                                ),
+                                previewSubscriptionWillAutoRenew: true
+                            ))
                     }
 
                     NavigationLink("Homestead+ — Lifetime") {
