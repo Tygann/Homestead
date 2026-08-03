@@ -65,8 +65,9 @@ struct HomesteadPlusView: View {
     @Environment(HomesteadEntitlementStore.self) private var entitlementStore
     @State private var isRedeemingCode = false
     @State private var isConfirmingLifetimePurchase = false
+    @State private var isShowingOtherPlans = false
     @State private var actionErrorMessage: String?
-    @State private var selectedPlan: HomesteadPlusProduct = .annual
+    @State private var selectedPlan: HomesteadPlusProduct?
 
     let context: HomesteadPlusPresentationContext?
 
@@ -76,7 +77,9 @@ struct HomesteadPlusView: View {
 
     var body: some View {
         List {
-            heroSection
+            if !entitlementStore.hasPlus {
+                heroSection
+            }
             currentPlanSection
             purchaseSection
             featuresSection
@@ -93,7 +96,7 @@ struct HomesteadPlusView: View {
             if entitlementStore.availableProducts.isEmpty {
                 await entitlementStore.prepare()
             }
-            normalizeSelectedPlan()
+            initializePlanSelection()
         }
         .onInAppPurchaseCompletion { _, result in
             await entitlementStore.handlePurchaseResult(result)
@@ -131,7 +134,12 @@ struct HomesteadPlusView: View {
             }
         }
         .onChange(of: availablePlanChoices) { _, choices in
-            normalizeSelectedPlan(choices)
+            updatePlanSelection(for: choices)
+        }
+        .onChange(of: entitlementStore.hasPlus) { _, hasPlus in
+            guard hasPlus else { return }
+            selectedPlan = nil
+            isShowingOtherPlans = false
         }
     }
 
@@ -147,11 +155,7 @@ struct HomesteadPlusView: View {
                     .font(.title2.weight(.semibold))
                     .multilineTextAlignment(.center)
 
-                Text(
-                    entitlementStore.hasPlus
-                        ? "\(entitlementStore.statusTitle) access is available on this device."
-                        : "Add more dashboards, homes, sync, and advanced widgets. Core home control always stays free."
-                )
+                Text("Add more dashboards, homes, sync, and advanced widgets. Core home control always stays free.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -163,10 +167,7 @@ struct HomesteadPlusView: View {
     }
 
     private var heroTitle: String {
-        if entitlementStore.hasPlus {
-            return "Homestead+ is active"
-        }
-        return context?.title ?? "Make Homestead yours"
+        context?.title ?? "Make Homestead yours"
     }
 
     private var featuresSection: some View {
@@ -233,6 +234,25 @@ struct HomesteadPlusView: View {
                                     ? "Manage Existing Subscription"
                                     : "Manage Subscription",
                                 systemImage: "person.crop.circle"
+                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
+                    if entitlementStore.plan != .lifetime {
+                        Divider()
+
+                        Button {
+                            withAnimation {
+                                isShowingOtherPlans.toggle()
+                                if !isShowingOtherPlans {
+                                    selectedPlan = nil
+                                }
+                            }
+                        } label: {
+                            Label(
+                                isShowingOtherPlans ? "Hide Other Plans" : "View Other Plans",
+                                systemImage: "rectangle.stack"
                             )
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -320,7 +340,7 @@ struct HomesteadPlusView: View {
 
     @ViewBuilder
     private var purchaseSection: some View {
-        if entitlementStore.plan != .lifetime, !entitlementStore.availableProducts.isEmpty {
+        if shouldShowPlanOptions, !entitlementStore.availableProducts.isEmpty {
             Section(entitlementStore.activeSubscriptionPlan == nil ? "Choose a Plan" : "Other Plans") {
                 ForEach(availablePlanChoices, id: \.self) { plan in
                     if let product = entitlementStore.product(plan) {
@@ -331,7 +351,7 @@ struct HomesteadPlusView: View {
                     }
                 }
             }
-        } else if entitlementStore.plan != .lifetime {
+        } else if shouldShowPlanOptions {
 #if DEBUG
             if entitlementStore.purchaseState == .available {
                 previewPurchaseOptions
@@ -342,6 +362,11 @@ struct HomesteadPlusView: View {
             productLoadingSection
 #endif
         }
+    }
+
+    private var shouldShowPlanOptions: Bool {
+        entitlementStore.plan != .lifetime
+            && (!entitlementStore.hasPlus || isShowingOtherPlans)
     }
 
     @ViewBuilder
@@ -408,9 +433,28 @@ struct HomesteadPlusView: View {
         return choices.filter { entitlementStore.product($0) != nil }
     }
 
+    private func initializePlanSelection() {
+        guard !entitlementStore.hasPlus else {
+            selectedPlan = nil
+            return
+        }
+        normalizeSelectedPlan()
+    }
+
+    private func updatePlanSelection(for choices: [HomesteadPlusProduct]) {
+        guard !entitlementStore.hasPlus else {
+            if let selectedPlan, !choices.contains(selectedPlan) {
+                self.selectedPlan = nil
+            }
+            return
+        }
+        normalizeSelectedPlan(choices)
+    }
+
     private func normalizeSelectedPlan(_ choices: [HomesteadPlusProduct]? = nil) {
         let choices = choices ?? availablePlanChoices
-        guard !choices.contains(selectedPlan), let firstChoice = choices.first else { return }
+        let needsSelection = selectedPlan.map { !choices.contains($0) } ?? true
+        guard needsSelection, let firstChoice = choices.first else { return }
         selectedPlan = firstChoice
     }
 
@@ -445,15 +489,16 @@ struct HomesteadPlusView: View {
     private var purchaseBar: some View {
         if entitlementStore.plan != .lifetime,
            shouldShowPurchaseBar,
+           let selectedPlan,
            availablePlanChoices.contains(selectedPlan) {
             VStack(spacing: AppSpacing.small) {
-                Text(selectedPlanSummary)
+                Text(selectedPlanSummary(for: selectedPlan))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
                 Button(action: purchaseSelectedPlan) {
-                    Text(selectedPlanActionTitle)
+                    Text(selectedPlanActionTitle(for: selectedPlan))
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, AppSpacing.small)
@@ -484,7 +529,7 @@ struct HomesteadPlusView: View {
 #endif
     }
 
-    private var selectedPlanSummary: String {
+    private func selectedPlanSummary(for selectedPlan: HomesteadPlusProduct) -> String {
         if let product = entitlementStore.product(selectedPlan) {
             switch selectedPlan {
             case .annual where entitlementStore.isEligibleForAnnualTrial == true:
@@ -508,7 +553,7 @@ struct HomesteadPlusView: View {
 #endif
     }
 
-    private var selectedPlanActionTitle: String {
+    private func selectedPlanActionTitle(for selectedPlan: HomesteadPlusProduct) -> String {
         if let product = entitlementStore.product(selectedPlan) {
             switch selectedPlan {
             case .annual where entitlementStore.isEligibleForAnnualTrial == true:
@@ -541,6 +586,7 @@ struct HomesteadPlusView: View {
     }
 
     private func purchaseSelectedPlan() {
+        guard let selectedPlan else { return }
         if selectedPlan == .lifetime, entitlementStore.activeSubscriptionPlan != nil {
             isConfirmingLifetimePurchase = true
             return
