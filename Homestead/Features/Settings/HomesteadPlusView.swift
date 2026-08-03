@@ -85,6 +85,7 @@ struct HomesteadPlusView: View {
         }
         .navigationTitle("Homestead+")
         .toolbarTitleDisplayMode(.inline)
+        .listSectionSpacing(.custom(AppSpacing.xLarge))
         .safeAreaInset(edge: .bottom) {
             purchaseBar
         }
@@ -136,9 +137,9 @@ struct HomesteadPlusView: View {
 
     private var heroSection: some View {
         Section {
-            VStack(spacing: AppSpacing.small) {
+            VStack(spacing: AppSpacing.xSmall) {
                 Image(systemName: context?.systemImage ?? "house.and.flag.fill")
-                    .font(.system(size: 36, weight: .semibold))
+                    .font(.system(size: 32, weight: .semibold))
                     .foregroundStyle(Color.accentColor)
                     .accessibilityHidden(true)
 
@@ -156,7 +157,7 @@ struct HomesteadPlusView: View {
                 .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, AppSpacing.small)
+            .padding(.vertical, AppSpacing.xSmall)
             .listRowBackground(Color.clear)
         }
     }
@@ -254,6 +255,7 @@ struct HomesteadPlusView: View {
                         }
                     }
                 }
+                .padding(.vertical, 2)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
@@ -318,6 +320,7 @@ struct HomesteadPlusView: View {
                     }
                 }
             }
+            .padding(.vertical, 2)
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
         }
@@ -433,7 +436,7 @@ struct HomesteadPlusView: View {
         if let product = entitlementStore.product(selectedPlan) {
             switch selectedPlan {
             case .annual where entitlementStore.isEligibleForAnnualTrial == true:
-                return "Start 14-Day Free Trial"
+                return "Start Free Trial"
             case .annual:
                 return "Subscribe for \(product.displayPrice)/year"
             case .monthly:
@@ -444,7 +447,7 @@ struct HomesteadPlusView: View {
         }
 #if DEBUG
         switch selectedPlan {
-        case .annual: return "Start 14-Day Free Trial"
+        case .annual: return "Start Free Trial"
         case .monthly: return "Subscribe for $4.99/month"
         case .lifetime: return "Buy Lifetime for $69.99"
         }
