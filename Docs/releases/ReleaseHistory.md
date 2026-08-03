@@ -53,6 +53,31 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 122)
+
+- Release Date: 2026-08-03
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build makes widgets easier to configure and improves Home Assistant updates, apps, activity, and Homestead+ plans.
+
+- Choose widget entities more reliably, including when shared Home Assistant data is still loading
+- Find Supervisor apps faster with search, clearer status rows, and update availability that adapts to each app
+- See updates grouped by their Home Assistant source, with more polished fallback artwork
+- Read geolocation activity with friendlier state descriptions
+- Review and change Homestead+ plans in a clearer layout, including subscription renewal dates
+
+Please test:
+
+- Adding or editing several widgets immediately after launching the app
+- Searching Home Assistant apps and reviewing available app and system updates
+- Switching Homestead+ plans, confirming purchase actions, and checking renewal information
+
+### Internal Summary
+
+Build 122 covers widget entity-picker loading resilience; source-aware update grouping and fallback artwork; Supervisor app search, status, and update-availability refinements; formatted geolocation activity states; and a redesigned Homestead+ plan-selection experience with intentional plan changes and subscription renewal dates after Build 121.
+
 ## Version 1 (Build 121)
 
 - Release Date: 2026-07-31
