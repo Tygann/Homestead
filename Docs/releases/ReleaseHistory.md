@@ -53,6 +53,30 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 123)
+
+- Release Date: 2026-08-07
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build refreshes Sensor Board widgets with more flexible gauges, steadier charts, and clearer configuration.
+
+- Configure medium and large Sensor Boards with clearer, more consistent slot controls
+- Choose circular, segmented, or bar styles for Sensor Board gauges
+- Switch a slot between reading, gauge, and chart layouts without losing its selected sensor
+- See more stable sensor charts, balanced layouts, and clearer empty slots
+
+Please test:
+
+- Configuring every slot in medium and large Sensor Board widgets
+- Switching existing slots between reading, gauge, and chart displays
+- Checking chart continuity for sensors whose values change infrequently
+
+### Internal Summary
+
+Build 123 covers stable widget history endpoints, unified Sensor Board slot layouts and entity selection, circular/segmented/bar gauge styles, configuration and empty-state polish, dashboard bar-gauge cleanup, and refreshed Homestead artwork in the About view after Build 122.
+
 ## Version 1 (Build 122)
 
 - Release Date: 2026-08-03
