@@ -263,7 +263,7 @@ private struct WidgetSensorBoardCompactTile: View {
                         )
                         .frame(
                             maxWidth: .infinity,
-                            maxHeight: density.expandsSlotContent ? .infinity : nil,
+                            maxHeight: .infinity,
                             alignment: .center
                         )
                     } else {
@@ -275,9 +275,7 @@ private struct WidgetSensorBoardCompactTile: View {
                                 density: density
                             )
 
-                            if density.expandsSlotContent {
-                                Spacer(minLength: 0)
-                            }
+                            Spacer(minLength: 0)
 
                             WidgetSensorBoardStatusBadge(
                                 text: WidgetStateText.unavailable,
@@ -287,7 +285,7 @@ private struct WidgetSensorBoardCompactTile: View {
                         }
                         .frame(
                             maxWidth: .infinity,
-                            maxHeight: density.expandsSlotContent ? .infinity : nil,
+                            maxHeight: .infinity,
                             alignment: .topLeading
                         )
                         .padding(.bottom, density.contentBottomPadding)
@@ -322,9 +320,7 @@ private struct WidgetSensorBoardCompactTile: View {
                 .frame(height: density.gaugeHeight)
         case .bar:
             VStack(alignment: .leading, spacing: density.contentSpacing) {
-                if density.expandsSlotContent {
-                    Spacer(minLength: 0)
-                }
+                Spacer(minLength: 0)
 
                 WidgetSensorBoardValueLabel(
                     valueText: resolvedGauge.valueText,
@@ -362,12 +358,9 @@ private struct WidgetSensorBoardChartTile: View {
                 )
 
                 chartContent
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: density.expandsSlotContent ? .infinity : nil
-                    )
-                    .frame(height: density.chartHeight, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
@@ -390,12 +383,10 @@ private struct WidgetSensorBoardChartTile: View {
                 interpolationStyle: item.interpolationStyle,
                 highlightsLatestSample: true
             )
-            .padding(.bottom, density.contentBottomPadding)
+            .padding(.bottom, density.plotBottomPadding)
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                if density.expandsSlotContent {
-                    Spacer(minLength: 0)
-                }
+                Spacer(minLength: 0)
 
                 WidgetSensorBoardStatusBadge(
                     text: item.chartStatusText,
@@ -465,11 +456,10 @@ private enum WidgetSensorBoardSlotDensity {
     var contentSpacing: CGFloat { self == .medium ? 4 : 2 }
     var chartBottomPadding: CGFloat { self == .medium ? 18 : 6 }
     var contentBottomPadding: CGFloat { self == .medium ? 0 : chartBottomPadding }
-    var expandsSlotContent: Bool { self == .square }
+    var plotBottomPadding: CGFloat { self == .medium ? 10 : chartBottomPadding }
     var centersSlotContent: Bool { self == .medium }
     var slotContentHeight: CGFloat { self == .medium ? 112 : 0 }
     var gaugeHeight: CGFloat? { self == .medium ? 92 : nil }
-    var chartHeight: CGFloat? { self == .medium ? 54 : nil }
     var emptyTopPadding: CGFloat { self == .medium ? 9 : 0 }
     var emptyBottomPadding: CGFloat { self == .medium ? 9 : chartBottomPadding }
 }
