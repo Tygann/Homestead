@@ -415,17 +415,14 @@ private struct WidgetSensorBoardEmptyTile: View {
         let density: WidgetSensorBoardSlotDensity = usesSquareDensity ? .square : .medium
 
         VStack(spacing: density.contentSpacing) {
-            VStack(spacing: density.contentSpacing) {
-                Image(systemName: systemImage)
-                    .font(density.titleFont)
+            Image(systemName: systemImage)
+                .font(density.titleFont)
 
-                Text(title)
-                    .font(density.titleFont)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.72)
-                    .multilineTextAlignment(.center)
-            }
-            .offset(y: density.emptyContentVerticalOffset)
+            Text(title)
+                .font(density.titleFont)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .multilineTextAlignment(.center)
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -433,6 +430,7 @@ private struct WidgetSensorBoardEmptyTile: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(.secondary.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
         }
+        .padding(.bottom, density.chartBottomPadding)
     }
 }
 
@@ -448,7 +446,6 @@ private enum WidgetSensorBoardSlotDensity {
     var unitFont: Font { self == .medium ? .caption.weight(.semibold) : .caption2.weight(.semibold) }
     var contentSpacing: CGFloat { self == .medium ? 4 : 2 }
     var chartBottomPadding: CGFloat { self == .medium ? 18 : 6 }
-    var emptyContentVerticalOffset: CGFloat { self == .medium ? -4 : -2 }
 }
 
 private struct WidgetSensorBoardSlotScaffold<Content: View>: View {
