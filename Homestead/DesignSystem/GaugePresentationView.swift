@@ -180,9 +180,6 @@ struct GaugePresentationView: View {
                             .fill(statusColor(for: presentation.status))
                             .frame(width: max(CGFloat(presentation.normalizedValue) * width, GaugeVisualMetrics.barMinimumFillWidth))
                     }
-
-                    Capsule()
-                        .strokeBorder(Color.white.opacity(GaugeVisualMetrics.barBorderOpacity), lineWidth: 1)
                 }
                 .frame(height: GaugeVisualMetrics.barTrackHeight)
                 .clipShape(Capsule())
