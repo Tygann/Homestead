@@ -366,7 +366,7 @@ private struct WidgetSensorBoardChartTile: View {
                         maxWidth: .infinity,
                         maxHeight: density.expandsSlotContent ? .infinity : nil
                     )
-                    .frame(height: density.chartHeight)
+                    .frame(height: density.chartHeight, alignment: .topLeading)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -432,17 +432,14 @@ private struct WidgetSensorBoardEmptyTile: View {
         let density: WidgetSensorBoardSlotDensity = usesSquareDensity ? .square : .medium
 
         VStack(spacing: density.contentSpacing) {
-            VStack(spacing: density.contentSpacing) {
-                Image(systemName: systemImage)
-                    .font(density.titleFont)
+            Image(systemName: systemImage)
+                .font(density.titleFont)
 
-                Text(title)
-                    .font(density.titleFont)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.72)
-                    .multilineTextAlignment(.center)
-            }
-            .offset(y: density.emptyContentVerticalOffset)
+            Text(title)
+                .font(density.titleFont)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .multilineTextAlignment(.center)
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -450,7 +447,8 @@ private struct WidgetSensorBoardEmptyTile: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(.secondary.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
         }
-        .padding(.bottom, density.chartBottomPadding)
+        .padding(.top, density.emptyTopPadding)
+        .padding(.bottom, density.emptyBottomPadding)
     }
 }
 
@@ -469,9 +467,11 @@ private enum WidgetSensorBoardSlotDensity {
     var contentBottomPadding: CGFloat { self == .medium ? 0 : chartBottomPadding }
     var expandsSlotContent: Bool { self == .square }
     var centersSlotContent: Bool { self == .medium }
+    var slotContentHeight: CGFloat { self == .medium ? 112 : 0 }
     var gaugeHeight: CGFloat? { self == .medium ? 92 : nil }
     var chartHeight: CGFloat? { self == .medium ? 54 : nil }
-    var emptyContentVerticalOffset: CGFloat { self == .medium ? -3 : -1 }
+    var emptyTopPadding: CGFloat { self == .medium ? 9 : 0 }
+    var emptyBottomPadding: CGFloat { self == .medium ? 9 : chartBottomPadding }
 }
 
 private struct WidgetSensorBoardSlotScaffold<Content: View>: View {
@@ -486,8 +486,12 @@ private struct WidgetSensorBoardSlotScaffold<Content: View>: View {
         Group {
             if density.centersSlotContent {
                 slotStack
-                    .frame(maxWidth: .infinity)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: density.slotContentHeight,
+                        maxHeight: density.slotContentHeight,
+                        alignment: .topLeading
+                    )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 slotStack
