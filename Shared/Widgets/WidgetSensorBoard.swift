@@ -162,7 +162,9 @@ struct WidgetSensorBoardFace: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(12)
+            .padding(.horizontal, 12)
+            .padding(.top, 18)
+            .padding(.bottom, 6)
         case .large:
             Grid(horizontalSpacing: 8, verticalSpacing: 8) {
                 ForEach(0..<3, id: \.self) { row in
