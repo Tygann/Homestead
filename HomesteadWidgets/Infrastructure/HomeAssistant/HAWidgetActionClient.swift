@@ -123,18 +123,6 @@ struct HAWidgetPresenceState: Sendable {
     var systemImage: String { icon.sfSymbolName }
 }
 
-struct HAWidgetHistorySample: Identifiable, Equatable, Sendable {
-    let id: String
-    let occurredAt: Date
-    let value: Double
-
-    init(occurredAt: Date, value: Double) {
-        self.id = "\(occurredAt.timeIntervalSince1970)-\(value)"
-        self.occurredAt = occurredAt
-        self.value = value
-    }
-}
-
 struct HAWidgetSensorHistorySeries: Equatable, Sendable {
     let entityID: String
     let displayName: String
@@ -551,15 +539,21 @@ final class HAWidgetActionClient: Sendable {
                 return
             }
             let samples = states
-                .compactMap { state -> HAWidgetHistorySample? in
-                    guard interval.contains(state.lastChanged) || state.lastChanged == interval.end,
+                .enumerated()
+                .compactMap { index, state -> HAWidgetHistorySample? in
+                    guard let occurredAt = WidgetHistoryRequest.sampleDate(
+                        lastChanged: state.lastChanged,
+                        isFirstResponseState: index == states.startIndex,
+                        interval: interval
+                    ),
                           let value = Double(state.state),
                           value.isFinite else {
                         return nil
                     }
-                    return HAWidgetHistorySample(occurredAt: state.lastChanged, value: value)
+                    return HAWidgetHistorySample(occurredAt: occurredAt, value: value)
                 }
                 .sorted { $0.occurredAt < $1.occurredAt }
+                .extendingLastKnownValue(to: interval.end)
                 .cappedForWidget(maximumCount: 240)
 
             result[entityID] = HAWidgetSensorHistorySeries(

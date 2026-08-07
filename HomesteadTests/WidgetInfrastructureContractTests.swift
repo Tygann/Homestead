@@ -53,6 +53,45 @@ struct WidgetInfrastructureContractTests {
         #expect(remote.scheme == "https")
     }
 
+    @Test func widgetHistoryExtendsAStableBoundaryValueThroughTheRequestedEnd() throws {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let end = start.addingTimeInterval(6 * 60 * 60)
+        let samples = [HAWidgetHistorySample(occurredAt: start, value: 33.5)]
+
+        let extended = samples.extendingLastKnownValue(to: end)
+
+        #expect(extended.count == 2)
+        #expect(extended.first?.occurredAt == start)
+        #expect(extended.last?.occurredAt == end)
+        #expect(extended.map(\.value) == [33.5, 33.5])
+    }
+
+    @Test func widgetHistoryKeepsHomeAssistantsInitialStateAtTheRequestedBoundary() throws {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let interval = DateInterval(start: start, duration: 6 * 60 * 60)
+
+        let sampleDate = WidgetHistoryRequest.sampleDate(
+            lastChanged: start.addingTimeInterval(-60 * 60),
+            isFirstResponseState: true,
+            interval: interval
+        )
+        let laterPreBoundaryDate = WidgetHistoryRequest.sampleDate(
+            lastChanged: start.addingTimeInterval(-30 * 60),
+            isFirstResponseState: false,
+            interval: interval
+        )
+
+        #expect(sampleDate == start)
+        #expect(laterPreBoundaryDate == nil)
+    }
+
+    @Test func widgetHistoryDoesNotDuplicateASampleAlreadyAtTheRequestedEnd() {
+        let end = Date(timeIntervalSince1970: 1_800_021_600)
+        let samples = [HAWidgetHistorySample(occurredAt: end, value: 33.5)]
+
+        #expect(samples.extendingLastKnownValue(to: end) == samples)
+    }
+
     @Test func controlActionResolutionIsIndependentOfRenderedStateText() {
         #expect(WidgetControlActionResolver.action(
             domain: "cover",

@@ -1,6 +1,39 @@
 import Foundation
 
+nonisolated struct HAWidgetHistorySample: Identifiable, Equatable, Sendable {
+    let id: String
+    let occurredAt: Date
+    let value: Double
+
+    init(occurredAt: Date, value: Double) {
+        id = "\(occurredAt.timeIntervalSince1970)-\(value)"
+        self.occurredAt = occurredAt
+        self.value = value
+    }
+}
+
+extension Array where Element == HAWidgetHistorySample {
+    func extendingLastKnownValue(to endDate: Date) -> [Element] {
+        guard let last, last.occurredAt < endDate else { return self }
+        return self + [HAWidgetHistorySample(occurredAt: endDate, value: last.value)]
+    }
+}
+
 nonisolated enum WidgetHistoryRequest {
+    static func sampleDate(
+        lastChanged: Date,
+        isFirstResponseState: Bool,
+        interval: DateInterval
+    ) -> Date? {
+        if interval.contains(lastChanged) || lastChanged == interval.end {
+            return lastChanged
+        }
+        if isFirstResponseState, lastChanged < interval.start {
+            return interval.start
+        }
+        return nil
+    }
+
     static func url(
         baseURLString: String,
         entityIDs: [String],
