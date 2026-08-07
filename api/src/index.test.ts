@@ -5,6 +5,7 @@ import worker, { type Env } from "./index.ts";
 
 const API_HOST = "api.homesteadcontrol.com";
 const CONNECT_HOST = "connect.homesteadcontrol.com";
+const SITE_HOST = "homesteadcontrol.com";
 
 const env = {
   HOMESTEAD_PUSH_TOKENS: undefined as never,
@@ -101,4 +102,29 @@ test("unknown connect paths return a clean 404", async () => {
   assert.equal(response.status, 404);
   assert.equal(response.headers.get("content-type"), "text/plain; charset=utf-8");
   assert.equal(await response.text(), "Not found.");
+});
+
+test("public site serves marketing, support, and privacy pages", async () => {
+  const homeResponse = await worker.fetch(request(SITE_HOST, "/"), env);
+  const supportResponse = await worker.fetch(request(SITE_HOST, "/support"), env);
+  const privacyResponse = await worker.fetch(request(SITE_HOST, "/privacy"), env);
+
+  assert.equal(homeResponse.status, 200);
+  assert.match(await homeResponse.text(), /Your home, beautifully organized\./);
+  assert.match(await supportResponse.text(), /support@homesteadcontrol\.com/);
+  assert.match(await privacyResponse.text(), /Homestead does not sell personal information/);
+  assert.equal(privacyResponse.headers.get("x-content-type-options"), "nosniff");
+});
+
+test("public site supports App Store link checks and rejects API routes", async () => {
+  const headResponse = await worker.fetch(request(SITE_HOST, "/support", { method: "HEAD" }), env);
+  const apiResponse = await worker.fetch(
+    request(SITE_HOST, "/mobile-app/push", { method: "POST", body: "{}" }),
+    env
+  );
+
+  assert.equal(headResponse.status, 200);
+  assert.equal(await headResponse.text(), "");
+  assert.equal(apiResponse.status, 404);
+  assert.equal(await apiResponse.text(), "Not found.");
 });

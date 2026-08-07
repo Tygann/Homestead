@@ -6,12 +6,23 @@ The Worker project name is `homestead-api`. The repo folder is `api/`; when this
 
 ## Domains
 
-The Worker project name is `homestead-api` and serves both Homestead backend hostnames:
+The Worker project name is `homestead-api` and serves the Homestead website and backend hostnames:
 
+- `homesteadcontrol.com` and `www.homesteadcontrol.com` custom domains for the public product, support, and privacy pages
 - `api.homesteadcontrol.com` custom domain on `homestead-api`
 - `connect.homesteadcontrol.com` custom domain on `homestead-api`
 
 The old `homestead` Cloudflare Pages project has been removed. `connect.homesteadcontrol.com` is served by this Worker.
+
+## Public Site
+
+`homesteadcontrol.com` serves the release-facing pages used by the App Store listing:
+
+- `GET /`
+- `GET /support`
+- `GET /privacy`
+
+The public host does not expose API, admin, or OAuth routes.
 
 ## API Routes
 
@@ -81,7 +92,7 @@ Use `.dev.vars` for local secrets only. Do not commit `.dev.vars`, `.env`, APNs 
 1. Create a Cloudflare Worker named `homestead-api`.
 2. Connect the Worker to the GitHub repo.
 3. Set the Worker root/build directory to `api`.
-4. Add custom domains for `api.homesteadcontrol.com` and `connect.homesteadcontrol.com`.
+4. Add custom domains for `homesteadcontrol.com`, `www.homesteadcontrol.com`, `api.homesteadcontrol.com`, and `connect.homesteadcontrol.com`.
 5. Create a KV namespace for push token mappings.
 6. Bind that namespace as `HOMESTEAD_PUSH_TOKENS`.
 7. Replace the placeholder KV namespace ID in `wrangler.jsonc`.

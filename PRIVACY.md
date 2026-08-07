@@ -22,4 +22,4 @@ Most Homestead data is stored on the user's device. Removing a server or deletin
 
 ## Contact
 
-Questions can be submitted through the Homestead repository at <https://github.com/Tygann/Homestead/issues>.
+Questions about privacy or support can be sent to <support@homesteadcontrol.com>.

@@ -21,6 +21,56 @@ struct PreviewDependencies {
 
     static var dashboardPagingSample: PreviewDependencies {
         let dependencies = dashboardSample(pageCount: 3)
+        let screenshotAreas: [(id: String, name: String, entityIDs: [String])] = [
+            ("living-room", "Living Room", [
+                "light.living_room_lamps",
+                "sensor.living_room_humidity",
+                "media_player.living_room",
+                "scene.movie_night"
+            ]),
+            ("kitchen", "Kitchen", [
+                "light.kitchen_pendants",
+                "script.good_morning"
+            ]),
+            ("primary-bedroom", "Primary Bedroom", [
+                "light.bedroom",
+                "fan.bedroom"
+            ]),
+            ("entryway", "Entryway", [
+                "binary_sensor.front_door",
+                "lock.front_door",
+                "sensor.front_door_battery",
+                "alarm_control_panel.home"
+            ]),
+            ("downstairs", "Downstairs", [
+                "climate.downstairs",
+                "vacuum.downstairs",
+                "cover.primary_shades"
+            ]),
+            ("outdoors", "Outdoors", [
+                "camera.driveway",
+                "weather.home"
+            ])
+        ]
+        let areaIDByEntityID = Dictionary(
+            uniqueKeysWithValues: screenshotAreas.flatMap { area in
+                area.entityIDs.map { ($0, area.id) }
+            }
+        )
+        dependencies.stateStore.applyRegistryMetadata(
+            entities: dependencies.stateStore.allEntityBoxes().map { entityBox in
+                HAEntityRegistryDisplayDTO(
+                    entityID: entityBox.entityID,
+                    deviceID: nil,
+                    areaID: areaIDByEntityID[entityBox.entityID] ?? "utility-room",
+                    originalName: entityBox.homeEntity.displayName
+                )
+            },
+            devices: [],
+            areas: screenshotAreas.map { area in
+                HAAreaRegistryDTO(id: area.id, name: area.name)
+            } + [HAAreaRegistryDTO(id: "utility-room", name: "Utility Room")]
+        )
         _ = dependencies.dashboardConfiguration.add(
             source: .entity("person.tyler"),
             presentation: .chip

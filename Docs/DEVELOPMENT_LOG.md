@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-08-07
+
+### App Store Website And Support Surface
+
+- Added product, support, and privacy pages to the existing Cloudflare Worker for `homesteadcontrol.com`, while keeping the API and OAuth hosts isolated from public-site routes.
+- Standardized the public support address on `support@homesteadcontrol.com`, linked the in-app privacy action to the canonical website policy, and documented the App Store listing URLs and first-submission decisions.
+- Added Worker routing coverage for the three public pages, App Store-compatible `HEAD` requests, security headers, and rejection of API routes on the public hostname.
+
 ## 2026-08-03
 
 ### App List Status and Update Presentation

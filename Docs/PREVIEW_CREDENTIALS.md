@@ -83,6 +83,7 @@ Available sample screens are:
 | `dashboard-card-editor` | Unified contextual card editor with exact dashboard-item context. Defaults to a Compact Control fixture; use any implemented `--preview-presentation` plus a supported `--preview-size` to inspect the unlabeled proportional preview and native Card rows. Use `--preview-presentation control --preview-entity climate.editor_thermostat --preview-size square` for the dual-setpoint thermostat fixture. |
 | `dashboard-cards` | Chart, Weather, Media, and Action cards across Compact, Square, Wide, and Large layouts. |
 | `dashboard-settings` | Individual dashboard customization with deterministic preview content. |
+| `home` | Coherent fictional sample home for full-tab and App Store screenshot capture, including populated Dashboard, Areas, and Browse tabs. |
 | `entity-detail-card` | Entity-first detail opened from a Chart card, including History focus and the contextual Card menu. |
 | `entity-details` | The entity-detail family/state reference gallery, including Presence. |
 | `notifications` | Notification permission and Home Assistant delivery settings with deterministic sample dependencies. Add `--preview-notification-state needs-setup` for the actionable setup state. |

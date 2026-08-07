@@ -1,4 +1,5 @@
 import { connectPageResponse } from "./connectPage.ts";
+import { sitePageResponse } from "./sitePage.ts";
 
 type PushEnvironment = "sandbox" | "production";
 
@@ -32,6 +33,7 @@ type JSONObject = { [key: string]: JSONValue };
 
 const SERVICE_NAME = "homestead-api";
 const CONNECT_HOST = "connect.homesteadcontrol.com";
+const SITE_HOSTS = new Set(["homesteadcontrol.com", "www.homesteadcontrol.com"]);
 const MAX_JSON_BYTES = 64 * 1024;
 const APNS_JWT_MAX_AGE_SECONDS = 50 * 60;
 
@@ -44,6 +46,10 @@ export default {
 
       if (url.hostname.toLowerCase() === CONNECT_HOST) {
         return routeConnectRequest(request, url);
+      }
+
+      if (SITE_HOSTS.has(url.hostname.toLowerCase())) {
+        return sitePageResponse(url.pathname, request.method);
       }
 
       if (request.method === "GET" && url.pathname === "/health") {

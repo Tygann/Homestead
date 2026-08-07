@@ -3,6 +3,12 @@
   "name": "homestead-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-25",
+  "routes": [
+    { "pattern": "homesteadcontrol.com", "custom_domain": true },
+    { "pattern": "www.homesteadcontrol.com", "custom_domain": true },
+    { "pattern": "api.homesteadcontrol.com", "custom_domain": true },
+    { "pattern": "connect.homesteadcontrol.com", "custom_domain": true }
+  ],
   "observability": {
     "enabled": true
   },
