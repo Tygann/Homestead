@@ -9,6 +9,11 @@
     { "pattern": "api.homesteadcontrol.com", "custom_domain": true },
     { "pattern": "connect.homesteadcontrol.com", "custom_domain": true }
   ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
   "observability": {
     "enabled": true
   },

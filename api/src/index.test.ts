@@ -9,6 +9,7 @@ const SITE_HOST = "homesteadcontrol.com";
 
 const env = {
   HOMESTEAD_PUSH_TOKENS: undefined as never,
+  ASSETS: undefined as never,
   APNS_KEY_ID: "test-key-id",
   APNS_TEAM_ID: "test-team-id",
   APNS_BUNDLE_ID: "com.tyler.Homestead",
@@ -75,6 +76,42 @@ test("push endpoints still route on the API host", async () => {
   assert.equal((await json(registerResponse)).error, "invalid_json");
   assert.equal(pushResponse.status, 400);
   assert.equal((await json(pushResponse)).error, "invalid_json");
+});
+
+test("push registration stores only delivery identifiers with a 90-day expiration", async () => {
+  let storedKey: string | undefined;
+  let storedValue: string | undefined;
+  let storedExpiration: number | undefined;
+  const tokenStore = {
+    async put(key: string, value: string, options?: { expirationTtl?: number }) {
+      storedKey = key;
+      storedValue = value;
+      storedExpiration = options?.expirationTtl;
+    }
+  } as unknown as KVNamespace;
+  const registrationEnv = { ...env, HOMESTEAD_PUSH_TOKENS: tokenStore };
+  const response = await worker.fetch(
+    request(API_HOST, "/mobile-app/register-push-token", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        pushRelayToken: "relay-token-1234567890",
+        apnsToken: "apns-token-1234567890",
+        environment: "production",
+        deviceName: "Unneeded Device Name",
+        appVersion: "1.0"
+      })
+    }),
+    registrationEnv
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(storedKey, "relay-token-1234567890");
+  assert.deepEqual(JSON.parse(storedValue ?? "null"), {
+    apnsToken: "apns-token-1234567890",
+    environment: "production"
+  });
+  assert.equal(storedExpiration, 90 * 24 * 60 * 60);
 });
 
 test("connect host does not expose admin or push API routes", async () => {

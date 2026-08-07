@@ -5,6 +5,7 @@ type PushEnvironment = "sandbox" | "production";
 
 export interface Env {
   HOMESTEAD_PUSH_TOKENS: KVNamespace;
+  ASSETS: Fetcher;
   APNS_KEY_ID: string;
   APNS_TEAM_ID: string;
   APNS_BUNDLE_ID: string;
@@ -15,9 +16,6 @@ export interface Env {
 interface PushTokenRecord {
   apnsToken: string;
   environment: PushEnvironment;
-  deviceName: string;
-  appVersion: string;
-  updatedAt: string;
 }
 
 interface APNSJWTCache {
@@ -35,6 +33,7 @@ const SERVICE_NAME = "homestead-api";
 const CONNECT_HOST = "connect.homesteadcontrol.com";
 const SITE_HOSTS = new Set(["homesteadcontrol.com", "www.homesteadcontrol.com"]);
 const MAX_JSON_BYTES = 64 * 1024;
+const PUSH_TOKEN_RETENTION_SECONDS = 90 * 24 * 60 * 60;
 const APNS_JWT_MAX_AGE_SECONDS = 50 * 60;
 
 let cachedAPNSJWT: APNSJWTCache | undefined;
@@ -49,6 +48,9 @@ export default {
       }
 
       if (SITE_HOSTS.has(url.hostname.toLowerCase())) {
+        if (url.pathname === "/og.png") {
+          return env.ASSETS.fetch(request);
+        }
         return sitePageResponse(url.pathname, request.method);
       }
 
@@ -100,8 +102,6 @@ async function registerPushToken(request: Request, env: Env): Promise<Response> 
   const pushRelayToken = requiredString(payload.value, "pushRelayToken");
   const apnsToken = requiredString(payload.value, "apnsToken");
   const environment = requiredString(payload.value, "environment");
-  const deviceName = requiredString(payload.value, "deviceName");
-  const appVersion = requiredString(payload.value, "appVersion");
 
   if (!pushRelayToken || !isUsableToken(pushRelayToken, 16, 512)) {
     return errorResponse(400, "invalid_push_relay_token", "A valid pushRelayToken is required.");
@@ -115,19 +115,14 @@ async function registerPushToken(request: Request, env: Env): Promise<Response> 
     return errorResponse(400, "invalid_environment", "environment must be sandbox or production.");
   }
 
-  if (!deviceName || !appVersion) {
-    return errorResponse(400, "invalid_device_metadata", "deviceName and appVersion are required.");
-  }
-
   const record: PushTokenRecord = {
     apnsToken,
-    environment,
-    deviceName,
-    appVersion,
-    updatedAt: new Date().toISOString()
+    environment
   };
 
-  await env.HOMESTEAD_PUSH_TOKENS.put(pushRelayToken, JSON.stringify(record));
+  await env.HOMESTEAD_PUSH_TOKENS.put(pushRelayToken, JSON.stringify(record), {
+    expirationTtl: PUSH_TOKEN_RETENTION_SECONDS
+  });
   return jsonResponse({ ok: true, registered: true, environment }, 201);
 }
 
@@ -440,12 +435,7 @@ async function readPushTokenRecord(env: Env, pushRelayToken: string): Promise<Pu
     return null;
   }
 
-  if (
-    typeof record.apnsToken !== "string" ||
-    typeof record.deviceName !== "string" ||
-    typeof record.appVersion !== "string" ||
-    typeof record.updatedAt !== "string"
-  ) {
+  if (typeof record.apnsToken !== "string") {
     return null;
   }
 

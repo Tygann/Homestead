@@ -127,9 +127,7 @@ final class NativeNotificationService {
             let request = HomesteadPushTokenRegistrationRequest(
                 pushRelayToken: try pushRelayTokenStore.readOrCreateRelayToken(),
                 apnsToken: deviceToken.lowercaseHexString,
-                environment: HomesteadPushEnvironment.current,
-                deviceName: HomesteadPushDeviceInfo.name,
-                appVersion: Bundle.main.homesteadShortVersionString
+                environment: HomesteadPushEnvironment.current
             )
             try await pushRegistrationClient.register(request)
             remoteRegistrationState = .registered(Date())

@@ -131,15 +131,13 @@ Content-Type: application/json
 {
   "pushRelayToken": "random app-generated relay token",
   "apnsToken": "ios apns device token",
-  "environment": "sandbox",
-  "deviceName": "Tyler-iPhone",
-  "appVersion": "1.0"
+  "environment": "sandbox"
 }
 ```
 
 `environment` must be `sandbox` or `production`. Local Xcode builds use APNs sandbox; TestFlight and App Store builds use production APNs.
 
-The Worker stores only the APNs token, APNs environment, device name, app version, and update timestamp in `HOMESTEAD_PUSH_TOKENS`, keyed by the relay token.
+The Worker stores only the APNs token and APNs environment in `HOMESTEAD_PUSH_TOKENS`, keyed by the pseudonymous relay token. Each successful registration refreshes a 90-day expiration; inactive mappings are deleted automatically.
 
 ## Home Assistant Relay
 

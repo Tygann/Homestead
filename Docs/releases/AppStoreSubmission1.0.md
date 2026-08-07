@@ -172,6 +172,7 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 - Promotional text, description, keywords, support URL, marketing URL, and copyright saved for version 1.0
 - Subtitle and Lifestyle / Utilities categories saved
 - Privacy Policy URL saved
+- Privacy data type prepared for publication: Device ID, App Functionality, linked to the user/device, not used for tracking. Final accuracy/compliance attestation remains for the account holder.
 
 ## Public Website Completed
 
@@ -179,6 +180,15 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 - `https://homesteadcontrol.com/support`
 - `https://homesteadcontrol.com/privacy`
 - Deployed through the existing `homestead-api` Cloudflare Worker; public, API, and OAuth hosts remain route-isolated
+- Redesigned around Homestead's native iOS visual language with responsive light/dark presentation, a fictional dashboard preview, and a branded social sharing card
+
+## Notification Privacy Hardening Completed
+
+- The app sends only its pseudonymous relay token, APNs token, and APNs environment to the Homestead notification relay.
+- The Worker stores only the APNs token and environment, keyed by the relay token; device name and app version are not retained. The next app build also stops transmitting those unnecessary fields.
+- Successful registration applies a 90-day expiration, so inactive notification mappings are removed automatically.
+- The bundled privacy manifest, public privacy policy, and App Store privacy responses use the same Device ID / App Functionality / linked / no-tracking contract.
+- Upload a new App Store build containing this minimized client request and bundled privacy manifest before final submission.
 
 ## Final Preflight
 

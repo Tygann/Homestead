@@ -9,6 +9,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Added product, support, and privacy pages to the existing Cloudflare Worker for `homesteadcontrol.com`, while keeping the API and OAuth hosts isolated from public-site routes.
 - Standardized the public support address on `support@homesteadcontrol.com`, linked the in-app privacy action to the canonical website policy, and documented the App Store listing URLs and first-submission decisions.
 - Added Worker routing coverage for the three public pages, App Store-compatible `HEAD` requests, security headers, and rejection of API routes on the public hostname.
+- Refined the website around Homestead's native iOS presentation with responsive grouped surfaces, a fictional dashboard device preview, restrained orange accents, and a branded social-preview image.
+
+### Notification Relay Data Minimization
+
+- Removed device name and app version from the Homestead notification relay request and persisted record; the relay now receives only the pseudonymous relay token, APNs token, and APNs environment needed for delivery.
+- Applied a refreshed 90-day KV expiration to every successful registration, updated the public retention/deletion policy, and added a bundled privacy manifest declaring Device ID for App Functionality, linked to the device, with no tracking.
 
 ## 2026-08-03
 

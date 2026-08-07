@@ -5448,8 +5448,6 @@ struct HomesteadTests {
         #expect(request.pushRelayToken == "stable-relay-token")
         #expect(request.apnsToken == "abcdef")
         #expect(request.environment == HomesteadPushEnvironment.current)
-        #expect(!request.deviceName.isEmpty)
-        #expect(!request.appVersion.isEmpty)
         #expect(service.remoteRegistrationState.isRegistered)
         #expect(service.lastErrorMessage == nil)
     }

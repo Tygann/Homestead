@@ -1,8 +1,5 @@
 import Foundation
 import Security
-#if canImport(UIKit)
-import UIKit
-#endif
 
 nonisolated enum HomesteadPushRelayEndpoint {
     static let baseURLString = "https://api.homesteadcontrol.com"
@@ -28,8 +25,6 @@ nonisolated struct HomesteadPushTokenRegistrationRequest: Encodable, Equatable, 
     let pushRelayToken: String
     let apnsToken: String
     let environment: HomesteadPushEnvironment
-    let deviceName: String
-    let appVersion: String
 }
 
 nonisolated protocol HomesteadPushTokenRegistrationClient {
@@ -230,24 +225,5 @@ enum HomesteadPushRegistrationError: LocalizedError, Equatable {
 extension Data {
     nonisolated var lowercaseHexString: String {
         map { String(format: "%02x", $0) }.joined()
-    }
-}
-
-extension Bundle {
-    nonisolated var homesteadShortVersionString: String {
-        object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ??
-            object(forInfoDictionaryKey: "CFBundleVersion") as? String ??
-            "1.0"
-    }
-}
-
-enum HomesteadPushDeviceInfo {
-    @MainActor
-    static var name: String {
-        #if canImport(UIKit)
-        UIDevice.current.name
-        #else
-        Host.current().localizedName ?? "Homestead Device"
-        #endif
     }
 }

@@ -1,6 +1,6 @@
 # Homestead Privacy Policy
 
-Last updated: July 27, 2026
+Last updated: August 7, 2026
 
 Homestead is a native client for Home Assistant. It connects directly to Home Assistant servers that you choose and stores Home Assistant credentials in the device Keychain.
 
@@ -8,7 +8,7 @@ Homestead is a native client for Home Assistant. It connects directly to Home As
 
 - Home Assistant server addresses, entity state, registry metadata, dashboards, and preferences needed to provide the app.
 - Home Assistant sign-in credentials stored locally in the device Keychain.
-- Notification delivery identifiers used to relay Home Assistant notifications to Apple Push Notification service.
+- Pseudonymous notification delivery identifiers used to relay Home Assistant notifications to Apple Push Notification service. The notification relay does not retain the device name or app version.
 - Optional iCloud key-value data for Homestead-owned server metadata, dashboards, safety preferences, and small appearance preferences. Credentials, Home Assistant state, notification secrets, widget snapshots, and wallpaper images are not placed in Homestead's iCloud sync payload.
 - App Store purchase and subscription status supplied by Apple through StoreKit.
 
@@ -18,7 +18,7 @@ Homestead does not sell personal information or use third-party advertising. Hom
 
 ## Storage and deletion
 
-Most Homestead data is stored on the user's device. Removing a server or deleting the app removes its local data subject to normal device backups and Apple platform behavior. Users can disable Homestead iCloud sync in Settings and manage App Store purchases through their Apple Account.
+Most Homestead data is stored on the user's device. Removing a server or deleting the app removes its local data subject to normal device backups and Apple platform behavior. Notification relay identifiers expire automatically 90 days after the most recent registration. Users can disable Homestead iCloud sync in Settings, manage App Store purchases through their Apple Account, and request earlier deletion of notification relay data by contacting support.
 
 ## Contact
 
