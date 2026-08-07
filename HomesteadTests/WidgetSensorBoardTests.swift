@@ -117,6 +117,22 @@ struct WidgetSensorBoardTests {
         #expect(item.accentColor == .orange)
     }
 
+    @Test func sensorBoardChartDistinguishesPlotNoHistoryUnavailableAndConnectionStates() {
+        let plotted = makeChartItem()
+        let noHistory = makeChartItem(samples: [], isAvailable: true, supportingText: WidgetStateText.noHistory)
+        let unavailable = makeChartItem(samples: [], isAvailable: false, supportingText: WidgetStateText.noHistory)
+        let disconnected = makeChartItem(
+            samples: [],
+            isAvailable: false,
+            supportingText: WidgetStateText.needsConnection
+        )
+
+        #expect(plotted.hasChart)
+        #expect(noHistory.chartStatusText == WidgetStateText.noHistory)
+        #expect(unavailable.chartStatusText == WidgetStateText.unavailable)
+        #expect(disconnected.chartStatusText == WidgetStateText.needsConnection)
+    }
+
     @Test func segmentedGaugeSlotAppliesCustomScaleBoundariesAndColors() {
         let item = WidgetSensorBoardCompactItem.sensor(
             from: makeSnapshot(gauge: makeGauge()),
@@ -150,16 +166,20 @@ struct WidgetSensorBoardTests {
         #expect(configured.requestedPresentation == .gauge)
     }
 
-    private func makeChartItem() -> WidgetSensorBoardChartItem {
+    private func makeChartItem(
+        samples: [HomesteadChartSample]? = nil,
+        isAvailable: Bool = true,
+        supportingText: String = "No recent chart"
+    ) -> WidgetSensorBoardChartItem {
         WidgetSensorBoardChartItem(
             id: "sensor.living_room_temperature",
             displayName: "Living Room",
             icon: .sfSymbol("thermometer.medium", provenance: .homesteadSemanticMapping),
             valueText: "72°F",
             unitText: "°F",
-            supportingText: "No recent chart",
-            isAvailable: true,
-            samples: [
+            supportingText: supportingText,
+            isAvailable: isAvailable,
+            samples: samples ?? [
                 HomesteadChartSample(occurredAt: .now.addingTimeInterval(-60), value: 71),
                 HomesteadChartSample(occurredAt: .now, value: 72)
             ],

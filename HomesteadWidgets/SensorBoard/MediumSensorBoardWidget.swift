@@ -902,7 +902,7 @@ enum HomesteadSensorBoardEntryBuilder {
                 icon: snapshot?.resolvedIcon ?? sensor.icon,
                 valueText: series.latestValueText ?? snapshot?.valueText ?? sensor.valueText,
                 unitText: series.unit,
-                supportingText: "No recent chart",
+                supportingText: WidgetStateText.noHistory,
                 isAvailable: snapshot?.isAvailable ?? sensor.isAvailable,
                 samples: series.samples.map { .init(occurredAt: $0.occurredAt, value: $0.value) },
                 valueDomain: HomesteadChartDomain.stabilized(
@@ -920,7 +920,7 @@ enum HomesteadSensorBoardEntryBuilder {
             icon: snapshot?.resolvedIcon ?? sensor.icon,
             valueText: snapshot?.valueText ?? sensor.valueText,
             unitText: snapshot?.unit ?? sensor.unit,
-            supportingText: connectionFailed ? WidgetStateText.needsConnection : WidgetStateText.noRecentData,
+            supportingText: connectionFailed ? WidgetStateText.needsConnection : WidgetStateText.noHistory,
             isAvailable: !connectionFailed && (snapshot?.isAvailable ?? sensor.isAvailable),
             samples: [],
             valueDomain: 0...1,

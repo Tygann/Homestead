@@ -401,8 +401,25 @@ struct WidgetReferenceGallery: View {
             Text("Sensor Board")
                 .font(.headline)
 
+            Text("Chart, Reading, Gauge")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
             WidgetSensorBoardFace(
                 items: sensorBoardItems
+            )
+            .frame(width: 360, height: 169)
+            .background(
+                .fill.tertiary,
+                in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous)
+            )
+
+            Text("No History, Unavailable, Empty")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            WidgetSensorBoardFace(
+                items: sensorBoardStatusItems
             )
             .frame(width: 360, height: 169)
             .background(
@@ -545,7 +562,8 @@ struct WidgetReferenceGallery: View {
                     valueText: "76.6°F",
                     icon: "thermometer.medium",
                     gauge: sensorBoardTemperatureGauge
-                )
+                ),
+                presentation: .reading
             )),
             .compact(WidgetSensorBoardCompactItem.sensor(
                 from: previewSensor(
@@ -572,6 +590,36 @@ struct WidgetReferenceGallery: View {
                     )
                 )
             ))
+        ]
+    }
+
+    private var sensorBoardStatusItems: [WidgetSensorBoardItem?] {
+        [
+            .chart(WidgetSensorBoardChartItem(
+                id: "sensor.trident_error",
+                displayName: "Trident Error",
+                icon: .sfSymbol("exclamationmark.triangle.fill", provenance: .homesteadSemanticMapping),
+                valueText: "14",
+                unitText: nil,
+                supportingText: WidgetStateText.noHistory,
+                isAvailable: true,
+                samples: [],
+                valueDomain: 0...1,
+                interpolationStyle: .linear,
+                accentColor: .blue
+            )),
+            .compact(WidgetSensorBoardCompactItem.sensor(
+                from: previewSensor(
+                    id: "sensor.unavailable",
+                    name: "Unavailable",
+                    valueText: "—",
+                    icon: "sensor",
+                    isAvailable: false,
+                    gauge: nil
+                ),
+                presentation: .reading
+            )),
+            nil
         ]
     }
 
