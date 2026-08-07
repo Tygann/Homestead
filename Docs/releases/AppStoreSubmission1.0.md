@@ -12,40 +12,38 @@ This document tracks the first public App Store submission for Homestead. App St
 - Selected binary: Version 1.0, Build 12
 - App previews: none
 - iPhone screenshots: none
-- Promotional text: empty
-- Description: empty
-- Keywords: empty
-- Support URL: empty
-- Marketing URL: empty
-- Copyright: empty
+- Promotional text, description, and keywords: saved
+- Support URL: `https://homesteadcontrol.com/support`
+- Marketing URL: `https://homesteadcontrol.com`
+- Copyright: `2026 Tyler Keegan`
 - App Review sign-in required: enabled, with credentials not yet supplied
 - App Review contact information: incomplete
-- Release behavior: automatic release after approval
+- Release behavior: manual release after approval
 
 ### App Information
 
 - Name: `Homestead: Home Assistant`
-- Subtitle: empty
+- Subtitle: `Native control for your home`
 - Bundle ID and SKU: `com.tyler.Homestead`
 - Content rights: not configured
-- Primary and secondary categories: not configured
-- Age rating: not configured
+- Primary category: Lifestyle; secondary category: Utilities
+- Age rating: 4+ (with Apple's regional equivalents)
 - Export compliance: `ITSAppUsesNonExemptEncryption` is `false` in the shipping Info.plist
 - Digital Services Act status: developer is currently identified as a non-trader
 
 ### Trust And Safety
 
-- Privacy policy URL: empty
-- App privacy questionnaire: not started
+- Privacy policy URL: `https://homesteadcontrol.com/privacy`
+- App privacy questionnaire: published; Device ID, App Functionality, linked to the user/device, not used for tracking
 - Accessibility declaration: not started
 
 ### Pricing And Availability
 
-- App price: not configured; Homestead should be a free download
-- Storefront availability: not configured
+- App price: free in all 175 countries or regions
+- Storefront availability: all 175 countries or regions, including future storefronts
 - Public distribution: selected
-- Apple silicon Mac availability: enabled, but compatibility has not been verified in App Store Connect
-- Apple Vision Pro availability: enabled
+- Apple silicon Mac availability: disabled for version 1.0
+- Apple Vision Pro availability: disabled for version 1.0
 - Apple School Manager reduced-price option: enabled
 
 ### Homestead+
@@ -172,7 +170,8 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 - Promotional text, description, keywords, support URL, marketing URL, and copyright saved for version 1.0
 - Subtitle and Lifestyle / Utilities categories saved
 - Privacy Policy URL saved
-- Privacy data type prepared for publication: Device ID, App Functionality, linked to the user/device, not used for tracking. Final accuracy/compliance attestation remains for the account holder.
+- Privacy details published by the account holder: Device ID, App Functionality, linked to the user/device, not used for tracking.
+- Age Rating questionnaire saved: calculated 4+, with standard regional equivalents; all listed capabilities and content categories answered No or None.
 
 ## Public Website Completed
 
@@ -197,7 +196,7 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 - Configure and verify the Annual 14-day introductory trial
 - Upload review screenshots for all three Homestead+ products
 - Add all three products to the version 1.0 review submission
-- Complete privacy, accessibility, content-rights, category, and age-rating declarations
+- Complete accessibility and content-rights declarations
 - Supply App Review contact information, test instructions, and a reviewable Home Assistant account/server path
 - Upload final iPhone and any intentionally supported iPad screenshots
 - Run focused tests, generic simulator build, Release/archive-oriented build, and rendered screenshot-route checks
