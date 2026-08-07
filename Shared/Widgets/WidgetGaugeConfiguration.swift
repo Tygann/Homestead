@@ -174,6 +174,7 @@ struct HomesteadGaugeWidgetConfiguration: Equatable, Sendable {
 }
 
 func sensorBoardGaugeConfiguration(
+    style: WidgetSensorBoardGaugeStyle,
     gaugeScale: HomesteadGaugeScale,
     gaugeMinimum: Double?,
     gaugeMaximum: Double?,
@@ -188,9 +189,15 @@ func sensorBoardGaugeConfiguration(
     zone5BeginsAt: Double?,
     zone5Color: HomesteadGaugeZoneColor
 ) -> HomesteadGaugeWidgetConfiguration {
-    HomesteadGaugeWidgetConfiguration(
+    let display: HomesteadSensorWidgetDisplay = switch style {
+    case .circular: .circularGauge
+    case .segmented: .segmentedGauge
+    case .bar: .barGauge
+    }
+
+    return HomesteadGaugeWidgetConfiguration(
         customDisplayName: nil,
-        display: .segmentedGauge,
+        display: display,
         gaugeScale: gaugeScale,
         gaugeMinimum: gaugeMinimum,
         gaugeMaximum: gaugeMaximum,
@@ -210,6 +217,11 @@ func sensorBoardGaugeConfiguration(
 extension WidgetSensorBoardCompactItem {
     func applyingGaugeConfiguration(_ configuration: HomesteadGaugeWidgetConfiguration) -> Self {
         guard let gauge else { return self }
+        let gaugeStyle: WidgetSensorBoardGaugeStyle = switch configuration.display {
+        case .circularGauge: .circular
+        case .barGauge: .bar
+        default: .segmented
+        }
 
         return Self(
             id: id,
@@ -218,6 +230,7 @@ extension WidgetSensorBoardCompactItem {
             valueText: valueText,
             isAvailable: isAvailable,
             requestedPresentation: requestedPresentation,
+            gaugeStyle: gaugeStyle,
             gauge: configuration.resolvedGauge(gauge)
         )
     }

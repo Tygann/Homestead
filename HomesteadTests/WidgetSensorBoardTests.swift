@@ -46,6 +46,14 @@ struct WidgetSensorBoardTests {
         #expect(item.resolvedPresentation == .gauge)
     }
 
+    @Test func sensorBoardItemsPreserveEachGaugeRendererStyle() {
+        let snapshot = makeSnapshot(gauge: makeGauge())
+
+        #expect(WidgetSensorBoardCompactItem.sensor(from: snapshot, gaugeStyle: .circular).gaugeStyle == .circular)
+        #expect(WidgetSensorBoardCompactItem.sensor(from: snapshot, gaugeStyle: .segmented).gaugeStyle == .segmented)
+        #expect(WidgetSensorBoardCompactItem.sensor(from: snapshot, gaugeStyle: .bar).gaugeStyle == .bar)
+    }
+
     @Test func automaticAndRequestedGaugeFallbackToReadingWithoutGaugeData() {
         let snapshot = makeSnapshot(gauge: nil)
         let automaticItem = WidgetSensorBoardCompactItem.sensor(from: snapshot)
@@ -133,12 +141,13 @@ struct WidgetSensorBoardTests {
         #expect(disconnected.chartStatusText == WidgetStateText.needsConnection)
     }
 
-    @Test func segmentedGaugeSlotAppliesCustomScaleBoundariesAndColors() {
+    @Test func barGaugeSlotAppliesStyleScaleBoundariesAndColors() {
         let item = WidgetSensorBoardCompactItem.sensor(
             from: makeSnapshot(gauge: makeGauge()),
             presentation: .gauge
         )
         let configuration = sensorBoardGaugeConfiguration(
+            style: .bar,
             gaugeScale: .custom,
             gaugeMinimum: 60,
             gaugeMaximum: 90,
@@ -164,6 +173,7 @@ struct WidgetSensorBoardTests {
             WidgetGaugeSection(lowerBound: 80, upperBound: 90, color: .red)
         ])
         #expect(configured.requestedPresentation == .gauge)
+        #expect(configured.gaugeStyle == .bar)
     }
 
     private func makeChartItem(

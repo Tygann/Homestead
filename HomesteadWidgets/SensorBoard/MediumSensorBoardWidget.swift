@@ -47,6 +47,27 @@ enum HomesteadSensorBoardSlotDisplay: String, AppEnum {
     }
 }
 
+enum HomesteadSensorBoardGaugeStyle: String, AppEnum {
+    case circular
+    case segmented
+    case bar
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Gauge Style")
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+        .circular: "Circular",
+        .segmented: "Segmented",
+        .bar: "Bar"
+    ]
+
+    var widgetStyle: WidgetSensorBoardGaugeStyle {
+        switch self {
+        case .circular: .circular
+        case .segmented: .segmented
+        case .bar: .bar
+        }
+    }
+}
+
 enum HomesteadSensorBoardEditingSlot: String, AppEnum {
     case one
     case two
@@ -69,6 +90,9 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
 
     @Parameter(title: "Slot 1 Display", default: .automatic)
     var display1: HomesteadSensorBoardSlotDisplay
+
+    @Parameter(title: "Slot 1 Gauge Style", default: .segmented)
+    var gaugeStyle1: HomesteadSensorBoardGaugeStyle
 
     @Parameter(title: "Slot 1 Sensor") var sensor1: HomesteadSensorEntity?
     @Parameter(title: "Slot 1 Sensor") var chartSensor1: HomesteadChartSensorEntity?
@@ -98,6 +122,9 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     @Parameter(title: "Slot 2 Display", default: .automatic)
     var display2: HomesteadSensorBoardSlotDisplay
 
+    @Parameter(title: "Slot 2 Gauge Style", default: .segmented)
+    var gaugeStyle2: HomesteadSensorBoardGaugeStyle
+
     @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
     @Parameter(title: "Slot 2 Sensor") var chartSensor2: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 2 Name") var customDisplayName2: String?
@@ -125,6 +152,9 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
 
     @Parameter(title: "Slot 3 Display", default: .chart)
     var display3: HomesteadSensorBoardSlotDisplay
+
+    @Parameter(title: "Slot 3 Gauge Style", default: .segmented)
+    var gaugeStyle3: HomesteadSensorBoardGaugeStyle
 
     @Parameter(title: "Slot 3 Sensor") var sensor3: HomesteadSensorEntity?
     @Parameter(title: "Slot 3 Sensor") var chartSensor3: HomesteadChartSensorEntity?
@@ -170,6 +200,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display1
                                 \.$sensor1
                                 \.$customDisplayName1
+                                \.$gaugeStyle1
                                 \.$gaugeScale1
                                 \.$gaugeMinimum1
                                 \.$gaugeMaximum1
@@ -181,6 +212,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display1
                                 \.$sensor1
                                 \.$customDisplayName1
+                                \.$gaugeStyle1
                                 \.$gaugeScale1
                                 \.$gaugeMinimum1
                                 \.$gaugeMaximum1
@@ -203,6 +235,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display1
                                 \.$sensor1
                                 \.$customDisplayName1
+                                \.$gaugeStyle1
                                 \.$gaugeScale1
                                 \.$zoneCount1
                             }
@@ -212,6 +245,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display1
                                 \.$sensor1
                                 \.$customDisplayName1
+                                \.$gaugeStyle1
                                 \.$gaugeScale1
                                 \.$zoneCount1
                                 \.$zone1Color1
@@ -253,6 +287,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display2
                                 \.$sensor2
                                 \.$customDisplayName2
+                                \.$gaugeStyle2
                                 \.$gaugeScale2
                                 \.$gaugeMinimum2
                                 \.$gaugeMaximum2
@@ -264,6 +299,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display2
                                 \.$sensor2
                                 \.$customDisplayName2
+                                \.$gaugeStyle2
                                 \.$gaugeScale2
                                 \.$gaugeMinimum2
                                 \.$gaugeMaximum2
@@ -286,6 +322,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display2
                                 \.$sensor2
                                 \.$customDisplayName2
+                                \.$gaugeStyle2
                                 \.$gaugeScale2
                                 \.$zoneCount2
                             }
@@ -295,6 +332,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display2
                                 \.$sensor2
                                 \.$customDisplayName2
+                                \.$gaugeStyle2
                                 \.$gaugeScale2
                                 \.$zoneCount2
                                 \.$zone1Color2
@@ -336,6 +374,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display3
                                 \.$sensor3
                                 \.$customDisplayName3
+                                \.$gaugeStyle3
                                 \.$gaugeScale3
                                 \.$gaugeMinimum3
                                 \.$gaugeMaximum3
@@ -347,6 +386,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display3
                                 \.$sensor3
                                 \.$customDisplayName3
+                                \.$gaugeStyle3
                                 \.$gaugeScale3
                                 \.$gaugeMinimum3
                                 \.$gaugeMaximum3
@@ -369,6 +409,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display3
                                 \.$sensor3
                                 \.$customDisplayName3
+                                \.$gaugeStyle3
                                 \.$gaugeScale3
                                 \.$zoneCount3
                             }
@@ -378,6 +419,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                                 \.$display3
                                 \.$sensor3
                                 \.$customDisplayName3
+                                \.$gaugeStyle3
                                 \.$gaugeScale3
                                 \.$zoneCount3
                                 \.$zone1Color3
@@ -412,6 +454,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
 
     private var gaugeConfiguration1: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle1.widgetStyle,
             gaugeScale: gaugeScale1,
             gaugeMinimum: gaugeMinimum1,
             gaugeMaximum: gaugeMaximum1,
@@ -430,6 +473,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
 
     private var gaugeConfiguration2: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle2.widgetStyle,
             gaugeScale: gaugeScale2,
             gaugeMinimum: gaugeMinimum2,
             gaugeMaximum: gaugeMaximum2,
@@ -448,6 +492,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
 
     private var gaugeConfiguration3: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle3.widgetStyle,
             gaugeScale: gaugeScale3,
             gaugeMinimum: gaugeMinimum3,
             gaugeMaximum: gaugeMaximum3,

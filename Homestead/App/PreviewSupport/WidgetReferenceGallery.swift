@@ -414,6 +414,19 @@ struct WidgetReferenceGallery: View {
                 in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous)
             )
 
+            Text("Circular, Segmented, Bar")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            WidgetSensorBoardFace(
+                items: sensorBoardGaugeStyleItems
+            )
+            .frame(width: 360, height: 169)
+            .background(
+                .fill.tertiary,
+                in: RoundedRectangle(cornerRadius: widgetCornerRadius, style: .continuous)
+            )
+
             Text("No History, Unavailable, Empty")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -623,6 +636,32 @@ struct WidgetReferenceGallery: View {
         ]
     }
 
+    private var sensorBoardGaugeStyleItems: [WidgetSensorBoardItem?] {
+        [
+            sensorBoardGaugeItem(id: "sensor.circular", name: "Circular", style: .circular),
+            sensorBoardGaugeItem(id: "sensor.segmented", name: "Segmented", style: .segmented),
+            sensorBoardGaugeItem(id: "sensor.bar", name: "Bar", style: .bar)
+        ]
+    }
+
+    private func sensorBoardGaugeItem(
+        id: String,
+        name: String,
+        style: WidgetSensorBoardGaugeStyle
+    ) -> WidgetSensorBoardItem {
+        .compact(WidgetSensorBoardCompactItem.sensor(
+            from: previewSensor(
+                id: id,
+                name: name,
+                valueText: "76.6°F",
+                icon: "thermometer.medium",
+                gauge: sensorBoardTemperatureGauge
+            ),
+            presentation: .gauge,
+            gaugeStyle: style
+        ))
+    }
+
     private var largeSensorBoardItems: [WidgetSensorBoardItem?] {
         sensorBoardItems + [
             .compact(WidgetSensorBoardCompactItem.sensor(
@@ -643,7 +682,8 @@ struct WidgetReferenceGallery: View {
                     valueText: "101°F",
                     icon: "thermometer.high",
                     gauge: sensorBoardTemperatureGauge
-                )
+                ),
+                gaugeStyle: .circular
             )),
             .compact(WidgetSensorBoardCompactItem.sensor(
                 from: previewSensor(
@@ -663,7 +703,8 @@ struct WidgetReferenceGallery: View {
                     valueText: "78.4°F",
                     icon: "water.waves.and.thermometer",
                     gauge: sensorBoardTemperatureGauge
-                )
+                ),
+                gaugeStyle: .bar
             ))
         ]
     }

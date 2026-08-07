@@ -8,6 +8,12 @@ nonisolated enum WidgetSensorBoardCompactPresentation: String, Codable, Equatabl
     case reading
 }
 
+nonisolated enum WidgetSensorBoardGaugeStyle: String, Codable, Equatable, Sendable {
+    case circular
+    case segmented
+    case bar
+}
+
 nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatable, Sendable {
     let id: String
     let displayName: String
@@ -15,6 +21,7 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
     let valueText: String
     let isAvailable: Bool
     let requestedPresentation: WidgetSensorBoardCompactPresentation
+    let gaugeStyle: WidgetSensorBoardGaugeStyle
     let gauge: WidgetGaugePresentation?
 
     var resolvedPresentation: WidgetSensorBoardCompactPresentation {
@@ -31,7 +38,8 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
     static func sensor(
         from snapshot: WidgetSensorSnapshot,
         customDisplayName: String? = nil,
-        presentation: WidgetSensorBoardCompactPresentation = .automatic
+        presentation: WidgetSensorBoardCompactPresentation = .automatic,
+        gaugeStyle: WidgetSensorBoardGaugeStyle = .segmented
     ) -> Self {
         let trimmedName = customDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return Self(
@@ -41,6 +49,7 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
             valueText: snapshot.valueText,
             isAvailable: snapshot.isAvailable,
             requestedPresentation: presentation,
+            gaugeStyle: gaugeStyle,
             gauge: snapshot.gauge
         )
     }
@@ -66,6 +75,7 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
             valueText: reading.valueText,
             isAvailable: reading.isAvailable,
             requestedPresentation: requestedPresentation,
+            gaugeStyle: gaugeStyle,
             gauge: updatedGauge
         )
     }
@@ -78,6 +88,7 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
             valueText: valueText,
             isAvailable: isAvailable,
             requestedPresentation: requestedPresentation,
+            gaugeStyle: gaugeStyle,
             gauge: gauge
         )
     }
@@ -231,12 +242,7 @@ private struct WidgetSensorBoardCompactTile: View {
                     tint: item.isAvailable ? widgetGaugeColor(for: gauge.currentColor) : .secondary,
                     density: density
                 ) {
-                    WidgetGaugeInstrumentView(
-                        gauge: item.isAvailable ? gauge : gauge.updating(value: gauge.value, valueText: "—"),
-                        tint: item.isAvailable ? widgetGaugeColor(for: gauge.currentColor) : .secondary,
-                        style: .compactSegmented
-                    )
-                    .padding(.top, 2)
+                    gaugeContent(gauge)
                 }
             } else {
                 WidgetSensorBoardSlotScaffold(
@@ -251,7 +257,7 @@ private struct WidgetSensorBoardCompactTile: View {
                             unitText: nil,
                             isAvailable: true,
                             density: density,
-                            isProminent: true
+                            centersContent: true
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     } else {
@@ -282,6 +288,38 @@ private struct WidgetSensorBoardCompactTile: View {
 
     private var density: WidgetSensorBoardSlotDensity {
         usesSquareDensity ? .square : .medium
+    }
+
+    @ViewBuilder
+    private func gaugeContent(_ gauge: WidgetGaugePresentation) -> some View {
+        let resolvedGauge = item.isAvailable
+            ? gauge
+            : gauge.updating(value: gauge.value, valueText: "—")
+        let tint = item.isAvailable ? widgetGaugeColor(for: gauge.currentColor) : .secondary
+
+        switch item.gaugeStyle {
+        case .circular:
+            WidgetGaugeInstrumentView(gauge: resolvedGauge, tint: tint, style: .standard)
+                .padding(.top, 2)
+        case .segmented:
+            WidgetGaugeInstrumentView(gauge: resolvedGauge, tint: tint, style: .compactSegmented)
+                .padding(.top, 2)
+        case .bar:
+            VStack(alignment: .leading, spacing: density.contentSpacing) {
+                Spacer(minLength: 0)
+
+                WidgetSensorBoardValueLabel(
+                    valueText: resolvedGauge.valueText,
+                    unitText: resolvedGauge.unitText,
+                    isAvailable: item.isAvailable,
+                    density: density
+                )
+
+                WidgetGaugeBarView(gauge: resolvedGauge)
+                    .frame(height: GaugeVisualMetrics.barTotalHeight)
+            }
+            .padding(.bottom, density.chartBottomPadding)
+        }
     }
 }
 
@@ -432,7 +470,7 @@ private struct WidgetSensorBoardValueLabel: View {
     let unitText: String?
     let isAvailable: Bool
     let density: WidgetSensorBoardSlotDensity
-    var isProminent = false
+    var centersContent = false
 
     var body: some View {
         let parts = gaugeValueParts(from: valueText, unitText: unitText)
@@ -440,7 +478,7 @@ private struct WidgetSensorBoardValueLabel: View {
         HStack(alignment: .firstTextBaseline, spacing: 2) {
             Text(parts.value)
                 .font(.system(
-                    size: isProminent ? density.valueFontSize + 5 : density.valueFontSize,
+                    size: density.valueFontSize,
                     weight: .regular,
                     design: .rounded
                 ))
@@ -456,8 +494,11 @@ private struct WidgetSensorBoardValueLabel: View {
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 0)
+            if !centersContent {
+                Spacer(minLength: 0)
+            }
         }
+        .frame(maxWidth: centersContent ? nil : .infinity)
     }
 }
 

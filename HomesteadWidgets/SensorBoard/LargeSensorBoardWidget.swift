@@ -59,6 +59,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     @Parameter(title: "Slot 1 Display", default: .automatic)
     var display1: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 1 Gauge Style", default: .segmented)
+    var gaugeStyle1: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 1 Sensor") var sensor1: HomesteadSensorEntity?
     @Parameter(title: "Slot 1 Sensor") var chartSensor1: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 1 Name") var customDisplayName1: String?
@@ -86,6 +88,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     @Parameter(title: "Slot 2 Display", default: .automatic)
     var display2: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 2 Gauge Style", default: .segmented)
+    var gaugeStyle2: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
     @Parameter(title: "Slot 2 Sensor") var chartSensor2: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 2 Name") var customDisplayName2: String?
@@ -113,6 +117,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     @Parameter(title: "Slot 3 Display", default: .chart)
     var display3: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 3 Gauge Style", default: .segmented)
+    var gaugeStyle3: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 3 Sensor") var sensor3: HomesteadSensorEntity?
     @Parameter(title: "Slot 3 Sensor") var chartSensor3: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 3 Name") var customDisplayName3: String?
@@ -140,6 +146,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     @Parameter(title: "Slot 4 Display", default: .automatic)
     var display4: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 4 Gauge Style", default: .segmented)
+    var gaugeStyle4: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 4 Sensor") var sensor4: HomesteadSensorEntity?
     @Parameter(title: "Slot 4 Sensor") var chartSensor4: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 4 Name") var customDisplayName4: String?
@@ -167,6 +175,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     @Parameter(title: "Slot 5 Display", default: .automatic)
     var display5: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 5 Gauge Style", default: .segmented)
+    var gaugeStyle5: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 5 Sensor") var sensor5: HomesteadSensorEntity?
     @Parameter(title: "Slot 5 Sensor") var chartSensor5: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 5 Name") var customDisplayName5: String?
@@ -194,6 +204,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     @Parameter(title: "Slot 6 Display", default: .chart)
     var display6: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 6 Gauge Style", default: .segmented)
+    var gaugeStyle6: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 6 Sensor") var sensor6: HomesteadSensorEntity?
     @Parameter(title: "Slot 6 Sensor") var chartSensor6: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 6 Name") var customDisplayName6: String?
@@ -221,6 +233,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     @Parameter(title: "Slot 7 Display", default: .automatic)
     var display7: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 7 Gauge Style", default: .segmented)
+    var gaugeStyle7: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 7 Sensor") var sensor7: HomesteadSensorEntity?
     @Parameter(title: "Slot 7 Sensor") var chartSensor7: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 7 Name") var customDisplayName7: String?
@@ -248,6 +262,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     @Parameter(title: "Slot 8 Display", default: .automatic)
     var display8: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 8 Gauge Style", default: .segmented)
+    var gaugeStyle8: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 8 Sensor") var sensor8: HomesteadSensorEntity?
     @Parameter(title: "Slot 8 Sensor") var chartSensor8: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 8 Name") var customDisplayName8: String?
@@ -275,6 +291,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     @Parameter(title: "Slot 9 Display", default: .chart)
     var display9: HomesteadSensorBoardSlotDisplay
+    @Parameter(title: "Slot 9 Gauge Style", default: .segmented)
+    var gaugeStyle9: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 9 Sensor") var sensor9: HomesteadSensorEntity?
     @Parameter(title: "Slot 9 Sensor") var chartSensor9: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 9 Name") var customDisplayName9: String?
@@ -319,6 +337,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display1
                                 \.$sensor1
                                 \.$customDisplayName1
+                                \.$gaugeStyle1
                                 \.$gaugeScale1
                                 \.$gaugeMinimum1
                                 \.$gaugeMaximum1
@@ -330,6 +349,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display1
                                 \.$sensor1
                                 \.$customDisplayName1
+                                \.$gaugeStyle1
                                 \.$gaugeScale1
                                 \.$gaugeMinimum1
                                 \.$gaugeMaximum1
@@ -352,6 +372,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display1
                                 \.$sensor1
                                 \.$customDisplayName1
+                                \.$gaugeStyle1
                                 \.$gaugeScale1
                                 \.$zoneCount1
                             }
@@ -361,6 +382,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display1
                                 \.$sensor1
                                 \.$customDisplayName1
+                                \.$gaugeStyle1
                                 \.$gaugeScale1
                                 \.$zoneCount1
                                 \.$zone1Color1
@@ -402,6 +424,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display2
                                 \.$sensor2
                                 \.$customDisplayName2
+                                \.$gaugeStyle2
                                 \.$gaugeScale2
                                 \.$gaugeMinimum2
                                 \.$gaugeMaximum2
@@ -413,6 +436,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display2
                                 \.$sensor2
                                 \.$customDisplayName2
+                                \.$gaugeStyle2
                                 \.$gaugeScale2
                                 \.$gaugeMinimum2
                                 \.$gaugeMaximum2
@@ -435,6 +459,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display2
                                 \.$sensor2
                                 \.$customDisplayName2
+                                \.$gaugeStyle2
                                 \.$gaugeScale2
                                 \.$zoneCount2
                             }
@@ -444,6 +469,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display2
                                 \.$sensor2
                                 \.$customDisplayName2
+                                \.$gaugeStyle2
                                 \.$gaugeScale2
                                 \.$zoneCount2
                                 \.$zone1Color2
@@ -485,6 +511,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display3
                                 \.$sensor3
                                 \.$customDisplayName3
+                                \.$gaugeStyle3
                                 \.$gaugeScale3
                                 \.$gaugeMinimum3
                                 \.$gaugeMaximum3
@@ -496,6 +523,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display3
                                 \.$sensor3
                                 \.$customDisplayName3
+                                \.$gaugeStyle3
                                 \.$gaugeScale3
                                 \.$gaugeMinimum3
                                 \.$gaugeMaximum3
@@ -518,6 +546,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display3
                                 \.$sensor3
                                 \.$customDisplayName3
+                                \.$gaugeStyle3
                                 \.$gaugeScale3
                                 \.$zoneCount3
                             }
@@ -527,6 +556,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display3
                                 \.$sensor3
                                 \.$customDisplayName3
+                                \.$gaugeStyle3
                                 \.$gaugeScale3
                                 \.$zoneCount3
                                 \.$zone1Color3
@@ -568,6 +598,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display4
                                 \.$sensor4
                                 \.$customDisplayName4
+                                \.$gaugeStyle4
                                 \.$gaugeScale4
                                 \.$gaugeMinimum4
                                 \.$gaugeMaximum4
@@ -579,6 +610,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display4
                                 \.$sensor4
                                 \.$customDisplayName4
+                                \.$gaugeStyle4
                                 \.$gaugeScale4
                                 \.$gaugeMinimum4
                                 \.$gaugeMaximum4
@@ -601,6 +633,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display4
                                 \.$sensor4
                                 \.$customDisplayName4
+                                \.$gaugeStyle4
                                 \.$gaugeScale4
                                 \.$zoneCount4
                             }
@@ -610,6 +643,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display4
                                 \.$sensor4
                                 \.$customDisplayName4
+                                \.$gaugeStyle4
                                 \.$gaugeScale4
                                 \.$zoneCount4
                                 \.$zone1Color4
@@ -651,6 +685,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display5
                                 \.$sensor5
                                 \.$customDisplayName5
+                                \.$gaugeStyle5
                                 \.$gaugeScale5
                                 \.$gaugeMinimum5
                                 \.$gaugeMaximum5
@@ -662,6 +697,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display5
                                 \.$sensor5
                                 \.$customDisplayName5
+                                \.$gaugeStyle5
                                 \.$gaugeScale5
                                 \.$gaugeMinimum5
                                 \.$gaugeMaximum5
@@ -684,6 +720,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display5
                                 \.$sensor5
                                 \.$customDisplayName5
+                                \.$gaugeStyle5
                                 \.$gaugeScale5
                                 \.$zoneCount5
                             }
@@ -693,6 +730,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display5
                                 \.$sensor5
                                 \.$customDisplayName5
+                                \.$gaugeStyle5
                                 \.$gaugeScale5
                                 \.$zoneCount5
                                 \.$zone1Color5
@@ -734,6 +772,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display6
                                 \.$sensor6
                                 \.$customDisplayName6
+                                \.$gaugeStyle6
                                 \.$gaugeScale6
                                 \.$gaugeMinimum6
                                 \.$gaugeMaximum6
@@ -745,6 +784,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display6
                                 \.$sensor6
                                 \.$customDisplayName6
+                                \.$gaugeStyle6
                                 \.$gaugeScale6
                                 \.$gaugeMinimum6
                                 \.$gaugeMaximum6
@@ -767,6 +807,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display6
                                 \.$sensor6
                                 \.$customDisplayName6
+                                \.$gaugeStyle6
                                 \.$gaugeScale6
                                 \.$zoneCount6
                             }
@@ -776,6 +817,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display6
                                 \.$sensor6
                                 \.$customDisplayName6
+                                \.$gaugeStyle6
                                 \.$gaugeScale6
                                 \.$zoneCount6
                                 \.$zone1Color6
@@ -817,6 +859,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display7
                                 \.$sensor7
                                 \.$customDisplayName7
+                                \.$gaugeStyle7
                                 \.$gaugeScale7
                                 \.$gaugeMinimum7
                                 \.$gaugeMaximum7
@@ -828,6 +871,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display7
                                 \.$sensor7
                                 \.$customDisplayName7
+                                \.$gaugeStyle7
                                 \.$gaugeScale7
                                 \.$gaugeMinimum7
                                 \.$gaugeMaximum7
@@ -850,6 +894,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display7
                                 \.$sensor7
                                 \.$customDisplayName7
+                                \.$gaugeStyle7
                                 \.$gaugeScale7
                                 \.$zoneCount7
                             }
@@ -859,6 +904,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display7
                                 \.$sensor7
                                 \.$customDisplayName7
+                                \.$gaugeStyle7
                                 \.$gaugeScale7
                                 \.$zoneCount7
                                 \.$zone1Color7
@@ -900,6 +946,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display8
                                 \.$sensor8
                                 \.$customDisplayName8
+                                \.$gaugeStyle8
                                 \.$gaugeScale8
                                 \.$gaugeMinimum8
                                 \.$gaugeMaximum8
@@ -911,6 +958,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display8
                                 \.$sensor8
                                 \.$customDisplayName8
+                                \.$gaugeStyle8
                                 \.$gaugeScale8
                                 \.$gaugeMinimum8
                                 \.$gaugeMaximum8
@@ -933,6 +981,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display8
                                 \.$sensor8
                                 \.$customDisplayName8
+                                \.$gaugeStyle8
                                 \.$gaugeScale8
                                 \.$zoneCount8
                             }
@@ -942,6 +991,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display8
                                 \.$sensor8
                                 \.$customDisplayName8
+                                \.$gaugeStyle8
                                 \.$gaugeScale8
                                 \.$zoneCount8
                                 \.$zone1Color8
@@ -983,6 +1033,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display9
                                 \.$sensor9
                                 \.$customDisplayName9
+                                \.$gaugeStyle9
                                 \.$gaugeScale9
                                 \.$gaugeMinimum9
                                 \.$gaugeMaximum9
@@ -994,6 +1045,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display9
                                 \.$sensor9
                                 \.$customDisplayName9
+                                \.$gaugeStyle9
                                 \.$gaugeScale9
                                 \.$gaugeMinimum9
                                 \.$gaugeMaximum9
@@ -1016,6 +1068,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display9
                                 \.$sensor9
                                 \.$customDisplayName9
+                                \.$gaugeStyle9
                                 \.$gaugeScale9
                                 \.$zoneCount9
                             }
@@ -1025,6 +1078,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                                 \.$display9
                                 \.$sensor9
                                 \.$customDisplayName9
+                                \.$gaugeStyle9
                                 \.$gaugeScale9
                                 \.$zoneCount9
                                 \.$zone1Color9
@@ -1059,6 +1113,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     private var gaugeConfiguration1: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle1.widgetStyle,
             gaugeScale: gaugeScale1,
             gaugeMinimum: gaugeMinimum1,
             gaugeMaximum: gaugeMaximum1,
@@ -1077,6 +1132,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     private var gaugeConfiguration2: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle2.widgetStyle,
             gaugeScale: gaugeScale2,
             gaugeMinimum: gaugeMinimum2,
             gaugeMaximum: gaugeMaximum2,
@@ -1095,6 +1151,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     private var gaugeConfiguration3: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle3.widgetStyle,
             gaugeScale: gaugeScale3,
             gaugeMinimum: gaugeMinimum3,
             gaugeMaximum: gaugeMaximum3,
@@ -1113,6 +1170,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     private var gaugeConfiguration4: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle4.widgetStyle,
             gaugeScale: gaugeScale4,
             gaugeMinimum: gaugeMinimum4,
             gaugeMaximum: gaugeMaximum4,
@@ -1131,6 +1189,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     private var gaugeConfiguration5: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle5.widgetStyle,
             gaugeScale: gaugeScale5,
             gaugeMinimum: gaugeMinimum5,
             gaugeMaximum: gaugeMaximum5,
@@ -1149,6 +1208,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     private var gaugeConfiguration6: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle6.widgetStyle,
             gaugeScale: gaugeScale6,
             gaugeMinimum: gaugeMinimum6,
             gaugeMaximum: gaugeMaximum6,
@@ -1167,6 +1227,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     private var gaugeConfiguration7: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle7.widgetStyle,
             gaugeScale: gaugeScale7,
             gaugeMinimum: gaugeMinimum7,
             gaugeMaximum: gaugeMaximum7,
@@ -1185,6 +1246,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     private var gaugeConfiguration8: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle8.widgetStyle,
             gaugeScale: gaugeScale8,
             gaugeMinimum: gaugeMinimum8,
             gaugeMaximum: gaugeMaximum8,
@@ -1203,6 +1265,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     private var gaugeConfiguration9: HomesteadGaugeWidgetConfiguration {
         sensorBoardGaugeConfiguration(
+            style: gaugeStyle9.widgetStyle,
             gaugeScale: gaugeScale9,
             gaugeMinimum: gaugeMinimum9,
             gaugeMaximum: gaugeMaximum9,
