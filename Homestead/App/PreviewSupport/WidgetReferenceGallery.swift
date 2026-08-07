@@ -624,7 +624,7 @@ struct WidgetReferenceGallery: View {
             .compact(WidgetSensorBoardCompactItem.sensor(
                 from: previewSensor(
                     id: "sensor.unavailable",
-                    name: "Unavailable",
+                    name: "Pool Sensor",
                     valueText: "—",
                     icon: "sensor",
                     isAvailable: false,

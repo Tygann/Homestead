@@ -272,12 +272,16 @@ private struct WidgetSensorBoardCompactTile: View {
                                 density: density
                             )
 
+                            Spacer(minLength: 0)
+
                             WidgetSensorBoardStatusBadge(
                                 text: WidgetStateText.unavailable,
                                 systemImage: "exclamationmark.circle",
                                 density: density
                             )
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.bottom, density.chartBottomPadding)
                     }
                 }
             }
@@ -373,11 +377,16 @@ private struct WidgetSensorBoardChartTile: View {
             )
             .padding(.bottom, density.chartBottomPadding)
         } else {
-            WidgetSensorBoardStatusBadge(
-                text: item.chartStatusText,
-                systemImage: statusSystemImage,
-                density: density
-            )
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer(minLength: 0)
+
+                WidgetSensorBoardStatusBadge(
+                    text: item.chartStatusText,
+                    systemImage: statusSystemImage,
+                    density: density
+                )
+            }
+            .padding(.bottom, density.chartBottomPadding)
         }
     }
 
@@ -406,14 +415,17 @@ private struct WidgetSensorBoardEmptyTile: View {
         let density: WidgetSensorBoardSlotDensity = usesSquareDensity ? .square : .medium
 
         VStack(spacing: density.contentSpacing) {
-            Image(systemName: systemImage)
-                .font(density.titleFont)
+            VStack(spacing: density.contentSpacing) {
+                Image(systemName: systemImage)
+                    .font(density.titleFont)
 
-            Text(title)
-                .font(density.titleFont)
-                .lineLimit(2)
-                .minimumScaleFactor(0.72)
-                .multilineTextAlignment(.center)
+                Text(title)
+                    .font(density.titleFont)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+                    .multilineTextAlignment(.center)
+            }
+            .offset(y: density.emptyContentVerticalOffset)
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -436,6 +448,7 @@ private enum WidgetSensorBoardSlotDensity {
     var unitFont: Font { self == .medium ? .caption.weight(.semibold) : .caption2.weight(.semibold) }
     var contentSpacing: CGFloat { self == .medium ? 4 : 2 }
     var chartBottomPadding: CGFloat { self == .medium ? 18 : 6 }
+    var emptyContentVerticalOffset: CGFloat { self == .medium ? -4 : -2 }
 }
 
 private struct WidgetSensorBoardSlotScaffold<Content: View>: View {
@@ -528,6 +541,6 @@ private struct WidgetSensorBoardStatusBadge: View {
             .padding(.horizontal, density == .medium ? 8 : 6)
             .padding(.vertical, density == .medium ? 6 : 4)
             .background(.fill.quaternary, in: Capsule())
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
     }
 }
