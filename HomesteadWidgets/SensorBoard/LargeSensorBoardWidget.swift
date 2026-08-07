@@ -57,256 +57,256 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Configure Slot", default: .one)
     var editingSlot: HomesteadLargeSensorBoardEditingSlot
 
-    @Parameter(title: "Slot 1 Display", default: .automatic)
+    @Parameter(title: "Display", default: .automatic)
     var display1: HomesteadSensorBoardSlotDisplay
-    @Parameter(title: "Slot 1 Gauge Style", default: .segmented)
+    @Parameter(title: "Gauge Style", default: .segmented)
     var gaugeStyle1: HomesteadSensorBoardGaugeStyle
-    @Parameter(title: "Slot 1 Sensor") var sensor1: HomesteadSensorEntity?
-    @Parameter(title: "Slot 1 Name") var customDisplayName1: String?
+    @Parameter(title: "Sensor") var sensor1: HomesteadSensorEntity?
+    @Parameter(title: "Custom Name") var customDisplayName1: String?
 
-    @Parameter(title: "Slot 1 Scale", default: .automatic)
+    @Parameter(title: "Scale", default: .automatic)
     var gaugeScale1: HomesteadGaugeScale
-    @Parameter(title: "Slot 1 Minimum") var gaugeMinimum1: Double?
-    @Parameter(title: "Slot 1 Maximum") var gaugeMaximum1: Double?
-    @Parameter(title: "Slot 1 Zones", default: .automatic)
+    @Parameter(title: "Minimum") var gaugeMinimum1: Double?
+    @Parameter(title: "Maximum") var gaugeMaximum1: Double?
+    @Parameter(title: "Zones", default: .automatic)
     var zoneCount1: HomesteadGaugeZoneCount
-    @Parameter(title: "Slot 1 Zone 1 Color", default: .blue)
+    @Parameter(title: "Zone 1 Color", default: .blue)
     var zone1Color1: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 1 Zone 2 Begins At") var zone2BeginsAt1: Double?
-    @Parameter(title: "Slot 1 Zone 2 Color", default: .green)
+    @Parameter(title: "Zone 2 Begins At") var zone2BeginsAt1: Double?
+    @Parameter(title: "Zone 2 Color", default: .green)
     var zone2Color1: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 1 Zone 3 Begins At") var zone3BeginsAt1: Double?
-    @Parameter(title: "Slot 1 Zone 3 Color", default: .orange)
+    @Parameter(title: "Zone 3 Begins At") var zone3BeginsAt1: Double?
+    @Parameter(title: "Zone 3 Color", default: .orange)
     var zone3Color1: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 1 Zone 4 Begins At") var zone4BeginsAt1: Double?
-    @Parameter(title: "Slot 1 Zone 4 Color", default: .red)
+    @Parameter(title: "Zone 4 Begins At") var zone4BeginsAt1: Double?
+    @Parameter(title: "Zone 4 Color", default: .red)
     var zone4Color1: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 1 Zone 5 Begins At") var zone5BeginsAt1: Double?
-    @Parameter(title: "Slot 1 Zone 5 Color", default: .purple)
+    @Parameter(title: "Zone 5 Begins At") var zone5BeginsAt1: Double?
+    @Parameter(title: "Zone 5 Color", default: .purple)
     var zone5Color1: HomesteadGaugeZoneColor
 
-    @Parameter(title: "Slot 2 Display", default: .automatic)
+    @Parameter(title: "Display", default: .automatic)
     var display2: HomesteadSensorBoardSlotDisplay
-    @Parameter(title: "Slot 2 Gauge Style", default: .segmented)
+    @Parameter(title: "Gauge Style", default: .segmented)
     var gaugeStyle2: HomesteadSensorBoardGaugeStyle
-    @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
-    @Parameter(title: "Slot 2 Name") var customDisplayName2: String?
+    @Parameter(title: "Sensor") var sensor2: HomesteadSensorEntity?
+    @Parameter(title: "Custom Name") var customDisplayName2: String?
 
-    @Parameter(title: "Slot 2 Scale", default: .automatic)
+    @Parameter(title: "Scale", default: .automatic)
     var gaugeScale2: HomesteadGaugeScale
-    @Parameter(title: "Slot 2 Minimum") var gaugeMinimum2: Double?
-    @Parameter(title: "Slot 2 Maximum") var gaugeMaximum2: Double?
-    @Parameter(title: "Slot 2 Zones", default: .automatic)
+    @Parameter(title: "Minimum") var gaugeMinimum2: Double?
+    @Parameter(title: "Maximum") var gaugeMaximum2: Double?
+    @Parameter(title: "Zones", default: .automatic)
     var zoneCount2: HomesteadGaugeZoneCount
-    @Parameter(title: "Slot 2 Zone 1 Color", default: .blue)
+    @Parameter(title: "Zone 1 Color", default: .blue)
     var zone1Color2: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 2 Zone 2 Begins At") var zone2BeginsAt2: Double?
-    @Parameter(title: "Slot 2 Zone 2 Color", default: .green)
+    @Parameter(title: "Zone 2 Begins At") var zone2BeginsAt2: Double?
+    @Parameter(title: "Zone 2 Color", default: .green)
     var zone2Color2: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 2 Zone 3 Begins At") var zone3BeginsAt2: Double?
-    @Parameter(title: "Slot 2 Zone 3 Color", default: .orange)
+    @Parameter(title: "Zone 3 Begins At") var zone3BeginsAt2: Double?
+    @Parameter(title: "Zone 3 Color", default: .orange)
     var zone3Color2: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 2 Zone 4 Begins At") var zone4BeginsAt2: Double?
-    @Parameter(title: "Slot 2 Zone 4 Color", default: .red)
+    @Parameter(title: "Zone 4 Begins At") var zone4BeginsAt2: Double?
+    @Parameter(title: "Zone 4 Color", default: .red)
     var zone4Color2: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 2 Zone 5 Begins At") var zone5BeginsAt2: Double?
-    @Parameter(title: "Slot 2 Zone 5 Color", default: .purple)
+    @Parameter(title: "Zone 5 Begins At") var zone5BeginsAt2: Double?
+    @Parameter(title: "Zone 5 Color", default: .purple)
     var zone5Color2: HomesteadGaugeZoneColor
 
-    @Parameter(title: "Slot 3 Display", default: .chart)
+    @Parameter(title: "Display", default: .chart)
     var display3: HomesteadSensorBoardSlotDisplay
-    @Parameter(title: "Slot 3 Gauge Style", default: .segmented)
+    @Parameter(title: "Gauge Style", default: .segmented)
     var gaugeStyle3: HomesteadSensorBoardGaugeStyle
-    @Parameter(title: "Slot 3 Sensor") var sensor3: HomesteadSensorEntity?
-    @Parameter(title: "Slot 3 Name") var customDisplayName3: String?
+    @Parameter(title: "Sensor") var sensor3: HomesteadSensorEntity?
+    @Parameter(title: "Custom Name") var customDisplayName3: String?
 
-    @Parameter(title: "Slot 3 Scale", default: .automatic)
+    @Parameter(title: "Scale", default: .automatic)
     var gaugeScale3: HomesteadGaugeScale
-    @Parameter(title: "Slot 3 Minimum") var gaugeMinimum3: Double?
-    @Parameter(title: "Slot 3 Maximum") var gaugeMaximum3: Double?
-    @Parameter(title: "Slot 3 Zones", default: .automatic)
+    @Parameter(title: "Minimum") var gaugeMinimum3: Double?
+    @Parameter(title: "Maximum") var gaugeMaximum3: Double?
+    @Parameter(title: "Zones", default: .automatic)
     var zoneCount3: HomesteadGaugeZoneCount
-    @Parameter(title: "Slot 3 Zone 1 Color", default: .blue)
+    @Parameter(title: "Zone 1 Color", default: .blue)
     var zone1Color3: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 3 Zone 2 Begins At") var zone2BeginsAt3: Double?
-    @Parameter(title: "Slot 3 Zone 2 Color", default: .green)
+    @Parameter(title: "Zone 2 Begins At") var zone2BeginsAt3: Double?
+    @Parameter(title: "Zone 2 Color", default: .green)
     var zone2Color3: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 3 Zone 3 Begins At") var zone3BeginsAt3: Double?
-    @Parameter(title: "Slot 3 Zone 3 Color", default: .orange)
+    @Parameter(title: "Zone 3 Begins At") var zone3BeginsAt3: Double?
+    @Parameter(title: "Zone 3 Color", default: .orange)
     var zone3Color3: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 3 Zone 4 Begins At") var zone4BeginsAt3: Double?
-    @Parameter(title: "Slot 3 Zone 4 Color", default: .red)
+    @Parameter(title: "Zone 4 Begins At") var zone4BeginsAt3: Double?
+    @Parameter(title: "Zone 4 Color", default: .red)
     var zone4Color3: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 3 Zone 5 Begins At") var zone5BeginsAt3: Double?
-    @Parameter(title: "Slot 3 Zone 5 Color", default: .purple)
+    @Parameter(title: "Zone 5 Begins At") var zone5BeginsAt3: Double?
+    @Parameter(title: "Zone 5 Color", default: .purple)
     var zone5Color3: HomesteadGaugeZoneColor
 
-    @Parameter(title: "Slot 4 Display", default: .automatic)
+    @Parameter(title: "Display", default: .automatic)
     var display4: HomesteadSensorBoardSlotDisplay
-    @Parameter(title: "Slot 4 Gauge Style", default: .segmented)
+    @Parameter(title: "Gauge Style", default: .segmented)
     var gaugeStyle4: HomesteadSensorBoardGaugeStyle
-    @Parameter(title: "Slot 4 Sensor") var sensor4: HomesteadSensorEntity?
-    @Parameter(title: "Slot 4 Name") var customDisplayName4: String?
+    @Parameter(title: "Sensor") var sensor4: HomesteadSensorEntity?
+    @Parameter(title: "Custom Name") var customDisplayName4: String?
 
-    @Parameter(title: "Slot 4 Scale", default: .automatic)
+    @Parameter(title: "Scale", default: .automatic)
     var gaugeScale4: HomesteadGaugeScale
-    @Parameter(title: "Slot 4 Minimum") var gaugeMinimum4: Double?
-    @Parameter(title: "Slot 4 Maximum") var gaugeMaximum4: Double?
-    @Parameter(title: "Slot 4 Zones", default: .automatic)
+    @Parameter(title: "Minimum") var gaugeMinimum4: Double?
+    @Parameter(title: "Maximum") var gaugeMaximum4: Double?
+    @Parameter(title: "Zones", default: .automatic)
     var zoneCount4: HomesteadGaugeZoneCount
-    @Parameter(title: "Slot 4 Zone 1 Color", default: .blue)
+    @Parameter(title: "Zone 1 Color", default: .blue)
     var zone1Color4: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 4 Zone 2 Begins At") var zone2BeginsAt4: Double?
-    @Parameter(title: "Slot 4 Zone 2 Color", default: .green)
+    @Parameter(title: "Zone 2 Begins At") var zone2BeginsAt4: Double?
+    @Parameter(title: "Zone 2 Color", default: .green)
     var zone2Color4: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 4 Zone 3 Begins At") var zone3BeginsAt4: Double?
-    @Parameter(title: "Slot 4 Zone 3 Color", default: .orange)
+    @Parameter(title: "Zone 3 Begins At") var zone3BeginsAt4: Double?
+    @Parameter(title: "Zone 3 Color", default: .orange)
     var zone3Color4: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 4 Zone 4 Begins At") var zone4BeginsAt4: Double?
-    @Parameter(title: "Slot 4 Zone 4 Color", default: .red)
+    @Parameter(title: "Zone 4 Begins At") var zone4BeginsAt4: Double?
+    @Parameter(title: "Zone 4 Color", default: .red)
     var zone4Color4: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 4 Zone 5 Begins At") var zone5BeginsAt4: Double?
-    @Parameter(title: "Slot 4 Zone 5 Color", default: .purple)
+    @Parameter(title: "Zone 5 Begins At") var zone5BeginsAt4: Double?
+    @Parameter(title: "Zone 5 Color", default: .purple)
     var zone5Color4: HomesteadGaugeZoneColor
 
-    @Parameter(title: "Slot 5 Display", default: .automatic)
+    @Parameter(title: "Display", default: .automatic)
     var display5: HomesteadSensorBoardSlotDisplay
-    @Parameter(title: "Slot 5 Gauge Style", default: .segmented)
+    @Parameter(title: "Gauge Style", default: .segmented)
     var gaugeStyle5: HomesteadSensorBoardGaugeStyle
-    @Parameter(title: "Slot 5 Sensor") var sensor5: HomesteadSensorEntity?
-    @Parameter(title: "Slot 5 Name") var customDisplayName5: String?
+    @Parameter(title: "Sensor") var sensor5: HomesteadSensorEntity?
+    @Parameter(title: "Custom Name") var customDisplayName5: String?
 
-    @Parameter(title: "Slot 5 Scale", default: .automatic)
+    @Parameter(title: "Scale", default: .automatic)
     var gaugeScale5: HomesteadGaugeScale
-    @Parameter(title: "Slot 5 Minimum") var gaugeMinimum5: Double?
-    @Parameter(title: "Slot 5 Maximum") var gaugeMaximum5: Double?
-    @Parameter(title: "Slot 5 Zones", default: .automatic)
+    @Parameter(title: "Minimum") var gaugeMinimum5: Double?
+    @Parameter(title: "Maximum") var gaugeMaximum5: Double?
+    @Parameter(title: "Zones", default: .automatic)
     var zoneCount5: HomesteadGaugeZoneCount
-    @Parameter(title: "Slot 5 Zone 1 Color", default: .blue)
+    @Parameter(title: "Zone 1 Color", default: .blue)
     var zone1Color5: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 5 Zone 2 Begins At") var zone2BeginsAt5: Double?
-    @Parameter(title: "Slot 5 Zone 2 Color", default: .green)
+    @Parameter(title: "Zone 2 Begins At") var zone2BeginsAt5: Double?
+    @Parameter(title: "Zone 2 Color", default: .green)
     var zone2Color5: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 5 Zone 3 Begins At") var zone3BeginsAt5: Double?
-    @Parameter(title: "Slot 5 Zone 3 Color", default: .orange)
+    @Parameter(title: "Zone 3 Begins At") var zone3BeginsAt5: Double?
+    @Parameter(title: "Zone 3 Color", default: .orange)
     var zone3Color5: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 5 Zone 4 Begins At") var zone4BeginsAt5: Double?
-    @Parameter(title: "Slot 5 Zone 4 Color", default: .red)
+    @Parameter(title: "Zone 4 Begins At") var zone4BeginsAt5: Double?
+    @Parameter(title: "Zone 4 Color", default: .red)
     var zone4Color5: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 5 Zone 5 Begins At") var zone5BeginsAt5: Double?
-    @Parameter(title: "Slot 5 Zone 5 Color", default: .purple)
+    @Parameter(title: "Zone 5 Begins At") var zone5BeginsAt5: Double?
+    @Parameter(title: "Zone 5 Color", default: .purple)
     var zone5Color5: HomesteadGaugeZoneColor
 
-    @Parameter(title: "Slot 6 Display", default: .chart)
+    @Parameter(title: "Display", default: .chart)
     var display6: HomesteadSensorBoardSlotDisplay
-    @Parameter(title: "Slot 6 Gauge Style", default: .segmented)
+    @Parameter(title: "Gauge Style", default: .segmented)
     var gaugeStyle6: HomesteadSensorBoardGaugeStyle
-    @Parameter(title: "Slot 6 Sensor") var sensor6: HomesteadSensorEntity?
-    @Parameter(title: "Slot 6 Name") var customDisplayName6: String?
+    @Parameter(title: "Sensor") var sensor6: HomesteadSensorEntity?
+    @Parameter(title: "Custom Name") var customDisplayName6: String?
 
-    @Parameter(title: "Slot 6 Scale", default: .automatic)
+    @Parameter(title: "Scale", default: .automatic)
     var gaugeScale6: HomesteadGaugeScale
-    @Parameter(title: "Slot 6 Minimum") var gaugeMinimum6: Double?
-    @Parameter(title: "Slot 6 Maximum") var gaugeMaximum6: Double?
-    @Parameter(title: "Slot 6 Zones", default: .automatic)
+    @Parameter(title: "Minimum") var gaugeMinimum6: Double?
+    @Parameter(title: "Maximum") var gaugeMaximum6: Double?
+    @Parameter(title: "Zones", default: .automatic)
     var zoneCount6: HomesteadGaugeZoneCount
-    @Parameter(title: "Slot 6 Zone 1 Color", default: .blue)
+    @Parameter(title: "Zone 1 Color", default: .blue)
     var zone1Color6: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 6 Zone 2 Begins At") var zone2BeginsAt6: Double?
-    @Parameter(title: "Slot 6 Zone 2 Color", default: .green)
+    @Parameter(title: "Zone 2 Begins At") var zone2BeginsAt6: Double?
+    @Parameter(title: "Zone 2 Color", default: .green)
     var zone2Color6: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 6 Zone 3 Begins At") var zone3BeginsAt6: Double?
-    @Parameter(title: "Slot 6 Zone 3 Color", default: .orange)
+    @Parameter(title: "Zone 3 Begins At") var zone3BeginsAt6: Double?
+    @Parameter(title: "Zone 3 Color", default: .orange)
     var zone3Color6: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 6 Zone 4 Begins At") var zone4BeginsAt6: Double?
-    @Parameter(title: "Slot 6 Zone 4 Color", default: .red)
+    @Parameter(title: "Zone 4 Begins At") var zone4BeginsAt6: Double?
+    @Parameter(title: "Zone 4 Color", default: .red)
     var zone4Color6: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 6 Zone 5 Begins At") var zone5BeginsAt6: Double?
-    @Parameter(title: "Slot 6 Zone 5 Color", default: .purple)
+    @Parameter(title: "Zone 5 Begins At") var zone5BeginsAt6: Double?
+    @Parameter(title: "Zone 5 Color", default: .purple)
     var zone5Color6: HomesteadGaugeZoneColor
 
-    @Parameter(title: "Slot 7 Display", default: .automatic)
+    @Parameter(title: "Display", default: .automatic)
     var display7: HomesteadSensorBoardSlotDisplay
-    @Parameter(title: "Slot 7 Gauge Style", default: .segmented)
+    @Parameter(title: "Gauge Style", default: .segmented)
     var gaugeStyle7: HomesteadSensorBoardGaugeStyle
-    @Parameter(title: "Slot 7 Sensor") var sensor7: HomesteadSensorEntity?
-    @Parameter(title: "Slot 7 Name") var customDisplayName7: String?
+    @Parameter(title: "Sensor") var sensor7: HomesteadSensorEntity?
+    @Parameter(title: "Custom Name") var customDisplayName7: String?
 
-    @Parameter(title: "Slot 7 Scale", default: .automatic)
+    @Parameter(title: "Scale", default: .automatic)
     var gaugeScale7: HomesteadGaugeScale
-    @Parameter(title: "Slot 7 Minimum") var gaugeMinimum7: Double?
-    @Parameter(title: "Slot 7 Maximum") var gaugeMaximum7: Double?
-    @Parameter(title: "Slot 7 Zones", default: .automatic)
+    @Parameter(title: "Minimum") var gaugeMinimum7: Double?
+    @Parameter(title: "Maximum") var gaugeMaximum7: Double?
+    @Parameter(title: "Zones", default: .automatic)
     var zoneCount7: HomesteadGaugeZoneCount
-    @Parameter(title: "Slot 7 Zone 1 Color", default: .blue)
+    @Parameter(title: "Zone 1 Color", default: .blue)
     var zone1Color7: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 7 Zone 2 Begins At") var zone2BeginsAt7: Double?
-    @Parameter(title: "Slot 7 Zone 2 Color", default: .green)
+    @Parameter(title: "Zone 2 Begins At") var zone2BeginsAt7: Double?
+    @Parameter(title: "Zone 2 Color", default: .green)
     var zone2Color7: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 7 Zone 3 Begins At") var zone3BeginsAt7: Double?
-    @Parameter(title: "Slot 7 Zone 3 Color", default: .orange)
+    @Parameter(title: "Zone 3 Begins At") var zone3BeginsAt7: Double?
+    @Parameter(title: "Zone 3 Color", default: .orange)
     var zone3Color7: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 7 Zone 4 Begins At") var zone4BeginsAt7: Double?
-    @Parameter(title: "Slot 7 Zone 4 Color", default: .red)
+    @Parameter(title: "Zone 4 Begins At") var zone4BeginsAt7: Double?
+    @Parameter(title: "Zone 4 Color", default: .red)
     var zone4Color7: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 7 Zone 5 Begins At") var zone5BeginsAt7: Double?
-    @Parameter(title: "Slot 7 Zone 5 Color", default: .purple)
+    @Parameter(title: "Zone 5 Begins At") var zone5BeginsAt7: Double?
+    @Parameter(title: "Zone 5 Color", default: .purple)
     var zone5Color7: HomesteadGaugeZoneColor
 
-    @Parameter(title: "Slot 8 Display", default: .automatic)
+    @Parameter(title: "Display", default: .automatic)
     var display8: HomesteadSensorBoardSlotDisplay
-    @Parameter(title: "Slot 8 Gauge Style", default: .segmented)
+    @Parameter(title: "Gauge Style", default: .segmented)
     var gaugeStyle8: HomesteadSensorBoardGaugeStyle
-    @Parameter(title: "Slot 8 Sensor") var sensor8: HomesteadSensorEntity?
-    @Parameter(title: "Slot 8 Name") var customDisplayName8: String?
+    @Parameter(title: "Sensor") var sensor8: HomesteadSensorEntity?
+    @Parameter(title: "Custom Name") var customDisplayName8: String?
 
-    @Parameter(title: "Slot 8 Scale", default: .automatic)
+    @Parameter(title: "Scale", default: .automatic)
     var gaugeScale8: HomesteadGaugeScale
-    @Parameter(title: "Slot 8 Minimum") var gaugeMinimum8: Double?
-    @Parameter(title: "Slot 8 Maximum") var gaugeMaximum8: Double?
-    @Parameter(title: "Slot 8 Zones", default: .automatic)
+    @Parameter(title: "Minimum") var gaugeMinimum8: Double?
+    @Parameter(title: "Maximum") var gaugeMaximum8: Double?
+    @Parameter(title: "Zones", default: .automatic)
     var zoneCount8: HomesteadGaugeZoneCount
-    @Parameter(title: "Slot 8 Zone 1 Color", default: .blue)
+    @Parameter(title: "Zone 1 Color", default: .blue)
     var zone1Color8: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 8 Zone 2 Begins At") var zone2BeginsAt8: Double?
-    @Parameter(title: "Slot 8 Zone 2 Color", default: .green)
+    @Parameter(title: "Zone 2 Begins At") var zone2BeginsAt8: Double?
+    @Parameter(title: "Zone 2 Color", default: .green)
     var zone2Color8: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 8 Zone 3 Begins At") var zone3BeginsAt8: Double?
-    @Parameter(title: "Slot 8 Zone 3 Color", default: .orange)
+    @Parameter(title: "Zone 3 Begins At") var zone3BeginsAt8: Double?
+    @Parameter(title: "Zone 3 Color", default: .orange)
     var zone3Color8: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 8 Zone 4 Begins At") var zone4BeginsAt8: Double?
-    @Parameter(title: "Slot 8 Zone 4 Color", default: .red)
+    @Parameter(title: "Zone 4 Begins At") var zone4BeginsAt8: Double?
+    @Parameter(title: "Zone 4 Color", default: .red)
     var zone4Color8: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 8 Zone 5 Begins At") var zone5BeginsAt8: Double?
-    @Parameter(title: "Slot 8 Zone 5 Color", default: .purple)
+    @Parameter(title: "Zone 5 Begins At") var zone5BeginsAt8: Double?
+    @Parameter(title: "Zone 5 Color", default: .purple)
     var zone5Color8: HomesteadGaugeZoneColor
 
-    @Parameter(title: "Slot 9 Display", default: .chart)
+    @Parameter(title: "Display", default: .chart)
     var display9: HomesteadSensorBoardSlotDisplay
-    @Parameter(title: "Slot 9 Gauge Style", default: .segmented)
+    @Parameter(title: "Gauge Style", default: .segmented)
     var gaugeStyle9: HomesteadSensorBoardGaugeStyle
-    @Parameter(title: "Slot 9 Sensor") var sensor9: HomesteadSensorEntity?
-    @Parameter(title: "Slot 9 Name") var customDisplayName9: String?
+    @Parameter(title: "Sensor") var sensor9: HomesteadSensorEntity?
+    @Parameter(title: "Custom Name") var customDisplayName9: String?
 
-    @Parameter(title: "Slot 9 Scale", default: .automatic)
+    @Parameter(title: "Scale", default: .automatic)
     var gaugeScale9: HomesteadGaugeScale
-    @Parameter(title: "Slot 9 Minimum") var gaugeMinimum9: Double?
-    @Parameter(title: "Slot 9 Maximum") var gaugeMaximum9: Double?
-    @Parameter(title: "Slot 9 Zones", default: .automatic)
+    @Parameter(title: "Minimum") var gaugeMinimum9: Double?
+    @Parameter(title: "Maximum") var gaugeMaximum9: Double?
+    @Parameter(title: "Zones", default: .automatic)
     var zoneCount9: HomesteadGaugeZoneCount
-    @Parameter(title: "Slot 9 Zone 1 Color", default: .blue)
+    @Parameter(title: "Zone 1 Color", default: .blue)
     var zone1Color9: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 9 Zone 2 Begins At") var zone2BeginsAt9: Double?
-    @Parameter(title: "Slot 9 Zone 2 Color", default: .green)
+    @Parameter(title: "Zone 2 Begins At") var zone2BeginsAt9: Double?
+    @Parameter(title: "Zone 2 Color", default: .green)
     var zone2Color9: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 9 Zone 3 Begins At") var zone3BeginsAt9: Double?
-    @Parameter(title: "Slot 9 Zone 3 Color", default: .orange)
+    @Parameter(title: "Zone 3 Begins At") var zone3BeginsAt9: Double?
+    @Parameter(title: "Zone 3 Color", default: .orange)
     var zone3Color9: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 9 Zone 4 Begins At") var zone4BeginsAt9: Double?
-    @Parameter(title: "Slot 9 Zone 4 Color", default: .red)
+    @Parameter(title: "Zone 4 Begins At") var zone4BeginsAt9: Double?
+    @Parameter(title: "Zone 4 Color", default: .red)
     var zone4Color9: HomesteadGaugeZoneColor
-    @Parameter(title: "Slot 9 Zone 5 Begins At") var zone5BeginsAt9: Double?
-    @Parameter(title: "Slot 9 Zone 5 Color", default: .purple)
+    @Parameter(title: "Zone 5 Begins At") var zone5BeginsAt9: Double?
+    @Parameter(title: "Zone 5 Color", default: .purple)
     var zone5Color9: HomesteadGaugeZoneColor
 
     static var parameterSummary: some ParameterSummary {
@@ -315,8 +315,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                 When(\.$display1, .equalTo, .chart) {
                     Summary {
                         \.$editingSlot
-                        \.$display1
                         \.$sensor1
+                        \.$display1
                         \.$customDisplayName1
                     }
                 } otherwise: {
@@ -325,8 +325,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount1, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display1
                                 \.$sensor1
+                                \.$display1
                                 \.$customDisplayName1
                                 \.$gaugeStyle1
                                 \.$gaugeScale1
@@ -337,8 +337,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display1
                                 \.$sensor1
+                                \.$display1
                                 \.$customDisplayName1
                                 \.$gaugeStyle1
                                 \.$gaugeScale1
@@ -360,8 +360,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount1, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display1
                                 \.$sensor1
+                                \.$display1
                                 \.$customDisplayName1
                                 \.$gaugeStyle1
                                 \.$gaugeScale1
@@ -370,8 +370,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display1
                                 \.$sensor1
+                                \.$display1
                                 \.$customDisplayName1
                                 \.$gaugeStyle1
                                 \.$gaugeScale1
@@ -391,8 +391,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     } otherwise: {
                         Summary {
                             \.$editingSlot
-                            \.$display1
                             \.$sensor1
+                            \.$display1
                             \.$customDisplayName1
                         }
                     }
@@ -402,8 +402,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                 When(\.$display2, .equalTo, .chart) {
                     Summary {
                         \.$editingSlot
-                        \.$display2
                         \.$sensor2
+                        \.$display2
                         \.$customDisplayName2
                     }
                 } otherwise: {
@@ -412,8 +412,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount2, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display2
                                 \.$sensor2
+                                \.$display2
                                 \.$customDisplayName2
                                 \.$gaugeStyle2
                                 \.$gaugeScale2
@@ -424,8 +424,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display2
                                 \.$sensor2
+                                \.$display2
                                 \.$customDisplayName2
                                 \.$gaugeStyle2
                                 \.$gaugeScale2
@@ -447,8 +447,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount2, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display2
                                 \.$sensor2
+                                \.$display2
                                 \.$customDisplayName2
                                 \.$gaugeStyle2
                                 \.$gaugeScale2
@@ -457,8 +457,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display2
                                 \.$sensor2
+                                \.$display2
                                 \.$customDisplayName2
                                 \.$gaugeStyle2
                                 \.$gaugeScale2
@@ -478,8 +478,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     } otherwise: {
                         Summary {
                             \.$editingSlot
-                            \.$display2
                             \.$sensor2
+                            \.$display2
                             \.$customDisplayName2
                         }
                     }
@@ -489,8 +489,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                 When(\.$display3, .equalTo, .chart) {
                     Summary {
                         \.$editingSlot
-                        \.$display3
                         \.$sensor3
+                        \.$display3
                         \.$customDisplayName3
                     }
                 } otherwise: {
@@ -499,8 +499,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount3, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display3
                                 \.$sensor3
+                                \.$display3
                                 \.$customDisplayName3
                                 \.$gaugeStyle3
                                 \.$gaugeScale3
@@ -511,8 +511,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display3
                                 \.$sensor3
+                                \.$display3
                                 \.$customDisplayName3
                                 \.$gaugeStyle3
                                 \.$gaugeScale3
@@ -534,8 +534,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount3, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display3
                                 \.$sensor3
+                                \.$display3
                                 \.$customDisplayName3
                                 \.$gaugeStyle3
                                 \.$gaugeScale3
@@ -544,8 +544,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display3
                                 \.$sensor3
+                                \.$display3
                                 \.$customDisplayName3
                                 \.$gaugeStyle3
                                 \.$gaugeScale3
@@ -565,8 +565,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     } otherwise: {
                         Summary {
                             \.$editingSlot
-                            \.$display3
                             \.$sensor3
+                            \.$display3
                             \.$customDisplayName3
                         }
                     }
@@ -576,8 +576,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                 When(\.$display4, .equalTo, .chart) {
                     Summary {
                         \.$editingSlot
-                        \.$display4
                         \.$sensor4
+                        \.$display4
                         \.$customDisplayName4
                     }
                 } otherwise: {
@@ -586,8 +586,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount4, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display4
                                 \.$sensor4
+                                \.$display4
                                 \.$customDisplayName4
                                 \.$gaugeStyle4
                                 \.$gaugeScale4
@@ -598,8 +598,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display4
                                 \.$sensor4
+                                \.$display4
                                 \.$customDisplayName4
                                 \.$gaugeStyle4
                                 \.$gaugeScale4
@@ -621,8 +621,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount4, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display4
                                 \.$sensor4
+                                \.$display4
                                 \.$customDisplayName4
                                 \.$gaugeStyle4
                                 \.$gaugeScale4
@@ -631,8 +631,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display4
                                 \.$sensor4
+                                \.$display4
                                 \.$customDisplayName4
                                 \.$gaugeStyle4
                                 \.$gaugeScale4
@@ -652,8 +652,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     } otherwise: {
                         Summary {
                             \.$editingSlot
-                            \.$display4
                             \.$sensor4
+                            \.$display4
                             \.$customDisplayName4
                         }
                     }
@@ -663,8 +663,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                 When(\.$display5, .equalTo, .chart) {
                     Summary {
                         \.$editingSlot
-                        \.$display5
                         \.$sensor5
+                        \.$display5
                         \.$customDisplayName5
                     }
                 } otherwise: {
@@ -673,8 +673,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount5, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display5
                                 \.$sensor5
+                                \.$display5
                                 \.$customDisplayName5
                                 \.$gaugeStyle5
                                 \.$gaugeScale5
@@ -685,8 +685,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display5
                                 \.$sensor5
+                                \.$display5
                                 \.$customDisplayName5
                                 \.$gaugeStyle5
                                 \.$gaugeScale5
@@ -708,8 +708,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount5, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display5
                                 \.$sensor5
+                                \.$display5
                                 \.$customDisplayName5
                                 \.$gaugeStyle5
                                 \.$gaugeScale5
@@ -718,8 +718,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display5
                                 \.$sensor5
+                                \.$display5
                                 \.$customDisplayName5
                                 \.$gaugeStyle5
                                 \.$gaugeScale5
@@ -739,8 +739,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     } otherwise: {
                         Summary {
                             \.$editingSlot
-                            \.$display5
                             \.$sensor5
+                            \.$display5
                             \.$customDisplayName5
                         }
                     }
@@ -750,8 +750,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                 When(\.$display6, .equalTo, .chart) {
                     Summary {
                         \.$editingSlot
-                        \.$display6
                         \.$sensor6
+                        \.$display6
                         \.$customDisplayName6
                     }
                 } otherwise: {
@@ -760,8 +760,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount6, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display6
                                 \.$sensor6
+                                \.$display6
                                 \.$customDisplayName6
                                 \.$gaugeStyle6
                                 \.$gaugeScale6
@@ -772,8 +772,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display6
                                 \.$sensor6
+                                \.$display6
                                 \.$customDisplayName6
                                 \.$gaugeStyle6
                                 \.$gaugeScale6
@@ -795,8 +795,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount6, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display6
                                 \.$sensor6
+                                \.$display6
                                 \.$customDisplayName6
                                 \.$gaugeStyle6
                                 \.$gaugeScale6
@@ -805,8 +805,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display6
                                 \.$sensor6
+                                \.$display6
                                 \.$customDisplayName6
                                 \.$gaugeStyle6
                                 \.$gaugeScale6
@@ -826,8 +826,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     } otherwise: {
                         Summary {
                             \.$editingSlot
-                            \.$display6
                             \.$sensor6
+                            \.$display6
                             \.$customDisplayName6
                         }
                     }
@@ -837,8 +837,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                 When(\.$display7, .equalTo, .chart) {
                     Summary {
                         \.$editingSlot
-                        \.$display7
                         \.$sensor7
+                        \.$display7
                         \.$customDisplayName7
                     }
                 } otherwise: {
@@ -847,8 +847,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount7, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display7
                                 \.$sensor7
+                                \.$display7
                                 \.$customDisplayName7
                                 \.$gaugeStyle7
                                 \.$gaugeScale7
@@ -859,8 +859,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display7
                                 \.$sensor7
+                                \.$display7
                                 \.$customDisplayName7
                                 \.$gaugeStyle7
                                 \.$gaugeScale7
@@ -882,8 +882,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount7, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display7
                                 \.$sensor7
+                                \.$display7
                                 \.$customDisplayName7
                                 \.$gaugeStyle7
                                 \.$gaugeScale7
@@ -892,8 +892,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display7
                                 \.$sensor7
+                                \.$display7
                                 \.$customDisplayName7
                                 \.$gaugeStyle7
                                 \.$gaugeScale7
@@ -913,8 +913,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     } otherwise: {
                         Summary {
                             \.$editingSlot
-                            \.$display7
                             \.$sensor7
+                            \.$display7
                             \.$customDisplayName7
                         }
                     }
@@ -924,8 +924,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                 When(\.$display8, .equalTo, .chart) {
                     Summary {
                         \.$editingSlot
-                        \.$display8
                         \.$sensor8
+                        \.$display8
                         \.$customDisplayName8
                     }
                 } otherwise: {
@@ -934,8 +934,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount8, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display8
                                 \.$sensor8
+                                \.$display8
                                 \.$customDisplayName8
                                 \.$gaugeStyle8
                                 \.$gaugeScale8
@@ -946,8 +946,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display8
                                 \.$sensor8
+                                \.$display8
                                 \.$customDisplayName8
                                 \.$gaugeStyle8
                                 \.$gaugeScale8
@@ -969,8 +969,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount8, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display8
                                 \.$sensor8
+                                \.$display8
                                 \.$customDisplayName8
                                 \.$gaugeStyle8
                                 \.$gaugeScale8
@@ -979,8 +979,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display8
                                 \.$sensor8
+                                \.$display8
                                 \.$customDisplayName8
                                 \.$gaugeStyle8
                                 \.$gaugeScale8
@@ -1000,8 +1000,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     } otherwise: {
                         Summary {
                             \.$editingSlot
-                            \.$display8
                             \.$sensor8
+                            \.$display8
                             \.$customDisplayName8
                         }
                     }
@@ -1011,8 +1011,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                 When(\.$display9, .equalTo, .chart) {
                     Summary {
                         \.$editingSlot
-                        \.$display9
                         \.$sensor9
+                        \.$display9
                         \.$customDisplayName9
                     }
                 } otherwise: {
@@ -1021,8 +1021,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount9, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display9
                                 \.$sensor9
+                                \.$display9
                                 \.$customDisplayName9
                                 \.$gaugeStyle9
                                 \.$gaugeScale9
@@ -1033,8 +1033,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display9
                                 \.$sensor9
+                                \.$display9
                                 \.$customDisplayName9
                                 \.$gaugeStyle9
                                 \.$gaugeScale9
@@ -1056,8 +1056,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             When(\.$zoneCount9, .equalTo, .automatic) {
                             Summary {
                                 \.$editingSlot
-                                \.$display9
                                 \.$sensor9
+                                \.$display9
                                 \.$customDisplayName9
                                 \.$gaugeStyle9
                                 \.$gaugeScale9
@@ -1066,8 +1066,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                             } otherwise: {
                             Summary {
                                 \.$editingSlot
-                                \.$display9
                                 \.$sensor9
+                                \.$display9
                                 \.$customDisplayName9
                                 \.$gaugeStyle9
                                 \.$gaugeScale9
@@ -1087,8 +1087,8 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     } otherwise: {
                         Summary {
                             \.$editingSlot
-                            \.$display9
                             \.$sensor9
+                            \.$display9
                             \.$customDisplayName9
                         }
                     }
