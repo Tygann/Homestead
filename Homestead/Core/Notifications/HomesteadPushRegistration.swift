@@ -1,5 +1,8 @@
 import Foundation
 import Security
+#if canImport(UIKit)
+import UIKit
+#endif
 
 nonisolated enum HomesteadPushRelayEndpoint {
     static let baseURLString = "https://api.homesteadcontrol.com"

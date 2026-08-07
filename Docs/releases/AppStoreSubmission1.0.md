@@ -35,7 +35,7 @@ This document tracks the first public App Store submission for Homestead. App St
 
 - Privacy policy URL: `https://homesteadcontrol.com/privacy`
 - App privacy questionnaire: published; Device ID, App Functionality, linked to the user/device, not used for tracking
-- Accessibility declaration: not started
+- Accessibility declaration: iPhone and iPad drafts prepared with Dark Interface support; Apple disables publication until version 1.0 is released
 
 ### Pricing And Availability
 
@@ -135,7 +135,7 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 
 ### Capture Requirements
 
-- Prepare portrait iPhone assets at an App Store Connect-accepted 6.5-inch size: `1284 x 2778` or `1242 x 2688` pixels.
+- Prepare portrait iPhone assets at an App Store Connect-accepted 6.9-inch size. The clean launch set uses `1320 x 2868` pixels, JPEG, without alpha.
 - Capture clean app UI first; create a second marketing-composite set only if headline treatments materially improve the story.
 - Keep text large, concise, and inside safe margins.
 - Verify every depicted feature is present in the submitted build.
@@ -172,6 +172,14 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 - Privacy Policy URL saved
 - Privacy details published by the account holder: Device ID, App Functionality, linked to the user/device, not used for tracking.
 - Age Rating questionnaire saved: calculated 4+, with standard regional equivalents; all listed capabilities and content categories answered No or None.
+- Accessibility drafts prepared for iPhone and iPad with Dark Interface as the only currently declared supported feature. Apple keeps Publish disabled until an app version is released.
+
+## Screenshot Assets Prepared
+
+- Six clean iPhone 6.9-inch launch candidates are stored in `AppStoreAssets/Screenshots/iPhone-6.9` at `1320 x 2868`, JPEG, without alpha.
+- The ordered story covers the full Dashboard, Areas, sensor History, card customization, widgets, and Homestead+.
+- Screenshot-only person fixtures use the fictional name `Alex`; the user's real name no longer appears in the launch candidates.
+- These are clean UI assets. A marketing-composite variant with short headlines can be created after the clean set is approved.
 
 ## Public Website Completed
 
@@ -196,7 +204,8 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 - Configure and verify the Annual 14-day introductory trial
 - Upload review screenshots for all three Homestead+ products
 - Add all three products to the version 1.0 review submission
-- Complete accessibility and content-rights declarations
+- Publish the prepared accessibility declarations after version 1.0 is released
+- Complete the content-rights declaration
 - Supply App Review contact information, test instructions, and a reviewable Home Assistant account/server path
 - Upload final iPhone and any intentionally supported iPad screenshots
 - Run focused tests, generic simulator build, Release/archive-oriented build, and rendered screenshot-route checks

@@ -72,11 +72,11 @@ struct PreviewDependencies {
             } + [HAAreaRegistryDTO(id: "utility-room", name: "Utility Room")]
         )
         _ = dependencies.dashboardConfiguration.add(
-            source: .entity("person.tyler"),
+            source: .entity("person.alex"),
             presentation: .chip
         )
         _ = dependencies.dashboardConfiguration.add(
-            source: .entity("person.tyler"),
+            source: .entity("person.alex"),
             presentation: .card(.status(layout: .mini))
         )
         _ = dependencies.dashboardConfiguration.add(
@@ -934,10 +934,10 @@ private enum PreviewData {
             lastUpdated: .now
         ),
         HAEntityDTO(
-            entityID: "person.tyler",
+            entityID: "person.alex",
             state: "home",
             attributes: [
-                "friendly_name": .string("Tyler"),
+                "friendly_name": .string("Alex"),
                 "source": .string("device_tracker.tylers_iphone"),
                 "entity_picture": .string("/api/image/preview-person")
             ],
@@ -948,7 +948,7 @@ private enum PreviewData {
             entityID: "device_tracker.tylers_iphone",
             state: "home",
             attributes: [
-                "friendly_name": .string("Tyler's iPhone"),
+                "friendly_name": .string("Alex's iPhone"),
                 "source_type": .string("gps"),
                 "tracking_type": .string("position"),
                 "location_accuracy": .number(8)
