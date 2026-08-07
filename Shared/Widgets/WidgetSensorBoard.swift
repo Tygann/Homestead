@@ -177,8 +177,7 @@ struct WidgetSensorBoardFace: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 12)
-            .padding(.top, 18)
-            .padding(.bottom, 6)
+            .padding(.vertical, 12)
         case .large:
             Grid(horizontalSpacing: 8, verticalSpacing: 8) {
                 ForEach(0..<3, id: \.self) { row in
@@ -262,7 +261,11 @@ private struct WidgetSensorBoardCompactTile: View {
                             density: density,
                             centersContent: true
                         )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        .frame(
+                            maxWidth: .infinity,
+                            maxHeight: density.expandsSlotContent ? .infinity : nil,
+                            alignment: .center
+                        )
                     } else {
                         VStack(alignment: .leading, spacing: density.contentSpacing) {
                             WidgetSensorBoardValueLabel(
@@ -272,7 +275,9 @@ private struct WidgetSensorBoardCompactTile: View {
                                 density: density
                             )
 
-                            Spacer(minLength: 0)
+                            if density.expandsSlotContent {
+                                Spacer(minLength: 0)
+                            }
 
                             WidgetSensorBoardStatusBadge(
                                 text: WidgetStateText.unavailable,
@@ -280,8 +285,12 @@ private struct WidgetSensorBoardCompactTile: View {
                                 density: density
                             )
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(.bottom, density.chartBottomPadding)
+                        .frame(
+                            maxWidth: .infinity,
+                            maxHeight: density.expandsSlotContent ? .infinity : nil,
+                            alignment: .topLeading
+                        )
+                        .padding(.bottom, density.contentBottomPadding)
                     }
                 }
             }
@@ -307,13 +316,15 @@ private struct WidgetSensorBoardCompactTile: View {
         switch item.gaugeStyle {
         case .circular:
             WidgetGaugeInstrumentView(gauge: resolvedGauge, tint: tint, style: .standard)
-                .padding(.top, 2)
+                .frame(height: density.gaugeHeight)
         case .segmented:
             WidgetGaugeInstrumentView(gauge: resolvedGauge, tint: tint, style: .compactSegmented)
-                .padding(.top, 2)
+                .frame(height: density.gaugeHeight)
         case .bar:
             VStack(alignment: .leading, spacing: density.contentSpacing) {
-                Spacer(minLength: 0)
+                if density.expandsSlotContent {
+                    Spacer(minLength: 0)
+                }
 
                 WidgetSensorBoardValueLabel(
                     valueText: resolvedGauge.valueText,
@@ -325,7 +336,7 @@ private struct WidgetSensorBoardCompactTile: View {
                 WidgetGaugeBarView(gauge: resolvedGauge)
                     .frame(height: GaugeVisualMetrics.barTotalHeight)
             }
-            .padding(.bottom, density.chartBottomPadding)
+            .padding(.bottom, density.contentBottomPadding)
         }
     }
 }
@@ -351,7 +362,11 @@ private struct WidgetSensorBoardChartTile: View {
                 )
 
                 chartContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: density.expandsSlotContent ? .infinity : nil
+                    )
+                    .frame(height: density.chartHeight)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -375,10 +390,12 @@ private struct WidgetSensorBoardChartTile: View {
                 interpolationStyle: item.interpolationStyle,
                 highlightsLatestSample: true
             )
-            .padding(.bottom, density.chartBottomPadding)
+            .padding(.bottom, density.contentBottomPadding)
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                Spacer(minLength: 0)
+                if density.expandsSlotContent {
+                    Spacer(minLength: 0)
+                }
 
                 WidgetSensorBoardStatusBadge(
                     text: item.chartStatusText,
@@ -386,7 +403,7 @@ private struct WidgetSensorBoardChartTile: View {
                     density: density
                 )
             }
-            .padding(.bottom, density.chartBottomPadding)
+            .padding(.bottom, density.contentBottomPadding)
         }
     }
 
@@ -415,14 +432,17 @@ private struct WidgetSensorBoardEmptyTile: View {
         let density: WidgetSensorBoardSlotDensity = usesSquareDensity ? .square : .medium
 
         VStack(spacing: density.contentSpacing) {
-            Image(systemName: systemImage)
-                .font(density.titleFont)
+            VStack(spacing: density.contentSpacing) {
+                Image(systemName: systemImage)
+                    .font(density.titleFont)
 
-            Text(title)
-                .font(density.titleFont)
-                .lineLimit(2)
-                .minimumScaleFactor(0.72)
-                .multilineTextAlignment(.center)
+                Text(title)
+                    .font(density.titleFont)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+                    .multilineTextAlignment(.center)
+            }
+            .offset(y: density.emptyContentVerticalOffset)
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -446,6 +466,12 @@ private enum WidgetSensorBoardSlotDensity {
     var unitFont: Font { self == .medium ? .caption.weight(.semibold) : .caption2.weight(.semibold) }
     var contentSpacing: CGFloat { self == .medium ? 4 : 2 }
     var chartBottomPadding: CGFloat { self == .medium ? 18 : 6 }
+    var contentBottomPadding: CGFloat { self == .medium ? 0 : chartBottomPadding }
+    var expandsSlotContent: Bool { self == .square }
+    var centersSlotContent: Bool { self == .medium }
+    var gaugeHeight: CGFloat? { self == .medium ? 92 : nil }
+    var chartHeight: CGFloat? { self == .medium ? 54 : nil }
+    var emptyContentVerticalOffset: CGFloat { self == .medium ? -3 : -1 }
 }
 
 private struct WidgetSensorBoardSlotScaffold<Content: View>: View {
@@ -457,33 +483,49 @@ private struct WidgetSensorBoardSlotScaffold<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: density.contentSpacing) {
-            HStack(spacing: 6) {
-                HomesteadIconView(
-                    icon: icon,
-                    pointSize: density.iconPointSize,
-                    weight: .semibold
-                )
-                .foregroundStyle(tint)
-
-                Text(title)
-                    .font(density.titleFont)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-
-                Spacer(minLength: 3)
-
-                if let trailingText {
-                    Text(trailingText)
-                        .font(.caption2.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+        Group {
+            if density.centersSlotContent {
+                slotStack
+                    .frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else {
+                slotStack
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+        }
+    }
 
+    private var slotStack: some View {
+        VStack(alignment: .leading, spacing: density.contentSpacing) {
+            header
             content()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var header: some View {
+        HStack(spacing: 6) {
+            HomesteadIconView(
+                icon: icon,
+                pointSize: density.iconPointSize,
+                weight: .semibold
+            )
+            .foregroundStyle(tint)
+
+            Text(title)
+                .font(density.titleFont)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Spacer(minLength: 3)
+
+            if let trailingText {
+                Text(trailingText)
+                    .font(.caption2.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
     }
 }
 
