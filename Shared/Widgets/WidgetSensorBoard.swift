@@ -131,6 +131,9 @@ nonisolated struct WidgetSensorBoardChartItem: Identifiable, Equatable, Sendable
         if supportingText == WidgetStateText.needsConnection {
             return WidgetStateText.needsConnection
         }
+        if supportingText == WidgetStateText.chartUnavailable {
+            return WidgetStateText.chartUnavailable
+        }
         if !isAvailable {
             return WidgetStateText.unavailable
         }
@@ -372,11 +375,20 @@ private struct WidgetSensorBoardChartTile: View {
         } else {
             WidgetSensorBoardStatusBadge(
                 text: item.chartStatusText,
-                systemImage: item.chartStatusText == WidgetStateText.needsConnection
-                    ? "wifi.slash"
-                    : "clock.arrow.circlepath",
+                systemImage: statusSystemImage,
                 density: density
             )
+        }
+    }
+
+    private var statusSystemImage: String {
+        switch item.chartStatusText {
+        case WidgetStateText.needsConnection:
+            "wifi.slash"
+        case WidgetStateText.chartUnavailable, WidgetStateText.unavailable:
+            "exclamationmark.circle"
+        default:
+            "clock.arrow.circlepath"
         }
     }
 

@@ -129,6 +129,11 @@ struct WidgetSensorBoardTests {
         let plotted = makeChartItem()
         let noHistory = makeChartItem(samples: [], isAvailable: true, supportingText: WidgetStateText.noHistory)
         let unavailable = makeChartItem(samples: [], isAvailable: false, supportingText: WidgetStateText.noHistory)
+        let unsupported = makeChartItem(
+            samples: [],
+            isAvailable: true,
+            supportingText: WidgetStateText.chartUnavailable
+        )
         let disconnected = makeChartItem(
             samples: [],
             isAvailable: false,
@@ -138,6 +143,7 @@ struct WidgetSensorBoardTests {
         #expect(plotted.hasChart)
         #expect(noHistory.chartStatusText == WidgetStateText.noHistory)
         #expect(unavailable.chartStatusText == WidgetStateText.unavailable)
+        #expect(unsupported.chartStatusText == WidgetStateText.chartUnavailable)
         #expect(disconnected.chartStatusText == WidgetStateText.needsConnection)
     }
 

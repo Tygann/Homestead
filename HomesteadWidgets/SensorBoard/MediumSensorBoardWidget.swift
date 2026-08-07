@@ -95,7 +95,6 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     var gaugeStyle1: HomesteadSensorBoardGaugeStyle
 
     @Parameter(title: "Slot 1 Sensor") var sensor1: HomesteadSensorEntity?
-    @Parameter(title: "Slot 1 Sensor") var chartSensor1: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 1 Name") var customDisplayName1: String?
 
     @Parameter(title: "Slot 1 Scale", default: .automatic)
@@ -126,7 +125,6 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     var gaugeStyle2: HomesteadSensorBoardGaugeStyle
 
     @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
-    @Parameter(title: "Slot 2 Sensor") var chartSensor2: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 2 Name") var customDisplayName2: String?
 
     @Parameter(title: "Slot 2 Scale", default: .automatic)
@@ -157,7 +155,6 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
     var gaugeStyle3: HomesteadSensorBoardGaugeStyle
 
     @Parameter(title: "Slot 3 Sensor") var sensor3: HomesteadSensorEntity?
-    @Parameter(title: "Slot 3 Sensor") var chartSensor3: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 3 Name") var customDisplayName3: String?
 
     @Parameter(title: "Slot 3 Scale", default: .automatic)
@@ -188,7 +185,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                     Summary {
                         \.$editingSlot
                         \.$display1
-                        \.$chartSensor1
+                        \.$sensor1
                         \.$customDisplayName1
                     }
                 } otherwise: {
@@ -275,7 +272,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                     Summary {
                         \.$editingSlot
                         \.$display2
-                        \.$chartSensor2
+                        \.$sensor2
                         \.$customDisplayName2
                     }
                 } otherwise: {
@@ -362,7 +359,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                     Summary {
                         \.$editingSlot
                         \.$display3
-                        \.$chartSensor3
+                        \.$sensor3
                         \.$customDisplayName3
                     }
                 } otherwise: {
@@ -514,25 +511,19 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
             HomesteadSensorBoardSlotConfiguration(
                 display: display1,
                 sensor: sensor1,
-                chartSensor: chartSensor1,
                 customDisplayName: customDisplayName1,
-                customChartDisplayName: customDisplayName1,
                 gaugeConfiguration: gaugeConfiguration1
             ),
             HomesteadSensorBoardSlotConfiguration(
                 display: display2,
                 sensor: sensor2,
-                chartSensor: chartSensor2,
                 customDisplayName: customDisplayName2,
-                customChartDisplayName: customDisplayName2,
                 gaugeConfiguration: gaugeConfiguration2
             ),
             HomesteadSensorBoardSlotConfiguration(
                 display: display3,
                 sensor: sensor3,
-                chartSensor: chartSensor3,
                 customDisplayName: customDisplayName3,
-                customChartDisplayName: customDisplayName3,
                 gaugeConfiguration: gaugeConfiguration3
             )
         ]
@@ -542,136 +533,8 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
 struct HomesteadSensorBoardSlotConfiguration {
     let display: HomesteadSensorBoardSlotDisplay
     let sensor: HomesteadSensorEntity?
-    let chartSensor: HomesteadChartSensorEntity?
     let customDisplayName: String?
-    let customChartDisplayName: String?
     let gaugeConfiguration: HomesteadGaugeWidgetConfiguration
-}
-
-// MARK: - Chart Entity Picker
-
-struct HomesteadChartSensorEntity: AppEntity, Identifiable {
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Sensor")
-    static var defaultQuery = HomesteadChartSensorEntityQuery()
-
-    let id: String
-    let displayName: String
-    let valueText: String
-    let unit: String?
-    let areaName: String?
-    let deviceName: String?
-    var serverName: String = "Home Assistant"
-    var isServerAvailable: Bool = true
-    var hasMultipleServers: Bool = false
-    let isAvailable: Bool
-    let icon: ResolvedIcon
-    var historyChartInterpolationStyle: HomesteadChartInterpolationStyle? = nil
-    var chartAccentColor: WidgetGaugeColor? = nil
-
-    var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(
-            title: "\(pickerDisplayName)",
-            subtitle: "\(pickerSubtitle)",
-            image: DisplayRepresentation.Image(systemName: icon.fallbackSFSymbol)
-        )
-    }
-
-    var pickerDisplayName: String {
-        HomesteadWidgetEntityPickerText.contextualDisplayName(
-            displayName,
-            areaName: areaName,
-            deviceName: deviceName
-        )
-    }
-
-    var pickerGroupTitle: String {
-        HomesteadWidgetEntityPickerText.serverScopedGroupName(
-            serverName: serverName,
-            hasMultipleServers: hasMultipleServers,
-            areaName: areaName,
-            deviceName: deviceName,
-            fallback: "Numeric Sensors"
-        )
-    }
-
-    var pickerSubtitle: String {
-        guard isServerAvailable else { return "Server Removed" }
-        guard isAvailable else { return "Unavailable" }
-        return HomesteadWidgetEntityPickerText.contextDescription(
-            serverName: serverName,
-            hasMultipleServers: hasMultipleServers,
-            areaName: areaName,
-            deviceName: deviceName
-        )
-    }
-
-    func matches(_ query: String) -> Bool {
-        HomesteadWidgetEntityPickerText.matches(
-            query: query,
-            values: [displayName, pickerDisplayName, valueText, areaName, deviceName, serverName, id, "chart"]
-        )
-    }
-}
-
-struct HomesteadChartSensorEntityQuery: EntityQuery, EntityStringQuery, EnumerableEntityQuery {
-    typealias Result = IntentItemCollection<HomesteadChartSensorEntity>
-
-    func entities(for identifiers: [HomesteadChartSensorEntity.ID]) async throws -> [HomesteadChartSensorEntity] {
-        allItems().filter { identifiers.contains($0.id) }
-    }
-
-    func entities(matching string: String) async throws -> IntentItemCollection<HomesteadChartSensorEntity> {
-        collection(from: allItems().filter { $0.matches(string) })
-    }
-
-    func allEntities() async throws -> IntentItemCollection<HomesteadChartSensorEntity> {
-        collection(from: allItems())
-    }
-
-    func suggestedEntities() async throws -> IntentItemCollection<HomesteadChartSensorEntity> {
-        try await allEntities()
-    }
-
-    func defaultResult() async -> HomesteadChartSensorEntity? {
-        nil
-    }
-
-    private func allItems() -> [HomesteadChartSensorEntity] {
-        HomesteadWidgetSharedStore.scopedSensorSnapshots
-            .filter { $0.value.isNumeric == true }
-            .map(Self.entity(from:))
-    }
-
-    private func collection(
-        from items: [HomesteadChartSensorEntity]
-    ) -> IntentItemCollection<HomesteadChartSensorEntity> {
-        HomesteadWidgetEntityPickerText.collection(
-            from: items,
-            groupedBy: \.pickerGroupTitle,
-            sortedBy: \.pickerDisplayName
-        )
-    }
-
-    private static func entity(
-        from scoped: WidgetScopedSnapshot<WidgetSensorSnapshot>
-    ) -> HomesteadChartSensorEntity {
-        let snapshot = scoped.value
-        return HomesteadChartSensorEntity(
-            id: scoped.reference.encodedID,
-            displayName: snapshot.displayName,
-            valueText: snapshot.valueText,
-            unit: snapshot.unit,
-            areaName: snapshot.areaName,
-            deviceName: snapshot.deviceName,
-            serverName: scoped.serverName,
-            isServerAvailable: scoped.isServerAvailable,
-            hasMultipleServers: scoped.hasMultipleServers,
-            isAvailable: snapshot.isAvailable,
-            icon: snapshot.resolvedIcon,
-            historyChartInterpolationStyle: snapshot.historyChartInterpolationStyle,
-            chartAccentColor: snapshot.chartAccentColor
-        )
-    }
 }
 
 // MARK: - Timeline
@@ -745,7 +608,7 @@ struct HomesteadSensorBoardTimelineProvider: AppIntentTimelineProvider {
             return .placeholder
         }
         if context.isPreview,
-           configuration.slots.allSatisfy({ $0.sensor == nil && $0.chartSensor == nil }) {
+           configuration.slots.allSatisfy({ $0.sensor == nil }) {
             return .placeholder
         }
 
@@ -792,14 +655,14 @@ enum HomesteadSensorBoardEntryBuilder {
         for (index, slot) in slots.enumerated() {
             switch slot.display {
             case .chart:
-                guard let sensor = slot.chartSensor,
+                guard let sensor = slot.sensor,
                       let reference = HomesteadWidgetSharedStore.reference(for: sensor.id) else {
                     continue
                 }
                 items[index] = .chart(
                     makeChartItem(
                         sensor: sensor,
-                        customDisplayName: slot.customChartDisplayName,
+                        customDisplayName: slot.customDisplayName,
                         snapshot: snapshotsByIdentifier[sensor.id],
                         series: histories.seriesByIdentifier[sensor.id],
                         connectionFailed: histories.failedProfiles.contains(reference.profileID)
@@ -870,7 +733,9 @@ enum HomesteadSensorBoardEntryBuilder {
     private static func loadHistories(
         slots: [HomesteadSensorBoardSlotConfiguration]
     ) async -> HistoryLoadResult {
-        let sensors = slots.compactMap { $0.display == .chart ? $0.chartSensor : nil }
+        let sensors = slots.compactMap { slot in
+            slot.display == .chart && slot.sensor?.isNumeric == true ? slot.sensor : nil
+        }
         let grouped = Dictionary(grouping: sensors) {
             HomesteadWidgetSharedStore.reference(for: $0.id)?.profileID
         }
@@ -928,7 +793,7 @@ enum HomesteadSensorBoardEntryBuilder {
     }
 
     private static func makeChartItem(
-        sensor: HomesteadChartSensorEntity,
+        sensor: HomesteadSensorEntity,
         customDisplayName: String?,
         snapshot: WidgetSensorSnapshot?,
         series: HAWidgetSensorHistorySeries?,
@@ -940,11 +805,27 @@ enum HomesteadSensorBoardEntryBuilder {
             ?? sensor.historyChartInterpolationStyle
             ?? .linear
 
+        guard sensor.isNumeric else {
+            return WidgetSensorBoardChartItem(
+                id: sensor.id,
+                displayName: displayName,
+                icon: snapshot?.resolvedIcon ?? sensor.resolvedIcon,
+                valueText: snapshot?.valueText ?? sensor.valueText,
+                unitText: snapshot?.unit ?? sensor.unit,
+                supportingText: WidgetStateText.chartUnavailable,
+                isAvailable: snapshot?.isAvailable ?? sensor.isAvailable,
+                samples: [],
+                valueDomain: 0...1,
+                interpolationStyle: interpolationStyle,
+                accentColor: snapshot?.chartAccentColor ?? sensor.chartAccentColor ?? .accent
+            )
+        }
+
         if let series {
             return WidgetSensorBoardChartItem(
                 id: sensor.id,
                 displayName: displayName,
-                icon: snapshot?.resolvedIcon ?? sensor.icon,
+                icon: snapshot?.resolvedIcon ?? sensor.resolvedIcon,
                 valueText: series.latestValueText ?? snapshot?.valueText ?? sensor.valueText,
                 unitText: series.unit,
                 supportingText: WidgetStateText.noHistory,
@@ -962,7 +843,7 @@ enum HomesteadSensorBoardEntryBuilder {
         return WidgetSensorBoardChartItem(
             id: sensor.id,
             displayName: displayName,
-            icon: snapshot?.resolvedIcon ?? sensor.icon,
+            icon: snapshot?.resolvedIcon ?? sensor.resolvedIcon,
             valueText: snapshot?.valueText ?? sensor.valueText,
             unitText: snapshot?.unit ?? sensor.unit,
             supportingText: connectionFailed ? WidgetStateText.needsConnection : WidgetStateText.noHistory,

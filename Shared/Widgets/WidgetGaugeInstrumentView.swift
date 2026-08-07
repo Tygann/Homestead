@@ -315,26 +315,11 @@ struct WidgetGaugeBarView: View {
                     Capsule()
                         .fill(Color.secondary.opacity(0.16))
 
-                    ForEach(Array(gauge.sections.enumerated()), id: \.offset) { index, section in
-                        let segment = visualSegment(for: section, at: index)
-                        let segmentWidth = max(CGFloat(segment.end - segment.start) * width, 0)
-
-                        Capsule()
-                            .fill(widgetGaugeColor(for: section.color).opacity(sectionBackgroundOpacity(for: section.color)))
-                            .frame(width: segmentWidth)
-                            .offset(x: CGFloat(segment.start) * width)
-                    }
-
                     if gauge.normalizedValue > 0 {
                         Capsule()
                             .fill(widgetGaugeColor(for: gauge.currentColor))
                             .frame(width: fillWidth)
                     }
-
-                    Capsule()
-                        .strokeBorder(Color.white.opacity(GaugeVisualMetrics.barBorderOpacity), lineWidth: 1)
-
-                    sectionBoundaryTicks(width: width)
                 }
             }
             .frame(height: GaugeVisualMetrics.barTrackHeight)
@@ -354,43 +339,8 @@ struct WidgetGaugeBarView: View {
         .frame(height: GaugeVisualMetrics.barTotalHeight)
     }
 
-    private func visualSegment(for section: WidgetGaugeSection, at index: Int) -> (start: Double, end: Double) {
-        let rawStart = normalized(section.lowerBound)
-        let rawEnd = normalized(section.upperBound)
-        let start = index == 0 ? rawStart : rawStart + (GaugeVisualMetrics.barSectionGap / 2)
-        let end = index == gauge.sections.indices.last ? rawEnd : rawEnd - (GaugeVisualMetrics.barSectionGap / 2)
-
-        return (min(max(start, 0), 1), min(max(end, start), 1))
-    }
-
-    private func normalized(_ value: Double) -> Double {
-        guard gauge.upperBound > gauge.lowerBound else { return 0 }
-        let normalizedValue = (value - gauge.lowerBound) / (gauge.upperBound - gauge.lowerBound)
-        return min(max(normalizedValue, 0), 1)
-    }
-
-    private func sectionBackgroundOpacity(for color: GaugeZoneColor) -> Double {
-        color == gauge.currentColor ? 0.34 : 0.22
-    }
-
     private func rangeText(_ value: Double) -> String {
         widgetGaugeRangeFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
-
-    @ViewBuilder
-    private func sectionBoundaryTicks(width: CGFloat) -> some View {
-        ForEach(gauge.sections.indices.dropLast(), id: \.self) { index in
-            let boundary = normalized(gauge.sections[index].upperBound)
-            let xOffset = min(
-                max(CGFloat(boundary) * width, GaugeVisualMetrics.barTrackHeight / 2),
-                width - (GaugeVisualMetrics.barTrackHeight / 2)
-            )
-
-            Capsule()
-                .fill(Color.white.opacity(GaugeVisualMetrics.barBoundaryOpacity))
-                .frame(width: 1.5, height: GaugeVisualMetrics.barTrackHeight - 3)
-                .offset(x: xOffset - 0.75)
-        }
     }
 }
 

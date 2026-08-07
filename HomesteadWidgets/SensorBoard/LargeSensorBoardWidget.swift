@@ -62,7 +62,6 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 1 Gauge Style", default: .segmented)
     var gaugeStyle1: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 1 Sensor") var sensor1: HomesteadSensorEntity?
-    @Parameter(title: "Slot 1 Sensor") var chartSensor1: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 1 Name") var customDisplayName1: String?
 
     @Parameter(title: "Slot 1 Scale", default: .automatic)
@@ -91,7 +90,6 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 2 Gauge Style", default: .segmented)
     var gaugeStyle2: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 2 Sensor") var sensor2: HomesteadSensorEntity?
-    @Parameter(title: "Slot 2 Sensor") var chartSensor2: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 2 Name") var customDisplayName2: String?
 
     @Parameter(title: "Slot 2 Scale", default: .automatic)
@@ -120,7 +118,6 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 3 Gauge Style", default: .segmented)
     var gaugeStyle3: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 3 Sensor") var sensor3: HomesteadSensorEntity?
-    @Parameter(title: "Slot 3 Sensor") var chartSensor3: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 3 Name") var customDisplayName3: String?
 
     @Parameter(title: "Slot 3 Scale", default: .automatic)
@@ -149,7 +146,6 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 4 Gauge Style", default: .segmented)
     var gaugeStyle4: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 4 Sensor") var sensor4: HomesteadSensorEntity?
-    @Parameter(title: "Slot 4 Sensor") var chartSensor4: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 4 Name") var customDisplayName4: String?
 
     @Parameter(title: "Slot 4 Scale", default: .automatic)
@@ -178,7 +174,6 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 5 Gauge Style", default: .segmented)
     var gaugeStyle5: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 5 Sensor") var sensor5: HomesteadSensorEntity?
-    @Parameter(title: "Slot 5 Sensor") var chartSensor5: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 5 Name") var customDisplayName5: String?
 
     @Parameter(title: "Slot 5 Scale", default: .automatic)
@@ -207,7 +202,6 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 6 Gauge Style", default: .segmented)
     var gaugeStyle6: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 6 Sensor") var sensor6: HomesteadSensorEntity?
-    @Parameter(title: "Slot 6 Sensor") var chartSensor6: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 6 Name") var customDisplayName6: String?
 
     @Parameter(title: "Slot 6 Scale", default: .automatic)
@@ -236,7 +230,6 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 7 Gauge Style", default: .segmented)
     var gaugeStyle7: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 7 Sensor") var sensor7: HomesteadSensorEntity?
-    @Parameter(title: "Slot 7 Sensor") var chartSensor7: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 7 Name") var customDisplayName7: String?
 
     @Parameter(title: "Slot 7 Scale", default: .automatic)
@@ -265,7 +258,6 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 8 Gauge Style", default: .segmented)
     var gaugeStyle8: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 8 Sensor") var sensor8: HomesteadSensorEntity?
-    @Parameter(title: "Slot 8 Sensor") var chartSensor8: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 8 Name") var customDisplayName8: String?
 
     @Parameter(title: "Slot 8 Scale", default: .automatic)
@@ -294,7 +286,6 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
     @Parameter(title: "Slot 9 Gauge Style", default: .segmented)
     var gaugeStyle9: HomesteadSensorBoardGaugeStyle
     @Parameter(title: "Slot 9 Sensor") var sensor9: HomesteadSensorEntity?
-    @Parameter(title: "Slot 9 Sensor") var chartSensor9: HomesteadChartSensorEntity?
     @Parameter(title: "Slot 9 Name") var customDisplayName9: String?
 
     @Parameter(title: "Slot 9 Scale", default: .automatic)
@@ -325,7 +316,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     Summary {
                         \.$editingSlot
                         \.$display1
-                        \.$chartSensor1
+                        \.$sensor1
                         \.$customDisplayName1
                     }
                 } otherwise: {
@@ -412,7 +403,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     Summary {
                         \.$editingSlot
                         \.$display2
-                        \.$chartSensor2
+                        \.$sensor2
                         \.$customDisplayName2
                     }
                 } otherwise: {
@@ -499,7 +490,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     Summary {
                         \.$editingSlot
                         \.$display3
-                        \.$chartSensor3
+                        \.$sensor3
                         \.$customDisplayName3
                     }
                 } otherwise: {
@@ -586,7 +577,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     Summary {
                         \.$editingSlot
                         \.$display4
-                        \.$chartSensor4
+                        \.$sensor4
                         \.$customDisplayName4
                     }
                 } otherwise: {
@@ -673,7 +664,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     Summary {
                         \.$editingSlot
                         \.$display5
-                        \.$chartSensor5
+                        \.$sensor5
                         \.$customDisplayName5
                     }
                 } otherwise: {
@@ -760,7 +751,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     Summary {
                         \.$editingSlot
                         \.$display6
-                        \.$chartSensor6
+                        \.$sensor6
                         \.$customDisplayName6
                     }
                 } otherwise: {
@@ -847,7 +838,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     Summary {
                         \.$editingSlot
                         \.$display7
-                        \.$chartSensor7
+                        \.$sensor7
                         \.$customDisplayName7
                     }
                 } otherwise: {
@@ -934,7 +925,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     Summary {
                         \.$editingSlot
                         \.$display8
-                        \.$chartSensor8
+                        \.$sensor8
                         \.$customDisplayName8
                     }
                 } otherwise: {
@@ -1021,7 +1012,7 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
                     Summary {
                         \.$editingSlot
                         \.$display9
-                        \.$chartSensor9
+                        \.$sensor9
                         \.$customDisplayName9
                     }
                 } otherwise: {
@@ -1284,31 +1275,28 @@ struct HomesteadLargeSensorBoardWidgetConfigurationIntent: WidgetConfigurationIn
 
     var slots: [HomesteadSensorBoardSlotConfiguration] {
         [
-            slot(display1, sensor1, chartSensor1, customDisplayName1, gaugeConfiguration1),
-            slot(display2, sensor2, chartSensor2, customDisplayName2, gaugeConfiguration2),
-            slot(display3, sensor3, chartSensor3, customDisplayName3, gaugeConfiguration3),
-            slot(display4, sensor4, chartSensor4, customDisplayName4, gaugeConfiguration4),
-            slot(display5, sensor5, chartSensor5, customDisplayName5, gaugeConfiguration5),
-            slot(display6, sensor6, chartSensor6, customDisplayName6, gaugeConfiguration6),
-            slot(display7, sensor7, chartSensor7, customDisplayName7, gaugeConfiguration7),
-            slot(display8, sensor8, chartSensor8, customDisplayName8, gaugeConfiguration8),
-            slot(display9, sensor9, chartSensor9, customDisplayName9, gaugeConfiguration9)
+            slot(display1, sensor1, customDisplayName1, gaugeConfiguration1),
+            slot(display2, sensor2, customDisplayName2, gaugeConfiguration2),
+            slot(display3, sensor3, customDisplayName3, gaugeConfiguration3),
+            slot(display4, sensor4, customDisplayName4, gaugeConfiguration4),
+            slot(display5, sensor5, customDisplayName5, gaugeConfiguration5),
+            slot(display6, sensor6, customDisplayName6, gaugeConfiguration6),
+            slot(display7, sensor7, customDisplayName7, gaugeConfiguration7),
+            slot(display8, sensor8, customDisplayName8, gaugeConfiguration8),
+            slot(display9, sensor9, customDisplayName9, gaugeConfiguration9)
         ]
     }
 
     private func slot(
         _ display: HomesteadSensorBoardSlotDisplay,
         _ sensor: HomesteadSensorEntity?,
-        _ chartSensor: HomesteadChartSensorEntity?,
         _ customDisplayName: String?,
         _ gaugeConfiguration: HomesteadGaugeWidgetConfiguration
     ) -> HomesteadSensorBoardSlotConfiguration {
         HomesteadSensorBoardSlotConfiguration(
             display: display,
             sensor: sensor,
-            chartSensor: chartSensor,
             customDisplayName: customDisplayName,
-            customChartDisplayName: customDisplayName,
             gaugeConfiguration: gaugeConfiguration
         )
     }
@@ -1331,7 +1319,7 @@ struct HomesteadLargeSensorBoardTimelineProvider: AppIntentTimelineProvider {
             return .largePlaceholder
         }
         if context.isPreview,
-           configuration.slots.allSatisfy({ $0.sensor == nil && $0.chartSensor == nil }) {
+           configuration.slots.allSatisfy({ $0.sensor == nil }) {
             return .largePlaceholder
         }
 
