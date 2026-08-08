@@ -17,7 +17,7 @@ This document tracks the first public App Store submission for Homestead. App St
 - Support URL: `https://homesteadcontrol.com/support`
 - Marketing URL: `https://homesteadcontrol.com`
 - Copyright: `2026 Tyler Keegan`
-- App Review sign-in required: enabled, with dedicated review server URL and credentials not yet supplied
+- App Review sign-in required: enabled; isolated review server and dedicated credentials are ready but not yet entered in App Store Connect
 - App Review contact information: name and email saved; phone number remains required
 - App Review notes: saved with setup, Homestead+, and optional-notification guidance
 - Release behavior: manual release after approval
@@ -185,7 +185,17 @@ These statuses were audited read-only on August 7, 2026. No agreement, tax, bank
 - Privacy details published by the account holder: Device ID, App Functionality, linked to the user/device, not used for tracking.
 - Age Rating questionnaire saved: calculated 4+, with standard regional equivalents; all listed capabilities and content categories answered No or None.
 - Accessibility drafts prepared for iPhone and iPad with Dark Interface as the only currently declared supported feature. Apple keeps Publish disabled until an app version is released.
-- App Review first name, last name, email, and detailed review notes saved; phone number and dedicated review-server credentials remain outstanding.
+- App Review first name, last name, email, and detailed review notes saved; phone number remains outstanding, and the prepared review-server credentials still need to be entered.
+
+## Isolated App Review Server Ready
+
+- Public URL: `https://review.homesteadcontrol.com`
+- Runs as the separate **Homestead Review Home** custom HA OS app on the production Raspberry Pi host without production configuration, Supervisor API, Home Assistant API, authentication API, or host-network access
+- Exposes only fictional Home Assistant Demo devices and built-in supporting services; stale LAN-discovered Google Cast devices were removed and automatic discovery components are omitted
+- Dedicated `app-review` account created with a unique password retained outside the repository
+- Published through the existing Cloudflare Tunnel with an explicit hostname ingress and proxied tunnel DNS record
+- Verified August 7, 2026: public HTTPS root and auth endpoints return successfully, WebSocket upgrade returns `101 Switching Protocols`, and the existing production `ha.keegan.me` route remains healthy
+- Installation, isolation, publishing, and removal guidance lives in `Infrastructure/HomeAssistantReviewAddon/README.md`
 
 ## Screenshot Assets Prepared
 
@@ -218,7 +228,7 @@ These statuses were audited read-only on August 7, 2026. No agreement, tax, bank
 - Add all three products to the version 1.0 review submission
 - Publish the prepared accessibility declarations after version 1.0 is released
 - Complete the content-rights declaration
-- Supply the App Review phone number and a dedicated reviewable Home Assistant server URL, username, and password
+- Supply the App Review phone number and enter the prepared review server URL, username, and password
 - Confirm the existing Digital Services Act classification and content-rights declaration as the account holder
 - Upload and select a new build containing the privacy minimization and release-preparation changes made after TestFlight Build 123
 - Run focused tests, generic simulator build, Release/archive-oriented build, and rendered screenshot-route checks

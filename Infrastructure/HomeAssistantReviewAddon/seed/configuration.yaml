@@ -1,0 +1,59 @@
+homeassistant:
+  name: Homestead Review Home
+  unit_system: imperial
+  temperature_unit: F
+  time_zone: America/Chicago
+  country: US
+  currency: USD
+  latitude: 41.8781
+  longitude: -87.6298
+  elevation: 181
+  external_url: https://review.homesteadcontrol.com
+
+api:
+
+auth:
+
+config:
+
+demo:
+
+frontend:
+
+history:
+
+image_upload:
+
+logbook:
+
+lovelace:
+  mode: storage
+
+map:
+
+media_source:
+
+my:
+
+person:
+
+recorder:
+  purge_keep_days: 7
+  auto_purge: true
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.30.32.0/23
+
+scene:
+
+script:
+
+stream:
+
+sun:
+
+system_health:
+
+websocket_api:

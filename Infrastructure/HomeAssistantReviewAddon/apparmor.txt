@@ -1,0 +1,14 @@
+#include <tunables/global>
+
+profile homestead_review_home flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  # The container includes the full Home Assistant Python runtime. Filesystem
+  # access remains confined to the container because the app maps no host or
+  # production Home Assistant directories.
+  file,
+  network,
+  capability,
+  signal,
+}

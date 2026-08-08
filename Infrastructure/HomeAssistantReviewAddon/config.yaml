@@ -1,0 +1,24 @@
+name: Homestead Review Home
+version: 1.0.1
+slug: homestead_review_home
+description: Isolated fictional Home Assistant instance for App Review
+url: https://homesteadcontrol.com
+arch:
+  - aarch64
+startup: application
+boot: auto
+init: false
+legacy: true
+host_network: false
+hassio_api: false
+homeassistant_api: false
+auth_api: false
+apparmor: true
+ports:
+  8123/tcp: 8124
+ports_description:
+  8123/tcp: Homestead review Home Assistant
+webui: http://[HOST]:[PORT:8123]
+watchdog: http://[HOST]:[PORT:8123]/
+options: {}
+schema: {}
