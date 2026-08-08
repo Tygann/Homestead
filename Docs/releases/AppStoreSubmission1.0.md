@@ -11,7 +11,7 @@ This document tracks the first public App Store submission for Homestead. App St
 - Status: Prepare for Submission
 - Selected binary: Version 1.0, Build 12
 - App previews: none
-- iPhone screenshots: none
+- iPhone screenshots: six polished 6.5-inch screenshots uploaded in final story order
 - Promotional text, description, and keywords: saved
 - Support URL: `https://homesteadcontrol.com/support`
 - Marketing URL: `https://homesteadcontrol.com`
@@ -177,7 +177,8 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 ## Screenshot Assets Prepared
 
 - Six clean iPhone 6.9-inch launch candidates are stored in `AppStoreAssets/Screenshots/iPhone-6.9` at `1320 x 2868`, JPEG, without alpha.
-- Six polished headline composites are stored in `AppStoreAssets/Screenshots/iPhone-6.9-Marketing` with the same accepted dimensions and format; this is the recommended upload set.
+- Six polished headline composites are stored in `AppStoreAssets/Screenshots/iPhone-6.9-Marketing` with the same accepted dimensions and format for future 6.9-inch slots.
+- App Store Connect requested the version's 6.5-inch slot, so matching `1284 x 2778` composites are stored in `AppStoreAssets/Screenshots/iPhone-6.5-Marketing` and were uploaded August 7, 2026.
 - The ordered story covers the full Dashboard, Areas, sensor History, card customization, widgets, and Homestead+.
 - Screenshot-only person fixtures use the fictional name `Alex`; the user's real name no longer appears in the launch candidates.
 - The clean set remains available as a fallback, and `Scripts/compose_app_store_screenshots.py` reproducibly regenerates the marketing set without altering the captured app UI.
@@ -208,7 +209,7 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 - Publish the prepared accessibility declarations after version 1.0 is released
 - Complete the content-rights declaration
 - Supply App Review contact information, test instructions, and a reviewable Home Assistant account/server path
-- Upload final iPhone and any intentionally supported iPad screenshots
+- Prepare and upload the required iPad screenshot set
 - Run focused tests, generic simulator build, Release/archive-oriented build, and rendered screenshot-route checks
 - Retest purchase, restore, expiration/lapse, redemption, and Family Sharing with the final TestFlight build
 - Review every field and asset before selecting Add for Review

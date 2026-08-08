@@ -2,7 +2,7 @@
 
 ## Recommended Upload Set
 
-Upload `iPhone-6.9-Marketing` in filename order:
+The version 1.0 App Store Connect page requests the 6.5-inch slot, so upload `iPhone-6.5-Marketing` in filename order:
 
 1. `01-home.jpg` — Your home, beautifully organized
 2. `02-areas.jpg` — Every room at a glance
@@ -11,7 +11,7 @@ Upload `iPhone-6.9-Marketing` in filename order:
 5. `05-widgets.jpg` — Powerful widgets, right where you need them
 6. `06-homestead-plus.jpg` — More home with Homestead+
 
-Each file is a `1320 x 2868` JPEG without an alpha channel. The first three communicate the core product before the customization and paid-feature story.
+Each file is a `1284 x 2778` JPEG without an alpha channel. The first three communicate the core product before the customization and paid-feature story. `iPhone-6.9-Marketing` retains the equivalent `1320 x 2868` set for future slots that accept Apple's newer 6.9-inch sizes.
 
 ## Source Set
 
