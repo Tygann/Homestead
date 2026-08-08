@@ -18,7 +18,7 @@ This document tracks the first public App Store submission for Homestead. App St
 - Marketing URL: `https://homesteadcontrol.com`
 - Copyright: `2026 Tyler Keegan`
 - App Review sign-in required: enabled; isolated review server URL and dedicated credentials are saved in App Store Connect
-- App Review contact information: name and email saved; phone number remains required
+- App Review contact information: name, phone number, and email saved
 - App Review notes: saved with setup, Homestead+, and optional-notification guidance
 - Release behavior: manual release after approval
 
@@ -185,7 +185,7 @@ These statuses were audited read-only on August 7, 2026. No agreement, tax, bank
 - Privacy details published by the account holder: Device ID, App Functionality, linked to the user/device, not used for tracking.
 - Age Rating questionnaire saved: calculated 4+, with standard regional equivalents; all listed capabilities and content categories answered No or None.
 - Accessibility drafts prepared for iPhone and iPad with Dark Interface as the only currently declared supported feature. Apple keeps Publish disabled until an app version is released.
-- App Review first name, last name, email, dedicated review-server credentials, and detailed setup notes are saved; phone number remains outstanding.
+- App Review first name, last name, phone number, email, dedicated review-server credentials, and detailed setup notes are saved.
 
 ## Isolated App Review Server Ready
 
@@ -228,7 +228,7 @@ These statuses were audited read-only on August 7, 2026. No agreement, tax, bank
 - Add all three products to the version 1.0 review submission
 - Publish the prepared accessibility declarations after version 1.0 is released
 - Complete the content-rights declaration
-- Supply the App Review phone number and reverify the saved review server URL and credentials
+- Reverify the saved App Review contact information, review server URL, and credentials
 - Confirm the existing Digital Services Act classification and content-rights declaration as the account holder
 - Upload and select a new build containing the privacy minimization and release-preparation changes made after TestFlight Build 123
 - Run focused tests, generic simulator build, Release/archive-oriented build, and rendered screenshot-route checks
