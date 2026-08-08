@@ -12,12 +12,14 @@ This document tracks the first public App Store submission for Homestead. App St
 - Selected binary: Version 1.0, Build 12
 - App previews: none
 - iPhone screenshots: six polished 6.5-inch screenshots uploaded in final story order
+- iPad screenshots: one required 13-inch screenshot uploaded
 - Promotional text, description, and keywords: saved
 - Support URL: `https://homesteadcontrol.com/support`
 - Marketing URL: `https://homesteadcontrol.com`
 - Copyright: `2026 Tyler Keegan`
-- App Review sign-in required: enabled, with credentials not yet supplied
-- App Review contact information: incomplete
+- App Review sign-in required: enabled, with dedicated review server URL and credentials not yet supplied
+- App Review contact information: name and email saved; phone number remains required
+- App Review notes: saved with setup, Homestead+, and optional-notification guidance
 - Release behavior: manual release after approval
 
 ### App Information
@@ -55,9 +57,9 @@ This document tracks the first public App Store submission for Homestead. App St
 - Family Sharing: enabled for all three products
 - Availability: all countries or regions selected for all three products
 - Product localizations and review notes: present
-- Production prices: not configured on Monthly or Annual; confirm Lifetime pricing separately
-- Annual 14-day introductory trial: described in review notes, but no production introductory-offer configuration was visible during the audit
-- Required product review screenshot: missing from Monthly, Annual, and Lifetime
+- Production prices: configured in all 175 countries or regions; U.S. prices are $4.99 monthly, $24.99 annual, and $69.99 lifetime
+- Annual 14-day introductory trial: configured in all 175 countries or regions
+- Required product review screenshot: uploaded for Monthly, Annual, and Lifetime
 - First products must be added to the version 1.0 submission and reviewed with the app
 
 ## Recommended Listing Positioning
@@ -160,6 +162,16 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 
 - Copyright: `2026 Tyler Keegan` (confirmed August 7, 2026; Homestead is not a registered rights-owning entity)
 
+## Business Account Readiness
+
+- Free Apps Agreement: active through June 5, 2027
+- Paid Apps Agreement: active through June 5, 2027
+- Bank account: active
+- U.S. Form W-9: active
+- Digital Services Act compliance record: active
+
+These statuses were audited read-only on August 7, 2026. No agreement, tax, banking, or legal attestation was changed during release preparation.
+
 ## App Store Connect Configuration Completed
 
 - Free pricing in all 175 countries or regions
@@ -173,12 +185,14 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 - Privacy details published by the account holder: Device ID, App Functionality, linked to the user/device, not used for tracking.
 - Age Rating questionnaire saved: calculated 4+, with standard regional equivalents; all listed capabilities and content categories answered No or None.
 - Accessibility drafts prepared for iPhone and iPad with Dark Interface as the only currently declared supported feature. Apple keeps Publish disabled until an app version is released.
+- App Review first name, last name, email, and detailed review notes saved; phone number and dedicated review-server credentials remain outstanding.
 
 ## Screenshot Assets Prepared
 
 - Six clean iPhone 6.9-inch launch candidates are stored in `AppStoreAssets/Screenshots/iPhone-6.9` at `1320 x 2868`, JPEG, without alpha.
 - Six polished headline composites are stored in `AppStoreAssets/Screenshots/iPhone-6.9-Marketing` with the same accepted dimensions and format for future 6.9-inch slots.
 - App Store Connect requested the version's 6.5-inch slot, so matching `1284 x 2778` composites are stored in `AppStoreAssets/Screenshots/iPhone-6.5-Marketing` and were uploaded August 7, 2026.
+- One required 13-inch iPad screenshot is stored in `AppStoreAssets/Screenshots/iPad-13` at `2064 x 2752`, JPEG without alpha, and was uploaded August 7, 2026.
 - The ordered story covers the full Dashboard, Areas, sensor History, card customization, widgets, and Homestead+.
 - Screenshot-only person fixtures use the fictional name `Alex`; the user's real name no longer appears in the launch candidates.
 - The clean set remains available as a fallback, and `Scripts/compose_app_store_screenshots.py` reproducibly regenerates the marketing set without altering the captured app UI.
@@ -201,15 +215,12 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 
 ## Final Preflight
 
-- Complete Paid Applications agreement, banking, and tax requirements
-- Configure Monthly, Annual, and Lifetime production prices
-- Configure and verify the Annual 14-day introductory trial
-- Upload review screenshots for all three Homestead+ products
 - Add all three products to the version 1.0 review submission
 - Publish the prepared accessibility declarations after version 1.0 is released
 - Complete the content-rights declaration
-- Supply App Review contact information, test instructions, and a reviewable Home Assistant account/server path
-- Prepare and upload the required iPad screenshot set
+- Supply the App Review phone number and a dedicated reviewable Home Assistant server URL, username, and password
+- Confirm the existing Digital Services Act classification and content-rights declaration as the account holder
+- Upload and select a new build containing the privacy minimization and release-preparation changes made after TestFlight Build 123
 - Run focused tests, generic simulator build, Release/archive-oriented build, and rendered screenshot-route checks
 - Retest purchase, restore, expiration/lapse, redemption, and Family Sharing with the final TestFlight build
 - Review every field and asset before selecting Add for Review
