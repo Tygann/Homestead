@@ -177,9 +177,10 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 ## Screenshot Assets Prepared
 
 - Six clean iPhone 6.9-inch launch candidates are stored in `AppStoreAssets/Screenshots/iPhone-6.9` at `1320 x 2868`, JPEG, without alpha.
+- Six polished headline composites are stored in `AppStoreAssets/Screenshots/iPhone-6.9-Marketing` with the same accepted dimensions and format; this is the recommended upload set.
 - The ordered story covers the full Dashboard, Areas, sensor History, card customization, widgets, and Homestead+.
 - Screenshot-only person fixtures use the fictional name `Alex`; the user's real name no longer appears in the launch candidates.
-- These are clean UI assets. A marketing-composite variant with short headlines can be created after the clean set is approved.
+- The clean set remains available as a fallback, and `Scripts/compose_app_store_screenshots.py` reproducibly regenerates the marketing set without altering the captured app UI.
 
 ## Public Website Completed
 
