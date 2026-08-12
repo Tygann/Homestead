@@ -358,8 +358,8 @@ struct HomeAssistantOnboardingView: View {
         Image("HomesteadLogo")
             .resizable()
             .scaledToFit()
-            .frame(width: 72, height: 72)
-            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .frame(width: 88, height: 88)
+            .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
             .accessibilityHidden(true)
     }
 
@@ -835,144 +835,99 @@ struct HomeAssistantOnboardingView: View {
 // MARK: - Welcome Artwork
 
 private struct OnboardingHomePreview: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            DashboardHeaderCardView(title: "Favorites")
+    private static let designWidth: CGFloat = 680
+    private static let cardSpacing: CGFloat = AppSpacing.medium
+    private static let cardPadding: CGFloat = AppSpacing.medium
 
-            OnboardingDashboardCard(
-                title: "Living Room Lights",
-                detail: "3 lights on",
-                systemImage: "lightbulb.fill",
-                tint: .yellow,
-                style: .lightControl
+    var body: some View {
+        GeometryReader { proxy in
+            let scale = proxy.size.width / Self.designWidth
+
+            dashboardMiniature
+                .frame(width: Self.designWidth, alignment: .topLeading)
+                .scaleEffect(scale, anchor: .topLeading)
+                .frame(
+                    width: proxy.size.width,
+                    height: miniatureHeight * scale,
+                    alignment: .topLeading
+                )
+        }
+        .frame(height: scaledHeight(for: 360))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Sample Homestead dashboard with summary chips and Home controls")
+    }
+
+    private var dashboardMiniature: some View {
+        VStack(alignment: .leading, spacing: Self.cardSpacing) {
+            HStack(spacing: AppSpacing.small) {
+                chip(title: "Climate", value: "72°", image: "thermometer.medium", active: true)
+                chip(title: "Lights", value: "3 On", image: "lightbulb.fill", active: true)
+                chip(title: "Security", value: "All Secure", image: "lock.fill", active: true)
+                chip(title: "Media", value: "All Idle", image: "play.rectangle.fill", active: false)
+            }
+
+            DashboardCardView(
+                entityID: "climate.gallery",
+                size: .wide,
+                presentationKind: .control,
+                displayNameOverride: "Thermostat",
+                isPreview: true
             )
+            .frame(height: cardHeight)
 
             HStack(spacing: AppSpacing.small) {
-                OnboardingDashboardCard(
-                    title: "Front Door",
-                    detail: "Locked",
-                    systemImage: "lock.fill",
-                    tint: .green,
-                    style: .status
+                DashboardCardView(
+                    entityID: "lock.gallery",
+                    size: .square,
+                    presentationKind: .control,
+                    isPreview: true
                 )
-                OnboardingDashboardCard(
-                    title: "Hallway",
-                    detail: "72°",
-                    systemImage: "thermometer.medium",
-                    tint: .cyan,
-                    style: .temperature
+
+                DashboardCardView(
+                    entityID: "sensor.gallery_temperature",
+                    size: .square,
+                    presentationKind: .status,
+                    displayNameOverride: "Hallway",
+                    isPreview: true
                 )
             }
+            .frame(height: cardHeight)
         }
-        .padding(AppSpacing.medium)
+        .padding(AppSpacing.large)
         .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.22), radius: 20, y: 12)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Sample Homestead dashboard showing living room lights, the front door, and hallway temperature")
-    }
-}
-
-private struct OnboardingDashboardCard: View {
-    enum Style {
-        case lightControl
-        case status
-        case temperature
+        .environment(DashboardPresentationGallerySamples.stateStore)
+        .allowsHitTesting(false)
     }
 
-    let title: String
-    let detail: String
-    let systemImage: String
-    let tint: Color
-    let style: Style
-
-    var body: some View {
-        CardContainer(minHeight: style == .lightControl ? 94 : 72, padding: AppSpacing.medium) {
-            switch style {
-            case .lightControl:
-                VStack(alignment: .leading, spacing: AppSpacing.medium) {
-                    cardHeader
-                    brightnessTrack
-                }
-            case .status:
-                cardHeader
-            case .temperature:
-                HStack(spacing: AppSpacing.medium) {
-                    temperatureGauge
-                    textLabels
-                }
-            }
-        }
+    private func chip(title: String, value: String, image: String, active: Bool) -> some View {
+        DashboardChipView(presentation: DashboardChipPresentation(
+            title: title,
+            value: value,
+            systemImage: image,
+            isActive: active,
+            isAvailable: true
+        ))
+        .frame(maxWidth: .infinity)
     }
 
-    private var cardHeader: some View {
-        HStack(alignment: .center, spacing: AppSpacing.medium) {
-            CardIconView(
-                systemName: systemImage,
-                isActive: true,
-                accentColor: tint,
-                size: 40,
-                symbolSize: 19
-            )
-
-            textLabels
-
-            if style == .lightControl {
-                Text("On")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(tint)
-            }
-        }
+    private var cardHeight: CGFloat {
+        DashboardCardSize.wide.renderedHeight(
+            rowSpacing: Self.cardSpacing,
+            cardPadding: Self.cardPadding
+        )
     }
 
-    private var brightnessTrack: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.white.opacity(0.09))
-                Capsule()
-                    .fill(tint.opacity(0.72))
-                    .frame(width: geometry.size.width * 0.68)
-            }
-        }
-        .frame(height: 7)
-        .accessibilityHidden(true)
+    private var miniatureHeight: CGFloat {
+        44 + Self.cardSpacing + cardHeight + Self.cardSpacing + cardHeight + (AppSpacing.large * 2)
     }
 
-    private var temperatureGauge: some View {
-        ZStack {
-            Circle()
-                .stroke(Color.white.opacity(0.10), lineWidth: 5)
-            Circle()
-                .trim(from: 0, to: 0.72)
-                .stroke(tint, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            Text("72")
-                .font(.caption2.weight(.bold))
-                .monospacedDigit()
-        }
-        .frame(width: 42, height: 42)
-        .accessibilityHidden(true)
-    }
-
-    private var textLabels: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-
-            Text(detail)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private func scaledHeight(for width: CGFloat) -> CGFloat {
+        miniatureHeight * width / Self.designWidth
     }
 }
 

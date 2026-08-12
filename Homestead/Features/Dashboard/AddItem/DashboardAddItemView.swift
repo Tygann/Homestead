@@ -518,6 +518,11 @@ enum DashboardPresentationGallerySamples {
                 entityID: "scene.gallery",
                 state: "scening",
                 attributes: ["friendly_name": .string("Movie Night")]
+            ),
+            HAEntityDTO(
+                entityID: "lock.gallery",
+                state: "locked",
+                attributes: ["friendly_name": .string("Front Door")]
             )
         ])
         seedWeatherForecast(in: store, entityID: "weather.gallery")
