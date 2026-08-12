@@ -87,7 +87,7 @@ Available sample screens are:
 | `entity-detail-card` | Entity-first detail opened from a Chart card, including History focus and the contextual Card menu. |
 | `entity-details` | The entity-detail family/state reference gallery, including Presence. |
 | `notifications` | Notification permission and Home Assistant delivery settings with deterministic sample dependencies. Add `--preview-notification-state needs-setup` for the actionable setup state. |
-| `onboarding` | The fresh-install Homestead welcome screen. Continue to inspect the configured-server setup state with deterministic sample dependencies, or launch it directly with `--preview-onboarding-step setup`. |
+| `onboarding` | The fresh-install Homestead welcome screen. Continue to inspect setup, or launch the configured-server and staged-address states directly with `--preview-onboarding-step setup` or `--preview-onboarding-step edit`. |
 | `widgets` | Control, Status, Sensor, Sensor Board, and Action across system and accessory families, including configuration states and dashboard/widget gauge comparisons. Add `--preview-card-state unavailable` for unavailable/no-history content. |
 
 For focused dashboard-card gallery inspection, add `--preview-size square`, `wide`, or `large`. Use `--preview-card-state transient` for deterministic Chart loading/empty plus Weather loading and retained-data refresh-failure states, or `--preview-card-state unavailable` for unavailable Chart and Weather cards, including a Chart with retained recorded history.

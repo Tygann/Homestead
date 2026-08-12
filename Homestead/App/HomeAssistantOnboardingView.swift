@@ -229,11 +229,13 @@ struct HomeAssistantOnboardingView: View {
 
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantDiscoveryService.self) private var discoveryService
-    @Environment(HomesteadSetupCoordinator.self) private var setupCoordinator
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isURLFieldFocused: Bool
     @State private var isEnteringAddress = false
     @State private var draftBaseURL = ""
+    @State private var draftDiscoveredSignInURL = ""
+    @State private var draftInternalURL = ""
+    @State private var draftExternalURL = ""
     @State private var selectedStep: Step?
 
     let authState: HAAuthState
@@ -248,7 +250,9 @@ struct HomeAssistantOnboardingView: View {
         serviceError: String?,
         storageError: String?,
         signIn: @escaping () -> Void,
-        initialStep: Step? = nil
+        initialStep: Step? = nil,
+        initiallyEditingServer: Bool = false,
+        initialDraftBaseURL: String = ""
     ) {
         self.authState = authState
         self.connectionStatus = connectionStatus
@@ -256,16 +260,19 @@ struct HomeAssistantOnboardingView: View {
         self.storageError = storageError
         self.signIn = signIn
         _selectedStep = State(initialValue: initialStep)
+        _isEnteringAddress = State(initialValue: initiallyEditingServer)
+        _draftBaseURL = State(initialValue: initialDraftBaseURL)
     }
 
     // MARK: - Body
 
     var body: some View {
         @Bindable var connectionSettings = connectionSettings
-        let hasDraftServerURL = isEnteringAddress &&
-            !draftBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasPresentedServerURL = showsServerEditor
+            ? hasValidDraftServerURL
+            : connectionSettings.hasServerURL
         let presentation = HomeAssistantOnboardingPresentation.make(
-            hasServerURL: connectionSettings.hasServerURL || hasDraftServerURL,
+            hasServerURL: hasPresentedServerURL,
             authState: authState,
             connectionStatus: connectionStatus,
             serviceError: serviceError,
@@ -345,13 +352,16 @@ struct HomeAssistantOnboardingView: View {
         Button {
             navigateToSetup()
         } label: {
-            HStack {
+            ZStack {
                 Text("Get Started")
                     .fontWeight(.semibold)
-                Spacer()
-                Image(systemName: "arrow.right")
-                    .font(.body.weight(.semibold))
-                    .accessibilityHidden(true)
+
+                HStack {
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                        .font(.body.weight(.semibold))
+                        .accessibilityHidden(true)
+                }
             }
             .frame(maxWidth: .infinity, minHeight: 52)
             .padding(.horizontal, AppSpacing.medium)
@@ -397,7 +407,7 @@ struct HomeAssistantOnboardingView: View {
             onboardingBrandMark
 
             VStack(spacing: AppSpacing.small) {
-                Text(connectionSettings.hasServerURL ? "Connect Your Home" : "Find Your Home")
+                Text(showsServerEditor ? "Find Your Home" : "Connect Your Home")
                     .font(.largeTitle.weight(.bold))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
@@ -414,7 +424,7 @@ struct HomeAssistantOnboardingView: View {
     }
 
     private var setupHeaderMessage: String {
-        if connectionSettings.hasServerURL {
+        if !showsServerEditor {
             return "Continue securely through Home Assistant to finish setup."
         }
 
@@ -425,16 +435,13 @@ struct HomeAssistantOnboardingView: View {
         presentation: HomeAssistantOnboardingPresentation
     ) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.small) {
-            if connectionSettings.hasServerURL {
-                selectedServerCard(presentation: presentation)
-            } else {
+            if showsServerEditor {
                 VStack(spacing: AppSpacing.medium) {
                     Button {
                         isURLFieldFocused = false
-                        isEnteringAddress = false
                         discoveryService.start()
                     } label: {
-                        Label("Find Home Assistant", systemImage: "dot.radiowaves.left.and.right")
+                        Label("Search Local Network", systemImage: "dot.radiowaves.left.and.right")
                             .frame(maxWidth: .infinity, minHeight: 48)
                             .foregroundStyle(.white)
                     }
@@ -443,33 +450,36 @@ struct HomeAssistantOnboardingView: View {
 
                     discoveryResults
 
-                    Button("Enter Address Manually") {
-                        discoveryService.stop()
-                        draftBaseURL = connectionSettings.baseURL
-                        isEnteringAddress = true
-                        isURLFieldFocused = true
+                    HStack(spacing: AppSpacing.small) {
+                        Rectangle()
+                            .fill(.white.opacity(0.16))
+                            .frame(height: 1)
+                        Text("or")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Rectangle()
+                            .fill(.white.opacity(0.16))
+                            .frame(height: 1)
                     }
-                    .buttonStyle(.glass)
-                    .buttonBorderShape(.capsule)
 
-                    if isEnteringAddress {
-                        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
-                            Text("Home Assistant Address")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            TextField("homeassistant.local:8123", text: $draftBaseURL)
-                                .textInputAutocapitalization(.never)
-                                .keyboardType(.URL)
-                                .textContentType(.URL)
-                                .autocorrectionDisabled()
-                                .focused($isURLFieldFocused)
-                                .submitLabel(.go)
-                                .onSubmit { attemptSignIn(presentation: presentation) }
-                        }
-                        .padding(AppSpacing.medium)
-                        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: AppRadius.card))
+                    VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+                        Text("Home Assistant Address")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        TextField("homeassistant.local:8123", text: $draftBaseURL)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.URL)
+                            .textContentType(.URL)
+                            .autocorrectionDisabled()
+                            .focused($isURLFieldFocused)
+                            .submitLabel(.go)
+                            .onSubmit { attemptSignIn(presentation: presentation) }
                     }
+                    .padding(AppSpacing.medium)
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: AppRadius.card))
                 }
+            } else {
+                selectedServerCard(presentation: presentation)
             }
         }
     }
@@ -487,7 +497,12 @@ struct HomeAssistantOnboardingView: View {
             } else {
                 ForEach(discoveryService.instances) { instance in
                     Button {
-                        setupCoordinator.select(instance, settings: connectionSettings)
+                        draftBaseURL = instance.signInURL
+                        draftDiscoveredSignInURL = instance.signInURL
+                        draftInternalURL = instance.internalURL ?? ""
+                        draftExternalURL = instance.externalURL ?? ""
+                        isURLFieldFocused = false
+                        discoveryService.stop()
                     } label: {
                         HStack {
                             Image(systemName: "house.fill")
@@ -525,11 +540,11 @@ struct HomeAssistantOnboardingView: View {
                 if canChangeSelectedServer {
                     Button("Change") {
                         draftBaseURL = connectionSettings.baseURL
+                        draftDiscoveredSignInURL = ""
+                        draftInternalURL = ""
+                        draftExternalURL = ""
                         isEnteringAddress = true
-                        isURLFieldFocused = true
-                        connectionSettings.baseURL = ""
-                        connectionSettings.internalURL = ""
-                        connectionSettings.externalURL = ""
+                        isURLFieldFocused = false
                     }
                     .font(.subheadline)
                 }
@@ -548,7 +563,7 @@ struct HomeAssistantOnboardingView: View {
         HStack(spacing: AppSpacing.medium) {
             if canNavigateBackToWelcome {
                 Button {
-                    navigateBackToWelcome()
+                    navigateBack()
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.body.weight(.semibold))
@@ -634,9 +649,19 @@ struct HomeAssistantOnboardingView: View {
         signIn()
     }
 
-    private func navigateBackToWelcome() {
+    private func navigateBack() {
         isURLFieldFocused = false
         discoveryService.stop()
+
+        if isEnteringAddress, connectionSettings.hasServerURL {
+            draftBaseURL = connectionSettings.baseURL
+            draftDiscoveredSignInURL = ""
+            draftInternalURL = ""
+            draftExternalURL = ""
+            isEnteringAddress = false
+            return
+        }
+
         updateStep(.welcome)
     }
 
@@ -655,7 +680,7 @@ struct HomeAssistantOnboardingView: View {
     }
 
     private func commitDraftBaseURLIfNeeded() {
-        guard isEnteringAddress else {
+        guard showsServerEditor else {
             return
         }
 
@@ -664,7 +689,17 @@ struct HomeAssistantOnboardingView: View {
             return
         }
 
+        let previousBaseURL = connectionSettings.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         connectionSettings.baseURL = trimmedBaseURL
+
+        if trimmedBaseURL == draftDiscoveredSignInURL {
+            connectionSettings.internalURL = draftInternalURL
+            connectionSettings.externalURL = draftExternalURL
+        } else if trimmedBaseURL != previousBaseURL {
+            connectionSettings.internalURL = ""
+            connectionSettings.externalURL = ""
+        }
+
         isEnteringAddress = false
     }
 
@@ -696,6 +731,14 @@ struct HomeAssistantOnboardingView: View {
 
     private var canNavigateBackToWelcome: Bool {
         selectedStep == .setup
+    }
+
+    private var showsServerEditor: Bool {
+        isEnteringAddress || !connectionSettings.hasServerURL
+    }
+
+    private var hasValidDraftServerURL: Bool {
+        (try? HomeAssistantEndpointBuilder.authTokenURL(from: draftBaseURL)) != nil
     }
 }
 

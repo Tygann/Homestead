@@ -31,6 +31,7 @@ nonisolated enum HomesteadPreviewNotificationState: String, Sendable {
 nonisolated enum HomesteadPreviewOnboardingStep: String, Sendable {
     case welcome
     case setup
+    case edit
 }
 
 extension HomesteadPreviewScreen {

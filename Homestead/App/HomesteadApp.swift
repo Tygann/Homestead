@@ -267,7 +267,11 @@ struct HomesteadApp: App {
                 serviceError: nil,
                 storageError: nil,
                 signIn: {},
-                initialStep: RuntimeEnvironment.previewOnboardingStep == .welcome ? .welcome : .setup
+                initialStep: RuntimeEnvironment.previewOnboardingStep == .welcome ? .welcome : .setup,
+                initiallyEditingServer: RuntimeEnvironment.previewOnboardingStep == .edit,
+                initialDraftBaseURL: RuntimeEnvironment.previewOnboardingStep == .edit
+                    ? "http://homeassistant.local:8123"
+                    : ""
             )
         case .settings:
             SettingsReferenceGallery()

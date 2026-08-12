@@ -4,7 +4,7 @@ This is the tactical handoff for the current active workstream. Keep it short an
 
 For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API research targets, read `Docs/API_CAPABILITY_INVENTORY.md`.
 
-The first-launch Home Assistant setup now begins with a visually focused Homestead welcome, continues into a matching Liquid Glass connection surface, and preserves the established discovery, manual-address, OAuth, error, iCloud restore, and returning-session behavior. A restrained 30 fps Canvas background becomes static under Reduce Motion, explicit forward navigation exposes a glass back control without discarding staged input, and `--preview-screen onboarding` plus `--preview-onboarding-step setup` provide deterministic simulator review routes.
+The first-launch Home Assistant setup now begins with a visually focused Homestead welcome, continues into a matching Liquid Glass connection surface, and preserves the established discovery, manual-address, OAuth, error, iCloud restore, and returning-session behavior. A restrained 24 fps Canvas background becomes static under Reduce Motion. Explicit navigation exposes a glass back control, server edits remain staged until sign-in, and Back cancels an active server edit before returning to Welcome. The editor presents local discovery and manual address entry as parallel choices without automatically focusing the keyboard. `--preview-screen onboarding` plus `--preview-onboarding-step welcome`, `setup`, or `edit` provide deterministic simulator review routes.
 
 ## Current Focus
 
