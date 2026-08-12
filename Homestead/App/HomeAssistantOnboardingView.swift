@@ -844,7 +844,7 @@ private struct OnboardingHomePreview: View {
                 detail: "3 lights on",
                 systemImage: "lightbulb.fill",
                 tint: .yellow,
-                style: .wide
+                style: .lightControl
             )
 
             HStack(spacing: AppSpacing.small) {
@@ -853,17 +853,24 @@ private struct OnboardingHomePreview: View {
                     detail: "Locked",
                     systemImage: "lock.fill",
                     tint: .green,
-                    style: .compact
+                    style: .status
                 )
                 OnboardingDashboardCard(
                     title: "Hallway",
                     detail: "72°",
                     systemImage: "thermometer.medium",
                     tint: .cyan,
-                    style: .compact
+                    style: .temperature
                 )
             }
         }
+        .padding(AppSpacing.medium)
+        .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.22), radius: 20, y: 12)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Sample Homestead dashboard showing living room lights, the front door, and hallway temperature")
     }
@@ -871,8 +878,9 @@ private struct OnboardingHomePreview: View {
 
 private struct OnboardingDashboardCard: View {
     enum Style {
-        case wide
-        case compact
+        case lightControl
+        case status
+        case temperature
     }
 
     let title: String
@@ -882,35 +890,72 @@ private struct OnboardingDashboardCard: View {
     let style: Style
 
     var body: some View {
-        CardContainer(minHeight: style == .wide ? 68 : 64, padding: AppSpacing.medium) {
-            HStack(alignment: .center, spacing: AppSpacing.medium) {
-                CardIconView(
-                    systemName: systemImage,
-                    isActive: true,
-                    accentColor: tint,
-                    size: 40,
-                    symbolSize: 19
-                )
-
-                cardText
+        CardContainer(minHeight: style == .lightControl ? 94 : 72, padding: AppSpacing.medium) {
+            switch style {
+            case .lightControl:
+                VStack(alignment: .leading, spacing: AppSpacing.medium) {
+                    cardHeader
+                    brightnessTrack
+                }
+            case .status:
+                cardHeader
+            case .temperature:
+                HStack(spacing: AppSpacing.medium) {
+                    temperatureGauge
+                    textLabels
+                }
             }
         }
     }
 
-    private var cardText: some View {
-        Group {
-            if style == .wide {
-                HStack(alignment: .firstTextBaseline) {
-                    textLabels
-                    Spacer(minLength: AppSpacing.medium)
-                    Text("On")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(tint)
-                }
-            } else {
-                textLabels
+    private var cardHeader: some View {
+        HStack(alignment: .center, spacing: AppSpacing.medium) {
+            CardIconView(
+                systemName: systemImage,
+                isActive: true,
+                accentColor: tint,
+                size: 40,
+                symbolSize: 19
+            )
+
+            textLabels
+
+            if style == .lightControl {
+                Text("On")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(tint)
             }
         }
+    }
+
+    private var brightnessTrack: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.white.opacity(0.09))
+                Capsule()
+                    .fill(tint.opacity(0.72))
+                    .frame(width: geometry.size.width * 0.68)
+            }
+        }
+        .frame(height: 7)
+        .accessibilityHidden(true)
+    }
+
+    private var temperatureGauge: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.10), lineWidth: 5)
+            Circle()
+                .trim(from: 0, to: 0.72)
+                .stroke(tint, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Text("72")
+                .font(.caption2.weight(.bold))
+                .monospacedDigit()
+        }
+        .frame(width: 42, height: 42)
+        .accessibilityHidden(true)
     }
 
     private var textLabels: some View {
