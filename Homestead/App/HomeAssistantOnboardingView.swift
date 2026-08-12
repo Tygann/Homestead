@@ -835,26 +835,31 @@ struct HomeAssistantOnboardingView: View {
 
 private struct OnboardingHomePreview: View {
     private static let designSize: CGFloat = 390
-    private static let displaySize: CGFloat = 320
     private static let cardSpacing: CGFloat = AppSpacing.medium
     private static let cardPadding: CGFloat = AppSpacing.medium
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            previewSurface
+        GeometryReader { proxy in
+            let sideLength = proxy.size.width
 
-            dashboardContent
-                .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
-                .scaleEffect(Self.displaySize / Self.designSize, anchor: .topLeading)
-                .frame(width: Self.displaySize, height: Self.displaySize, alignment: .topLeading)
+            ZStack(alignment: .topLeading) {
+                previewShape
+                    .fill(Color.white.opacity(0.065))
+
+                dashboardContent
+                    .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
+                    .scaleEffect(sideLength / Self.designSize, anchor: .topLeading)
+                    .frame(width: sideLength, height: sideLength, alignment: .topLeading)
+            }
+            .frame(width: sideLength, height: sideLength)
+            .clipShape(previewShape)
+            .overlay {
+                previewShape
+                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.22), radius: 20, y: 12)
         }
-        .frame(width: Self.displaySize, height: Self.displaySize)
-        .clipShape(previewShape)
-        .overlay {
-            previewShape
-                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.22), radius: 20, y: 12)
+        .aspectRatio(1, contentMode: .fit)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sample Homestead dashboard with summary chips and Home controls")
     }
@@ -900,12 +905,6 @@ private struct OnboardingHomePreview: View {
         .padding(AppSpacing.medium)
         .environment(DashboardPresentationGallerySamples.stateStore)
         .allowsHitTesting(false)
-    }
-
-    private var previewSurface: some View {
-        previewShape
-            .fill(Color.white.opacity(0.065))
-            .frame(width: Self.displaySize, height: Self.displaySize)
     }
 
     private var previewShape: RoundedRectangle {
