@@ -836,90 +836,98 @@ struct HomeAssistantOnboardingView: View {
 
 private struct OnboardingHomePreview: View {
     var body: some View {
-        VStack(spacing: AppSpacing.small) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Good evening")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.6))
-                    Text("Home")
-                        .font(.title2.weight(.bold))
-                }
-                Spacer()
-                Label("72°", systemImage: "cloud.sun.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.86))
-            }
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            DashboardHeaderCardView(title: "Favorites")
+
+            OnboardingDashboardCard(
+                title: "Living Room Lights",
+                detail: "3 lights on",
+                systemImage: "lightbulb.fill",
+                tint: .yellow,
+                style: .wide
+            )
 
             HStack(spacing: AppSpacing.small) {
-                OnboardingPreviewTile(
-                    title: "Living Room",
-                    detail: "3 lights on",
-                    systemImage: "lightbulb.fill",
-                    tint: .yellow
-                )
-                OnboardingPreviewTile(
-                    title: "Comfort",
-                    detail: "72° · 45%",
-                    systemImage: "thermometer.medium",
-                    tint: .cyan
-                )
-            }
-
-            HStack(spacing: AppSpacing.small) {
-                OnboardingPreviewTile(
+                OnboardingDashboardCard(
                     title: "Front Door",
                     detail: "Locked",
                     systemImage: "lock.fill",
-                    tint: .green
+                    tint: .green,
+                    style: .compact
                 )
-                OnboardingPreviewTile(
-                    title: "Movie Night",
-                    detail: "Ready",
-                    systemImage: "play.tv.fill",
-                    tint: .purple
+                OnboardingDashboardCard(
+                    title: "Hallway",
+                    detail: "72°",
+                    systemImage: "thermometer.medium",
+                    tint: .cyan,
+                    style: .compact
                 )
             }
         }
-        .padding(AppSpacing.medium)
-        .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.24), radius: 24, y: 16)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Sample Homestead dashboard showing lights, comfort, front door, and Movie Night")
+        .accessibilityLabel("Sample Homestead dashboard showing living room lights, the front door, and hallway temperature")
     }
 }
 
-private struct OnboardingPreviewTile: View {
+private struct OnboardingDashboardCard: View {
+    enum Style {
+        case wide
+        case compact
+    }
+
     let title: String
     let detail: String
     let systemImage: String
     let tint: Color
+    let style: Style
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.medium) {
-            Image(systemName: systemImage)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(tint)
-                .frame(width: 36, height: 36)
-                .background(tint.opacity(0.16), in: Circle())
+        CardContainer(minHeight: style == .wide ? 68 : 64, padding: AppSpacing.medium) {
+            HStack(alignment: .center, spacing: AppSpacing.medium) {
+                CardIconView(
+                    systemName: systemImage,
+                    isActive: true,
+                    accentColor: tint,
+                    size: 40,
+                    symbolSize: 19
+                )
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.58))
-                    .lineLimit(1)
+                cardText
             }
         }
+    }
+
+    private var cardText: some View {
+        Group {
+            if style == .wide {
+                HStack(alignment: .firstTextBaseline) {
+                    textLabels
+                    Spacer(minLength: AppSpacing.medium)
+                    Text("On")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(tint)
+                }
+            } else {
+                textLabels
+            }
+        }
+    }
+
+    private var textLabels: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+
+            Text(detail)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(AppSpacing.medium)
-        .background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
     }
 }
 
