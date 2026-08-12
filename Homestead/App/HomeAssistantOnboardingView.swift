@@ -337,13 +337,13 @@ struct HomeAssistantOnboardingView: View {
             ScrollView {
                 VStack(spacing: AppSpacing.xLarge) {
                     onboardingBrandMark
+                    welcomeMessage
                     OnboardingHomePreview()
                         .frame(maxWidth: 430)
-                    welcomeMessage
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, AppSpacing.large)
-                .padding(.top, AppSpacing.medium)
+                .padding(.top, onboardingContentTopPadding)
                 .padding(.bottom, 120)
             }
             .scrollIndicators(.hidden)
@@ -423,7 +423,7 @@ struct HomeAssistantOnboardingView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, AppSpacing.large)
-                .padding(.top, 84)
+                .padding(.top, onboardingContentTopPadding)
                 .padding(.bottom, 132)
             }
             .scrollIndicators(.hidden)
@@ -474,6 +474,8 @@ struct HomeAssistantOnboardingView: View {
                         discoveryService.start()
                     } label: {
                         Label("Search Local Network", systemImage: "dot.radiowaves.left.and.right")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                             .frame(maxWidth: .infinity, minHeight: 48)
                             .foregroundStyle(.white)
                     }
@@ -667,6 +669,8 @@ struct HomeAssistantOnboardingView: View {
 
                     Text(presentation.buttonTitle)
                         .fontWeight(.semibold)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
                 .frame(maxWidth: .infinity, minHeight: 50)
                 .padding(.horizontal, AppSpacing.medium)
@@ -821,6 +825,10 @@ struct HomeAssistantOnboardingView: View {
 
     private var hasValidDraftServerURL: Bool {
         HomeAssistantOnboardingPresentation.isValidServerAddress(draftBaseURL)
+    }
+
+    private var onboardingContentTopPadding: CGFloat {
+        72
     }
 }
 
