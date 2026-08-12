@@ -354,8 +354,9 @@ struct HomeAssistantOnboardingView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 52)
             .padding(.horizontal, AppSpacing.medium)
+            .foregroundStyle(.white)
         }
-        .buttonStyle(.glassProminent)
+        .buttonStyle(.glass(.regular.tint(Color.accentColor.opacity(0.28))))
         .buttonBorderShape(.capsule)
         .tint(Color.accentColor)
         .padding(.horizontal, AppSpacing.large)
@@ -441,8 +442,9 @@ struct HomeAssistantOnboardingView: View {
                     } label: {
                         Label("Find Home Assistant", systemImage: "dot.radiowaves.left.and.right")
                             .frame(maxWidth: .infinity, minHeight: 48)
+                            .foregroundStyle(.white)
                     }
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.glass(.regular.tint(Color.accentColor.opacity(0.28))))
                     .buttonBorderShape(.capsule)
 
                     discoveryResults
@@ -545,7 +547,7 @@ struct HomeAssistantOnboardingView: View {
                 statusRow(presentation: presentation).padding(AppSpacing.medium)
             }
         }
-        .glassEffect(.regular, in: .rect(cornerRadius: AppRadius.card))
+        .glassEffect(.regular, in: .capsule)
     }
 
     private func actionBar(presentation: HomeAssistantOnboardingPresentation) -> some View {
@@ -587,7 +589,7 @@ struct HomeAssistantOnboardingView: View {
                 .padding(.horizontal, AppSpacing.medium)
                 .foregroundStyle(.white)
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.glass(.regular.tint(Color.accentColor.opacity(0.28))))
             .buttonBorderShape(.capsule)
             .disabled(!presentation.isButtonEnabled)
         }
