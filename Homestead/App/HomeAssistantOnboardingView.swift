@@ -334,19 +334,24 @@ struct HomeAssistantOnboardingView: View {
         ZStack {
             HomesteadOnboardingBackground()
 
-            ScrollView {
-                VStack(spacing: AppSpacing.xLarge) {
-                    onboardingBrandMark
-                    welcomeMessage
-                    OnboardingHomePreview()
-                        .frame(maxWidth: 430)
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: AppSpacing.xLarge) {
+                        onboardingBrandMark
+                        welcomeMessage
+                        OnboardingHomePreview()
+                            .frame(
+                                width: min(360, geometry.size.width - (AppSpacing.large * 4)),
+                                height: min(360, geometry.size.width - (AppSpacing.large * 4))
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, AppSpacing.large)
+                    .padding(.top, onboardingContentTopPadding)
+                    .padding(.bottom, 120)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, AppSpacing.large)
-                .padding(.top, onboardingContentTopPadding)
-                .padding(.bottom, 120)
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 welcomeAction
             }
@@ -846,9 +851,8 @@ private struct OnboardingHomePreview: View {
             dashboardMiniature
                 .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
                 .scaleEffect(scale, anchor: .topLeading)
-                .frame(width: proxy.size.width, height: proxy.size.width, alignment: .topLeading)
         }
-        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sample Homestead dashboard with summary chips and Home controls")
     }
@@ -897,6 +901,7 @@ private struct OnboardingHomePreview: View {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: .black.opacity(0.22), radius: 20, y: 12)
         .environment(DashboardPresentationGallerySamples.stateStore)
         .allowsHitTesting(false)
