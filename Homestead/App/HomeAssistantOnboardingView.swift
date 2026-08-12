@@ -386,31 +386,6 @@ struct HomeAssistantOnboardingView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 actionBar(presentation: presentation)
             }
-
-            if canNavigateBackToWelcome {
-                VStack {
-                    HStack {
-                        Button {
-                            isURLFieldFocused = false
-                            discoveryService.stop()
-                            selectedStep = .welcome
-                        } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.body.weight(.semibold))
-                                .frame(width: 44, height: 44)
-                        }
-                        .buttonStyle(.glass)
-                        .buttonBorderShape(.circle)
-                        .accessibilityLabel("Back")
-
-                        Spacer()
-                    }
-
-                    Spacer()
-                }
-                .padding(.horizontal, AppSpacing.large)
-                .padding(.top, AppSpacing.small)
-            }
         }
         .preferredColorScheme(.dark)
     }
@@ -574,7 +549,20 @@ struct HomeAssistantOnboardingView: View {
     }
 
     private func actionBar(presentation: HomeAssistantOnboardingPresentation) -> some View {
-        VStack(spacing: AppSpacing.small) {
+        HStack(spacing: AppSpacing.medium) {
+            if canNavigateBackToWelcome {
+                Button {
+                    navigateBackToWelcome()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 50, height: 50)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .accessibilityLabel("Back")
+            }
+
             Button {
                 attemptSignIn(presentation: presentation)
             } label: {
@@ -602,7 +590,6 @@ struct HomeAssistantOnboardingView: View {
             .buttonStyle(.glassProminent)
             .buttonBorderShape(.capsule)
             .disabled(!presentation.isButtonEnabled)
-
         }
         .padding(.horizontal, AppSpacing.large)
         .padding(.top, AppSpacing.medium)
@@ -652,6 +639,12 @@ struct HomeAssistantOnboardingView: View {
         isURLFieldFocused = false
         commitDraftBaseURLIfNeeded()
         signIn()
+    }
+
+    private func navigateBackToWelcome() {
+        isURLFieldFocused = false
+        discoveryService.stop()
+        selectedStep = .welcome
     }
 
     private func commitDraftBaseURLIfNeeded() {
