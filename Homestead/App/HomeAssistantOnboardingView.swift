@@ -336,8 +336,10 @@ struct HomeAssistantOnboardingView: View {
 
             ScrollView {
                 VStack(spacing: AppSpacing.xLarge) {
-                    onboardingBrandMark
-                    welcomeMessage
+                    VStack(spacing: AppSpacing.medium) {
+                        onboardingBrandMark
+                        welcomeMessage
+                    }
                     OnboardingHomePreview()
                 }
                 .frame(maxWidth: .infinity)
@@ -867,10 +869,10 @@ private struct OnboardingHomePreview: View {
     private var dashboardContent: some View {
         VStack(alignment: .leading, spacing: Self.cardSpacing) {
             HStack(spacing: AppSpacing.small) {
-                chip(title: "Climate", value: "72°", image: "thermometer.medium", active: true)
-                chip(title: "Lights", value: "3 On", image: "lightbulb.fill", active: true)
-                chip(title: "Security", value: "All Secure", image: "lock.fill", active: true)
-                chip(title: "Media", value: "All Idle", image: "play.rectangle.fill", active: false)
+                chip(title: "Climate", value: "72°", image: "thermometer.medium", active: true, tint: .climate)
+                chip(title: "Lights", value: "3 On", image: "lightbulb.fill", active: true, tint: .lights)
+                chip(title: "Security", value: "All Secure", image: "lock.fill", active: true, tint: .security)
+                chip(title: "Media", value: "All Idle", image: "play.rectangle.fill", active: false, tint: .media)
             }
 
             DashboardCardView(
@@ -893,8 +895,8 @@ private struct OnboardingHomePreview: View {
                 DashboardCardView(
                     entityID: "sensor.gallery_temperature",
                     size: .square,
-                    presentationKind: .status,
-                    displayNameOverride: "Hallway",
+                    presentationKind: .chart,
+                    displayNameOverride: "Temperature",
                     isPreview: true
                 )
             }
@@ -911,13 +913,20 @@ private struct OnboardingHomePreview: View {
         RoundedRectangle(cornerRadius: 24, style: .continuous)
     }
 
-    private func chip(title: String, value: String, image: String, active: Bool) -> some View {
+    private func chip(
+        title: String,
+        value: String,
+        image: String,
+        active: Bool,
+        tint: DashboardChipIconTint
+    ) -> some View {
         DashboardChipView(presentation: DashboardChipPresentation(
             title: title,
             value: value,
             systemImage: image,
             isActive: active,
-            isAvailable: true
+            isAvailable: true,
+            iconTint: tint
         ))
         .frame(maxWidth: .infinity)
     }
