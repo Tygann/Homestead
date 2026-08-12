@@ -365,7 +365,7 @@ struct HomeAssistantOnboardingView: View {
 
     private var welcomeMessage: some View {
         VStack(spacing: AppSpacing.medium) {
-            Text("Your home, beautifully at hand.")
+            Text("Your home, at a glance.")
                 .font(.largeTitle.weight(.bold))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
