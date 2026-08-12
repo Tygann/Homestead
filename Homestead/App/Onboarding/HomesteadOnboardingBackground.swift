@@ -36,7 +36,7 @@ struct HomesteadOnboardingBackground: View {
                 )
             )
 
-            context.addFilter(.blur(radius: max(size.width * 0.16, 54)))
+            context.addFilter(.blur(radius: max(size.width * 0.13, 48)))
             for ribbon in OnboardingLightRibbon.allCases {
                 let center = ribbon.center(
                     in: size,
@@ -53,7 +53,10 @@ struct HomesteadOnboardingBackground: View {
                 context.fill(
                     Path(ellipseIn: rect),
                     with: .radialGradient(
-                        Gradient(colors: [ribbon.color(intensity: intensity), .clear]),
+                        Gradient(colors: [
+                            ribbon.color(intensity: intensity, elapsedTime: elapsedTime),
+                            .clear
+                        ]),
                         center: center,
                         startRadius: 0,
                         endRadius: max(radius.width, radius.height)
@@ -69,37 +72,49 @@ private enum OnboardingLightRibbon: CaseIterable {
     case centerBlue
     case lowerTeal
 
-    func color(intensity: Double) -> Color {
+    func color(intensity: Double, elapsedTime: TimeInterval) -> Color {
         let clampedIntensity = min(max(intensity, 0), 1)
+        let pulse = 0.72 + ((sin(elapsedTime * 0.48 + phase) + 1) * 0.14)
         return switch self {
         case .upperCyan:
-            Color(red: 0.0, green: 0.62, blue: 0.82).opacity(0.32 * clampedIntensity)
+            Color(red: 0.0, green: 0.62, blue: 0.82).opacity(0.36 * clampedIntensity * pulse)
         case .centerBlue:
-            Color(red: 0.04, green: 0.28, blue: 0.52).opacity(0.28 * clampedIntensity)
+            Color(red: 0.04, green: 0.34, blue: 0.60).opacity(0.32 * clampedIntensity * pulse)
         case .lowerTeal:
-            Color(red: 0.0, green: 0.40, blue: 0.46).opacity(0.18 * clampedIntensity)
+            Color(red: 0.0, green: 0.46, blue: 0.52).opacity(0.23 * clampedIntensity * pulse)
         }
     }
 
     func center(in size: CGSize, elapsedTime: TimeInterval, intensity: Double) -> CGPoint {
-        let time = elapsedTime * 0.18
+        let time = elapsedTime * 0.34
         let motionScale = 0.65 + (min(max(intensity, 0), 1) * 0.35)
         return switch self {
         case .upperCyan:
             CGPoint(
-                x: size.width * (0.84 + sin(time) * 0.08 * motionScale),
-                y: size.height * (0.16 + cos(time * 0.7) * 0.04 * motionScale)
+                x: size.width * (0.82 + sin(time) * 0.14 * motionScale),
+                y: size.height * (0.16 + cos(time * 0.7) * 0.06 * motionScale)
             )
         case .centerBlue:
             CGPoint(
-                x: size.width * (0.14 + cos(time * 0.8) * 0.09 * motionScale),
-                y: size.height * (0.48 + sin(time * 0.6) * 0.06 * motionScale)
+                x: size.width * (0.16 + cos(time * 0.8) * 0.15 * motionScale),
+                y: size.height * (0.48 + sin(time * 0.6) * 0.08 * motionScale)
             )
         case .lowerTeal:
             CGPoint(
-                x: size.width * (0.76 + sin(time * 0.65) * 0.10 * motionScale),
-                y: size.height * (0.78 + cos(time * 0.5) * 0.05 * motionScale)
+                x: size.width * (0.74 + sin(time * 0.65) * 0.16 * motionScale),
+                y: size.height * (0.78 + cos(time * 0.5) * 0.07 * motionScale)
             )
+        }
+    }
+
+    private var phase: Double {
+        switch self {
+        case .upperCyan:
+            0
+        case .centerBlue:
+            2.1
+        case .lowerTeal:
+            4.2
         }
     }
 

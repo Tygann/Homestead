@@ -160,7 +160,7 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
         case .accessTokenExpired, .refreshFailed:
             return "Sign In Again"
         case .signedOut, .signedIn:
-            return "Continue to Home Assistant"
+            return "Connect"
         }
     }
 
@@ -370,7 +370,7 @@ struct HomeAssistantOnboardingView: View {
 
     private func setupScreen(presentation: HomeAssistantOnboardingPresentation) -> some View {
         ZStack {
-            HomesteadOnboardingBackground(intensity: 0.72)
+            HomesteadOnboardingBackground(intensity: 0.82)
 
             ScrollView {
                 VStack(spacing: AppSpacing.xLarge) {
