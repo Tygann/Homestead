@@ -840,16 +840,26 @@ private struct OnboardingHomePreview: View {
     private static let cardPadding: CGFloat = AppSpacing.medium
 
     var body: some View {
-        dashboardMiniature
-            .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
-            .scaleEffect(Self.displaySize / Self.designSize, anchor: .topLeading)
-            .frame(width: Self.displaySize, height: Self.displaySize, alignment: .topLeading)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        ZStack(alignment: .topLeading) {
+            previewSurface
+
+            dashboardContent
+                .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
+                .scaleEffect(Self.displaySize / Self.designSize, anchor: .topLeading)
+                .frame(width: Self.displaySize, height: Self.displaySize, alignment: .topLeading)
+        }
+        .frame(width: Self.displaySize, height: Self.displaySize)
+        .clipShape(previewShape)
+        .overlay {
+            previewShape
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.22), radius: 20, y: 12)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sample Homestead dashboard with summary chips and Home controls")
     }
 
-    private var dashboardMiniature: some View {
+    private var dashboardContent: some View {
         VStack(alignment: .leading, spacing: Self.cardSpacing) {
             HStack(spacing: AppSpacing.small) {
                 chip(title: "Climate", value: "72°", image: "thermometer.medium", active: true)
@@ -888,15 +898,18 @@ private struct OnboardingHomePreview: View {
             Spacer(minLength: 0)
         }
         .padding(AppSpacing.medium)
-        .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(color: .black.opacity(0.22), radius: 20, y: 12)
         .environment(DashboardPresentationGallerySamples.stateStore)
         .allowsHitTesting(false)
+    }
+
+    private var previewSurface: some View {
+        previewShape
+            .fill(Color.white.opacity(0.065))
+            .frame(width: Self.displaySize, height: Self.displaySize)
+    }
+
+    private var previewShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 24, style: .continuous)
     }
 
     private func chip(title: String, value: String, image: String, active: Bool) -> some View {
