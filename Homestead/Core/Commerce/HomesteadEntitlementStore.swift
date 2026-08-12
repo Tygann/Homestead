@@ -270,6 +270,9 @@ final class HomesteadEntitlementStore {
                 guard HomesteadPlusProduct.allIDs.contains(transaction.productID) else {
                     continue
                 }
+                Self.logger.info(
+                    "Current entitlement: \(Self.diagnosticSummary(for: transaction), privacy: .public)"
+                )
                 HomesteadEntitlementMergePolicy.merge(
                     HomesteadVerifiedEntitlement(
                         productID: transaction.productID,
@@ -309,6 +312,9 @@ final class HomesteadEntitlementStore {
                         case .expired, .inBillingRetryPeriod, .revoked: false
                         default: false
                         }
+                        Self.logger.info(
+                            "Subscription status=\(Self.description(for: status.state), privacy: .public) \(Self.diagnosticSummary(for: transaction), privacy: .public)"
+                        )
                         let entitlement = HomesteadVerifiedEntitlement(
                             productID: transaction.productID,
                             purchaseDate: transaction.purchaseDate,
@@ -384,6 +390,9 @@ final class HomesteadEntitlementStore {
         plan = entitlements.contains {
             $0.productID == HomesteadPlusProduct.lifetime.rawValue && $0.isActive
         } ? .lifetime : (activeSubscriptionPlan ?? .free)
+        Self.logger.info(
+            "Entitlement refresh resolved plan=\(self.plan.rawValue, privacy: .public) currentProducts=\(verifiedByProductID.count, privacy: .public) activeSubscriptionProducts=\(activeSubscriptionStatusesByProductID.count, privacy: .public)"
+        )
         publishExtensionEntitlement()
     }
 
@@ -404,6 +413,9 @@ final class HomesteadEntitlementStore {
         case .success(.success(let verificationResult)):
             switch verificationResult {
             case .verified(let transaction):
+                Self.logger.info(
+                    "Verified purchase result: \(Self.diagnosticSummary(for: transaction), privacy: .public)"
+                )
                 let purchasedEntitlement = HomesteadVerifiedEntitlement(
                     productID: transaction.productID,
                     purchaseDate: transaction.purchaseDate,
@@ -427,6 +439,11 @@ final class HomesteadEntitlementStore {
                 purchaseState = hasPlus
                     ? .available
                     : .failed("The purchase completed, but Homestead+ access was not returned by the App Store.")
+                if !hasPlus {
+                    Self.logger.error(
+                        "Verified purchase did not grant access after refresh: \(Self.diagnosticSummary(for: transaction), privacy: .public)"
+                    )
+                }
             case .unverified(_, let error):
                 Self.logger.error(
                     "Purchase verification failed: \(String(describing: error), privacy: .public)"
@@ -463,6 +480,9 @@ final class HomesteadEntitlementStore {
         do {
             try await AppStore.sync()
             await refreshEntitlements()
+            Self.logger.info(
+                "App Store sync completed with resolved plan=\(self.plan.rawValue, privacy: .public)"
+            )
             purchaseState = hasPlus
                 ? .available
                 : .failed("No active Homestead+ purchase was found for this App Store account.")
@@ -507,6 +527,26 @@ final class HomesteadEntitlementStore {
             HomesteadPlusProduct.lifetime.rawValue
         ]
         return (order.firstIndex(of: lhs.id) ?? .max) < (order.firstIndex(of: rhs.id) ?? .max)
+    }
+
+    private static func diagnosticSummary(for transaction: Transaction) -> String {
+        let expiration = transaction.expirationDate?.ISO8601Format() ?? "none"
+        let revocation = transaction.revocationDate?.ISO8601Format() ?? "none"
+        let offerType = transaction.offer.map { String(describing: $0.type) } ?? "none"
+        return "product=\(transaction.productID) environment=\(String(describing: transaction.environment)) "
+            + "purchase=\(transaction.purchaseDate.ISO8601Format()) expiration=\(expiration) "
+            + "revocation=\(revocation) offer=\(offerType)"
+    }
+
+    private static func description(for state: Product.SubscriptionInfo.RenewalState) -> String {
+        switch state {
+        case .subscribed: "subscribed"
+        case .expired: "expired"
+        case .inBillingRetryPeriod: "billingRetry"
+        case .inGracePeriod: "gracePeriod"
+        case .revoked: "revoked"
+        default: "unknown"
+        }
     }
 }
 
