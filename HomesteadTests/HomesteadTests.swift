@@ -16,7 +16,7 @@ struct HomesteadTests {
 
         #expect(presentation.shouldShow)
         #expect(presentation.statusTitle == "Server Needed")
-        #expect(presentation.buttonTitle == "Continue")
+        #expect(presentation.buttonTitle == "Continue to Home Assistant")
         #expect(!presentation.isButtonEnabled)
         #expect(!presentation.isBusy)
         #expect(!presentation.showsStatusRow)
@@ -50,7 +50,7 @@ struct HomesteadTests {
 
         #expect(presentation.shouldShow)
         #expect(presentation.statusTitle == "Ready to Sign In")
-        #expect(presentation.buttonTitle == "Continue")
+        #expect(presentation.buttonTitle == "Continue to Home Assistant")
         #expect(presentation.isButtonEnabled)
         #expect(!presentation.isBusy)
         #expect(!presentation.showsStatusRow)
@@ -85,7 +85,7 @@ struct HomesteadTests {
         #expect(presentation.shouldShow)
         #expect(presentation.statusTitle == "Sign-In Failed")
         #expect(presentation.statusMessage == "Home Assistant rejected the sign-in.")
-        #expect(presentation.buttonTitle == "Continue")
+        #expect(presentation.buttonTitle == "Sign In Again")
         #expect(presentation.isButtonEnabled)
         #expect(presentation.showsStatusRow)
     }

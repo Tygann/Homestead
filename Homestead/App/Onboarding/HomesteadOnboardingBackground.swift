@@ -4,15 +4,16 @@ import SwiftUI
 /// completely when Reduce Motion is enabled.
 struct HomesteadOnboardingBackground: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let startDate = Date()
+
+    var intensity: Double = 1
 
     var body: some View {
         Group {
             if reduceMotion {
                 background(elapsedTime: 0)
             } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-                    background(elapsedTime: timeline.date.timeIntervalSince(startDate))
+                TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
+                    background(elapsedTime: timeline.date.timeIntervalSinceReferenceDate)
                 }
             }
         }
@@ -37,7 +38,11 @@ struct HomesteadOnboardingBackground: View {
 
             context.addFilter(.blur(radius: max(size.width * 0.16, 54)))
             for ribbon in OnboardingLightRibbon.allCases {
-                let center = ribbon.center(in: size, elapsedTime: elapsedTime)
+                let center = ribbon.center(
+                    in: size,
+                    elapsedTime: elapsedTime,
+                    intensity: intensity
+                )
                 let radius = ribbon.radius(in: size)
                 let rect = CGRect(
                     x: center.x - radius.width,
@@ -48,7 +53,7 @@ struct HomesteadOnboardingBackground: View {
                 context.fill(
                     Path(ellipseIn: rect),
                     with: .radialGradient(
-                        Gradient(colors: [ribbon.color, .clear]),
+                        Gradient(colors: [ribbon.color(intensity: intensity), .clear]),
                         center: center,
                         startRadius: 0,
                         endRadius: max(radius.width, radius.height)
@@ -64,34 +69,36 @@ private enum OnboardingLightRibbon: CaseIterable {
     case centerBlue
     case lowerTeal
 
-    var color: Color {
+    func color(intensity: Double) -> Color {
+        let clampedIntensity = min(max(intensity, 0), 1)
         return switch self {
         case .upperCyan:
-            Color(red: 0.0, green: 0.62, blue: 0.82).opacity(0.32)
+            Color(red: 0.0, green: 0.62, blue: 0.82).opacity(0.32 * clampedIntensity)
         case .centerBlue:
-            Color(red: 0.04, green: 0.28, blue: 0.52).opacity(0.28)
+            Color(red: 0.04, green: 0.28, blue: 0.52).opacity(0.28 * clampedIntensity)
         case .lowerTeal:
-            Color(red: 0.0, green: 0.40, blue: 0.46).opacity(0.18)
+            Color(red: 0.0, green: 0.40, blue: 0.46).opacity(0.18 * clampedIntensity)
         }
     }
 
-    func center(in size: CGSize, elapsedTime: TimeInterval) -> CGPoint {
-        let time = elapsedTime * 0.09
+    func center(in size: CGSize, elapsedTime: TimeInterval, intensity: Double) -> CGPoint {
+        let time = elapsedTime * 0.18
+        let motionScale = 0.65 + (min(max(intensity, 0), 1) * 0.35)
         return switch self {
         case .upperCyan:
             CGPoint(
-                x: size.width * (0.84 + sin(time) * 0.08),
-                y: size.height * (0.16 + cos(time * 0.7) * 0.04)
+                x: size.width * (0.84 + sin(time) * 0.08 * motionScale),
+                y: size.height * (0.16 + cos(time * 0.7) * 0.04 * motionScale)
             )
         case .centerBlue:
             CGPoint(
-                x: size.width * (0.14 + cos(time * 0.8) * 0.09),
-                y: size.height * (0.48 + sin(time * 0.6) * 0.06)
+                x: size.width * (0.14 + cos(time * 0.8) * 0.09 * motionScale),
+                y: size.height * (0.48 + sin(time * 0.6) * 0.06 * motionScale)
             )
         case .lowerTeal:
             CGPoint(
-                x: size.width * (0.76 + sin(time * 0.65) * 0.10),
-                y: size.height * (0.78 + cos(time * 0.5) * 0.05)
+                x: size.width * (0.76 + sin(time * 0.65) * 0.10 * motionScale),
+                y: size.height * (0.78 + cos(time * 0.5) * 0.05 * motionScale)
             )
         }
     }

@@ -157,8 +157,10 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
             return "Signing In"
         case .refreshing:
             return "Refreshing"
-        case .signedOut, .signedIn, .accessTokenExpired, .refreshFailed:
-            return "Continue"
+        case .accessTokenExpired, .refreshFailed:
+            return "Sign In Again"
+        case .signedOut, .signedIn:
+            return "Continue to Home Assistant"
         }
     }
 
@@ -273,13 +275,18 @@ struct HomeAssistantOnboardingView: View {
         Group {
             if currentStep == .welcome {
                 welcomeScreen
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .leading).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
             } else {
                 setupScreen(presentation: presentation)
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .trailing).combined(with: .opacity)
+                    ))
             }
         }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: currentStep)
     }
 
     // MARK: - Welcome
@@ -336,7 +343,7 @@ struct HomeAssistantOnboardingView: View {
 
     private var welcomeAction: some View {
         Button {
-            selectedStep = .setup
+            navigateToSetup()
         } label: {
             HStack {
                 Text("Get Started")
@@ -363,7 +370,7 @@ struct HomeAssistantOnboardingView: View {
 
     private func setupScreen(presentation: HomeAssistantOnboardingPresentation) -> some View {
         ZStack {
-            HomesteadOnboardingBackground()
+            HomesteadOnboardingBackground(intensity: 0.72)
 
             ScrollView {
                 VStack(spacing: AppSpacing.xLarge) {
@@ -633,7 +640,21 @@ struct HomeAssistantOnboardingView: View {
     private func navigateBackToWelcome() {
         isURLFieldFocused = false
         discoveryService.stop()
-        selectedStep = .welcome
+        updateStep(.welcome)
+    }
+
+    private func navigateToSetup() {
+        updateStep(.setup)
+    }
+
+    private func updateStep(_ step: Step) {
+        if reduceMotion {
+            selectedStep = step
+        } else {
+            withAnimation(.smooth(duration: 0.35)) {
+                selectedStep = step
+            }
+        }
     }
 
     private func commitDraftBaseURLIfNeeded() {
