@@ -20,6 +20,8 @@ struct ContentView: View {
     @State private var isShowingNotificationSetupPrompt = false
     @State private var widgetEntityDestination: WidgetEntityDestination?
     @State private var widgetLinkErrorMessage: String?
+    @State private var isCompletingOnboardingSignIn = false
+    @State private var onboardingSuccessFeedback = 0
 
     var body: some View {
         let chrome = AppChromePresentation.make(
@@ -64,6 +66,7 @@ struct ContentView: View {
                     serviceError: homeAssistantService.lastErrorMessage,
                     storageError: connectionSettings.authStorageErrorMessage,
                     signIn: {
+                        isCompletingOnboardingSignIn = true
                         Task {
                             await homeAssistantService.signInWithHomeAssistant(settings: connectionSettings)
                         }
@@ -79,6 +82,17 @@ struct ContentView: View {
                 presentedAppSheet = .settings(route)
             }
         )
+        .sensoryFeedback(.success, trigger: onboardingSuccessFeedback)
+        .onChange(of: homeAssistantService.authState) { _, newState in
+            if isCompletingOnboardingSignIn, newState.isSignedIn {
+                onboardingSuccessFeedback += 1
+                isCompletingOnboardingSignIn = false
+            } else if case .refreshFailed = newState {
+                isCompletingOnboardingSignIn = false
+            } else if newState == .signedOut {
+                isCompletingOnboardingSignIn = false
+            }
+        }
         .sheet(item: $presentedAppSheet) { destination in
             switch destination {
             case .settings(let initialRoute):

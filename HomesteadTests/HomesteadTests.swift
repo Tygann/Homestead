@@ -38,6 +38,13 @@ struct HomesteadTests {
         #expect(!presentation.showsStatusRow)
     }
 
+    @Test func onboardingServerAddressValidationAcceptsHomeAssistantAddresses() {
+        #expect(HomeAssistantOnboardingPresentation.isValidServerAddress("homeassistant.local:8123"))
+        #expect(HomeAssistantOnboardingPresentation.isValidServerAddress("https://example.ui.nabu.casa"))
+        #expect(!HomeAssistantOnboardingPresentation.isValidServerAddress(""))
+        #expect(!HomeAssistantOnboardingPresentation.isValidServerAddress("not an address"))
+    }
+
     @Test func onboardingPresentationKeepsInitialRefreshVisuallyStable() {
         let presentation = HomeAssistantOnboardingPresentation.make(
             hasServerURL: true,
