@@ -334,24 +334,18 @@ struct HomeAssistantOnboardingView: View {
         ZStack {
             HomesteadOnboardingBackground()
 
-            GeometryReader { geometry in
-                ScrollView {
-                    VStack(spacing: AppSpacing.xLarge) {
-                        onboardingBrandMark
-                        welcomeMessage
-                        OnboardingHomePreview()
-                            .frame(
-                                width: min(360, geometry.size.width - (AppSpacing.large * 4)),
-                                height: min(360, geometry.size.width - (AppSpacing.large * 4))
-                            )
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, AppSpacing.large)
-                    .padding(.top, onboardingContentTopPadding)
-                    .padding(.bottom, 120)
+            ScrollView {
+                VStack(spacing: AppSpacing.xLarge) {
+                    onboardingBrandMark
+                    welcomeMessage
+                    OnboardingHomePreview()
                 }
-                .scrollIndicators(.hidden)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, AppSpacing.large)
+                .padding(.top, onboardingContentTopPadding)
+                .padding(.bottom, 120)
             }
+            .scrollIndicators(.hidden)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 welcomeAction
             }
@@ -841,17 +835,15 @@ struct HomeAssistantOnboardingView: View {
 
 private struct OnboardingHomePreview: View {
     private static let designSize: CGFloat = 390
+    private static let displaySize: CGFloat = 320
     private static let cardSpacing: CGFloat = AppSpacing.medium
     private static let cardPadding: CGFloat = AppSpacing.medium
 
     var body: some View {
-        GeometryReader { proxy in
-            let scale = proxy.size.width / Self.designSize
-
-            dashboardMiniature
-                .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
-                .scaleEffect(scale, anchor: .topLeading)
-        }
+        dashboardMiniature
+            .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
+            .scaleEffect(Self.displaySize / Self.designSize, anchor: .topLeading)
+            .frame(width: Self.displaySize, height: Self.displaySize, alignment: .topLeading)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sample Homestead dashboard with summary chips and Home controls")
