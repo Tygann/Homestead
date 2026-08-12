@@ -2,6 +2,15 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-08-12
+
+### Native Onboarding Redesign
+
+- Replaced the settings-like first-launch surface with a focused welcome and connection flow built around a fictional Homestead dashboard, concise product framing, and native Liquid Glass capsule actions.
+- Carried one restrained animated Homestead background through welcome, discovery, manual-address, selected-server, and authorization states; the Canvas animation caps updates at 30 fps and becomes fully static under Reduce Motion.
+- Preserved the existing Home Assistant discovery, manual address, OAuth, error, known-session, and iCloud restore contracts. Explicitly advanced setup can return to Welcome without discarding staged input, while recovery screens entered directly from app state do not show a misleading back action.
+- Added deterministic `--preview-screen onboarding` routes for both welcome and setup review without clearing simulator data.
+
 ## 2026-08-07
 
 ### App Store Website And Support Surface

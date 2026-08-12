@@ -218,18 +218,45 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
 }
 
 struct HomeAssistantOnboardingView: View {
+    enum Step {
+        case welcome
+        case setup
+    }
+
+    // MARK: - Properties
+
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantDiscoveryService.self) private var discoveryService
     @Environment(HomesteadSetupCoordinator.self) private var setupCoordinator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isURLFieldFocused: Bool
     @State private var isEnteringAddress = false
     @State private var draftBaseURL = ""
+    @State private var selectedStep: Step?
 
     let authState: HAAuthState
     let connectionStatus: HAConnectionStatus
     let serviceError: String?
     let storageError: String?
     let signIn: () -> Void
+
+    init(
+        authState: HAAuthState,
+        connectionStatus: HAConnectionStatus,
+        serviceError: String?,
+        storageError: String?,
+        signIn: @escaping () -> Void,
+        initialStep: Step? = nil
+    ) {
+        self.authState = authState
+        self.connectionStatus = connectionStatus
+        self.serviceError = serviceError
+        self.storageError = storageError
+        self.signIn = signIn
+        _selectedStep = State(initialValue: initialStep)
+    }
+
+    // MARK: - Body
 
     var body: some View {
         @Bindable var connectionSettings = connectionSettings
@@ -243,46 +270,169 @@ struct HomeAssistantOnboardingView: View {
             storageError: storageError
         )
 
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 32) {
-                    header
+        Group {
+            if currentStep == .welcome {
+                welcomeScreen
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else {
+                setupScreen(presentation: presentation)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+        }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: currentStep)
+    }
 
-                    setupGroup(
-                        presentation: presentation
-                    )
-                    .frame(maxWidth: 420)
+    // MARK: - Welcome
+
+    private var welcomeScreen: some View {
+        ZStack {
+            HomesteadOnboardingBackground()
+
+            ScrollView {
+                VStack(spacing: AppSpacing.xLarge) {
+                    welcomeBrand
+                    OnboardingHomePreview()
+                        .frame(maxWidth: 430)
+                    welcomeMessage
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, AppSpacing.large)
-                .padding(.top, 76)
-                .padding(.bottom, 132)
+                .padding(.top, AppSpacing.medium)
+                .padding(.bottom, 120)
             }
-            .background(Color(.systemGroupedBackground))
-            .toolbar(.hidden, for: .navigationBar)
+            .scrollIndicators(.hidden)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                actionBar(presentation: presentation)
-                    .background(Color(.systemGroupedBackground))
+                welcomeAction
             }
         }
+        .preferredColorScheme(.dark)
     }
 
-    private var header: some View {
-        VStack(spacing: AppSpacing.large) {
+    private var welcomeBrand: some View {
+        HStack(spacing: AppSpacing.small) {
             Image("HomesteadLogo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 78, height: 78)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .frame(width: 42, height: 42)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .accessibilityHidden(true)
 
+            Text("Homestead")
+                .font(.headline.weight(.semibold))
+        }
+        .frame(maxWidth: 430, alignment: .leading)
+    }
+
+    private var welcomeMessage: some View {
+        VStack(spacing: AppSpacing.medium) {
+            Text("Your home, beautifully at hand.")
+                .font(.largeTitle.weight(.bold))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("A fast, native way to control and understand your Home Assistant home.")
+                .font(.body)
+                .foregroundStyle(.white.opacity(0.72))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: 430)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var welcomeAction: some View {
+        Button {
+            selectedStep = .setup
+        } label: {
+            HStack {
+                Text("Get Started")
+                    .fontWeight(.semibold)
+                Spacer()
+                Image(systemName: "arrow.right")
+                    .font(.body.weight(.semibold))
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .padding(.horizontal, AppSpacing.medium)
+        }
+        .buttonStyle(.glassProminent)
+        .buttonBorderShape(.capsule)
+        .tint(Color.accentColor)
+        .padding(.horizontal, AppSpacing.large)
+        .padding(.top, AppSpacing.medium)
+        .padding(.bottom, AppSpacing.small)
+        .accessibilityHint("Continues to Home Assistant setup")
+    }
+
+    // MARK: - Setup
+
+    private func setupScreen(presentation: HomeAssistantOnboardingPresentation) -> some View {
+        ZStack {
+            HomesteadOnboardingBackground()
+
+            ScrollView {
+                VStack(spacing: AppSpacing.xLarge) {
+                    setupHeader
+
+                    setupGroup(presentation: presentation)
+                        .frame(maxWidth: 420)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, AppSpacing.large)
+                .padding(.top, 48)
+                .padding(.bottom, 132)
+            }
+            .scrollIndicators(.hidden)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                actionBar(presentation: presentation)
+            }
+
+            if canNavigateBackToWelcome {
+                VStack {
+                    HStack {
+                        Button {
+                            isURLFieldFocused = false
+                            discoveryService.stop()
+                            selectedStep = .welcome
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.body.weight(.semibold))
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.glass)
+                        .buttonBorderShape(.circle)
+                        .accessibilityLabel("Back")
+
+                        Spacer()
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal, AppSpacing.large)
+                .padding(.top, AppSpacing.small)
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var setupHeader: some View {
+        VStack(spacing: AppSpacing.large) {
+            ZStack {
+                Image(systemName: "house.and.flag.fill")
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 72, height: 72)
+            .glassEffect(.regular.tint(Color.accentColor.opacity(0.35)), in: .circle)
+            .accessibilityHidden(true)
+
             VStack(spacing: AppSpacing.small) {
-                Text("Set Up Homestead")
+                Text(connectionSettings.hasServerURL ? "Connect Your Home" : "Find Your Home")
                     .font(.largeTitle.weight(.bold))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
 
-                Text("Connect to Home Assistant to control your home.")
+                Text(setupHeaderMessage)
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -291,6 +441,14 @@ struct HomeAssistantOnboardingView: View {
         }
         .frame(maxWidth: 420)
         .accessibilityElement(children: .combine)
+    }
+
+    private var setupHeaderMessage: String {
+        if connectionSettings.hasServerURL {
+            return "Continue securely through Home Assistant to finish setup."
+        }
+
+        return "We’ll look for Home Assistant on your local network."
     }
 
     private func setupGroup(
@@ -309,7 +467,8 @@ struct HomeAssistantOnboardingView: View {
                         Label("Find Home Assistant", systemImage: "dot.radiowaves.left.and.right")
                             .frame(maxWidth: .infinity, minHeight: 48)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
+                    .buttonBorderShape(.capsule)
 
                     discoveryResults
 
@@ -319,7 +478,8 @@ struct HomeAssistantOnboardingView: View {
                         isEnteringAddress = true
                         isURLFieldFocused = true
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.capsule)
 
                     if isEnteringAddress {
                         VStack(alignment: .leading, spacing: AppSpacing.xSmall) {
@@ -336,7 +496,7 @@ struct HomeAssistantOnboardingView: View {
                                 .onSubmit { attemptSignIn(presentation: presentation) }
                         }
                         .padding(AppSpacing.medium)
-                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card))
+                        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: AppRadius.card))
                     }
                 }
             }
@@ -368,7 +528,7 @@ struct HomeAssistantOnboardingView: View {
                             Image(systemName: "chevron.right").foregroundStyle(.tertiary)
                         }
                         .padding(AppSpacing.medium)
-                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card))
+                        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: AppRadius.card))
                     }
                     .buttonStyle(.plain)
                 }
@@ -410,7 +570,7 @@ struct HomeAssistantOnboardingView: View {
                 statusRow(presentation: presentation).padding(AppSpacing.medium)
             }
         }
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .glassEffect(.regular, in: .rect(cornerRadius: AppRadius.card))
     }
 
     private func actionBar(presentation: HomeAssistantOnboardingPresentation) -> some View {
@@ -427,11 +587,20 @@ struct HomeAssistantOnboardingView: View {
 
                     Text(presentation.buttonTitle)
                         .fontWeight(.semibold)
+
+                    if !presentation.isBusy {
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                            .font(.body.weight(.semibold))
+                            .accessibilityHidden(true)
+                    }
                 }
                 .frame(maxWidth: .infinity, minHeight: 50)
+                .padding(.horizontal, AppSpacing.medium)
+                .foregroundStyle(.white)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: AppRadius.control))
+            .buttonStyle(.glassProminent)
+            .buttonBorderShape(.capsule)
             .disabled(!presentation.isButtonEnabled)
 
         }
@@ -507,6 +676,118 @@ struct HomeAssistantOnboardingView: View {
             return false
         }
     }
+
+    private var currentStep: Step {
+        if let selectedStep {
+            return selectedStep
+        }
+
+        guard !connectionSettings.hasServerURL else {
+            return .setup
+        }
+
+        switch authState {
+        case .signedOut:
+            return .welcome
+        case .signingIn, .refreshing, .signedIn, .accessTokenExpired, .refreshFailed:
+            return .setup
+        }
+    }
+
+    private var canNavigateBackToWelcome: Bool {
+        selectedStep == .setup
+    }
+}
+
+// MARK: - Welcome Artwork
+
+private struct OnboardingHomePreview: View {
+    var body: some View {
+        VStack(spacing: AppSpacing.small) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Good evening")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.6))
+                    Text("Home")
+                        .font(.title2.weight(.bold))
+                }
+                Spacer()
+                Label("72°", systemImage: "cloud.sun.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.86))
+            }
+
+            HStack(spacing: AppSpacing.small) {
+                OnboardingPreviewTile(
+                    title: "Living Room",
+                    detail: "3 lights on",
+                    systemImage: "lightbulb.fill",
+                    tint: .yellow
+                )
+                OnboardingPreviewTile(
+                    title: "Comfort",
+                    detail: "72° · 45%",
+                    systemImage: "thermometer.medium",
+                    tint: .cyan
+                )
+            }
+
+            HStack(spacing: AppSpacing.small) {
+                OnboardingPreviewTile(
+                    title: "Front Door",
+                    detail: "Locked",
+                    systemImage: "lock.fill",
+                    tint: .green
+                )
+                OnboardingPreviewTile(
+                    title: "Movie Night",
+                    detail: "Ready",
+                    systemImage: "play.tv.fill",
+                    tint: .purple
+                )
+            }
+        }
+        .padding(AppSpacing.medium)
+        .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.24), radius: 24, y: 16)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Sample Homestead dashboard showing lights, comfort, front door, and Movie Night")
+    }
+}
+
+private struct OnboardingPreviewTile: View {
+    let title: String
+    let detail: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Image(systemName: systemImage)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 36, height: 36)
+                .background(tint.opacity(0.16), in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.58))
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(AppSpacing.medium)
+        .background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
 }
 
 struct ICloudSetupRestoreView: View {
@@ -557,7 +838,8 @@ struct ICloudSetupRestoreView: View {
         connectionStatus: .disconnected,
         serviceError: nil,
         storageError: nil,
-        signIn: {}
+        signIn: {},
+        initialStep: .welcome
     )
     .withPreviewEnvironment()
 }

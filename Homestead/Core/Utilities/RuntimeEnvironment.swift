@@ -17,6 +17,7 @@ nonisolated enum HomesteadPreviewScreen: String, Sendable {
     case entityDetails = "entity-details"
     case home
     case notifications
+    case onboarding
     case settings
     case updates
     case widgets
@@ -25,6 +26,11 @@ nonisolated enum HomesteadPreviewScreen: String, Sendable {
 nonisolated enum HomesteadPreviewNotificationState: String, Sendable {
     case ready
     case needsSetup = "needs-setup"
+}
+
+nonisolated enum HomesteadPreviewOnboardingStep: String, Sendable {
+    case welcome
+    case setup
 }
 
 extension HomesteadPreviewScreen {
@@ -54,6 +60,8 @@ extension HomesteadPreviewScreen {
             self = .home
         case Self.notifications.rawValue:
             self = .notifications
+        case Self.onboarding.rawValue:
+            self = .onboarding
         case Self.settings.rawValue:
             self = .settings
         case Self.updates.rawValue:
@@ -82,6 +90,13 @@ extension RuntimeEnvironment {
             return .ready
         }
         return HomesteadPreviewNotificationState(rawValue: value) ?? .ready
+    }
+
+    nonisolated static var previewOnboardingStep: HomesteadPreviewOnboardingStep {
+        guard let value = argumentValue(after: "--preview-onboarding-step") else {
+            return .welcome
+        }
+        return HomesteadPreviewOnboardingStep(rawValue: value) ?? .welcome
     }
 
     nonisolated static var livePreviewEntityID: String? {

@@ -260,6 +260,15 @@ struct HomesteadApp: App {
             NavigationStack {
                 NativeNotificationSettingsView()
             }
+        case .onboarding:
+            HomeAssistantOnboardingView(
+                authState: .signedOut,
+                connectionStatus: .disconnected,
+                serviceError: nil,
+                storageError: nil,
+                signIn: {},
+                initialStep: RuntimeEnvironment.previewOnboardingStep == .welcome ? .welcome : .setup
+            )
         case .settings:
             SettingsReferenceGallery()
         case .updates:
