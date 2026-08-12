@@ -160,7 +160,7 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
         case .accessTokenExpired, .refreshFailed:
             return "Sign In Again"
         case .signedOut, .signedIn:
-            return "Connect"
+            return "Sign in with Home Assistant"
         }
     }
 
@@ -567,17 +567,14 @@ struct HomeAssistantOnboardingView: View {
                         ProgressView()
                             .controlSize(.small)
                             .tint(.white)
+                    } else {
+                        Image(systemName: "house.fill")
+                            .font(.body.weight(.semibold))
+                            .accessibilityHidden(true)
                     }
 
                     Text(presentation.buttonTitle)
                         .fontWeight(.semibold)
-
-                    if !presentation.isBusy {
-                        Spacer()
-                        Image(systemName: "arrow.right")
-                            .font(.body.weight(.semibold))
-                            .accessibilityHidden(true)
-                    }
                 }
                 .frame(maxWidth: .infinity, minHeight: 50)
                 .padding(.horizontal, AppSpacing.medium)
