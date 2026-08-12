@@ -7,7 +7,7 @@ This is a short project memory log for future maintainers and coding agents. It 
 ### Native Onboarding Redesign
 
 - Replaced the settings-like first-launch surface with a focused welcome and connection flow built around a fictional Homestead dashboard, concise product framing, and native Liquid Glass capsule actions.
-- Carried one restrained animated Homestead background through welcome, discovery, manual-address, selected-server, and authorization states; the Canvas animation caps updates at 24 fps and becomes fully static under Reduce Motion.
+- Carried one static near-black Homestead background with a restrained upper teal wash through welcome, discovery, manual-address, selected-server, and authorization states, keeping color emphasis on the dashboard preview and primary actions.
 - Preserved the existing Home Assistant discovery, manual address, OAuth, error, known-session, and iCloud restore contracts. Server changes remain staged until sign-in, Back cancels an active edit before leaving setup, and the editor presents local discovery alongside a persistent manual-address field without forcing keyboard focus.
 - Added deterministic `--preview-screen onboarding` routes for welcome, selected-server setup, and staged server editing without clearing simulator data.
 

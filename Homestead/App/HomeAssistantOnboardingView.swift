@@ -380,7 +380,7 @@ struct HomeAssistantOnboardingView: View {
 
     private func setupScreen(presentation: HomeAssistantOnboardingPresentation) -> some View {
         ZStack {
-            HomesteadOnboardingBackground(intensity: 0.82)
+            HomesteadOnboardingBackground()
 
             ScrollView {
                 VStack(spacing: AppSpacing.xLarge) {
@@ -391,7 +391,7 @@ struct HomeAssistantOnboardingView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, AppSpacing.large)
-                .padding(.top, AppSpacing.xLarge)
+                .padding(.top, 84)
                 .padding(.bottom, 132)
             }
             .scrollIndicators(.hidden)
