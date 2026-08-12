@@ -160,7 +160,7 @@ nonisolated struct HomeAssistantOnboardingPresentation: Equatable {
         case .accessTokenExpired, .refreshFailed:
             return "Sign In Again"
         case .signedOut, .signedIn:
-            return "Sign in with Home Assistant"
+            return "Sign In"
         }
     }
 
