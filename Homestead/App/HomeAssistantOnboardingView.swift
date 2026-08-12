@@ -835,24 +835,20 @@ struct HomeAssistantOnboardingView: View {
 // MARK: - Welcome Artwork
 
 private struct OnboardingHomePreview: View {
-    private static let designWidth: CGFloat = 680
+    private static let designSize: CGFloat = 390
     private static let cardSpacing: CGFloat = AppSpacing.medium
     private static let cardPadding: CGFloat = AppSpacing.medium
 
     var body: some View {
         GeometryReader { proxy in
-            let scale = proxy.size.width / Self.designWidth
+            let scale = proxy.size.width / Self.designSize
 
             dashboardMiniature
-                .frame(width: Self.designWidth, alignment: .topLeading)
+                .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
                 .scaleEffect(scale, anchor: .topLeading)
-                .frame(
-                    width: proxy.size.width,
-                    height: miniatureHeight * scale,
-                    alignment: .topLeading
-                )
+                .frame(width: proxy.size.width, height: proxy.size.width, alignment: .topLeading)
         }
-        .frame(height: scaledHeight(for: 360))
+        .aspectRatio(1, contentMode: .fit)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sample Homestead dashboard with summary chips and Home controls")
     }
@@ -868,12 +864,12 @@ private struct OnboardingHomePreview: View {
 
             DashboardCardView(
                 entityID: "climate.gallery",
-                size: .wide,
+                size: .row,
                 presentationKind: .control,
                 displayNameOverride: "Thermostat",
                 isPreview: true
             )
-            .frame(height: cardHeight)
+            .frame(height: rowCardHeight)
 
             HStack(spacing: AppSpacing.small) {
                 DashboardCardView(
@@ -891,9 +887,11 @@ private struct OnboardingHomePreview: View {
                     isPreview: true
                 )
             }
-            .frame(height: cardHeight)
+            .frame(height: squareCardHeight)
+
+            Spacer(minLength: 0)
         }
-        .padding(AppSpacing.large)
+        .padding(AppSpacing.medium)
         .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -915,19 +913,18 @@ private struct OnboardingHomePreview: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var cardHeight: CGFloat {
-        DashboardCardSize.wide.renderedHeight(
+    private var rowCardHeight: CGFloat {
+        DashboardCardSize.row.renderedHeight(
             rowSpacing: Self.cardSpacing,
             cardPadding: Self.cardPadding
         )
     }
 
-    private var miniatureHeight: CGFloat {
-        44 + Self.cardSpacing + cardHeight + Self.cardSpacing + cardHeight + (AppSpacing.large * 2)
-    }
-
-    private func scaledHeight(for width: CGFloat) -> CGFloat {
-        miniatureHeight * width / Self.designWidth
+    private var squareCardHeight: CGFloat {
+        DashboardCardSize.square.renderedHeight(
+            rowSpacing: Self.cardSpacing,
+            cardPadding: Self.cardPadding
+        )
     }
 }
 
