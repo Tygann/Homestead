@@ -290,7 +290,7 @@ struct HomeAssistantOnboardingView: View {
 
             ScrollView {
                 VStack(spacing: AppSpacing.xLarge) {
-                    welcomeBrand
+                    onboardingBrandMark
                     OnboardingHomePreview()
                         .frame(maxWidth: 430)
                     welcomeMessage
@@ -308,19 +308,13 @@ struct HomeAssistantOnboardingView: View {
         .preferredColorScheme(.dark)
     }
 
-    private var welcomeBrand: some View {
-        HStack(spacing: AppSpacing.small) {
-            Image("HomesteadLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 42, height: 42)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .accessibilityHidden(true)
-
-            Text("Homestead")
-                .font(.headline.weight(.semibold))
-        }
-        .frame(maxWidth: 430, alignment: .leading)
+    private var onboardingBrandMark: some View {
+        Image("HomesteadLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 48, height: 48)
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .accessibilityHidden(true)
     }
 
     private var welcomeMessage: some View {
@@ -380,7 +374,7 @@ struct HomeAssistantOnboardingView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, AppSpacing.large)
-                .padding(.top, 48)
+                .padding(.top, AppSpacing.xLarge)
                 .padding(.bottom, 132)
             }
             .scrollIndicators(.hidden)
@@ -393,14 +387,7 @@ struct HomeAssistantOnboardingView: View {
 
     private var setupHeader: some View {
         VStack(spacing: AppSpacing.large) {
-            ZStack {
-                Image(systemName: "house.and.flag.fill")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 72, height: 72)
-            .glassEffect(.regular.tint(Color.accentColor.opacity(0.35)), in: .circle)
-            .accessibilityHidden(true)
+            onboardingBrandMark
 
             VStack(spacing: AppSpacing.small) {
                 Text(connectionSettings.hasServerURL ? "Connect Your Home" : "Find Your Home")
