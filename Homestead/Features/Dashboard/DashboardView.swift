@@ -5,9 +5,12 @@ struct DashboardView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(DashboardConfiguration.self) private var dashboardConfiguration
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var editingDashboardID: UUID?
     @State private var toolbarAddRequest: DashboardToolbarAddRequest?
     @State private var dashboardsScrolledFromTop: Set<UUID> = []
+    @State private var transientPagerID: UUID?
+    @State private var pagerScrollPhase: ScrollPhase = .idle
 
     var body: some View {
         let enabledDashboards = dashboardConfiguration.enabledDashboards
@@ -17,7 +20,7 @@ struct DashboardView: View {
             if enabledDashboards.count > 1 {
                 DashboardPageIndicator(
                     dashboards: enabledDashboards,
-                    selectedDashboardID: dashboardConfiguration.selectedDashboardID,
+                    selectedDashboardID: visualDashboardID(in: enabledDashboards),
                     selectDashboard: selectDashboard
                 )
                 .padding(.vertical, DashboardPageIndicatorMetrics.bottomSpacing)
@@ -46,6 +49,10 @@ struct DashboardView: View {
             }
         }
         .onChange(of: dashboardConfiguration.selectedDashboardID) { oldID, newID in
+            synchronizePagerWithPersistedSelection(
+                newID,
+                enabledDashboards: dashboardConfiguration.enabledDashboards
+            )
             guard oldID != newID,
                   let dashboard = dashboardConfiguration.dashboard(id: newID) else {
                 return
@@ -57,6 +64,17 @@ struct DashboardView: View {
         }
         .onAppear {
             reconcileDashboardConfigurationIfReady()
+            reconcilePagerSelection(enabledDashboards: dashboardConfiguration.enabledDashboards)
+        }
+        .onChange(of: dashboardConfiguration.enabledDashboardIDs) { _, _ in
+            reconcilePagerSelection(enabledDashboards: dashboardConfiguration.enabledDashboards)
+        }
+        .onChange(of: editingDashboardID) { _, dashboardID in
+            guard dashboardID != nil else { return }
+            synchronizePagerWithPersistedSelection(
+                dashboardConfiguration.selectedDashboardID,
+                enabledDashboards: dashboardConfiguration.enabledDashboards
+            )
         }
         .onChange(of: stateStore.entityCatalogSignature) { _, _ in
             reconcileDashboardConfigurationIfReady()
@@ -88,6 +106,11 @@ struct DashboardView: View {
             }
             .scrollTargetBehavior(.paging)
             .scrollPosition(id: pagerSelectionBinding)
+            .onScrollPhaseChange { _, newPhase in
+                pagerScrollPhase = newPhase
+                guard newPhase == .idle else { return }
+                commitTransientPagerSelection()
+            }
             .scrollIndicators(.hidden)
             // The horizontal pager otherwise presents a top effect even when its selected vertical page is at rest.
             .scrollEdgeEffectHidden(!selectedDashboardIsScrolledFromTop, for: .top)
@@ -159,17 +182,93 @@ struct DashboardView: View {
 
     private var pagerSelectionBinding: Binding<UUID?> {
         Binding(
-            get: { Optional(dashboardConfiguration.selectedDashboardID) },
+            get: {
+                Optional(visualDashboardID(in: dashboardConfiguration.enabledDashboards))
+            },
             set: { dashboardID in
-                guard editingDashboardID == nil, let dashboardID else { return }
-                dashboardConfiguration.selectDashboard(id: dashboardID)
+                guard editingDashboardID == nil,
+                      let dashboardID,
+                      dashboardConfiguration.enabledDashboardIDs.contains(dashboardID) else {
+                    return
+                }
+                transientPagerID = dashboardID
             }
         )
     }
 
     private func selectDashboard(_ dashboardID: UUID) {
-        guard editingDashboardID == nil else { return }
-        dashboardConfiguration.selectDashboard(id: dashboardID)
+        guard editingDashboardID == nil,
+              dashboardConfiguration.enabledDashboardIDs.contains(dashboardID),
+              dashboardID != visualDashboardID(in: dashboardConfiguration.enabledDashboards) else {
+            return
+        }
+
+        withAnimation(
+            reduceMotion ? nil : .smooth,
+            completionCriteria: .logicallyComplete
+        ) {
+            transientPagerID = dashboardID
+        } completion: {
+            commitTransientPagerSelection(expectedID: dashboardID)
+        }
+    }
+
+    private func visualDashboardID(in enabledDashboards: [SavedDashboardConfiguration]) -> UUID {
+        if enabledDashboards.count > 1,
+           let transientPagerID,
+           enabledDashboards.contains(where: { $0.id == transientPagerID }) {
+            return transientPagerID
+        }
+
+        if enabledDashboards.contains(where: { $0.id == dashboardConfiguration.selectedDashboardID }) {
+            return dashboardConfiguration.selectedDashboardID
+        }
+
+        return enabledDashboards.first?.id ?? dashboardConfiguration.selectedDashboardID
+    }
+
+    private func commitTransientPagerSelection(expectedID: UUID? = nil) {
+        guard pagerScrollPhase == .idle,
+              editingDashboardID == nil,
+              dashboardConfiguration.enabledDashboards.count > 1,
+              let transientPagerID,
+              expectedID.map({ $0 == transientPagerID }) ?? true,
+              dashboardConfiguration.enabledDashboardIDs.contains(transientPagerID) else {
+            return
+        }
+
+        guard dashboardConfiguration.selectDashboard(id: transientPagerID) else {
+            reconcilePagerSelection(enabledDashboards: dashboardConfiguration.enabledDashboards)
+            return
+        }
+    }
+
+    private func synchronizePagerWithPersistedSelection(
+        _ dashboardID: UUID,
+        enabledDashboards: [SavedDashboardConfiguration]
+    ) {
+        guard enabledDashboards.count > 1,
+              enabledDashboards.contains(where: { $0.id == dashboardID }) else {
+            transientPagerID = nil
+            return
+        }
+
+        if transientPagerID != dashboardID {
+            transientPagerID = dashboardID
+        }
+    }
+
+    private func reconcilePagerSelection(enabledDashboards: [SavedDashboardConfiguration]) {
+        guard enabledDashboards.count > 1 else {
+            transientPagerID = nil
+            return
+        }
+
+        guard let transientPagerID,
+              enabledDashboards.contains(where: { $0.id == transientPagerID }) else {
+            transientPagerID = visualDashboardID(in: enabledDashboards)
+            return
+        }
     }
 
     private func updateTopScrollState(_ isScrolledFromTop: Bool, dashboardID: UUID) {

@@ -1,8 +1,26 @@
+import Observation
 import XCTest
 @testable import Homestead
 
 @MainActor
 final class DashboardConfigurationXCTests: XCTestCase {
+    func testReselectingCurrentDashboardDoesNotEmitSelectionMutation() {
+        let configuration = DashboardConfiguration(defaults: makeDefaults())
+        let selectedID = configuration.selectedDashboardID
+        let mutation = expectation(description: "Selected dashboard mutates")
+        mutation.isInverted = true
+
+        _ = withObservationTracking {
+            configuration.selectedDashboardID
+        } onChange: {
+            mutation.fulfill()
+        }
+
+        XCTAssertTrue(configuration.selectDashboard(id: selectedID))
+        XCTAssertEqual(XCTWaiter().wait(for: [mutation], timeout: 0.05), .completed)
+        XCTAssertEqual(configuration.selectedDashboardID, selectedID)
+    }
+
     func testOldDashboardStorageIsDiscardedAndSelectionResets() throws {
         let defaults = makeDefaults()
         defaults.set(Data("[{\"legacy\":true}]".utf8), forKey: "homestead.dashboard.savedDashboards")

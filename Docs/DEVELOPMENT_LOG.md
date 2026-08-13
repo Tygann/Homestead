@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-08-13
+
+### Settled Dashboard Paging Selection
+
+- Separated the horizontal pager's transient visual target from the profile-scoped persisted dashboard selection. Page dots follow the native scroll target immediately, while title, wallpaper, persistence, and accessibility announcements update only after paging settles.
+- Reconciled external selection and enabled-dashboard changes without feeding them back into configuration writes, preserved the direct one-dashboard path and edit-mode paging lock, and made same-dashboard selection idempotent.
+- Narrowed solar-phase observation to Weather dashboard cards so ordinary cards no longer invalidate for that global presentation input.
+
 ## 2026-08-12
 
 ### Native Onboarding Redesign

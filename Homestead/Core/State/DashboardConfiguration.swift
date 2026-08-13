@@ -1218,6 +1218,9 @@ final class DashboardConfiguration {
             reconcileLocalDashboardState(previousDashboardOrder: dashboards.map(\.id))
             return false
         }
+        guard selectedDashboardID != id else {
+            return true
+        }
         selectedDashboardID = id
         return true
     }

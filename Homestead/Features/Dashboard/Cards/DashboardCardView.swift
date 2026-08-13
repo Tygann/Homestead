@@ -87,6 +87,9 @@ struct DashboardCardView: View {
     var body: some View {
         if let entityBox = stateStore.entityBox(for: entityID) {
             let resolvedPresentationKind = presentationKind ?? DashboardPresentationCatalog.recommendation(for: entityBox).kind
+            let weatherSolarPhase = resolvedPresentationKind == .weather
+                ? stateStore.weatherSolarPhase
+                : nil
             let sharedFeaturePresentation = DashboardFeaturePresentationAdapter.presentation(
                 for: entityBox,
                 titleOverride: resolvedDisplayNameOverride(for: entityBox)
@@ -103,7 +106,7 @@ struct DashboardCardView: View {
                 presentation: presentation,
                 size: size,
                 presentationKind: resolvedPresentationKind,
-                weatherSolarPhase: stateStore.weatherSolarPhase,
+                weatherSolarPhase: weatherSolarPhase,
                 gaugeZoneConfiguration: gaugeZoneConfiguration,
                 chartRange: chartRange,
                 features: DashboardCardFeatureProvider.features(for: entityBox, presentation: presentation),
