@@ -902,6 +902,23 @@ private struct OnboardingHomePreview: View {
             }
             .frame(height: squareCardHeight)
 
+            HStack(spacing: AppSpacing.small) {
+                DashboardCardView(
+                    entityID: "light.gallery",
+                    size: .compact,
+                    presentationKind: .control,
+                    isPreview: true
+                )
+
+                DashboardCardView(
+                    entityID: "cover.gallery",
+                    size: .compact,
+                    presentationKind: .control,
+                    isPreview: true
+                )
+            }
+            .frame(height: compactCardHeight)
+
             Spacer(minLength: 0)
         }
         .padding(AppSpacing.medium)
@@ -940,6 +957,13 @@ private struct OnboardingHomePreview: View {
 
     private var squareCardHeight: CGFloat {
         DashboardCardSize.square.renderedHeight(
+            rowSpacing: Self.cardSpacing,
+            cardPadding: Self.cardPadding
+        )
+    }
+
+    private var compactCardHeight: CGFloat {
+        DashboardCardSize.compact.renderedHeight(
             rowSpacing: Self.cardSpacing,
             cardPadding: Self.cardPadding
         )

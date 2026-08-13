@@ -456,16 +456,17 @@ enum DashboardPresentationGallerySamples {
         store.applyInitialStates([
             HAEntityDTO(
                 entityID: "climate.gallery",
-                state: "heat",
+                state: "heat_cool",
                 attributes: [
                     "friendly_name": .string("Thermostat"),
-                    "current_temperature": .number(70),
-                    "temperature": .number(72),
+                    "current_temperature": .number(72),
+                    "target_temp_low": .number(70),
+                    "target_temp_high": .number(75),
                     "temperature_unit": .string("°F"),
                     "min_temp": .number(50),
                     "max_temp": .number(90),
                     "target_temp_step": .number(1),
-                    "hvac_modes": .array([.string("off"), .string("heat"), .string("cool")])
+                    "hvac_modes": .array([.string("off"), .string("heat"), .string("cool"), .string("heat_cool")])
                 ]
             ),
             HAEntityDTO(
@@ -523,6 +524,22 @@ enum DashboardPresentationGallerySamples {
                 entityID: "lock.gallery",
                 state: "locked",
                 attributes: ["friendly_name": .string("Front Door")]
+            ),
+            HAEntityDTO(
+                entityID: "light.gallery",
+                state: "on",
+                attributes: [
+                    "friendly_name": .string("Bed Lamp"),
+                    "brightness": .number(128)
+                ]
+            ),
+            HAEntityDTO(
+                entityID: "cover.gallery",
+                state: "closed",
+                attributes: [
+                    "friendly_name": .string("Garage Door"),
+                    "device_class": .string("garage")
+                ]
             )
         ])
         seedWeatherForecast(in: store, entityID: "weather.gallery")
