@@ -848,39 +848,26 @@ private struct OnboardingHomePreview: View {
         GeometryReader { proxy in
             let sideLength = proxy.size.width
 
-            previewSurface(sideLength: sideLength)
+            ZStack(alignment: .topLeading) {
+                previewShape
+                    .fill(Color.white.opacity(0.065))
+
+                dashboardContent
+                    .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
+                    .scaleEffect(sideLength / Self.designSize, anchor: .topLeading)
+                    .frame(width: sideLength, height: sideLength, alignment: .topLeading)
+            }
+            .frame(width: sideLength, height: sideLength)
+            .clipShape(previewShape)
+            .overlay {
+                previewShape
+                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+            }
             .shadow(color: .black.opacity(0.22), radius: 20, y: 12)
         }
         .aspectRatio(1, contentMode: .fit)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sample Homestead dashboard with summary chips and Home controls")
-    }
-
-    @ViewBuilder
-    private func previewSurface(sideLength: CGFloat) -> some View {
-        let content = dashboardContent
-            .frame(width: Self.designSize, height: Self.designSize, alignment: .topLeading)
-            .scaleEffect(sideLength / Self.designSize, anchor: .topLeading)
-            .frame(width: sideLength, height: sideLength, alignment: .topLeading)
-            .frame(width: sideLength, height: sideLength)
-            .clipShape(previewShape)
-            .clipped()
-
-        if #available(iOS 26, *) {
-            content
-                .glassEffect(.regular, in: .rect(cornerRadius: previewCornerRadius))
-                .overlay {
-                    previewShape
-                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.75)
-                }
-        } else {
-            content
-                .background(.ultraThinMaterial, in: previewShape)
-                .overlay {
-                    previewShape
-                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                }
-        }
     }
 
     private var dashboardContent: some View {
