@@ -366,12 +366,12 @@ struct HomeAssistantOnboardingView: View {
 
     private var welcomeMessage: some View {
         VStack(spacing: AppSpacing.medium) {
-            Text("Your home, at a glance")
+            Text("Your home at a glance")
                 .font(.largeTitle.weight(.bold))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("A fast, native way to control and understand your Home Assistant home.")
+            Text("A fast, native way to control and\nunderstand your Home Assistant home.")
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.72))
                 .multilineTextAlignment(.center)
