@@ -400,9 +400,8 @@ struct HomeAssistantOnboardingView: View {
             .padding(.horizontal, AppSpacing.medium)
             .foregroundStyle(.white)
         }
-        .buttonStyle(.glass(.regular.tint(Color.accentColor.opacity(0.28))))
+        .buttonStyle(.glass(.regular.tint(onboardingActionTint)))
         .buttonBorderShape(.capsule)
-        .tint(Color.accentColor)
         .padding(.horizontal, AppSpacing.large)
         .padding(.top, AppSpacing.medium)
         .padding(.bottom, AppSpacing.small)
@@ -480,7 +479,7 @@ struct HomeAssistantOnboardingView: View {
                             .frame(maxWidth: .infinity, minHeight: 48)
                             .foregroundStyle(.white)
                     }
-                    .buttonStyle(.glass(.regular.tint(Color.accentColor.opacity(0.28))))
+                    .buttonStyle(.glass(.regular.tint(onboardingActionTint)))
                     .buttonBorderShape(.capsule)
 
                     if draftDiscoveredName.isEmpty {
@@ -677,7 +676,7 @@ struct HomeAssistantOnboardingView: View {
                 .padding(.horizontal, AppSpacing.medium)
                 .foregroundStyle(.white)
             }
-            .buttonStyle(.glass(.regular.tint(Color.accentColor.opacity(0.28))))
+            .buttonStyle(.glass(.regular.tint(onboardingActionTint)))
             .buttonBorderShape(.capsule)
             .disabled(!presentation.isButtonEnabled)
         }
@@ -831,6 +830,11 @@ struct HomeAssistantOnboardingView: View {
     private var onboardingContentTopPadding: CGFloat {
         72
     }
+
+    /// A restrained indigo sampled from the wallpaper keeps primary glass controls cohesive without competing with it.
+    private var onboardingActionTint: Color {
+        Color(red: 0.25, green: 0.29, blue: 0.64).opacity(0.42)
+    }
 }
 
 // MARK: - Welcome Artwork
@@ -865,6 +869,10 @@ private struct OnboardingHomePreview: View {
         if #available(iOS 26, *) {
             content
                 .glassEffect(.regular, in: .rect(cornerRadius: previewCornerRadius))
+                .overlay {
+                    previewShape
+                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.75)
+                }
         } else {
             content
                 .background(.ultraThinMaterial, in: previewShape)
