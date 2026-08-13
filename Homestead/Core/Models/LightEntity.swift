@@ -1,6 +1,6 @@
 import Foundation
 
-struct LightEntity: Identifiable, Equatable, Sendable {
+nonisolated struct LightEntity: Identifiable, Equatable, Sendable {
     let entityID: String
     let displayName: String
     let isOn: Bool

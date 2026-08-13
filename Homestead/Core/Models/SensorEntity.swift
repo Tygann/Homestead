@@ -1,6 +1,6 @@
 import Foundation
 
-struct SensorEntity: Identifiable, Equatable, Sendable {
+nonisolated struct SensorEntity: Identifiable, Equatable, Sendable {
     let entityID: String
     let displayName: String
     let value: String
@@ -227,7 +227,7 @@ struct SensorEntity: Identifiable, Equatable, Sendable {
     }
 }
 
-private struct SensorCoordinateValue {
+nonisolated private struct SensorCoordinateValue {
     let latitude: Double
     let longitude: Double
 

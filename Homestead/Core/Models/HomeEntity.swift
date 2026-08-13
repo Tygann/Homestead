@@ -1,6 +1,6 @@
 import Foundation
 
-struct HomeEntity: Identifiable, Equatable, Sendable {
+nonisolated struct HomeEntity: Identifiable, Equatable, Sendable {
     let entityID: String
     let domain: EntityDomain
     let displayName: String

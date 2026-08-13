@@ -1,6 +1,6 @@
 import Foundation
 
-struct CoverEntity: Identifiable, Equatable, Sendable {
+nonisolated struct CoverEntity: Identifiable, Equatable, Sendable {
     let entityID: String
     let displayName: String
     let state: String

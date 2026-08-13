@@ -10,6 +10,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 - Reconciled external selection and enabled-dashboard changes without feeding them back into configuration writes, preserved the direct one-dashboard path and edit-mode paging lock, and made same-dashboard selection idempotent.
 - Narrowed solar-phase observation to Weather dashboard cards so ordinary cards no longer invalidate for that global presentation input.
 
+### Off-Main Widget Snapshot Persistence
+
+- Physical-device Animation Hitches and Time Profiler traces identified synchronous widget snapshot mapping, sorting, encoding, and app-group persistence inside live Home Assistant state batches as the dominant main-thread interruption exposed during dashboard swipes; the native pager and GPU were not the primary bottlenecks.
+- Coalesced widget snapshot requests once per Home Assistant batch and then at most once per second per profile, moved payload construction and persistence to a dedicated actor, and retained immediate live entity updates plus the existing changed-widget reload policy. Initial snapshots and explicit clears remain immediate, but persist off-main.
+- On an iPhone 15 Pro Release comparison, sampled widget snapshot work on the main thread fell from about 2.61 seconds to 53 milliseconds during the swipe window and from 2.87 seconds to 149 milliseconds while idle. Hitches over 25 milliseconds fell from seven to two while rendered-frame samples increased from 712 to 1,569; the user also reported the paging interaction was noticeably smoother.
+
 ## 2026-08-12
 
 ### Native Onboarding Redesign

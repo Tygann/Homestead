@@ -186,7 +186,7 @@ nonisolated struct GaugeZoneConfiguration: Codable, Equatable, Sendable {
     }
 }
 
-struct GaugePresentation: Equatable, Sendable {
+nonisolated struct GaugePresentation: Equatable, Sendable {
     let value: Double
     let range: ClosedRange<Double>
     let valueText: String
@@ -284,12 +284,12 @@ struct GaugePresentation: Equatable, Sendable {
 
 }
 
-private struct GaugeRangeResolution: Equatable, Sendable {
+nonisolated private struct GaugeRangeResolution: Equatable, Sendable {
     let range: ClosedRange<Double>
     let source: GaugeRangeSource
 }
 
-private extension GaugePresentation {
+nonisolated private extension GaugePresentation {
     static func isDashboardFeatureEligible(
         sensor: SensorEntity,
         rangeSource: GaugeRangeSource

@@ -1,6 +1,6 @@
 import Foundation
 
-struct FanEntity: Identifiable, Equatable, Sendable {
+nonisolated struct FanEntity: Identifiable, Equatable, Sendable {
     let entityID: String
     let displayName: String
     let state: String

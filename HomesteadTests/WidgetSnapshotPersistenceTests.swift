@@ -3,6 +3,71 @@ import Testing
 @testable import Homestead
 
 struct WidgetSnapshotPersistenceTests {
+    @Test func widgetSnapshotCoordinatorCoalescesBurstToNewestRequest() async {
+        let recorder = WidgetSnapshotPersistenceRecorder()
+        let coordinator = WidgetSnapshotPersistenceCoordinator(
+            coalescingInterval: .seconds(60),
+            persist: recorder.persist
+        )
+        let profileID = UUID()
+
+        await coordinator.schedule(
+            sequence: 1,
+            request: snapshotRequest(profileID: profileID, serverName: "First")
+        ) { _, _ in }
+        await coordinator.schedule(
+            sequence: 2,
+            request: snapshotRequest(profileID: profileID, serverName: "Latest")
+        ) { _, _ in }
+        await coordinator.flush(profileID: profileID)
+
+        #expect(recorder.persistedServerNames == ["Latest"])
+    }
+
+    @Test func widgetSnapshotCoordinatorRejectsOutOfOrderOlderRequest() async {
+        let recorder = WidgetSnapshotPersistenceRecorder()
+        let coordinator = WidgetSnapshotPersistenceCoordinator(
+            coalescingInterval: .seconds(60),
+            persist: recorder.persist
+        )
+        let profileID = UUID()
+
+        await coordinator.schedule(
+            sequence: 2,
+            request: snapshotRequest(profileID: profileID, serverName: "Newest")
+        ) { _, _ in }
+        await coordinator.schedule(
+            sequence: 1,
+            request: snapshotRequest(profileID: profileID, serverName: "Older")
+        ) { _, _ in }
+        await coordinator.flush(profileID: profileID)
+
+        #expect(recorder.persistedServerNames == ["Newest"])
+    }
+
+    @Test func widgetSnapshotCoordinatorKeepsProfileWritesIndependent() async {
+        let recorder = WidgetSnapshotPersistenceRecorder()
+        let coordinator = WidgetSnapshotPersistenceCoordinator(
+            coalescingInterval: .seconds(60),
+            persist: recorder.persist
+        )
+        let firstProfileID = UUID()
+        let secondProfileID = UUID()
+
+        await coordinator.schedule(
+            sequence: 1,
+            request: snapshotRequest(profileID: firstProfileID, serverName: "First Profile")
+        ) { _, _ in }
+        await coordinator.schedule(
+            sequence: 2,
+            request: snapshotRequest(profileID: secondProfileID, serverName: "Second Profile")
+        ) { _, _ in }
+        await coordinator.flush(profileID: firstProfileID)
+        await coordinator.flush(profileID: secondProfileID)
+
+        #expect(Set(recorder.persistedServerNames) == ["First Profile", "Second Profile"])
+    }
+
     @Test @MainActor func widgetSnapshotPersistenceBuildsCompactPayloadWithContextAndIcons() {
         let entityIcon = ResolvedIcon.sfSymbol("lamp.floor.fill", provenance: .haRegistryIcon)
         let entitiesByID = [
@@ -177,5 +242,48 @@ struct WidgetSnapshotPersistenceTests {
         #expect(WidgetSharedStore.sensorSnapshots(from: sensors).first?.valueText == "Unavailable")
         #expect(WidgetSharedStore.presenceSnapshots(from: entities).first?.isAvailable == false)
         #expect(WidgetSharedStore.presenceSnapshots(from: entities).first?.statusText == "Unavailable")
+    }
+
+    private func snapshotRequest(
+        profileID: UUID,
+        serverName: String
+    ) -> WidgetSnapshotPersistence.Request {
+        WidgetSnapshotPersistence.Request(
+            profileID: profileID,
+            serverName: serverName,
+            entitiesByID: [:],
+            lightEntitiesByID: [:],
+            coverEntitiesByID: [:],
+            fanEntitiesByID: [:],
+            sensorEntitiesByID: [:],
+            contextByEntityID: [:]
+        )
+    }
+}
+
+private final class WidgetSnapshotPersistenceRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var serverNames: [String] = []
+
+    var persistedServerNames: [String] {
+        lock.withLock { serverNames }
+    }
+
+    func persist(
+        _ request: WidgetSnapshotPersistence.Request
+    ) -> WidgetSnapshotPersistence.Payload {
+        lock.withLock {
+            serverNames.append(request.serverName)
+        }
+        return WidgetSnapshotPersistence.Payload(
+            lights: [],
+            switches: [],
+            covers: [],
+            fans: [],
+            locks: [],
+            sensors: [],
+            presence: [],
+            actions: []
+        )
     }
 }

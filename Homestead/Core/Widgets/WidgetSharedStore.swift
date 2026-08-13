@@ -20,7 +20,7 @@ enum WidgetSharedStore {
         return profiles.first(where: { $0.id == profileID })?.displayName ?? "Home Assistant"
     }
 
-    static func lightSnapshots(
+    nonisolated static func lightSnapshots(
         from lights: [LightEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
         iconForEntityID: (String) -> ResolvedIcon? = { _ in nil },
@@ -48,7 +48,7 @@ enum WidgetSharedStore {
             }
     }
 
-    static func switchSnapshots(
+    nonisolated static func switchSnapshots(
         from entities: [HomeEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
     ) -> [WidgetSwitchSnapshot] {
@@ -72,7 +72,7 @@ enum WidgetSharedStore {
             }
     }
 
-    static func coverSnapshots(
+    nonisolated static func coverSnapshots(
         from covers: [CoverEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
         iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
@@ -107,7 +107,7 @@ enum WidgetSharedStore {
             }
     }
 
-    static func fanSnapshots(
+    nonisolated static func fanSnapshots(
         from fans: [FanEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
         iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
@@ -134,7 +134,7 @@ enum WidgetSharedStore {
             }
     }
 
-    static func lockSnapshots(
+    nonisolated static func lockSnapshots(
         from entities: [HomeEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
     ) -> [WidgetLockSnapshot] {
@@ -160,7 +160,7 @@ enum WidgetSharedStore {
             }
     }
 
-    static func sensorSnapshots(
+    nonisolated static func sensorSnapshots(
         from sensors: [SensorEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty },
         iconForEntityID: (String) -> ResolvedIcon? = { _ in nil }
@@ -198,7 +198,7 @@ enum WidgetSharedStore {
             }
     }
 
-    private static func widgetChartAccentColor(for sensor: SensorEntity) -> WidgetGaugeColor {
+    nonisolated private static func widgetChartAccentColor(for sensor: SensorEntity) -> WidgetGaugeColor {
         guard sensor.isAvailable else { return .gray }
         guard !sensor.isAlerting else { return .red }
 
@@ -250,7 +250,7 @@ enum WidgetSharedStore {
         )
     }
 
-    static func presenceSnapshots(
+    nonisolated static func presenceSnapshots(
         from entities: [HomeEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
     ) -> [WidgetPresenceSnapshot] {
@@ -275,7 +275,7 @@ enum WidgetSharedStore {
             }
     }
 
-    static func actionSnapshots(
+    nonisolated static func actionSnapshots(
         from entities: [HomeEntity],
         contextForEntityID: (String) -> WidgetEntityContext = { _ in .empty }
     ) -> [WidgetActionSnapshot] {
@@ -308,7 +308,7 @@ enum WidgetSharedStore {
         UserDefaults(suiteName: appGroupID)
     }
 
-    private static func presenceStatusText(for state: String) -> String {
+    nonisolated private static func presenceStatusText(for state: String) -> String {
         switch state {
         case "home":
             "Home"
@@ -323,7 +323,7 @@ enum WidgetSharedStore {
         }
     }
 
-    private static func fanStatusText(for fan: FanEntity) -> String {
+    nonisolated private static func fanStatusText(for fan: FanEntity) -> String {
         guard fan.isAvailable else {
             return "Unavailable"
         }
@@ -343,7 +343,7 @@ enum WidgetSharedStore {
         return fan.displayState
     }
 
-    private static func lockStatusText(for state: String) -> String {
+    nonisolated private static func lockStatusText(for state: String) -> String {
         switch state {
         case "locked":
             "Locked"

@@ -48,7 +48,11 @@ final class HAStateStore {
     @ObservationIgnored private var cachedDashboardSummaryWorkspace: DashboardSummaryWorkspace?
     @ObservationIgnored private var isApplyingSnapshotBatch = false
     @ObservationIgnored private var snapshotBatchNeedsWidgetSave = false
-    @ObservationIgnored private var lastPersistedWidgetPayload: WidgetSnapshotPersistence.Payload?
+    @ObservationIgnored private var isApplyingLiveStateBatch = false
+    @ObservationIgnored private var liveStateBatchNeedsWidgetSave = false
+    @ObservationIgnored private var widgetSnapshotSequence: UInt64 = 0
+    @ObservationIgnored private var lastPersistedWidgetPayloadByProfileID: [UUID: WidgetSnapshotPersistence.Payload] = [:]
+    @ObservationIgnored private let widgetSnapshotPersistenceCoordinator = WidgetSnapshotPersistenceCoordinator()
     @ObservationIgnored private var pendingWidgetReloadKinds: Set<HomesteadWidgetKind> = []
     @ObservationIgnored private var widgetReloadTask: Task<Void, Never>?
     @ObservationIgnored private var lastWidgetReloadDate: Date?
@@ -668,7 +672,7 @@ final class HAStateStore {
         refreshEntityIndexes(previousCatalogSignature: entityCatalogSignature)
 
         if snapshotBatchNeedsWidgetSave {
-            saveWidgetSnapshots()
+            saveWidgetSnapshots(immediately: true)
         }
         snapshotBatchNeedsWidgetSave = false
     }
@@ -730,16 +734,20 @@ final class HAStateStore {
     }
 
     func applyStateChanges(_ changes: [HAStateChangedEventDTO]) {
-        for change in changes {
-            applyStateChanged(change)
+        performLiveStateBatch {
+            for change in changes {
+                applyStateChanged(change)
+            }
         }
     }
 
     func applyLiveStateUpdates(_ updates: [HAEntityDTO]) {
-        for update in updates {
-            if applyConfirmedDTO(update) {
-                if pendingCommandsByID[update.entityID]?.isSatisfied(by: update) == true {
-                    clearPendingCommand(entityID: update.entityID)
+        performLiveStateBatch {
+            for update in updates {
+                if applyConfirmedDTO(update) {
+                    if pendingCommandsByID[update.entityID]?.isSatisfied(by: update) == true {
+                        clearPendingCommand(entityID: update.entityID)
+                    }
                 }
             }
         }
@@ -931,7 +939,7 @@ final class HAStateStore {
         invalidateDashboardSummaryMembershipContext()
         isApplyingSnapshotBatch = false
         snapshotBatchNeedsWidgetSave = false
-        saveWidgetSnapshots()
+        saveWidgetSnapshots(immediately: true)
     }
 
     private func rebuildMappedEntities(from entities: [HAEntityDTO]) {
@@ -1101,6 +1109,8 @@ final class HAStateStore {
         if homeEntity.domain.isWidgetSnapshotDomain {
             if isApplyingSnapshotBatch {
                 snapshotBatchNeedsWidgetSave = true
+            } else if isApplyingLiveStateBatch {
+                liveStateBatchNeedsWidgetSave = true
             } else {
                 saveWidgetSnapshots()
             }
@@ -1146,6 +1156,10 @@ final class HAStateStore {
             if isApplyingSnapshotBatch {
                 if removedEntity?.domain.isWidgetSnapshotDomain == true {
                     snapshotBatchNeedsWidgetSave = true
+                }
+            } else if isApplyingLiveStateBatch {
+                if removedEntity?.domain.isWidgetSnapshotDomain == true {
+                    liveStateBatchNeedsWidgetSave = true
                 }
             } else {
                 refreshEntityIndexes(previousCatalogSignature: previousCatalogSignature)
@@ -1291,20 +1305,45 @@ final class HAStateStore {
         }
     }
 
-    private func saveWidgetSnapshots() {
+    private func performLiveStateBatch(_ updates: () -> Void) {
+        let wasApplyingLiveStateBatch = isApplyingLiveStateBatch
+        if !wasApplyingLiveStateBatch {
+            liveStateBatchNeedsWidgetSave = false
+        }
+        isApplyingLiveStateBatch = true
+        updates()
+        isApplyingLiveStateBatch = wasApplyingLiveStateBatch
+
+        guard !wasApplyingLiveStateBatch else { return }
+        if liveStateBatchNeedsWidgetSave {
+            saveWidgetSnapshots()
+        }
+        liveStateBatchNeedsWidgetSave = false
+    }
+
+    private func saveWidgetSnapshots(immediately: Bool = false) {
         guard let dataSourceID,
               dataSourceID.hasPrefix("profile-"),
               let profileID = UUID(uuidString: String(dataSourceID.dropFirst("profile-".count))) else {
             return
         }
-        let contextForEntityID: (String) -> WidgetEntityContext = { entityID in
-            WidgetEntityContext(
+
+        let contextualEntityIDs = Set(
+            entitiesByID.values.lazy
+                .filter { $0.domain.isWidgetSnapshotDomain }
+                .map(\.entityID)
+        )
+        .union(lightEntitiesByID.keys)
+        .union(coverEntitiesByID.keys)
+        .union(fanEntitiesByID.keys)
+        .union(sensorEntitiesByID.keys)
+        let contextByEntityID = Dictionary(uniqueKeysWithValues: contextualEntityIDs.map { entityID in
+            (entityID, WidgetEntityContext(
                 areaName: self.areaName(for: entityID),
                 deviceName: self.deviceRegistryMetadata(forEntityID: entityID)?.displayName.nonEmptyValue
-            )
-        }
-
-        let payload = WidgetSnapshotPersistence.save(
+            ))
+        })
+        let request = WidgetSnapshotPersistence.Request(
             profileID: profileID,
             serverName: WidgetSharedStore.serverDisplayName(profileID: profileID),
             entitiesByID: entitiesByID,
@@ -1312,14 +1351,27 @@ final class HAStateStore {
             coverEntitiesByID: coverEntitiesByID,
             fanEntitiesByID: fanEntitiesByID,
             sensorEntitiesByID: sensorEntitiesByID,
-            contextForEntityID: contextForEntityID,
+            contextByEntityID: contextByEntityID
         )
-        let changedKinds = WidgetSnapshotPersistence.changedWidgetKinds(
-            from: lastPersistedWidgetPayload,
-            to: payload
-        )
-        lastPersistedWidgetPayload = payload
-        scheduleWidgetReload(for: changedKinds)
+        widgetSnapshotSequence &+= 1
+        let sequence = widgetSnapshotSequence
+
+        Task { [weak self] in
+            guard let self else { return }
+            await widgetSnapshotPersistenceCoordinator.schedule(
+                sequence: sequence,
+                request: request,
+                immediately: immediately
+            ) { [weak self] persistedProfileID, payload in
+                guard let self else { return }
+                let changedKinds = WidgetSnapshotPersistence.changedWidgetKinds(
+                    from: lastPersistedWidgetPayloadByProfileID[persistedProfileID],
+                    to: payload
+                )
+                lastPersistedWidgetPayloadByProfileID[persistedProfileID] = payload
+                scheduleWidgetReload(for: changedKinds)
+            }
+        }
     }
 
     private func scheduleWidgetReload(for kinds: Set<HomesteadWidgetKind>) {
