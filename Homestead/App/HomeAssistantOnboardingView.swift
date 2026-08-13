@@ -860,10 +860,11 @@ private struct OnboardingHomePreview: View {
             .frame(width: sideLength, height: sideLength, alignment: .topLeading)
             .frame(width: sideLength, height: sideLength)
             .clipShape(previewShape)
+            .clipped()
 
         if #available(iOS 26, *) {
             content
-                .glassEffect(.regular, in: previewShape)
+                .glassEffect(.regular, in: .rect(cornerRadius: previewCornerRadius))
         } else {
             content
                 .background(.ultraThinMaterial, in: previewShape)
@@ -936,7 +937,11 @@ private struct OnboardingHomePreview: View {
     }
 
     private var previewShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
+        RoundedRectangle(cornerRadius: previewCornerRadius, style: .continuous)
+    }
+
+    private var previewCornerRadius: CGFloat {
+        24
     }
 
     private func chip(
