@@ -923,6 +923,7 @@ private struct OnboardingHomePreview: View {
         }
         .padding(AppSpacing.medium)
         .environment(DashboardPresentationGallerySamples.stateStore)
+        .environment(\.homesteadWallpaperSurfaceActive, true)
         .allowsHitTesting(false)
     }
 
