@@ -53,6 +53,30 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 124)
+
+- Release Date: 2026-08-13
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build introduces a more polished way to connect Homestead to Home Assistant and improves everyday responsiveness.
+
+- Set up a Home Assistant server in a redesigned, more guided welcome flow
+- Review server choices and go back during setup with clearer, smoother navigation
+- See a richer preview of your dashboard while getting started
+- Enjoy more responsive dashboard selection and widget updates
+
+Please test:
+
+- Connecting a new Home Assistant server from the welcome screen, including going back and changing the server choice
+- Completing setup, then checking that the first dashboard looks and behaves as expected
+- Switching dashboards and checking that widgets continue to refresh normally
+
+### Internal Summary
+
+Build 124 covers the redesigned Home Assistant onboarding and dashboard preview, dashboard-selection performance improvements, and moving widget snapshot persistence off the main actor. It also includes privacy-minimization and StoreKit entitlement diagnostics that are not surfaced in the tester notes. Source: 407166f78a5e49b9dcf90b9435b2c977b5be637b.
+
 ## Version 1 (Build 123)
 
 - Release Date: 2026-08-07
