@@ -393,6 +393,7 @@ struct HomeAssistantOnboardingView: View {
                     Spacer()
                     Image(systemName: "arrow.right")
                         .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
                         .accessibilityHidden(true)
                 }
             }
@@ -400,7 +401,7 @@ struct HomeAssistantOnboardingView: View {
             .padding(.horizontal, AppSpacing.medium)
             .foregroundStyle(.white)
         }
-        .buttonStyle(.glass(.regular.tint(onboardingActionTint)))
+        .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
         .padding(.horizontal, AppSpacing.large)
         .padding(.top, AppSpacing.medium)
@@ -473,13 +474,17 @@ struct HomeAssistantOnboardingView: View {
                         isURLFieldFocused = false
                         discoveryService.start()
                     } label: {
-                        Label("Search Local Network", systemImage: "dot.radiowaves.left.and.right")
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                            .foregroundStyle(.white)
+                        HStack(spacing: AppSpacing.small) {
+                            Image(systemName: "dot.radiowaves.left.and.right")
+                                .foregroundStyle(Color.accentColor)
+                            Text("Search Local Network")
+                                .foregroundStyle(.white)
+                        }
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .frame(maxWidth: .infinity, minHeight: 48)
                     }
-                    .buttonStyle(.glass(.regular.tint(onboardingActionTint)))
+                    .buttonStyle(.glass)
                     .buttonBorderShape(.capsule)
 
                     if draftDiscoveredName.isEmpty {
@@ -664,6 +669,7 @@ struct HomeAssistantOnboardingView: View {
                     } else {
                         Image(systemName: "house.fill")
                             .font(.body.weight(.semibold))
+                            .foregroundStyle(Color.accentColor)
                             .accessibilityHidden(true)
                     }
 
@@ -676,7 +682,7 @@ struct HomeAssistantOnboardingView: View {
                 .padding(.horizontal, AppSpacing.medium)
                 .foregroundStyle(.white)
             }
-            .buttonStyle(.glass(.regular.tint(onboardingActionTint)))
+            .buttonStyle(.glass)
             .buttonBorderShape(.capsule)
             .disabled(!presentation.isButtonEnabled)
         }
@@ -831,10 +837,6 @@ struct HomeAssistantOnboardingView: View {
         72
     }
 
-    /// A restrained indigo sampled from the wallpaper keeps primary glass controls cohesive without competing with it.
-    private var onboardingActionTint: Color {
-        Color(red: 0.25, green: 0.29, blue: 0.64).opacity(0.42)
-    }
 }
 
 // MARK: - Welcome Artwork
