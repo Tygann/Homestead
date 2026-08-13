@@ -385,18 +385,8 @@ struct HomeAssistantOnboardingView: View {
         Button {
             navigateToSetup()
         } label: {
-            ZStack {
-                Text("Get Started")
-                    .fontWeight(.semibold)
-
-                HStack {
-                    Spacer()
-                    Image(systemName: "arrow.right")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityHidden(true)
-                }
-            }
+            Text("Get Started")
+                .fontWeight(.semibold)
             .frame(maxWidth: .infinity, minHeight: 52)
             .padding(.horizontal, AppSpacing.medium)
             .foregroundStyle(.white)
@@ -476,10 +466,9 @@ struct HomeAssistantOnboardingView: View {
                     } label: {
                         HStack(spacing: AppSpacing.small) {
                             Image(systemName: "dot.radiowaves.left.and.right")
-                                .foregroundStyle(Color.accentColor)
                             Text("Search Local Network")
-                                .foregroundStyle(.white)
                         }
+                        .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                         .frame(maxWidth: .infinity, minHeight: 48)
@@ -669,7 +658,6 @@ struct HomeAssistantOnboardingView: View {
                     } else {
                         Image(systemName: "house.fill")
                             .font(.body.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
                             .accessibilityHidden(true)
                     }
 
