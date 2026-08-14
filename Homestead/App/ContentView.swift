@@ -76,6 +76,7 @@ struct ContentView: View {
                 mainTabs(chrome: chrome)
             }
         }
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .environment(
             \.openSettings,
             OpenSettingsAction { route in
@@ -99,6 +100,7 @@ struct ContentView: View {
                 SettingsSheet(initialRoute: initialRoute) {
                     presentedAppSheet = nil
                 }
+                .scrollEdgeEffectStyle(.soft, for: .top)
                 .accentColor(Color(appearanceSettings.appColor.uiColor))
                 .preferredColorScheme(settingsSheetColorScheme)
             }
