@@ -75,6 +75,44 @@ struct WidgetSensorBoardTests {
 
         #expect(item.displayName == "Room Temp")
         #expect(item.resolvedPresentation == .reading)
+        #expect(item.readingColor == .green)
+    }
+
+    @Test func readingUsesTheConfiguredGaugeZoneColorWithoutBecomingAGauge() {
+        let item = WidgetSensorBoardCompactItem.sensor(
+            from: makeSnapshot(gauge: makeGauge()),
+            presentation: .reading
+        )
+        let configuration = sensorBoardGaugeConfiguration(
+            style: .segmented,
+            gaugeScale: .custom,
+            gaugeMinimum: 60,
+            gaugeMaximum: 90,
+            zoneCount: .three,
+            zone1Color: .blue,
+            zone2BeginsAt: 70,
+            zone2Color: .green,
+            zone3BeginsAt: 80,
+            zone3Color: .red,
+            zone4BeginsAt: nil,
+            zone4Color: .orange,
+            zone5BeginsAt: nil,
+            zone5Color: .purple
+        )
+
+        let configured = item.applyingGaugeConfiguration(configuration)
+
+        #expect(configured.resolvedPresentation == .reading)
+        #expect(configured.readingColor == .green)
+    }
+
+    @Test func nonnumericReadingKeepsItsNeutralColor() {
+        let item = WidgetSensorBoardCompactItem.sensor(
+            from: makeSnapshot(gauge: nil),
+            presentation: .reading
+        )
+
+        #expect(item.readingColor == nil)
     }
 
     @Test func liveReadingRefreshesValueGaugeAvailabilityAndSemanticIcon() {

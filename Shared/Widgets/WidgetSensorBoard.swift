@@ -35,6 +35,13 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
         }
     }
 
+    /// A Reading can borrow the semantic color of its numeric gauge zones without
+    /// changing into a gauge presentation.
+    var readingColor: GaugeZoneColor? {
+        guard isAvailable, resolvedPresentation == .reading else { return nil }
+        return gauge?.currentColor
+    }
+
     static func sensor(
         from snapshot: WidgetSensorSnapshot,
         customDisplayName: String? = nil,
@@ -250,7 +257,8 @@ private struct WidgetSensorBoardCompactTile: View {
                 WidgetSensorBoardSlotScaffold(
                     title: item.displayName,
                     icon: item.icon,
-                    tint: item.isAvailable ? .blue : .secondary,
+                    tint: item.readingColor.map(widgetGaugeColor(for:))
+                        ?? (item.isAvailable ? .blue : .secondary),
                     density: density
                 ) {
                     if item.isAvailable {
@@ -258,6 +266,7 @@ private struct WidgetSensorBoardCompactTile: View {
                             valueText: item.valueText,
                             unitText: nil,
                             isAvailable: true,
+                            valueColor: item.readingColor.map(widgetGaugeColor(for:)),
                             density: density,
                             centersContent: true
                         )
@@ -527,6 +536,7 @@ private struct WidgetSensorBoardValueLabel: View {
     let valueText: String
     let unitText: String?
     let isAvailable: Bool
+    var valueColor: Color? = nil
     let density: WidgetSensorBoardSlotDensity
     var centersContent = false
 
@@ -540,7 +550,7 @@ private struct WidgetSensorBoardValueLabel: View {
                     weight: .regular,
                     design: .rounded
                 ))
-                .foregroundStyle(isAvailable ? Color.primary : .secondary)
+                .foregroundStyle(valueColor ?? (isAvailable ? Color.primary : .secondary))
                 .lineLimit(1)
                 .minimumScaleFactor(0.58)
                 .monospacedDigit()

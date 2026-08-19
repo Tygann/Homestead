@@ -189,7 +189,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$customDisplayName1
                     }
                 } otherwise: {
-                    When(\.$display1, .equalTo, .gauge) {
+                    When(\.$display1, .oneOf, [.gauge, .reading]) {
                         When(\.$gaugeScale1, .equalTo, .custom) {
                             When(\.$zoneCount1, .equalTo, .automatic) {
                             Summary {
@@ -276,7 +276,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$customDisplayName2
                     }
                 } otherwise: {
-                    When(\.$display2, .equalTo, .gauge) {
+                    When(\.$display2, .oneOf, [.gauge, .reading]) {
                         When(\.$gaugeScale2, .equalTo, .custom) {
                             When(\.$zoneCount2, .equalTo, .automatic) {
                             Summary {
@@ -363,7 +363,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$customDisplayName3
                     }
                 } otherwise: {
-                    When(\.$display3, .equalTo, .gauge) {
+                    When(\.$display3, .oneOf, [.gauge, .reading]) {
                         When(\.$gaugeScale3, .equalTo, .custom) {
                             When(\.$zoneCount3, .equalTo, .automatic) {
                             Summary {
@@ -682,7 +682,7 @@ enum HomesteadSensorBoardEntryBuilder {
                     presentation: presentation
                 )
                 let updatedItem = liveReadingsByIdentifier[sensor.id].map(item.updating(with:)) ?? item
-                let configuredItem = slot.display == .gauge
+                let configuredItem = slot.display != .chart
                     ? updatedItem.applyingGaugeConfiguration(slot.gaugeConfiguration)
                     : updatedItem
                 items[index] = .compact(configuredItem.scoped(to: reference))
