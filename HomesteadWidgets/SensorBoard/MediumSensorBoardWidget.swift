@@ -189,7 +189,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$customDisplayName1
                     }
                 } otherwise: {
-                    When(\.$display1, .oneOf, [.gauge, .reading]) {
+                    When(\.$display1, .equalTo, .gauge) {
                         When(\.$gaugeScale1, .equalTo, .custom) {
                             When(\.$zoneCount1, .equalTo, .automatic) {
                             Summary {
@@ -258,11 +258,33 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                             }
                         }
                     } otherwise: {
-                        Summary {
-                            \.$editingSlot
-                            \.$sensor1
-                            \.$display1
-                            \.$customDisplayName1
+                        When(\.$display1, .equalTo, .reading) {
+                            Summary {
+                                \.$editingSlot
+                                \.$sensor1
+                                \.$display1
+                                \.$customDisplayName1
+                                \.$gaugeScale1
+                                \.$gaugeMinimum1
+                                \.$gaugeMaximum1
+                                \.$zoneCount1
+                                \.$zone1Color1
+                                \.$zone2BeginsAt1
+                                \.$zone2Color1
+                                \.$zone3BeginsAt1
+                                \.$zone3Color1
+                                \.$zone4BeginsAt1
+                                \.$zone4Color1
+                                \.$zone5BeginsAt1
+                                \.$zone5Color1
+                            }
+                        } otherwise: {
+                            Summary {
+                                \.$editingSlot
+                                \.$sensor1
+                                \.$display1
+                                \.$customDisplayName1
+                            }
                         }
                     }
                 }
@@ -276,7 +298,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$customDisplayName2
                     }
                 } otherwise: {
-                    When(\.$display2, .oneOf, [.gauge, .reading]) {
+                    When(\.$display2, .equalTo, .gauge) {
                         When(\.$gaugeScale2, .equalTo, .custom) {
                             When(\.$zoneCount2, .equalTo, .automatic) {
                             Summary {
@@ -345,11 +367,33 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                             }
                         }
                     } otherwise: {
-                        Summary {
-                            \.$editingSlot
-                            \.$sensor2
-                            \.$display2
-                            \.$customDisplayName2
+                        When(\.$display2, .equalTo, .reading) {
+                            Summary {
+                                \.$editingSlot
+                                \.$sensor2
+                                \.$display2
+                                \.$customDisplayName2
+                                \.$gaugeScale2
+                                \.$gaugeMinimum2
+                                \.$gaugeMaximum2
+                                \.$zoneCount2
+                                \.$zone1Color2
+                                \.$zone2BeginsAt2
+                                \.$zone2Color2
+                                \.$zone3BeginsAt2
+                                \.$zone3Color2
+                                \.$zone4BeginsAt2
+                                \.$zone4Color2
+                                \.$zone5BeginsAt2
+                                \.$zone5Color2
+                            }
+                        } otherwise: {
+                            Summary {
+                                \.$editingSlot
+                                \.$sensor2
+                                \.$display2
+                                \.$customDisplayName2
+                            }
                         }
                     }
                 }
@@ -363,7 +407,7 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                         \.$customDisplayName3
                     }
                 } otherwise: {
-                    When(\.$display3, .oneOf, [.gauge, .reading]) {
+                    When(\.$display3, .equalTo, .gauge) {
                         When(\.$gaugeScale3, .equalTo, .custom) {
                             When(\.$zoneCount3, .equalTo, .automatic) {
                             Summary {
@@ -432,11 +476,33 @@ struct HomesteadSensorBoardWidgetConfigurationIntent: WidgetConfigurationIntent 
                             }
                         }
                     } otherwise: {
-                        Summary {
-                            \.$editingSlot
-                            \.$sensor3
-                            \.$display3
-                            \.$customDisplayName3
+                        When(\.$display3, .equalTo, .reading) {
+                            Summary {
+                                \.$editingSlot
+                                \.$sensor3
+                                \.$display3
+                                \.$customDisplayName3
+                                \.$gaugeScale3
+                                \.$gaugeMinimum3
+                                \.$gaugeMaximum3
+                                \.$zoneCount3
+                                \.$zone1Color3
+                                \.$zone2BeginsAt3
+                                \.$zone2Color3
+                                \.$zone3BeginsAt3
+                                \.$zone3Color3
+                                \.$zone4BeginsAt3
+                                \.$zone4Color3
+                                \.$zone5BeginsAt3
+                                \.$zone5Color3
+                            }
+                        } otherwise: {
+                            Summary {
+                                \.$editingSlot
+                                \.$sensor3
+                                \.$display3
+                                \.$customDisplayName3
+                            }
                         }
                     }
                 }
