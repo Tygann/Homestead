@@ -23,7 +23,7 @@ struct DashboardView: View {
                     selectedDashboardID: visualDashboardID(in: enabledDashboards),
                     selectDashboard: selectDashboard
                 )
-                .padding(.vertical, DashboardPageIndicatorMetrics.bottomSpacing)
+                .padding(.vertical, AppSpacing.xSmall)
             }
         }
         .homesteadWallpaperBackground(dashboardID: dashboardConfiguration.selectedDashboardID)
@@ -296,126 +296,59 @@ private struct DashboardToolbarAddRequest: Equatable {
     let dashboardID: UUID
 }
 
-nonisolated enum DashboardPageIndicatorMetrics {
-    static let maximumVisibleDots = 4
-    static let capsuleSize = CGSize(width: 52, height: 20)
-    static let bottomSpacing: CGFloat = 4
-}
-
-nonisolated struct DashboardPageIndicatorLayout: Equatable {
-    struct Dot: Equatable {
-        let pageIndex: Int
-        let scale: CGFloat
-    }
-
-    let dots: [Dot]
-
-    init(pageCount: Int, selectedIndex: Int) {
-        let resolvedPageCount = max(0, pageCount)
-        guard resolvedPageCount > 0 else {
-            dots = []
-            return
-        }
-
-        let resolvedSelectedIndex = min(max(0, selectedIndex), resolvedPageCount - 1)
-        let visibleCount = min(DashboardPageIndicatorMetrics.maximumVisibleDots, resolvedPageCount)
-        let maximumStartIndex = resolvedPageCount - visibleCount
-        let startIndex: Int
-
-        // Keep four stable slots and use a smaller edge dot when the window omits pages.
-        if resolvedSelectedIndex < visibleCount - 1 {
-            startIndex = 0
-        } else {
-            startIndex = min(
-                resolvedSelectedIndex - (visibleCount - 2),
-                maximumStartIndex
-            )
-        }
-
-        let endIndex = startIndex + visibleCount - 1
-        dots = (startIndex...endIndex).map { pageIndex in
-            let indicatesEarlierPages = pageIndex == startIndex && startIndex > 0
-            let indicatesLaterPages = pageIndex == endIndex && endIndex < resolvedPageCount - 1
-            return Dot(
-                pageIndex: pageIndex,
-                scale: indicatesEarlierPages || indicatesLaterPages ? 0.62 : 1
-            )
-        }
-    }
-}
-
-private struct DashboardPageIndicator: View {
+private struct DashboardPageIndicator: UIViewRepresentable {
     let dashboards: [SavedDashboardConfiguration]
     let selectedDashboardID: UUID
     let selectDashboard: (UUID) -> Void
 
-    var body: some View {
-        ZStack {
-            Color.clear
-                .frame(
-                    width: DashboardPageIndicatorMetrics.capsuleSize.width,
-                    height: DashboardPageIndicatorMetrics.capsuleSize.height
-                )
-                .glassEffect(.regular, in: .capsule)
-
-            HStack(spacing: 0) {
-                ForEach(layout.dots, id: \.pageIndex) { dot in
-                    let dashboard = dashboards[dot.pageIndex]
-
-                    Button {
-                        selectDashboard(dashboard.id)
-                    } label: {
-                        Circle()
-                            .fill(
-                                dashboard.id == selectedDashboardID
-                                    ? Color.white
-                                    : Color.secondary.opacity(0.42)
-                            )
-                            .frame(width: 5, height: 5)
-                            .scaleEffect(dot.scale)
-                            .frame(width: 10, height: DashboardPageIndicatorMetrics.capsuleSize.height)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Show \(dashboard.resolvedDisplayTitle)")
-                    .accessibilityValue(dashboard.id == selectedDashboardID ? "Current page" : "")
-                }
-            }
-        }
-        .frame(
-            width: DashboardPageIndicatorMetrics.capsuleSize.width,
-            height: DashboardPageIndicatorMetrics.capsuleSize.height
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Dashboard pages")
-        .accessibilityValue(accessibilityValue)
-        .accessibilityAdjustableAction { direction in
-            guard let selectedIndex = dashboards.firstIndex(where: { $0.id == selectedDashboardID }) else {
-                return
-            }
-            switch direction {
-            case .increment where selectedIndex < dashboards.count - 1:
-                selectDashboard(dashboards[selectedIndex + 1].id)
-            case .decrement where selectedIndex > 0:
-                selectDashboard(dashboards[selectedIndex - 1].id)
-            default:
-                break
-            }
-        }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(selectDashboard: selectDashboard)
     }
 
-    private var layout: DashboardPageIndicatorLayout {
-        DashboardPageIndicatorLayout(
-            pageCount: dashboards.count,
-            selectedIndex: dashboards.firstIndex(where: { $0.id == selectedDashboardID }) ?? 0
+    func makeUIView(context: Context) -> UIPageControl {
+        let pageControl = UIPageControl()
+        pageControl.backgroundStyle = .prominent
+        pageControl.allowsContinuousInteraction = true
+        pageControl.hidesForSinglePage = true
+        pageControl.currentPageIndicatorTintColor = .white
+        pageControl.addTarget(
+            context.coordinator,
+            action: #selector(Coordinator.pageChanged(_:)),
+            for: .valueChanged
         )
+        return pageControl
     }
 
-    private var accessibilityValue: String {
-        guard let index = dashboards.firstIndex(where: { $0.id == selectedDashboardID }) else {
-            return ""
+    func updateUIView(_ pageControl: UIPageControl, context: Context) {
+        let selectedIndex = dashboards.firstIndex { $0.id == selectedDashboardID } ?? 0
+        context.coordinator.dashboards = dashboards
+        context.coordinator.selectDashboard = selectDashboard
+        pageControl.numberOfPages = dashboards.count
+        pageControl.currentPage = selectedIndex
+        pageControl.accessibilityLabel = "Dashboard pages"
+        pageControl.accessibilityValue = "\(dashboards[selectedIndex].resolvedDisplayTitle), page \(selectedIndex + 1) of \(dashboards.count)"
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        uiView: UIPageControl,
+        context: Context
+    ) -> CGSize? {
+        uiView.size(forNumberOfPages: dashboards.count)
+    }
+
+    final class Coordinator: NSObject {
+        var dashboards: [SavedDashboardConfiguration] = []
+        var selectDashboard: (UUID) -> Void
+
+        init(selectDashboard: @escaping (UUID) -> Void) {
+            self.selectDashboard = selectDashboard
         }
-        return "\(dashboards[index].resolvedDisplayTitle), page \(index + 1) of \(dashboards.count)"
+
+        @objc func pageChanged(_ sender: UIPageControl) {
+            guard dashboards.indices.contains(sender.currentPage) else { return }
+            selectDashboard(dashboards[sender.currentPage].id)
+        }
     }
 }
 
