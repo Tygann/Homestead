@@ -17,15 +17,13 @@ struct AlarmModeControl: View {
     var body: some View {
         Group {
             if expanded {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppSpacing.small) {
-                    ForEach(actions) { action in
-                        EntityDetailPillButton(
-                            title: action.title,
-                            systemImage: action.systemImage,
-                            isSelected: entityBox.homeEntity.state == action.expectedState,
-                            isDisabled: isDisabled(action),
-                            tint: .accentColor
-                        ) { select(action) }
+                VStack(spacing: AppSpacing.small) {
+                    ForEach(Array(actionRows.enumerated()), id: \.offset) { _, row in
+                        HStack(spacing: AppSpacing.small) {
+                            ForEach(row) { action in
+                                actionButton(action)
+                            }
+                        }
                     }
                 }
             } else {
@@ -89,12 +87,29 @@ struct AlarmModeControl: View {
     }
 
     private var selectedModeTitle: String {
-        let state = entityBox.pendingCommand?.expectedState ?? entityBox.homeEntity.state
-        if state == "disarmed" {
-            return "Disarmed"
+        AlarmEntity.modeTitle(for: effectiveState)
+    }
+
+    private var effectiveState: String {
+        entityBox.pendingCommand?.expectedState ?? entityBox.homeEntity.state
+    }
+
+    private var actionRows: [[AlarmServiceAction]] {
+        stride(from: 0, to: actions.count, by: 2).map { startIndex in
+            Array(actions[startIndex..<min(startIndex + 2, actions.count)])
         }
-        return AlarmServiceAction.allCases.first { $0.expectedState == state }?.title
-            ?? state.displayStateText
+    }
+
+    private func actionButton(_ action: AlarmServiceAction) -> some View {
+        let isSelected = effectiveState == action.expectedState
+        return EntityDetailPillButton(
+            title: action.title(isSelected: isSelected),
+            systemImage: action.systemImage,
+            isSelected: isSelected,
+            isDisabled: blocksInteraction,
+            tint: action == .disarm ? Color.secondary : Color.accentColor
+        ) { select(action) }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func isDisabled(_ action: AlarmServiceAction) -> Bool {

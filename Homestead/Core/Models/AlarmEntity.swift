@@ -14,6 +14,14 @@ nonisolated struct AlarmEntity: Equatable, Sendable {
     func requiresCode(for action: AlarmServiceAction) -> Bool {
         codeFormat != nil && (action == .disarm || codeArmRequired)
     }
+
+    static func modeTitle(for state: String) -> String {
+        if state == "disarmed" {
+            return "Disarmed"
+        }
+        return AlarmServiceAction.allCases.first { $0.expectedState == state }?.title
+            ?? state.replacingOccurrences(of: "_", with: " ").capitalized
+    }
 }
 
 nonisolated enum AlarmServiceAction: String, CaseIterable, Identifiable, Sendable {
@@ -69,5 +77,9 @@ nonisolated enum AlarmServiceAction: String, CaseIterable, Identifiable, Sendabl
         case .armVacation: 32
         case .armCustomBypass: 16
         }
+    }
+
+    func title(isSelected: Bool) -> String {
+        self == .disarm && isSelected ? "Disarmed" : title
     }
 }

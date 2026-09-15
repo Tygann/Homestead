@@ -127,6 +127,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
     case metric
     case history
     case positional
+    case alarm
     case environmental
     case environmentalSingle
     case information
@@ -146,6 +147,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .metric: "Metric"
         case .history: "Chart"
         case .positional: "Position"
+        case .alarm: "Alarm"
         case .environmental: "Climate Range"
         case .environmentalSingle: "Climate Heat"
         case .information: "Weather"
@@ -165,6 +167,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .metric: "gauge.with.dots.needle.50percent"
         case .history: "chart.xyaxis.line"
         case .positional: "blinds.horizontal.closed"
+        case .alarm: "shield.lefthalf.filled"
         case .environmental, .environmentalSingle: "thermometer.medium"
         case .information: "cloud.sun.fill"
         case .media: "play.tv.fill"
@@ -183,6 +186,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .metric: "sensor.front_door_battery"
         case .history: "sensor.living_room_temperature"
         case .positional: "cover.primary_shades"
+        case .alarm: "alarm_control_panel.home"
         case .environmental: "climate.downstairs"
         case .environmentalSingle: "climate.upstairs"
         case .information: "weather.home"
@@ -229,6 +233,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .metric: "18"
         case .history: "73.4"
         case .positional: "open"
+        case .alarm: "disarmed"
         case .environmental: "heat_cool"
         case .environmentalSingle: "heat"
         case .information: "partlycloudy"
@@ -269,6 +274,13 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             [
                 "friendly_name": .string("Primary Shades"),
                 "current_position": .number(72)
+            ]
+        case .alarm:
+            [
+                "friendly_name": .string("Home Alarm"),
+                "supported_features": .number(3),
+                "code_format": .string("number"),
+                "code_arm_required": .bool(false)
             ]
         case .environmental:
             [
@@ -377,6 +389,8 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
         case .positional:
             state = isMaximum ? "open" : "closed"
             attributes["current_position"] = .number(isMaximum ? 100 : 0)
+        case .alarm:
+            state = isMaximum ? "triggered" : "disarmed"
         case .environmental, .environmentalSingle:
             attributes["current_temperature"] = .number(isMaximum ? 90 : 50)
             attributes["temperature"] = .number(isMaximum ? 90 : 50)

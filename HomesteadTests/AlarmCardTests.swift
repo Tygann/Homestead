@@ -33,6 +33,11 @@ struct AlarmCardTests {
         #expect(AlarmServiceAction.armVacation.title == "Vacation")
         #expect(AlarmServiceAction.armCustomBypass.title == "Custom Bypass")
         #expect(AlarmServiceAction.disarm.expectedState == "disarmed")
+        #expect(AlarmServiceAction.disarm.title(isSelected: false) == "Disarm")
+        #expect(AlarmServiceAction.disarm.title(isSelected: true) == "Disarmed")
+        #expect(AlarmEntity.modeTitle(for: "armed_home") == "Home")
+        #expect(AlarmEntity.modeTitle(for: "armed_custom_bypass") == "Custom Bypass")
+        #expect(AlarmEntity.modeTitle(for: "triggered") == "Triggered")
     }
 
     @Test func alarmCapabilitiesRefreshOnExistingEntityBox() throws {
