@@ -23,6 +23,7 @@ struct DashboardView: View {
                     selectedDashboardID: visualDashboardID(in: enabledDashboards),
                     selectDashboard: selectDashboard
                 )
+                .glassEffect(.regular.interactive(), in: .capsule)
                 .padding(.vertical, AppSpacing.xSmall)
             }
         }
@@ -307,6 +308,7 @@ private struct DashboardPageIndicator: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UIPageControl {
         let pageControl = UIPageControl()
+        // UIKit supplies native paging geometry while SwiftUI adds the Liquid Glass response.
         pageControl.backgroundStyle = .prominent
         pageControl.allowsContinuousInteraction = true
         pageControl.hidesForSinglePage = true
