@@ -53,6 +53,30 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1 (Build 125)
+
+- Release Date: 2026-09-15
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build adds dedicated alarm controls and refines dashboard and widget navigation.
+
+- Add an Alarm card to arm or disarm supported security systems directly from a dashboard
+- Enter an alarm code only when required, with available modes matched to your Home Assistant setup
+- Move between multiple dashboards with a native page indicator that adapts to light and dark appearances
+- Give Sensor Board readings meaningful zone colors with clearer, display-specific configuration
+
+Please test:
+
+- Adding Alarm cards in several sizes, then arming and disarming systems with and without required codes
+- Swiping between multiple dashboards and checking page indicators over different wallpapers and appearances
+- Configuring Sensor Board Reading slots with custom ranges, boundaries, and zone colors
+
+### Internal Summary
+
+Build 125 covers the capability-aware Alarm dashboard card and shared alarm controls, native Liquid Glass dashboard page indicators, Sensor Board reading-zone tint and configuration refinements, and softer top scroll edges after Build 124. Source: 7452e835468a2392c76354e0fd11bf38fd7297a6.
+
 ## Version 1 (Build 124)
 
 - Release Date: 2026-08-13
