@@ -308,7 +308,12 @@ private struct DashboardPageIndicator: View {
             selectDashboard: selectDashboard
         )
         .frame(width: capsuleWidth, height: 32)
-        .glassEffect(.regular.interactive(), in: .capsule)
+        .glassEffect(
+            .regular
+                .tint(.primary.opacity(0.12))
+                .interactive(),
+            in: .capsule
+        )
     }
 
     private var capsuleWidth: CGFloat {
