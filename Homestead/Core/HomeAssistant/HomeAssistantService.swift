@@ -1872,7 +1872,7 @@ final class HomeAssistantService {
 
     func setAlarmControlPanelMode(entityID: String, service: String, code: String? = nil) async {
         var serviceData: [String: JSONValue] = [:]
-        if let code = code?.trimmingCharacters(in: .whitespacesAndNewlines), !code.isEmpty {
+        if let code, !code.isEmpty {
             serviceData["code"] = .string(code)
         }
 

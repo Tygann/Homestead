@@ -30,7 +30,7 @@ enum DashboardAddGalleryFilter: String, CaseIterable, Identifiable {
         case .all:
             return true
         case .controls:
-            return kind == .control
+            return [.control, .alarm].contains(kind)
         case .status:
             return [.status, .chip].contains(kind)
         case .sensors:
@@ -162,6 +162,7 @@ enum DashboardAddGallerySection: String, CaseIterable, Identifiable {
         case .cards:
             [
                 .control,
+                .alarm,
                 .status,
                 .circularGauge,
                 .segmentedGauge,

@@ -212,6 +212,15 @@ enum EntityMapper {
         )
     }
 
+    static func alarmEntity(from dto: HAEntityDTO) -> AlarmEntity? {
+        guard EntityDomain(entityID: dto.entityID) == .alarmControlPanel else { return nil }
+        return AlarmEntity(
+            supportedFeatures: dto.attributes["supported_features"]?.intValue ?? 0,
+            codeFormat: dto.attributes["code_format"]?.stringValue,
+            codeArmRequired: dto.attributes["code_arm_required"]?.boolValue ?? true
+        )
+    }
+
     static func selectEntity(from dto: HAEntityDTO) -> SelectEntity? {
         guard EntityDomain(entityID: dto.entityID) == .select else { return nil }
 

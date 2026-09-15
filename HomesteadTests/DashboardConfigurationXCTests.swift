@@ -945,7 +945,7 @@ final class DashboardConfigurationXCTests: XCTestCase {
         }
         XCTAssertEqual(
             implementedKinds,
-            [.control, .status, .circularGauge, .segmentedGauge, .barGauge, .chart, .camera, .weather, .media, .action]
+            [.control, .alarm, .status, .circularGauge, .segmentedGauge, .barGauge, .chart, .camera, .weather, .media, .action]
         )
         XCTAssertEqual(implementedKinds.count, DashboardAddGallerySection.cards.items.count)
 

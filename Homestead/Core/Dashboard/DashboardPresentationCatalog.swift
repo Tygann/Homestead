@@ -63,6 +63,8 @@ enum DashboardPresentationCatalog {
             DashboardPresentationDescriptor(kind: kind, title: "Weather", systemImage: "cloud.sun.fill", sharedFeatureID: nil, sourceRequirement: .domain(.weather))
         case .media:
             DashboardPresentationDescriptor(kind: kind, title: "Media", systemImage: "play.tv.fill", sharedFeatureID: nil, sourceRequirement: .domain(.mediaPlayer))
+        case .alarm:
+            DashboardPresentationDescriptor(kind: kind, title: "Alarm", systemImage: "shield.lefthalf.filled", sharedFeatureID: nil, sourceRequirement: .domain(.alarmControlPanel))
         case .action:
             DashboardPresentationDescriptor(kind: kind, title: "Action", systemImage: "sparkles", sharedFeatureID: "action", sourceRequirement: .trigger)
         }
@@ -122,6 +124,8 @@ enum DashboardPresentationCatalog {
         let presentation = DashboardEntityPresentation(entityBox: entityBox)
 
         switch entityBox.domain {
+        case .alarmControlPanel:
+            return .card(.alarm(layout: .row))
         case .camera:
             return .card(.camera(layout: .square))
         case .weather:
@@ -201,6 +205,8 @@ enum DashboardPresentationCatalog {
             .weather(layout: layout)
         case .media:
             .media(layout: layout)
+        case .alarm:
+            .alarm(layout: layout)
         case .action:
             .action(layout: layout)
         case .chip:

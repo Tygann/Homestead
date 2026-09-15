@@ -31,7 +31,9 @@ struct DashboardEntityCard: View {
         let visibleFeatureSnapshot = visibleFeatures
 
         Group {
-            if shouldUseCameraPreviewCard {
+            if presentationKind == .alarm {
+                DashboardAlarmCard(entityBox: entityBox, presentation: presentation, size: size, showDetails: showDetails, isInteractionEnabled: isFeatureInteractionEnabled)
+            } else if shouldUseCameraPreviewCard {
                 fullBleedCameraCard
             } else if shouldUseImmersiveCard {
                 fullBleedSpecializedCard

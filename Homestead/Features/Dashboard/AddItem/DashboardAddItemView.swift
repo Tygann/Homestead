@@ -454,6 +454,9 @@ enum DashboardPresentationGallerySamples {
     static let stateStore: HAStateStore = {
         let store = HAStateStore()
         store.applyInitialStates([
+            HAEntityDTO(entityID: "alarm_control_panel.home", state: "disarmed", attributes: [
+                "friendly_name": .string("Alarm"), "supported_features": .number(7)
+            ]),
             HAEntityDTO(
                 entityID: "climate.gallery",
                 state: "heat_cool",
@@ -695,6 +698,8 @@ enum DashboardPresentationGallerySamples {
             configurationWeatherEntityID
         case .media:
             configurationMediaEntityID
+        case .alarm:
+            "alarm_control_panel.home"
         case .action:
             configurationActionEntityID
         }
@@ -716,6 +721,8 @@ enum DashboardPresentationGallerySamples {
             "weather.gallery"
         case .media:
             "media_player.gallery"
+        case .alarm:
+            "alarm_control_panel.home"
         case .action:
             "scene.gallery"
         }

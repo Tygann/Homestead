@@ -461,6 +461,8 @@ struct DashboardCardEditorPreviewScreen: View {
             return fixture(entityID: "weather.home", kind: .weather, requestedSize: requestedSize)
         case .media:
             return fixture(entityID: "media_player.living_room", kind: .media, requestedSize: requestedSize)
+        case .alarm:
+            return fixture(entityID: "alarm_control_panel.home", kind: .alarm, requestedSize: requestedSize)
         case .action:
             return fixture(entityID: "scene.movie_night", kind: .action, requestedSize: requestedSize)
         case .chip:

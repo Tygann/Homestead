@@ -90,6 +90,8 @@ Available sample screens are:
 | `onboarding` | The fresh-install Homestead welcome screen. Continue to inspect setup, or launch the configured-server and staged-address states directly with `--preview-onboarding-step setup` or `--preview-onboarding-step edit`. |
 | `widgets` | Control, Status, Sensor, Sensor Board, and Action across system and accessory families, including configuration states and dashboard/widget gauge comparisons. Add `--preview-card-state unavailable` for unavailable/no-history content. |
 
+Use `--preview-screen dashboard-cards --preview-card-state alarm` for interactive sample Alarm cards in Row, Square, and Large plus triggered and unavailable states.
+
 For focused dashboard-card gallery inspection, add `--preview-size square`, `wide`, or `large`. Use `--preview-card-state transient` for deterministic Chart loading/empty plus Weather loading and retained-data refresh-failure states, or `--preview-card-state unavailable` for unavailable Chart and Weather cards, including a Chart with retained recorded history.
 
 Entity-detail verification can launch a specific deterministic matrix cell:

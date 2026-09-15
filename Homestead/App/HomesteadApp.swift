@@ -34,6 +34,9 @@ struct HomesteadApp: App {
             default:
                 PreviewDependencies.sample
             }
+            if let appearanceMode = RuntimeEnvironment.livePreviewAppearanceMode {
+                dependencies.appearanceSettings.appearanceMode = appearanceMode
+            }
             HomesteadAppDelegate.nativeNotificationService = dependencies.nativeNotificationService
             _stateStore = State(initialValue: dependencies.stateStore)
             _connectionProfileStore = State(initialValue: dependencies.connectionSettings.profileStore)

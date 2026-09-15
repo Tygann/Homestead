@@ -7,6 +7,12 @@ struct DashboardCardReferenceGallery: View {
 
     init() {
         var entityOverrides = [
+            HAEntityDTO(entityID: "alarm_control_panel.triggered", state: "triggered", attributes: [
+                "friendly_name": .string("Home Alarm"), "supported_features": .number(7)
+            ]),
+            HAEntityDTO(entityID: "alarm_control_panel.unavailable", state: "unavailable", attributes: [
+                "friendly_name": .string("Garage Alarm"), "supported_features": .number(7)
+            ]),
             HAEntityDTO(
                 entityID: "climate.downstairs",
                 state: "heat_cool",
@@ -117,7 +123,9 @@ struct DashboardCardReferenceGallery: View {
 
     @ViewBuilder
     private var galleryContent: some View {
-        if RuntimeEnvironment.dashboardCardReferenceState == "unavailable" {
+        if RuntimeEnvironment.dashboardCardReferenceState == "alarm" {
+            alarmSection
+        } else if RuntimeEnvironment.dashboardCardReferenceState == "unavailable" {
             unavailableSection
         } else if RuntimeEnvironment.dashboardCardReferenceState == "transient" {
             transientSection
@@ -135,12 +143,24 @@ struct DashboardCardReferenceGallery: View {
         }
     }
 
+    private var alarmSection: some View {
+        VStack(spacing: AppSpacing.medium) {
+            ForEach([DashboardCardSize.row, .square, .large], id: \.self) { size in
+                DashboardCardView(entityID: "alarm_control_panel.home", size: size, presentationKind: .alarm)
+                    .frame(width: size == .square ? 170 : nil)
+            }
+            DashboardCardView(entityID: "alarm_control_panel.triggered", size: .row, presentationKind: .alarm)
+            DashboardCardView(entityID: "alarm_control_panel.unavailable", size: .row, presentationKind: .alarm)
+        }
+    }
+
     private func cardSection(_ title: String, size: DashboardCardSize) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.medium) {
             Text(title)
                 .font(.title2.weight(.bold))
 
             CardGrid {
+                referenceCard(title: "Alarm", entityID: "alarm_control_panel.home", kind: .alarm, size: size)
                 referenceCard(
                     title: "Control",
                     entityID: "light.living_room_lamps",

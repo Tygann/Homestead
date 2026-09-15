@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-09-15
+
+### Alarm Dashboard Card
+
+- Added a discoverable Alarm card for `alarm_control_panel`, recommended as Row, with a compact mode menu and expanded Large controls. Existing status presentations and schema-v6 dashboard identities remain unchanged.
+- Added a mapped alarm capability model on per-entity observable state and shared dashboard/detail controls. Arm actions require the entity's Home Assistant feature bit plus service availability; code prompts support numeric/text formats and the arm-code requirement.
+- Kept codes only in the temporary prompt and preserved exact string payloads through the established WebSocket service path, including leading zeros and text whitespace. Added focused mapping, refresh, catalog, persistence, and service-contract coverage.
+
 ## 2026-08-13
 
 ### Settled Dashboard Paging Selection

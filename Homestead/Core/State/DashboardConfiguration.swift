@@ -20,12 +20,13 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
     case weather
     case media
     case action
+    case alarm
 
     var supportedLayouts: [DashboardCardSize] {
         switch self {
         case .chip:
             []
-        case .control, .status:
+        case .control, .status, .alarm:
             DashboardCardSize.allCases
         case .circularGauge, .segmentedGauge, .barGauge, .chart, .camera, .weather:
             [.square, .wide, .large]
@@ -38,6 +39,8 @@ nonisolated enum DashboardPresentationKind: String, Codable, CaseIterable, Hasha
 
     var defaultLayout: DashboardCardSize? {
         switch self {
+        case .alarm:
+            .row
         case .chip:
             nil
         case .control, .status, .media, .action:
@@ -58,6 +61,7 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
     case camera(layout: DashboardCardSize)
     case weather(layout: DashboardCardSize)
     case media(layout: DashboardCardSize)
+    case alarm(layout: DashboardCardSize)
     case action(layout: DashboardCardSize)
 
     var kind: DashboardPresentationKind {
@@ -71,6 +75,7 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
         case .camera: .camera
         case .weather: .weather
         case .media: .media
+        case .alarm: .alarm
         case .action: .action
         }
     }
@@ -80,7 +85,7 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
         case .control(let layout), .status(let layout), .circularGauge(let layout),
              .segmentedGauge(let layout), .media(let layout),
              .barGauge(let layout), .chart(let layout), .camera(let layout),
-             .weather(let layout), .action(let layout): layout
+             .weather(let layout), .alarm(let layout), .action(let layout): layout
         }
     }
 
@@ -96,6 +101,7 @@ nonisolated enum DashboardCardConfiguration: Codable, Equatable, Sendable {
         case .camera: .camera(layout: layout)
         case .weather: .weather(layout: layout)
         case .media: .media(layout: layout)
+        case .alarm: .alarm(layout: layout)
         case .action: .action(layout: layout)
         }
     }

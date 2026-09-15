@@ -997,6 +997,7 @@ final class HAStateStore {
                     binarySensorEntity: EntityMapper.binarySensorEntity(from: dto),
                     weatherEntity: EntityMapper.weatherEntity(from: dto),
                     selectEntity: EntityMapper.selectEntity(from: dto),
+                    alarmEntity: EntityMapper.alarmEntity(from: dto),
                     numberEntity: EntityMapper.numberEntity(from: dto),
                     textEntity: EntityMapper.textEntity(from: dto),
                     temporalEntity: EntityMapper.temporalEntity(from: dto),
@@ -1019,6 +1020,7 @@ final class HAStateStore {
                     binarySensorEntity: EntityMapper.binarySensorEntity(from: dto),
                     weatherEntity: EntityMapper.weatherEntity(from: dto),
                     selectEntity: EntityMapper.selectEntity(from: dto),
+                    alarmEntity: EntityMapper.alarmEntity(from: dto),
                     numberEntity: EntityMapper.numberEntity(from: dto),
                     textEntity: EntityMapper.textEntity(from: dto),
                     temporalEntity: EntityMapper.temporalEntity(from: dto),
@@ -1087,6 +1089,7 @@ final class HAStateStore {
             binarySensorEntity: binarySensorEntitiesByID[dto.entityID],
             weatherEntity: weatherEntitiesByID[dto.entityID],
             selectEntity: selectEntitiesByID[dto.entityID],
+            alarmEntity: EntityMapper.alarmEntity(from: dto),
             numberEntity: numberEntitiesByID[dto.entityID],
             textEntity: EntityMapper.textEntity(from: dto),
             temporalEntity: EntityMapper.temporalEntity(from: dto),
@@ -1260,6 +1263,7 @@ final class HAStateStore {
         binarySensorEntity: BinarySensorEntity?,
         weatherEntity: WeatherEntity?,
         selectEntity: SelectEntity?,
+        alarmEntity: AlarmEntity?,
         numberEntity: NumberEntity?,
         textEntity: TextEntity?,
         temporalEntity: TemporalEntity?,
@@ -1278,6 +1282,7 @@ final class HAStateStore {
                 binarySensorEntity: binarySensorEntity,
                 weatherEntity: weatherEntity,
                 selectEntity: selectEntity,
+                alarmEntity: alarmEntity,
                 numberEntity: numberEntity,
                 textEntity: textEntity,
                 temporalEntity: temporalEntity,
@@ -1296,6 +1301,7 @@ final class HAStateStore {
                 binarySensorEntity: binarySensorEntity,
                 weatherEntity: weatherEntity,
                 selectEntity: selectEntity,
+                alarmEntity: alarmEntity,
                 numberEntity: numberEntity,
                 textEntity: textEntity,
                 temporalEntity: temporalEntity,
@@ -1828,6 +1834,7 @@ final class HAEntityState: Identifiable {
     var binarySensorEntity: BinarySensorEntity?
     var weatherEntity: WeatherEntity?
     var selectEntity: SelectEntity?
+    var alarmEntity: AlarmEntity?
     var numberEntity: NumberEntity?
     var textEntity: TextEntity?
     var temporalEntity: TemporalEntity?
@@ -1852,6 +1859,7 @@ final class HAEntityState: Identifiable {
         binarySensorEntity: BinarySensorEntity? = nil,
         weatherEntity: WeatherEntity? = nil,
         selectEntity: SelectEntity? = nil,
+        alarmEntity: AlarmEntity? = nil,
         numberEntity: NumberEntity? = nil,
         textEntity: TextEntity? = nil,
         temporalEntity: TemporalEntity? = nil,
@@ -1868,6 +1876,7 @@ final class HAEntityState: Identifiable {
         self.binarySensorEntity = binarySensorEntity
         self.weatherEntity = weatherEntity
         self.selectEntity = selectEntity
+        self.alarmEntity = alarmEntity
         self.numberEntity = numberEntity
         self.textEntity = textEntity
         self.temporalEntity = temporalEntity
@@ -1886,6 +1895,7 @@ final class HAEntityState: Identifiable {
         binarySensorEntity: BinarySensorEntity?,
         weatherEntity: WeatherEntity?,
         selectEntity: SelectEntity?,
+        alarmEntity: AlarmEntity?,
         numberEntity: NumberEntity?,
         textEntity: TextEntity?,
         temporalEntity: TemporalEntity?,
@@ -1902,6 +1912,7 @@ final class HAEntityState: Identifiable {
         self.binarySensorEntity = binarySensorEntity
         self.weatherEntity = weatherEntity
         self.selectEntity = selectEntity
+        self.alarmEntity = alarmEntity
         self.numberEntity = numberEntity
         self.textEntity = textEntity
         self.temporalEntity = temporalEntity

@@ -929,7 +929,10 @@ private enum PreviewData {
             entityID: "alarm_control_panel.home",
             state: "armed_home",
             attributes: [
-                "friendly_name": .string("Home Alarm")
+                "friendly_name": .string("Home Alarm"),
+                "supported_features": .number(55),
+                "code_format": .string("number"),
+                "code_arm_required": .bool(false)
             ],
             lastUpdated: .now
         ),
