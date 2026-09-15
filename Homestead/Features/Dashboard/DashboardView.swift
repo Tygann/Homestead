@@ -305,9 +305,8 @@ private struct DashboardPageIndicator: View {
         ZStack {
             Color.clear
                 .frame(width: capsuleWidth, height: 32)
-                .background(.ultraThinMaterial, in: Capsule())
                 .glassEffect(
-                    .regular.tint(.primary.opacity(0.12)),
+                    .clear.tint(.primary.opacity(0.08)),
                     in: .capsule
                 )
 
