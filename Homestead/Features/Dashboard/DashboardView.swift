@@ -305,7 +305,7 @@ private struct DashboardPageIndicator: View {
         ZStack {
             Color.clear
                 .frame(width: capsuleWidth, height: 32)
-                .glassEffect()
+                .glassEffect(.clear)
 
             NativeDashboardPageControl(
                 dashboards: dashboards,
@@ -337,8 +337,8 @@ private struct NativeDashboardPageControl: UIViewRepresentable {
         pageControl.backgroundStyle = .minimal
         pageControl.allowsContinuousInteraction = true
         pageControl.hidesForSinglePage = true
-        pageControl.currentPageIndicatorTintColor = .white
-        pageControl.pageIndicatorTintColor = UIColor.white.withAlphaComponent(0.34)
+        pageControl.currentPageIndicatorTintColor = .label
+        pageControl.pageIndicatorTintColor = UIColor.label.withAlphaComponent(0.34)
         pageControl.addTarget(
             context.coordinator,
             action: #selector(Coordinator.pageChanged(_:)),
