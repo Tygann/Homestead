@@ -23,7 +23,6 @@ struct DashboardView: View {
                     selectedDashboardID: visualDashboardID(in: enabledDashboards),
                     selectDashboard: selectDashboard
                 )
-                .glassEffect(.regular.interactive(), in: .capsule)
                 .padding(.vertical, AppSpacing.xSmall)
             }
         }
@@ -297,7 +296,27 @@ private struct DashboardToolbarAddRequest: Equatable {
     let dashboardID: UUID
 }
 
-private struct DashboardPageIndicator: UIViewRepresentable {
+private struct DashboardPageIndicator: View {
+    let dashboards: [SavedDashboardConfiguration]
+    let selectedDashboardID: UUID
+    let selectDashboard: (UUID) -> Void
+
+    var body: some View {
+        NativeDashboardPageControl(
+            dashboards: dashboards,
+            selectedDashboardID: selectedDashboardID,
+            selectDashboard: selectDashboard
+        )
+        .frame(width: capsuleWidth, height: 32)
+        .glassEffect(.regular.interactive(), in: .capsule)
+    }
+
+    private var capsuleWidth: CGFloat {
+        78 + CGFloat(max(0, dashboards.count - 4)) * 14
+    }
+}
+
+private struct NativeDashboardPageControl: UIViewRepresentable {
     let dashboards: [SavedDashboardConfiguration]
     let selectedDashboardID: UUID
     let selectDashboard: (UUID) -> Void
@@ -308,11 +327,12 @@ private struct DashboardPageIndicator: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UIPageControl {
         let pageControl = UIPageControl()
-        // UIKit supplies native paging geometry while SwiftUI adds the Liquid Glass response.
-        pageControl.backgroundStyle = .prominent
+        // SwiftUI owns the glass capsule; UIKit owns the native dots and paging interaction.
+        pageControl.backgroundStyle = .minimal
         pageControl.allowsContinuousInteraction = true
         pageControl.hidesForSinglePage = true
         pageControl.currentPageIndicatorTintColor = .white
+        pageControl.pageIndicatorTintColor = UIColor.white.withAlphaComponent(0.34)
         pageControl.addTarget(
             context.coordinator,
             action: #selector(Coordinator.pageChanged(_:)),
@@ -329,14 +349,6 @@ private struct DashboardPageIndicator: UIViewRepresentable {
         pageControl.currentPage = selectedIndex
         pageControl.accessibilityLabel = "Dashboard pages"
         pageControl.accessibilityValue = "\(dashboards[selectedIndex].resolvedDisplayTitle), page \(selectedIndex + 1) of \(dashboards.count)"
-    }
-
-    func sizeThatFits(
-        _ proposal: ProposedViewSize,
-        uiView: UIPageControl,
-        context: Context
-    ) -> CGSize? {
-        uiView.size(forNumberOfPages: dashboards.count)
     }
 
     final class Coordinator: NSObject {
