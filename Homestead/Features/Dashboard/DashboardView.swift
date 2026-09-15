@@ -302,18 +302,23 @@ private struct DashboardPageIndicator: View {
     let selectDashboard: (UUID) -> Void
 
     var body: some View {
-        NativeDashboardPageControl(
-            dashboards: dashboards,
-            selectedDashboardID: selectedDashboardID,
-            selectDashboard: selectDashboard
-        )
+        ZStack {
+            Color.clear
+                .frame(width: capsuleWidth, height: 32)
+                .background(.ultraThinMaterial, in: Capsule())
+                .glassEffect(
+                    .regular.tint(.primary.opacity(0.12)),
+                    in: .capsule
+                )
+
+            NativeDashboardPageControl(
+                dashboards: dashboards,
+                selectedDashboardID: selectedDashboardID,
+                selectDashboard: selectDashboard
+            )
+            .frame(width: capsuleWidth, height: 32)
+        }
         .frame(width: capsuleWidth, height: 32)
-        .glassEffect(
-            .regular
-                .tint(.primary.opacity(0.12))
-                .interactive(),
-            in: .capsule
-        )
     }
 
     private var capsuleWidth: CGFloat {
