@@ -580,7 +580,7 @@ private struct LaunchContinuityView: View {
 #if DEBUG
 #Preview("Sample Data") {
     ContentView()
-        .withPreviewEnvironment()
+        .withPreviewEnvironment(.dashboardPagingSample)
 }
 
 #Preview("Live Home Assistant") {

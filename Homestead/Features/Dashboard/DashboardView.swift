@@ -1637,6 +1637,6 @@ private struct DashboardPageView: View {
     NavigationStack {
         DashboardView()
     }
-    .withPreviewEnvironment()
+    .withPreviewEnvironment(.dashboardPagingSample)
 }
 #endif
