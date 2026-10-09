@@ -91,12 +91,32 @@ struct PreviewDependencies {
             source: .entity("scene.movie_night"),
             presentation: .card(.action(layout: .mini))
         )
-        for index in 0..<8 {
-            let entityID = index.isMultiple(of: 2) ? "light.bedroom" : "light.kitchen"
-            _ = dependencies.dashboardConfiguration.add(
-                source: .entity(entityID),
-                presentation: .card(.control(layout: .square))
-            )
+        if RuntimeEnvironment.dashboardCardReferenceState == "app-store" {
+            // Curate screenshot content without the repeated tiles used to exercise paging.
+            let cards: [(String, DashboardCardConfiguration)] = [
+                ("sensor.living_room_humidity", .circularGauge(layout: .square)),
+                ("sensor.hallway_temperature", .chart(layout: .square)),
+                ("media_player.living_room", .media(layout: .wide)),
+                ("vacuum.downstairs", .control(layout: .square)),
+                ("sensor.front_door_battery", .barGauge(layout: .square)),
+                ("alarm_control_panel.home", .alarm(layout: .wide)),
+                ("select.house_mode", .control(layout: .square)),
+                ("script.good_morning", .action(layout: .square))
+            ]
+            for (entityID, card) in cards {
+                _ = dependencies.dashboardConfiguration.add(
+                    source: .entity(entityID),
+                    presentation: .card(card)
+                )
+            }
+        } else {
+            for index in 0..<8 {
+                let entityID = index.isMultiple(of: 2) ? "light.bedroom" : "light.kitchen"
+                _ = dependencies.dashboardConfiguration.add(
+                    source: .entity(entityID),
+                    presentation: .card(.control(layout: .square))
+                )
+            }
         }
         return dependencies
     }
@@ -106,7 +126,11 @@ struct PreviewDependencies {
         disablesLastDashboard: Bool = false,
         selectedPageIndex: Int = 0
     ) -> PreviewDependencies {
-        let dependencies = makeSample()
+        let dependencies = makeSample(
+            httpClient: RuntimeEnvironment.dashboardCardReferenceState == "app-store"
+                ? PreviewEntityDetailHTTPClient(state: .loaded)
+                : nil
+        )
         guard pageCount > 1 else { return dependencies }
 
         let climateDashboardID = dependencies.dashboardConfiguration.createDashboard(named: "Climate")
@@ -543,7 +567,7 @@ private actor PreviewEntityDetailHTTPClient: HAHTTPClientProtocol {
         case .person, .deviceTracker:
             states = ["not_home", "home"]
         case .sensor, .number:
-            states = request.entityID == "sensor.living_room_temperature"
+            states = ["sensor.living_room_temperature", "sensor.hallway_temperature"].contains(request.entityID)
                 ? ["72.2", "71.6", "72.8", "73.4", "72.9", "73.4"]
                 : ["12", "18", "15"]
         default:

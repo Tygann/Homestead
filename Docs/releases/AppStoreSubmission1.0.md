@@ -1,6 +1,6 @@
 # App Store Submission 1.0
 
-Last audited: August 7, 2026
+Last audited: October 9, 2026
 
 This document tracks the first public App Store submission for Homestead. App Store Connect remains the live source of truth; recheck every item immediately before submission.
 
@@ -8,10 +8,10 @@ This document tracks the first public App Store submission for Homestead. App St
 
 ### Version 1.0
 
-- Status: Prepare for Submission
-- Selected binary: Version 1.0, Build 12
+- Status: Ready for Review in an unsubmitted draft
+- Selected binary: Version 1.0, Build 125
 - App previews: none
-- iPhone screenshots: six polished 6.5-inch screenshots uploaded in final story order
+- iPhone screenshots: five current screenshots uploaded in the Face ID large-display slot and reused for the required Dynamic Island medium-display slot
 - iPad screenshots: one required 13-inch screenshot uploaded
 - Promotional text, description, and keywords: saved
 - Support URL: `https://homesteadcontrol.com/support`
@@ -27,7 +27,7 @@ This document tracks the first public App Store submission for Homestead. App St
 - Name: `Homestead: Home Assistant`
 - Subtitle: `Native control for your home`
 - Bundle ID and SKU: `com.tyler.Homestead`
-- Content rights: not configured
+- Content rights: necessary third-party rights declared
 - Primary category: Lifestyle; secondary category: Utilities
 - Age rating: 4+ (with Apple's regional equivalents)
 - Export compliance: `ITSAppUsesNonExemptEncryption` is `false` in the shipping Info.plist
@@ -51,16 +51,16 @@ This document tracks the first public App Store submission for Homestead. App St
 ### Homestead+
 
 - Subscription group: `Homestead+`
-- Monthly: `com.tyler.Homestead.plus.monthly`, Prepare for Submission
-- Annual: `com.tyler.Homestead.plus.annual`, Prepare for Submission
-- Lifetime: `com.tyler.Homestead.plus.lifetime`, Prepare for Submission
+- Monthly: `com.tyler.Homestead.plus.monthly`, Ready for Review
+- Annual: `com.tyler.Homestead.plus.annual`, Ready for Review
+- Lifetime: `com.tyler.Homestead.plus.lifetime`, Ready for Review
 - Family Sharing: enabled for all three products
 - Availability: all countries or regions selected for all three products
 - Product localizations and review notes: present
 - Production prices: configured in all 175 countries or regions; U.S. prices are $4.99 monthly, $24.99 annual, and $69.99 lifetime
 - Annual 14-day introductory trial: configured in all 175 countries or regions
 - Required product review screenshot: uploaded for Monthly, Annual, and Lifetime
-- First products must be added to the version 1.0 submission and reviewed with the app
+- Version 1.0 (125), the subscription group, Monthly, Annual, and Lifetime are in one draft with five ready items and an enabled Submit for Review action. Nothing has been submitted.
 
 ## Recommended Listing Positioning
 
@@ -100,6 +100,9 @@ HOMESTEAD+
 Core home control, one server, one dashboard, wallpaper, history, notifications, and standard widgets are free. Homestead+ adds multiple dashboards and servers, iCloud synchronization, Sensor Board widgets, and advanced sensor presentations. Choose monthly, annual, or lifetime access. Eligible customers receive a 14-day trial with the annual plan.
 
 Homestead requires an existing Home Assistant installation. Homestead is an independent third-party client and is not affiliated with or endorsed by the Home Assistant project.
+
+Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://homesteadcontrol.com/privacy
 
 ### Keywords
 
@@ -172,6 +175,8 @@ Use fictional, coherent sample-home data. Do not include personal names, real ca
 
 These statuses were audited read-only on August 7, 2026. No agreement, tax, banking, or legal attestation was changed during release preparation.
 
+Free/paid agreement, bank, tax, and DSA compliance-record statuses were rechecked as active October 9, 2026; the app-level non-trader declaration still requires the account holder's reassessment.
+
 ## App Store Connect Configuration Completed
 
 - Free pricing in all 175 countries or regions
@@ -196,6 +201,7 @@ These statuses were audited read-only on August 7, 2026. No agreement, tax, bank
 - Published through the existing Cloudflare Tunnel with an explicit hostname ingress and proxied tunnel DNS record
 - Verified August 7, 2026: public HTTPS root and auth endpoints return successfully, WebSocket upgrade returns `101 Switching Protocols`, and the existing production `ha.keegan.me` route remains healthy
 - Installation, isolation, publishing, and removal guidance lives in `Infrastructure/HomeAssistantReviewAddon/README.md`
+- October 9 recovery: the isolated review app was stopped with an error and the public authorization route returned 502. Starting only **Homestead Review Home** restored its public login page. Full reviewer credential/app-flow verification remains outstanding.
 
 ## Screenshot Assets Prepared
 
@@ -225,12 +231,12 @@ These statuses were audited read-only on August 7, 2026. No agreement, tax, bank
 
 ## Final Preflight
 
-- Add all three products to the version 1.0 review submission
+- Recheck the prepared draft contains version 1.0 (125), the group, and all three products
 - Publish the prepared accessibility declarations after version 1.0 is released
-- Complete the content-rights declaration
+- Confirm the saved content-rights declaration remains accurate
 - Reverify the saved App Review contact information, review server URL, and credentials
 - Confirm the existing Digital Services Act classification and content-rights declaration as the account holder
-- Upload and select a new build containing the privacy minimization and release-preparation changes made after TestFlight Build 123
+- Confirm selected build 125 contains the intended final release changes
 - Run focused tests, generic simulator build, Release/archive-oriented build, and rendered screenshot-route checks
 - Retest purchase, restore, expiration/lapse, redemption, and Family Sharing with the final TestFlight build
-- Review every field and asset before selecting Add for Review
+- Review every field and asset before selecting Submit for Review; the dark iPad candidates have not replaced the existing uploaded screenshot

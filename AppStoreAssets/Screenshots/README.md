@@ -1,5 +1,11 @@
 # App Store Screenshots
 
+## Current iPad Candidates (October 9, 2026)
+
+`iPad-13-Dark` contains two clean landscape captures at `2752 x 2064`, JPEG without alpha: `01-home.jpg` shows varied native controls, gauges, media, and loaded sensor history; `02-history.jpg` shows sensor history and range statistics. These dark candidates complement the current iPhone listing and preserve the earlier `iPad-13` asset. They have not been uploaded.
+
+Regenerate with `--preview-screen home --preview-card-state app-store --preview-appearance dark`, rotate the 13-inch iPad simulator to landscape, and capture Home, then tap the Hallway chart for History. The Debug-only `app-store` fixture supplies fictional history and varied cards; ordinary `home` previews retain their repeated paging-test tiles. Capture native UI without cropping or altering it.
+
 ## Recommended Upload Set
 
 The version 1.0 App Store Connect page requests the 6.5-inch slot, so upload `iPhone-6.5-Marketing` in filename order:

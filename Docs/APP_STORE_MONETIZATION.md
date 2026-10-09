@@ -19,6 +19,14 @@ Create one subscription group named `Homestead+`:
 
 ## App Review Notes
 
+### Submission preparation verified October 9, 2026
+
+- Version 1.0 (build 125), the Homestead+ subscription group, Monthly, Annual, and Lifetime are in the same App Store Connect draft. The draft has five ready items and an enabled Submit for Review action; it has not been submitted.
+- The listing description includes Apple standard Terms of Use and the public privacy-policy links. Public marketing, support, and privacy pages load successfully; free/paid agreements, banking, and tax statuses are active.
+- The isolated Homestead Review Home app was stopped with an error. Starting that app restored the public reviewer login page; credentials and the full in-app reviewer flow still need an end-to-end check before submission.
+- Two dark landscape 13-inch iPad candidates are prepared in `AppStoreAssets/Screenshots/iPad-13-Dark`: a varied Dashboard and sensor History. They use current production views with fictional Debug-only data and have not been uploaded; existing assets are preserved.
+- The app's EU declaration remains non-trader. The account holder must reassess it against Apple's trader criteria before release.
+
 Homestead is a free native Home Assistant client with an optional Homestead+ purchase. Core entity control, one dashboard, one configured server, standard single-item widgets, notifications, wallpaper, history, and management views remain free.
 
 Reviewers can open Settings > Homestead+. Homestead+ unlocks creation of additional dashboards, adding additional servers, iCloud preference sync, Sensor Board widgets, and advanced Sensor chart/gauge presentations. Existing premium configuration is preserved if access expires. Restore Purchases and Redeem Code are on the Homestead+ screen.
