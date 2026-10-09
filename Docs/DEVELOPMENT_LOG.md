@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-10-09
+
+### Website Domain Separation
+
+- Moved `homesteadcontrol.com` and `www.homesteadcontrol.com` to the dedicated Portfolio `homestead-site` Worker. Archived the previous static website at `legacy.homesteadcontrol.com`; deployment and rollback instructions live in the Portfolio repository's `cloudflare/README.md`.
+- Scoped `api/wrangler.jsonc` to `api.homesteadcontrol.com` and `connect.homesteadcontrol.com` so future API deployments preserve website ownership. OAuth, push-token storage, review tunnel, and email routing remain unchanged.
+- Verified API tests and TypeScript checks, website proxy routing tests, and live website/support/privacy/assets. API health, OAuth connection page, and read-only push-endpoint responses matched their pre-migration status and body hashes.
+
 ## 2026-09-15
 
 ### Alarm Dashboard Card
