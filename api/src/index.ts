@@ -1,11 +1,9 @@
 import { connectPageResponse } from "./connectPage.ts";
-import { sitePageResponse } from "./sitePage.ts";
 
 type PushEnvironment = "sandbox" | "production";
 
 export interface Env {
   HOMESTEAD_PUSH_TOKENS: KVNamespace;
-  ASSETS: Fetcher;
   APNS_KEY_ID: string;
   APNS_TEAM_ID: string;
   APNS_BUNDLE_ID: string;
@@ -31,7 +29,6 @@ type JSONObject = { [key: string]: JSONValue };
 
 const SERVICE_NAME = "homestead-api";
 const CONNECT_HOST = "connect.homesteadcontrol.com";
-const SITE_HOSTS = new Set(["homesteadcontrol.com", "www.homesteadcontrol.com"]);
 const MAX_JSON_BYTES = 64 * 1024;
 const PUSH_TOKEN_RETENTION_SECONDS = 90 * 24 * 60 * 60;
 const APNS_JWT_MAX_AGE_SECONDS = 50 * 60;
@@ -47,11 +44,8 @@ export default {
         return routeConnectRequest(request, url);
       }
 
-      if (SITE_HOSTS.has(url.hostname.toLowerCase())) {
-        if (url.pathname === "/og.png") {
-          return env.ASSETS.fetch(request);
-        }
-        return sitePageResponse(url.pathname, request.method);
+      if (["homesteadcontrol.com", "www.homesteadcontrol.com"].includes(url.hostname.toLowerCase())) {
+        return new Response("Not found.", { status: 404 });
       }
 
       if (request.method === "GET" && url.pathname === "/health") {

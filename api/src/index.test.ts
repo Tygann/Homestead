@@ -9,7 +9,6 @@ const SITE_HOST = "homesteadcontrol.com";
 
 const env = {
   HOMESTEAD_PUSH_TOKENS: undefined as never,
-  ASSETS: undefined as never,
   APNS_KEY_ID: "test-key-id",
   APNS_TEAM_ID: "test-team-id",
   APNS_BUNDLE_ID: "com.tyler.Homestead",
@@ -141,27 +140,11 @@ test("unknown connect paths return a clean 404", async () => {
   assert.equal(await response.text(), "Not found.");
 });
 
-test("public site serves marketing, support, and privacy pages", async () => {
-  const homeResponse = await worker.fetch(request(SITE_HOST, "/"), env);
-  const supportResponse = await worker.fetch(request(SITE_HOST, "/support"), env);
-  const privacyResponse = await worker.fetch(request(SITE_HOST, "/privacy"), env);
-
-  assert.equal(homeResponse.status, 200);
-  assert.match(await homeResponse.text(), /Your home, beautifully organized\./);
-  assert.match(await supportResponse.text(), /support@homesteadcontrol\.com/);
-  assert.match(await privacyResponse.text(), /Homestead does not sell personal information/);
-  assert.equal(privacyResponse.headers.get("x-content-type-options"), "nosniff");
-});
-
-test("public site supports App Store link checks and rejects API routes", async () => {
-  const headResponse = await worker.fetch(request(SITE_HOST, "/support", { method: "HEAD" }), env);
-  const apiResponse = await worker.fetch(
-    request(SITE_HOST, "/mobile-app/push", { method: "POST", body: "{}" }),
-    env
-  );
-
-  assert.equal(headResponse.status, 200);
-  assert.equal(await headResponse.text(), "");
-  assert.equal(apiResponse.status, 404);
-  assert.equal(await apiResponse.text(), "Not found.");
+test("marketing hosts no longer serve legacy pages or backend endpoints", async () => {
+  for (const host of [SITE_HOST, "www.homesteadcontrol.com"]) {
+    for (const path of ["/", "/support", "/privacy", "/health", "/og.png"]) {
+      const response = await worker.fetch(request(host, path), env);
+      assert.equal(response.status, 404);
+    }
+  }
 });
