@@ -21,6 +21,17 @@ struct PreviewDependencies {
 
     static var dashboardPagingSample: PreviewDependencies {
         let dependencies = dashboardSample(pageCount: 3)
+        if RuntimeEnvironment.dashboardCardReferenceState == "resize" {
+            let contacts = (1...40).map { index in
+                HAEntityDTO(
+                    entityID: "binary_sensor.preview_window_\(index)",
+                    state: "off",
+                    attributes: ["friendly_name": .string("Window \(index)"), "device_class": .string("window")],
+                    lastUpdated: .now
+                )
+            }
+            dependencies.stateStore.applySnapshot(PreviewData.entities + contacts)
+        }
         let screenshotAreas: [(id: String, name: String, entityIDs: [String])] = [
             ("living-room", "Living Room", [
                 "light.living_room_lamps",
@@ -131,7 +142,10 @@ struct PreviewDependencies {
     ) -> PreviewDependencies {
         let dependencies = makeSample(
             httpClient: ["app-store", "resize"].contains(RuntimeEnvironment.dashboardCardReferenceState)
-                ? PreviewEntityDetailHTTPClient(state: .loaded)
+                ? PreviewEntityDetailHTTPClient(
+                    state: .loaded,
+                    includesResizeActivity: RuntimeEnvironment.dashboardCardReferenceState == "resize"
+                )
                 : nil
         )
         guard pageCount > 1 else { return dependencies }
@@ -525,9 +539,11 @@ enum PreviewEntityDetailContentState: Sendable {
 
 private actor PreviewEntityDetailHTTPClient: HAHTTPClientProtocol {
     let state: PreviewEntityDetailContentState
+    let includesResizeActivity: Bool
 
-    init(state: PreviewEntityDetailContentState) {
+    init(state: PreviewEntityDetailContentState, includesResizeActivity: Bool = false) {
         self.state = state
+        self.includesResizeActivity = includesResizeActivity
     }
 
     func fetchCameraSnapshot(configuration: HAConnectionConfiguration, entityID: String) async throws -> Data {
@@ -538,7 +554,17 @@ private actor PreviewEntityDetailHTTPClient: HAHTTPClientProtocol {
         configuration: HAConnectionConfiguration,
         request: HALogbookRequest
     ) async throws -> [HALogbookEntryDTO] {
-        []
+        guard includesResizeActivity else { return [] }
+        let end = request.endDate ?? .now
+        return (0..<80).map { index in
+            HALogbookEntryDTO(
+                when: end.addingTimeInterval(-Double(index * 120)),
+                name: "Front Door",
+                state: index.isMultiple(of: 2) ? "on" : "off",
+                domain: "binary_sensor",
+                entityID: "binary_sensor.front_door"
+            )
+        }
     }
 
     func fetchHistory(

@@ -107,6 +107,6 @@ Family values are `simpleControl`, `momentaryAction`, `metric`, `history`, `posi
 
 These routes are intended for Codex desktop and in-app browser simulator verification loops. They use sample dependencies instead of the normal app startup path. Prefer them for deterministic layout and state review; use `--live-preview` only when the change must be verified against real Home Assistant data, authenticated media, or server-specific capabilities.
 
-For adaptive-layout checks, use `--preview-screen home --preview-card-state resize`. This uses the curated fictional home plus a Security summary chip, retains Home/Areas/Browse and dashboard paging, and supports checking Security Devices/Activity selection across layout changes without live credentials.
+For adaptive-layout checks, use `--preview-screen home --preview-card-state resize`. This uses the curated fictional home plus a Security summary chip, 40 fictional window contacts, and 80 activity entries, retains Home/Areas/Browse and dashboard paging, and supports checking Security Devices/Activity selection across layout changes without live credentials.
 
 For a curated App Store sample dashboard, use `--preview-screen home --preview-card-state app-store --preview-appearance dark`. This retains the normal Home/Areas/Browse navigation while replacing repeated paging-test tiles with varied fictional controls, gauges, media, and deterministic sensor history. It changes only Debug preview data.

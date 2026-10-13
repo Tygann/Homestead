@@ -10,6 +10,8 @@ struct DashboardSummaryView: View {
     @State private var isLoadingSecurityActivity = false
     @State private var securityActivityErrorMessage: String?
     @State private var lastSecurityActivityLoadAt: Date?
+    @State private var devicesScrollBookmark = SummaryScrollBookmark()
+    @State private var activityScrollBookmark = SummaryScrollBookmark()
     @State private var selectedSecurityTab: SecuritySummaryTab = .devices
     @State private var visibleOrder = DashboardSummaryVisibleOrder()
     @Namespace private var cardTransitionNamespace
@@ -112,6 +114,7 @@ struct DashboardSummaryView: View {
                     devicesContent(detail: detail)
 
                     SecuritySummaryActivityView(
+                        scrollBookmark: activityScrollBookmark,
                         presentation: activityPresentation,
                         isLoading: isLoadingSecurityActivity,
                         errorMessage: securityActivityErrorMessage,
@@ -127,6 +130,7 @@ struct DashboardSummaryView: View {
                     selectedTab: $selectedSecurityTab,
                     devices: devicesContent(detail: detail),
                     activity: SecuritySummaryActivityView(
+                        scrollBookmark: activityScrollBookmark,
                         presentation: activityPresentation,
                         isLoading: isLoadingSecurityActivity,
                         errorMessage: securityActivityErrorMessage,
@@ -203,6 +207,7 @@ struct DashboardSummaryView: View {
             .padding(.vertical, AppSpacing.xLarge)
         }
         .background(Color.clear)
+        .restoringSummaryScroll(devicesScrollBookmark)
     }
 
     @ViewBuilder
@@ -389,6 +394,7 @@ private struct SecuritySummaryCompactView<Devices: View, Activity: View>: View {
 }
 
 private struct SecuritySummaryActivityView: View {
+    let scrollBookmark: SummaryScrollBookmark
     let presentation: HALogbookPresentation
     let isLoading: Bool
     let errorMessage: String?
@@ -463,6 +469,7 @@ private struct SecuritySummaryActivityView: View {
         .refreshable {
             await refresh()
         }
+        .restoringSummaryScroll(scrollBookmark)
     }
 
     @ViewBuilder

@@ -4,6 +4,21 @@ import Testing
 
 @MainActor
 struct DashboardResizeTests {
+    @Test func summaryBookmarksKeepIndependentPositionsAndClampOnlyWhenContentShrinks() {
+        let devices = SummaryScrollBookmark()
+        let activity = SummaryScrollBookmark()
+        devices.record(240)
+        activity.record(720)
+        #expect(devices.restoredOffset(maximumOffset: 1000) == 240)
+        #expect(activity.restoredOffset(maximumOffset: 1000) == 720)
+        #expect(activity.restoredOffset(maximumOffset: 300) == 300)
+        #expect(activity.offset == 720)
+        activity.record(.nan)
+        #expect(activity.offset == 720)
+        activity.record(-20)
+        #expect(activity.offset == 0)
+    }
+
     @Test func gridUsesFiniteIntrinsicWidthForUnboundedProposals() {
         let grid = CardGridLayout(spacing: 12, cardPadding: 12)
         #expect(grid.resolvedWidth(.infinity) == 340)

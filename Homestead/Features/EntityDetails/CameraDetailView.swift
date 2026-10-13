@@ -1,5 +1,9 @@
 import SwiftUI
 import AVKit
+import Combine
+#if DEBUG
+import os
+#endif
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -10,6 +14,11 @@ struct CameraDetailView: View {
     @State private var capabilitiesPhase: CameraCapabilitiesPhase = .idle
     @State private var livePhase: CameraLivePhase = .idle
     @State private var player: AVPlayer?
+    @State private var refreshGeneration = 0
+    @State private var playbackReadiness = CameraPlaybackReadiness()
+    #if DEBUG
+    @State private var loadStartedAt: Date?
+    #endif
     @State private var isShowingFullScreenPreview = false
 
     let entityBox: HAEntityState
@@ -37,7 +46,7 @@ struct CameraDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    Task { await loadCameraData() }
+                    refreshGeneration += 1
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -48,14 +57,18 @@ struct CameraDetailView: View {
             CameraFullScreenPreview(
                 title: presentation.title,
                 player: player,
+                playbackReadiness: $playbackReadiness,
+                isCurrentPlayer: { self.player === $0 },
+                playbackStarted: { recordStartupStage("Playback playing") },
+                playbackFailed: handlePlaybackFailure,
                 snapshotPhase: snapshotPhase,
                 livePhase: livePhase,
                 aspectRatio: cameraPreviewAspectRatio
             ) {
-                Task { await loadCameraData() }
+                refreshGeneration += 1
             }
         }
-        .task(id: entity.entityID) {
+        .task(id: "\(entity.entityID)-\(refreshGeneration)") {
             await loadCameraData()
         }
         .onDisappear {
@@ -129,26 +142,44 @@ struct CameraDetailView: View {
         } else {
             switch livePhase {
             case .idle, .loading:
-                VStack(spacing: AppSpacing.medium) {
-                    ProgressView()
-                        .controlSize(.large)
-
-                    Text("Preparing camera")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
+                preparingCameraContent
             case .live:
                 if let player {
-                    VideoPlayer(player: player)
-                        .frame(maxWidth: .infinity)
-                        .onAppear {
-                            player.play()
-                        }
+                    CameraLiveVideoPreview(
+                        player: player,
+                        readiness: $playbackReadiness,
+                        placeholder: preparingCameraContent,
+                        isCurrentPlayer: { self.player === player },
+                        playbackStarted: { recordStartupStage("Playback playing") },
+                        playbackFailed: { handlePlaybackFailure(player) }
+                    )
                 } else {
                     snapshotContent
                 }
             case .snapshotOnly, .failed:
                 snapshotContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var preparingCameraContent: some View {
+        if case .loaded = snapshotPhase {
+            snapshotContent
+                .overlay(alignment: .topTrailing) {
+                    ProgressView()
+                        .padding(AppSpacing.medium)
+                        .background(Color.black.opacity(0.4), in: Circle())
+                        .padding(AppSpacing.small)
+                }
+        } else {
+            VStack(spacing: AppSpacing.medium) {
+                ProgressView()
+                    .controlSize(.large)
+
+                Text("Preparing camera")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -266,7 +297,7 @@ struct CameraDetailView: View {
     private var cameraPreviewBadgeText: String? {
         switch livePhase {
         case .live:
-            "Live"
+            playbackReadiness.hasStarted ? "Live" : "Preparing"
         case .snapshotOnly:
             "Snapshot"
         case .failed:
@@ -281,7 +312,7 @@ struct CameraDetailView: View {
     private var cameraPreviewBadgeColor: Color {
         switch livePhase {
         case .live:
-            .green
+            playbackReadiness.hasStarted ? .green : .secondary
         case .failed:
             .orange
         default:
@@ -317,11 +348,34 @@ struct CameraDetailView: View {
         return 16.0 / 9.0
     }
 
+    private func handlePlaybackFailure(_ failedPlayer: AVPlayer) {
+        guard player === failedPlayer else { return }
+        failedPlayer.pause()
+        livePhase = .failed
+        recordStartupStage("Playback failed")
+    }
+
+    private func recordStartupStage(_ stage: String) {
+        #if DEBUG
+        guard let loadStartedAt else { return }
+        let milliseconds = Date().timeIntervalSince(loadStartedAt) * 1000
+        Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup")
+            .info("\(stage, privacy: .public): \(milliseconds, format: .fixed(precision: 0)) ms")
+        #endif
+    }
+
     private func loadCameraData() async {
+        guard !Task.isCancelled else { return }
+        #if DEBUG
+        loadStartedAt = .now
+        #endif
         player?.pause()
         player = nil
+        playbackReadiness.reset()
         livePhase = .idle
-        if let cachedSnapshot = await CameraSnapshotStore.shared.snapshot(for: entity.entityID) {
+        let cachedSnapshot = await CameraSnapshotStore.shared.snapshot(for: entity.entityID)
+        guard !Task.isCancelled else { return }
+        if let cachedSnapshot {
             snapshotPhase = .loaded(cachedSnapshot.data)
         } else {
             snapshotPhase = .idle
@@ -336,6 +390,8 @@ struct CameraDetailView: View {
 
         async let snapshotLoad: Void = loadSnapshot()
         let capabilities = await loadCapabilities()
+        guard !Task.isCancelled else { return }
+        recordStartupStage("Capabilities resolved")
         let loadedLiveStream = await loadLiveStreamIfPossible(capabilities: capabilities)
         await snapshotLoad
 
@@ -345,6 +401,7 @@ struct CameraDetailView: View {
     }
 
     private func loadSnapshot() async {
+        guard !Task.isCancelled else { return }
         guard entity.isAvailable else {
             snapshotPhase = .failed
             return
@@ -360,9 +417,15 @@ struct CameraDetailView: View {
 
         do {
             let snapshot = try await homeAssistantService.fetchCameraSnapshot(entityID: entity.entityID)
+            try Task.checkCancellation()
+            recordStartupStage("Snapshot received")
             await CameraSnapshotStore.shared.store(snapshot, for: entity.entityID)
+            try Task.checkCancellation()
             snapshotPhase = .loaded(snapshot)
+        } catch is CancellationError {
+            return
         } catch {
+            guard !Task.isCancelled else { return }
             if !hasCachedSnapshot {
                 snapshotPhase = .failed
             }
@@ -371,6 +434,7 @@ struct CameraDetailView: View {
 
     @discardableResult
     private func loadCapabilities() async -> HACameraCapabilities? {
+        guard !Task.isCancelled else { return nil }
         guard entity.isAvailable else {
             capabilitiesPhase = .failed
             return nil
@@ -379,15 +443,20 @@ struct CameraDetailView: View {
         capabilitiesPhase = .loading
         do {
             let capabilities = try await homeAssistantService.fetchCameraCapabilities(entityID: entity.entityID)
+            try Task.checkCancellation()
             capabilitiesPhase = .loaded(capabilities)
             return capabilities
+        } catch is CancellationError {
+            return nil
         } catch {
+            guard !Task.isCancelled else { return nil }
             capabilitiesPhase = .failed
             return nil
         }
     }
 
     private func loadLiveStreamIfPossible(capabilities: HACameraCapabilities?) async -> Bool {
+        guard !Task.isCancelled else { return false }
         guard capabilities?.supportsHLSStream == true else {
             livePhase = .snapshotOnly
             return false
@@ -396,6 +465,8 @@ struct CameraDetailView: View {
         livePhase = .loading
         do {
             let handoff = try await homeAssistantService.prepareCameraStreamHandoff(entityID: entity.entityID)
+            try Task.checkCancellation()
+            recordStartupStage("Stream handoff received")
             guard let hlsPath = handoff.hlsPath?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !hlsPath.isEmpty else {
                 livePhase = .snapshotOnly
@@ -408,9 +479,47 @@ struct CameraDetailView: View {
             livePhase = .live
             player.play()
             return true
+        } catch is CancellationError {
+            return false
         } catch {
+            guard !Task.isCancelled else { return false }
             livePhase = .failed
             return false
+        }
+    }
+}
+
+private struct CameraLiveVideoPreview<Placeholder: View>: View {
+    let player: AVPlayer
+    @Binding var readiness: CameraPlaybackReadiness
+    let placeholder: Placeholder
+    let isCurrentPlayer: () -> Bool
+    let playbackStarted: () -> Void
+    let playbackFailed: () -> Void
+
+    var body: some View {
+        ZStack {
+            VideoPlayer(player: player)
+                .opacity(readiness.hasStarted ? 1 : 0)
+                .allowsHitTesting(readiness.hasStarted)
+
+            if !readiness.hasStarted {
+                placeholder
+            }
+        }
+        .onAppear { player.play() }
+        .onReceive(player.publisher(for: \.timeControlStatus).receive(on: RunLoop.main)) { status in
+            guard isCurrentPlayer(), readiness.observe(status) else { return }
+            playbackStarted()
+        }
+        .onReceive(player.publisher(for: \.currentItem)
+            .compactMap { $0 }
+            .map { $0.publisher(for: \.status) }
+            .switchToLatest()
+            .receive(on: RunLoop.main)
+        ) { status in
+            guard isCurrentPlayer(), status == .failed else { return }
+            playbackFailed()
         }
     }
 }
@@ -420,6 +529,10 @@ private struct CameraFullScreenPreview: View {
 
     let title: String
     let player: AVPlayer?
+    @Binding var playbackReadiness: CameraPlaybackReadiness
+    let isCurrentPlayer: (AVPlayer) -> Bool
+    let playbackStarted: () -> Void
+    let playbackFailed: (AVPlayer) -> Void
     let snapshotPhase: SnapshotPhase
     let livePhase: CameraLivePhase
     let aspectRatio: CGFloat
@@ -479,12 +592,28 @@ private struct CameraFullScreenPreview: View {
         switch livePhase {
         case .live:
             if let player {
-                VideoPlayer(player: player)
+                CameraLiveVideoPreview(
+                    player: player,
+                    readiness: $playbackReadiness,
+                    placeholder: preparingContent,
+                    isCurrentPlayer: { isCurrentPlayer(player) },
+                    playbackStarted: playbackStarted,
+                    playbackFailed: { playbackFailed(player) }
+                )
             } else {
                 snapshotContent
             }
         case .snapshotOnly, .failed, .idle, .loading:
             snapshotContent
+        }
+    }
+
+    @ViewBuilder
+    private var preparingContent: some View {
+        if case .loaded = snapshotPhase {
+            snapshotContent.overlay { ProgressView().tint(.white) }
+        } else {
+            ProgressView().tint(.white)
         }
     }
 
@@ -522,7 +651,7 @@ private struct CameraFullScreenPreview: View {
     private var statusText: String {
         switch livePhase {
         case .live:
-            "Live"
+            playbackReadiness.hasStarted ? "Live" : "Preparing"
         case .snapshotOnly:
             "Snapshot"
         case .failed:
@@ -537,7 +666,7 @@ private struct CameraFullScreenPreview: View {
     private var statusColor: Color {
         switch livePhase {
         case .live:
-            .green
+            playbackReadiness.hasStarted ? .green : .secondary
         case .failed:
             .orange
         default:

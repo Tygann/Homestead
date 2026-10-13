@@ -126,3 +126,19 @@ For performance fixes, capture a before trace and an after trace using the same 
 - The user can feel the improvement on the device.
 - The relevant exported trace rows shrink or disappear.
 
+
+## Camera Startup And Duo Resizing
+
+Debug builds log camera startup stages under subsystem `com.tyler.Homestead`, category `CameraStartup`, without URLs or credentials. Compare `Capabilities resolved`, `Snapshot received`, `Stream handoff received`, and `Playback playing` to separate capability/handoff latency from AVPlayer startup. Snapshot loading runs concurrently and does not gate stream installation. `Playback playing` records the shared detail/fullscreen player's first playing status, not a measured first displayed frame.
+
+For a registered normal app profile on the Duo simulator, inspect stages with:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode-27.1.app/Contents/Developer xcrun simctl spawn <duo-udid> log show --info --last 5m --predicate 'subsystem == "com.tyler.Homestead" AND category == "CameraStartup"' --style compact
+```
+
+Isolated `--live-preview` deliberately skips Mobile App registration. Use it for authenticated stills, but use a registered normal profile for successful HLS playback. Test opening/closing camera detail during preparation, refresh replacement, fullscreen, and fold/unfold/rotation while playing. Keep dashboard still refresh and live HLS separate.
+
+Use `--preview-screen home --preview-card-state resize` for credential-free Security scroll checks. Its long Devices and Activity fixtures support independent checkpoints across tab switches and compact/split transitions. A bookmark retains its original offset when an interim lazy-stack estimate clamps the viewport, and user scrolling takes precedence over restoration.
+
+The October 13 physical iPhone 15 Pro profiling attempt disconnected after 2.12 seconds; targeted attachments could not locate Homestead despite CoreDevice listing its process. These attempts do not establish physical camera startup latency, steady-state hitch rates, or physical Duo readiness. A separate registered Duo simulator run measured capabilities at 267 ms, handoff at 353 ms, snapshot receipt at 17,111 ms, and playback at 17,144 ms. Both media arrivals were delayed after the quick handoff; this supports investigating source delivery/playback startup without claiming a proven server-side cause. Actual live frames survived fold/unfold, rotation, partial opening, and fullscreen without another handoff. Re-run a valid trace before making performance claims.

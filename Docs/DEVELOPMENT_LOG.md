@@ -4,6 +4,16 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-13
 
+### Security Scroll Continuity And Camera Startup
+
+- Security retains independent Devices/Activity scroll bookmarks outside compact/split branches. Bookmarks do not invalidate the parent summary on scroll, preserve deeper positions through temporary lazy-stack height estimates, and yield to user scrolling. Expanded Debug fixtures provide 40 window contacts and 80 activity entries for repeatable nonzero-position checks.
+- Camera detail and fullscreen retain a loaded still while capabilities/handoff and playback prepare; the Live badge appears only after the shared player starts. Readiness stays latched through pause/rebuffering, resets for a replacement, and item failure selects snapshot fallback. Refresh buttons now restart one structured task instead of spawning overlapping tasks; cancellation is checked after asynchronous boundaries before installing/playing a new AVPlayer or replacing view state. Snapshot refresh remains concurrent with capabilities/handoff.
+- Added Debug-only, credential-free `CameraStartup` stage timings for capabilities, snapshots, handoff, and the shared player's first playing status. This diagnoses preparation versus buffering; it does not claim reduced server latency or measure a first displayed video frame.
+- Included the user-approved Info.plist key reorder without changing its values.
+- Generic Debug and arm64 Release simulator builds passed with Xcode 27.1, along with 11 focused resize, readiness, camera-contract, and snapshot-fallback tests. Required storage hygiene cleared XCTestDevices at 9.5 GB and 5.2 GB; final size was zero. Read-only final review found no blocking issues.
+- Rendered checks verified independent nonzero Security bookmarks across compact tabs and split/compact transitions. The registered Duo simulator showed a retained still during preparation, fullscreen preparation and refresh, shared Live readiness, and live playback across closed/partially-open/open poses. Initial startup measured handoff at 353 ms and playback at 17,144 ms; reducing that media-start delay remains follow-up work.
+- The physical iPhone 15 Pro Animation Hitches recording disconnected after 2.12 seconds; targeted attachments also failed. These attempts are not usable performance evidence and no physical Duo was connected.
+
 ### iPhone Duo Adaptive Layout Baseline
 
 - Built with the iOS 27.1 SDK without raising the iOS 26.5 deployment target or changing saved dashboard schema/card sizing. The global Xcode selection remains unchanged.
