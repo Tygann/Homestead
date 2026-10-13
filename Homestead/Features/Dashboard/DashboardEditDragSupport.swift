@@ -53,6 +53,32 @@ struct DashboardEditDragState {
     }
 }
 
+// A resize invalidates the coordinate space for the entire gesture, even if it later returns to its original size.
+struct DashboardDragGeometrySession {
+    private var initialWindowSize: CGSize?
+    private var initialViewportSize: CGSize?
+
+    mutating func begin(windowSize: CGSize?, viewportSize: CGSize?) {
+        initialWindowSize = windowSize
+        initialViewportSize = viewportSize
+    }
+
+    mutating func accepts(windowSize: CGSize?, viewportSize: CGSize?) -> Bool {
+        guard initialWindowSize != nil,
+              initialWindowSize == windowSize,
+              initialViewportSize == viewportSize else {
+            reset()
+            return false
+        }
+        return true
+    }
+
+    mutating func reset() {
+        initialWindowSize = nil
+        initialViewportSize = nil
+    }
+}
+
 private enum DashboardDragAutoScroll {
     static let edgeLength: CGFloat = 88
     static let maximumPointsPerSecond: CGFloat = 380
@@ -291,6 +317,7 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
         private var startWindowLocation: CGPoint?
         private var lastWindowLocation: CGPoint?
         private var lastAutoScrollTimestamp: CFTimeInterval?
+        private var geometrySession = DashboardDragGeometrySession()
 
         init(
             onChanged: @escaping (CGSize) -> Void,
@@ -312,22 +339,31 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
                 startWindowLocation = location
                 lastWindowLocation = location
                 autoScrollView = recognizer.view?.nearestScrollView(for: autoScrollAxes)
+                    ?? recognizer.view?.nearestAncestorScrollView()
                 startContentOffset = autoScrollView?.contentOffset
+                geometrySession.begin(
+                    windowSize: recognizer.view?.window?.bounds.size,
+                    viewportSize: autoScrollView?.bounds.size
+                )
                 startAutoScroll()
                 onChanged(.zero)
             case .changed:
+                guard acceptsCurrentGeometry() else { return }
                 lastWindowLocation = location
                 updateAutoScroll(at: location)
                 onChanged(translation(from: location))
             case .ended:
+                guard acceptsCurrentGeometry() else { return }
                 let finalTranslation = translation(from: location)
                 stopAutoScroll()
+                geometrySession.reset()
                 onEnded(finalTranslation)
                 startWindowLocation = nil
                 lastWindowLocation = nil
                 startContentOffset = nil
             case .cancelled, .failed:
                 stopAutoScroll()
+                geometrySession.reset()
                 onCancelled()
                 startWindowLocation = nil
                 lastWindowLocation = nil
@@ -335,6 +371,27 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
             default:
                 break
             }
+        }
+
+        private func acceptsCurrentGeometry() -> Bool {
+            guard geometrySession.accepts(
+                windowSize: recognizer?.view?.window?.bounds.size,
+                viewportSize: autoScrollView?.bounds.size
+            ) else {
+                stopAutoScroll()
+                startWindowLocation = nil
+                lastWindowLocation = nil
+                startContentOffset = nil
+                // Cancel the recognizer so later callbacks cannot restart a drag with stale geometry.
+                if let recognizer, recognizer.state == .began || recognizer.state == .changed {
+                    recognizer.isEnabled = false
+                    recognizer.isEnabled = true
+                } else {
+                    onCancelled()
+                }
+                return false
+            }
+            return true
         }
 
         func gestureRecognizer(
@@ -376,10 +433,6 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
         }
 
         private func startAutoScroll() {
-            guard !autoScrollAxes.isEmpty, autoScrollView != nil else {
-                return
-            }
-
             autoScrollDisplayLink?.invalidate()
             let displayLink = CADisplayLink(target: self, selector: #selector(handleAutoScrollTick(_:)))
             displayLink.add(to: .main, forMode: .common)
@@ -387,7 +440,7 @@ private struct DashboardLongPressDragSurface: UIViewRepresentable {
         }
 
         @objc private func handleAutoScrollTick(_ displayLink: CADisplayLink) {
-            guard let location = lastWindowLocation else {
+            guard acceptsCurrentGeometry(), let location = lastWindowLocation else {
                 return
             }
 

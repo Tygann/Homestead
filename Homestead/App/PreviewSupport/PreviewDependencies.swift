@@ -91,7 +91,7 @@ struct PreviewDependencies {
             source: .entity("scene.movie_night"),
             presentation: .card(.action(layout: .mini))
         )
-        if RuntimeEnvironment.dashboardCardReferenceState == "app-store" {
+        if ["app-store", "resize"].contains(RuntimeEnvironment.dashboardCardReferenceState) {
             // Curate screenshot content without the repeated tiles used to exercise paging.
             let cards: [(String, DashboardCardConfiguration)] = [
                 ("sensor.living_room_humidity", .circularGauge(layout: .square)),
@@ -118,6 +118,9 @@ struct PreviewDependencies {
                 )
             }
         }
+        if RuntimeEnvironment.dashboardCardReferenceState == "resize" {
+            _ = dependencies.dashboardConfiguration.add(source: .summary(.security), presentation: .chip)
+        }
         return dependencies
     }
 
@@ -127,7 +130,7 @@ struct PreviewDependencies {
         selectedPageIndex: Int = 0
     ) -> PreviewDependencies {
         let dependencies = makeSample(
-            httpClient: RuntimeEnvironment.dashboardCardReferenceState == "app-store"
+            httpClient: ["app-store", "resize"].contains(RuntimeEnvironment.dashboardCardReferenceState)
                 ? PreviewEntityDetailHTTPClient(state: .loaded)
                 : nil
         )

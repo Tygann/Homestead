@@ -2,6 +2,17 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-10-13
+
+### iPhone Duo Adaptive Layout Baseline
+
+- Built with the iOS 27.1 SDK without raising the iOS 26.5 deployment target or changing saved dashboard schema/card sizing. The global Xcode selection remains unchanged.
+- Reproduced and fixed a Security fold/unfold crash: SwiftUI proposed an infinite grid width during split-layout measurement, and the column calculation trapped converting it to an integer. Unspecified/nonfinite proposals now use a finite intrinsic four-track width; normal available-width sizing retains its existing policy.
+- Security uses the space available for two comfortable panes rather than treating regular size class as sufficient, and its compact Devices/Activity selection survives split/compact transitions. Active grid and chip drag gestures stop autoscrolling and cancel on window or scroll-viewport resize, preventing stale geometry from committing an unintended reorder.
+- Generic iOS Simulator build passed with Xcode 27.1; all 66 focused `DashboardResizeTests` and `DashboardConfigurationXCTests` passed on iPhone Duo / iOS 27.1. A final five-test resize run also passed after covering non-scrollable drag viewports. The required storage helper cleared XCTestDevices when it exceeded 5 GB (6.9 GB and 8.2 GB); final size was zero.
+- Added `--preview-screen home --preview-card-state resize` for credential-free reproduction using curated cards and a Security summary shortcut, plus focused geometry-session/grid regression tests.
+- Rendered simulator checks cover all three dashboard poses and folded/unfolded Security, Activity selection roundtrips, Areas/Browse and search continuity, an unsaved card-editor draft through folding, detail navigation through folding/rotation, vertical system bars, and dark/large-text detail presentation. Security branch scroll continuity and physical-device live camera/playback/performance remain follow-up verification.
+
 ## 2026-10-09
 
 ### Website Domain Separation

@@ -36,7 +36,7 @@ struct CardGridLayout: Layout {
         subviews: Subviews,
         cache: inout CardGridLayoutCache
     ) -> CGSize {
-        let width = proposal.width ?? 0
+        let width = resolvedWidth(proposal.width)
         let layout = cachedLayout(in: width, subviews: subviews, cache: &cache)
         return CGSize(width: width, height: layout.height)
     }
@@ -47,7 +47,7 @@ struct CardGridLayout: Layout {
         subviews: Subviews,
         cache: inout CardGridLayoutCache
     ) {
-        let layout = cachedLayout(in: bounds.width, subviews: subviews, cache: &cache)
+        let layout = cachedLayout(in: resolvedWidth(bounds.width), subviews: subviews, cache: &cache)
 
         for placement in layout.placements {
             let origin = CGPoint(
@@ -61,6 +61,14 @@ struct CardGridLayout: Layout {
                 proposal: ProposedViewSize(placement.frame.size)
             )
         }
+    }
+
+    // SwiftUI probes intrinsic size with unspecified or infinite proposals during adaptive split layouts.
+    func resolvedWidth(_ proposedWidth: CGFloat?) -> CGFloat {
+        guard let proposedWidth, proposedWidth.isFinite else {
+            return (4 * 76) + (3 * spacing)
+        }
+        return max(0, proposedWidth)
     }
 
     private func cachedLayout(
@@ -210,7 +218,7 @@ struct CardGridLayout: Layout {
         let minimumTrackWidth: CGFloat = 76
         let candidateCount = max(
             baseColumnCount,
-            Int((width + spacing) / (minimumTrackWidth + spacing))
+            Int(exactly: floor((width + spacing) / (minimumTrackWidth + spacing))) ?? baseColumnCount
         )
 
         return max(baseColumnCount, (candidateCount / baseColumnCount) * baseColumnCount)

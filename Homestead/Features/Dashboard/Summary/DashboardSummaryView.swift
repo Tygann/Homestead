@@ -4,13 +4,13 @@ struct DashboardSummaryView: View {
     @Environment(HAConnectionSettings.self) private var connectionSettings
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(HAStateStore.self) private var stateStore
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedEntityDetailDestination: EntityDetailDestination?
     @State private var securityActivityRows: [HAActivityRow] = []
     @State private var isLoadingSecurityActivity = false
     @State private var securityActivityErrorMessage: String?
     @State private var lastSecurityActivityLoadAt: Date?
+    @State private var selectedSecurityTab: SecuritySummaryTab = .devices
     @State private var visibleOrder = DashboardSummaryVisibleOrder()
     @Namespace private var cardTransitionNamespace
 
@@ -106,34 +106,37 @@ struct DashboardSummaryView: View {
                 .map { ($0.entityID, $0) }
         )
 
-        if horizontalSizeClass == .regular {
-            HStack(alignment: .top, spacing: 0) {
-                devicesContent(detail: detail)
+        GeometryReader { geometry in
+            if geometry.size.width >= 780 {
+                HStack(alignment: .top, spacing: 0) {
+                    devicesContent(detail: detail)
 
-                SecuritySummaryActivityView(
-                    presentation: activityPresentation,
-                    isLoading: isLoadingSecurityActivity,
-                    errorMessage: securityActivityErrorMessage,
-                    peopleByEntityID: peopleByEntityID,
-                    transitionNamespace: cardTransitionNamespace,
-                    refresh: { await refreshSecurityActivity(entityIDs: entityIDs) },
-                    openEntity: openActivityEntity
+                    SecuritySummaryActivityView(
+                        presentation: activityPresentation,
+                        isLoading: isLoadingSecurityActivity,
+                        errorMessage: securityActivityErrorMessage,
+                        peopleByEntityID: peopleByEntityID,
+                        transitionNamespace: cardTransitionNamespace,
+                        refresh: { await refreshSecurityActivity(entityIDs: entityIDs) },
+                        openEntity: openActivityEntity
+                    )
+                    .frame(width: 390)
+                }
+            } else {
+                SecuritySummaryCompactView(
+                    selectedTab: $selectedSecurityTab,
+                    devices: devicesContent(detail: detail),
+                    activity: SecuritySummaryActivityView(
+                        presentation: activityPresentation,
+                        isLoading: isLoadingSecurityActivity,
+                        errorMessage: securityActivityErrorMessage,
+                        peopleByEntityID: peopleByEntityID,
+                        transitionNamespace: cardTransitionNamespace,
+                        refresh: { await refreshSecurityActivity(entityIDs: entityIDs) },
+                        openEntity: openActivityEntity
+                    )
                 )
-                .frame(width: 390)
             }
-        } else {
-            SecuritySummaryCompactView(
-                devices: devicesContent(detail: detail),
-                activity: SecuritySummaryActivityView(
-                    presentation: activityPresentation,
-                    isLoading: isLoadingSecurityActivity,
-                    errorMessage: securityActivityErrorMessage,
-                    peopleByEntityID: peopleByEntityID,
-                    transitionNamespace: cardTransitionNamespace,
-                    refresh: { await refreshSecurityActivity(entityIDs: entityIDs) },
-                    openEntity: openActivityEntity
-                )
-            )
         }
     }
 
@@ -357,7 +360,7 @@ private enum SecuritySummaryTab: String, CaseIterable, Identifiable {
 }
 
 private struct SecuritySummaryCompactView<Devices: View, Activity: View>: View {
-    @State private var selectedTab: SecuritySummaryTab = .devices
+    @Binding var selectedTab: SecuritySummaryTab
 
     let devices: Devices
     let activity: Activity
