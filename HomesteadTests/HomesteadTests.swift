@@ -11326,6 +11326,7 @@ final class StubHAOAuthAuthorizer: HAOAuthAuthorizing {
 }
 
 final class StubHAWebSocketClient: HAWebSocketClientProtocol {
+    private(set) var cameraCapabilitiesFetchCount = 0
     private(set) var lastConnectConfiguration: HAConnectionConfiguration?
     private(set) var connectConfigurations: [HAConnectionConfiguration] = []
     private(set) var didDisconnect = false
@@ -11517,7 +11518,8 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
-        HACameraCapabilities(frontendStreamTypes: [])
+        cameraCapabilitiesFetchCount += 1
+        return HACameraCapabilities(frontendStreamTypes: [])
     }
 
     func fetchSupervisorApps() async throws -> HASupervisorAppsResponseDTO {

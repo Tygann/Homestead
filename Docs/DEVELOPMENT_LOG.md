@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-14
 
+### Camera Recovery After Network Reconnection
+
+- The physical cellular check reached live after approximately 25 seconds; after ten seconds away, the user returned to Snapshot and needed manual reload (approximately 11 seconds). No microphone prompt or orange indicator appeared. Wireless CoreDevice console capture disconnected when Wi-Fi changed; Instruments could not attach to the reported PID. These attempts do not establish a transport-specific cause for the cellular delay.
+- Camera loading now depends on HA connection readiness as well as entity/refresh/fallback identity. Disconnection cancels media preparation and waits with the last still; reconnection restarts capability/media loading automatically, including when foreground entry precedes socket recovery.
+- Added a hosted SwiftUI regression test exercising the same open camera through initial connection and reconnect with no manual refresh. The full focused camera suite passed 24 methods (27 invocations including parameterized cases); the final hosted regression run also passed after preserving cached stills while waiting. Generic Debug simulator and signed Debug device builds passed. Required XCTestDevices cleanup ran at 8.3/8.7 GB; final size was zero. Standalone simulator launch verified the cache log without a live console.
+- Opt-in Debug camera stages also persist the most recent 128 sanitized lines in Library/Caches/CameraStartup.log. Standalone device launch and post-test retrieval avoid reliance on a wireless console during cellular checks. Cellular startup optimization and the physical recovery retest remain pending; Bluetooth remains deferred.
+
 ### Camera Reliability Without Hardware
 
 - Scoped shared audio ownership to each playback generation so obsolete camera views cannot mute or release the current owner. Audio preserves active interruption state across route/camera changes, respects iOS `shouldResume`, and mutes on headphone removal rather than continuing on the speaker. System mute updates reject obsolete view generations.

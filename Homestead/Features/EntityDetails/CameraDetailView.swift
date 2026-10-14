@@ -76,8 +76,24 @@ struct CameraDetailView: View {
                 refreshCamera()
             }
         }
-        .task(id: "\(entity.entityID)-\(refreshGeneration)-\(fallbackGeneration)") {
+        .task(id: "\(entity.entityID)-\(refreshGeneration)-\(fallbackGeneration)-\(homeAssistantService.connectionStatus == .connected)") {
             guard cameraIsActive else { return }
+            guard homeAssistantService.connectionStatus == .connected else {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") {
+                    CameraStartupConsole.write("Waiting for Home Assistant connection")
+                }
+                #endif
+                webRTC.stop()
+                player?.pause()
+                livePhase = .loading
+                if case .loaded = snapshotPhase { return }
+                if let cached = await CameraSnapshotStore.shared.snapshot(for: entity.entityID) {
+                    guard !Task.isCancelled else { return }
+                    snapshotPhase = .loaded(cached.data)
+                }
+                return
+            }
             await loadCameraData()
         }
         .onDisappear {
@@ -95,12 +111,14 @@ struct CameraDetailView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
+                recordStartupStage("Camera suspended")
                 cameraIsActive = false
                 refreshGeneration += 1
                 webRTC.stop()
                 player?.pause()
                 restartOnForeground = true
             } else if phase == .active, restartOnForeground {
+                recordStartupStage("Camera foreground restart")
                 restartOnForeground = false
                 cameraIsActive = true
                 refreshCamera()
@@ -443,6 +461,7 @@ struct CameraDetailView: View {
         guard !Task.isCancelled else { return }
         #if DEBUG
         loadStartedAt = .now
+        recordStartupStage("Camera load started")
         #endif
         webRTC.stop()
         usesWebRTC = false
@@ -527,6 +546,7 @@ struct CameraDetailView: View {
             return nil
         } catch {
             guard !Task.isCancelled else { return nil }
+            recordStartupStage("Capabilities unavailable")
             capabilitiesPhase = .failed
             return nil
         }

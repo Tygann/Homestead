@@ -165,3 +165,16 @@ Complete automated signaling/audio-policy checks, simulator refresh/dismiss/back
 Restore Wi-Fi and leave the app available normally afterward. Capture sanitized startup logs during this same session if the phone is connected. Do not repeat the already-verified initial local playback, refresh, or fullscreen checks unless a failure requires it. Bluetooth/cellular results and a valid physical Instruments trace cannot be inferred from simulator success or synthetic audio notifications.
 
 The reliability follow-up passed 26 focused camera tests and live G6 HLS lifecycle checks on Duo/iOS 27.1. Post-dismissal memgraphs showed no retained camera playback controller, peer, renderer, decoder, or output engine; the singleton factory/audio device remain intentionally. Leak scanning grew from 44/1,408 bytes before camera use to 50/1,600 bytes afterward, all untyped 32-byte allocations. The six extra allocations cannot be attributed without allocation backtraces; no camera-engine leak was identified, and whole-app leak freedom is not established. Captures are local under `/tmp/homestead-camera-reliability-memory/`, not committed.
+
+### Cellular Checks Without A Wireless Console
+
+Changing Wi-Fi can drop the wireless CoreDevice console/Instruments connection. It does not undo an installed build. For cellular verification, launch the Debug app independently with the diagnostic flag, complete the check, restore Wi-Fi, then retrieve the bounded local stage log:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode-27.1.app/Contents/Developer xcrun devicectl device process launch --device <iphone-udid> --terminate-existing com.tyler.Homestead -- --camera-startup-console
+DEVELOPER_DIR=/Applications/Xcode-27.1.app/Contents/Developer xcrun devicectl device copy from --device <iphone-udid> --domain-type appDataContainer --domain-identifier com.tyler.Homestead --source Library/Caches/CameraStartup.log --destination /tmp/Homestead-CameraStartup.log
+```
+
+The log contains only the most recent 128 opt-in Debug stage/counter/error-domain lines, with timestamps; no SDP, HA URLs, tokens, or entity payloads. Relaunch normally after verification. A USB data connection can preserve development connectivity during Wi-Fi changes, but the local capture avoids requiring one for the short behavior check.
+
+The first cellular/background check reported about 25 seconds to live, then Snapshot on foreground return and about 11 seconds after manual reload; no microphone prompts/indicators appeared. The connection-dependent camera retry is now covered by a hosted SwiftUI test, but its physical retest and transport-specific startup diagnosis remain pending. Instruments could not find the app's reported PID, so no valid physical profile was collected.

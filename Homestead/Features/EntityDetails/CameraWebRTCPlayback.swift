@@ -6,8 +6,25 @@ import os
 
 /// Pipe captures must receive each stage immediately rather than at stdout's buffer threshold.
 nonisolated enum CameraStartupConsole {
+    private static let sink = CameraStartupLogSink()
     static func write(_ message: String) {
         try? FileHandle.standardOutput.write(contentsOf: Data("[CameraStartup] \(message)\n".utf8))
+        sink.append(message)
+    }
+}
+
+/// A bounded local capture survives loss of the wireless development connection.
+private nonisolated final class CameraStartupLogSink: @unchecked Sendable {
+    private let lock = NSLock()
+    private var lines: [String] = []
+    func append(_ message: String) {
+        lock.withLock {
+            lines.append("\(Date().timeIntervalSince1970) \(message)")
+            if lines.count > 128 { lines.removeFirst(lines.count - 128) }
+            guard let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+            try? Data((lines.joined(separator: "\n") + "\n").utf8)
+                .write(to: directory.appendingPathComponent("CameraStartup.log"), options: .atomic)
+        }
     }
 }
 #endif
