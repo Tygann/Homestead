@@ -41,6 +41,7 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
     let type: String
     let success: Bool?
     let result: JSONValue?
+    let cameraSignal: CameraWebRTCSignal?
     let event: HAEventDTO?
     let mobileAppPushNotificationEvent: HAMobileAppPushNotificationEventDTO?
     let weatherForecastEvent: HAWeatherForecastEventDTO?
@@ -64,6 +65,7 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
         success = try container.decodeIfPresent(Bool.self, forKey: .success)
         result = try container.decodeIfPresent(JSONValue.self, forKey: .result)
         let eventValue = try container.decodeIfPresent(JSONValue.self, forKey: .event)
+        cameraSignal = try? eventValue?.decoded(CameraWebRTCSignal.self)
         event = try? eventValue?.decoded(HAEventDTO.self)
         mobileAppPushNotificationEvent = try? eventValue?.decoded(HAMobileAppPushNotificationEventDTO.self)
         weatherForecastEvent = try? eventValue?.decoded(HAWeatherForecastEventDTO.self)
@@ -117,6 +119,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
     case mobileAppPushNotificationConfirm(id: Int, webhookID: String, confirmID: String)
     case registryCommand(id: Int, type: String)
     case categoryRegistryList(id: Int, scope: HAOrganizationScope)
+    case cameraCommand(id: Int, type: String, entityID: String, fields: [String: JSONValue])
     case cameraCapabilities(id: Int, entityID: String)
     case supervisorAPI(id: Int, endpoint: String, method: String)
     case automationConfig(id: Int, entityID: String)
@@ -152,6 +155,8 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case itemID = "item_id"
         case locationName = "location_name"
         case forecastType = "forecast_type"
+        case offer, candidate
+        case sessionID = "session_id"
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -209,6 +214,15 @@ enum HAWebSocketRequest: Encodable, Sendable {
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.categoryRegistryList, forKey: .type)
             try container.encode(scope.rawValue, forKey: .scope)
+        case .cameraCommand(let id, let type, let entityID, let fields):
+            try container.encode(id, forKey: .id)
+            try container.encode(type, forKey: .type)
+            try container.encode(entityID, forKey: .entityID)
+            for (key, value) in fields {
+                if let codingKey = CodingKeys(rawValue: key) {
+                    try container.encode(value, forKey: codingKey)
+                }
+            }
         case .cameraCapabilities(let id, let entityID):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.cameraCapabilities, forKey: .type)

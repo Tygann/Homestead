@@ -10,6 +10,12 @@ import UIKit
 
 struct CameraDetailView: View {
     @Environment(HomeAssistantService.self) private var homeAssistantService
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var webRTC = CameraWebRTCPlayback()
+    @State private var usesWebRTC = false
+    @State private var fallbackGeneration = 0
+    @State private var restartOnForeground = false
+    @State private var cameraIsActive = true
     @State private var snapshotPhase: SnapshotPhase = .idle
     @State private var capabilitiesPhase: CameraCapabilitiesPhase = .idle
     @State private var livePhase: CameraLivePhase = .idle
@@ -46,7 +52,7 @@ struct CameraDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    refreshGeneration += 1
+                    refreshCamera()
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -57,6 +63,8 @@ struct CameraDetailView: View {
             CameraFullScreenPreview(
                 title: presentation.title,
                 player: player,
+                webRTC: webRTC,
+                usesWebRTC: usesWebRTC,
                 playbackReadiness: $playbackReadiness,
                 isCurrentPlayer: { self.player === $0 },
                 playbackStarted: { recordStartupStage("Playback playing") },
@@ -65,14 +73,38 @@ struct CameraDetailView: View {
                 livePhase: livePhase,
                 aspectRatio: cameraPreviewAspectRatio
             ) {
-                refreshGeneration += 1
+                refreshCamera()
             }
         }
-        .task(id: "\(entity.entityID)-\(refreshGeneration)") {
+        .task(id: "\(entity.entityID)-\(refreshGeneration)-\(fallbackGeneration)") {
+            guard cameraIsActive else { return }
             await loadCameraData()
         }
         .onDisappear {
-            player?.pause()
+            if !isShowingFullScreenPreview {
+                cameraIsActive = false
+                webRTC.stop()
+                player?.pause()
+            }
+        }
+        .onAppear {
+            if !cameraIsActive, scenePhase == .active {
+                cameraIsActive = true
+                refreshCamera()
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                cameraIsActive = false
+                refreshGeneration += 1
+                webRTC.stop()
+                player?.pause()
+                restartOnForeground = true
+            } else if phase == .active, restartOnForeground {
+                restartOnForeground = false
+                cameraIsActive = true
+                refreshCamera()
+            }
         }
     }
 
@@ -114,6 +146,14 @@ struct CameraDetailView: View {
             .padding(.bottom, AppSpacing.medium)
 
             cameraViewContent
+                .overlay(alignment: .bottomTrailing) {
+                    if usesWebRTC, webRTC.hasStarted, webRTC.hasAudio {
+                        CameraWebRTCAudioButton(playback: webRTC)
+                            .foregroundStyle(.white)
+                            .background(Color.black.opacity(0.45), in: Circle())
+                            .padding(AppSpacing.small)
+                    }
+                }
                 .frame(maxWidth: .infinity)
                 .aspectRatio(cameraPreviewAspectRatio, contentMode: .fit)
                 .background(Color(.tertiarySystemGroupedBackground))
@@ -144,7 +184,14 @@ struct CameraDetailView: View {
             case .idle, .loading:
                 preparingCameraContent
             case .live:
-                if let player {
+                if usesWebRTC {
+                    ZStack {
+                        CameraWebRTCVideo(videoView: webRTC.videoView, isVisible: !isShowingFullScreenPreview)
+                            .opacity(webRTC.hasStarted ? 1 : 0.001)
+                        .allowsHitTesting(webRTC.hasStarted)
+                        if !webRTC.hasStarted { preparingCameraContent }
+                    }
+                } else if let player {
                     CameraLiveVideoPreview(
                         player: player,
                         readiness: $playbackReadiness,
@@ -268,7 +315,7 @@ struct CameraDetailView: View {
         case .loaded(let capabilities):
             switch livePhase {
             case .live:
-                "Live HLS"
+                usesWebRTC ? "Live WebRTC" : "Live HLS"
             case .failed:
                 "Snapshot fallback (\(capabilities.displayText))"
             case .snapshotOnly:
@@ -297,7 +344,7 @@ struct CameraDetailView: View {
     private var cameraPreviewBadgeText: String? {
         switch livePhase {
         case .live:
-            playbackReadiness.hasStarted ? "Live" : "Preparing"
+            hasStartedPlayback ? "Live" : "Preparing"
         case .snapshotOnly:
             "Snapshot"
         case .failed:
@@ -312,7 +359,7 @@ struct CameraDetailView: View {
     private var cameraPreviewBadgeColor: Color {
         switch livePhase {
         case .live:
-            playbackReadiness.hasStarted ? .green : .secondary
+            hasStartedPlayback ? .green : .secondary
         case .failed:
             .orange
         default:
@@ -325,7 +372,7 @@ struct CameraDetailView: View {
 
         switch livePhase {
         case .live:
-            return player != nil
+            return usesWebRTC || player != nil
         case .snapshotOnly, .failed:
             if case .loaded = snapshotPhase {
                 return true
@@ -348,17 +395,45 @@ struct CameraDetailView: View {
         return 16.0 / 9.0
     }
 
+    private var shouldAttemptWebRTC: Bool {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--camera-force-hls") { return false }
+        #endif
+        return fallbackGeneration == 0
+    }
+
+    private var hasStartedPlayback: Bool {
+        usesWebRTC ? webRTC.hasStarted : playbackReadiness.hasStarted
+    }
+
+    private func refreshCamera() {
+        fallbackGeneration = 0
+        refreshGeneration += 1
+    }
+
     private func handlePlaybackFailure(_ failedPlayer: AVPlayer) {
         guard player === failedPlayer else { return }
         failedPlayer.pause()
         livePhase = .failed
         recordStartupStage("Playback failed")
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--camera-startup-console"),
+           let error = failedPlayer.currentItem?.error as NSError? {
+            print("[CameraStartup] HLS error domain: \(error.domain), code: \(error.code)")
+            if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                print("[CameraStartup] HLS underlying domain: \(underlying.domain), code: \(underlying.code)")
+            }
+        }
+        #endif
     }
 
     private func recordStartupStage(_ stage: String) {
         #if DEBUG
         guard let loadStartedAt else { return }
         let milliseconds = Date().timeIntervalSince(loadStartedAt) * 1000
+        if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") {
+            print("[CameraStartup] \(stage): \(Int(milliseconds.rounded())) ms")
+        }
         Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup")
             .info("\(stage, privacy: .public): \(milliseconds, format: .fixed(precision: 0)) ms")
         #endif
@@ -369,6 +444,8 @@ struct CameraDetailView: View {
         #if DEBUG
         loadStartedAt = .now
         #endif
+        webRTC.stop()
+        usesWebRTC = false
         player?.pause()
         player = nil
         playbackReadiness.reset()
@@ -456,7 +533,24 @@ struct CameraDetailView: View {
     }
 
     private func loadLiveStreamIfPossible(capabilities: HACameraCapabilities?) async -> Bool {
-        guard !Task.isCancelled else { return false }
+        guard !Task.isCancelled, cameraIsActive else { return false }
+        if capabilities?.supportsWebRTCStream == true, shouldAttemptWebRTC {
+            recordStartupStage("WebRTC attempt")
+            usesWebRTC = true
+            livePhase = .live
+            let generation = refreshGeneration
+            if await webRTC.start(service: homeAssistantService, entityID: entity.entityID, onFailure: {
+                guard cameraIsActive, usesWebRTC, refreshGeneration == generation else { return }
+                recordStartupStage("WebRTC fallback")
+                fallbackGeneration += 1
+            }) {
+                recordStartupStage("WebRTC first frame")
+                return true
+            }
+            guard !Task.isCancelled, cameraIsActive else { return false }
+            recordStartupStage("WebRTC fallback")
+            usesWebRTC = false
+        }
         guard capabilities?.supportsHLSStream == true else {
             livePhase = .snapshotOnly
             return false
@@ -464,16 +558,10 @@ struct CameraDetailView: View {
 
         livePhase = .loading
         do {
-            let handoff = try await homeAssistantService.prepareCameraStreamHandoff(entityID: entity.entityID)
+            let url = try await homeAssistantService.cameraHLSStreamURL(entityID: entity.entityID)
             try Task.checkCancellation()
+            guard cameraIsActive else { return false }
             recordStartupStage("Stream handoff received")
-            guard let hlsPath = handoff.hlsPath?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !hlsPath.isEmpty else {
-                livePhase = .snapshotOnly
-                return false
-            }
-
-            let url = try homeAssistantService.cameraStreamURL(pathOrURL: hlsPath, entityID: entity.entityID)
             let player = AVPlayer(url: url)
             self.player = player
             livePhase = .live
@@ -482,7 +570,7 @@ struct CameraDetailView: View {
         } catch is CancellationError {
             return false
         } catch {
-            guard !Task.isCancelled else { return false }
+            guard !Task.isCancelled, cameraIsActive else { return false }
             livePhase = .failed
             return false
         }
@@ -529,6 +617,8 @@ private struct CameraFullScreenPreview: View {
 
     let title: String
     let player: AVPlayer?
+    let webRTC: CameraWebRTCPlayback
+    let usesWebRTC: Bool
     @Binding var playbackReadiness: CameraPlaybackReadiness
     let isCurrentPlayer: (AVPlayer) -> Bool
     let playbackStarted: () -> Void
@@ -562,6 +652,11 @@ private struct CameraFullScreenPreview: View {
 
                 Spacer()
 
+                if usesWebRTC, webRTC.hasStarted, webRTC.hasAudio {
+                    CameraWebRTCAudioButton(playback: webRTC)
+                        .foregroundStyle(.white)
+                }
+
                 Button(action: refresh) {
                     Image(systemName: "arrow.clockwise")
                         .font(.headline.weight(.semibold))
@@ -591,7 +686,14 @@ private struct CameraFullScreenPreview: View {
     private var previewContent: some View {
         switch livePhase {
         case .live:
-            if let player {
+            if usesWebRTC {
+                ZStack {
+                    CameraWebRTCVideo(videoView: webRTC.videoView)
+                        .opacity(webRTC.hasStarted ? 1 : 0.001)
+                        .allowsHitTesting(webRTC.hasStarted)
+                    if !webRTC.hasStarted { preparingContent }
+                }
+            } else if let player {
                 CameraLiveVideoPreview(
                     player: player,
                     readiness: $playbackReadiness,
@@ -651,7 +753,7 @@ private struct CameraFullScreenPreview: View {
     private var statusText: String {
         switch livePhase {
         case .live:
-            playbackReadiness.hasStarted ? "Live" : "Preparing"
+            (usesWebRTC ? webRTC.hasStarted : playbackReadiness.hasStarted) ? "Live" : "Preparing"
         case .snapshotOnly:
             "Snapshot"
         case .failed:
@@ -666,7 +768,7 @@ private struct CameraFullScreenPreview: View {
     private var statusColor: Color {
         switch livePhase {
         case .live:
-            playbackReadiness.hasStarted ? .green : .secondary
+            (usesWebRTC ? webRTC.hasStarted : playbackReadiness.hasStarted) ? .green : .secondary
         case .failed:
             .orange
         default:

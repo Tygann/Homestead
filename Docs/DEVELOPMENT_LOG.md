@@ -2,6 +2,18 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-10-14
+
+### Capability-Driven Native Camera Playback
+
+- Corrected the HA capability value to `web_rtc` and added native receive-only WebRTC through official client-configuration, offer-subscription, and ICE-candidate WebSocket commands. HLS fallback now obtains its URL through core `camera/stream`, without Mobile App registration.
+- Added one owned Metal renderer shared across detail/fullscreen and adaptive geometry. A nonempty decoded-frame size establishes readiness; cached stills remain visible beforehand. Unsupported negotiated video, explicit failure, and a 12-second startup bound select advertised HLS. An injected playback-only audio device rejects recording and defers its output engine until listening is requested; this replaces the SDK default, which caused a physical-device microphone privacy termination.
+- Session teardown cancels tasks, closes the peer/channel, removes the renderer, clears signaling state, and unsubscribes. A persistent cleanup barrier also waits for pending offer acknowledgements across repeated stops before opening a replacement. Backgrounding cancels loading; foregrounding starts a fresh attempt.
+- Pinned the native WebRTC distribution to 155.0.0, retained SwiftPM's artifact checksum/resolution, and bundled the upstream license. Deployment target and dashboard persistence remain unchanged. ADR 5 records media-engine ownership, fallback, and dependency tradeoffs.
+- Seventeen focused capability, signaling, HLS-shape, timeout, cancellation, late-ack/repeated-stop cleanup, recording-rejection, and HEVC Annex B/padding/malformed-input tests passed. Generic Debug simulator, unsigned Release device, and signed Debug device builds passed. Required XCTestDevices hygiene cleared each over-threshold run; final size was zero.
+- Added a hardware-gated receive-only VideoToolbox HEVC decoder to the upstream factory. G6 advertises HEVC, which the binary distribution cannot decode without this adapter. Parameter-set changes rebuild the session; malformed payloads and decode errors propagate to WebRTC.
+- Physical iPhone 15 Pro verification reproduced and identified the default audio-device TCC crash; the playback-only replacement stayed open. G6 rejected negotiated WebRTC video and reached core HLS playback at 19,304 ms. Front Porch connected ICE but assembled no decodable video and its HLS fallback failed; the user confirmed it also stalled/failed in HA on the same phone, so that camera is not usable latency evidence. With the HEVC adapter, G6 reached its first decoded WebRTC frame at 1,970 ms, then 1,665 ms and 2,046 ms on refresh. The user confirmed visible live motion in about 2–3 seconds, working refresh, and audible listening without a microphone prompt/indicator. Rendered Duo checks verified live HLS fallback in detail/fullscreen across closed, partial, and open poses; HEVC hardware decoding is not advertised on this simulator.
+
 ## 2026-10-13
 
 ### Security Scroll Continuity And Camera Startup

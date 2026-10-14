@@ -8,6 +8,7 @@ Current decisions:
 - [ADR 2: Capability-Driven Entity Detail Grammar](002-capability-driven-entity-detail-grammar.md)
 - [ADR 3: Homestead+ StoreKit Entitlements](003-homestead-plus-storekit-entitlements.md)
 - [ADR 4: Shared Dashboard And Widget Presentation Core](004-shared-dashboard-widget-presentation-core.md)
+- [ADR 5: Capability-Driven Camera Playback](005-capability-driven-camera-playback.md)
 
 Do not create an ADR for every implementation detail. Prefer an ADR when a decision:
 

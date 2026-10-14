@@ -129,16 +129,27 @@ For performance fixes, capture a before trace and an after trace using the same 
 
 ## Camera Startup And Duo Resizing
 
-Debug builds log camera startup stages under subsystem `com.tyler.Homestead`, category `CameraStartup`, without URLs or credentials. Compare `Capabilities resolved`, `Snapshot received`, `Stream handoff received`, and `Playback playing` to separate capability/handoff latency from AVPlayer startup. Snapshot loading runs concurrently and does not gate stream installation. `Playback playing` records the shared detail/fullscreen player's first playing status, not a measured first displayed frame.
+Debug builds log camera startup stages under subsystem `com.tyler.Homestead`, category `CameraStartup`, without URLs or credentials. Compare `Capabilities resolved`, `Snapshot received`, `Stream handoff received`, and `Playback playing` to separate capability/handoff latency from AVPlayer startup. Snapshot loading runs concurrently and does not gate stream installation. `Playback playing` records the shared detail/fullscreen HLS player's first playing status. WebRTC logs offer/answer/session, ICE connection, and `WebRTC first frame` (the native renderer receiving a nonempty decoded-frame size). These are startup milestones, not a GPU presentation timestamp; verify visible video as well. Timeout counters report only received video packets and decoded frame counts, never SDP, ICE addresses, or TURN credentials.
 
-For a registered normal app profile on the Duo simulator, inspect stages with:
+For a signed-in app profile on the Duo simulator, inspect stages with:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode-27.1.app/Contents/Developer xcrun simctl spawn <duo-udid> log show --info --last 5m --predicate 'subsystem == "com.tyler.Homestead" AND category == "CameraStartup"' --style compact
 ```
 
-Isolated `--live-preview` deliberately skips Mobile App registration. Use it for authenticated stills, but use a registered normal profile for successful HLS playback. Test opening/closing camera detail during preparation, refresh replacement, fullscreen, and fold/unfold/rotation while playing. Keep dashboard still refresh and live HLS separate.
+Camera playback now uses core WebSocket APIs and does not require Mobile App registration. Test with a signed-in normal profile or isolated `--live-preview`. Debug-only `--camera-startup-console` also prints sanitized stages to stdout for `devicectl --console` capture. Debug-only `--camera-force-hls` bypasses the WebRTC attempt to verify the advertised HLS path; relaunch without that argument afterward. Test opening/closing camera detail during preparation, refresh replacement, fullscreen, background/foreground, and fold/unfold/rotation while playing. Keep dashboard still refresh and live playback separate.
 
 Use `--preview-screen home --preview-card-state resize` for credential-free Security scroll checks. Its long Devices and Activity fixtures support independent checkpoints across tab switches and compact/split transitions. A bookmark retains its original offset when an interim lazy-stack estimate clamps the viewport, and user scrolling takes precedence over restoration.
 
 The October 13 physical iPhone 15 Pro profiling attempt disconnected after 2.12 seconds; targeted attachments could not locate Homestead despite CoreDevice listing its process. These attempts do not establish physical camera startup latency, steady-state hitch rates, or physical Duo readiness. A separate registered Duo simulator run measured capabilities at 267 ms, handoff at 353 ms, snapshot receipt at 17,111 ms, and playback at 17,144 ms. Both media arrivals were delayed after the quick handoff; this supports investigating source delivery/playback startup without claiming a proven server-side cause. Actual live frames survived fold/unfold, rotation, partial opening, and fullscreen without another handoff. Re-run a valid trace before making performance claims.
+
+
+For physical startup capture, build/install Debug, unlock the phone, then launch with:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode-27.1.app/Contents/Developer xcrun devicectl device process launch --device <iphone-udid> --terminate-existing --console --environment-variables '{"OS_ACTIVITY_MODE":"disable"}' com.tyler.Homestead -- --camera-startup-console
+```
+
+Open the camera manually and compare the printed stage timings with visible playback. This does not record a hitch trace. WebRTC uses an injected playback-only audio device; muted previews do not start its output engine. Verify listening, routing, and interruption recovery separately on hardware. The default SDK voice-processing unit enabled microphone input even for receive-only playback and caused an iOS privacy termination; it must not be reintroduced. A simulator RemoteIO initialization abort and received packets with zero decoded video frames were observed during development, so simulator failures do not alone establish camera/server latency or device decoding behavior.
+
+The October 14 native HEVC pass used G6 as the stable physical-device reference: decoded-frame timings were 1,970 ms initially and 1,665/2,046 ms on refresh, with user-confirmed visible motion and listening. The earlier HLS comparison reached playing at 19,304 ms. These startup timings are not a CPU, energy, or hitch profile. Front Porch failed in both Homestead and HA during that check. The simulator does not advertise HEVC when VideoToolbox reports no hardware support, so its G6 checks cover HLS fallback/layout; use hardware for HEVC decoding/audio.

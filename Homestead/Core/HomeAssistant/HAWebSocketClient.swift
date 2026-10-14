@@ -19,6 +19,10 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func updateLocationName(_ locationName: String) async throws
     func fetchServices() async throws -> HAServiceRegistry
     func fetchServicesForTarget(entityID: String) async throws -> [String]
+    func fetchCameraStreamPath(entityID: String) async throws -> String
+    func fetchCameraWebRTCConfiguration(entityID: String) async throws -> JSONValue
+    func subscribeCameraWebRTC(entityID: String, offer: String, handler: @escaping @Sendable (CameraWebRTCSignal) async -> Void) async throws -> Int
+    func sendCameraWebRTCCandidate(entityID: String, sessionID: String, candidate: JSONValue) async throws
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities
     func fetchSupervisorApps() async throws -> HASupervisorAppsResponseDTO
     func fetchSupervisorAppInfo(slug: String) async throws -> HASupervisorAppInfoDTO
@@ -68,6 +72,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     private var registryChangeSubscriptionIDs: [String: Int] = [:]
     private var mobileAppPushNotificationSubscriptionID: Int?
     private var weatherForecastHandlers: [Int: @Sendable (HAWeatherForecastEventDTO) async -> Void] = [:]
+    private var cameraSignalHandlers: [Int: @Sendable (CameraWebRTCSignal) async -> Void] = [:]
     private var isDisconnecting = false
 
     init(
@@ -143,6 +148,11 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         stateChangeSubscriptionID = nil
         registryChangeSubscriptionIDs.removeAll()
         mobileAppPushNotificationSubscriptionID = nil
+        let cameraHandlers = cameraSignalHandlers.values
+        cameraSignalHandlers.removeAll()
+        for handler in cameraHandlers {
+            Task { await handler(.connectionClosed) }
+        }
         weatherForecastHandlers.removeAll()
         resumeAllPending(throwing: HAWebSocketError.notConnected)
         resumeAllPongs(throwing: HAWebSocketError.notConnected)
@@ -498,7 +508,45 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         }
     }
 
+    func fetchCameraStreamPath(entityID: String) async throws -> String {
+        let id = makeRequestID()
+        let response = try await sendRequest(.cameraCommand(id: id, type: "camera/stream", entityID: entityID, fields: [:]), id: id)
+        guard let path = response.result?.objectValue?["url"]?.stringValue, !path.isEmpty else {
+            throw HAWebSocketError.missingResult
+        }
+        return path
+    }
+
+    func fetchCameraWebRTCConfiguration(entityID: String) async throws -> JSONValue {
+        let id = makeRequestID()
+        let response = try await sendRequest(.cameraCommand(id: id, type: "camera/webrtc/get_client_config", entityID: entityID, fields: [:]), id: id)
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return result
+    }
+
+    func subscribeCameraWebRTC(entityID: String, offer: String, handler: @escaping @Sendable (CameraWebRTCSignal) async -> Void) async throws -> Int {
+        let id = makeRequestID()
+        cameraSignalHandlers[id] = handler
+        do {
+            _ = try await sendRequest(.cameraCommand(id: id, type: "camera/webrtc/offer", entityID: entityID, fields: ["offer": .string(offer)]), id: id)
+            return id
+        } catch {
+            cameraSignalHandlers.removeValue(forKey: id)
+            // The server may have accepted an offer whose acknowledgement arrived too late.
+            let cleanupID = makeRequestID()
+            try? await send(.unsubscribeEvents(id: cleanupID, subscription: id))
+            throw error
+        }
+    }
+
+    func sendCameraWebRTCCandidate(entityID: String, sessionID: String, candidate: JSONValue) async throws {
+        let id = makeRequestID()
+        _ = try await sendRequest(.cameraCommand(id: id, type: "camera/webrtc/candidate", entityID: entityID,
+            fields: ["session_id": .string(sessionID), "candidate": candidate]), id: id)
+    }
+
     func unsubscribe(subscriptionID: Int) async throws {
+        cameraSignalHandlers.removeValue(forKey: subscriptionID)
         weatherForecastHandlers.removeValue(forKey: subscriptionID)
         let id = makeRequestID()
         _ = try await sendRequest(
@@ -699,7 +747,10 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         case HAWebSocketMessageType.pong:
             handlePong(message)
         case HAWebSocketMessageType.event:
-            if let id = message.id,
+            if let id = message.id, let signal = message.cameraSignal,
+               let handler = cameraSignalHandlers[id] {
+                await handler(signal)
+            } else if let id = message.id,
                let weatherForecastEvent = message.weatherForecastEvent,
                let handler = weatherForecastHandlers[id] {
                 await handler(weatherForecastEvent)
@@ -801,4 +852,12 @@ private extension URLSessionWebSocketTask.CloseCode {
             "unknown close code \(rawValue)"
         }
     }
+}
+
+// Preview and test clients that do not implement media signaling retain snapshot/HLS behavior.
+extension HAWebSocketClientProtocol {
+    func fetchCameraStreamPath(entityID: String) async throws -> String { throw HAWebSocketError.requestFailed("HLS unavailable") }
+    func fetchCameraWebRTCConfiguration(entityID: String) async throws -> JSONValue { throw HAWebSocketError.requestFailed("WebRTC unavailable") }
+    func subscribeCameraWebRTC(entityID: String, offer: String, handler: @escaping @Sendable (CameraWebRTCSignal) async -> Void) async throws -> Int { throw HAWebSocketError.requestFailed("WebRTC unavailable") }
+    func sendCameraWebRTCCandidate(entityID: String, sessionID: String, candidate: JSONValue) async throws { throw HAWebSocketError.requestFailed("WebRTC unavailable") }
 }

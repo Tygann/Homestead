@@ -7,6 +7,10 @@ nonisolated struct HACameraCapabilities: Decodable, Equatable, Sendable {
         !frontendStreamTypes.isEmpty
     }
 
+    var supportsWebRTCStream: Bool {
+        frontendStreamTypes.contains(.webRTC)
+    }
+
     var supportsHLSStream: Bool {
         frontendStreamTypes.contains(.hls)
     }
@@ -35,7 +39,7 @@ nonisolated struct HACameraCapabilities: Decodable, Equatable, Sendable {
 
 nonisolated enum HACameraStreamType: String, Decodable, Equatable, Sendable {
     case hls
-    case webRTC = "webrtc"
+    case webRTC = "web_rtc"
     case unknown
 
     init(from decoder: Decoder) throws {

@@ -1421,6 +1421,32 @@ final class HomeAssistantService {
         }
     }
 
+    func cameraHLSStreamURL(entityID: String) async throws -> URL {
+        _ = try cameraConfiguration(for: entityID)
+        let path = try await client.fetchCameraStreamPath(entityID: entityID)
+        try Task.checkCancellation()
+        return try cameraStreamURL(pathOrURL: path, entityID: entityID)
+    }
+
+    func cameraWebRTCConfiguration(entityID: String) async throws -> JSONValue {
+        _ = try cameraConfiguration(for: entityID)
+        return try await client.fetchCameraWebRTCConfiguration(entityID: entityID)
+    }
+
+    func subscribeCameraWebRTC(entityID: String, offer: String, handler: @escaping @Sendable (CameraWebRTCSignal) async -> Void) async throws -> Int {
+        _ = try cameraConfiguration(for: entityID)
+        return try await client.subscribeCameraWebRTC(entityID: entityID, offer: offer, handler: handler)
+    }
+
+    func sendCameraWebRTCCandidate(entityID: String, sessionID: String, candidate: JSONValue) async throws {
+        _ = try cameraConfiguration(for: entityID)
+        try await client.sendCameraWebRTCCandidate(entityID: entityID, sessionID: sessionID, candidate: candidate)
+    }
+
+    func closeCameraWebRTC(subscriptionID: Int) async {
+        try? await client.unsubscribe(subscriptionID: subscriptionID)
+    }
+
     func fetchCameraCapabilities(entityID: String) async throws -> HACameraCapabilities {
         _ = try cameraConfiguration(for: entityID)
         return try await client.fetchCameraCapabilities(entityID: entityID)

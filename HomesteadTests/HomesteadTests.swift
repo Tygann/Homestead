@@ -1300,7 +1300,7 @@ struct HomesteadTests {
     @Test func cameraCapabilitiesDecodesFrontendStreamTypes() throws {
         let payload = """
         {
-            "frontend_stream_types": ["webrtc", "hls"]
+            "frontend_stream_types": ["web_rtc", "hls"]
         }
         """
 

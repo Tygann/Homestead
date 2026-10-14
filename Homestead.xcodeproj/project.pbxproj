@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A100000B2FBDFE43009A0E06 /* HomesteadWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000012FBDFE43009A0E06 /* HomesteadWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A50000012FC8000000000001 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = A50000022FC8000000000001 /* WebRTC */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -111,6 +112,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A50000012FC8000000000001 /* WebRTC in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -185,6 +187,7 @@
 			);
 			name = Homestead;
 			packageProductDependencies = (
+				A50000022FC8000000000001 /* WebRTC */,
 			);
 			productName = Homestead;
 			productReference = 2FE2DD592FBDFE42009A0E06 /* Homestead.app */;
@@ -294,6 +297,9 @@
 			);
 			mainGroup = 2FE2DD502FBDFE42009A0E06;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A50000032FC8000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2FE2DD5A2FBDFE42009A0E06 /* Products */;
 			projectDirPath = "";
@@ -784,6 +790,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A50000032FC8000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stasel/WebRTC.git";
+			requirement = {
+				kind = exactVersion;
+				version = 155.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A50000022FC8000000000001 /* WebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A50000032FC8000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */;
+			productName = WebRTC;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2FE2DD512FBDFE42009A0E06 /* Project object */;
 }
