@@ -101,6 +101,45 @@ struct CameraWebRTCTests {
         #expect(playback.videoView == nil)
     }
 
+    @MainActor @Test func connectionLossDuringOfferClosesItsLateAcknowledgement() async {
+        let signaling = DelayedOfferSignaling()
+        let playback = CameraWebRTCPlayback()
+        let start = Task { await playback.start(service: signaling, entityID: "camera.test") }
+        let deadline = Date().addingTimeInterval(5)
+        while signaling.handlers.isEmpty, Date() < deadline { await Task.yield() }
+        guard let handler = signaling.handlers.first else { Issue.record("Offer was not submitted"); start.cancel(); return }
+        await handler(.connectionClosed)
+        let started = await start.value
+        #expect(!started)
+        #expect(playback.videoView == nil)
+        signaling.finish()
+        while signaling.closed.isEmpty, Date() < deadline { await Task.yield() }
+        #expect(signaling.closed == [41])
+    }
+
+    @MainActor @Test func oldCameraSignalCannotStopAReplacementCamera() async {
+        let signaling = DelayedOfferSignaling()
+        let playback = CameraWebRTCPlayback()
+        let first = Task { await playback.start(service: signaling, entityID: "camera.first") }
+        let deadline = Date().addingTimeInterval(5)
+        while signaling.handlers.isEmpty, Date() < deadline { await Task.yield() }
+        guard let oldHandler = signaling.handlers.first else { Issue.record("Offer was not submitted"); first.cancel(); return }
+        playback.stop()
+        #expect(await first.value == false)
+        let replacement = Task { await playback.start(service: signaling, entityID: "camera.second") }
+        signaling.finish()
+        while signaling.handlers.count < 2, Date() < deadline { await Task.yield() }
+        guard signaling.handlers.count == 2 else { Issue.record("Replacement offer was not submitted"); replacement.cancel(); return }
+        await oldHandler(.connectionClosed)
+        #expect(playback.videoView != nil)
+        #expect(signaling.closed == [41])
+        await signaling.handlers[1](.connectionClosed)
+        #expect(await replacement.value == false)
+        signaling.finish(subscriptionID: 42)
+        while signaling.closed.count < 2, Date() < deadline { await Task.yield() }
+        #expect(signaling.closed == [41, 42])
+    }
+
     @MainActor @Test func replacementWaitsForPendingOfferCleanupAcrossRepeatedStops() async {
         let signaling = DelayedOfferSignaling()
         let playback = CameraWebRTCPlayback()
@@ -174,15 +213,17 @@ struct CameraWebRTCTests {
     var requested = false
     var closed: [Int] = []
     var configurationRequests = 0
+    var handlers: [@Sendable (CameraWebRTCSignal) async -> Void] = []
     private var continuation: CheckedContinuation<Int, Never>?
     func cameraWebRTCConfiguration(entityID: String) async throws -> JSONValue {
         configurationRequests += 1
         return .object(["configuration": .object(["iceServers": .array([])])])
     }
     func subscribeCameraWebRTC(entityID: String, offer: String, handler: @escaping @Sendable (CameraWebRTCSignal) async -> Void) async throws -> Int {
-        await withCheckedContinuation { continuation = $0; requested = true }
+        handlers.append(handler)
+        return await withCheckedContinuation { continuation = $0; requested = true }
     }
-    func finish() { continuation?.resume(returning: 41); continuation = nil }
+    func finish(subscriptionID: Int = 41) { continuation?.resume(returning: subscriptionID); continuation = nil }
     func sendCameraWebRTCCandidate(entityID: String, sessionID: String, candidate: JSONValue) async throws {}
     func closeCameraWebRTC(subscriptionID: Int) async { closed.append(subscriptionID) }
 }

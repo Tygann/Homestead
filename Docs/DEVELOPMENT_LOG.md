@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-14
 
+### Camera Reliability Without Hardware
+
+- Scoped shared audio ownership to each playback generation so obsolete camera views cannot mute or release the current owner. Audio preserves active interruption state across route/camera changes, respects iOS `shouldResume`, and mutes on headphone removal rather than continuing on the speaker. System mute updates reject obsolete view generations.
+- Added seven audio-policy and two signaling lifecycle tests; all 26 focused camera tests passed on Duo/iOS 27.1. Generic Debug simulator and Release device compilation passed. Required storage hygiene reclaimed 7.8 GB of XCTestDevices data; final size was zero.
+- Rendered live-preview checks covered G6 HLS refresh, retained stills, dismiss/reopen, fullscreen refresh, background/foreground in the same process, switching to Front Porch during preparation and returning to G6. Warm G6 HLS restarts reached playing in 1.27–3.62 seconds. HEVC hardware decoding remains covered by the earlier physical G6 check, not this simulator.
+- Post-dismissal memgraph inspection found no playback controller, peer, Metal renderer, HEVC decoder, or audio engine. One shared audio device/factory was traced to intentional static roots. Six extra untyped 32-byte allocations (192 bytes) cannot be attributed without allocation stacks; this is not a claim of whole-app leak freedom.
+- Debug console stages now write immediately to pipe captures, avoiding stdout buffering during short device checks. The remaining hardware steps are bundled in PERFORMANCE_PROFILING.md; cellular, actual Bluetooth routing/interruption delivery, and physical Instruments profiling remain unverified by this pass.
+
 ### Capability-Driven Native Camera Playback
 
 - Corrected the HA capability value to `web_rtc` and added native receive-only WebRTC through official client-configuration, offer-subscription, and ICE-candidate WebSocket commands. HLS fallback now obtains its URL through core `camera/stream`, without Mobile App registration.

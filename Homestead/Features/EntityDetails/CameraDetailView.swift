@@ -419,9 +419,9 @@ struct CameraDetailView: View {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--camera-startup-console"),
            let error = failedPlayer.currentItem?.error as NSError? {
-            print("[CameraStartup] HLS error domain: \(error.domain), code: \(error.code)")
+            CameraStartupConsole.write("HLS error domain: \(error.domain), code: \(error.code)")
             if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
-                print("[CameraStartup] HLS underlying domain: \(underlying.domain), code: \(underlying.code)")
+                CameraStartupConsole.write("HLS underlying domain: \(underlying.domain), code: \(underlying.code)")
             }
         }
         #endif
@@ -432,7 +432,7 @@ struct CameraDetailView: View {
         guard let loadStartedAt else { return }
         let milliseconds = Date().timeIntervalSince(loadStartedAt) * 1000
         if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") {
-            print("[CameraStartup] \(stage): \(Int(milliseconds.rounded())) ms")
+            CameraStartupConsole.write("\(stage): \(Int(milliseconds.rounded())) ms")
         }
         Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup")
             .info("\(stage, privacy: .public): \(milliseconds, format: .fixed(precision: 0)) ms")

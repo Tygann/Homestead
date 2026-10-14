@@ -3,6 +3,13 @@ import SwiftUI
 import Observation
 #if DEBUG
 import os
+
+/// Pipe captures must receive each stage immediately rather than at stdout's buffer threshold.
+nonisolated enum CameraStartupConsole {
+    static func write(_ message: String) {
+        try? FileHandle.standardOutput.write(contentsOf: Data("[CameraStartup] \(message)\n".utf8))
+    }
+}
 #endif
 
 @MainActor
@@ -24,7 +31,7 @@ final class CameraWebRTCPlayback: NSObject {
     var isMuted = true {
         didSet {
             audioTrack?.isEnabled = !isMuted
-            if peer != nil { Self.audioDevice.setListening(!isMuted) }
+            if peer != nil, let generation { Self.audioDevice.setListening(!isMuted, owner: generation) }
         }
     }
     @ObservationIgnored private var audioTrack: RTCAudioTrack?
@@ -102,6 +109,7 @@ final class CameraWebRTCPlayback: NSObject {
     }
 
     func stop() {
+        let audioOwner = generation
         let pendingOffer = offerTask
         let activeSubscription = subscriptionID
         let previousCleanup = cleanupTask
@@ -139,7 +147,7 @@ final class CameraWebRTCPlayback: NSObject {
         dataChannel = nil
         peer?.close()
         peer = nil
-        Self.audioDevice.setListening(false)
+        if let audioOwner { Self.audioDevice.release(owner: audioOwner) }
         remoteCandidates.removeAll()
         hasRemoteDescription = false
         videoView?.delegate = nil
@@ -184,7 +192,14 @@ final class CameraWebRTCPlayback: NSObject {
         }
         self.peer = peer
         RTCSetMinDebugLogLevel(.none)
-        Self.audioDevice.setListening(!isMuted)
+        if let id = generation {
+            Self.audioDevice.acquire(owner: id, listening: !isMuted) { [weak self] in
+                Task { @MainActor [weak self] in
+                    guard self?.generation == id else { return }
+                    self?.isMuted = true
+                }
+            }
+        }
         let renderer = RTCMTLVideoView(frame: .zero)
         renderer.videoContentMode = .scaleAspectFit
         renderer.delegate = self
@@ -328,13 +343,13 @@ final class CameraWebRTCPlayback: NSObject {
                     Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup")
                         .info("WebRTC timeout video codec: \(codec, privacy: .public)")
                     if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") {
-                        print("[CameraStartup] WebRTC timeout codec: \(codec)")
+                        CameraStartupConsole.write("WebRTC timeout codec: \(codec)")
                     }
                 }
                 Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup")
                     .info("WebRTC timeout video packets: \(packets.intValue, privacy: .public), decoded frames: \(frames.intValue, privacy: .public)")
                 if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") {
-                    print("[CameraStartup] WebRTC timeout packets: \(packets.intValue), decoded frames: \(frames.intValue)")
+                    CameraStartupConsole.write("WebRTC timeout packets: \(packets.intValue), decoded frames: \(frames.intValue)")
                 }
             }
         }
@@ -345,7 +360,7 @@ final class CameraWebRTCPlayback: NSObject {
         #if DEBUG
         Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup").info("\(stage, privacy: .public)")
         if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") {
-            print("[CameraStartup] \(stage)")
+            CameraStartupConsole.write("\(stage)")
         }
         #endif
     }

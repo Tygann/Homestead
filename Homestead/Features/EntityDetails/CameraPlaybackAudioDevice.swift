@@ -12,11 +12,12 @@ nonisolated final class CameraPlaybackAudioDevice: NSObject, RTCAudioDevice, @un
         set { delegateLock.withLock { storedDelegate = newValue } }
     }
     private var engine: AVAudioEngine?
-    private var listening = false
+    private var playback = CameraAudioPlaybackState()
+    private var systemMuted: (@Sendable () -> Void)?
     private var observers: [NSObjectProtocol] = []
     private(set) var isInitialized = false
     private(set) var isPlayoutInitialized = false
-    private(set) var isPlaying = false
+    var isPlaying: Bool { playback.isPlaying }
     var isRecordingInitialized: Bool { false }
     var isRecording: Bool { false }
     var deviceInputSampleRate: Double { 48_000 }
@@ -39,10 +40,23 @@ nonisolated final class CameraPlaybackAudioDevice: NSObject, RTCAudioDevice, @un
                 let isInterruption = notification.name == AVAudioSession.interruptionNotification
                 let began = (notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt)
                     == AVAudioSession.InterruptionType.began.rawValue
+                let options = AVAudioSession.InterruptionOptions(rawValue:
+                    notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
+                let reason = AVAudioSession.RouteChangeReason(rawValue:
+                    notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0)
                 delegate.dispatchAsync { [weak self] in
                     guard let self else { return }
+                    let wasListening = self.playback.isListening
+                    if isInterruption {
+                        self.playback.interruption(began: began, shouldResume: options.contains(.shouldResume))
+                    } else {
+                        // Our own session-category configuration must not trigger a restart loop.
+                        guard let reason, reason != .categoryChange, reason != .unknown else { return }
+                        self.playback.routeChanged(deviceRemoved: reason == .oldDeviceUnavailable)
+                    }
                     self.stopEngine()
-                    if !(isInterruption && began), self.isPlaying, self.listening { _ = self.startEngine() }
+                    if wasListening, !self.playback.isListening { self.systemMuted?() }
+                    if self.playback.shouldPlay { _ = self.startEngine() }
                 }
             }
         }
@@ -56,19 +70,37 @@ nonisolated final class CameraPlaybackAudioDevice: NSObject, RTCAudioDevice, @un
         delegate = nil
         isInitialized = false
         isPlayoutInitialized = false
-        isPlaying = false
-        listening = false
+        playback = CameraAudioPlaybackState()
+        systemMuted = nil
         return true
     }
 
     // MARK: - Playback
-    func setListening(_ enabled: Bool) {
+    func acquire(owner: UUID, listening: Bool, systemMuted: @escaping @Sendable () -> Void) {
         guard let delegate else { return }
         delegate.dispatchAsync { [weak self] in
             guard let self else { return }
-            self.listening = enabled
-            if enabled, self.isPlaying { _ = self.startEngine() }
-            else { self.stopEngine() }
+            self.playback.acquire(owner: owner, listening: listening)
+            self.systemMuted = systemMuted
+            self.updateOutput()
+        }
+    }
+
+    func setListening(_ enabled: Bool, owner: UUID) {
+        guard let delegate else { return }
+        delegate.dispatchAsync { [weak self] in
+            guard let self else { return }
+            guard self.playback.setListening(enabled, owner: owner) else { return }
+            self.updateOutput()
+        }
+    }
+
+    func release(owner: UUID) {
+        guard let delegate else { return }
+        delegate.dispatchAsync { [weak self] in
+            guard let self, self.playback.release(owner: owner) else { return }
+            self.systemMuted = nil
+            self.updateOutput()
         }
     }
 
@@ -78,12 +110,12 @@ nonisolated final class CameraPlaybackAudioDevice: NSObject, RTCAudioDevice, @un
     }
 
     func startPlayout() -> Bool {
-        isPlaying = true
-        return !listening || startEngine()
+        playback.isPlaying = true
+        return !playback.shouldPlay || startEngine()
     }
 
     func stopPlayout() -> Bool {
-        isPlaying = false
+        playback.isPlaying = false
         stopEngine()
         return true
     }
@@ -93,6 +125,11 @@ nonisolated final class CameraPlaybackAudioDevice: NSObject, RTCAudioDevice, @un
     func stopRecording() -> Bool { true }
 
     // MARK: - Private Helpers
+    private func updateOutput() {
+        if playback.shouldPlay { _ = startEngine() }
+        else { stopEngine() }
+    }
+
     private func startEngine() -> Bool {
         guard engine == nil, let delegate else { return engine != nil }
         var startingEngine: AVAudioEngine?
@@ -145,6 +182,42 @@ nonisolated final class CameraPlaybackAudioDevice: NSObject, RTCAudioDevice, @un
         self.engine = nil
         delegate?.notifyAudioOutputInterrupted()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+}
+
+/// Mutations run on the SDK audio thread; stale owners cannot change current playback.
+nonisolated struct CameraAudioPlaybackState {
+    private(set) var owner: UUID?
+    private(set) var isListening = false
+    var isPlaying = false
+    private(set) var isInterrupted = false
+    var shouldPlay: Bool { owner != nil && isListening && isPlaying && !isInterrupted }
+
+    mutating func acquire(owner: UUID, listening: Bool) {
+        self.owner = owner
+        isListening = listening
+    }
+
+    @discardableResult mutating func setListening(_ enabled: Bool, owner: UUID) -> Bool {
+        guard self.owner == owner else { return false }
+        isListening = enabled
+        return true
+    }
+
+    @discardableResult mutating func release(owner: UUID) -> Bool {
+        guard self.owner == owner else { return false }
+        self.owner = nil
+        isListening = false
+        return true
+    }
+
+    mutating func interruption(began: Bool, shouldResume: Bool) {
+        isInterrupted = began
+        if !began, !shouldResume { isListening = false }
+    }
+
+    mutating func routeChanged(deviceRemoved: Bool) {
+        if deviceRemoved { isListening = false }
     }
 }
 
