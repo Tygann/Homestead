@@ -554,16 +554,36 @@ struct CameraDetailView: View {
 
     private func loadLiveStreamIfPossible(capabilities: HACameraCapabilities?) async -> Bool {
         guard !Task.isCancelled, cameraIsActive else { return false }
+        let hlsPreparation: CameraHLSPreparation?
+        if capabilities?.supportsWebRTCStream == true, shouldAttemptWebRTC,
+           capabilities?.supportsHLSStream == true {
+            hlsPreparation = CameraHLSPreparation {
+                try Task.checkCancellation()
+                recordStartupStage("HLS preparation started")
+                let url = try await homeAssistantService.cameraHLSStreamURL(entityID: entity.entityID)
+                try Task.checkCancellation()
+                recordStartupStage("HLS preparation ready")
+                return url
+            }
+        } else {
+            hlsPreparation = nil
+        }
+        defer { hlsPreparation?.cancel() }
         if capabilities?.supportsWebRTCStream == true, shouldAttemptWebRTC {
             recordStartupStage("WebRTC attempt")
             usesWebRTC = true
             livePhase = .live
             let generation = refreshGeneration
-            if await webRTC.start(service: homeAssistantService, entityID: entity.entityID, onFailure: {
-                guard cameraIsActive, usesWebRTC, refreshGeneration == generation else { return }
-                recordStartupStage("WebRTC fallback")
-                fallbackGeneration += 1
-            }) {
+            let started = await withTaskCancellationHandler {
+                await webRTC.start(service: homeAssistantService, entityID: entity.entityID, onFailure: {
+                    guard cameraIsActive, usesWebRTC, refreshGeneration == generation else { return }
+                    recordStartupStage("WebRTC fallback")
+                    fallbackGeneration += 1
+                })
+            } onCancel: {
+                Task { @MainActor in hlsPreparation?.cancel() }
+            }
+            if started {
                 recordStartupStage("WebRTC first frame")
                 return true
             }
@@ -578,7 +598,12 @@ struct CameraDetailView: View {
 
         livePhase = .loading
         do {
-            let url = try await homeAssistantService.cameraHLSStreamURL(entityID: entity.entityID)
+            let url: URL
+            if let hlsPreparation {
+                url = try await hlsPreparation.value()
+            } else {
+                url = try await homeAssistantService.cameraHLSStreamURL(entityID: entity.entityID)
+            }
             try Task.checkCancellation()
             guard cameraIsActive else { return false }
             recordStartupStage("Stream handoff received")

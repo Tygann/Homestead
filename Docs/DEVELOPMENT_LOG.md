@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-14
 
+### Overlapping Camera Fallback Preparation
+
+- Cold cellular logging showed a serial 12.3-second native timeout followed by about 12.8 seconds of HLS startup. Cameras advertising both transports now request the HLS URL after a three-second native grace period. HA's [official helper](https://github.com/home-assistant/core/blob/dev/homeassistant/components/camera/helper.py) starts the producer before returning that URL, allowing server preparation to overlap the native attempt without a second AVPlayer or audio session.
+- Fast native success cancels the delayed request; early native failure starts it immediately. Fallback reuses the same request, and cancellation rejects late URLs. The native timeout, capability gating, retained still, and existing player/audio ownership remain intact.
+- The focused camera regression suite passed, followed by all four preparation tests covering fast success, delayed warmup, immediate fallback reuse, and canceled noncooperative requests. XCTestDevices hygiene cleared 9.0 GB after each successful test run. Generic Debug simulator and signed Debug device builds passed with Xcode 27.1. Isolated live G6 playback in the Duo simulator reached HLS playing at 14,375 ms; Refresh reached playing at 1,547 ms. The simulator rejected native receiving video early, so these verify fallback behavior rather than the delayed-overlap performance gain. Actual cold-cellular timing remains pending a physical comparison.
+
 ### Camera Recovery After Network Reconnection
 
 - The physical cellular check reached live after approximately 25 seconds; after ten seconds away, the user returned to Snapshot and needed manual reload (approximately 11 seconds). No microphone prompt or orange indicator appeared. Wireless CoreDevice console capture disconnected when Wi-Fi changed; Instruments could not attach to the reported PID. These attempts do not establish a transport-specific cause for the cellular delay.
