@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-15
 
+### Physical Wi-Fi Camera Acceptance And Profiling Limit
+
+- On `e106f75`, the user confirmed G6 moving video, Refresh, listening/mute, fullscreen/Done, and automatic foreground recovery all passed, without microphone prompts/indicators or overlapping audio. All three log attempts are labeled Wi-Fi, with native first frames at 970/2,074/1,664 ms for initial/Refresh/foreground loading. Foreground additionally waited about 348 ms for HA. This closes the latest camera acceptance follow-up; cellular ICE remains deferred.
+- Signed Debug and Release device builds passed, including the processed camera usage declaration. Release is installed for normal use. The user completed the untimed dashboard walkthrough without describing failures; exact card-family coverage was not supplied, so all-family acceptance is not inferred.
+- Animation Hitches capture disconnected over Wi-Fi and confirmed USB with Xcode 27.0. The pinned Xcode 27.1 USB attempt stayed connected longer but also disconnected without a confirmed dashboard exercise; its unfinished trace failed export with Document Missing Template Error. Recording processes were stopped/terminated; partial local artifacts are not performance evidence. Defer further timed phone cycles until the tooling has a concrete fix. Documentation-only evidence updates passed diff review and `git diff --check`; no app or server settings changed.
+
 ### Daily Card Capability And History Reliability
 
 - Media cards and details now map official per-player feature bits: playback checks Pause while playing and Play otherwise; volume/source controls require both supported features and usable attributes. The large card's source menu now blocks unavailable/pending interaction. The official Core 2026.10.1 feature and toggle contracts were checked; no Home Assistant settings or household actions were changed.
