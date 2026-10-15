@@ -93,9 +93,9 @@ struct CameraWebRTCCandidateQueueTests {
     }
 
     @Test func candidateSummaryDoesNotExposeSDPFields() {
-        #expect(CameraICECandidateSummary.describe("candidate:secret 1 udp 123 192.0.2.1 54321 typ srflx raddr 10.0.0.1 rport 99 ufrag secret") == "srflx/udp/ipv4-or-name")
-        #expect(CameraICECandidateSummary.describe("candidate:secret 1 TCP 123 2001:db8::1 54321 typ relay") == "relay/tcp/ipv6")
-        #expect(CameraICECandidateSummary.describe("candidate:secret 1 password 123 secret 54321 typ credential") == "unknown/unknown/ipv4-or-name")
+        #expect(CameraICECandidateSummary.describe("candidate:secret 1 udp 123 192.0.2.1 54321 typ srflx raddr 10.0.0.1 rport 99 ufrag secret") == "srflx/udp/ipv4/documentation")
+        #expect(CameraICECandidateSummary.describe("candidate:secret 1 TCP 123 2001:db8::1 54321 typ relay") == "relay/tcp/ipv6/documentation/unknown")
+        #expect(CameraICECandidateSummary.describe("candidate:secret 1 password 123 secret 54321 typ credential") == "unknown/unknown/name/unknown")
         #expect(CameraICECandidateSummary.describe("") == "unknown/unknown/unknown")
     }
 }

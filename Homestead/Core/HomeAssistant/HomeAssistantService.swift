@@ -146,6 +146,10 @@ final class HomeAssistantService {
         await connect(settings: settings)
     }
 
+    #if DEBUG
+    var cameraDiagnosticNetworkPath: NWPath? { reachabilityMonitor?.currentPath }
+    #endif
+
     func startNetworkMonitoring(settings: HAConnectionSettings) {
         guard reachabilityMonitor == nil,
               !RuntimeEnvironment.isRunningForPreviews else {
