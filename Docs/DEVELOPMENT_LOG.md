@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-15
 
+### Physical First-Video Result
+
+- Retrieved the `49b4fee` G6 cellular check after user timings of about 5/5/9 seconds. HLS won before native timeout on initial/Refresh/foreground: decoded selection at 5,276/6,258/8,473 ms; playback status at 5,786/6,451/8,892 ms versus prior 16,302/13,870/13,693 ms. Producer warmth was uncontrolled, so these are observed comparisons rather than a general cold-start guarantee.
+- Foreground waited about 680 ms for HA before the load clock, then its HLS URL request took 1,558 ms and decoding another 3,771 ms. Native remained unconnected; the six-second foreground checkpoint showed 14 pairs, 118 requests, zero responses or successful pairs. Initial/Refresh selected before that diagnostic checkpoint. This verifies the fallback scheduling benefit, not an ICE reachability fix.
+- User restored Wi-Fi; native Wi-Fi, audio, and fullscreen confirmation remains unreported. No app/server changes or additional cellular test requested. Evidence-only docs pass diff review and `git diff --check`.
+
+
 ### Bounded First-Video Selection
 
 - Dual-capability cameras retain the three-second native grace and HA producer preparation, then decode HLS silently while WebRTC continues. A decoded pixel buffer selects HLS; native uses its decoded-frame callback. The winner reuses its engine/player, cancels the loser, and alone may output audio. Native mute preference is separate from selection; single-transport behavior and the 12-second native bound remain.
