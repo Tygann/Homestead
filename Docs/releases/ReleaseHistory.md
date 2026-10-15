@@ -53,6 +53,31 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1.0 (Build 132)
+
+- Release Date: 2026-10-15
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build improves live cameras and everyday dashboard reliability.
+
+- Faster native camera playback, earlier fallback when needed, and automatic recovery after returning to the app
+- More reliable camera listening, Refresh, and fullscreen playback
+- Media controls matched to each player's supported features
+- Charts refresh when you return, keeping recorded history visible through temporary failures
+- Dashboard layout and editing fixes for changing screen sizes
+
+Please test:
+
+- Camera video, listening, fullscreen, and background/return on Wi-Fi and remote connections
+- Dashboard scrolling, page swipes, and page-dot navigation
+- Chart refresh after returning to the app and controls on different media players
+
+### Internal Summary
+
+Build 132 consolidates native receive-only WebRTC/HEVC playback, bounded native/HLS first-video selection, connection-aware camera recovery and audio ownership, iPhone Duo adaptive layout/Security scroll continuity, per-player Media feature gating, and Chart foreground revalidation since the last logged tester build 125. Source: e0d02a1. Signed Release archive verification passed (iOS 26.5 minimum, camera SDK usage declaration present, no microphone declaration or bundled preview credentials). Xcode managed the uploaded build number and reported upload success. App Store Connect finished processing 132 and lists it Ready to Submit for external testing. What to Test notes were saved and verified; the existing one-person Internal Testers group is attached automatically. Upload emitted a nonblocking missing WebRTC.framework dSYM warning. Existing builds 130/131 were observed Complete; their unlogged source boundaries are not inferred. The existing App Store submission was observed Waiting for Review and was not changed. External tester distribution has not been initiated for 132.
+
 ## Version 1 (Build 125)
 
 - Release Date: 2026-09-15

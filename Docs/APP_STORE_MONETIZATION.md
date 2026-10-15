@@ -19,6 +19,10 @@ Create one subscription group named `Homestead+`:
 
 ## App Review Notes
 
+### Live listing status observed October 15, 2026
+
+App Store Connect lists Homestead iOS 1.0 as **Waiting for Review**, superseding the unsubmitted-draft status below. The selected App Store build and individual product review states were not re-audited. The build 132 TestFlight upload did not change the existing App Store submission.
+
 ### Submission preparation verified October 9, 2026
 
 - Version 1.0 (build 125), the Homestead+ subscription group, Monthly, Annual, and Lifetime are in the same App Store Connect draft. The draft has five ready items and an enabled Submit for Review action; it has not been submitted.
