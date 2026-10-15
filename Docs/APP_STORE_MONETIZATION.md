@@ -23,6 +23,10 @@ Create one subscription group named `Homestead+`:
 
 App Store Connect lists Homestead iOS 1.0 as **Waiting for Review**, superseding the unsubmitted-draft status below. The selected App Store build and individual product review states were not re-audited. The build 132 TestFlight upload did not change the existing App Store submission.
 
+### Privacy-manifest correction verified locally October 15, 2026
+
+The app and widget now carry required-reason declarations justified by audited source use. A signed Release archive contains both manifests exactly matching source, plus WebRTC's separate supplier manifest; deep strict signature verification passed. Existing Device ID collection and no-tracking declarations are unchanged. See `PRIVACY_MANIFEST_AUDIT.md` for the category/reason audit and verification procedure. This correction is ready for a future build, has not been uploaded, and does not modify build 132 or the existing Waiting for Review submission.
+
 ### Submission preparation verified October 9, 2026
 
 - Version 1.0 (build 125), the Homestead+ subscription group, Monthly, Annual, and Lifetime are in the same App Store Connect draft. The draft has five ready items and an enabled Submit for Review action; it has not been submitted.

@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-15
 
+### Required-Reason Privacy Manifest Readiness
+
+- Audited app, widget, and shared sources against Apple's required-reason API list. Added app-local/App Group UserDefaults reasons, declared the Debug-only ICE elapsed-time use, and added the widget's App Group-only manifest without speculative file-timestamp, disk-space, or active-keyboard declarations. Existing app collection/tracking declarations remain unchanged.
+- Debug simulator build and signed Release archive passed. Both archived first-party manifests match source; the separate WebRTC supplier manifest is present; deep strict signature verification passed. Plist/reason-set checks and independent review passed. No runtime behavior changed, so XCTest/UI checks were unnecessary. See `Docs/PRIVACY_MANIFEST_AUDIT.md` for evidence and repeatable checks. No export, upload, or App Store submission change occurred.
+
 ### WebRTC Archive Symbols Preparation
 
 - Added a repository-owned pre-export helper that reads the pinned WebRTC supplier/version, caches the separate dSYM asset outside Git, and installs device symbols only after exact UUID/architecture verification. Downloads and archive insertion are atomic; existing matching symbols are a no-op and mismatches fail without replacement.
