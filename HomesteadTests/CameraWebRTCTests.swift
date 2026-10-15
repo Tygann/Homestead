@@ -85,6 +85,24 @@ struct CameraWebRTCTests {
         #expect(message.event == nil)
     }
 
+    @MainActor @Test func pooledICEOfferStillUsesOnlyReceiveOnlyMedia() async {
+        let signaling = DelayedOfferSignaling()
+        let playback = CameraWebRTCPlayback()
+        let start = Task { await playback.start(service: signaling, entityID: "camera.test") }
+        let deadline = Date().addingTimeInterval(5)
+        while signaling.offers.isEmpty, Date() < deadline { await Task.yield() }
+        let lines = signaling.offers.first?.split(whereSeparator: \.isNewline) ?? []
+        #expect(lines.filter { $0 == "a=recvonly" }.count == 2)
+        #expect(!lines.contains("a=sendrecv") && !lines.contains("a=sendonly"))
+        #expect(lines.contains { $0.hasPrefix("a=ice-ufrag:") })
+        #expect(lines.contains { $0.hasPrefix("a=fingerprint:") })
+        playback.stop()
+        #expect(await start.value == false)
+        signaling.finish()
+        while signaling.closed.isEmpty, Date() < deadline { await Task.yield() }
+        #expect(signaling.closed == [41])
+    }
+
     @MainActor @Test func canceledOfferUnsubscribesLateAcknowledgement() async {
         let signaling = DelayedOfferSignaling()
         let playback = CameraWebRTCPlayback()
@@ -213,6 +231,7 @@ struct CameraWebRTCTests {
     var requested = false
     var closed: [Int] = []
     var configurationRequests = 0
+    var offers: [String] = []
     var handlers: [@Sendable (CameraWebRTCSignal) async -> Void] = []
     private var continuation: CheckedContinuation<Int, Never>?
     func cameraWebRTCConfiguration(entityID: String) async throws -> JSONValue {
@@ -221,6 +240,7 @@ struct CameraWebRTCTests {
     }
     func subscribeCameraWebRTC(entityID: String, offer: String, handler: @escaping @Sendable (CameraWebRTCSignal) async -> Void) async throws -> Int {
         handlers.append(handler)
+        offers.append(offer)
         return await withCheckedContinuation { continuation = $0; requested = true }
     }
     func finish(subscriptionID: Int = 41) { continuation?.resume(returning: subscriptionID); continuation = nil }

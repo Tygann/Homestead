@@ -200,6 +200,7 @@ final class CameraWebRTCPlayback: NSObject {
     // MARK: - Signaling
     private static let audioDevice = CameraPlaybackAudioDevice()
     private static let factory: RTCPeerConnectionFactory = {
+        CameraWebRTCConfiguration.registerBeforeCreatingFactory()
         RTCInitializeSSL()
         RTCSetMinDebugLogLevel(.none)
         let factory = RTCPeerConnectionFactory(encoderFactory: RTCDefaultVideoEncoderFactory(),
@@ -213,18 +214,7 @@ final class CameraWebRTCPlayback: NSObject {
             fail()
             return
         }
-        let rtcConfiguration = RTCConfiguration()
-        rtcConfiguration.sdpSemantics = .unifiedPlan
-        rtcConfiguration.bundlePolicy = .maxBundle
-        rtcConfiguration.iceTransportPolicy = config["iceTransportPolicy"]?.stringValue == "relay" ? .relay : .all
-        rtcConfiguration.iceServers = (config["iceServers"]?.arrayValue ?? []).compactMap { server in
-            guard let object = server.objectValue else { return nil }
-            let urls = object["urls"]?.arrayValue?.compactMap(\.stringValue)
-                ?? object["urls"]?.stringValue.map { [$0] } ?? []
-            guard !urls.isEmpty else { return nil }
-            return RTCIceServer(urlStrings: urls, username: object["username"]?.stringValue,
-                credential: object["credential"]?.stringValue)
-        }
+        let rtcConfiguration = CameraWebRTCConfiguration.make(config)
         let constraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
         guard let peer = Self.factory.peerConnection(with: rtcConfiguration, constraints: constraints, delegate: self) else {
             fail()
@@ -255,6 +245,7 @@ final class CameraWebRTCPlayback: NSObject {
         }
         let schemes = rtcConfiguration.iceServers.flatMap(\.urlStrings).map { $0.split(separator: ":").first.map(String.init)?.lowercased() ?? "" }
         record("WebRTC ICE services: STUN \(schemes.filter { ["stun", "stuns"].contains($0) }.count), TURN \(schemes.filter { ["turn", "turns"].contains($0) }.count)")
+        record("WebRTC route-aware ICE: path monitor, continual gathering, pool 1, host TCP disabled, link-local excluded")
         record("WebRTC ICE policy: \(rtcConfiguration.iceTransportPolicy == .relay ? "relay" : "all"), servers: \(rtcConfiguration.iceServers.count)")
         RTCSetMinDebugLogLevel(.none)
         if let id = generation {
@@ -282,7 +273,8 @@ final class CameraWebRTCPlayback: NSObject {
         guard self.peer === peer, !Task.isCancelled else { return }
         try await peer.setLocalDescription(offer)
         guard self.peer === peer, !Task.isCancelled else { return }
-        submitOffer(offer.sdp)
+        // The installed description includes candidates already gathered by the pool.
+        submitOffer(peer.localDescription?.sdp ?? offer.sdp)
     }
 
     private func submitOffer(_ offer: String) {
