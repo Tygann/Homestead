@@ -5509,7 +5509,6 @@ struct HomesteadTests {
     @MainActor
     @Test func nativePermissionServiceRefreshesPlatformStatus() async {
         let expectedStatus = NativePermissionStatusSnapshot(
-            camera: .denied,
             location: .allowed,
             localNetwork: .managedBySystem
         )
@@ -5524,28 +5523,23 @@ struct HomesteadTests {
     }
 
     @MainActor
-    @Test func nativePermissionServiceRequestsCameraAndLocationThenRefreshesStatus() async {
+    @Test func nativePermissionServiceRequestsLocationThenRefreshesStatus() async {
         let client = StubNativePermissionClient(
             currentStatus: NativePermissionStatusSnapshot(
-                camera: .notDetermined,
                 location: .notDetermined,
                 localNetwork: .managedBySystem
             ),
-            requestedCameraStatus: .allowed,
             requestedLocationStatus: .denied
         )
         let service = NativePermissionService(client: client)
 
-        await service.requestCameraAccess()
         await service.requestLocationAccess()
 
-        #expect(service.status.camera == .allowed)
         #expect(service.status.location == .denied)
         #expect(service.status.localNetwork == .managedBySystem)
         #expect(service.lastErrorMessage == nil)
-        #expect(client.didRequestCameraAccess)
         #expect(client.didRequestLocationAccess)
-        #expect(client.currentStatusCallCount == 2)
+        #expect(client.currentStatusCallCount == 1)
     }
 
     @MainActor
@@ -11833,22 +11827,17 @@ final class StubHomesteadPushTokenRegistrationClient: HomesteadPushTokenRegistra
 @MainActor
 final class StubNativePermissionClient: NativePermissionClient {
     var currentStatus: NativePermissionStatusSnapshot
-    var requestedCameraStatus: NativeCapabilityAuthorizationStatus
     var requestedLocationStatus: NativeCapabilityAuthorizationStatus
     var currentStatusError: Error?
-    var requestCameraError: Error?
     var requestLocationError: Error?
     private(set) var currentStatusCallCount = 0
-    private(set) var didRequestCameraAccess = false
     private(set) var didRequestLocationAccess = false
 
     init(
         currentStatus: NativePermissionStatusSnapshot,
-        requestedCameraStatus: NativeCapabilityAuthorizationStatus = .allowed,
         requestedLocationStatus: NativeCapabilityAuthorizationStatus = .allowed
     ) {
         self.currentStatus = currentStatus
-        self.requestedCameraStatus = requestedCameraStatus
         self.requestedLocationStatus = requestedLocationStatus
     }
 
@@ -11862,21 +11851,6 @@ final class StubNativePermissionClient: NativePermissionClient {
         return currentStatus
     }
 
-    func requestCameraAccess() async throws -> NativeCapabilityAuthorizationStatus {
-        didRequestCameraAccess = true
-
-        if let requestCameraError {
-            throw requestCameraError
-        }
-
-        currentStatus = NativePermissionStatusSnapshot(
-            camera: requestedCameraStatus,
-            location: currentStatus.location,
-            localNetwork: currentStatus.localNetwork
-        )
-        return requestedCameraStatus
-    }
-
     func requestLocationAccess() async throws -> NativeCapabilityAuthorizationStatus {
         didRequestLocationAccess = true
 
@@ -11885,7 +11859,6 @@ final class StubNativePermissionClient: NativePermissionClient {
         }
 
         currentStatus = NativePermissionStatusSnapshot(
-            camera: currentStatus.camera,
             location: requestedLocationStatus,
             localNetwork: currentStatus.localNetwork
         )

@@ -274,13 +274,11 @@ struct PreviewDependencies {
             .previewAllowed
         case .permissionsNotRequested:
             NativePermissionStatusSnapshot(
-                camera: .notDetermined,
                 location: .notDetermined,
                 localNetwork: .managedBySystem
             )
         case .permissionsDenied:
             NativePermissionStatusSnapshot(
-                camera: .denied,
                 location: .denied,
                 localNetwork: .managedBySystem
             )
@@ -688,10 +686,6 @@ private struct PreviewNativePermissionClient: NativePermissionClient {
         status
     }
 
-    func requestCameraAccess() async throws -> NativeCapabilityAuthorizationStatus {
-        .allowed
-    }
-
     func requestLocationAccess() async throws -> NativeCapabilityAuthorizationStatus {
         .allowed
     }
@@ -715,13 +709,11 @@ private extension NativeNotificationStatusSnapshot {
 
 private extension NativePermissionStatusSnapshot {
     static let previewAllowed = NativePermissionStatusSnapshot(
-        camera: .allowed,
         location: .allowed,
         localNetwork: .managedBySystem
     )
 
     static let previewMixed = NativePermissionStatusSnapshot(
-        camera: .notDetermined,
         location: .denied,
         localNetwork: .managedBySystem
     )

@@ -35,6 +35,9 @@
 	<array>
 		<string>_home-assistant._tcp</string>
 	</array>
+	<!-- WebRTC bundles camera APIs even though Homestead only receives remote media. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Homestead uses a video library to play your Home Assistant camera feeds. Homestead does not use this device’s camera.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Homestead connects to Home Assistant servers on your local network.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

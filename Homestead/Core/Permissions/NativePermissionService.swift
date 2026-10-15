@@ -1,10 +1,6 @@
 import Foundation
 import Observation
 
-#if canImport(AVFoundation)
-import AVFoundation
-#endif
-
 #if canImport(CoreLocation)
 import CoreLocation
 #endif
@@ -12,30 +8,15 @@ import CoreLocation
 @MainActor
 protocol NativePermissionClient {
     func currentStatus() async throws -> NativePermissionStatusSnapshot
-    func requestCameraAccess() async throws -> NativeCapabilityAuthorizationStatus
     func requestLocationAccess() async throws -> NativeCapabilityAuthorizationStatus
 }
 
 struct SystemNativePermissionClient: NativePermissionClient {
     func currentStatus() async throws -> NativePermissionStatusSnapshot {
         NativePermissionStatusSnapshot(
-            camera: Self.cameraStatus(),
             location: Self.locationStatus(),
             localNetwork: .managedBySystem
         )
-    }
-
-    func requestCameraAccess() async throws -> NativeCapabilityAuthorizationStatus {
-        #if canImport(AVFoundation)
-        guard AVCaptureDevice.authorizationStatus(for: .video) == .notDetermined else {
-            return Self.cameraStatus()
-        }
-
-        _ = await AVCaptureDevice.requestAccess(for: .video)
-        return Self.cameraStatus()
-        #else
-        return .unavailable
-        #endif
     }
 
     func requestLocationAccess() async throws -> NativeCapabilityAuthorizationStatus {
@@ -49,25 +30,6 @@ struct SystemNativePermissionClient: NativePermissionClient {
         }
 
         return await LocationPermissionRequester().requestWhenInUseAuthorization()
-        #else
-        return .unavailable
-        #endif
-    }
-
-    private static func cameraStatus() -> NativeCapabilityAuthorizationStatus {
-        #if canImport(AVFoundation)
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            return .allowed
-        case .notDetermined:
-            return .notDetermined
-        case .denied:
-            return .denied
-        case .restricted:
-            return .restricted
-        @unknown default:
-            return .unknown
-        }
         #else
         return .unavailable
         #endif
@@ -103,7 +65,6 @@ struct SystemNativePermissionClient: NativePermissionClient {
 final class NativePermissionService {
     private(set) var status: NativePermissionStatusSnapshot = .unknown
     private(set) var isRefreshing = false
-    private(set) var isRequestingCameraAccess = false
     private(set) var isRequestingLocationAccess = false
     private(set) var lastErrorMessage: String?
 
@@ -129,24 +90,6 @@ final class NativePermissionService {
         }
     }
 
-    func requestCameraAccess() async {
-        isRequestingCameraAccess = true
-        defer { isRequestingCameraAccess = false }
-
-        do {
-            let camera = try await client.requestCameraAccess()
-            let current = try await client.currentStatus()
-            status = NativePermissionStatusSnapshot(
-                camera: camera,
-                location: current.location,
-                localNetwork: current.localNetwork
-            )
-            lastErrorMessage = nil
-        } catch {
-            lastErrorMessage = error.localizedDescription
-        }
-    }
-
     func requestLocationAccess() async {
         isRequestingLocationAccess = true
         defer { isRequestingLocationAccess = false }
@@ -155,7 +98,6 @@ final class NativePermissionService {
             let location = try await client.requestLocationAccess()
             let current = try await client.currentStatus()
             status = NativePermissionStatusSnapshot(
-                camera: current.camera,
                 location: location,
                 localNetwork: current.localNetwork
             )

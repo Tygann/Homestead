@@ -18,6 +18,12 @@ The distribution has no Apple HEVC decoder, so a receive-only VideoToolbox adapt
 
 One owned engine moves between detail/fullscreen and survives adaptive geometry changes. The native renderer receiving a nonempty decoded-frame size establishes readiness; the last good still remains visible beforehand. A 12-second WebRTC startup bound or explicit failure selects HLS when supported; otherwise the snapshot remains. Refresh, dismissal, backgrounding, failure, and connection loss clean up the peer and offer subscription; obsolete acknowledgements also unsubscribe. Replacement attempts wait for prior offer/cleanup completion within the startup bound. Foregrounding starts a new session.
 
+## Bundled Camera APIs And App Store Validation
+
+The pinned WebRTC package is a precompiled dynamic framework that exports `RTCCameraVideoCapturer`; receive-only transceivers do not remove those SDK APIs from the uploaded binary. Apple requires `NSCameraUsageDescription` for such references even when the app does not call them. Keep an accurate declaration explaining remote-feed playback and that Homestead does not use the device camera. The declaration does not request authorization or enable capture. Do not add a local camera permission request, camera Settings row, or fictional capture feature to satisfy validation.
+
+Unused app-owned camera authorization models, queries, and request paths were removed after build 129 received ITMS-90683. Retain the pinned SDK rather than patching/re-signing its binary or maintaining a custom capture-free WebRTC distribution solely for this declaration. Revisit the key if a supported capture-free dependency replaces it. Verify the processed Release archive's app Info.plist before the replacement upload; local checks cannot certify App Store acceptance.
+
 ## Consequences
 
 Camera playback and chrome remain native. The WebRTC framework adds binary size and requires deliberate dependency/security updates. HLS retains AVPlayer. WebRTC codec support and ICE reachability depend on the camera, server configuration, platform, and network; local success does not establish remote or physical-device performance. Automatic selection avoids a protocol picker in normal use.
@@ -25,6 +31,9 @@ Camera playback and chrome remain native. The WebRTC framework adds binary size 
 This is receive-only playback, not two-way audio, recording, or continuous dashboard live previews. Validate both Frigate and UniFi cameras plus HLS fallback, fullscreen, folding, cancellation, and local/remote connections.
 
 ## Sources
+
+- [Apple protected-resource access and SDK purpose strings](https://developer.apple.com/documentation/uikit/requesting-access-to-protected-resources)
+- [Pinned WebRTC binary package](https://github.com/stasel/WebRTC/blob/155.0.0/Package.swift)
 
 - [HA camera API changes](https://developers.home-assistant.io/blog/2024/11/26/camera-deprecations/)
 - [HA camera entity](https://developers.home-assistant.io/docs/core/entity/camera/)

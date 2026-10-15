@@ -25,12 +25,10 @@ nonisolated enum NativeCapabilityAuthorizationStatus: Equatable, Sendable {
 }
 
 nonisolated struct NativePermissionStatusSnapshot: Equatable, Sendable {
-    let camera: NativeCapabilityAuthorizationStatus
     let location: NativeCapabilityAuthorizationStatus
     let localNetwork: NativeCapabilityAuthorizationStatus
 
     static let unknown = NativePermissionStatusSnapshot(
-        camera: .unknown,
         location: .unknown,
         localNetwork: .managedBySystem
     )

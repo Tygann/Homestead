@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-10-15
+
+### App Store Camera Usage Declaration
+
+- Build 129 received ITMS-90683 for missing NSCameraUsageDescription. Audited the permission call graph and native media setup: no shipped feature requests local camera access, and both media transceivers are receive-only. Removed unused camera authorization queries, request/state plumbing, preview fixtures, and test stubs while retaining location behavior.
+- Confirmed the pinned WebRTC 155 binary exports RTCCameraVideoCapturer. Its Swift package distributes a precompiled dynamic framework without a receive-only variant. Apple's protected-resource guidance explicitly requires usage descriptions for SDK API references even when the app does not use those APIs. Added a truthful remote-playback description that states Homestead does not use the device camera; this creates no permission request. Retained the existing SDK instead of maintaining a custom capture-free build. ADR 5 records the requirement so future cleanup does not remove the declaration.
+- Generic Debug simulator build and 24 focused permission/WebRTC/audio test methods passed (27 invocations including parameterized cases). Required storage hygiene cleared 9.5 GB of XCTestDevices only. An unsigned generic iOS Release archive succeeded with the iOS 27.1 SDK. Its processed app Info.plist contains the exact usage string; the app executable has no AVCaptureDevice imports, while the embedded WebRTC framework retains RTCCameraVideoCapturer. This archive was for verification only; upload a newly numbered signed build and confirm App Store processing. Replacement-upload acceptance remains unverified.
+
 ## 2026-10-14
 
 ### Overlapping Camera Fallback Preparation
