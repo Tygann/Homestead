@@ -261,3 +261,20 @@ Official HA also exposes a [native camera/show handler](https://github.com/home-
 In the normal signed-in Duo/iOS 27.1 simulator, the new offer carried two embedded candidates. Aggregated local counts were four payloads (two SDP plus trickle), entirely UDP IPv4 host/server-reflexive categories. The initial remote summary had 12 payloads without active TCP expansion; native receiving video was rejected before further gathering because the simulator does not advertise hardware HEVC. HLS handoff arrived at 1,953 ms and playing at 14,569 ms, with rendered Preparing/still and Live states inspected. These checks prove live authenticated signaling, the installed-description handoff, fallback, and rendering only. They do not establish physical cellular reachability or HEVC decoding performance. The simulator was shut down by the test workflow and was not left playing after verification; no ordinary device data or credentials were reset.
 
 The remaining physical check is now a single focused parity retest: launch the new signed Debug build with the opt-in log flag, disable Wi-Fi before opening G6, leave VPN settings unchanged, then check initial live video, one Refresh, and a brief background/return without Reload. Restore Wi-Fi and retrieve the cache. Compare local candidate categories/SDP counts, remote active TCP expansion, selected/nominated pairs, and ICE requests/responses against the full prior cellular baseline. A successful native frame is required before claiming this configuration fixes cellular playback. No repeat HA-app comparison is necessary unless results remain inconsistent or the phone's actual HA transport can be established.
+
+
+### Physical Route-Aware ICE Retest Result
+
+The signed `f2edf3f` retest did not restore cellular native playback. User estimates were roughly 15 seconds initially and 13 seconds after both Refresh and foreground return. The complete local capture is `/tmp/homestead-camera-route-aware-physical.log` (not committed).
+
+| Attempt | HLS producer ready | Native fallback | HLS playing | ICE pairs | Requests sent |
+| --- | --- | --- | --- | --- | --- |
+| Initial | 3,402 ms | 12,177 ms | 16,302 ms | 14 | 226 |
+| Refresh | 3,349 ms | 12,167 ms | 13,870 ms | 14 | 239 |
+| Foreground return | 3,187 ms | 12,176 ms | 13,693 ms | 14 | 241 |
+
+All three attempts reported a default cellular path, 13 remote candidate payloads, five trickled local candidates acknowledged, zero successful pairs, zero received ICE responses, zero inbound requests, and zero outbound responses. The initial offer carried four embedded candidates (nine total local payload observations including SDP/trickle); later offers carried none (five local payloads each). Candidate pooling therefore remains asynchronous as expected. Native SDP/answer exchange completed normally, with no selected pair.
+
+The configuration removed the large active TCP expansion: remote payloads fell from 144 to 13 and pairs from 55 to 14. This validates the candidate-policy effect, not a latency fix. The continued zero-response result does not identify a failing hop, prove VPN involvement, or mandate a relay. Keep the prior browser MJPEG/unknown phone HA transport distinction intact.
+
+Avoid another blind candidate-policy phone cycle. The measurable app-side delay is now the wait between an HLS producer ready around 3.2–3.4 seconds and player installation after the 12-second native bound. Next consider a bounded first-video race that starts prepared HLS while native preparation remains active, preserves fast WebRTC starts, and commits to one winner with explicit loser cancellation/audio ownership. This would intentionally extend the current producer-only overlap contract and must update ADR 5 and receive focused lifecycle/race/audio plus simulator verification before a physical comparison. No playback timing, server, VPN, timeout, or ICE configuration was changed in this evidence-only update.
