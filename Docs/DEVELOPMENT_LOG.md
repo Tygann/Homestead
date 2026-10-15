@@ -4,6 +4,11 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-15
 
+### WebRTC Archive Symbols Preparation
+
+- Added a repository-owned pre-export helper that reads the pinned WebRTC supplier/version, caches the separate dSYM asset outside Git, and installs device symbols only after exact UUID/architecture verification. Downloads and archive insertion are atomic; existing matching symbols are a no-op and mismatches fail without replacement.
+- Verified a fresh upstream download, insertion, and repeat invocation using a disposable archive fixture linked to the real build-132 framework, plus mismatched-binary and missing-archive failure paths. The upstream 155.0.0 device dSYM matches UUID `4C4C44F0-5555-3144-A190-21F9C2A35CDA`. The existing local archive passes. Documented the required archive-to-upload step; no new app build or upload is needed.
+
 ### Physical Wi-Fi Camera Acceptance And Profiling Limit
 
 - On `e106f75`, the user confirmed G6 moving video, Refresh, listening/mute, fullscreen/Done, and automatic foreground recovery all passed, without microphone prompts/indicators or overlapping audio. All three log attempts are labeled Wi-Fi, with native first frames at 970/2,074/1,664 ms for initial/Refresh/foreground loading. Foreground additionally waited about 348 ms for HA. This closes the latest camera acceptance follow-up; cellular ICE remains deferred.

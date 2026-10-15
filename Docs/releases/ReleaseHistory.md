@@ -16,6 +16,18 @@ Entries are newest first. Use this as the published-build boundary when preparin
 
 Keep entries human-readable and focused on what testers or App Store users should know. Internal summaries are useful only when they help future release-note generation.
 
+## Archive Preparation Before Upload
+
+After creating an iOS archive and **before** `xcodebuild -exportArchive` or Organizer distribution, run:
+
+```sh
+python3 Scripts/prepare_webrtc_symbols.py /absolute/path/Homestead.xcarchive
+```
+
+This required step reads the WebRTC version from `Package.resolved`, downloads that supplier release's separate device dSYM ZIP, verifies an exact architecture/UUID match against the archived framework, and installs `dSYMs/WebRTC.framework.dSYM`. A matching existing dSYM is left in place; missing/mismatched symbols or download failures stop with a nonzero exit. Do not continue upload after failure. The helper requires Python 3.9+, `curl`, and Xcode's `xcrun dwarfdump`; it does not rebuild, sign, export, or upload the app.
+
+Downloads are cached in `~/Library/Caches/Homestead/WebRTCSymbols` (override with `--cache-dir`). Keep ZIPs and dSYMs outside Git. If a cached ZIP is damaged, remove only that version's ZIP and rerun. Supplier/version changes require reviewing the release's asset naming and symbol availability. UUID verification is mandatory; symbols from another build cannot substitute for missing symbols. Running the helper on an already-uploaded archive only adds local crash-analysis symbols; it does not retroactively upload them to Apple. Build 132's local archive was repaired separately after upload.
+
 ## Note Style
 
 Write notes for the audience and channel:
