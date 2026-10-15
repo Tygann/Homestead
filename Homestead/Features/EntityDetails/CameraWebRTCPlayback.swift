@@ -20,7 +20,7 @@ private nonisolated final class CameraStartupLogSink: @unchecked Sendable {
     func append(_ message: String) {
         lock.withLock {
             lines.append("\(Date().timeIntervalSince1970) \(message)")
-            if lines.count > 128 { lines.removeFirst(lines.count - 128) }
+            if lines.count > 512 { lines.removeFirst(lines.count - 512) }
             guard let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
             try? Data((lines.joined(separator: "\n") + "\n").utf8)
                 .write(to: directory.appendingPathComponent("CameraStartup.log"), options: .atomic)
@@ -65,13 +65,15 @@ final class CameraWebRTCPlayback: NSObject {
     @ObservationIgnored private var generation: UUID?
     @ObservationIgnored private var subscriptionID: Int?
     @ObservationIgnored private var sessionID: String?
-    @ObservationIgnored private var candidates: [JSONValue] = []
+    @ObservationIgnored private var candidateQueue: CameraWebRTCCandidateQueue?
     @ObservationIgnored private var completion: CheckedContinuation<Bool, Never>?
     @ObservationIgnored private var cleanupTask: Task<Void, Never>?
     @ObservationIgnored private var setupTask: Task<Void, Never>?
     @ObservationIgnored private var offerTask: Task<Void, Never>?
-    @ObservationIgnored private var candidateTask: Task<Void, Never>?
     @ObservationIgnored private var timeoutTask: Task<Void, Never>?
+    #if DEBUG
+    @ObservationIgnored private var diagnosticsTask: Task<Void, Never>?
+    #endif
     @ObservationIgnored private var configuration: JSONValue?
     @ObservationIgnored var failedAfterStart: (() -> Void)?
 
@@ -144,17 +146,20 @@ final class CameraWebRTCPlayback: NSObject {
         generation = nil
         setupTask?.cancel()
         offerTask?.cancel()
-        candidateTask?.cancel()
+        candidateQueue?.stop()
         timeoutTask?.cancel()
+        #if DEBUG
+        diagnosticsTask?.cancel()
+        diagnosticsTask = nil
+        #endif
         setupTask = nil
         offerTask = nil
-        candidateTask = nil
+        candidateQueue = nil
         timeoutTask = nil
         completion?.resume(returning: false)
         completion = nil
         subscriptionID = nil
         sessionID = nil
-        candidates.removeAll()
         configuration = nil
         if let videoView { videoTrack?.remove(videoView) }
         videoTrack = nil
@@ -208,6 +213,29 @@ final class CameraWebRTCPlayback: NSObject {
             return
         }
         self.peer = peer
+        #if DEBUG
+        diagnosticsTask = Task { [weak self, weak peer] in
+            do { try await Task.sleep(for: .seconds(6)) } catch { return }
+            guard let self, let peer, self.peer === peer, !self.hasStarted else { return }
+            self.recordMediaCounters()
+        }
+        #endif
+        if let service, let id = generation {
+            let entityID = entityID
+            candidateQueue = CameraWebRTCCandidateQueue(send: { sessionID, candidate in
+                try await service.sendCameraWebRTCCandidate(entityID: entityID, sessionID: sessionID, candidate: candidate)
+            }, failed: { [weak self] in
+                guard self?.generation == id else { return }
+                self?.record("WebRTC candidate send failed")
+                self?.fail()
+            }, acknowledged: { [weak self] in
+                guard self?.generation == id else { return }
+                self?.record("WebRTC candidate acknowledged")
+            })
+        }
+        let schemes = rtcConfiguration.iceServers.flatMap(\.urlStrings).map { $0.split(separator: ":").first.map(String.init)?.lowercased() ?? "" }
+        record("WebRTC ICE services: STUN \(schemes.filter { ["stun", "stuns"].contains($0) }.count), TURN \(schemes.filter { ["turn", "turns"].contains($0) }.count)")
+        record("WebRTC ICE policy: \(rtcConfiguration.iceTransportPolicy == .relay ? "relay" : "all"), servers: \(rtcConfiguration.iceServers.count)")
         RTCSetMinDebugLogLevel(.none)
         if let id = generation {
             Self.audioDevice.acquire(owner: id, listening: !isMuted) { [weak self] in
@@ -267,7 +295,7 @@ final class CameraWebRTCPlayback: NSObject {
         case "session":
             record("WebRTC session received")
             sessionID = signal.sessionID
-            flushCandidates()
+            candidateQueue?.setSession(sessionID)
         case "answer":
             guard let answer = signal.answer else { fail(); return }
             record("WebRTC answer received")
@@ -291,7 +319,9 @@ final class CameraWebRTCPlayback: NSObject {
                         self.fail()
                         return
                     }
+                    self.record("WebRTC answer applied; candidate delivery enabled")
                     self.hasRemoteDescription = true
+                    self.candidateQueue?.didApplyAnswer()
                     let pending = self.remoteCandidates
                     self.remoteCandidates.removeAll()
                     for candidate in pending { self.addRemoteCandidate(candidate) }
@@ -299,6 +329,7 @@ final class CameraWebRTCPlayback: NSObject {
             }
         case "candidate":
             guard let object = signal.candidate?.objectValue, let sdp = object["candidate"]?.stringValue else { return }
+            record("WebRTC remote candidate: \(CameraICECandidateSummary.describe(sdp))")
             let candidate = RTCIceCandidate(sdp: sdp,
                 sdpMLineIndex: Int32(exactly: object["sdpMLineIndex"]?.doubleValue ?? 0) ?? 0,
                 sdpMid: object["sdpMid"]?.stringValue ?? "0")
@@ -315,7 +346,10 @@ final class CameraWebRTCPlayback: NSObject {
         peer.add(candidate) { [weak self, weak peer] error in
             Task { @MainActor [weak self, weak peer] in
                 guard let self, let peer, self.peer === peer else { return }
-                if error != nil { self.fail() }
+                if error != nil {
+                    self.record("WebRTC remote candidate rejected")
+                    self.fail()
+                }
             }
         }
     }
@@ -328,28 +362,17 @@ final class CameraWebRTCPlayback: NSObject {
         record("WebRTC media track received")
     }
 
-    private func flushCandidates() {
-        guard candidateTask == nil, let sessionID, let service, let id = generation else { return }
-        let entityID = entityID
-        candidateTask = Task { [weak self] in
-            while let self, self.generation == id, !Task.isCancelled, !self.candidates.isEmpty {
-                let candidate = self.candidates.removeFirst()
-                do {
-                    try await service.sendCameraWebRTCCandidate(entityID: entityID, sessionID: sessionID, candidate: candidate)
-                } catch {
-                    guard self.generation == id else { return }
-                    self.fail()
-                    return
-                }
-            }
-            guard self?.generation == id else { return }
-            self?.candidateTask = nil
-        }
-    }
-
     private func recordMediaCounters() {
         #if DEBUG
+        let attempt = String(generation?.uuidString.prefix(8) ?? "stopped")
         peer?.statistics { report in
+            let pairs = report.statistics.values.filter { $0.type == "candidate-pair" }
+            let succeeded = pairs.filter { $0.values["state"] as? String == "succeeded" }.count
+            let requests = pairs.reduce(0) { $0 + (($1.values["requestsSent"] as? NSNumber)?.intValue ?? 0) }
+            let responses = pairs.reduce(0) { $0 + (($1.values["responsesReceived"] as? NSNumber)?.intValue ?? 0) }
+            let summary = "[\(attempt)] WebRTC ICE pairs: \(pairs.count), succeeded: \(succeeded), requests: \(requests), responses: \(responses)"
+            Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup").info("\(summary, privacy: .public)")
+            if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") { CameraStartupConsole.write(summary) }
             for statistic in report.statistics.values where statistic.type == "inbound-rtp" {
                 guard statistic.values["kind"] as? String == "video" else { continue }
                 let packets = statistic.values["packetsReceived"] as? NSNumber ?? 0
@@ -360,13 +383,13 @@ final class CameraWebRTCPlayback: NSObject {
                     Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup")
                         .info("WebRTC timeout video codec: \(codec, privacy: .public)")
                     if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") {
-                        CameraStartupConsole.write("WebRTC timeout codec: \(codec)")
+                        CameraStartupConsole.write("[\(attempt)] WebRTC timeout codec: \(codec)")
                     }
                 }
                 Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup")
                     .info("WebRTC timeout video packets: \(packets.intValue, privacy: .public), decoded frames: \(frames.intValue, privacy: .public)")
                 if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") {
-                    CameraStartupConsole.write("WebRTC timeout packets: \(packets.intValue), decoded frames: \(frames.intValue)")
+                    CameraStartupConsole.write("[\(attempt)] WebRTC timeout packets: \(packets.intValue), decoded frames: \(frames.intValue)")
                 }
             }
         }
@@ -375,6 +398,7 @@ final class CameraWebRTCPlayback: NSObject {
 
     private func record(_ stage: String) {
         #if DEBUG
+        let stage = "[\(generation?.uuidString.prefix(8) ?? "stopped")] \(stage)"
         Logger(subsystem: "com.tyler.Homestead", category: "CameraStartup").info("\(stage, privacy: .public)")
         if ProcessInfo.processInfo.arguments.contains("--camera-startup-console") {
             CameraStartupConsole.write("\(stage)")
@@ -406,18 +430,24 @@ extension CameraWebRTCPlayback: RTCPeerConnectionDelegate {
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
         Task { @MainActor [weak self] in
             guard let self, self.peer === peerConnection else { return }
-            if newState == .failed { self.fail() }
+            self.record("WebRTC ICE state: \(newState.rawValue)")
+            if newState == .failed { self.recordMediaCounters(); self.fail() }
             if newState == .connected || newState == .completed { self.record("WebRTC ICE connected") }
         }
     }
-    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {}
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
+        Task { @MainActor [weak self] in
+            guard let self, self.peer === peerConnection else { return }
+            self.record("WebRTC gathering state: \(newState.rawValue)")
+        }
+    }
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
         Task { @MainActor [weak self] in
             guard let self, self.peer === peerConnection else { return }
-            self.candidates.append(.object(["candidate": .string(candidate.sdp),
+            self.record("WebRTC local candidate: \(CameraICECandidateSummary.describe(candidate.sdp))")
+            self.candidateQueue?.append(.object(["candidate": .string(candidate.sdp),
                 "sdpMLineIndex": .number(Double(candidate.sdpMLineIndex)),
                 "sdpMid": candidate.sdpMid.map(JSONValue.string) ?? .null]))
-            self.flushCandidates()
         }
     }
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}

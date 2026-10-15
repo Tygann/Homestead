@@ -4,6 +4,13 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-15
 
+### Cold Cellular ICE Candidate Delivery
+
+- Saved G6 cellular captures showed quick HA configuration/session/answer but no ICE connection before native timeout. Read-only inspection identified HA 2026.10.1, UniFi Protect, go2rtc loaded, and STUN-only client servers. Matching Core source emits the session before provider setup; go2rtc can acknowledge but ignore candidates while its source/session is still being prepared. This is a credible cold-start race, not a confirmed explanation of the prior phone run.
+- Local candidate delivery now waits for both session ID and applied answer, with at most four concurrent sends to avoid serialized cellular round trips. Cancellation rejects unsent work and stale acknowledgements/errors. HLS preparation timing, native timeout, retained snapshots, receive-only audio, and SDK camera usage declaration remain intact.
+- Debug diagnostics add local attempt tags, allowlisted candidate categories, gathering/ICE states, configuration service counts, acknowledgements, and aggregate ICE request/response counters. A six-second snapshot precedes teardown; local capture remains opt-in, bounded to 512 lines for the bundled check, and omits addresses, SDP, server/session identifiers, and credentials.
+- Debug simulator compilation and 31 focused test invocations passed across CameraWebRTCCandidateQueueTests, CameraWebRTCTests, CameraHLSPreparationTests, and CameraAudioPlaybackTests. Final review's immediate-cancellation finding was fixed and regression-tested. Generic unsigned Release and signed Debug device builds also passed; the processed Release app retains NSCameraUsageDescription. Storage hygiene cleared XCTestDevices from 20 GB to zero. Physical cold-cellular acceptance is bundled in PERFORMANCE_PROFILING.md; no phone was used and cellular improvement remains unverified.
+
 ### App Store Camera Usage Declaration
 
 - Build 129 received ITMS-90683 for missing NSCameraUsageDescription. Audited the permission call graph and native media setup: no shipped feature requests local camera access, and both media transceivers are receive-only. Removed unused camera authorization queries, request/state plumbing, preview fixtures, and test stubs while retaining location behavior.
