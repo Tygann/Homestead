@@ -75,9 +75,25 @@ struct DashboardCardReferenceGallery: View {
                 entityID: "media_player.unavailable",
                 state: "unavailable",
                 attributes: [
-                    "friendly_name": .string("Bedroom Speaker")
+                    "friendly_name": .string("Bedroom Speaker"),
+                    "supported_features": .number(18_437),
+                    "volume_level": .number(0.4),
+                    "source_list": .array([.string("Music"), .string("TV")])
                 ]
             ),
+            HAEntityDTO(entityID: "media_player.pause_only", state: "paused", attributes: [
+                "friendly_name": .string("Pause-only Speaker"),
+                "supported_features": .number(1),
+                "media_title": .string("Playback unavailable")
+            ]),
+            HAEntityDTO(entityID: "media_player.pending", state: "playing", attributes: [
+                "friendly_name": .string("Kitchen Speaker"),
+                "supported_features": .number(18_437),
+                "volume_level": .number(0.4),
+                "source": .string("Music"),
+                "source_list": .array([.string("Music"), .string("TV")]),
+                "media_title": .string("Morning Mix")
+            ]),
             HAEntityDTO(
                 entityID: "scene.unavailable",
                 state: "unavailable",
@@ -92,6 +108,9 @@ struct DashboardCardReferenceGallery: View {
 
         let dependencies = PreviewDependencies.entityDetailSample(entityOverrides: entityOverrides)
         Self.seedWeatherForecast(in: dependencies.stateStore)
+        if RuntimeEnvironment.dashboardCardReferenceState == "daily-controls" {
+            dependencies.stateStore.setPendingCommand(HAEntityPendingCommand(entityID: "media_player.pending"))
+        }
         self.dependencies = dependencies
     }
 
@@ -123,7 +142,9 @@ struct DashboardCardReferenceGallery: View {
 
     @ViewBuilder
     private var galleryContent: some View {
-        if RuntimeEnvironment.dashboardCardReferenceState == "alarm" {
+        if RuntimeEnvironment.dashboardCardReferenceState == "daily-controls" {
+            dailyControlsSection
+        } else if RuntimeEnvironment.dashboardCardReferenceState == "alarm" {
             alarmSection
         } else if RuntimeEnvironment.dashboardCardReferenceState == "unavailable" {
             unavailableSection
@@ -140,6 +161,29 @@ struct DashboardCardReferenceGallery: View {
             cardSection("Wide", size: .wide)
             cardSection("Large", size: .large)
             unavailableSection
+        }
+    }
+
+    private var dailyControlsSection: some View {
+        let size = RuntimeEnvironment.requestedPreviewCardSize ?? .square
+        let requestedKind = RuntimeEnvironment.livePreviewPresentationKind
+        return CardGrid {
+            if requestedKind == nil || requestedKind == .media {
+                referenceCard(title: "Media", entityID: "media_player.living_room", kind: .media, size: size)
+                referenceCard(title: "Pending Media", entityID: "media_player.pending", kind: .media, size: size)
+                referenceCard(title: "Unavailable Media", entityID: "media_player.unavailable", kind: .media, size: size)
+                referenceCard(title: "Pause-only Media", entityID: "media_player.pause_only", kind: .media, size: size)
+            }
+            if requestedKind == nil || requestedKind == .action {
+                referenceCard(title: "Action", entityID: "scene.movie_night", kind: .action, size: size)
+                referenceCard(title: "Script", entityID: "script.good_morning", kind: .action, size: size)
+            }
+            if requestedKind == nil || requestedKind == .chart {
+                referenceCard(title: "Chart", entityID: "sensor.hallway_temperature", kind: .chart, size: size)
+            }
+            if requestedKind == nil || requestedKind == .weather {
+                referenceCard(title: "Weather", entityID: "weather.home", kind: .weather, size: size)
+            }
         }
     }
 

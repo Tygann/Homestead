@@ -53,7 +53,7 @@ For the current tactical handoff, read `Docs/NEXT_STEPS.md`.
 ## Near-Term Priorities
 
 - Configure and submit the matching Homestead+ products in App Store Connect, exercise the ordinary annual trial with all four TestFlight testers, validate sandbox renewal/expiration and offer-code redemption, then issue four complimentary lifetime codes after approval.
-- Device-test the completed Chart, Weather, Media, and Action card families in dense live dashboards, including unavailable/pending states and real Media Player capability combinations, then capture the physical-device performance baseline.
+- Device-test the completed Chart, Weather, Media, and Action card families in dense live dashboards, including unavailable/pending states and real Media Player capability combinations, then capture the physical-device performance baseline. The October 15 simulator/source pass fixed Media feature gating and Chart foreground revalidation; live interaction acceptance and the physical baseline remain outstanding.
 - Physical-device-test the native medium and large Sensor Board configuration sheets plus real sensor names, ranges, icons, history, removed-server, and unavailable states; keep additional layouts curated rather than introducing a free-form widget canvas.
 - Polish and device-test the expanded WidgetKit/App Intents surface, then consider Control Center controls for the safest common actions.
 - Maintain existing entity history/timeline surfaces and polish them only when concrete visual issues or clearly useful state-only domains appear.

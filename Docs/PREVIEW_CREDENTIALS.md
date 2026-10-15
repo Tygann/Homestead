@@ -94,6 +94,8 @@ Use `--preview-screen dashboard-cards --preview-card-state alarm` for interactiv
 
 For focused dashboard-card gallery inspection, add `--preview-size square`, `wide`, or `large`. Use `--preview-card-state transient` for deterministic Chart loading/empty plus Weather loading and retained-data refresh-failure states, or `--preview-card-state unavailable` for unavailable Chart and Weather cards, including a Chart with retained recorded history.
 
+Use `--preview-screen dashboard-cards --preview-card-state daily-controls` for a focused Media/Action/Chart/Weather grid. Add `--preview-size compact`, `square`, `wide`, or `large` and optionally `--preview-presentation media`, `action`, `chart`, or `weather` to isolate a family. Media includes normal, pending, unavailable, and paused pause-only players; preview actions never send Home Assistant commands.
+
 Entity-detail verification can launch a specific deterministic matrix cell:
 
 ```sh

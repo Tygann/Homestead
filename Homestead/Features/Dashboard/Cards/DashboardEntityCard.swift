@@ -1048,13 +1048,17 @@ struct DashboardEntityCard: View {
             return
         }
 
-        if case .loaded(let chartPresentation) = historyPhase,
-           chartPresentation.entityID == entityBox.entityID,
-           chartPresentation.range == chartRange {
-            return
+        // Revalidate on appearance/foreground through the shared cache, retaining
+        // matching history while loading and through transient refresh failures.
+        let retainedPhase = historyPhase
+        let retainsHistory: Bool
+        if case .loaded(let chartPresentation) = retainedPhase {
+            retainsHistory = chartPresentation.entityID == entityBox.entityID
+                && chartPresentation.range == chartRange
+        } else {
+            retainsHistory = false
         }
-
-        historyPhase = .loading
+        if !retainsHistory { historyPhase = .loading }
 
         do {
             let series = try await homeAssistantService.fetchDashboardHistory(
@@ -1066,7 +1070,7 @@ struct DashboardEntityCard: View {
             historyPhase = .loaded(DashboardHistoryCardPresentation(series: series))
         } catch {
             guard !Task.isCancelled else { return }
-            historyPhase = .failed
+            historyPhase = retainsHistory ? retainedPhase : .failed
         }
     }
 }

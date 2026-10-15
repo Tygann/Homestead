@@ -463,7 +463,7 @@ struct DashboardCardView: View {
     }
 
     private func playPauseMediaAction(for entityBox: HAEntityState) -> (() -> Void)? {
-        guard entityBox.mediaPlayerEntity != nil,
+        guard entityBox.mediaPlayerEntity?.supportsPlayPause == true,
               homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause") else {
             return nil
         }
@@ -475,7 +475,7 @@ struct DashboardCardView: View {
     }
 
     private func setMediaVolumeAction(for entityBox: HAEntityState) -> ((Double) -> Void)? {
-        guard entityBox.mediaPlayerEntity?.volumeLevel != nil,
+        guard entityBox.mediaPlayerEntity?.supportsVolumeControl == true,
               homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set") else {
             return nil
         }
@@ -491,7 +491,7 @@ struct DashboardCardView: View {
     }
 
     private func selectMediaSourceAction(for entityBox: HAEntityState) -> ((String) -> Void)? {
-        guard entityBox.mediaPlayerEntity?.sourceList.isEmpty == false,
+        guard entityBox.mediaPlayerEntity?.supportsSourceSelection == true,
               homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source") else {
             return nil
         }
@@ -576,9 +576,9 @@ struct DashboardCardView: View {
             lock: entityBox.domain == .lock ? noopCommand : nil,
             unlock: entityBox.domain == .lock ? noopCommand : nil,
             selectOption: entityBox.selectEntity?.options.isEmpty == false ? { _ in } : nil,
-            playPauseMedia: entityBox.mediaPlayerEntity == nil ? nil : noopCommand,
-            setMediaVolume: entityBox.mediaPlayerEntity?.volumeLevel == nil ? nil : noopSingle,
-            selectMediaSource: entityBox.mediaPlayerEntity?.sourceList.isEmpty == false ? { _ in } : nil
+            playPauseMedia: entityBox.mediaPlayerEntity?.supportsPlayPause == true ? noopCommand : nil,
+            setMediaVolume: entityBox.mediaPlayerEntity?.supportsVolumeControl == true ? noopSingle : nil,
+            selectMediaSource: entityBox.mediaPlayerEntity?.supportsSourceSelection == true ? { _ in } : nil
         )
     }
 

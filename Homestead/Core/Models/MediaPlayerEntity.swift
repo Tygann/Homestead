@@ -1,6 +1,8 @@
 import Foundation
 
 struct MediaPlayerEntity: Identifiable, Equatable, Sendable {
+    // MARK: - Properties
+
     let entityID: String
     let displayName: String
     let state: String
@@ -10,6 +12,9 @@ struct MediaPlayerEntity: Identifiable, Equatable, Sendable {
     let mediaTitle: String?
     let mediaArtist: String?
     let deviceClass: String?
+    let supportedFeatures: Int
+
+    // MARK: - Public API
 
     var id: String { entityID }
 
@@ -19,6 +24,19 @@ struct MediaPlayerEntity: Identifiable, Equatable, Sendable {
 
     var isPlaying: Bool {
         state == "playing"
+    }
+
+    // HA's media_play_pause pauses only while playing; otherwise it requests play.
+    var supportsPlayPause: Bool {
+        supportedFeatures & (isPlaying ? 1 : 16_384) != 0
+    }
+
+    var supportsVolumeControl: Bool {
+        supportedFeatures & 4 != 0 && volumeLevel != nil
+    }
+
+    var supportsSourceSelection: Bool {
+        supportedFeatures & 2_048 != 0 && !sourceList.isEmpty
     }
 
     var volumePercentage: Int? {

@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-15
 
+### Daily Card Capability And History Reliability
+
+- Media cards and details now map official per-player feature bits: playback checks Pause while playing and Play otherwise; volume/source controls require both supported features and usable attributes. The large card's source menu now blocks unavailable/pending interaction. The official Core 2026.10.1 feature and toggle contracts were checked; no Home Assistant settings or household actions were changed.
+- Loaded Chart cards now revalidate on appearance/foreground through the existing shared cache/request gate, preserving matching history during loading and transient failure. A hosted SwiftUI regression verifies foreground and reappearance fetches; three Media capability test methods cover partial/absent feature sets and eight playback combinations. All four methods passed, followed by the two existing cache reuse/coalescing tests with explicit Swift Testing method selectors.
+- Simulator builds passed. Direct rendered Duo checks cover closed compact Media/Action, open large Media normal/pending/partial support, light Wide Chart, large Weather, Chart/Weather transient states, and unavailable cards with retained history. The signed-in normal dashboard rendered live Weather, and read-only HA inspection confirmed real Media feature combinations. The browser mirror did not connect; simulator taps remained ineffective after the helper's input repair, and accessibility snapshots failed, so dense live interaction acceptance and physical performance remain open. Cellular ICE work stays deferred without a concrete new lead. Post-test hygiene cleared roughly 10 GB of XCTestDevices after each of three runs; final size was zero, with DerivedData and normal Simulator data untouched. The normal signed-in app and closed Duo pose were restored afterward.
+
 ### Physical First-Video Result
 
 - Retrieved the `49b4fee` G6 cellular check after user timings of about 5/5/9 seconds. HLS won before native timeout on initial/Refresh/foreground: decoded selection at 5,276/6,258/8,473 ms; playback status at 5,786/6,451/8,892 ms versus prior 16,302/13,870/13,693 ms. Producer warmth was uncontrolled, so these are observed comparisons rather than a general cold-start guarantee.

@@ -1244,6 +1244,7 @@ struct DashboardMediaCardContent: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Choose source")
+                .disabled(isPending || !media.isAvailable)
             }
         }
     }

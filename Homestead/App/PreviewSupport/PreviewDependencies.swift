@@ -800,6 +800,7 @@ private enum PreviewData {
             state: "playing",
             attributes: [
                 "friendly_name": .string("Living Room TV"),
+                "supported_features": .number(18_437),
                 "volume_level": .number(0.42),
                 "source": .string("Apple TV"),
                 "source_list": .array([.string("Apple TV"), .string("Music"), .string("Game Console")]),

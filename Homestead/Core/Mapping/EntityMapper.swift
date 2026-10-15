@@ -90,7 +90,8 @@ enum EntityMapper {
             sourceList: dto.attributes["source_list"]?.arrayValue?.compactMap(\.stringValue) ?? [],
             mediaTitle: dto.attributes["media_title"]?.stringValue,
             mediaArtist: dto.attributes["media_artist"]?.stringValue,
-            deviceClass: dto.attributes["device_class"]?.stringValue
+            deviceClass: dto.attributes["device_class"]?.stringValue,
+            supportedFeatures: dto.attributes["supported_features"]?.intValue ?? 0
         )
     }
 

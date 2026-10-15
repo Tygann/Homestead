@@ -24,7 +24,8 @@ struct MediaPlayerDetailView: View {
         EntityDetailScaffold(title: entity.displayName, presentationStyle: presentationStyle) {
             header
             nowPlayingPanel
-            if let mediaPlayer = entityBox.mediaPlayerEntity {
+            if let mediaPlayer = entityBox.mediaPlayerEntity,
+               showsPlaybackControl(mediaPlayer) || showsVolumeControl(mediaPlayer) || showsSourceControl(mediaPlayer) {
                 controls(mediaPlayer)
             }
             EntityActivityHistoryPreview(entityBox: entityBox, tint: presentation.accentColor)
@@ -131,36 +132,43 @@ struct MediaPlayerDetailView: View {
 
     private func controls(_ mediaPlayer: MediaPlayerEntity) -> some View {
         EntityControlPanel(title: "Controls", systemImage: "slider.horizontal.3") {
-            EntityDetailActionButton(
-                title: playPauseTitle,
-                systemImage: playPauseSystemImage,
-                style: entity.state == "playing" ? .secondary : .primary,
-                isDisabled: detailState.blocksControlInteraction || !homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause")
-            ) {
-                Task {
-                    await homeAssistantService.playPauseMedia(entityID: entity.entityID)
+            if showsPlaybackControl(mediaPlayer) {
+                EntityDetailActionButton(
+                    title: playPauseTitle,
+                    systemImage: playPauseSystemImage,
+                    style: entity.state == "playing" ? .secondary : .primary,
+                    isDisabled: detailState.blocksControlInteraction
+                ) {
+                    Task {
+                        await homeAssistantService.playPauseMedia(entityID: entity.entityID)
+                    }
                 }
             }
 
             if showsVolumeControl(mediaPlayer) {
-                Divider()
+                if showsPlaybackControl(mediaPlayer) { Divider() }
                 volumeControls(mediaPlayer)
             }
 
             if showsSourceControl(mediaPlayer) {
-                Divider()
+                if showsPlaybackControl(mediaPlayer) || showsVolumeControl(mediaPlayer) { Divider() }
                 sourceControls(mediaPlayer)
             }
         }
     }
 
+    private func showsPlaybackControl(_ mediaPlayer: MediaPlayerEntity) -> Bool {
+        mediaPlayer.supportsPlayPause
+            && homeAssistantService.serviceActionAvailable(domain: "media_player", service: "media_play_pause")
+    }
+
     private func showsVolumeControl(_ mediaPlayer: MediaPlayerEntity) -> Bool {
-        mediaPlayer.volumeLevel != nil
+        mediaPlayer.supportsVolumeControl
             && homeAssistantService.serviceActionAvailable(domain: "media_player", service: "volume_set")
     }
 
     private func showsSourceControl(_ mediaPlayer: MediaPlayerEntity) -> Bool {
-        !mediaPlayer.sourceList.isEmpty
+        mediaPlayer.supportsSourceSelection
             && homeAssistantService.serviceActionAvailable(domain: "media_player", service: "select_source")
     }
 
