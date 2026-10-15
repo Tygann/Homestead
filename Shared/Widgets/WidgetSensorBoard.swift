@@ -87,13 +87,13 @@ nonisolated struct WidgetSensorBoardCompactItem: Identifiable, Codable, Equatabl
         )
     }
 
-    func scoped(to reference: EntityPresentationReference) -> Self {
+    func scoped(to reference: EntityPresentationReference, isServerAvailable: Bool) -> Self {
         Self(
             id: reference.encodedID,
             displayName: displayName,
             icon: icon,
             valueText: valueText,
-            isAvailable: isAvailable,
+            isAvailable: isAvailable && isServerAvailable,
             requestedPresentation: requestedPresentation,
             gaugeStyle: gaugeStyle,
             gauge: gauge

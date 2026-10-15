@@ -751,7 +751,10 @@ enum HomesteadSensorBoardEntryBuilder {
                 let configuredItem = slot.display != .chart
                     ? updatedItem.applyingGaugeConfiguration(slot.gaugeConfiguration)
                     : updatedItem
-                items[index] = .compact(configuredItem.scoped(to: reference))
+                items[index] = .compact(configuredItem.scoped(
+                    to: reference,
+                    isServerAvailable: HomesteadWidgetSharedStore.isServerAvailable(profileID: reference.profileID)
+                ))
             }
         }
 

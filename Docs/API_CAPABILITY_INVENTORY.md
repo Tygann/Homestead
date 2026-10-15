@@ -68,7 +68,7 @@ Official references:
 
 | Feature | API family | Status | Intended Homestead surface |
 | --- | --- | --- | --- |
-| Expanded widgets | WidgetKit/App Intents plus OAuth/WebSocket/history/service calls | Implemented; device validation remains | The six stable kinds are Control, Status, Sensor, medium Sensor Board, large Sensor Board, and Action. The shared presentation/storage refactor, native progressive configuration, per-server routing, batched Sensor Board loading, entitlement-preserving lock state, production galleries, and focused contracts are implemented. Physical-device configuration, long-name, real-history, tint/accessibility, and failure-state validation remain follow-up; Control Center controls and new widget products are intentionally deferred. |
+| Expanded widgets | WidgetKit/App Intents plus OAuth/WebSocket/history/service calls | Implemented; device validation remains | The six stable kinds are Control, Status, Sensor, medium Sensor Board, large Sensor Board, and Action. The shared presentation/storage refactor, native progressive configuration, per-server routing, batched Sensor Board loading, entitlement-preserving lock state, production galleries, and focused contracts are implemented. Removed-server compact-slot availability now has regression coverage, and medium-light/large-dark long-name and recovery fixtures are simulator-verified. Physical-device configuration, real-history, tint/accessibility, and failure-state acceptance remain follow-up; Control Center controls and new widget products are intentionally deferred. |
 
 ## Next Feature-Sized Mapping Queue
 

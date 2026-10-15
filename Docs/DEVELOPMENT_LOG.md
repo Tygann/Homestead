@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-15
 
+### Sensor Board Removed-Server Recovery
+
+- The shared medium/large entry builder now marks compact slots unavailable when their server profile is removed, instead of presenting a saved reading as available. Names, gauge configuration, and server-scoped deep-link identity remain intact.
+- Added a regression across Automatic/Reading/Gauge and repeatable medium/large recovery fixtures with long names. All 23 focused Sensor Board/infrastructure tests and the final Debug simulator build passed; medium light and large dark fixtures were rendered and inspected. Independent review found no actionable issues. Guarded hygiene cleared 11 GB of XCTestDevices to zero.
+- Physical configuration persistence and real-history acceptance remain open: simulator semantic/input automation remained unreliable after repair, and the local preview-credential history diagnostic received HTTP 403. No device install, upload, or App Store submission change was performed. See `Docs/NEXT_STEPS.md` for the exact evidence boundary.
+
 ### Required-Reason Privacy Manifest Readiness
 
 - Audited app, widget, and shared sources against Apple's required-reason API list. Added app-local/App Group UserDefaults reasons, declared the Debug-only ICE elapsed-time use, and added the widget's App Group-only manifest without speculative file-timestamp, disk-space, or active-keyboard declarations. Existing app collection/tracking declarations remain unchanged.

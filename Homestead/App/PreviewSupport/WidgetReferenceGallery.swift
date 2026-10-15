@@ -60,17 +60,28 @@ struct WidgetReferenceGallery: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    plusLockPreviews
-                    largeSensorBoardPreview
-                    sensorBoardPreview
-                    mediumSensorPreview
-                    coreWidgetPreviews
-                    configurationStatePreviews
-                    accessoryWidgetPreviews
-                    chartComparisonRow
-                    circularComparisonRow
-                    segmentedComparisonRow
-                    barComparisonRow
+                    if RuntimeEnvironment.dashboardCardReferenceState == "sensor-board-recovery" {
+                        let large = RuntimeEnvironment.requestedPreviewCardSize == .large
+                        WidgetSensorBoardFace(
+                            items: sensorBoardRecoveryItems,
+                            layout: large ? .large : .medium
+                        )
+                        .frame(width: 360, height: large ? 360 : 169)
+                        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: widgetCornerRadius))
+                    } else {
+                        plusLockPreviews
+                        sensorBoardRecoveryPreview
+                        largeSensorBoardPreview
+                        sensorBoardPreview
+                        mediumSensorPreview
+                        coreWidgetPreviews
+                        configurationStatePreviews
+                        accessoryWidgetPreviews
+                        chartComparisonRow
+                        circularComparisonRow
+                        segmentedComparisonRow
+                        barComparisonRow
+                    }
                 }
                 .padding(20)
             }
@@ -80,6 +91,59 @@ struct WidgetReferenceGallery: View {
     }
 
     // MARK: - Widget Families
+
+    private var sensorBoardRecoveryPreview: some View {
+        referenceSection("Sensor Board · Removed Server and Long Names") {
+            WidgetSensorBoardFace(items: sensorBoardRecoveryItems)
+                .frame(width: 360, height: 169)
+                .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: widgetCornerRadius))
+            WidgetSensorBoardFace(items: sensorBoardRecoveryItems, layout: .large)
+                .frame(width: 360, height: 360)
+                .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: widgetCornerRadius))
+        }
+    }
+
+    private var sensorBoardRecoveryItems: [WidgetSensorBoardItem?] {
+        let reference = EntityPresentationReference(
+            profileID: UUID(uuidString: "F486CB8D-85CC-412C-8582-53D311413915")!,
+            entityID: "sensor.removed_temperature"
+        )
+        return [
+            .compact(WidgetSensorBoardCompactItem.sensor(
+                from: previewSensor(
+                    id: reference.entityID,
+                    name: "Upstairs Living Room Temperature and Humidity Monitor",
+                    valueText: "76.6°F",
+                    icon: "thermometer.medium",
+                    gauge: sensorBoardTemperatureGauge
+                ),
+                presentation: .reading
+            ).scoped(to: reference, isServerAvailable: false)),
+            .compact(WidgetSensorBoardCompactItem.sensor(
+                from: previewSensor(
+                    id: reference.entityID,
+                    name: "Detached Garage and Workshop Temperature",
+                    valueText: "76.6°F",
+                    icon: "thermometer.medium",
+                    gauge: sensorBoardTemperatureGauge
+                ),
+                presentation: .gauge
+            ).scoped(to: reference, isServerAvailable: false)),
+            .chart(WidgetSensorBoardChartItem(
+                id: reference.encodedID,
+                displayName: "Upstairs Living Room Temperature History",
+                icon: .sfSymbol("thermometer.medium", provenance: .homesteadSemanticMapping),
+                valueText: "76.6°F",
+                unitText: "°F",
+                supportingText: WidgetStateText.needsConnection,
+                isAvailable: false,
+                samples: [],
+                valueDomain: 0...1,
+                interpolationStyle: .linear,
+                accentColor: .orange
+            ))
+        ]
+    }
 
     private var plusLockPreviews: some View {
         referenceSection("Homestead+ Locked") {

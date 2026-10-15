@@ -3,6 +3,33 @@ import Testing
 @testable import Homestead
 
 struct WidgetSensorBoardTests {
+    @Test func removedServerDisablesSavedReadingsAndGaugesWithoutLosingIdentity() {
+        let reference = EntityPresentationReference(profileID: UUID(), entityID: "sensor.living_room_temperature")
+        for presentation in [WidgetSensorBoardCompactPresentation.automatic, .reading, .gauge] {
+            let item = WidgetSensorBoardCompactItem.sensor(
+                from: makeSnapshot(gauge: makeGauge()),
+                customDisplayName: "Upstairs Living Room Temperature and Humidity Monitor",
+                presentation: presentation
+            )
+            let removed = item.scoped(to: reference, isServerAvailable: false)
+            #expect(!removed.isAvailable)
+            #expect(removed.readingColor == nil)
+            #expect(removed.id == reference.encodedID)
+            #expect(removed.displayName == item.displayName)
+            #expect(removed.gauge == item.gauge)
+            #expect(item.scoped(to: reference, isServerAvailable: true).isAvailable)
+
+            let unavailable = item.updating(with: WidgetSensorLiveReading(
+                entityID: item.id,
+                valueText: "Unavailable",
+                numericValue: nil,
+                isAvailable: false,
+                icon: item.icon
+            ))
+            #expect(!unavailable.scoped(to: reference, isServerAvailable: true).isAvailable)
+        }
+    }
+
     @Test func boardItemUsesConfiguredEntityForEitherPresentation() {
         let compact = WidgetSensorBoardCompactItem.sensor(from: makeSnapshot(gauge: makeGauge()))
         let chart = makeChartItem()
