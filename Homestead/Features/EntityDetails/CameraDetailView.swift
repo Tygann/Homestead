@@ -21,6 +21,7 @@ struct CameraDetailView: View {
     @State private var livePhase: CameraLivePhase = .idle
     @State private var player: AVPlayer?
     @State private var refreshGeneration = 0
+    @State private var loadAttemptID = UUID()
     @State private var playbackReadiness = CameraPlaybackReadiness()
     #if DEBUG
     @State private var loadStartedAt: Date?
@@ -463,6 +464,7 @@ struct CameraDetailView: View {
         loadStartedAt = .now
         recordStartupStage("Camera load started")
         #endif
+        loadAttemptID = UUID()
         webRTC.stop()
         usesWebRTC = false
         player?.pause()
@@ -552,6 +554,64 @@ struct CameraDetailView: View {
         }
     }
 
+    /// HLS decodes silently offscreen until it has a video frame. Only the winner is exposed.
+    private func raceLiveTransports(hlsPreparation: CameraHLSPreparation) async -> Bool {
+        let candidate = CameraHLSVideoCandidate()
+        let attemptID = loadAttemptID
+        let generation = refreshGeneration
+        usesWebRTC = true
+        livePhase = .live
+        // A previously unmuted native session must not compete with speculative HLS audio.
+        webRTC.isPlaybackSelected = false
+        recordStartupStage("WebRTC attempt")
+        let winner = await CameraPlaybackRace.firstVideo {
+            guard !Task.isCancelled, loadAttemptID == attemptID else { return false }
+            let started = await webRTC.start(service: homeAssistantService, entityID: entity.entityID) {
+                guard cameraIsActive, usesWebRTC, loadAttemptID == attemptID, refreshGeneration == generation else { return }
+                fallbackGeneration += 1
+            }
+            if !started, !Task.isCancelled { hlsPreparation.startFallback() }
+            return started
+        } hls: {
+            do {
+                let url = try await hlsPreparation.scheduledValue()
+                try Task.checkCancellation()
+                recordStartupStage("HLS speculative playback started")
+                return try await candidate.prepare(url: url)
+            } catch {
+                candidate.stop()
+                return false
+            }
+        }
+        guard !Task.isCancelled, cameraIsActive, loadAttemptID == attemptID, refreshGeneration == generation else {
+            candidate.stop()
+            if loadAttemptID == attemptID { webRTC.stop() }
+            return false
+        }
+        switch winner {
+        case .webRTC:
+            candidate.stop()
+            webRTC.isPlaybackSelected = true
+            recordStartupStage("WebRTC first frame")
+            return true
+        case .hls:
+            // Tear down native audio ownership before enabling the winning player's audio.
+            webRTC.stop()
+            usesWebRTC = false
+            player = candidate.player
+            player?.isMuted = false
+            livePhase = .live
+            recordStartupStage("HLS first video selected")
+            return true
+        case nil:
+            candidate.stop()
+            webRTC.stop()
+            usesWebRTC = false
+            livePhase = .failed
+            return false
+        }
+    }
+
     private func loadLiveStreamIfPossible(capabilities: HACameraCapabilities?) async -> Bool {
         guard !Task.isCancelled, cameraIsActive else { return false }
         let hlsPreparation: CameraHLSPreparation?
@@ -569,7 +629,11 @@ struct CameraDetailView: View {
             hlsPreparation = nil
         }
         defer { hlsPreparation?.cancel() }
+        if let hlsPreparation {
+            return await raceLiveTransports(hlsPreparation: hlsPreparation)
+        }
         if capabilities?.supportsWebRTCStream == true, shouldAttemptWebRTC {
+            webRTC.isPlaybackSelected = true
             recordStartupStage("WebRTC attempt")
             usesWebRTC = true
             livePhase = .live

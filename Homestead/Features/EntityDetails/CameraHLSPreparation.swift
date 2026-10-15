@@ -7,6 +7,7 @@ final class CameraHLSPreparation {
     private var delay: Task<Void, Never>?
     private var preparation: Task<URL, Error>?
     private var isCancelled = false
+    private var waiters: [UUID: CheckedContinuation<URL, Error>] = [:]
 
     init(gracePeriod: Duration = .seconds(3), request: @escaping @MainActor () async throws -> URL) {
         self.request = request
@@ -16,12 +17,33 @@ final class CameraHLSPreparation {
         }
     }
 
+    /// Wait for the grace period unless native failure has already requested immediate preparation.
+    func scheduledValue() async throws -> URL {
+        while preparation == nil, !isCancelled {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        return try await value()
+    }
+
+    func startFallback() { begin() }
+
     func value() async throws -> URL {
         try Task.checkCancellation()
         begin()
         guard let preparation else { throw CancellationError() }
-        let url = try await withTaskCancellationHandler {
-            try await preparation.value
+        let waiterID = UUID()
+        let url: URL = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
+                guard !Task.isCancelled, !isCancelled else {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                waiters[waiterID] = continuation
+                Task { [weak self] in
+                    let result = await preparation.result
+                    self?.waiters.removeValue(forKey: waiterID)?.resume(with: result)
+                }
+            }
         } onCancel: {
             Task { @MainActor in self.cancel() }
         }
@@ -34,6 +56,9 @@ final class CameraHLSPreparation {
         isCancelled = true
         delay?.cancel()
         preparation?.cancel()
+        let pending = Array(waiters.values)
+        waiters.removeAll()
+        for waiter in pending { waiter.resume(throwing: CancellationError()) }
     }
 
     private func begin() {

@@ -55,10 +55,15 @@ extension HomeAssistantService: CameraWebRTCSignaling {}
 final class CameraWebRTCPlayback: NSObject {
     // MARK: - Properties
     @ObservationIgnored private let startupTimeout: Duration
-    var isMuted = true {
-        didSet {
-            audioTrack?.isEnabled = !isMuted
-            if peer != nil, let generation { Self.audioDevice.setListening(!isMuted, owner: generation) }
+    var isMuted = true { didSet { updateListening() } }
+    /// Speculative decoding must not acquire audible output before transport selection.
+    var isPlaybackSelected = true { didSet { updateListening() } }
+    var isListeningAllowed: Bool { !isMuted && isPlaybackSelected }
+
+    private func updateListening() {
+        audioTrack?.isEnabled = isListeningAllowed
+        if peer != nil, let generation {
+            Self.audioDevice.setListening(isListeningAllowed, owner: generation)
         }
     }
     @ObservationIgnored private var audioTrack: RTCAudioTrack?
@@ -249,7 +254,7 @@ final class CameraWebRTCPlayback: NSObject {
         record("WebRTC ICE policy: \(rtcConfiguration.iceTransportPolicy == .relay ? "relay" : "all"), servers: \(rtcConfiguration.iceServers.count)")
         RTCSetMinDebugLogLevel(.none)
         if let id = generation {
-            Self.audioDevice.acquire(owner: id, listening: !isMuted) { [weak self] in
+            Self.audioDevice.acquire(owner: id, listening: isListeningAllowed) { [weak self] in
                 Task { @MainActor [weak self] in
                     guard self?.generation == id else { return }
                     self?.isMuted = true
@@ -469,7 +474,7 @@ extension CameraWebRTCPlayback: RTCPeerConnectionDelegate {
             guard let self, self.peer === peerConnection else { return }
             self.audioTrack = stream.audioTracks.first
             self.hasAudio = self.audioTrack != nil
-            self.audioTrack?.isEnabled = !self.isMuted
+            self.audioTrack?.isEnabled = self.isListeningAllowed
             if let track = stream.videoTracks.first { self.attachVideo(track) }
         }
     }
@@ -512,7 +517,7 @@ extension CameraWebRTCPlayback: RTCPeerConnectionDelegate {
             if let track = rtpReceiver.track as? RTCAudioTrack {
                 self.audioTrack = track
                 self.hasAudio = true
-                track.isEnabled = !self.isMuted
+                track.isEnabled = self.isListeningAllowed
             }
         }
     }
@@ -523,7 +528,7 @@ extension CameraWebRTCPlayback: RTCPeerConnectionDelegate {
             if let track = transceiver.receiver.track as? RTCAudioTrack {
                 self.audioTrack = track
                 self.hasAudio = true
-                track.isEnabled = !self.isMuted
+                track.isEnabled = self.isListeningAllowed
             }
         }
     }

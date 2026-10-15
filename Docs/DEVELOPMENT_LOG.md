@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-15
 
+### Bounded First-Video Selection
+
+- Dual-capability cameras retain the three-second native grace and HA producer preparation, then decode HLS silently while WebRTC continues. A decoded pixel buffer selects HLS; native uses its decoded-frame callback. The winner reuses its engine/player, cancels the loser, and alone may output audio. Native mute preference is separate from selection; single-transport behavior and the 12-second native bound remain.
+- HLS waiters now cancel promptly even when the underlying HA URL request ignores cancellation. Read-only final review found this winner-delay risk; a focused regression test covers native success before the late URL result. HLS failures/timeouts remove their video output and dispose their player. All 37 reported test results passed across CameraPlaybackRaceTests, CameraHLSPreparationTests, CameraWebRTCTests, and CameraAudioPlaybackTests.
+- Signed-in Duo verification rendered the retained Preparing still and selected HLS Live, with speculative start at 3,132 ms, decoded video selected at 15,578 ms, and visible playback status at 16,935 ms. Simulator HEVC negotiation fails early, so these timings establish behavior, not cellular improvement. Duo's inactive display produced black default screenshots; explicit display 1 captured actual content. Automation taps did not change navigation on Duo or the conventional simulator, so refresh/fullscreen interaction acceptance remains in the bundled phone check rather than being claimed complete.
+- Final simulator test compilation and signed Debug device build passed, and the signed build is installed on the paired iPhone. The processed device app retains NSCameraUsageDescription and no microphone declaration. ADR 5 records concurrent silent decoding while preserving receive-only audio and the required SDK camera declaration. No server configuration changes or Cloud subscription are required. XCTestDevices hygiene cleared 9.5 GB, 6.9 GB, then 5.1 GB across verification runs; DerivedData and normal Simulator data were untouched.
+
+
 ### Official Camera Setup Audit
 
 - Live read-only checks confirmed LL-HLS partial segments/blocking reload and HTTP/2 delivery already available. G6 preload is disabled; Cloud is signed out and client ICE has two STUN URLs with no TURN. No required setup mismatch was found, and no server settings were changed.

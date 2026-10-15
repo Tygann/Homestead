@@ -278,3 +278,12 @@ All three attempts reported a default cellular path, 13 remote candidate payload
 The configuration removed the large active TCP expansion: remote payloads fell from 144 to 13 and pairs from 55 to 14. This validates the candidate-policy effect, not a latency fix. The continued zero-response result does not identify a failing hop, prove VPN involvement, or mandate a relay. Keep the prior browser MJPEG/unknown phone HA transport distinction intact.
 
 Avoid another blind candidate-policy phone cycle. The measurable app-side delay is now the wait between an HLS producer ready around 3.2–3.4 seconds and player installation after the 12-second native bound. Next consider a bounded first-video race that starts prepared HLS while native preparation remains active, preserves fast WebRTC starts, and commits to one winner with explicit loser cancellation/audio ownership. This would intentionally extend the current producer-only overlap contract and must update ADR 5 and receive focused lifecycle/race/audio plus simulator verification before a physical comparison. No playback timing, server, VPN, timeout, or ICE configuration was changed in this evidence-only update.
+
+
+## First-video selection acceptance (October 15)
+
+Use G6 on the new first-video build, with the same normal HA/cloudflared configuration. No Cloud subscription, VPN change, preload, or router change is required. Preserve the opt-in cache log across Wi-Fi disconnection.
+
+Bundle one phone pass: on cellular, time initial open, Refresh, then background/foreground without Reload; confirm live motion and the retained still while preparing. Restore Wi-Fi and confirm fast native video still works, including one listening/mute check and fullscreen/Done. Confirm no microphone prompt or indicator and no overlapping audio. Restore Wi-Fi afterward. Capture the cache log once at the end; compare HLS speculative start/first-video selection against native ICE timeout and the prior 16.3/13.9/13.7-second baseline. Producer warmth means this is not a controlled cold-media experiment; label each run and do not infer transport from perceived speed.
+
+Expected behavior: fast native success cancels speculative HLS; stalled ICE does not prevent HLS from being selected before the 12-second native bound if HLS video arrives sooner. Refresh, dismissal, and background cancel both contenders. The change improves fallback scheduling and does not claim to repair direct cellular ICE reachability.
