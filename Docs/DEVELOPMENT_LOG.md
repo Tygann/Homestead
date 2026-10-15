@@ -4,6 +4,12 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-15
 
+### Official Camera Setup Audit
+
+- Live read-only checks confirmed LL-HLS partial segments/blocking reload and HTTP/2 delivery already available. G6 preload is disabled; Cloud is signed out and client ICE has two STUN URLs with no TURN. No required setup mismatch was found, and no server settings were changed.
+- Core HLS URL readiness is distinct from media readiness: first master fetch took 11.169 seconds versus 133 ms while warm. Source confirms producer startup before URL return and segment readiness gating in the master handler. Preserve the verified three-second preparation overlap; no buffer, encoding, or permanent preload change is justified by this audit.
+- Recorded evidence, limitations, official references, and relay/first-video follow-up in CAMERA_SETUP_AUDIT.md and NEXT_STEPS.md. No new phone cycle is required for unchanged app code; relay provisioning remains a user setup choice. Documentation verification uses diff review and `git diff --check`.
+
 ### Cold Cellular ICE Candidate Delivery
 
 - Saved G6 cellular captures showed quick HA configuration/session/answer but no ICE connection before native timeout. Read-only inspection identified HA 2026.10.1, UniFi Protect, go2rtc loaded, and STUN-only client servers. Matching Core source emits the session before provider setup; go2rtc can acknowledge but ignore candidates while its source/session is still being prepared. This is a credible cold-start race, not a confirmed explanation of the prior phone run.
