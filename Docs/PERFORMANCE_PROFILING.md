@@ -197,3 +197,16 @@ Bundle the remaining physical acceptance into one short session after installing
 3. Only if the cold cellular attempt still fails, compare G6 in HA over the same cellular connection and capture a fresh cold Homestead attempt separately. STUN-only configuration can still leave a reachability limitation; do not add arbitrary TURN services, direct go2rtc calls, shorter timeouts, or repeated retries without that evidence.
 
 Continue using G6 as the stable reference. This check establishes cellular behavior only; Bluetooth and an Instruments performance trace remain deferred. The HLS preparation overlap and SDK-required camera usage declaration remain intact.
+
+
+#### Physical Retest Result
+
+The October 15 signed Debug retest preserved the waiting snapshot. The user observed roughly 17 seconds to initial live video and roughly three seconds after background/return without Reload. The retrieved cache log showed:
+
+- Cold attempt: HLS preparation at 3,208 ms, ready at 3,281 ms; native timeout/fallback at 12,220 ms; HLS playing at 13,135 ms from camera-load start. The difference from the observed total is not explained by this log.
+- Cold ICE counters: 55 candidate pairs, zero successful pairs, 122 requests/zero responses at the six-second snapshot and 242 requests/zero responses at timeout. Candidate acknowledgements are present in the retained tail, but the beginning of this attempt was overwritten. These counters establish unanswered connectivity checks, not the failing network hop or a definite NAT/TURN diagnosis.
+- First foreground return: about 0.48 seconds waiting for HA; native first frame at 2,415 ms after camera-load start. A later foreground attempt waited about 0.38 seconds for HA and reached a frame at 2,721 ms. The user restored Wi-Fi before retrieval; the log does not label which network each attempt used.
+
+The candidate timing mitigation did not resolve cold cellular ICE. Preserve the verified HLS overlap and automatic foreground recovery. Next investigate the cold media reachability path, with an HA comparison on the same cellular connection if needed. Do not infer that a relay is mandatory or shorten the native bound from these counters alone.
+
+The 512-line cache was full: repeated remote candidate category lines displaced the initial cold configuration/session/answer stages. Complete later attempts each contained 129 host/TCP/IPv6 candidate events; category equality does not establish duplicate candidate payloads. Before the next phone check, aggregate candidate diagnostics by category and preserve startup milestones rather than continuing to expand the ring. The sanitized capture remains local at `/tmp/homestead-camera-ice-physical.log` and is not committed.
