@@ -1,6 +1,6 @@
-# Next TestFlight Draft
+# TestFlight Notes: 1.0 (133)
 
-Prepared October 16, 2026 for local version 1.0 build 133 from `c6ddd27` plus build-number metadata, using version 1.0 build 132 (`e0d02a1`) as the last published boundary. No upload or distribution is recorded by this draft. See [candidate 133 validation](c6ddd27-133-validation.md); recheck live App Store Connect numbering before any later upload.
+Prepared October 16, 2026 for version 1.0 build 133 from `c6ddd27` plus build-number metadata, covering changes since build 132 (`e0d02a1`). Build 133 was uploaded with user authorization after live numbering verification; it is now the release-history boundary. See [candidate 133 validation](c6ddd27-133-validation.md) for processing and acceptance status.
 
 ## What to Test
 
@@ -22,4 +22,4 @@ Please test:
 
 See [8095e34 validation evidence](8095e34-validation.md). Keep unresolved acceptance items explicit; do not infer delivery from a successful Home Assistant service call or App Store readiness from a development-signed archive.
 
-The deleted-registration and static-libsodium fixes supersede the two original blockers only after the follow-up checks in the validation record. Existing reconnect, dashboard, statistics, and background-delivery evidence remains scoped to its recorded build/device. Candidate 133 now has user-confirmed production-push Ad Hoc device acceptance for foreground/locked delivery, plain-notification app opening, saved dashboard preservation, and process-relaunch delivery/readiness. See its separate validation record for limits. Recheck live App Store Connect numbering before a later authorized upload; Apple processing and TestFlight installation remain unverified. Build 132 remains the published boundary. This task does not upload or distribute a build.
+The deleted-registration and static-libsodium fixes supersede the two original blockers only after the follow-up checks in the validation record. Existing reconnect, dashboard, statistics, and background-delivery evidence remains scoped to its recorded build/device. Candidate 133 now has user-confirmed production-push Ad Hoc device acceptance for foreground/locked delivery, plain-notification app opening, saved dashboard preservation, and process-relaunch delivery/readiness. See its separate validation record for limits. The authorized upload and Apple processing completed. Build 133 is Ready to Submit for external testing, its What to Test notes are saved, and the existing one-person Internal Testers group attached automatically. TestFlight installation remains distinct from the accepted Ad Hoc install. Build 133 is now the uploaded release-history boundary. External tester distribution and the current App Store submission were not changed.

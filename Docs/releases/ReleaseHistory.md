@@ -65,6 +65,29 @@ Please test:
 Optional notes about the major source changes covered by this release.
 ```
 
+## Version 1.0 (Build 133)
+
+- Release Date: 2026-10-16
+- Channel: TestFlight
+
+### User-Facing Release Notes
+
+This build improves dashboard reliability and sensor history.
+
+- Keep saved dashboard cards when devices temporarily become unavailable, with controls returning as devices recover
+- Explore 30-day measurement charts with older hourly averages where Home Assistant provides compatible statistics
+- More reliable reconnection, sign-in renewal, and notification registration, including recovery after a Home Assistant registration is deleted
+
+Please test:
+
+- Return after a connection interruption and check dashboard cards, order, and selected dashboard
+- Upgrade an existing installation and check notification delivery while open and in the background
+- Compare 30-day charts for measurement sensors and check gaps where history is missing
+
+### Internal Summary
+
+Build 133 includes saved-dashboard membership resilience, compatible 30-day measurement statistics, trusted-origin image authorization, coalesced OAuth refresh, modern WebSocket snapshots/events, and encrypted mobile-app registration with bounded deleted-webhook recovery. Production source: `c6ddd27`; build metadata committed in `1538d4b`; device acceptance recorded in `c30e32e`. Local simulator build, 92 focused tests, signed archive/export checks, privacy/import review, and matching app/widget/WebRTC symbols passed. User confirmed production-push Ad Hoc upgrade from 132 on iPhone 15 Pro / iOS 27.0.1, foreground and locked delivery, plain-notification opening with dashboard intact, and delivery/readiness after process restart. This is distinct from TestFlight installation. Live ASC numbering confirmed 132 highest before upload. Authorized upload from `/tmp/Homestead-c6ddd27-133-Release.xcarchive` succeeded October 16 at 1:14 PM CDT with build numbering preserved and matching WebRTC symbols. App Store Connect processing completed and lists 133 Ready to Submit for external testing. Prepared What to Test notes were saved and verified; the existing one-person Internal Testers group attached automatically. Current App Store submission and external tester distribution were not changed. See `c6ddd27-133-validation.md` for artifact and acceptance boundaries.
+
 ## Version 1.0 (Build 132)
 
 - Release Date: 2026-10-15
