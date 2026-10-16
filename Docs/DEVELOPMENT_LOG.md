@@ -1,3 +1,12 @@
+# October 16, 2026 — Coordinated entity and companion reliability
+
+- Preserved cover/fan/climate feature bits and centralized mandatory entity/state/attribute/service gates across native surfaces, widget actions, and service entry points. Saved memberships remain independent of availability.
+- Persisted complete successful mobile registration update metadata, refreshed mobile `get_config` routes including removed values, and reused authenticated foreground sockets for suitable encrypted webhooks with shared typed response decoding and bounded HTTP fallback. Non-idempotent encryption upgrades and notification actions never replay.
+- Replaced widget full snapshots with selected compact snapshots, per-server Sensor Board batches, legacy fallback, cancellation/deadline cleanup, and fresh capability/service checks before actions.
+- Added ordered live rename events and local per-card registry UUID bindings for offline recovery, reverse renames, reused entity IDs, manual replacements, and cards added after metadata load. No dashboard schema or iCloud format change.
+- Added cold-launch navigation retention, originating webhook resolution, safe URL/native entity routing, native action/text reply semantics, and a notification content extension. Relay source forwards official registration identity and dynamic category; no deployment or notification send occurred.
+- Official contracts, final verification evidence, measured request counts, and outstanding live/device checks are recorded in `Docs/HA_RELIABILITY_CONTRACTS.md`. Independent read-only review findings were resolved before commit.
+
 # Development Log
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
