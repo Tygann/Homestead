@@ -154,6 +154,30 @@ final class RemainingRecommendationsTests: XCTestCase {
         XCTAssertNil(service.notificationOrigin(interaction, settings: settings))
     }
 
+    func testCustomNamedURIActionsNavigateInForegroundWithoutSendingEvents() throws {
+        for identifier in ["OPEN", "URI"] {
+            for uri in ["https://example.com", "/lovelace/cameras", "javascript:alert(1)"] {
+                let info: [AnyHashable: Any] = ["webhook_id": "origin", "data": ["actions": [
+                    ["action": identifier, "title": "Open", "uri": uri, "activationMode": "background"]
+                ]]]
+                let interaction = try XCTUnwrap(NotificationInteraction(userInfo: info, actionIdentifier: identifier))
+                let action = try XCTUnwrap(interaction.action)
+                XCTAssertEqual(interaction.url, uri)
+                XCTAssertEqual(interaction.webhookID, "origin")
+                XCTAssertTrue(action.opensURI)
+                XCTAssertTrue(action.nativeAction.options.contains(.foreground))
+                if uri.hasPrefix("javascript:") {
+                    XCTAssertNil(NotificationLinkDestination.resolve(uri, baseURL: "https://home.example"))
+                }
+            }
+        }
+        let event = try XCTUnwrap(NotificationActionDefinition(object: ["action": "OPEN", "title": "Open"]))
+        XCTAssertFalse(event.opensURI)
+        XCTAssertFalse(event.foreground)
+        let legacy = try XCTUnwrap(NotificationActionDefinition(object: ["action": "URI", "title": "Open"]))
+        XCTAssertTrue(legacy.opensURI)
+    }
+
     func testNotificationURLsActionsRepliesCancellationAndOriginArePreserved() throws {
         let profile = UUID()
         let info: [AnyHashable: Any] = ["webhook_id": "origin", "homestead_profile_id": profile.uuidString,

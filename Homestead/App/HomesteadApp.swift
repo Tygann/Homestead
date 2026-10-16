@@ -409,7 +409,7 @@ final class HomesteadAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
     @MainActor
     private static func handleInteraction(_ received: NotificationInteraction) async {
         var interaction = received
-        if let action = interaction.action, action.identifier != "URI" {
+        if let action = interaction.action, !action.opensURI {
             guard let service = homeAssistantService, let settings = connectionSettings,
                   let profileID = service.notificationOrigin(interaction, settings: settings) else {
                 nativeNotificationService?.recordInteractionError("The Home Assistant server for this notification is no longer available.")

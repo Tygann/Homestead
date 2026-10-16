@@ -21,10 +21,13 @@ nonisolated struct NotificationActionDefinition: Equatable, Sendable {
         authenticationRequired = object["authenticationRequired"] as? Bool == true
         destructive = object["destructive"] as? Bool == true
         uri = object["uri"] as? String
-        foreground = object["activationMode"] as? String == "foreground" || identifier == "URI"
+        foreground = object["activationMode"] as? String == "foreground" || uri != nil || identifier == "URI"
         inputTitle = object["textInputButtonTitle"] as? String ?? "Send"
         inputPlaceholder = object["textInputPlaceholder"] as? String ?? ""
     }
+
+    // iOS URI actions may use any identifier; links navigate instead of firing an event.
+    var opensURI: Bool { uri != nil || identifier == "URI" }
 
     var nativeAction: UNNotificationAction {
         var options: UNNotificationActionOptions = []

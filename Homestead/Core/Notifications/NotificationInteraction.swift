@@ -24,7 +24,7 @@ nonisolated struct NotificationInteraction: Identifiable, Equatable, Sendable {
         } else {
             guard let definition = NotificationPayload.actions(userInfo).first(where: { $0.identifier == actionIdentifier }) else { return nil }
             action = definition
-            url = definition.identifier == "URI" ? definition.uri : nil
+            url = definition.uri
         }
         self.reply = reply
         if let value = data["action_data"], JSONSerialization.isValidJSONObject(["value": value]),
