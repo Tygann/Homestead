@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import worker, { type Env } from "./index.ts";
+import worker, { makeAPNSPayload, type Env } from "./index.ts";
 
 const API_HOST = "api.homesteadcontrol.com";
 const CONNECT_HOST = "connect.homesteadcontrol.com";
@@ -147,4 +147,15 @@ test("marketing hosts no longer serve legacy pages or backend endpoints", async 
       assert.equal(response.status, 404);
     }
   }
+});
+
+
+test("mobile push retains originating webhook, URL, actions, and ordinary delivery", () => {
+  const data = { url: "/lovelace/home", actions: [{action: "REPLY", title: "Reply"}], action_data: {key: "value"} };
+  const payload = makeAPNSPayload({title: "Title", message: "Message", data, webhookID: "origin-webhook"});
+  assert.equal(payload.webhook_id, "origin-webhook");
+  assert.deepEqual(payload.data, data);
+  assert.deepEqual(payload.aps, {alert: {title: "Title", body: "Message"}, sound: "default", category: "HomesteadDynamic"});
+  const ordinary = makeAPNSPayload({message: "Message"});
+  assert.deepEqual(ordinary, {aps: {alert: {body: "Message"}, sound: "default"}});
 });

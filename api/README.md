@@ -178,3 +178,8 @@ Example body:
 ```
 
 If `HOMESTEAD_PUSH_ADMIN_TOKEN` is not configured, the endpoint rejects all requests.
+
+
+## Notification interaction payloads
+
+The local relay forwards Home Assistant's official `registration_info.webhook_id` to APNs top-level `webhook_id`, preserving `data` (including `url`, `actions`, and `action_data`). Notifications with actions use the `HomesteadDynamic` content-extension category. Ordinary alerts keep their existing payload shape. This source update requires an authorized Worker deployment before background URL/action acceptance; local implementation does not change the deployed Worker. Never infer a notification's server from the app's active profile.

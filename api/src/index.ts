@@ -146,7 +146,8 @@ async function relayHomeAssistantPush(request: Request, env: Env): Promise<Respo
   const apnsPayload = makeAPNSPayload({
     title,
     message,
-    data: objectValue(payload.value.data)
+    data: objectValue(payload.value.data),
+    webhookID: optionalString(objectValue(payload.value.registration_info) ?? {}, "webhook_id")
   });
 
   const result = await sendAPNSNotification(env, record, apnsPayload);
@@ -277,10 +278,11 @@ async function importAPNSPrivateKey(privateKeyPEM: string): Promise<CryptoKey> {
   );
 }
 
-function makeAPNSPayload(input: {
+export function makeAPNSPayload(input: {
   title?: string;
   message: string;
   data?: JSONObject;
+  webhookID?: string;
 }): JSONObject {
   const alert: JSONObject = { body: input.message };
   if (input.title) {
@@ -296,6 +298,12 @@ function makeAPNSPayload(input: {
 
   if (input.data) {
     payload.data = input.data;
+    if (Array.isArray(input.data.actions) && input.data.actions.length > 0) {
+      (payload.aps as JSONObject).category = "HomesteadDynamic";
+    }
+  }
+  if (input.webhookID) {
+    payload.webhook_id = input.webhookID;
   }
 
   return payload;
