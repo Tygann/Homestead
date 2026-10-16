@@ -1,6 +1,6 @@
 # Next TestFlight Draft
 
-Prepared October 16, 2026 against `8095e34` plus the deleted-registration/privacy follow-up, using version 1.0 build 132 (`e0d02a1`) as the last published boundary. No upload or distribution is recorded by this draft. Assign a new App Store Connect build number during release preparation; the local validation archive retains the repository build number `1`.
+Prepared October 16, 2026 for local version 1.0 build 133 from `c6ddd27` plus build-number metadata, using version 1.0 build 132 (`e0d02a1`) as the last published boundary. No upload or distribution is recorded by this draft. See [candidate 133 validation](c6ddd27-133-validation.md); recheck live App Store Connect numbering before any later upload.
 
 ## What to Test
 
@@ -22,4 +22,4 @@ Please test:
 
 See [8095e34 validation evidence](8095e34-validation.md). Keep unresolved acceptance items explicit; do not infer delivery from a successful Home Assistant service call or App Store readiness from a development-signed archive.
 
-The deleted-registration and static-libsodium fixes supersede the two original blockers only after the follow-up checks in the validation record. Existing reconnect, dashboard, statistics, and background-delivery evidence remains scoped to its recorded build/device. Foreground notification delivery and candidate-device acceptance remain open; assign a fresh build number and repeat release/export checks before any later upload. Build 132 remains the published boundary. This task does not upload or distribute a build.
+The deleted-registration and static-libsodium fixes supersede the two original blockers only after the follow-up checks in the validation record. Existing reconnect, dashboard, statistics, and background-delivery evidence remains scoped to its recorded build/device. Foreground notification delivery and candidate-device acceptance remain open. Local candidate 133 has a separate validation record; its export does not establish device acceptance or Apple processing. Build 132 remains the published boundary. This task does not upload or distribute a build.
