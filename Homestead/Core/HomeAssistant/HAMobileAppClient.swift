@@ -16,6 +16,7 @@ nonisolated enum HAMobileAppClientError: LocalizedError, Equatable {
     case httpStatus(Int)
     case webhookError(String)
     case encryptionFailed
+    case emptyWebhookResponse
 
     var errorDescription: String? {
         switch self {
@@ -23,6 +24,7 @@ nonisolated enum HAMobileAppClientError: LocalizedError, Equatable {
         case .httpStatus(let status): "Home Assistant app request failed with status \(status)."
         case .webhookError(let code): "Home Assistant app request failed (\(code))."
         case .encryptionFailed: "Home Assistant app encryption failed. Register this device again."
+        case .emptyWebhookResponse: "Home Assistant did not recognize this app registration."
         }
     }
 }
@@ -102,6 +104,11 @@ actor HAMobileAppClient: HAMobileAppClientProtocol {
                     throw HAMobileAppClientError.webhookError(code)
                 }
                 try validate(response: response)
+                // Unknown/unloaded HA webhooks return an empty 200, including immediately
+                // deleted mobile-app entries. Keep this distinct from malformed ciphertext.
+                if data.isEmpty, (response as? HTTPURLResponse)?.statusCode == 200 {
+                    throw HAMobileAppClientError.emptyWebhookResponse
+                }
                 return try HAMobileAppWebhookEncryption.decode(data: data, secret: registration.secret)
             } catch {
                 try Task.checkCancellation()
@@ -112,6 +119,7 @@ actor HAMobileAppClient: HAMobileAppClientProtocol {
     }
 
     private func shouldFailover(_ error: Error) -> Bool {
+        if error as? HAMobileAppClientError == .emptyWebhookResponse { return true }
         if case HAMobileAppClientError.httpStatus(let status) = error {
             return status == 404 || status == 408 || status == 429 || (500...599).contains(status)
         }

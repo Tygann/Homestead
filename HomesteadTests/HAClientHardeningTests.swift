@@ -69,6 +69,38 @@ final class HAClientHardeningTests: XCTestCase {
         XCTAssertEqual(transport.requests.count, 1)
     }
 
+    func testEmptyWebhookTriesAllRoutesBeforeTypedRecovery() async throws {
+        for encrypted in [false, true] {
+            let transport = HardeningHTTPTransport(responses: [(200, ""), (200, ""), (200, "")])
+            let client = HAMobileAppClient(session: session(transport))
+            do {
+                try await client.updateRegistration(configuration: configuration,
+                    registration: encrypted ? registration().replacingEncryptionSecret(secret) : registration(),
+                    update: HAMobileAppRegistrationRequestFactory.makeUpdate(userDisplayName: nil, pushRelayToken: "relay"))
+                XCTFail("Expected empty webhook response")
+            } catch { XCTAssertEqual(error as? HAMobileAppClientError, .emptyWebhookResponse) }
+            XCTAssertEqual(transport.requests.count, 3)
+        }
+    }
+
+    func testEmptyCloudhookFallsBackToWorkingRoute() async throws {
+        let transport = HardeningHTTPTransport(responses: [(200, ""), (200, #"{"hls_path":"/api/hls/test.m3u8"}"#)])
+        let result = try await HAMobileAppClient(session: session(transport)).requestCameraStream(
+            configuration: configuration, registration: registration(), entityID: "camera.front")
+        XCTAssertEqual(result.hlsPath, "/api/hls/test.m3u8")
+        XCTAssertEqual(transport.requests.count, 2)
+    }
+
+    func testEmptyEncryptionUpgradeIsNotReplayed() async throws {
+        let transport = HardeningHTTPTransport(responses: [(200, "")])
+        do {
+            _ = try await HAMobileAppClient(session: session(transport)).enableEncryption(
+                configuration: configuration, registration: registration())
+            XCTFail("Expected empty webhook response")
+        } catch { XCTAssertEqual(error as? HAMobileAppClientError, .emptyWebhookResponse) }
+        XCTAssertEqual(transport.requests.count, 1)
+    }
+
     func testEncryptionUpgradeStoresSecretAndDoesNotReplayFailure() async throws {
         let transport = HardeningHTTPTransport(responses: [(200, "{\"secret\":\"\(secret)\"}")])
         let client = HAMobileAppClient(session: session(transport))
@@ -172,6 +204,44 @@ final class HAClientHardeningTests: XCTestCase {
         XCTAssertEqual(context.client.requests.count, 1)
         XCTAssertEqual(try context.store.readRegistration()?.webhookID, "new-webhook")
         XCTAssertEqual(try context.store.readRegistration()?.secret, secret)
+    }
+
+    func testServiceEmptyWebhookRecreatesOnceButMalformedCiphertextDoesNot() async throws {
+        for error: HAMobileAppClientError in [.emptyWebhookResponse, .encryptionFailed, .httpStatus(503)] {
+            let context = try serviceContext(existing: registration().replacingEncryptionSecret(secret))
+            defer { context.cleanup() }
+            context.client.updateError = error
+            await context.service.registerMobileApp(settings: context.settings)
+            XCTAssertEqual(context.client.updateCount, 1)
+            let recovers = error == .emptyWebhookResponse
+            XCTAssertEqual(context.client.requests.count, recovers ? 1 : 0)
+            XCTAssertEqual(try context.store.readRegistration()?.webhookID, recovers ? "new-webhook" : "webhook")
+            XCTAssertEqual(context.service.mobileAppRegistrationState.isRegistered, recovers)
+        }
+    }
+
+    func testServiceEmptyUpgradeReplacesRegistrationWithoutReplayingUpgrade() async throws {
+        let context = try serviceContext(existing: registration())
+        defer { context.cleanup() }
+        context.client.upgradeError = .emptyWebhookResponse
+        await context.service.registerMobileApp(settings: context.settings)
+        XCTAssertEqual(context.client.upgradeCount, 1)
+        XCTAssertEqual(context.client.updateCount, 0)
+        XCTAssertEqual(context.client.requests.count, 1)
+        XCTAssertEqual(try context.store.readRegistration()?.webhookID, "new-webhook")
+    }
+
+    func testServiceFailedEmptyWebhookReplacementKeepsSavedRegistration() async throws {
+        let context = try serviceContext(existing: registration().replacingEncryptionSecret(secret))
+        defer { context.cleanup() }
+        context.client.updateError = .emptyWebhookResponse
+        context.client.registrationError = .httpStatus(503)
+        await context.service.registerMobileApp(settings: context.settings)
+        XCTAssertEqual(context.client.updateCount, 1)
+        XCTAssertEqual(context.client.requests.count, 1)
+        XCTAssertEqual(try context.store.readRegistration()?.webhookID, "webhook")
+        XCTAssertEqual(try context.store.readRegistration()?.secret, secret)
+        XCTAssertFalse(context.service.mobileAppRegistrationState.isRegistered)
     }
 
     func testServiceConcurrentRegistrationSharesOneRequest() async throws {
@@ -331,6 +401,8 @@ private final class RegistrationHardeningClient: HAMobileAppClientProtocol {
     var upgradeCount = 0
     var persistedSecretAtUpdate: String?
     var updateError: HAMobileAppClientError?
+    var upgradeError: HAMobileAppClientError?
+    var registrationError: HAMobileAppClientError?
     var pauseRegistration = false
     var pauseUpgrade = false
     private var registrationWaiter: CheckedContinuation<Void, Never>?
@@ -340,10 +412,11 @@ private final class RegistrationHardeningClient: HAMobileAppClientProtocol {
 
     init(store: InMemoryHAMobileAppRegistrationStore, secret: String) { self.store = store; self.secret = secret }
     func register(configuration: HAConnectionConfiguration, request: HAMobileAppRegistrationRequestDTO) async throws -> HAMobileAppRegistrationResponseDTO {
-        await performRegistration(request: request)
+        try await performRegistration(request: request)
     }
-    @MainActor private func performRegistration(request: HAMobileAppRegistrationRequestDTO) async -> HAMobileAppRegistrationResponseDTO {
+    @MainActor private func performRegistration(request: HAMobileAppRegistrationRequestDTO) async throws -> HAMobileAppRegistrationResponseDTO {
         requests.append(request)
+        if let registrationError { throw registrationError }
         if pauseRegistration {
             await withCheckedContinuation { continuation in
                 registrationWaiter = continuation
@@ -364,10 +437,11 @@ private final class RegistrationHardeningClient: HAMobileAppClientProtocol {
         }
     }
     func enableEncryption(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo) async throws -> String? {
-        await performEncryptionUpgrade()
+        try await performEncryptionUpgrade()
     }
-    @MainActor private func performEncryptionUpgrade() async -> String? {
+    @MainActor private func performEncryptionUpgrade() async throws -> String? {
         upgradeCount += 1
+        if let upgradeError { throw upgradeError }
         if pauseUpgrade {
             await withCheckedContinuation { continuation in
                 upgradeWaiter = continuation

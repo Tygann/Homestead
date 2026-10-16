@@ -302,7 +302,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A50000032FC8000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */,
-				A60000032FC8000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */,
+				A60000032FC8000000000001 /* XCLocalSwiftPackageReference "Vendor/Sodium" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2FE2DD5A2FBDFE42009A0E06 /* Products */;
@@ -795,6 +795,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		A60000032FC8000000000001 /* XCLocalSwiftPackageReference "Vendor/Sodium" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/Sodium;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		A50000032FC8000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -802,14 +809,6 @@
 			requirement = {
 				kind = exactVersion;
 				version = 155.0.0;
-			};
-		};
-		A60000032FC8000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/jedisct1/swift-sodium.git";
-			requirement = {
-				kind = exactVersion;
-				version = 0.11.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -822,7 +821,7 @@
 		};
 		A60000022FC8000000000001 /* Sodium */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A60000032FC8000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */;
+			package = A60000032FC8000000000001 /* XCLocalSwiftPackageReference "Vendor/Sodium" */;
 			productName = Sodium;
 		};
 /* End XCSwiftPackageProductDependency section */

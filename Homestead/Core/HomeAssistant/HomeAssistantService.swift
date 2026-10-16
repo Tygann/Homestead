@@ -3727,7 +3727,7 @@ extension HomeAssistantService {
 private extension HAMobileAppClientError {
     var requiresNewRegistration: Bool {
         switch self {
-        case .httpStatus(410), .webhookError("encryption_already_enabled"), .webhookError("encryption_required"): true
+        case .emptyWebhookResponse, .httpStatus(410), .webhookError("encryption_already_enabled"), .webhookError("encryption_required"): true
         default: false
         }
     }

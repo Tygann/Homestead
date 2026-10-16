@@ -4,6 +4,20 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-16
 
+### Deleted Registration Recovery And Sodium Privacy Resolution
+
+- Classified exact empty HTTP 200 webhook responses separately from malformed ciphertext. Ordinary operations exhaust the finite documented route list; setup/camera recovery remains bounded, one-time encryption upgrade is not replayed, and failed replacement preserves saved credentials.
+- Vendored the unchanged swift-sodium 0.11.0 Swift wrapper with a source-pinned libsodium 1.0.22 XCFramework rebuild. Upstream configure plus `HAVE_SAFE_ARC4RANDOM` selects Apple's RNG without custom cryptography or an inaccurate `/dev/random` privacy reason. Rebuild/provenance: `Scripts/rebuild_sodium.sh` and `Vendor/Sodium/README.md`.
+- Debug simulator build and final 22-test serial run passed (21 permanent hardening tests plus isolated disposable live registration acceptance). Live legacy upgrade, Keychain reopen, lost-key replacement, immediate deletion recovery, and exact server baseline cleanup passed. Earlier harness interference is recorded separately from acceptance. No UI code changed or new phone-delivery acceptance inferred.
+- Signed Release archive passed with `_fstat` absent, existing app/widget manifest equality and WebRTC manifest inclusion, strict signatures, and matching app/widget/WebRTC symbols. Archive remains local at version 1.0/build 1; no new export/upload/distribution. Existing evidence and remaining notification/build-number gates are retained in `Docs/releases/8095e34-validation.md`; handoff and TestFlight draft updated. Hygiene stayed zero with no cleanup; final read-only review found no blockers.
+
+### 8095e34 Release Acceptance And Hold
+
+- Signed Release archive and local App Store distribution IPA export passed, including deep strict signatures, production push entitlements in the exported app, exact first-party privacy resources, WebRTC supplier manifest, and app/widget/WebRTC dSYM UUID matches. No upload/submission change; archive build number remains 1.
+- Live HA 2026.10.1: automatic reconnect restored 1,610 entities, preserving five saved test cards and selection across persistence reload. Disposable legacy encryption upgrade retained the webhook, Keychain reopen retained its secret, and local lost-key recovery produced an encrypted replacement. Original HA registration entry set was restored after each run. Production 30D history combined 551 hourly rows and 17 recent raw states; the live chart rendered its hourly-average disclosure.
+- Release hold: immediate server-side registration deletion returns empty HTTP 200 and leaves failed/stale local registration; mocked 410 recovery does not establish this live path. New static libsodium also introduces `_fstat` without app FileTimestamp coverage; earlier privacy audit predates the dependency. Neither issue was patched speculatively during candidate validation.
+- All 85 selected existing tests passed; temporary live tests exposed the deletion failure, with final history and automatic reconnect checks passing. Harness startup-race and build-lock failures are excluded from acceptance evidence. Hygiene ran after each test attempt; XCTestDevices stayed zero with no cleanup. Phone notification service accepted one labeled message; the user confirmed background receipt on the installed iPhone build. Foreground delivery and candidate-device acceptance remain open. Evidence and draft notes: `Docs/releases/8095e34-validation.md` and `Docs/releases/NextTestFlight.md`.
+
 ### Home Assistant Client Contract And Reliability Pass
 
 - Restricted artwork bearer credentials to configured HA origins using scheme/host/effective-port matching; external HTTP(S) images remain unauthenticated. OAuth refreshes share one in-flight request and credential generations prevent sign-out/sign-in races from restoring obsolete credentials.
