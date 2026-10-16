@@ -1,5 +1,8 @@
 # Homestead Next Steps
 
+October 16 dashboard resilience fix: saved card membership no longer depends on live entity capabilities or presence. Removed destructive startup/dashboard reconciliation; structural decoding/normalization stays in the existing migration pipeline. Missing cards/chips remain in their saved positions with unavailable presentation and recover through existing store observation. Unavailable card controls are disabled. No schema change or new network requests. Previously deleted cards must be re-added; this does not reconstruct lost configurations. Official HA availability guidance: https://contributors.home-assistant.io/core/quality-scale/entity-unavailable/. Verification results are recorded in the development log; physical thermostat/lock reconnect acceptance remains useful.
+
+
 This is the tactical handoff for the current active workstream. Keep it short and update it when a chunk completes, priorities change, or a new chat should pick up somewhere different.
 
 For broader direction, read `Docs/PRODUCT_ROADMAP.md`. For API status and API research targets, read `Docs/API_CAPABILITY_INVENTORY.md`.

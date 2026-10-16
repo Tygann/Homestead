@@ -1298,32 +1298,53 @@ final class DashboardConfigurationXCTests: XCTestCase {
         }
     }
 
-    func testCatalogRejectsIncompatibleEntityPresentationDuringReconciliation() throws {
+    func testSavedCardsSurviveCapabilityLossMissingSnapshotsAndRelaunch() throws {
         let defaults = makeDefaults()
         let configuration = DashboardConfiguration(defaults: defaults)
-        _ = configuration.add(
-            source: .entity("light.kitchen"),
-            presentation: .card(.camera(layout: .square))
-        )
-        _ = configuration.add(
-            source: .entity("light.kitchen"),
-            presentation: .card(.control(layout: .square))
-        )
+        for (id, card) in [
+            ("climate.hall", DashboardCardConfiguration.control(layout: .square)),
+            ("lock.front_door", .control(layout: .compact)),
+            ("sensor.temperature", .circularGauge(layout: .square)),
+            ("sensor.temperature", .chart(layout: .square))
+        ] {
+            _ = configuration.add(source: .entity(id), presentation: .card(card))
+        }
+        _ = configuration.add(source: .entity("lock.front_door"), presentation: .chip)
+        let savedItems = configuration.items
+        let dashboardID = configuration.selectedDashboardID
         let store = HAStateStore()
+        for state in ["unavailable", "unknown", "heat", "unavailable"] {
+            store.applyInitialStates([
+                HAEntityDTO(entityID: "climate.hall", state: state),
+                HAEntityDTO(entityID: "lock.front_door", state: state),
+                HAEntityDTO(entityID: "sensor.temperature", state: state)
+            ])
+            XCTAssertEqual(configuration.visibleItems(dashboardID: dashboardID), savedItems)
+            XCTAssertEqual(DashboardConfiguration(defaults: defaults).items, savedItems)
+        }
+        store.applyInitialStates([])
+        XCTAssertEqual(configuration.visibleItems(dashboardID: dashboardID), savedItems)
         store.applyInitialStates([
-            HAEntityDTO(
-                entityID: "light.kitchen",
-                state: "on",
-                attributes: ["brightness": .number(128)]
-            )
+            HAEntityDTO(entityID: "climate.hall", state: "heat", attributes: ["temperature": .number(70)]),
+            HAEntityDTO(entityID: "lock.front_door", state: "locked"),
+            HAEntityDTO(entityID: "sensor.temperature", state: "72")
         ])
+        let restored = DashboardConfiguration(defaults: defaults)
+        XCTAssertEqual(restored.visibleItems(dashboardID: dashboardID), savedItems)
+        XCTAssertEqual(restored.selectedDashboardID, dashboardID)
+    }
 
-        configuration.reconcile(with: store.allEntityBoxes())
-
-        XCTAssertFalse(configuration.items.contains { $0.presentation?.kind == .camera })
-        XCTAssertTrue(configuration.items.contains { $0.presentation?.kind == .control })
-        XCTAssertEqual(configuration.items.count, 1)
-        XCTAssertEqual(configuration.setupState, .manual)
+    func testMissingEntityPresentationIsUnavailableAndCannotControlDevice() {
+        for id in ["climate.hall", "lock.front_door", "sensor.temperature", "camera.porch"] {
+            let box = HAEntityState.dashboardUnavailable(entityID: id)
+            let presentation = DashboardEntityPresentation(entityBox: box)
+            XCTAssertEqual(box.entityID, id)
+            XCTAssertFalse(presentation.isAvailable)
+            XCTAssertNil(presentation.primaryAction)
+            let chip = DashboardSummaryProvider.makeEntityChip(entityBox: box)
+            XCTAssertFalse(chip.isAvailable)
+            XCTAssertFalse(chip.title.isEmpty)
+        }
     }
 
     func testNewDashboardWaitsForFirstAddedItemBeforeRecordingManualSetup() throws {
@@ -1334,7 +1355,6 @@ final class DashboardConfigurationXCTests: XCTestCase {
             HAEntityDTO(entityID: "light.kitchen", state: "on")
         ])
 
-        configuration.reconcile(with: store.allEntityBoxes())
 
         XCTAssertEqual(configuration.setupState, .notChosen)
         XCTAssertTrue(configuration.items.isEmpty)
@@ -1371,7 +1391,6 @@ final class DashboardConfigurationXCTests: XCTestCase {
 
         let store = HAStateStore()
         store.applyInitialStates([HAEntityDTO(entityID: "light.kitchen", state: "on")])
-        restored.reconcile(with: store.allEntityBoxes())
         XCTAssertTrue(restored.items.isEmpty)
         XCTAssertEqual(restored.setupState, .intentionallyEmpty)
     }

@@ -732,51 +732,12 @@ final class DashboardConfiguration {
         defaults.removeObject(forKey: Self.enabledDashboardIDsKey(profileID: profileID))
     }
 
-    func reconcile(with entityBoxes: [HAEntityState]) {
-        let boxesByID = Dictionary(uniqueKeysWithValues: entityBoxes.map { ($0.entityID, $0) })
-        var updatedDashboards = dashboards
-        var didChange = false
-        for index in updatedDashboards.indices {
-            let currentItems = updatedDashboards[index].items
-            let compatibleItems = DashboardConfigurationValidator.normalizedItems(currentItems).filter { item in
-                guard case .entity(let entityID) = item.source,
-                      case .card(let card) = item.presentation,
-                      let entityBox = boxesByID[entityID] else {
-                    return true
-                }
-                return DashboardPresentationCatalog.isCompatible(card, with: entityBox)
-            }
-            if compatibleItems != currentItems {
-                updatedDashboards[index].items = compatibleItems
-                didChange = true
-            }
-        }
-        if didChange { dashboards = updatedDashboards }
-    }
-
     // MARK: Queries
 
-    func visibleItems(fromAvailableEntityIDs availableIDs: Set<String>) -> [DashboardItemConfiguration] {
-        visibleItems(dashboardID: selectedDashboardID, fromAvailableEntityIDs: availableIDs)
-    }
-
-    func visibleItems(
-        dashboardID: UUID,
-        fromAvailableEntityIDs availableIDs: Set<String>
-    ) -> [DashboardItemConfiguration] {
-        items(for: dashboardID).filter { item in
-            switch item.content {
-            case .heading:
-                true
-            case .sourced(let sourced):
-                switch sourced.source {
-                case .summary:
-                    true
-                case .entity(let entityID):
-                    availableIDs.contains(entityID)
-                }
-            }
-        }
+    // Saved membership is user-owned. Runtime state and capabilities must never
+    // remove cards, including while an integration reloads or restores state.
+    func visibleItems(dashboardID: UUID) -> [DashboardItemConfiguration] {
+        items(for: dashboardID)
     }
 
     func itemRole(for itemID: UUID) -> DashboardItemRole? {

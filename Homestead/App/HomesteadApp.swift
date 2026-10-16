@@ -115,9 +115,6 @@ struct HomesteadApp: App {
                 settings: connectionSettings,
                 tokenStore: tokenStore
             )
-            if stateStore.hasEntities {
-                dashboardConfiguration.reconcile(with: stateStore.allEntityBoxes())
-            }
             if !stateStore.hasLoadedInitialSnapshot {
                 Task { @MainActor in
                     await homeAssistantService.loadCachedStatesIfPossible(settings: connectionSettings)

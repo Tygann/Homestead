@@ -330,6 +330,15 @@ struct DashboardCardReferenceGallery: View {
                 .font(.title2.weight(.bold))
 
             CardGrid {
+                DashboardCardView(entityID: "climate.missing_thermostat", size: .square,
+                                  presentationKind: .control, displayNameOverride: "Hall Thermostat")
+                    .cardGridSpan(DashboardCardSize.square.layoutMetadata)
+                DashboardCardView(entityID: "lock.missing_front_door", size: .compact,
+                                  presentationKind: .control, displayNameOverride: "Front Door")
+                    .cardGridSpan(DashboardCardSize.compact.layoutMetadata)
+                DashboardCardView(entityID: "sensor.missing_temperature", size: .mini,
+                                  presentationKind: .circularGauge, displayNameOverride: "Temperature")
+                    .cardGridSpan(DashboardCardSize.mini.layoutMetadata)
                 referenceCard(
                     title: "Unavailable Chart",
                     entityID: "sensor.chart_unavailable",

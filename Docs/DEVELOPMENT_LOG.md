@@ -4,6 +4,14 @@ This is a short project memory log for future maintainers and coding agents. It 
 
 ## 2026-10-16
 
+### Dashboard Cards Survive Transient Home Assistant States
+
+- Removed runtime compatibility reconciliation that permanently saved card deletions, including when a thermostat lost its target temperature or a sensor lost numeric state. Selection-time capability checks and structural migration/validation remain intact; saved membership is user-owned.
+- Missing entities now render unavailable cards/chips without changing saved IDs, order, names, or settings. Empty/initial state snapshots preserve configured dashboards, unavailable controls cannot send actions, and existing store observation restores live content without polling or capability caching.
+- Follows Home Assistant's official [unavailable/unknown guidance](https://contributors.home-assistant.io/core/quality-scale/entity-unavailable/) and retains the existing WebSocket state plane. No schema bump; previously removed cards are not reconstructed.
+- Verification: final Debug simulator build passed; all 62 `DashboardConfigurationXCTests` passed, including saved membership/relaunch and unavailable fallback regressions. Rendered the unavailable gallery on iPhone 17/iOS 26.5 with missing thermostat, lock, and Mini sensor cards; corrected Mini label wrapping. Independent read-only review and `git diff --check` passed. Hygiene cleared 12 GB of XCTestDevices to zero after tests exited. Physical reconnect acceptance remains unverified.
+
+
 ### Sensor Board System Acceptance Evidence
 
 - Completed the interrupted October 15 simulator pass: native Device Hub clicks/long presses reached the actual medium/large WidgetKit forms. Representative Reading/Chart settings, sensor selections, custom name, and Gauge/Segmented selection persisted independently across slot switching, reopen, and simulator restart. Deep scale/zone interaction remains open.

@@ -63,7 +63,6 @@ struct DashboardView: View {
             )
         }
         .onAppear {
-            reconcileDashboardConfigurationIfReady()
             reconcilePagerSelection(enabledDashboards: dashboardConfiguration.enabledDashboards)
         }
         .onChange(of: dashboardConfiguration.enabledDashboardIDs) { _, _ in
@@ -75,15 +74,6 @@ struct DashboardView: View {
                 dashboardConfiguration.selectedDashboardID,
                 enabledDashboards: dashboardConfiguration.enabledDashboards
             )
-        }
-        .onChange(of: stateStore.entityCatalogSignature) { _, _ in
-            reconcileDashboardConfigurationIfReady()
-        }
-        .onChange(of: stateStore.hasLoadedInitialSnapshot) { _, _ in
-            reconcileDashboardConfigurationIfReady()
-        }
-        .onChange(of: stateStore.hasEntities) { _, _ in
-            reconcileDashboardConfigurationIfReady()
         }
     }
 
@@ -284,11 +274,6 @@ struct DashboardView: View {
         guard let index = ids.firstIndex(of: dashboardID) else { return "" }
         return "Page \(index + 1) of \(ids.count)"
     }
-
-    private func reconcileDashboardConfigurationIfReady() {
-        guard stateStore.hasEntities else { return }
-        dashboardConfiguration.reconcile(with: stateStore.allEntityBoxes())
-    }
 }
 
 private struct DashboardToolbarAddRequest: Equatable {
@@ -409,7 +394,7 @@ private struct DashboardPageView: View {
                 VStack(alignment: .leading, spacing: AppSpacing.xLarge) {
                     if !hasHomeAssistantSession {
                         EmptyView()
-                    } else if !stateStore.hasLoadedInitialSnapshot {
+                    } else if !stateStore.hasLoadedInitialSnapshot && visibleItemsSnapshot.isEmpty {
                         if showsInitialSnapshotFailure {
                             DashboardInitialSyncView(
                                 connectionStatus: homeAssistantService.connectionStatus,
@@ -421,7 +406,7 @@ private struct DashboardPageView: View {
                         } else {
                             DashboardRestoringSnapshotView()
                         }
-                    } else if !stateStore.hasEntities {
+                    } else if !stateStore.hasEntities && visibleItemsSnapshot.isEmpty {
                         EmptyDashboardCard()
                     } else if visibleItemsSnapshot.isEmpty {
                         DashboardEmptyStateView(
@@ -552,22 +537,7 @@ private struct DashboardPageView: View {
     }
     
     private var visibleDashboardItems: [DashboardItemConfiguration] {
-        return dashboardConfiguration
-            .visibleItems(
-                dashboardID: dashboardID,
-                fromAvailableEntityIDs: stateStore.availableEntityIDs
-            )
-            .compactMap { item in
-                guard item.role == .card, let entityID = item.entityID else {
-                    return item
-                }
-
-                guard stateStore.entityBox(for: entityID) != nil else {
-                    return nil
-                }
-
-                return item
-            }
+        dashboardConfiguration.visibleItems(dashboardID: dashboardID)
     }
 
     private var visibleDashboardGridItemIDs: [UUID] {
@@ -1396,7 +1366,8 @@ private struct DashboardPageView: View {
                     }
                 case .entity:
                     Button {
-                        guard let entityID = item.entityID else { return }
+                        guard let entityID = item.entityID,
+                              stateStore.entityBox(for: entityID) != nil else { return }
                         selectedEntityDetailDestination = EntityDetailDestination(
                             entityID: entityID,
                             surfaceContext: .home,
@@ -1598,11 +1569,12 @@ private struct DashboardPageView: View {
                 iconNameOverride: item.iconNameOverride
             )
         case .entity:
-            guard let entityID = item.entityID,
-                  let entityBox = stateStore.entityBox(for: entityID) else {
+            guard let entityID = item.entityID else {
                 return nil
             }
 
+            let entityBox = stateStore.entityBox(for: entityID)
+                ?? HAEntityState.dashboardUnavailable(entityID: entityID)
             return DashboardSummaryProvider.makeEntityChip(
                 entityBox: entityBox,
                 titleOverride: item.displayNameOverride,

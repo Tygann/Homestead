@@ -82,6 +82,7 @@ struct DashboardCardView: View {
     @Environment(HAStateStore.self) private var stateStore
     @Environment(HomeAssistantService.self) private var homeAssistantService
     @Environment(ActionConfirmationSettings.self) private var actionConfirmationSettings
+    @Environment(\.homesteadWallpaperSurfaceActive) private var isWallpaperSurfaceActive
     @State private var confirmationRequest: ActionConfirmationRequest?
 
     var body: some View {
@@ -126,11 +127,37 @@ struct DashboardCardView: View {
                     presentationKind: resolvedPresentationKind
                 ),
                 featureActions: isPreview ? previewFeatureActions(for: entityBox) : featureActions(for: entityBox),
-                isFeatureInteractionEnabled: !isEditing && !isPreview,
+                isFeatureInteractionEnabled: !isEditing && !isPreview && presentation.isAvailable,
                 isPreview: isPreview,
                 usesPreviewProfilePicture: usesPreviewProfilePicture
             )
             .actionConfirmationDialog(request: $confirmationRequest)
+        } else {
+            let box = HAEntityState.dashboardUnavailable(entityID: entityID)
+            let presentation = DashboardEntityPresentation(
+                entityBox: box,
+                displayNameOverride: displayNameOverride,
+                iconNameOverride: iconNameOverride
+            )
+            HStack(spacing: AppSpacing.small) {
+                if size != .mini {
+                    Image(systemName: presentation.iconName)
+                        .foregroundStyle(.secondary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(presentation.title)
+                        .font(size == .mini ? .caption.weight(.semibold) : .headline)
+                        .lineLimit(size == .mini ? 1 : 2)
+                    Text("Unavailable").font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(AppSpacing.medium)
+            .frame(height: size.renderedHeight(rowSpacing: AppSpacing.medium, cardPadding: AppSpacing.medium))
+            .background(HomesteadSurfaceStyle.cardBackground(isWallpaperActive: isWallpaperSurfaceActive),
+                        in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+            .accessibilityElement(children: .combine)
         }
     }
 

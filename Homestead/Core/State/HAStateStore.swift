@@ -1884,6 +1884,23 @@ final class HAEntityState: Identifiable {
         self.pendingCommand = pendingCommand
     }
 
+    /// Presentation-only fallback; never inserted into the Home Assistant state store.
+    static func dashboardUnavailable(entityID: String) -> HAEntityState {
+        let domain = EntityDomain(entityID: entityID)
+        return HAEntityState(homeEntity: HomeEntity(
+            entityID: entityID,
+            domain: domain,
+            displayName: entityID.split(separator: ".").last.map(String.init)?
+                .replacingOccurrences(of: "_", with: " ").capitalized ?? entityID,
+            state: "unavailable",
+            resolvedIcon: IconResolver.resolveEntity(EntityIconResolutionInput(
+                domain: domain.rawValue, state: "unavailable"
+            )),
+            isAvailable: false,
+            lastUpdated: nil
+        ))
+    }
+
     func update(
         homeEntity: HomeEntity,
         lightEntity: LightEntity?,
