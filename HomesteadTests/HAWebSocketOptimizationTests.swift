@@ -128,6 +128,30 @@ final class HAWebSocketOptimizationTests: XCTestCase {
         await client.disconnect()
     }
 
+    func testWebhookUsesOnlyExistingAuthenticatedMatchingServerSocket() async throws {
+        let transport = OptimizationWebSocketTransport(version: "2026.10.1")
+        let client = HAWebSocketClient(requestTimeout: .seconds(2), transportFactory: { _ in transport })
+        let before = try await client.handleWebhook(serverIdentifier: configuration.dataSourceID, webhookID: "hook", body: "{}")
+        XCTAssertNil(before)
+        let initialCommands = await transport.commands
+        XCTAssertTrue(initialCommands.isEmpty)
+        try await client.connect(configuration: configuration)
+        let wrong = try await client.handleWebhook(serverIdentifier: "other-server", webhookID: "hook", body: "{}")
+        XCTAssertNil(wrong)
+        let result = try await client.handleWebhook(serverIdentifier: configuration.dataSourceID, webhookID: "hook", body: #"{"type":"get_config","data":{}}"#)
+        XCTAssertEqual(result?.objectValue?["status"], .number(200))
+        let commands = await transport.commands
+        let webhook = try XCTUnwrap(commands.first { $0["type"] == .string("webhook/handle") })
+        XCTAssertEqual(webhook["method"], .string("POST"))
+        XCTAssertEqual(webhook["webhook_id"], .string("hook"))
+        XCTAssertEqual(webhook["headers"], .object(["Content-Type": .string("application/json")]))
+        XCTAssertEqual(webhook["body"], .string(#"{"type":"get_config","data":{}}"#))
+        XCTAssertEqual(commands.filter { $0["type"] == .string("webhook/handle") }.count, 1)
+        await client.disconnect()
+        let after = try await client.handleWebhook(serverIdentifier: configuration.dataSourceID, webhookID: "hook", body: "{}")
+        XCTAssertNil(after)
+    }
+
     private var configuration: HAConnectionConfiguration {
         HAConnectionConfiguration(baseURLString: "https://ha.example.com", accessToken: "test")
     }
@@ -167,6 +191,8 @@ private actor OptimizationWebSocketTransport: HAWebSocketTransport {
             push("{\"id\":\(id),\"type\":\"result\",\"success\":false,\"error\":{\"code\":\"unknown_command\"}}")
         case "subscribe_entities":
             push("[{\"id\":\(id),\"type\":\"result\",\"success\":true},{\"id\":\(id),\"type\":\"event\",\"event\":{\"a\":{\"light.kitchen\":{\"s\":\"on\",\"a\":{},\"lc\":100}}}}]")
+        case "webhook/handle":
+            push("{\"id\":\(id),\"type\":\"result\",\"success\":true,\"result\":{\"status\":200,\"body\":\"{}\",\"headers\":{}}}")
         case "ping": push("{\"id\":\(id),\"type\":\"pong\"}")
         case "get_states": push("{\"id\":\(id),\"type\":\"result\",\"success\":true,\"result\":[{\"entity_id\":\"light.legacy\",\"state\":\"off\"}]}")
         case "subscribe_events" where denyRegistry && command["event_type"]?.stringValue == "entity_registry_updated":

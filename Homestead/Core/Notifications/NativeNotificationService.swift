@@ -24,6 +24,11 @@ struct UNUserNotificationPermissionClient: NativeNotificationPermissionClient {
         content.body = request.body
         content.sound = .default
         content.userInfo = request.userInfo
+        if let encoded = request.userInfo["ha_data"], let data = encoded.data(using: .utf8),
+           let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            content.userInfo["data"] = payload
+        }
+        if !NotificationPayload.actions(content.userInfo).isEmpty { content.categoryIdentifier = "HomesteadDynamic" }
 
         let notificationRequest = UNNotificationRequest(
             identifier: request.identifier,
@@ -37,6 +42,18 @@ struct UNUserNotificationPermissionClient: NativeNotificationPermissionClient {
 @MainActor
 @Observable
 final class NativeNotificationService {
+    private(set) var pendingInteractions: [NotificationInteraction] = []
+
+    func recordInteractionError(_ message: String) { lastErrorMessage = message }
+
+    func enqueue(_ interaction: NotificationInteraction) {
+        pendingInteractions.append(interaction)
+    }
+
+    func finishInteraction(id: UUID) {
+        pendingInteractions.removeAll { $0.id == id }
+    }
+
     private(set) var status: NativeNotificationStatusSnapshot = .unknown
     private(set) var remoteRegistrationState: NativeRemoteNotificationRegistrationState = .notRegistered
     private(set) var isRefreshing = false

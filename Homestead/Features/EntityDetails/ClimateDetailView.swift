@@ -394,20 +394,20 @@ struct ClimateDetailView: View {
     }
 
     private func showsTemperatureControls(_ climate: ClimateEntity) -> Bool {
-        homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature")
+        homeAssistantService.entityServiceAvailable(domain: "climate", service: "set_temperature", entityID: entityBox.entityID)
             && (climate.usesTemperatureRange || climate.targetTemperature != nil)
     }
 
     private func showsHVACModeOptions(_ climate: ClimateEntity) -> Bool {
-        !climate.hvacModes.isEmpty && homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_hvac_mode")
+        !climate.hvacModes.isEmpty && homeAssistantService.entityServiceAvailable(domain: "climate", service: "set_hvac_mode", entityID: entityBox.entityID)
     }
 
     private func showsFanModeOptions(_ climate: ClimateEntity) -> Bool {
-        !climate.fanModes.isEmpty && homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_fan_mode")
+        !climate.fanModes.isEmpty && homeAssistantService.entityServiceAvailable(domain: "climate", service: "set_fan_mode", entityID: entityBox.entityID)
     }
 
     private func showsPresetModeOptions(_ climate: ClimateEntity) -> Bool {
-        !climate.presetModes.isEmpty && homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_preset_mode")
+        !climate.presetModes.isEmpty && homeAssistantService.entityServiceAvailable(domain: "climate", service: "set_preset_mode", entityID: entityBox.entityID)
     }
 
     private func temperatureControlLabel(_ climate: ClimateEntity) -> String {

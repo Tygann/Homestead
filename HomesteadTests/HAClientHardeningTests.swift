@@ -273,6 +273,71 @@ final class HAClientHardeningTests: XCTestCase {
         XCTAssertEqual(context.client.updateCount, 0)
     }
 
+    func testForegroundWebhookUsesEncryptedInnerBodyAndNoHTTPRequests() async throws {
+        let socket = StubHAWebSocketClient()
+        let reply = try HAMobileAppWebhookEncryption.encode(type: "get_config", data: Data("{}".utf8), secret: secret)
+        socket.webhookResult = .object(["status": .number(200), "body": .string(String(decoding: reply, as: UTF8.self))])
+        let transport = HardeningHTTPTransport(responses: [])
+        let client = HAMobileAppClient(session: session(transport), foregroundSocket: socket)
+        let config = try await client.getConfig(configuration: configuration, registration: registration().replacingEncryptionSecret(secret))
+        XCTAssertNotNil(config)
+        XCTAssertEqual(transport.requests.count, 0)
+        XCTAssertEqual(socket.webhookBodies.count, 1)
+        let body = try XCTUnwrap(socket.webhookBodies.first?.data(using: .utf8))
+        let envelope = try JSONSerialization.jsonObject(with: body) as! [String: Any]
+        XCTAssertEqual(envelope["encrypted"] as? Bool, true)
+        XCTAssertEqual(envelope["type"] as? String, "get_config")
+    }
+
+    func testForegroundTransportFailureFallsBackButTypedErrorsDoNot() async throws {
+        let socket = StubHAWebSocketClient()
+        socket.webhookError = HAWebSocketError.requestTimedOut
+        let transport = HardeningHTTPTransport(responses: [(200, "{}")])
+        let client = HAMobileAppClient(session: session(transport), foregroundSocket: socket)
+        _ = try await client.getConfig(configuration: configuration, registration: registration())
+        XCTAssertEqual(transport.requests.count, 1)
+        socket.webhookError = nil
+        socket.webhookResult = .object(["status": .number(400), "body": .string(#"{"error":{"code":"encryption_required"}}"#)])
+        do { _ = try await client.getConfig(configuration: configuration, registration: registration()); XCTFail("Expected typed error") }
+        catch { XCTAssertEqual(error as? HAMobileAppClientError, .webhookError("encryption_required")) }
+        XCTAssertEqual(transport.requests.count, 1)
+    }
+
+    func testNotificationActionNeverUsesSocketOrReplaysAmbiguousHTTPFailure() async throws {
+        let socket = StubHAWebSocketClient()
+        let transport = HardeningHTTPTransport(responses: [(503, "{}")])
+        let client = HAMobileAppClient(session: session(transport), foregroundSocket: socket)
+        do {
+            try await client.fireNotificationAction(configuration: configuration, registration: registration(),
+                eventData: ["action": .string("REPLY"), "reply_text": .string("hello")])
+            XCTFail("Expected error")
+        } catch { XCTAssertEqual(error as? HAMobileAppClientError, .httpStatus(503)) }
+        XCTAssertTrue(socket.webhookBodies.isEmpty)
+        XCTAssertEqual(transport.requests.count, 1)
+        let body = try XCTUnwrap(transport.requests.first?.httpBody)
+        let envelope = try JSONDecoder().decode(JSONValue.self, from: body)
+        XCTAssertEqual(envelope.objectValue?["type"], .string("fire_event"))
+        XCTAssertEqual(envelope.objectValue?["data"]?.objectValue?["event_type"], .string("mobile_app_notification_action"))
+    }
+
+    func testRegistrationMetadataFingerprintBoundsUpdatesAndRefreshesRoutes() async throws {
+        let context = try serviceContext(existing: registration().replacingEncryptionSecret(secret))
+        defer { context.cleanup() }
+        await context.service.refreshAuthState()
+        await context.service.refreshMobileAppPushRegistrationIfNeeded(settings: context.settings)
+        XCTAssertEqual(context.client.updateCount, 1)
+        XCTAssertNotNil(try context.store.readRegistration()?.registrationUpdate)
+        await context.service.refreshMobileAppPushRegistrationIfNeeded(settings: context.settings)
+        XCTAssertEqual(context.client.updateCount, 1)
+        var changed = try XCTUnwrap(context.store.readRegistration())
+        changed.registrationUpdate = HAMobileAppRegistrationRequestFactory.makeUpdate(osVersion: "old-os", pushRelayToken: "relay")
+        try context.store.saveRegistration(changed)
+        await context.service.refreshMobileAppPushRegistrationIfNeeded(settings: context.settings)
+        XCTAssertEqual(context.client.updateCount, 2)
+        XCTAssertEqual(try context.store.readRegistration()?.webhookID, "webhook")
+        XCTAssertEqual(try context.store.readRegistration()?.secret, secret)
+    }
+
     private func serviceContext(existing: HAMobileAppRegistrationInfo? = nil) throws -> RegistrationHardeningContext {
         let name = "HAClientHardeningTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))

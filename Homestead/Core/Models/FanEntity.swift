@@ -9,6 +9,8 @@ nonisolated struct FanEntity: Identifiable, Equatable, Sendable {
     let presetMode: String?
     let presetModes: [String]
 
+    var supportedFeatures: Int = 0
+
     var id: String { entityID }
 
     var isOn: Bool {
@@ -20,7 +22,7 @@ nonisolated struct FanEntity: Identifiable, Equatable, Sendable {
     }
 
     var supportsPercentageControl: Bool {
-        percentage != nil || percentageStep != nil
+        isAvailable && supportedFeatures & 1 != 0 && percentage != nil
     }
 
     var resolvedPercentageStep: Double {

@@ -31,7 +31,7 @@ nonisolated struct HAMobileAppRegistrationRequestDTO: Encodable, Equatable, Send
     }
 }
 
-nonisolated struct HAMobileAppRegistrationUpdateDTO: Encodable, Equatable, Sendable {
+nonisolated struct HAMobileAppRegistrationUpdateDTO: Codable, Equatable, Sendable {
     let appVersion: String
     let deviceName: String
     let manufacturer: String
@@ -78,6 +78,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
     let supportsCloudPushNotifications: Bool?
     let registeredAt: Date
     var encryptionUnavailable: Bool? = nil
+    var registrationUpdate: HAMobileAppRegistrationUpdateDTO? = nil
 
     nonisolated var hasEncryptedWebhookSecret: Bool {
         guard let secret else { return false }
@@ -90,7 +91,19 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
                            webhookID: webhookID, cloudhookURL: cloudhookURL, remoteUIURL: remoteUIURL,
                            secret: secret, supportsWebSocketNotifications: supportsWebSocketNotifications,
                            supportsCloudPushNotifications: supportsCloudPushNotifications, registeredAt: registeredAt)
+        updated.registrationUpdate = registrationUpdate
         updated.encryptionUnavailable = secret == nil
+        return updated
+    }
+
+    nonisolated func replacingRoutes(_ config: HAMobileAppConfigDTO) -> Self {
+        var updated = Self(serverIdentifier: serverIdentifier, deviceID: deviceID, appID: appID,
+            appName: appName, appVersion: appVersion, deviceName: deviceName, webhookID: webhookID,
+            cloudhookURL: config.cloudhookURL, remoteUIURL: config.remoteUIURL, secret: secret,
+            supportsWebSocketNotifications: supportsWebSocketNotifications,
+            supportsCloudPushNotifications: supportsCloudPushNotifications, registeredAt: registeredAt)
+        updated.encryptionUnavailable = encryptionUnavailable
+        updated.registrationUpdate = registrationUpdate
         return updated
     }
 
@@ -115,6 +128,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         case supportsCloudPushNotifications
         case registeredAt
         case encryptionUnavailable
+        case registrationUpdate
     }
 
     init(
@@ -136,6 +150,9 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         supportsWebSocketNotifications = request.appData?["push_websocket_channel"]?.boolValue == true
         supportsCloudPushNotifications = request.includesRemotePushAppData
         self.registeredAt = registeredAt
+        registrationUpdate = HAMobileAppRegistrationUpdateDTO(appVersion: request.appVersion,
+            deviceName: request.deviceName, manufacturer: request.manufacturer, model: request.model,
+            osVersion: request.osVersion, appData: request.appData)
     }
 
     init(
@@ -346,9 +363,9 @@ private extension [String: JSONValue] {
 
 private extension Bundle {
     var shortVersionString: String {
-        object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ??
-            object(forInfoDictionaryKey: "CFBundleVersion") as? String ??
-            "1.0"
+        let version = object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        guard let build = object(forInfoDictionaryKey: "CFBundleVersion") as? String else { return version }
+        return "\(version) (\(build))"
     }
 }
 
@@ -385,5 +402,14 @@ private enum CurrentDeviceInfo {
 
     static var osVersion: String {
         ProcessInfo.processInfo.operatingSystemVersionString
+    }
+}
+
+nonisolated struct HAMobileAppConfigDTO: Decodable, Equatable, Sendable {
+    let cloudhookURL: String?
+    let remoteUIURL: String?
+    enum CodingKeys: String, CodingKey {
+        case cloudhookURL = "cloudhook_url"
+        case remoteUIURL = "remote_ui_url"
     }
 }

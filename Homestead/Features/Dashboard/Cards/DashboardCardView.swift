@@ -249,7 +249,7 @@ struct DashboardCardView: View {
 
     private func setFanPercentageAction(for entityBox: HAEntityState) -> ((Double) -> Void)? {
         guard entityBox.fanEntity?.supportsPercentageControl == true,
-              homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_percentage") else {
+              homeAssistantService.entityServiceAvailable(domain: "fan", service: "set_percentage", entityID: entityBox.entityID) else {
             return nil
         }
 
@@ -266,7 +266,7 @@ struct DashboardCardView: View {
 
     private func setClimateTemperatureAction(for entityBox: HAEntityState) -> ((Double) -> Void)? {
         guard entityBox.climateEntity != nil,
-              homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") else {
+              homeAssistantService.entityServiceAvailable(domain: "climate", service: "set_temperature", entityID: entityBox.entityID) else {
             return nil
         }
 
@@ -282,7 +282,7 @@ struct DashboardCardView: View {
 
     private func setClimateTemperatureRangeAction(for entityBox: HAEntityState) -> ((Double, Double) -> Void)? {
         guard entityBox.climateEntity != nil,
-              homeAssistantService.serviceActionAvailable(domain: "climate", service: "set_temperature") else {
+              homeAssistantService.entityServiceAvailable(domain: "climate", service: "set_temperature", entityID: entityBox.entityID) else {
             return nil
         }
 
@@ -299,9 +299,9 @@ struct DashboardCardView: View {
 
     private func setClimateHVACModeAction(for entityBox: HAEntityState) -> ((String) -> Void)? {
         guard entityBox.climateEntity?.hvacModes.isEmpty == false,
-              homeAssistantService.serviceActionAvailable(
+              homeAssistantService.entityServiceAvailable(
                 domain: "climate",
-                service: "set_hvac_mode"
+                service: "set_hvac_mode", entityID: entityBox.entityID
               ) else {
             return nil
         }
@@ -356,7 +356,7 @@ struct DashboardCardView: View {
 
     private func openCoverAction(for entityBox: HAEntityState) -> (() -> Void)? {
         guard entityBox.coverEntity != nil,
-              homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover") else {
+              homeAssistantService.entityServiceAvailable(domain: "cover", service: "open_cover", entityID: entityBox.entityID) else {
             return nil
         }
 
@@ -372,7 +372,7 @@ struct DashboardCardView: View {
 
     private func stopCoverAction(for entityBox: HAEntityState) -> (() -> Void)? {
         guard entityBox.coverEntity != nil,
-              homeAssistantService.serviceActionAvailable(domain: "cover", service: "stop_cover") else {
+              homeAssistantService.entityServiceAvailable(domain: "cover", service: "stop_cover", entityID: entityBox.entityID) else {
             return nil
         }
 
@@ -388,7 +388,7 @@ struct DashboardCardView: View {
 
     private func closeCoverAction(for entityBox: HAEntityState) -> (() -> Void)? {
         guard entityBox.coverEntity != nil,
-              homeAssistantService.serviceActionAvailable(domain: "cover", service: "close_cover") else {
+              homeAssistantService.entityServiceAvailable(domain: "cover", service: "close_cover", entityID: entityBox.entityID) else {
             return nil
         }
 
@@ -404,7 +404,7 @@ struct DashboardCardView: View {
 
     private func setCoverPositionAction(for entityBox: HAEntityState) -> ((Double) -> Void)? {
         guard entityBox.coverEntity?.positionPercentage != nil,
-              homeAssistantService.serviceActionAvailable(domain: "cover", service: "set_cover_position") else {
+              homeAssistantService.entityServiceAvailable(domain: "cover", service: "set_cover_position", entityID: entityBox.entityID) else {
             return nil
         }
 

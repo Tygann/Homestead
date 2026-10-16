@@ -19,6 +19,7 @@ struct ContentView: View {
     @State private var presentedAppSheet: AppSheetDestination?
     @State private var isShowingNotificationSetupPrompt = false
     @State private var widgetEntityDestination: WidgetEntityDestination?
+    @State private var notificationWebDestination: NotificationWebDestination?
     @State private var widgetLinkErrorMessage: String?
     @State private var isCompletingOnboardingSignIn = false
     @State private var onboardingSuccessFeedback = 0
@@ -186,20 +187,23 @@ struct ContentView: View {
                 widgetEntityDestination = WidgetEntityDestination(entityID: reference.entityID)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .homesteadNotificationDestination)) { notification in
-            guard let profileString = notification.userInfo?["profile_id"] as? String,
-                  let profileID = UUID(uuidString: profileString) else { return }
-            let entityID = notification.userInfo?["entity_id"] as? String
-            Task {
-                if profileID != connectionSettings.activeProfileID {
-                    _ = await homeAssistantService.switchActiveProfile(
-                        to: profileID,
-                        settings: connectionSettings,
-                        dashboardConfiguration: dashboardConfiguration
-                    )
-                }
-                if let entityID { widgetEntityDestination = WidgetEntityDestination(entityID: entityID) }
+        .onChange(of: homeAssistantService.entityRenames, initial: true) { _, renames in
+            guard homeAssistantService.registryIdentitySource == "profile-" + connectionSettings.activeProfileID.uuidString.lowercased() else { return }
+            for rename in renames {
+                dashboardConfiguration.applyEntityRenames([rename.oldEntityID: rename.newEntityID], profileID: connectionSettings.activeProfileID)
             }
+            homeAssistantService.acknowledgeEntityRenames(Set(renames.map(\.id)))
+        }
+        .onChange(of: homeAssistantService.registryIdentities, initial: true) { _, identities in
+            guard homeAssistantService.registryIdentitySource == "profile-" + connectionSettings.activeProfileID.uuidString.lowercased() else { return }
+            dashboardConfiguration.reconcileRegistryIdentities(identities, profileID: connectionSettings.activeProfileID)
+        }
+        .sheet(item: $notificationWebDestination) { destination in
+            HomeAssistantSafariView(url: destination.url)
+        }
+        .task(id: nativeNotificationService.pendingInteractions.first?.id) {
+            guard let interaction = nativeNotificationService.pendingInteractions.first else { return }
+            await handleNotificationInteraction(interaction)
         }
         .onChange(of: homeAssistantService.serviceFeedback?.id) { _, _ in
             playServiceFeedbackHaptic()
@@ -346,6 +350,35 @@ struct ContentView: View {
         }
 
         HapticFeedback.notification(for: feedback.style)
+    }
+
+    @MainActor
+    private func handleNotificationInteraction(_ interaction: NotificationInteraction) async {
+        defer { nativeNotificationService.finishInteraction(id: interaction.id) }
+        guard let profileID = homeAssistantService.notificationOrigin(interaction, settings: connectionSettings) else {
+            // Old ordinary pushes without origin still open the app; never guess an action/link server.
+            if interaction.action != nil || interaction.url != nil || interaction.entityID != nil {
+                widgetLinkErrorMessage = "The Home Assistant server for this notification is no longer available."
+            }
+            return
+        }
+        guard !Task.isCancelled else { return }
+        if profileID != connectionSettings.activeProfileID {
+            guard await homeAssistantService.switchActiveProfile(to: profileID, settings: connectionSettings,
+                dashboardConfiguration: dashboardConfiguration) else { return }
+        }
+        guard !Task.isCancelled, profileID == connectionSettings.activeProfileID,
+              connectionSettings.profiles.contains(where: { $0.id == profileID }) else { return }
+        if let link = interaction.url {
+            switch NotificationLinkDestination.resolve(link, baseURL: connectionSettings.externalURL.isEmpty
+                ? connectionSettings.baseURL : connectionSettings.externalURL) {
+            case .entity(let entityID): widgetEntityDestination = WidgetEntityDestination(entityID: entityID)
+            case .web(let url): notificationWebDestination = NotificationWebDestination(url: url)
+            case nil: widgetLinkErrorMessage = "This notification link could not be opened."
+            }
+        } else if let entityID = interaction.entityID {
+            widgetEntityDestination = WidgetEntityDestination(entityID: entityID)
+        }
     }
 
     private var notificationSetupPromptEvaluationID: String {
@@ -598,3 +631,8 @@ private struct LaunchContinuityView: View {
     }
 }
 #endif
+
+private struct NotificationWebDestination: Identifiable {
+    let url: URL
+    var id: URL { url }
+}

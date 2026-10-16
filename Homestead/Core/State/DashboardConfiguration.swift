@@ -553,7 +553,10 @@ nonisolated private enum StoredDashboardDocumentState {
 final class DashboardConfiguration {
     private(set) var dashboards: [SavedDashboardConfiguration] {
         didSet {
-            if !isSwitchingProfile { saveDashboards() }
+            if !isSwitchingProfile {
+                saveDashboards()
+                bindCurrentRegistryReferences()
+            }
         }
     }
 
@@ -571,6 +574,7 @@ final class DashboardConfiguration {
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private(set) var activeProfileID: UUID?
+    @ObservationIgnored private var currentRegistryIdentities: [String: String] = [:]
     @ObservationIgnored private var isSwitchingProfile = false
     @ObservationIgnored private var protectsNewerDashboardSchema = false
     @ObservationIgnored private var documentKey: String {
@@ -701,6 +705,7 @@ final class DashboardConfiguration {
         guard activeProfileID != profileID else { return }
         isSwitchingProfile = true
         activeProfileID = profileID
+        currentRegistryIdentities = [:]
         let state = Self.loadDocumentState(from: defaults, key: documentKey)
         protectsNewerDashboardSchema = state.isNewerSchema
         let normalized = Self.normalizedDashboards(state.document?.dashboards ?? [])
@@ -730,6 +735,7 @@ final class DashboardConfiguration {
         defaults.removeObject(forKey: Self.rejectedDocumentKey(for: key))
         defaults.removeObject(forKey: Self.selectedDashboardIDKey(profileID: profileID))
         defaults.removeObject(forKey: Self.enabledDashboardIDsKey(profileID: profileID))
+        defaults.removeObject(forKey: "homestead.registryBindings." + profileID.uuidString)
     }
 
     // MARK: Queries
@@ -787,6 +793,88 @@ final class DashboardConfiguration {
 
     func dashboardName(for reference: DashboardItemReference) -> String? {
         dashboards.first(where: { $0.id == reference.dashboardID })?.resolvedName
+    }
+
+    /// Only exact registry UUIDs can repair offline renames. The auxiliary, local
+    /// baseline does not alter dashboard schema or cross-device recovery payloads.
+    func reconcileRegistryIdentities(_ identities: [String: String], profileID: UUID) {
+        guard !protectsNewerDashboardSchema, activeProfileID == profileID, !identities.isEmpty else { return }
+        currentRegistryIdentities = identities
+        let key = "homestead.registryBindings." + profileID.uuidString
+        var bindings = defaults.dictionary(forKey: key) as? [String: [String: String]] ?? [:]
+        let inverse = Dictionary(identities.map { ($0.value, $0.key) }, uniquingKeysWith: { _, _ in "" })
+        var updated = dashboards
+        for dashboard in updated.indices {
+            for item in updated[dashboard].items.indices {
+                guard case .sourced(var sourced) = updated[dashboard].items[item].content,
+                      case .entity(let entityID) = sourced.source else { continue }
+                let reference = updated[dashboard].id.uuidString + ":" + updated[dashboard].items[item].id.uuidString
+                if let binding = bindings[reference], binding["entity_id"] == entityID,
+                   let identity = binding["registry_id"] {
+                    // The original UUID wins even if another entity has since reused its old name.
+                    if let renamed = identities[identity], EntityDomain(entityID: renamed) == EntityDomain(entityID: entityID) {
+                        sourced.source = .entity(renamed)
+                        updated[dashboard].items[item].content = .sourced(sourced)
+                        bindings[reference] = ["registry_id": identity, "entity_id": renamed]
+                    }
+                } else {
+                    // A manual or synced replacement retains its own new identity.
+                    bindings.removeValue(forKey: reference)
+                    if let identity = inverse[entityID], !identity.isEmpty {
+                        bindings[reference] = ["registry_id": identity, "entity_id": entityID]
+                    }
+                }
+            }
+        }
+        // Missing entries keep their bindings and cards. Without a prior binding,
+        // an offline rename cannot be inferred from names or current entity IDs.
+        if defaults.dictionary(forKey: key) as? [String: [String: String]] != bindings { defaults.set(bindings, forKey: key) }
+        if updated != dashboards { dashboards = updated }
+    }
+
+    private func bindCurrentRegistryReferences() {
+        guard !protectsNewerDashboardSchema, let profileID = activeProfileID, !currentRegistryIdentities.isEmpty else { return }
+        let key = "homestead.registryBindings." + profileID.uuidString
+        let previous = defaults.dictionary(forKey: key) as? [String: [String: String]] ?? [:]
+        var bindings = previous
+        let inverse = Dictionary(currentRegistryIdentities.map { ($0.value, $0.key) }, uniquingKeysWith: { _, _ in "" })
+        var liveReferences = Set<String>()
+        for dashboard in dashboards {
+            for item in dashboard.items {
+                guard let entityID = item.entityID else { continue }
+                let reference = dashboard.id.uuidString + ":" + item.id.uuidString
+                liveReferences.insert(reference)
+                if bindings[reference]?["entity_id"] == entityID { continue }
+                bindings.removeValue(forKey: reference)
+                if let identity = inverse[entityID], !identity.isEmpty {
+                    bindings[reference] = ["registry_id": identity, "entity_id": entityID]
+                }
+            }
+        }
+        bindings = bindings.filter { liveReferences.contains($0.key) }
+        if bindings != previous { defaults.set(bindings, forKey: key) }
+    }
+
+    func applyEntityRenames(_ renames: [String: String], profileID: UUID) {
+        guard !protectsNewerDashboardSchema, activeProfileID == profileID, !renames.isEmpty else { return }
+        let key = "homestead.registryBindings." + profileID.uuidString
+        var bindings = defaults.dictionary(forKey: key) as? [String: [String: String]] ?? [:]
+        var updated = dashboards
+        for dashboard in updated.indices {
+            for item in updated[dashboard].items.indices {
+                guard case .sourced(var sourced) = updated[dashboard].items[item].content,
+                      case .entity(let old) = sourced.source, let new = renames[old],
+                      !new.isEmpty, EntityDomain(entityID: old) == EntityDomain(entityID: new) else { continue }
+                sourced.source = .entity(new)
+                updated[dashboard].items[item].content = .sourced(sourced)
+                let reference = updated[dashboard].id.uuidString + ":" + updated[dashboard].items[item].id.uuidString
+                if bindings[reference]?["entity_id"] == old { bindings[reference]?["entity_id"] = new }
+            }
+        }
+        if updated != dashboards {
+            defaults.set(bindings, forKey: key)
+            dashboards = updated
+        }
     }
 
     @discardableResult

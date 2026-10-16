@@ -5,10 +5,14 @@ nonisolated protocol HAMobileAppClientProtocol {
     func register(configuration: HAConnectionConfiguration, request: HAMobileAppRegistrationRequestDTO) async throws -> HAMobileAppRegistrationResponseDTO
     func requestCameraStream(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo, entityID: String) async throws -> HACameraStreamResponseDTO
     func updateRegistration(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo, update: HAMobileAppRegistrationUpdateDTO) async throws
+    func getConfig(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo) async throws -> HAMobileAppConfigDTO?
+    func fireNotificationAction(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo, eventData: [String: JSONValue]) async throws
     func enableEncryption(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo) async throws -> String?
 }
 
 extension HAMobileAppClientProtocol {
+    func getConfig(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo) async throws -> HAMobileAppConfigDTO? { nil }
+    func fireNotificationAction(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo, eventData: [String: JSONValue]) async throws { throw HAWebSocketError.requestFailed("Notification actions unavailable") }
     func enableEncryption(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo) async throws -> String? { nil }
 }
 
@@ -36,7 +40,11 @@ actor HAMobileAppClient: HAMobileAppClientProtocol {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    init(session: URLSession = .shared) { self.session = session }
+    private let foregroundSocket: (any HAWebSocketClientProtocol)?
+    init(session: URLSession = .shared, foregroundSocket: (any HAWebSocketClientProtocol)? = nil) {
+        self.session = session
+        self.foregroundSocket = foregroundSocket
+    }
 
     // MARK: - Public API
 
@@ -59,6 +67,18 @@ actor HAMobileAppClient: HAMobileAppClientProtocol {
     func updateRegistration(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo, update: HAMobileAppRegistrationUpdateDTO) async throws {
         _ = try await sendWebhook(configuration: configuration, registration: registration,
                                   type: HAMobileAppWebhookType.updateRegistration, payload: update)
+    }
+
+    func getConfig(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo) async throws -> HAMobileAppConfigDTO? {
+        let data = try await sendWebhook(configuration: configuration, registration: registration,
+            type: "get_config", payload: [String: String]())
+        return try decoder.decode(HAMobileAppConfigDTO.self, from: data)
+    }
+
+    func fireNotificationAction(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo, eventData: [String: JSONValue]) async throws {
+        _ = try await sendWebhook(configuration: configuration, registration: registration,
+            type: "fire_event", payload: ["event_type": JSONValue.string("mobile_app_notification_action"),
+                "event_data": .object(eventData)], allowFailover: false)
     }
 
     func enableEncryption(configuration: HAConnectionConfiguration, registration: HAMobileAppRegistrationInfo) async throws -> String? {
@@ -94,22 +114,27 @@ actor HAMobileAppClient: HAMobileAppClientProtocol {
         } else {
             body = try encoder.encode(HAMobileAppWebhookRequestDTO(type: type, data: payload))
         }
+        // Only read/idempotent operations can fall back after ambiguous transport failure.
+        // Key creation and notification actions use HTTP once and never replay.
+        if allowFailover, let foregroundSocket, let bodyString = String(data: body, encoding: .utf8) {
+            do {
+                if let result = try await foregroundSocket.handleWebhook(serverIdentifier: configuration.dataSourceID,
+                    webhookID: registration.webhookID, body: bodyString) {
+                    guard let status = result.objectValue?["status"]?.intValue else { throw HAMobileAppClientError.webhookError("invalid_response") }
+                    let data = Data((result.objectValue?["body"]?.stringValue ?? "").utf8)
+                    return try HAMobileAppWebhookResponse.decode(status: status, data: data, secret: registration.secret)
+                }
+            } catch {
+                try Task.checkCancellation()
+                guard shouldFailover(error) || Self.isUnsupported(error) else { throw error }
+            }
+        }
         let urls = try webhookURLs(configuration: configuration, registration: registration)
         for (index, url) in urls.enumerated() {
             do {
                 let (data, response) = try await session.data(for: makeRequest(url: url, body: body))
-                if let response = response as? HTTPURLResponse, response.statusCode == 400,
-                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let error = object["error"] as? [String: Any], let code = error["code"] as? String {
-                    throw HAMobileAppClientError.webhookError(code)
-                }
-                try validate(response: response)
-                // Unknown/unloaded HA webhooks return an empty 200, including immediately
-                // deleted mobile-app entries. Keep this distinct from malformed ciphertext.
-                if data.isEmpty, (response as? HTTPURLResponse)?.statusCode == 200 {
-                    throw HAMobileAppClientError.emptyWebhookResponse
-                }
-                return try HAMobileAppWebhookEncryption.decode(data: data, secret: registration.secret)
+                guard let http = response as? HTTPURLResponse else { throw HAWebSocketError.transportFailure("Invalid webhook response") }
+                return try HAMobileAppWebhookResponse.decode(status: http.statusCode, data: data, secret: registration.secret)
             } catch {
                 try Task.checkCancellation()
                 guard allowFailover, index + 1 < urls.count, shouldFailover(error) else { throw error }
@@ -118,10 +143,21 @@ actor HAMobileAppClient: HAMobileAppClientProtocol {
         throw HAWebSocketError.invalidURL
     }
 
+    private static func isUnsupported(_ error: Error) -> Bool {
+        if let details = error as? HAWebSocketServerError { return details.code == "unknown_command" }
+        return false
+    }
+
     private func shouldFailover(_ error: Error) -> Bool {
         if error as? HAMobileAppClientError == .emptyWebhookResponse { return true }
         if case HAMobileAppClientError.httpStatus(let status) = error {
             return status == 404 || status == 408 || status == 429 || (500...599).contains(status)
+        }
+        if let socketError = error as? HAWebSocketError {
+            switch socketError {
+            case .notConnected, .requestTimedOut, .transportFailure: return true
+            default: return false
+            }
         }
         guard let error = error as? URLError else { return false }
         return [.timedOut, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost,
@@ -198,5 +234,17 @@ nonisolated enum HAMobileAppWebhookEncryption {
             throw HAMobileAppClientError.encryptionFailed
         }
         return Data(plaintext)
+    }
+}
+
+nonisolated enum HAMobileAppWebhookResponse {
+    static func decode(status: Int, data: Data, secret: String?) throws -> Data {
+        if status == 400, let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let error = object["error"] as? [String: Any], let code = error["code"] as? String {
+            throw HAMobileAppClientError.webhookError(code)
+        }
+        guard (200..<300).contains(status) else { throw HAMobileAppClientError.httpStatus(status) }
+        if data.isEmpty, status == 200 { throw HAMobileAppClientError.emptyWebhookResponse }
+        return try HAMobileAppWebhookEncryption.decode(data: data, secret: secret)
     }
 }

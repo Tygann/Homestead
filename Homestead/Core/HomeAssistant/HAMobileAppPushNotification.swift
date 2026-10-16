@@ -64,7 +64,9 @@ nonisolated struct HAMobileAppPushNotificationEventDTO: Decodable, Sendable {
                 "source": "home_assistant",
                 "hass_confirm_id": hassConfirmID,
                 "profile_id": profileID?.uuidString,
-                "entity_id": data?.objectValue?["entity_id"]?.stringValue
+                "entity_id": data?.objectValue?["entity_id"]?.stringValue,
+                "url": data?.objectValue?["url"]?.stringValue,
+                "ha_data": data.flatMap { try? JSONEncoder().encode($0) }.flatMap { String(data: $0, encoding: .utf8) }
             ].compactMapValues { $0 }
         )
     }

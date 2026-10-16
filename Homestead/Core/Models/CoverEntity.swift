@@ -7,6 +7,8 @@ nonisolated struct CoverEntity: Identifiable, Equatable, Sendable {
     let position: Int?
     let deviceClass: String?
 
+    var supportedFeatures: Int = 0
+
     var id: String { entityID }
 
     var isOpen: Bool {

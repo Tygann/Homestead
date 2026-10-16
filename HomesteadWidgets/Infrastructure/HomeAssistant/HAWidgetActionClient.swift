@@ -64,6 +64,8 @@ struct HAWidgetCoverState: Sendable {
     let isAvailable: Bool
 
     var systemImage: String { icon.sfSymbolName }
+    var canControl: Bool = false
+
 }
 
 struct HAWidgetFanState: Sendable {
@@ -75,6 +77,8 @@ struct HAWidgetFanState: Sendable {
     let icon: ResolvedIcon
 
     var isOn: Bool { state == "on" }
+    var canControl: Bool = false
+
 }
 
 struct HAWidgetLockState: Sendable {
@@ -198,13 +202,8 @@ final class HAWidgetActionClient: Sendable {
 
     func fetchLightState(entityID: String) async throws -> HAWidgetLightState {
         try await withConnectedSocket { task in
-            try await sendJSON(["id": 1, "type": "get_states"], over: task)
-
-            let message = try await receiveJSONObject(from: task)
-            guard let success = message["success"] as? Bool, success,
-                  let states = message["result"] as? [[String: Any]],
-                  let state = states.first(where: { $0["entity_id"] as? String == entityID }),
-                  let stateValue = state["state"] as? String else {
+            let state = try await stateObject(entityID: entityID, over: task)
+            guard let stateValue = state["state"] as? String else {
                 throw HAWidgetActionError.unexpectedResponse
             }
 
@@ -231,13 +230,8 @@ final class HAWidgetActionClient: Sendable {
 
     func fetchSwitchState(entityID: String) async throws -> HAWidgetSwitchState {
         try await withConnectedSocket { task in
-            try await sendJSON(["id": 1, "type": "get_states"], over: task)
-
-            let message = try await receiveJSONObject(from: task)
-            guard let success = message["success"] as? Bool, success,
-                  let states = message["result"] as? [[String: Any]],
-                  let state = states.first(where: { $0["entity_id"] as? String == entityID }),
-                  let stateValue = state["state"] as? String else {
+            let state = try await stateObject(entityID: entityID, over: task)
+            guard let stateValue = state["state"] as? String else {
                 throw HAWidgetActionError.unexpectedResponse
             }
 
@@ -275,6 +269,8 @@ final class HAWidgetActionClient: Sendable {
             let isClosed = stateValue == "closed" || stateValue == "closing"
             let isMoving = stateValue == "opening" || stateValue == "closing"
 
+            let service = isMoving ? "stop_cover" : isOpen ? "close_cover" : "open_cover"
+            let canControl = try await controlAvailable(domain: "cover", service: service, state: state, over: task)
             return HAWidgetCoverState(
                 entityID: entityID,
                 state: stateValue,
@@ -284,7 +280,8 @@ final class HAWidgetActionClient: Sendable {
                 isOpen: isOpen,
                 isClosed: isClosed,
                 isMoving: isMoving,
-                isAvailable: !["unknown", "unavailable"].contains(stateValue)
+                isAvailable: !["unknown", "unavailable"].contains(stateValue),
+                canControl: canControl
             )
         }
     }
@@ -309,13 +306,16 @@ final class HAWidgetActionClient: Sendable {
             let percentage = intValue(from: attributes?["percentage"])
             let presetMode = attributes?["preset_mode"] as? String
 
+            let service = stateValue == "on" ? "turn_off" : "turn_on"
+            let canControl = try await controlAvailable(domain: "fan", service: service, state: state, over: task)
             return HAWidgetFanState(
                 entityID: entityID,
                 state: stateValue,
                 displayName: displayName,
                 statusText: fanStatusText(state: stateValue, percentage: percentage, presetMode: presetMode),
                 isAvailable: !["unknown", "unavailable"].contains(stateValue),
-                icon: resolvedIcon(domain: "fan", state: stateValue, attributes: attributes)
+                icon: resolvedIcon(domain: "fan", state: stateValue, attributes: attributes),
+                canControl: canControl
             )
         }
     }
@@ -365,13 +365,7 @@ final class HAWidgetActionClient: Sendable {
         guard !entityIDs.isEmpty else { return [:] }
 
         return try await withConnectedSocket { task in
-            try await sendJSON(["id": 1, "type": "get_states"], over: task)
-
-            let message = try await receiveJSONObject(from: task)
-            guard let success = message["success"] as? Bool, success,
-                  let states = message["result"] as? [[String: Any]] else {
-                throw HAWidgetActionError.unexpectedResponse
-            }
+            let states = try await stateObjects(entityIDs: entityIDs, over: task)
 
             return states.reduce(into: [:]) { result, state in
                 guard let entityID = state["entity_id"] as? String,
@@ -567,10 +561,34 @@ final class HAWidgetActionClient: Sendable {
         }
     }
 
+    private func controlAvailable(domain: String, service: String, state: [String: Any], over task: URLSessionWebSocketTask) async throws -> Bool {
+        try await sendJSON(["id": 3, "type": "get_services"], over: task)
+        let catalog = try await receiveJSONObject(from: task)
+        guard catalog["id"] as? Int == 3, catalog["success"] as? Bool == true else { throw HAWidgetActionError.unexpectedResponse }
+        let services = (catalog["result"] as? [String: [String: Any]])?[domain]
+        let attributes = state["attributes"] as? [String: Any] ?? [:]
+        return EntityControlCapabilities.allows(domain: domain, service: service,
+            state: state["state"] as? String ?? "unavailable",
+            features: (attributes["supported_features"] as? NSNumber)?.intValue ?? 0,
+            attributes: attributes, serviceAvailable: services?[service] != nil)
+    }
+
     private func callService(domain: String, service: String, entityID: String) async throws {
         try await withConnectedSocket { task in
+            let state = try await stateObject(entityID: entityID, over: task)
+            try await sendJSON(["id": 3, "type": "get_services"], over: task)
+            let catalog = try await receiveJSONObject(from: task)
+            let services = (catalog["result"] as? [String: [String: Any]])?[domain]
+            let attributes = state["attributes"] as? [String: Any] ?? [:]
+            guard catalog["id"] as? Int == 3, catalog["success"] as? Bool == true,
+                  EntityControlCapabilities.allows(domain: domain, service: service,
+                    state: state["state"] as? String ?? "unavailable",
+                    features: (attributes["supported_features"] as? NSNumber)?.intValue ?? 0,
+                    attributes: attributes, serviceAvailable: services?[service] != nil) else {
+                throw HAWidgetActionError.entityUnavailable
+            }
             try await sendJSON([
-                "id": 1,
+                "id": 4,
                 "type": "call_service",
                 "domain": domain,
                 "service": service,
@@ -578,7 +596,7 @@ final class HAWidgetActionClient: Sendable {
             ], over: task)
 
             let message = try await receiveJSONObject(from: task)
-            guard let success = message["success"] as? Bool, success else {
+            guard message["id"] as? Int == 4, let success = message["success"] as? Bool, success else {
                 throw HAWidgetActionError.serviceCallFailed
             }
         }
@@ -588,16 +606,15 @@ final class HAWidgetActionClient: Sendable {
         entityID: String,
         over task: URLSessionWebSocketTask
     ) async throws -> [String: Any] {
-        try await sendJSON(["id": 1, "type": "get_states"], over: task)
-
-        let message = try await receiveJSONObject(from: task)
-        guard let success = message["success"] as? Bool, success,
-              let states = message["result"] as? [[String: Any]],
-              let state = states.first(where: { $0["entity_id"] as? String == entityID }) else {
-            throw HAWidgetActionError.unexpectedResponse
+        guard let state = try await stateObjects(entityIDs: [entityID], over: task)
+            .first(where: { $0["entity_id"] as? String == entityID }) else {
+            throw HAWidgetActionError.entityUnavailable
         }
-
         return state
+    }
+
+    private func stateObjects(entityIDs: Set<String>, over task: URLSessionWebSocketTask) async throws -> [[String: Any]] {
+        try await WidgetEntityStateRequest.fetch(entityIDs: entityIDs, over: task)
     }
 
     private func resolvedIcon(
@@ -626,8 +643,13 @@ final class HAWidgetActionClient: Sendable {
         let url = try webSocketURL(from: baseURL)
         let task = session.webSocketTask(with: url)
         task.resume()
-        defer { task.cancel(with: .goingAway, reason: nil) }
+        let deadline = Task {
+            try? await Task.sleep(for: .seconds(15))
+            if !Task.isCancelled { task.cancel(with: .goingAway, reason: nil) }
+        }
+        defer { deadline.cancel(); task.cancel(with: .goingAway, reason: nil) }
 
+        return try await withTaskCancellationHandler {
         let authRequired = try await receiveJSONObject(from: task)
         guard authRequired["type"] as? String == "auth_required" else {
             throw HAWidgetActionError.unexpectedResponse
@@ -641,6 +663,9 @@ final class HAWidgetActionClient: Sendable {
         }
 
         return try await operation(task)
+        } onCancel: {
+            task.cancel(with: .goingAway, reason: nil)
+        }
     }
 
     private func sendJSON(_ object: [String: Any], over task: URLSessionWebSocketTask) async throws {

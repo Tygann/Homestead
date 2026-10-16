@@ -11321,6 +11321,15 @@ final class StubHAOAuthAuthorizer: HAOAuthAuthorizing {
 }
 
 final class StubHAWebSocketClient: HAWebSocketClientProtocol {
+    var webhookResult: JSONValue?
+    var webhookError: Error?
+    var webhookBodies: [String] = []
+    func handleWebhook(serverIdentifier: String, webhookID: String, body: String) async throws -> JSONValue? {
+        webhookBodies.append(body)
+        if let webhookError { throw webhookError }
+        return webhookResult
+    }
+
     private(set) var cameraCapabilitiesFetchCount = 0
     private(set) var lastConnectConfiguration: HAConnectionConfiguration?
     private(set) var connectConfigurations: [HAConnectionConfiguration] = []

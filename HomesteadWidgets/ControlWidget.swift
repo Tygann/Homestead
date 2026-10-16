@@ -251,6 +251,7 @@ struct HomesteadControlEntry: TimelineEntry {
     let isMoving: Bool
     let isAvailable: Bool
     let isConfigured: Bool
+    var canControl: Bool = false
     var icon: ResolvedIcon? = nil
 
     var resolvedIcon: ResolvedIcon {
@@ -258,7 +259,8 @@ struct HomesteadControlEntry: TimelineEntry {
     }
 
     var action: String? {
-        WidgetControlActionResolver.action(
+        if ["fan", "cover"].contains(domain), !canControl { return nil }
+        return WidgetControlActionResolver.action(
             domain: domain,
             isConfigured: isConfigured,
             isAvailable: isAvailable,
@@ -453,6 +455,7 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 isMoving: state.isMoving,
                 isAvailable: state.isAvailable,
                 isConfigured: true,
+                canControl: state.canControl,
                 icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "fan":
@@ -468,6 +471,7 @@ struct HomesteadControlTimelineProvider: AppIntentTimelineProvider {
                 isMoving: false,
                 isAvailable: state.isAvailable,
                 isConfigured: true,
+                canControl: state.canControl,
                 icon: preferredLiveIcon(state.icon, cached: entity.resolvedIcon)
             )
         case "lock":

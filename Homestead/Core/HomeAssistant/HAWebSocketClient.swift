@@ -6,6 +6,7 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func setDisconnectHandler(_ handler: (@MainActor @Sendable (Error) -> Void)?) async
     func connect(configuration: HAConnectionConfiguration) async throws
     func disconnect() async
+    func handleWebhook(serverIdentifier: String, webhookID: String, body: String) async throws -> JSONValue?
     func fetchCurrentUser() async throws -> HACurrentUserDTO
     func fetchStates() async throws -> [HAEntityDTO]
     func fetchEntityRegistryForDisplay() async throws -> HAEntityRegistryDisplayResponseDTO
@@ -76,6 +77,8 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     private var receiveTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
     private var connectionID = UUID()
+    private var authenticatedForWebhooks = false
+    private var webhookServerIdentifier: String?
     private var serverVersion: String?
     private var hasDeliveredCompactSnapshot = false
     private var usesCompactEntities = false
@@ -152,6 +155,8 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
                     catch let error as HAWebSocketServerError where error.code == "unknown_command" { }
                 }
                 guard generation == connectionID else { throw CancellationError() }
+                authenticatedForWebhooks = true
+                webhookServerIdentifier = configuration.dataSourceID
                 startHeartbeatLoop()
             case HAWebSocketMessageType.authInvalid:
                 throw HAWebSocketError.authenticationFailed(authResponse.message)
@@ -173,6 +178,8 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     private func closeCurrentConnection() {
+        authenticatedForWebhooks = false
+        webhookServerIdentifier = nil
         connectionID = UUID()
         serverVersion = nil
         usesCompactEntities = false
@@ -229,6 +236,16 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         return try result.decoded([HAEntityDTO].self)
+    }
+
+    func handleWebhook(serverIdentifier: String, webhookID: String, body: String) async throws -> JSONValue? {
+        guard authenticatedForWebhooks, webSocketTask != nil, webhookServerIdentifier == serverIdentifier else { return nil }
+        let id = makeRequestID()
+        let response = try await sendRequest(.statisticsCommand(id: id, type: "webhook/handle", fields: [
+            "webhook_id": .string(webhookID), "method": .string("POST"), "body": .string(body),
+            "headers": .object(["Content-Type": .string("application/json")])
+        ]), id: id)
+        return response.result
     }
 
     func fetchCurrentUser() async throws -> HACurrentUserDTO {
@@ -1015,6 +1032,7 @@ extension HAWebSocketClientProtocol {
 }
 
 nonisolated extension HAWebSocketClientProtocol {
+    func handleWebhook(serverIdentifier: String, webhookID: String, body: String) async throws -> JSONValue? { nil }
     func fetchStatisticsMetadata(entityID: String) async throws -> [HAStatisticMetadataDTO] { [] }
     func fetchStatistics(request: HAStatisticsRequest) async throws -> [String: [HAStatisticRowDTO]] { [:] }
 }

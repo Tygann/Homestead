@@ -276,6 +276,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             ]
         case .positional:
             [
+                "supported_features": .number(15),
                 "friendly_name": .string("Primary Shades"),
                 "current_position": .number(72)
             ]
@@ -288,6 +289,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             ]
         case .environmental:
             [
+                "supported_features": .number(26),
                 "friendly_name": .string("Downstairs"),
                 "current_temperature": .number(68),
                 "target_temp_low": .number(66),
@@ -304,6 +306,7 @@ private enum EntityDetailReferenceFamily: String, CaseIterable, Identifiable {
             ]
         case .environmentalSingle:
             [
+                "supported_features": .number(1),
                 "friendly_name": .string("Upstairs"),
                 "current_temperature": .number(68),
                 "temperature": .number(70),

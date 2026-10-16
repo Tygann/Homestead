@@ -60,7 +60,8 @@ enum EntityMapper {
             fanMode: dto.attributes["fan_mode"]?.stringValue,
             fanModes: dto.attributes["fan_modes"]?.arrayValue?.compactMap(\.stringValue) ?? [],
             presetMode: dto.attributes["preset_mode"]?.stringValue,
-            presetModes: dto.attributes["preset_modes"]?.arrayValue?.compactMap(\.stringValue) ?? []
+            presetModes: dto.attributes["preset_modes"]?.arrayValue?.compactMap(\.stringValue) ?? [],
+            supportedFeatures: dto.attributes["supported_features"]?.intValue ?? 0
         )
     }
 
@@ -74,7 +75,8 @@ enum EntityMapper {
             percentage: dto.attributes["percentage"]?.intValue,
             percentageStep: dto.attributes["percentage_step"]?.intValue,
             presetMode: dto.attributes["preset_mode"]?.stringValue,
-            presetModes: dto.attributes["preset_modes"]?.arrayValue?.compactMap(\.stringValue) ?? []
+            presetModes: dto.attributes["preset_modes"]?.arrayValue?.compactMap(\.stringValue) ?? [],
+            supportedFeatures: dto.attributes["supported_features"]?.intValue ?? 0
         )
     }
 
@@ -103,7 +105,8 @@ enum EntityMapper {
             displayName: displayName(for: dto),
             state: dto.state,
             position: dto.attributes["current_position"]?.intValue,
-            deviceClass: dto.attributes["device_class"]?.stringValue
+            deviceClass: dto.attributes["device_class"]?.stringValue,
+            supportedFeatures: dto.attributes["supported_features"]?.intValue ?? 0
         )
     }
 

@@ -42,6 +42,8 @@ struct HomesteadApp: App {
             _connectionProfileStore = State(initialValue: dependencies.connectionSettings.profileStore)
             _connectionSettings = State(initialValue: dependencies.connectionSettings)
             _homeAssistantService = State(initialValue: dependencies.homeAssistantService)
+            HomesteadAppDelegate.homeAssistantService = dependencies.homeAssistantService
+            HomesteadAppDelegate.connectionSettings = dependencies.connectionSettings
             _nativeNotificationService = State(initialValue: dependencies.nativeNotificationService)
             _nativePermissionService = State(initialValue: dependencies.nativePermissionService)
             _dashboardConfiguration = State(initialValue: dependencies.dashboardConfiguration)
@@ -66,6 +68,8 @@ struct HomesteadApp: App {
             _connectionProfileStore = State(initialValue: dependencies.connectionSettings.profileStore)
             _connectionSettings = State(initialValue: dependencies.connectionSettings)
             _homeAssistantService = State(initialValue: dependencies.homeAssistantService)
+            HomesteadAppDelegate.homeAssistantService = dependencies.homeAssistantService
+            HomesteadAppDelegate.connectionSettings = dependencies.connectionSettings
             _nativeNotificationService = State(initialValue: dependencies.nativeNotificationService)
             _nativePermissionService = State(initialValue: dependencies.nativePermissionService)
             _dashboardConfiguration = State(initialValue: dependencies.dashboardConfiguration)
@@ -126,6 +130,8 @@ struct HomesteadApp: App {
         _connectionProfileStore = State(initialValue: connectionProfileStore)
         _connectionSettings = State(initialValue: connectionSettings)
         _homeAssistantService = State(initialValue: homeAssistantService)
+        HomesteadAppDelegate.homeAssistantService = homeAssistantService
+        HomesteadAppDelegate.connectionSettings = connectionSettings
         _nativeNotificationService = State(initialValue: nativeNotificationService)
         _nativePermissionService = State(initialValue: nativePermissionService)
         _dashboardConfiguration = State(initialValue: dashboardConfiguration)
@@ -368,6 +374,8 @@ extension HomesteadAppearanceMode {
 }
 
 final class HomesteadAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    @MainActor weak static var homeAssistantService: HomeAssistantService?
+    @MainActor weak static var connectionSettings: HAConnectionSettings?
     @MainActor weak static var nativeNotificationService: NativeNotificationService?
 
     func application(
@@ -375,6 +383,9 @@ final class HomesteadAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().setNotificationCategories([
+            UNNotificationCategory(identifier: "HomesteadDynamic", actions: [], intentIdentifiers: [], options: [])
+        ])
         return true
     }
 
@@ -389,16 +400,30 @@ final class HomesteadAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        let userInfo = response.notification.request.content.userInfo
-        let profileID = userInfo["profile_id"] as? String
-        let entityID = userInfo["entity_id"] as? String
-        await MainActor.run {
-            NotificationCenter.default.post(
-                name: .homesteadNotificationDestination,
-                object: nil,
-                userInfo: ["profile_id": profileID, "entity_id": entityID].compactMapValues { $0 }
-            )
+        guard let interaction = NotificationInteraction(userInfo: response.notification.request.content.userInfo,
+            actionIdentifier: response.actionIdentifier,
+            reply: (response as? UNTextInputNotificationResponse)?.userText) else { return }
+        await Self.handleInteraction(interaction)
+    }
+
+    @MainActor
+    private static func handleInteraction(_ received: NotificationInteraction) async {
+        var interaction = received
+        if let action = interaction.action, action.identifier != "URI" {
+            guard let service = homeAssistantService, let settings = connectionSettings,
+                  let profileID = service.notificationOrigin(interaction, settings: settings) else {
+                nativeNotificationService?.recordInteractionError("The Home Assistant server for this notification is no longer available.")
+                return
+            }
+            do { try await service.sendNotificationAction(interaction, profileID: profileID, settings: settings) }
+            catch {
+                nativeNotificationService?.recordInteractionError(error.localizedDescription)
+                return
+            }
+            guard action.foreground else { return }
+            interaction.action = nil // The event was delivered exactly once; only navigation remains.
         }
+        nativeNotificationService?.enqueue(interaction)
     }
 
     func application(

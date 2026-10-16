@@ -88,7 +88,7 @@ struct CoverDetailView: View {
                 EntityDetailActionButton(
                     title: "Open",
                     systemImage: "arrow.up",
-                    isDisabled: blocksInteraction || cover.state == "open" || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "open_cover")
+                    isDisabled: blocksInteraction || cover.state == "open" || !homeAssistantService.entityServiceAvailable(domain: "cover", service: "open_cover", entityID: entityBox.entityID)
                 ) {
                     confirmOrPerform(domain: "cover", service: "open_cover") {
                         Task { await homeAssistantService.openCover(entityID: entityBox.entityID) }
@@ -99,7 +99,7 @@ struct CoverDetailView: View {
                     title: "Close",
                     systemImage: "arrow.down",
                     style: .secondary,
-                    isDisabled: blocksInteraction || cover.state == "closed" || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "close_cover")
+                    isDisabled: blocksInteraction || cover.state == "closed" || !homeAssistantService.entityServiceAvailable(domain: "cover", service: "close_cover", entityID: entityBox.entityID)
                 ) {
                     confirmOrPerform(domain: "cover", service: "close_cover") {
                         Task { await homeAssistantService.closeCover(entityID: entityBox.entityID) }
@@ -111,7 +111,7 @@ struct CoverDetailView: View {
                 title: "Stop",
                 systemImage: "stop.fill",
                 style: .secondary,
-                isDisabled: blocksInteraction || !homeAssistantService.serviceActionAvailable(domain: "cover", service: "stop_cover")
+                isDisabled: blocksInteraction || !homeAssistantService.entityServiceAvailable(domain: "cover", service: "stop_cover", entityID: entityBox.entityID)
             ) {
                 confirmOrPerform(domain: "cover", service: "stop_cover") {
                     Task { await homeAssistantService.stopCover(entityID: entityBox.entityID) }
@@ -152,7 +152,7 @@ struct CoverDetailView: View {
 
     private func canSetPosition(_ cover: CoverEntity) -> Bool {
         cover.positionPercentage != nil
-            && homeAssistantService.serviceActionAvailable(domain: "cover", service: "set_cover_position")
+            && homeAssistantService.entityServiceAvailable(domain: "cover", service: "set_cover_position", entityID: entityBox.entityID)
     }
 
     @ViewBuilder

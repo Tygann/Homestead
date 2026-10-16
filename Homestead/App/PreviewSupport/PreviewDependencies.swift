@@ -370,6 +370,7 @@ struct PreviewDependencies {
             connectionStatus: connectionStatus,
             dataFreshness: dataFreshness,
             serviceFeedback: serviceFeedback,
+            serviceRegistry: PreviewData.controlServices,
             authState: .signedIn(HAAuthSessionSummary(credential: credential)),
             httpClient: httpClient,
             mobileAppRegistrationStore: InMemoryHAMobileAppRegistrationStore(),
@@ -720,6 +721,14 @@ private extension NativePermissionStatusSnapshot {
 }
 
 private enum PreviewData {
+    static let controlServices = HAServiceRegistry(domains: [
+        "cover": ["open_cover", "close_cover", "stop_cover", "set_cover_position"],
+        "fan": ["turn_on", "turn_off", "set_percentage", "set_preset_mode"],
+        "climate": ["set_temperature", "set_hvac_mode", "set_fan_mode", "set_preset_mode"]
+    ].mapValues { services in
+        Dictionary(uniqueKeysWithValues: services.map { ($0, HAServiceDescription()) })
+    })
+
     static let entities: [HAEntityDTO] = [
         HAEntityDTO(
             entityID: "light.living_room_lamps",
@@ -813,6 +822,7 @@ private enum PreviewData {
             entityID: "fan.bedroom",
             state: "on",
             attributes: [
+                "supported_features": .number(57),
                 "friendly_name": .string("Bedroom Fan"),
                 "percentage": .number(45),
                 "percentage_step": .number(5),
@@ -849,6 +859,7 @@ private enum PreviewData {
             entityID: "cover.primary_shades",
             state: "open",
             attributes: [
+                "supported_features": .number(15),
                 "friendly_name": .string("Primary Shades"),
                 "current_position": .number(72)
             ],
@@ -858,6 +869,7 @@ private enum PreviewData {
             entityID: "climate.downstairs",
             state: "heat",
             attributes: [
+                "supported_features": .number(25),
                 "friendly_name": .string("Downstairs"),
                 "current_temperature": .number(68),
                 "temperature": .number(70),

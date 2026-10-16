@@ -18,6 +18,8 @@ struct ClimateEntity: Identifiable, Equatable, Sendable {
     let presetMode: String?
     let presetModes: [String]
 
+    var supportedFeatures: Int = 0
+
     var id: String { entityID }
 
     var isActive: Bool {

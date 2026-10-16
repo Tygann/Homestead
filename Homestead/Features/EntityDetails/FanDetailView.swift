@@ -60,7 +60,7 @@ struct FanDetailView: View {
                     isOn: fan.isOn,
                     accessibilityLabel: "Fan power",
                     isDisabled: detailState.blocksControlInteraction
-                        || !homeAssistantService.serviceActionAvailable(domain: "fan", service: service)
+                        || !homeAssistantService.entityServiceAvailable(domain: "fan", service: service, entityID: entityBox.entityID)
                 ) { requestedState in
                     setPower(requestedState)
                 }
@@ -156,12 +156,12 @@ struct FanDetailView: View {
 
     private func showsSpeedControl(_ fan: FanEntity) -> Bool {
         fan.percentage != nil
-            && homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_percentage")
+            && homeAssistantService.entityServiceAvailable(domain: "fan", service: "set_percentage", entityID: entityBox.entityID)
     }
 
     private func showsPresetControl(_ fan: FanEntity) -> Bool {
         !fan.presetModes.isEmpty
-            && homeAssistantService.serviceActionAvailable(domain: "fan", service: "set_preset_mode")
+            && homeAssistantService.entityServiceAvailable(domain: "fan", service: "set_preset_mode", entityID: entityBox.entityID)
     }
 
     private var contextDetails: some View {

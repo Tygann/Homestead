@@ -10,6 +10,7 @@ nonisolated enum HAOrganizationScope: String, CaseIterable, Codable, Sendable {
 nonisolated struct HAEntityOrganizationDTO: Codable, Equatable, Identifiable, Sendable {
     let entityID: String
     let uniqueID: String?
+    var registryID: String? = nil
     let labels: [String]
     let categories: [String: String]
 
@@ -18,6 +19,7 @@ nonisolated struct HAEntityOrganizationDTO: Codable, Equatable, Identifiable, Se
     enum CodingKeys: String, CodingKey {
         case entityID = "entity_id"
         case uniqueID = "unique_id"
+        case registryID = "id"
         case labels
         case categories
     }
@@ -38,6 +40,7 @@ nonisolated struct HAEntityOrganizationDTO: Codable, Equatable, Identifiable, Se
         let container = try decoder.container(keyedBy: CodingKeys.self)
         entityID = try container.decode(String.self, forKey: .entityID)
         uniqueID = try container.decodeIfPresent(String.self, forKey: .uniqueID)
+        registryID = try container.decodeIfPresent(String.self, forKey: .registryID)
         labels = try container.decodeIfPresent([String].self, forKey: .labels) ?? []
         categories = try container.decodeIfPresent([String: String].self, forKey: .categories) ?? [:]
     }
@@ -393,4 +396,10 @@ private nonisolated extension String {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
+}
+
+nonisolated struct HAEntityRename: Identifiable, Equatable, Sendable {
+    let id = UUID()
+    let oldEntityID: String
+    let newEntityID: String
 }

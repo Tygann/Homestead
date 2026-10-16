@@ -5,6 +5,9 @@ import Observation
 @MainActor
 @Observable
 final class HomeAssistantService {
+    private(set) var entityRenames: [HAEntityRename] = []
+    private(set) var registryIdentities: [String: String] = [:]
+    private(set) var registryIdentitySource: String?
     private(set) var connectionStatus: HAConnectionStatus = .disconnected
     private(set) var dataFreshness: HADataFreshness = .empty
     private(set) var lastErrorMessage: String?
@@ -94,6 +97,7 @@ final class HomeAssistantService {
         connectionStatus: HAConnectionStatus = .disconnected,
         dataFreshness: HADataFreshness = .empty,
         serviceFeedback: HAServiceFeedback? = nil,
+        serviceRegistry: HAServiceRegistry = .empty,
         authState: HAAuthState = .signedOut,
         httpClient: (any HAHTTPClientProtocol)? = nil,
         mobileAppClient: (any HAMobileAppClientProtocol)? = nil,
@@ -115,8 +119,9 @@ final class HomeAssistantService {
         self.client = client
         self.dataFreshness = dataFreshness
         self.serviceFeedback = serviceFeedback
+        self.serviceRegistry = serviceRegistry
         self.httpClient = httpClient ?? HAHTTPClient()
-        self.mobileAppClient = mobileAppClient ?? HAMobileAppClient()
+        self.mobileAppClient = mobileAppClient ?? HAMobileAppClient(foregroundSocket: client)
         self.mobileAppRegistrationStore = mobileAppRegistrationStore ?? KeychainHAMobileAppRegistrationStore()
         self.mobileAppDeviceIDStore = mobileAppDeviceIDStore ?? KeychainHAMobileAppDeviceIDStore()
         self.pushRelayTokenStore = pushRelayTokenStore ?? KeychainPushRelayTokenStore()
@@ -289,7 +294,10 @@ final class HomeAssistantService {
             discardWeatherForecastSubscriptions()
             await client.disconnect()
             guard generation == connectionGeneration, !Task.isCancelled else { return }
-            activeConfiguration = nil
+            entityRenames = []
+        registryIdentities = [:]
+        registryIdentitySource = nil
+        activeConfiguration = nil
             mobileAppPushNotificationState = .unavailable
         }
         shouldReconnect = true
@@ -417,6 +425,9 @@ final class HomeAssistantService {
         discardWeatherForecastSubscriptions()
         await client.disconnect()
         await dashboardHistoryCache.removeAll()
+        entityRenames = []
+        registryIdentities = [:]
+        registryIdentitySource = nil
         activeConfiguration = nil
         activeRouteSummary = nil
         mobileAppPushNotificationState = .unavailable
@@ -1486,6 +1497,39 @@ final class HomeAssistantService {
         return try await client.fetchCameraCapabilities(entityID: entityID)
     }
 
+    private func entityServiceDataValid(domain: String, service: String, entityID: String, data: [String: JSONValue]) -> Bool {
+        let options: (String, String)? = switch (domain, service) {
+        case ("climate", "set_hvac_mode"): ("hvac_mode", "hvac_modes")
+        case ("climate", "set_fan_mode"): ("fan_mode", "fan_modes")
+        case ("climate", "set_preset_mode"), ("fan", "set_preset_mode"): ("preset_mode", "preset_modes")
+        default: nil
+        }
+        if let (key, list) = options {
+            guard let value = data[key]?.stringValue,
+                  stateStore.rawEntity(for: entityID)?.attributes[list]?.arrayValue?.contains(.string(value)) == true else { return false }
+        }
+        if domain == "climate", service == "set_temperature", let climate = stateStore.climateEntity(for: entityID) {
+            return climate.usesTemperatureRange
+                ? data["target_temp_low"]?.doubleValue?.isFinite == true && data["target_temp_high"]?.doubleValue?.isFinite == true && data["temperature"] == nil
+                : data["temperature"]?.doubleValue?.isFinite == true && data["target_temp_low"] == nil && data["target_temp_high"] == nil
+        }
+        return true
+    }
+
+    func acknowledgeEntityRenames(_ ids: Set<UUID>) {
+        entityRenames.removeAll { ids.contains($0.id) }
+    }
+
+    func entityServiceAvailable(domain: String, service: String, entityID: String) -> Bool {
+        guard let entity = stateStore.rawEntity(for: entityID) else { return false }
+        let attributes = entity.attributes.mapValues { $0.foundationValue }
+        return EntityControlCapabilities.allows(domain: domain, service: service, state: entity.state,
+            features: entity.attributes["supported_features"]?.intValue ?? 0,
+            attributes: attributes, serviceAvailable: ["cover", "fan", "climate"].contains(domain)
+                ? serviceRegistry.hasLoaded && serviceRegistry.hasService(domain: domain, service: service)
+                : serviceActionAvailable(domain: domain, service: service))
+    }
+
     func serviceActionAvailable(domain: String, service: String) -> Bool {
         !serviceRegistry.hasLoaded || serviceRegistry.hasService(domain: domain, service: service)
     }
@@ -1547,29 +1591,29 @@ final class HomeAssistantService {
     func serviceActionAvailable(_ action: DashboardEntityPrimaryAction, entityID: String) -> Bool {
         switch action {
         case .toggleLight:
-            return serviceActionAvailable(domain: "light", service: toggleServiceName(for: entityID))
+            return entityServiceAvailable(domain: "light", service: toggleServiceName(for: entityID), entityID: entityID)
         case .toggleSwitch:
-            return serviceActionAvailable(domain: "switch", service: toggleServiceName(for: entityID))
+            return entityServiceAvailable(domain: "switch", service: toggleServiceName(for: entityID), entityID: entityID)
         case .toggleFan:
-            return serviceActionAvailable(domain: "fan", service: toggleServiceName(for: entityID))
+            return entityServiceAvailable(domain: "fan", service: toggleServiceName(for: entityID), entityID: entityID)
         case .toggleAutomation:
-            return serviceActionAvailable(domain: "automation", service: toggleServiceName(for: entityID))
+            return entityServiceAvailable(domain: "automation", service: toggleServiceName(for: entityID), entityID: entityID)
         case .toggleCover:
             guard let cover = stateStore.coverEntity(for: entityID) else {
                 return true
             }
-            return serviceActionAvailable(domain: "cover", service: cover.isOpen ? "close_cover" : "open_cover")
+            return entityServiceAvailable(domain: "cover", service: cover.isOpen ? "close_cover" : "open_cover", entityID: entityID)
         case .toggleLock:
             guard let entity = stateStore.entity(for: entityID) else {
                 return true
             }
-            return serviceActionAvailable(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock")
+            return entityServiceAvailable(domain: "lock", service: entity.state == "locked" ? "unlock" : "lock", entityID: entityID)
         case .activateScene:
-            return serviceActionAvailable(domain: "scene", service: "turn_on")
+            return entityServiceAvailable(domain: "scene", service: "turn_on", entityID: entityID)
         case .runScript:
-            return serviceActionAvailable(domain: "script", service: "turn_on")
+            return entityServiceAvailable(domain: "script", service: "turn_on", entityID: entityID)
         case .pressButton:
-            return serviceActionAvailable(domain: "button", service: "press")
+            return entityServiceAvailable(domain: "button", service: "press", entityID: entityID)
         }
     }
 
@@ -1632,6 +1676,38 @@ final class HomeAssistantService {
         mobileAppRegistrationState = .registering
 
         await registerMobileAppIfNeeded(configuration: configuration, force: true)
+    }
+
+    func notificationOrigin(_ interaction: NotificationInteraction, settings: HAConnectionSettings) -> UUID? {
+        if let webhookID = interaction.webhookID {
+            let matches = settings.profiles.filter {
+                (try? mobileAppRegistrationStoreProvider($0.id).readRegistration())?.webhookID == webhookID
+            }
+            return matches.count == 1 ? matches[0].id : nil
+        }
+        guard let id = interaction.profileID, settings.profiles.contains(where: { $0.id == id }) else { return nil }
+        return id
+    }
+
+    func sendNotificationAction(_ interaction: NotificationInteraction, profileID: UUID,
+                                settings: HAConnectionSettings) async throws {
+        guard let action = interaction.action, action.identifier != "URI",
+              let profile = settings.profiles.first(where: { $0.id == profileID }),
+              let registration = try mobileAppRegistrationStoreProvider(profileID).readRegistration() else { return }
+        let manager = authManagerProvider(profileID)
+        var configuration = try await manager.validConfiguration(baseURLString: profile.baseURL)
+        configuration.profileID = profileID
+        configuration.serverIdentityBaseURLString = profile.baseURL
+        configuration.baseURLString = profile.externalURL.isEmpty ? profile.baseURL : profile.externalURL
+        guard settings.profiles.contains(where: { $0.id == profileID }),
+              registration.serverIdentifier == configuration.dataSourceID else { throw CancellationError() }
+        var eventData: [String: JSONValue] = ["action": .string(action.identifier)]
+        if let reply = interaction.reply, action.textInput { eventData["reply_text"] = .string(reply) }
+        if let data = interaction.actionData { eventData["action_data"] = data }
+        try Task.checkCancellation()
+        guard settings.profiles.contains(where: { $0.id == profileID }) else { throw CancellationError() }
+        try await mobileAppClient.fireNotificationAction(configuration: configuration,
+            registration: registration, eventData: eventData)
     }
 
     func refreshMobileAppPushRegistrationIfNeeded(settings: HAConnectionSettings) async {
@@ -1701,13 +1777,30 @@ final class HomeAssistantService {
                 }
             }
             guard generation == connectionGeneration, !Task.isCancelled else { return }
-            if !force, let registration = existing, registration.hasCurrentRemotePushRegistration(for: configuration) {
+            let pushRelayToken = try pushRelayTokenStore.readOrCreateRelayToken()
+            let update = HAMobileAppRegistrationRequestFactory.makeUpdate(
+                userDisplayName: currentUserDisplayName, pushRelayToken: pushRelayToken)
+            if let registration = existing, registration.serverIdentifier == configuration.dataSourceID {
+                do {
+                    if let config = try await mobileAppClient.getConfig(configuration: configuration, registration: registration) {
+                        existing = registration.replacingRoutes(config)
+                        guard generation == connectionGeneration, !Task.isCancelled else { return }
+                        try registrationStore.saveRegistration(existing!)
+                    }
+                } catch let error as HAMobileAppClientError where error.requiresNewRegistration {
+                    existing = nil
+                } catch {
+                    try Task.checkCancellation()
+                    // Optional route metadata must not block a mandatory registration update.
+                }
+            }
+            if !force, let registration = existing, registration.hasCurrentRemotePushRegistration(for: configuration),
+               registration.registrationUpdate == update {
                 mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
                 return
             }
 
             let deviceID = try mobileAppDeviceIDStore.readOrCreateDeviceID()
-            let pushRelayToken = try pushRelayTokenStore.readOrCreateRelayToken()
             let registration: HAMobileAppRegistrationInfo
             if let existing, existing.serverIdentifier == configuration.dataSourceID {
                 let update = HAMobileAppRegistrationRequestFactory.makeUpdate(
@@ -1726,6 +1819,7 @@ final class HomeAssistantService {
                         registeredAt: existing.registeredAt
                     )
                     updated.encryptionUnavailable = existing.encryptionUnavailable
+                    updated.registrationUpdate = update
                     registration = updated
                 } catch let error as HAMobileAppClientError where error.requiresNewRegistration {
                     registration = try await createMobileAppRegistration(configuration: configuration,
@@ -2418,7 +2512,9 @@ final class HomeAssistantService {
         serviceData: [String: JSONValue] = [:],
         successTitle: String? = nil
     ) async -> Bool {
-        guard serviceActionAvailable(domain: domain, service: service) else {
+        guard serviceActionAvailable(domain: domain, service: service),
+              entityID.map({ entityServiceAvailable(domain: domain, service: service, entityID: $0)
+                  && entityServiceDataValid(domain: domain, service: service, entityID: $0, data: serviceData) }) ?? true else {
             serviceFeedback = HAServiceFeedback(
                 title: "Action unavailable",
                 message: "\(domain).\(service) is not available on this Home Assistant server.",
@@ -3070,6 +3166,10 @@ final class HomeAssistantService {
         guard revision == registryMetadataRevision, !Task.isCancelled, activeConfiguration?.dataSourceID == configuration.dataSourceID else {
             return nil
         }
+        registryIdentitySource = configuration.dataSourceID
+        registryIdentities = Dictionary(organization.compactMap { entry in
+            entry.registryID.map { ($0, entry.entityID) }
+        }, uniquingKeysWith: { _, _ in "" }).filter { !$0.value.isEmpty }
         stateStore.applyRegistryMetadata(metadata)
         return metadata
     }
@@ -3260,6 +3360,13 @@ final class HomeAssistantService {
             scheduleServerConfigRefresh()
             return
         default: break
+        }
+        if event.eventType == "entity_registry_updated", let data = event.data.objectValue,
+           data["action"]?.stringValue == "update", let old = data["old_entity_id"]?.stringValue,
+           let new = data["entity_id"]?.stringValue, old != new {
+            entityRenames.append(HAEntityRename(oldEntityID: old, newEntityID: new))
+            // Each event must be observed even if an identical rename happened before.
+            registryIdentitySource = activeConfiguration?.dataSourceID
         }
         if event.isRegistryMetadataChanged {
             scheduleRegistryMetadataRefresh()
