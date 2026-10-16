@@ -47,6 +47,10 @@ Scripts/export_live_preview_dashboard.sh <simulator-udid>
 
 The optional simulator argument defaults to `booted`. The script writes `PreviewDashboardLayout.json` at the repo root. That file is ignored by git, contains only dashboard configuration and selection keys, and is copied into Debug builds. When App Group storage has no layout for a server, the live preview restores the matching layout from this bundled backup. It never overwrites a layout already present in App Group storage.
 
+## Read-Only Diagnostic Clients
+
+The October 15 Sensor Board check received HTTP 403 from the configured origin with Python's default User-Agent, while alternating identical authenticated requests with `Homestead/1.0` returned HTTP 200. The subsequent six-hour batched history request succeeded. When a standalone diagnostic differs from the app, compare client headers before inferring invalid credentials or a broken app history path. Do not change proxy/security settings to make a diagnostic pass, and keep URLs/tokens out of logs.
+
 ## Debug Simulator Launch
 
 Debug builds can use the same isolated live-preview environment outside Xcode's canvas. Launch with `--live-preview` to bypass onboarding without writing the preview token into the simulator Keychain or changing the normal OAuth startup path:

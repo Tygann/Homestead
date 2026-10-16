@@ -2,6 +2,14 @@
 
 This is a short project memory log for future maintainers and coding agents. It should capture durable decisions and checkpoints, not every edit.
 
+## 2026-10-16
+
+### Sensor Board System Acceptance Evidence
+
+- Completed the interrupted October 15 simulator pass: native Device Hub clicks/long presses reached the actual medium/large WidgetKit forms. Representative Reading/Chart settings, sensor selections, custom name, and Gauge/Segmented selection persisted independently across slot switching, reopen, and simulator restart. Deep scale/zone interaction remains open.
+- Both Home Screen board sizes rendered real six-hour CPU history through their production timelines. The medium also rendered its current Reading; the large's removed-server Gauge rendered a dash. A temporary local entitlement-cache fixture enabled this data/rendering check; original access/date keys were restored and verified after resuming. This is not StoreKit or physical-device acceptance.
+- Alternating read-only requests isolated the earlier HTTP 403 to the Python diagnostic's default User-Agent; the same credentials with `Homestead/1.0` returned 200, and a three-sensor history batch succeeded. No networking or server settings changed. Updated evidence boundaries and native Device Hub guidance; documentation-only verification uses diff checks. No upload or App Store submission changes.
+
 ## 2026-10-15
 
 ### Sensor Board Removed-Server Recovery
