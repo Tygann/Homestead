@@ -269,8 +269,12 @@ actor HAOAuthClient: HAOAuthClientProtocol {
 }
 
 actor HAOAuthManager {
+    // MARK: - Properties
+
     private let client: any HAOAuthClientProtocol
     private let tokenStore: any HAOAuthTokenStore
+    private var credentialGeneration = UUID()
+    private var refreshTask: (id: UUID, task: Task<HAConnectionConfiguration, Error>)?
     private let clientID: String
     private let redirectURI: String
     private let profileID: UUID?
@@ -291,6 +295,8 @@ actor HAOAuthManager {
         self.profileID = profileID
         self.now = now
     }
+
+    // MARK: - Public API
 
     func authorizeURL(baseURLString: String, state: String) throws -> URL {
         try HomeAssistantEndpointBuilder.authAuthorizeURL(
@@ -340,6 +346,8 @@ actor HAOAuthManager {
     }
 
     func signIn(baseURLString: String, authorizationCode: String) async throws -> HAConnectionConfiguration {
+        invalidatePendingRefresh()
+        let generation = credentialGeneration
         let trimmedBaseURL = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         let response = try await client.exchangeAuthorizationCode(
             baseURLString: trimmedBaseURL,
@@ -360,6 +368,8 @@ actor HAOAuthManager {
             tokenType: response.tokenType,
             updatedAt: now()
         )
+        guard generation == credentialGeneration else { throw CancellationError() }
+        invalidatePendingRefresh()
         try tokenStore.saveCredential(credential)
 
         return HAConnectionConfiguration(
@@ -385,12 +395,36 @@ actor HAOAuthManager {
 
     func refreshConfiguration(baseURLString: String) async throws -> HAConnectionConfiguration {
         let credential = try credentialForServer(baseURLString: baseURLString)
+        if let refreshTask {
+            return try await refreshTask.task.value
+        }
+
+        let generation = credentialGeneration
+        let id = UUID()
+        let task = Task { try await self.performRefresh(credential: credential, generation: generation) }
+        refreshTask = (id, task)
+        do {
+            let result = try await task.value
+            if refreshTask?.id == id { refreshTask = nil }
+            return result
+        } catch {
+            if refreshTask?.id == id { refreshTask = nil }
+            throw error
+        }
+    }
+
+    private func performRefresh(
+        credential: HAOAuthCredential,
+        generation: UUID
+    ) async throws -> HAConnectionConfiguration {
         let response = try await client.refreshAccessToken(
             baseURLString: credential.baseURLString,
             refreshToken: credential.refreshToken,
             clientID: credential.clientID
         )
-
+        try Task.checkCancellation()
+        // Actor reentrancy allows sign-out or another sign-in during the request.
+        guard generation == credentialGeneration else { throw CancellationError() }
         let refreshedCredential = credential.replacingAccessToken(
             response.accessToken,
             expiresIn: response.expiresIn,
@@ -398,7 +432,6 @@ actor HAOAuthManager {
             now: now()
         )
         try tokenStore.saveCredential(refreshedCredential)
-
         return HAConnectionConfiguration(
             baseURLString: refreshedCredential.baseURLString,
             accessToken: refreshedCredential.accessToken,
@@ -407,16 +440,28 @@ actor HAOAuthManager {
     }
 
     func signOut() throws {
+        invalidatePendingRefresh()
         try tokenStore.deleteCredential()
     }
 
     func revokeAndSignOut() async throws {
+        invalidatePendingRefresh()
+        let generation = credentialGeneration
         guard let credential = try tokenStore.readCredential() else { return }
         try await client.revokeRefreshToken(
             baseURLString: credential.baseURLString,
             refreshToken: credential.refreshToken
         )
+        guard generation == credentialGeneration else { throw CancellationError() }
         try tokenStore.deleteCredential()
+    }
+
+    // MARK: - Private Helpers
+
+    private func invalidatePendingRefresh() {
+        credentialGeneration = UUID()
+        refreshTask?.task.cancel()
+        refreshTask = nil
     }
 
     private func credentialForServer(baseURLString: String) throws -> HAOAuthCredential {

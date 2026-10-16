@@ -1335,7 +1335,7 @@ struct HomesteadTests {
         #expect(object["model"] as? String == "iPhone")
         #expect(object["os_name"] as? String == "iOS")
         #expect(object["os_version"] as? String == "26.5")
-        #expect(object["supports_encryption"] as? Bool == false)
+        #expect(object["supports_encryption"] as? Bool == true)
         #expect(object["push_url"] == nil)
         #expect(object["push_token"] == nil)
         #expect(object["app_data"] == nil)
@@ -5316,6 +5316,7 @@ struct HomesteadTests {
         let client = StubHAMobileAppClient()
         let service = HomeAssistantService(
             stateStore: HAStateStore(),
+            authState: .signedIn(HAAuthSessionSummary(credential: testCredential(accessToken: "token-a"))),
             mobileAppClient: client,
             mobileAppRegistrationStore: store,
             mobileAppDeviceIDStore: InMemoryHAMobileAppDeviceIDStore(deviceID: "stable-device-id"),
@@ -6990,7 +6991,7 @@ struct HomesteadTests {
         #expect(relativeRequest.url?.absoluteString == "http://homeassistant.local:8123/api/image/person")
         #expect(relativeRequest.value(forHTTPHeaderField: "Authorization") == "Bearer image-access")
         #expect(absoluteRequest.url?.absoluteString == "https://cdn.example.com/person.jpg")
-        #expect(absoluteRequest.value(forHTTPHeaderField: "Authorization") == "Bearer image-access")
+        #expect(absoluteRequest.value(forHTTPHeaderField: "Authorization") == nil)
         #expect(integrationBrandRequest.url?.absoluteString == "http://homeassistant.local:8123/api/brands/integration/hue/icon@2x.png")
         #expect(integrationBrandRequest.value(forHTTPHeaderField: "Authorization") == "Bearer image-access")
         #expect(blankRequest == nil)
@@ -11623,6 +11624,8 @@ final class StubHAWebSocketClient: HAWebSocketClientProtocol {
     func emitMobileAppPushNotification(_ event: HAMobileAppPushNotificationEventDTO) async {
         await mobileAppPushNotificationHandler?(event)
     }
+
+    func capturedEventHandler() -> (@Sendable (HAEventDTO) async -> Void)? { eventHandler }
 
     func emitEvent(_ event: HAEventDTO) async {
         await eventHandler?(event)

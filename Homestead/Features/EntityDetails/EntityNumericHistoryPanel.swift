@@ -157,7 +157,8 @@ struct EntityNumericHistoryPanel: View {
                     displayPrecision: displayPrecision,
                     range: fetchedSeries.range,
                     samples: fetchedSeries.samples,
-                    requestedInterval: fetchedSeries.requestedInterval
+                    requestedInterval: fetchedSeries.requestedInterval,
+                    hourlyAveragesBefore: fetchedSeries.hourlyAveragesBefore
                 )
             )
         } catch is CancellationError {
@@ -231,28 +232,32 @@ private struct EntityNumericHistoryChart: View {
             statistics
 
             Chart {
-                ForEach(plottedSamples) { sample in
-                    LineMark(
-                        x: .value("Time", sample.occurredAt),
-                        y: .value("Value", sample.value)
-                    )
-                    .interpolationMethod(chartInterpolationMethod)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                    .foregroundStyle(accentColor)
-
-                    AreaMark(
-                        x: .value("Time", sample.occurredAt),
-                        yStart: .value("Baseline", valueDomain.lowerBound),
-                        yEnd: .value("Value", sample.value)
-                    )
-                    .interpolationMethod(chartInterpolationMethod)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [accentColor.opacity(0.22), accentColor.opacity(0.04)],
-                            startPoint: .top,
-                            endPoint: .bottom
+                ForEach(series.chartSegments()) { segment in
+                    ForEach(segment.samples) { sample in
+                        LineMark(
+                            x: .value("Time", sample.occurredAt),
+                            y: .value("Value", sample.value),
+                            series: .value("History segment", segment.id)
                         )
-                    )
+                        .interpolationMethod(chartInterpolationMethod)
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .foregroundStyle(accentColor)
+
+                        AreaMark(
+                            x: .value("Time", sample.occurredAt),
+                            yStart: .value("Baseline", valueDomain.lowerBound),
+                            yEnd: .value("Value", sample.value),
+                            series: .value("History segment", segment.id)
+                        )
+                        .interpolationMethod(chartInterpolationMethod)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [accentColor.opacity(0.22), accentColor.opacity(0.04)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    }
                 }
 
                 if let selectedSample {
@@ -516,3 +521,46 @@ private enum EntityNumericHistoryPhase: Equatable {
         return false
     }
 }
+
+#if DEBUG
+@MainActor
+struct EntityNumericHistoryStatisticsReference: View {
+    @State private var selectedDate: Date?
+
+    private var series: HAHistoryChartSeries {
+        let end = Date(timeIntervalSince1970: 1_792_152_000)
+        let start = end.addingTimeInterval(-30 * 86400)
+        let recentStart = end.addingTimeInterval(-7 * 86400)
+        let hourly = (0..<23 * 24).compactMap { hour -> HAHistorySample? in
+            // A conspicuous gap proves that marks never bridge absent buckets.
+            guard !(7 * 24..<12 * 24).contains(hour) else { return nil }
+            let date = start.addingTimeInterval(Double(hour) * 3600)
+            return HAHistorySample(occurredAt: date,
+                                   value: 20 + 2 * sin(Double(hour) / 18),
+                                   validUntil: date.addingTimeInterval(3600))
+        }
+        let recent = (0...28).map { index in
+            HAHistorySample(occurredAt: recentStart.addingTimeInterval(Double(index) * 6 * 3600),
+                            value: 21 + sin(Double(index) / 2))
+        }
+        return HAHistoryChartSeries(entityID: "sensor.temperature", displayName: "Living Room",
+            unit: "°C", displayPrecision: 1, range: .month, samples: hourly + recent,
+            requestedInterval: DateInterval(start: start, end: end), hourlyAveragesBefore: recentStart)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                EntityDetailSection(title: "History", systemImage: "chart.xyaxis.line") {
+                    EntityNumericHistoryChart(series: series, selectedRange: .month,
+                        accentColor: .orange, preferredRange: nil, interpolationStyle: .linear,
+                        chartHeight: 260, selectedSampleDate: $selectedDate)
+                }
+                .padding(AppSpacing.large)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Living Room")
+        }
+    }
+}
+#endif

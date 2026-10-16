@@ -56,6 +56,16 @@ final class HomeAssistantService {
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
     @ObservationIgnored private var stateSyncTask: Task<Void, Never>?
     @ObservationIgnored private var stateEnrichmentTask: Task<Void, Never>?
+    @ObservationIgnored private var registrationTask: Task<Void, Never>?
+    @ObservationIgnored private var registrationTaskID: UUID?
+    @ObservationIgnored private var registrationTaskGeneration: UInt?
+    @ObservationIgnored private var serviceMetadataRevision = UUID()
+    @ObservationIgnored private var serverMetadataRevision = UUID()
+    @ObservationIgnored private var registryMetadataRevision = UUID()
+    @ObservationIgnored private var serviceRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var serverConfigurationLoadTask: Task<Void, Never>?
+    @ObservationIgnored private var serverConfigurationLoadID: UUID?
+    @ObservationIgnored private var serverConfigRefreshTask: Task<Void, Never>?
     @ObservationIgnored private var registryRefreshTask: Task<Void, Never>?
     @ObservationIgnored private var connectionHealthGraceTask: Task<Void, Never>?
     @ObservationIgnored private var pendingCommandTasksByID: [String: Task<Void, Never>] = [:]
@@ -254,6 +264,7 @@ final class HomeAssistantService {
     }
 
     private func connect(routeSelection: HAConnectionRouteSelection) async {
+        connectionGeneration &+= 1
         let generation = connectionGeneration
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -263,12 +274,21 @@ final class HomeAssistantService {
         stateEnrichmentTask = nil
         registryRefreshTask?.cancel()
         registryRefreshTask = nil
+        serviceRefreshTask?.cancel()
+        serviceRefreshTask = nil
+        serverConfigRefreshTask?.cancel()
+        serverConfigRefreshTask = nil
+        serverConfigurationLoadTask?.cancel()
+        serverConfigurationLoadTask = nil
+        serverConfigurationLoadID = nil
         discardBufferedStateChanges()
         await stateEventBatcher.discardPendingUpdates()
+        guard generation == connectionGeneration, !Task.isCancelled else { return }
         let previousDataSourceID = activeConfiguration?.dataSourceID
         if activeConfiguration != nil {
             discardWeatherForecastSubscriptions()
             await client.disconnect()
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
             activeConfiguration = nil
             mobileAppPushNotificationState = .unavailable
         }
@@ -282,6 +302,7 @@ final class HomeAssistantService {
             )
             guard generation == connectionGeneration else { return }
         } catch {
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
             failConnection(with: error)
             return
         }
@@ -297,6 +318,7 @@ final class HomeAssistantService {
             to: routeSelection.preferredCandidate?.baseURLString ?? baseConfiguration.baseURLString
         )
         await applyCachedStatesIfAvailable(for: preferredConfiguration)
+        guard generation == connectionGeneration, !Task.isCancelled else { return }
 
         var lastConnectionError: Error?
         for candidate in routeSelection.candidates {
@@ -311,10 +333,7 @@ final class HomeAssistantService {
                     configuration: routeConfiguration,
                     timeout: candidate.route == .internalURL ? .seconds(4) : nil
                 )
-                guard generation == connectionGeneration else {
-                    await client.disconnect()
-                    return
-                }
+                guard generation == connectionGeneration, !Task.isCancelled else { return }
                 activeConfiguration = connectedConfiguration
                 activeRouteSummary = HAConnectionRouteSummary(
                     route: candidate.route,
@@ -328,10 +347,12 @@ final class HomeAssistantService {
                 startStateSync(configuration: connectedConfiguration)
                 if automaticallyRegistersMobileApp {
                     await registerMobileAppIfNeeded(configuration: connectedConfiguration)
+                    guard generation == connectionGeneration, !Task.isCancelled else { return }
                     await startMobileAppPushNotificationChannel(configuration: connectedConfiguration)
                 }
                 return
             } catch {
+                guard generation == connectionGeneration, !Task.isCancelled else { return }
                 lastConnectionError = error
                 guard HAConnectionRecoveryPolicy.shouldTryFallbackRoute(after: error) else {
                     break
@@ -369,6 +390,10 @@ final class HomeAssistantService {
 
     func disconnect() async {
         connectionGeneration &+= 1
+        registrationTask?.cancel()
+        registrationTask = nil
+        registrationTaskID = nil
+        registrationTaskGeneration = nil
         shouldReconnect = false
         endConnectionHealthGrace()
         reconnectTask?.cancel()
@@ -379,6 +404,13 @@ final class HomeAssistantService {
         stateEnrichmentTask = nil
         registryRefreshTask?.cancel()
         registryRefreshTask = nil
+        serviceRefreshTask?.cancel()
+        serviceRefreshTask = nil
+        serverConfigRefreshTask?.cancel()
+        serverConfigRefreshTask = nil
+        serverConfigurationLoadTask?.cancel()
+        serverConfigurationLoadTask = nil
+        serverConfigurationLoadID = nil
         discardBufferedStateChanges()
         await stateEventBatcher.discardPendingUpdates()
         cancelPendingCommandTasks()
@@ -1136,6 +1168,9 @@ final class HomeAssistantService {
             default:
                 return .failed(urlError.localizedDescription)
             }
+        } catch let serverError as HAWebSocketServerError {
+            if ["unknown_command", "not_found"].contains(serverError.code ?? "") { return .unavailable(.unsupported) }
+            return .failed(serverError.localizedDescription)
         } catch let webSocketError as HAWebSocketError {
             switch webSocketError {
             case .invalidURL:
@@ -1221,16 +1256,11 @@ final class HomeAssistantService {
 
         let configuration = try await preferredConfiguration(for: settings)
         activeConfiguration = configuration
-        let response = try await httpClient.fetchHistory(configuration: configuration, request: request)
-        let sensor = stateStore.entityBox(for: request.entityID)?.sensorEntity
-        let entity = stateStore.entity(for: request.entityID)
-
-        return HAHistoryChartSeries.make(
-            response: response,
-            request: request,
-            displayName: sensor?.displayName ?? entity?.displayName ?? request.entityID,
-            unit: sensor?.unitText,
-            range: range
+        return try await HAHistoryStatisticsProvider.load(
+            request: request, sensor: stateStore.entityBox(for: request.entityID)?.sensorEntity, range: range,
+            fetchHistory: { try await self.httpClient.fetchHistory(configuration: configuration, request: $0) },
+            fetchMetadata: { try await self.client.fetchStatisticsMetadata(entityID: $0) },
+            fetchStatistics: { try await self.client.fetchStatistics(request: $0) }
         )
     }
 
@@ -1467,20 +1497,23 @@ final class HomeAssistantService {
             serverConfigurationStatus = .unavailable
             return
         }
-
-        serverConfigurationStatus = .loading
-
-        do {
-            let config = try await client.fetchConfig()
-            let environment = await serverEnvironmentSnapshot(for: config)
-            let snapshot = HAServerConfigurationSnapshot(dto: config)
-            serverConfiguration = snapshot
-            serverEnvironment = environment
-            currentConnectionSettings?.adoptServerRoutes(from: snapshot)
-            currentConnectionSettings?.updateServerName(snapshot.locationName)
-            serverConfigurationStatus = .loaded(snapshot.loadedAt)
-        } catch {
-            serverConfigurationStatus = .failed(error.localizedDescription)
+        if let running = serverConfigurationLoadTask {
+            await running.value
+            return
+        }
+        let generation = connectionGeneration
+        let revision = UUID()
+        serverMetadataRevision = revision
+        let task = Task { [weak self] in
+            guard let self else { return }
+            await self.performServerConfigurationRefresh(generation: generation, revision: revision)
+        }
+        serverConfigurationLoadID = revision
+        serverConfigurationLoadTask = task
+        await task.value
+        if serverConfigurationLoadID == revision {
+            serverConfigurationLoadTask = nil
+            serverConfigurationLoadID = nil
         }
     }
 
@@ -1616,101 +1649,134 @@ final class HomeAssistantService {
         }
     }
 
-    private func registerMobileAppIfNeeded(
+    private func registerMobileAppIfNeeded(configuration: HAConnectionConfiguration, force: Bool = false) async {
+        let generation = connectionGeneration
+        if let running = registrationTask {
+            let runningGeneration = registrationTaskGeneration
+            await running.value
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
+            if runningGeneration == generation { return }
+        }
+        let id = UUID()
+        let task = Task { [weak self] in
+            guard let self else { return }
+            await self.performMobileAppRegistration(configuration: configuration, force: force)
+        }
+        registrationTaskID = id
+        registrationTaskGeneration = generation
+        registrationTask = task
+        await task.value
+        if registrationTaskID == id {
+            registrationTask = nil
+            registrationTaskID = nil
+            registrationTaskGeneration = nil
+        }
+    }
+
+    private func performMobileAppRegistration(
         configuration: HAConnectionConfiguration,
         force: Bool = false
     ) async {
-        let existingRegistration: HAMobileAppRegistrationInfo?
-        do {
-            existingRegistration = try mobileAppRegistrationStore.readRegistration()
-        } catch {
-            mobileAppRegistrationState = .failed(error.localizedDescription)
-            return
-        }
-
-        if !force,
-           let registration = existingRegistration,
-           registration.hasCurrentRemotePushRegistration(for: configuration) {
-            mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
-            return
-        }
-
+        let generation = connectionGeneration
+        let registrationStore = mobileAppRegistrationStore
+        let registrationAuth = authManager
         mobileAppRegistrationState = .registering
-
         do {
+            var existing = try registrationStore.readRegistration()
+            let originalWebhookID = existing?.webhookID
+            if let registration = existing,
+               registration.serverIdentifier == configuration.dataSourceID,
+               !registration.hasEncryptedWebhookSecret, registration.encryptionUnavailable != true {
+                do {
+                    let secret = try await mobileAppClient.enableEncryption(configuration: configuration, registration: registration)
+                    let upgraded = registration.replacingEncryptionSecret(secret)
+                    // A server-side encryption upgrade cannot be undone. Save its one-time
+                    // key to the captured profile even if another profile became active.
+                    guard try registrationStore.readRegistration()?.webhookID == registration.webhookID else { return }
+                    try registrationStore.saveRegistration(upgraded)
+                    guard generation == connectionGeneration, !Task.isCancelled else { return }
+                    existing = upgraded
+                } catch let error as HAMobileAppClientError where error.requiresNewRegistration {
+                    existing = nil
+                }
+            }
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
+            if !force, let registration = existing, registration.hasCurrentRemotePushRegistration(for: configuration) {
+                mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
+                return
+            }
+
             let deviceID = try mobileAppDeviceIDStore.readOrCreateDeviceID()
             let pushRelayToken = try pushRelayTokenStore.readOrCreateRelayToken()
-
             let registration: HAMobileAppRegistrationInfo
-            if let existingRegistration,
-               existingRegistration.serverIdentifier == configuration.dataSourceID {
+            if let existing, existing.serverIdentifier == configuration.dataSourceID {
                 let update = HAMobileAppRegistrationRequestFactory.makeUpdate(
-                    userDisplayName: currentUserDisplayName,
-                    pushRelayToken: pushRelayToken
+                    userDisplayName: currentUserDisplayName, pushRelayToken: pushRelayToken
                 )
-                try await mobileAppClient.updateRegistration(
-                    configuration: configuration,
-                    registration: existingRegistration,
-                    update: update
-                )
-                registration = HAMobileAppRegistrationInfo(
-                    serverIdentifier: configuration.dataSourceID,
-                    deviceID: existingRegistration.deviceID,
-                    appID: existingRegistration.appID,
-                    appName: existingRegistration.appName,
-                    appVersion: update.appVersion,
-                    deviceName: update.deviceName,
-                    webhookID: existingRegistration.webhookID,
-                    cloudhookURL: existingRegistration.cloudhookURL,
-                    remoteUIURL: existingRegistration.remoteUIURL,
-                    secret: existingRegistration.secret,
-                    supportsWebSocketNotifications: update.appData?["push_websocket_channel"]?.boolValue == true,
-                    supportsCloudPushNotifications: update.includesRemotePushAppData
-                )
-                #if DEBUG
-                print("Home Assistant mobile-app registration updated: remotePush=\(update.includesRemotePushAppData), localPush=\(update.appData?["push_websocket_channel"]?.boolValue == true)")
-                #endif
+                do {
+                    try await mobileAppClient.updateRegistration(configuration: configuration, registration: existing, update: update)
+                    var updated = HAMobileAppRegistrationInfo(
+                        serverIdentifier: configuration.dataSourceID, deviceID: existing.deviceID,
+                        appID: existing.appID, appName: existing.appName, appVersion: update.appVersion,
+                        deviceName: update.deviceName, webhookID: existing.webhookID,
+                        cloudhookURL: existing.cloudhookURL, remoteUIURL: existing.remoteUIURL,
+                        secret: existing.secret,
+                        supportsWebSocketNotifications: update.appData?["push_websocket_channel"]?.boolValue == true,
+                        supportsCloudPushNotifications: update.includesRemotePushAppData,
+                        registeredAt: existing.registeredAt
+                    )
+                    updated.encryptionUnavailable = existing.encryptionUnavailable
+                    registration = updated
+                } catch let error as HAMobileAppClientError where error.requiresNewRegistration {
+                    registration = try await createMobileAppRegistration(configuration: configuration,
+                        deviceID: deviceID, pushRelayToken: pushRelayToken)
+                }
             } else {
-                let request = HAMobileAppRegistrationRequestFactory.makeRequest(
-                    deviceID: deviceID,
-                    userDisplayName: currentUserDisplayName,
-                    pushRelayToken: pushRelayToken
-                )
-                let response = try await mobileAppClient.register(
-                    configuration: configuration,
-                    request: request
-                )
-                registration = HAMobileAppRegistrationInfo(
-                    serverIdentifier: configuration.dataSourceID,
-                    request: request,
-                    response: response
-                )
-                #if DEBUG
-                print("Home Assistant mobile-app registration created: remotePush=\(request.includesRemotePushAppData), localPush=\(request.appData?["push_websocket_channel"]?.boolValue == true)")
-                #endif
+                registration = try await createMobileAppRegistration(configuration: configuration,
+                    deviceID: deviceID, pushRelayToken: pushRelayToken)
             }
-            try mobileAppRegistrationStore.saveRegistration(registration)
+            // Preserve a successfully created key in its own profile, but never
+            // resurrect a signed-out profile or overwrite a replacement registration.
+            guard await registrationAuth.status().isSignedIn,
+                  try registrationStore.readRegistration()?.webhookID == originalWebhookID else { return }
+            try registrationStore.saveRegistration(registration)
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
             mobileAppRegistrationState = .registered(HAMobileAppRegistrationSummary(info: registration))
             lastErrorMessage = nil
         } catch {
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
             mobileAppRegistrationState = .failed(error.localizedDescription)
             lastErrorMessage = error.localizedDescription
-            serviceFeedback = HAServiceFeedback(
-                title: "Registration failed",
-                message: error.localizedDescription,
-                style: .failure
-            )
+            serviceFeedback = HAServiceFeedback(title: "Registration failed", message: error.localizedDescription, style: .failure)
         }
+    }
+
+    private func createMobileAppRegistration(
+        configuration: HAConnectionConfiguration, deviceID: String, pushRelayToken: String
+    ) async throws -> HAMobileAppRegistrationInfo {
+        let request = HAMobileAppRegistrationRequestFactory.makeRequest(
+            deviceID: deviceID, userDisplayName: currentUserDisplayName, pushRelayToken: pushRelayToken
+        )
+        let response = try await mobileAppClient.register(configuration: configuration, request: request)
+        return HAMobileAppRegistrationInfo(serverIdentifier: configuration.dataSourceID, request: request, response: response)
     }
 
     func prepareCameraStreamHandoff(entityID: String) async throws -> HACameraStreamHandoff {
         let configuration = try cameraConfiguration(for: entityID)
         let registration = try currentMobileAppRegistration(for: configuration)
-        let response = try await mobileAppClient.requestCameraStream(
-            configuration: configuration,
-            registration: registration,
-            entityID: entityID
-        )
+        let generation = connectionGeneration
+        let response: HACameraStreamResponseDTO
+        do {
+            response = try await mobileAppClient.requestCameraStream(configuration: configuration,
+                registration: registration, entityID: entityID)
+        } catch let error as HAMobileAppClientError where error.requiresNewRegistration {
+            guard generation == connectionGeneration, !Task.isCancelled else { throw CancellationError() }
+            await registerMobileAppIfNeeded(configuration: configuration, force: true)
+            guard generation == connectionGeneration, !Task.isCancelled else { throw CancellationError() }
+            response = try await mobileAppClient.requestCameraStream(configuration: configuration,
+                registration: currentMobileAppRegistration(for: configuration), entityID: entityID)
+        }
+        guard generation == connectionGeneration, !Task.isCancelled else { throw CancellationError() }
         return HACameraStreamHandoff(entityID: entityID, response: response)
     }
 
@@ -2601,9 +2667,13 @@ final class HomeAssistantService {
     }
 
     private func establishTransportConnection(configuration: HAConnectionConfiguration) async throws {
-        await configureClientCallbacks()
+        let generation = connectionGeneration
+        await configureClientCallbacks(generation: generation)
+        guard generation == connectionGeneration, !Task.isCancelled else { throw CancellationError() }
         try await client.connect(configuration: configuration)
+        guard generation == connectionGeneration, !Task.isCancelled else { throw CancellationError() }
         let currentUser = try? await client.fetchCurrentUser()
+        guard generation == connectionGeneration, !Task.isCancelled else { throw CancellationError() }
         if let currentUser {
             applyCurrentUser(currentUser)
         } else {
@@ -2636,14 +2706,17 @@ final class HomeAssistantService {
     private func establishTransportConnectionWithAuthRecoveryWithoutTimeout(
         configuration: HAConnectionConfiguration
     ) async throws -> HAConnectionConfiguration {
+        let generation = connectionGeneration
         do {
             try await establishTransportConnection(configuration: configuration)
             return configuration
         } catch HAWebSocketError.authenticationFailed(_) {
+            guard generation == connectionGeneration, !Task.isCancelled else { throw CancellationError() }
             let refreshedConfiguration = try await refreshConfiguration(
                 baseURLString: configuration.tokenRefreshBaseURLString
             )
             .routed(to: configuration.baseURLString)
+            guard generation == connectionGeneration, !Task.isCancelled else { throw CancellationError() }
             try await establishTransportConnection(configuration: refreshedConfiguration)
             return refreshedConfiguration
         }
@@ -2810,10 +2883,12 @@ final class HomeAssistantService {
     }
 
     private func syncInitialStates(configuration: HAConnectionConfiguration) async {
+        let generation = connectionGeneration
         beginBufferingStateChanges()
 
         do {
             try await client.subscribeToStateChanges()
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
             do {
                 try await client.subscribeToRegistryChanges()
             } catch {
@@ -2821,7 +2896,10 @@ final class HomeAssistantService {
                 print("Home Assistant registry subscriptions failed: \(error.localizedDescription)")
                 #endif
             }
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
             let states = try await client.fetchStates()
+            guard generation == connectionGeneration, !Task.isCancelled,
+                  activeConfiguration?.dataSourceID == configuration.dataSourceID else { return }
             stateStore.applySnapshot(states, dataSourceID: configuration.dataSourceID)
             applyBufferedStateChanges()
             lastErrorMessage = nil
@@ -2829,6 +2907,7 @@ final class HomeAssistantService {
             scheduleStateCacheSave(configuration: configuration)
             scheduleStateEnrichment(configuration: configuration)
         } catch {
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
             discardBufferedStateChanges()
             lastErrorMessage = error.localizedDescription
             dataFreshness = staleFreshness(error.localizedDescription)
@@ -2841,12 +2920,15 @@ final class HomeAssistantService {
             return
         }
 
+        let generation = connectionGeneration
         let previousUpdateDate = dataFreshness.lastKnownUpdateDate
         beginBufferingStateChanges()
         dataFreshness = .refreshing(lastUpdated: previousUpdateDate)
 
         do {
             let states = try await client.fetchStates()
+            guard generation == connectionGeneration, !Task.isCancelled,
+                  self.activeConfiguration?.dataSourceID == activeConfiguration.dataSourceID else { return }
             stateStore.applySnapshot(states, dataSourceID: activeConfiguration.dataSourceID)
             applyBufferedStateChanges()
             lastErrorMessage = nil
@@ -2854,6 +2936,7 @@ final class HomeAssistantService {
             scheduleStateCacheSave(configuration: activeConfiguration)
             scheduleStateEnrichment(configuration: activeConfiguration)
         } catch {
+            guard generation == connectionGeneration, !Task.isCancelled else { return }
             applyBufferedStateChanges()
             lastErrorMessage = error.localizedDescription
             dataFreshness = staleFreshness(error.localizedDescription, lastUpdated: previousUpdateDate)
@@ -2892,15 +2975,17 @@ final class HomeAssistantService {
     }
 
     private func enrichLiveState(configuration: HAConnectionConfiguration) async {
-        guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+        guard !Task.isCancelled, activeConfiguration?.dataSourceID == configuration.dataSourceID else {
             return
         }
 
         let registryMetadata = await fetchRegistryMetadataIfAvailable(configuration: configuration)
+        guard !Task.isCancelled else { return }
         await refreshServiceRegistryIfAvailable(configuration: configuration)
+        guard !Task.isCancelled else { return }
         await refreshServerConfigurationIfAvailable(configuration: configuration)
 
-        guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+        guard !Task.isCancelled, activeConfiguration?.dataSourceID == configuration.dataSourceID else {
             return
         }
 
@@ -2913,6 +2998,9 @@ final class HomeAssistantService {
     }
 
     private func fetchRegistryMetadataIfAvailable(configuration: HAConnectionConfiguration) async -> HARegistryMetadataSnapshot? {
+        guard !Task.isCancelled, activeConfiguration?.dataSourceID == configuration.dataSourceID else { return nil }
+        let revision = UUID()
+        registryMetadataRevision = revision
         let previous = stateStore.registryMetadataSnapshot()
         async let entityRegistryResult = registryFetchResult {
             try await self.client.fetchEntityRegistryForDisplay()
@@ -2979,7 +3067,7 @@ final class HomeAssistantService {
             labels: labels,
             categories: categories
         )
-        guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+        guard revision == registryMetadataRevision, !Task.isCancelled, activeConfiguration?.dataSourceID == configuration.dataSourceID else {
             return nil
         }
         stateStore.applyRegistryMetadata(metadata)
@@ -3013,9 +3101,12 @@ final class HomeAssistantService {
     }
 
     private func refreshServiceRegistryIfAvailable(configuration: HAConnectionConfiguration) async {
+        guard !Task.isCancelled, activeConfiguration?.dataSourceID == configuration.dataSourceID else { return }
+        let revision = UUID()
+        serviceMetadataRevision = revision
         do {
             let registry = try await client.fetchServices()
-            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
+            guard revision == serviceMetadataRevision, !Task.isCancelled, activeConfiguration?.dataSourceID == configuration.dataSourceID else {
                 return
             }
             serviceRegistry = registry
@@ -3028,19 +3119,18 @@ final class HomeAssistantService {
     }
 
     private func refreshServerConfigurationIfAvailable(configuration: HAConnectionConfiguration) async {
-        serverConfigurationStatus = .loading
+        guard !Task.isCancelled, activeConfiguration?.dataSourceID == configuration.dataSourceID else { return }
+        await refreshServerConfiguration()
+    }
 
+    private func performServerConfigurationRefresh(generation: UInt, revision: UUID) async {
+        guard generation == connectionGeneration, revision == serverMetadataRevision, !Task.isCancelled else { return }
+        serverConfigurationStatus = .loading
         do {
             let config = try await client.fetchConfig()
-            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
-                return
-            }
-
+            guard generation == connectionGeneration, revision == serverMetadataRevision, !Task.isCancelled else { return }
             let environment = await serverEnvironmentSnapshot(for: config)
-            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
-                return
-            }
-
+            guard generation == connectionGeneration, revision == serverMetadataRevision, !Task.isCancelled else { return }
             let snapshot = HAServerConfigurationSnapshot(dto: config)
             serverConfiguration = snapshot
             serverEnvironment = environment
@@ -3048,14 +3138,8 @@ final class HomeAssistantService {
             currentConnectionSettings?.updateServerName(snapshot.locationName)
             serverConfigurationStatus = .loaded(snapshot.loadedAt)
         } catch {
-            guard activeConfiguration?.dataSourceID == configuration.dataSourceID else {
-                return
-            }
-
+            guard generation == connectionGeneration, revision == serverMetadataRevision, !Task.isCancelled else { return }
             serverConfigurationStatus = .failed(error.localizedDescription)
-            #if DEBUG
-            print("Home Assistant server configuration failed: \(error.localizedDescription)")
-            #endif
         }
     }
 
@@ -3086,21 +3170,25 @@ final class HomeAssistantService {
         }
     }
 
-    private func configureClientCallbacks() async {
-        await stateEventBatcher.setFlushHandler { [weak stateStore] updates in
-            stateStore?.applyStateChanges(updates)
+    private func configureClientCallbacks(generation: UInt) async {
+        await stateEventBatcher.setFlushHandler { [weak self] updates in
+            guard let self, generation == self.connectionGeneration else { return }
+            self.stateStore.applyStateChanges(updates)
         }
-
+        guard generation == connectionGeneration, !Task.isCancelled else { return }
         await client.setEventHandler { [weak self] event in
-            await self?.handleStateEvent(event)
+            await self?.handleStateEvent(event, generation: generation)
         }
 
+        guard generation == connectionGeneration, !Task.isCancelled else { return }
         await client.setMobileAppPushNotificationHandler { [weak self] event in
             await self?.handleMobileAppPushNotificationEvent(event)
         }
 
+        guard generation == connectionGeneration, !Task.isCancelled else { return }
         await client.setDisconnectHandler { [weak self] error in
-            self?.handleUnexpectedDisconnect(error)
+            guard let self, generation == self.connectionGeneration else { return }
+            self.handleUnexpectedDisconnect(error)
         }
     }
 
@@ -3155,7 +3243,24 @@ final class HomeAssistantService {
         }
     }
 
-    private func handleStateEvent(_ event: HAEventDTO) async {
+    private func handleStateEvent(_ event: HAEventDTO, generation: UInt) async {
+        guard generation == connectionGeneration else { return }
+        switch event.eventType {
+        case "service_registered", "service_removed":
+            if event.eventType == "service_removed",
+               let domain = event.data.objectValue?["domain"]?.stringValue,
+               let service = event.data.objectValue?["service"]?.stringValue {
+                var domains = serviceRegistry.domains
+                domains[domain]?.removeValue(forKey: service)
+                serviceRegistry = HAServiceRegistry(domains: domains, hasLoaded: serviceRegistry.hasLoaded)
+            }
+            scheduleServiceMetadataRefresh()
+            return
+        case "core_config_updated", "component_loaded":
+            scheduleServerConfigRefresh()
+            return
+        default: break
+        }
         if event.isRegistryMetadataChanged {
             scheduleRegistryMetadataRefresh()
             return
@@ -3177,7 +3282,35 @@ final class HomeAssistantService {
         }
     }
 
+    private func scheduleServiceMetadataRefresh() {
+        serviceMetadataRevision = UUID()
+        guard let configuration = activeConfiguration else { return }
+        serviceRefreshTask?.cancel()
+        serviceRefreshTask = Task { [weak self] in
+            do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
+            guard let self, !Task.isCancelled,
+                  self.activeConfiguration?.dataSourceID == configuration.dataSourceID else { return }
+            await self.refreshServiceRegistryIfAvailable(configuration: configuration)
+        }
+    }
+
+    private func scheduleServerConfigRefresh() {
+        serverMetadataRevision = UUID()
+        serverConfigurationLoadTask?.cancel()
+        serverConfigurationLoadTask = nil
+        serverConfigurationLoadID = nil
+        guard let configuration = activeConfiguration else { return }
+        serverConfigRefreshTask?.cancel()
+        serverConfigRefreshTask = Task { [weak self] in
+            do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
+            guard let self, !Task.isCancelled,
+                  self.activeConfiguration?.dataSourceID == configuration.dataSourceID else { return }
+            await self.refreshServerConfigurationIfAvailable(configuration: configuration)
+        }
+    }
+
     private func scheduleRegistryMetadataRefresh() {
+        registryMetadataRevision = UUID()
         guard let activeConfiguration else {
             return
         }
@@ -3240,6 +3373,10 @@ final class HomeAssistantService {
     }
 
     private func weatherForecastErrorMessage(_ error: Error) -> String {
+        if let failure = error as? HAWebSocketServerError,
+           failure.code == "not_supported" || failure.message?.localizedCaseInsensitiveContains("not support") == true {
+            return "This forecast is not available from the weather provider."
+        }
         if case HAWebSocketError.requestFailed(let message) = error,
            message?.localizedCaseInsensitiveContains("not support") == true {
             return "This forecast is not available from the weather provider."
@@ -3277,12 +3414,20 @@ final class HomeAssistantService {
             return
         }
 
+        connectionGeneration &+= 1
         stateSyncTask?.cancel()
         stateSyncTask = nil
         stateEnrichmentTask?.cancel()
         stateEnrichmentTask = nil
         registryRefreshTask?.cancel()
         registryRefreshTask = nil
+        serviceRefreshTask?.cancel()
+        serviceRefreshTask = nil
+        serverConfigRefreshTask?.cancel()
+        serverConfigRefreshTask = nil
+        serverConfigurationLoadTask?.cancel()
+        serverConfigurationLoadTask = nil
+        serverConfigurationLoadID = nil
         discardBufferedStateChanges()
         Task {
             await stateEventBatcher.discardPendingUpdates()
@@ -3295,9 +3440,10 @@ final class HomeAssistantService {
     }
 
     private func runReconnectLoop(configuration: HAConnectionConfiguration) async {
+        let generation = connectionGeneration
         var attempt = 0
 
-        while shouldReconnect, !Task.isCancelled {
+        while shouldReconnect, !Task.isCancelled, generation == connectionGeneration {
             let delay = HAConnectionRecoveryPolicy.reconnectDelaySeconds(
                 forAttempt: attempt,
                 delays: reconnectDelaySeconds
@@ -3330,6 +3476,7 @@ final class HomeAssistantService {
                     }
                 }
 
+                guard generation == connectionGeneration, !Task.isCancelled else { return }
                 guard let connectedRoute else {
                     throw routeError ?? HAWebSocketError.transportFailure("Home Assistant connection failed.")
                 }
@@ -3350,6 +3497,7 @@ final class HomeAssistantService {
             } catch is CancellationError {
                 break
             } catch {
+                guard generation == connectionGeneration, !Task.isCancelled else { return }
                 let rawMessage = error.localizedDescription
                 lastErrorMessage = rawMessage
                 dataFreshness = staleFreshness(rawMessage)
@@ -3365,6 +3513,7 @@ final class HomeAssistantService {
             }
         }
 
+        guard generation == connectionGeneration else { return }
         reconnectTask = nil
         if connectionStatus == .reconnecting {
             connectionStatus = .disconnected
@@ -3574,3 +3723,12 @@ extension HomeAssistantService {
     }
 }
 #endif
+
+private extension HAMobileAppClientError {
+    var requiresNewRegistration: Bool {
+        switch self {
+        case .httpStatus(410), .webhookError("encryption_already_enabled"), .webhookError("encryption_required"): true
+        default: false
+        }
+    }
+}

@@ -77,10 +77,21 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
     let supportsWebSocketNotifications: Bool?
     let supportsCloudPushNotifications: Bool?
     let registeredAt: Date
+    var encryptionUnavailable: Bool? = nil
 
     nonisolated var hasEncryptedWebhookSecret: Bool {
         guard let secret else { return false }
         return !secret.isEmpty
+    }
+
+    nonisolated func replacingEncryptionSecret(_ secret: String?) -> Self {
+        var updated = Self(serverIdentifier: serverIdentifier, deviceID: deviceID, appID: appID,
+                           appName: appName, appVersion: appVersion, deviceName: deviceName,
+                           webhookID: webhookID, cloudhookURL: cloudhookURL, remoteUIURL: remoteUIURL,
+                           secret: secret, supportsWebSocketNotifications: supportsWebSocketNotifications,
+                           supportsCloudPushNotifications: supportsCloudPushNotifications, registeredAt: registeredAt)
+        updated.encryptionUnavailable = secret == nil
+        return updated
     }
 
     nonisolated func hasCurrentRemotePushRegistration(for configuration: HAConnectionConfiguration) -> Bool {
@@ -103,6 +114,7 @@ nonisolated struct HAMobileAppRegistrationInfo: Codable, Equatable, Sendable {
         case supportsWebSocketNotifications
         case supportsCloudPushNotifications
         case registeredAt
+        case encryptionUnavailable
     }
 
     init(
@@ -226,7 +238,7 @@ enum HAMobileAppRegistrationRequestFactory {
             model: model,
             osName: osName,
             osVersion: osVersion,
-            supportsEncryption: false,
+            supportsEncryption: true,
             appData: appData(
                 pushRelayToken: pushRelayToken,
                 pushURL: pushURL,

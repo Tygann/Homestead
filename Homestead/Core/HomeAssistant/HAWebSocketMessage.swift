@@ -47,6 +47,8 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
     let weatherForecastEvent: HAWeatherForecastEventDTO?
     let error: HAWebSocketErrorDTO?
     let message: String?
+    let haVersion: String?
+    let eventPayload: JSONValue?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -56,6 +58,7 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
         case event
         case error
         case message
+        case haVersion = "ha_version"
     }
 
     nonisolated init(from decoder: Decoder) throws {
@@ -64,11 +67,14 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
         type = try container.decode(String.self, forKey: .type)
         success = try container.decodeIfPresent(Bool.self, forKey: .success)
         result = try container.decodeIfPresent(JSONValue.self, forKey: .result)
+        haVersion = try container.decodeIfPresent(String.self, forKey: .haVersion)
         let eventValue = try container.decodeIfPresent(JSONValue.self, forKey: .event)
-        cameraSignal = try? eventValue?.decoded(CameraWebRTCSignal.self)
-        event = try? eventValue?.decoded(HAEventDTO.self)
-        mobileAppPushNotificationEvent = try? eventValue?.decoded(HAMobileAppPushNotificationEventDTO.self)
-        weatherForecastEvent = try? eventValue?.decoded(HAWeatherForecastEventDTO.self)
+        eventPayload = eventValue
+        let isCompact = eventValue?.objectValue.map { $0["a"] != nil || $0["c"] != nil || $0["r"] != nil } ?? false
+        cameraSignal = isCompact ? nil : try? eventValue?.decoded(CameraWebRTCSignal.self)
+        event = isCompact ? nil : try? eventValue?.decoded(HAEventDTO.self)
+        mobileAppPushNotificationEvent = isCompact ? nil : try? eventValue?.decoded(HAMobileAppPushNotificationEventDTO.self)
+        weatherForecastEvent = isCompact ? nil : try? eventValue?.decoded(HAWeatherForecastEventDTO.self)
         error = try container.decodeIfPresent(HAWebSocketErrorDTO.self, forKey: .error)
         message = try container.decodeIfPresent(String.self, forKey: .message)
     }
@@ -77,14 +83,23 @@ struct HAWebSocketIncomingMessage: Decodable, Sendable {
 struct HAWebSocketErrorDTO: Decodable, Sendable {
     let code: String?
     let message: String?
+    let translationDomain: String?
+    let translationKey: String?
+    let translationPlaceholders: [String: JSONValue]?
 
     enum CodingKeys: String, CodingKey {
         case code
         case message
+        case translationDomain = "translation_domain"
+        case translationKey = "translation_key"
+        case translationPlaceholders = "translation_placeholders"
     }
 
     nonisolated init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        translationDomain = try container.decodeIfPresent(String.self, forKey: .translationDomain)
+        translationKey = try container.decodeIfPresent(String.self, forKey: .translationKey)
+        translationPlaceholders = try container.decodeIfPresent([String: JSONValue].self, forKey: .translationPlaceholders)
         code = try container.decodeIfPresent(String.self, forKey: .code)
         message = try container.decodeIfPresent(String.self, forKey: .message)
     }
@@ -107,6 +122,9 @@ nonisolated struct HACurrentUserDTO: Decodable, Equatable, Sendable {
 enum HAWebSocketRequest: Encodable, Sendable {
     case auth(accessToken: String)
     case getStates(id: Int)
+    case statisticsCommand(id: Int, type: String, fields: [String: JSONValue])
+    case supportedFeatures(id: Int)
+    case subscribeEntities(id: Int)
     case subscribeEvents(id: Int, eventType: String)
     case unsubscribeEvents(id: Int, subscription: Int)
     case ping(id: Int)
@@ -157,6 +175,7 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case forecastType = "forecast_type"
         case offer, candidate
         case sessionID = "session_id"
+        case features
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -166,6 +185,18 @@ enum HAWebSocketRequest: Encodable, Sendable {
         case .auth(let accessToken):
             try container.encode(HAWebSocketMessageType.auth, forKey: .type)
             try container.encode(accessToken, forKey: .accessToken)
+        case .statisticsCommand(let id, let type, let fields):
+            try container.encode(id, forKey: .id)
+            try container.encode(type, forKey: .type)
+            var dynamic = encoder.container(keyedBy: HACommandFieldKey.self)
+            for (key, value) in fields { try dynamic.encode(value, forKey: HACommandFieldKey(key)) }
+        case .supportedFeatures(let id):
+            try container.encode(id, forKey: .id)
+            try container.encode("supported_features", forKey: .type)
+            try container.encode(["coalesce_messages": 1], forKey: .features)
+        case .subscribeEntities(let id):
+            try container.encode(id, forKey: .id)
+            try container.encode("subscribe_entities", forKey: .type)
         case .getStates(let id):
             try container.encode(id, forKey: .id)
             try container.encode(HAWebSocketMessageType.getStates, forKey: .type)
@@ -263,4 +294,30 @@ enum HAWebSocketRequest: Encodable, Sendable {
             try container.encodeIfPresent(serviceData, forKey: .serviceData)
         }
     }
+}
+
+nonisolated struct HACommandFieldKey: CodingKey {
+    let stringValue: String
+    var intValue: Int? { nil }
+    init(_ value: String) { stringValue = value }
+    init?(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { return nil }
+}
+
+nonisolated struct HAWebSocketServerError: LocalizedError, Sendable {
+    let code: String?
+    let message: String?
+    let translationDomain: String?
+    let translationKey: String?
+    let translationPlaceholders: [String: JSONValue]?
+
+    init(dto: HAWebSocketErrorDTO?, fallbackMessage: String? = nil) {
+        code = dto?.code
+        message = dto?.message ?? fallbackMessage
+        translationDomain = dto?.translationDomain
+        translationKey = dto?.translationKey
+        translationPlaceholders = dto?.translationPlaceholders
+    }
+
+    var errorDescription: String? { message ?? "Home Assistant request failed." }
 }

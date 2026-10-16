@@ -158,9 +158,7 @@ enum HomeAssistantEndpointBuilder {
         if request.noAttributes {
             queryItems.append(URLQueryItem(name: "no_attributes", value: nil))
         }
-        if request.significantChangesOnly {
-            queryItems.append(URLQueryItem(name: "significant_changes_only", value: nil))
-        }
+        queryItems.append(URLQueryItem(name: "significant_changes_only", value: request.significantChangesOnly ? "1" : "0"))
         components.queryItems = queryItems
         components.fragment = nil
 

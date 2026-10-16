@@ -6,6 +6,7 @@ struct HAEventDTO: Decodable, Equatable, Sendable {
     let origin: String?
     let timeFired: Date?
     let context: HAContextDTO?
+    private let reconstructedStateChange: HAStateChangedEventDTO?
 
     enum CodingKeys: String, CodingKey {
         case eventType = "event_type"
@@ -27,9 +28,11 @@ struct HAEventDTO: Decodable, Equatable, Sendable {
         self.origin = origin
         self.timeFired = timeFired
         self.context = context
+        reconstructedStateChange = nil
     }
 
     nonisolated init(from decoder: Decoder) throws {
+        reconstructedStateChange = nil
         let container = try decoder.container(keyedBy: CodingKeys.self)
         eventType = try container.decode(String.self, forKey: .eventType)
         data = try container.decodeIfPresent(JSONValue.self, forKey: .data) ?? .object([:])
@@ -38,7 +41,17 @@ struct HAEventDTO: Decodable, Equatable, Sendable {
         context = try container.decodeIfPresent(HAContextDTO.self, forKey: .context)
     }
 
+    nonisolated init(stateChange: HAStateChangedEventDTO) {
+        eventType = "state_changed"
+        data = .object([:])
+        origin = nil
+        timeFired = nil
+        context = nil
+        reconstructedStateChange = stateChange
+    }
+
     nonisolated var stateChanged: HAStateChangedEventDTO? {
+        if let reconstructedStateChange { return reconstructedStateChange }
         guard eventType == "state_changed",
               case .object(let eventData) = data,
               case .string(let entityID)? = eventData["entity_id"] else {
@@ -67,7 +80,9 @@ struct HAEventDTO: Decodable, Equatable, Sendable {
         "entity_registry_updated",
         "device_registry_updated",
         "area_registry_updated",
-        "floor_registry_updated"
+        "floor_registry_updated",
+        "label_registry_updated",
+        "category_registry_updated"
     ]
 
     private nonisolated static func entityDTO(from value: JSONValue) -> HAEntityDTO? {

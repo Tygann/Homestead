@@ -17,6 +17,8 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     func fetchCategoryRegistry(scope: HAOrganizationScope) async throws -> [HACategoryRegistryDTO]
     func fetchConfig() async throws -> HAConfigDTO
     func updateLocationName(_ locationName: String) async throws
+    func fetchStatisticsMetadata(entityID: String) async throws -> [HAStatisticMetadataDTO]
+    func fetchStatistics(request: HAStatisticsRequest) async throws -> [String: [HAStatisticRowDTO]]
     func fetchServices() async throws -> HAServiceRegistry
     func fetchServicesForTarget(entityID: String) async throws -> [String]
     func fetchCameraStreamPath(entityID: String) async throws -> String
@@ -55,13 +57,30 @@ nonisolated protocol HAWebSocketClientProtocol: AnyObject {
     ) async throws
 }
 
+nonisolated protocol HAWebSocketTransport: AnyObject, Sendable {
+    var closeCode: URLSessionWebSocketTask.CloseCode { get }
+    var closeReason: Data? { get }
+    func resume()
+    func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
+    func receive() async throws -> URLSessionWebSocketTask.Message
+    func send(_ message: URLSessionWebSocketTask.Message) async throws
+}
+
+extension URLSessionWebSocketTask: HAWebSocketTransport { }
+
 actor HAWebSocketClient: HAWebSocketClientProtocol {
-    private let session: URLSession
+    private let makeTransport: @Sendable (URL) -> any HAWebSocketTransport
     private let requestTimeout: Duration
     private let heartbeatInterval: Duration
-    private var webSocketTask: URLSessionWebSocketTask?
+    private var webSocketTask: (any HAWebSocketTransport)?
     private var receiveTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
+    private var connectionID = UUID()
+    private var serverVersion: String?
+    private var hasDeliveredCompactSnapshot = false
+    private var usesCompactEntities = false
+    private var compactEntities = HACompactEntityStore()
+    private var snapshotWaiters: [UUID: CheckedContinuation<[HAEntityDTO], Error>] = [:]
     private var nextID = 1
     private var pendingResults: [Int: CheckedContinuation<HAWebSocketIncomingMessage, Error>] = [:]
     private var pendingPongs: [Int: CheckedContinuation<Void, Error>] = [:]
@@ -78,9 +97,10 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     init(
         session: URLSession = .shared,
         requestTimeout: Duration = .seconds(15),
-        heartbeatInterval: Duration = .seconds(30)
+        heartbeatInterval: Duration = .seconds(30),
+        transportFactory: (@Sendable (URL) -> any HAWebSocketTransport)? = nil
     ) {
-        self.session = session
+        self.makeTransport = transportFactory ?? { session.webSocketTask(with: $0) }
         self.requestTimeout = requestTimeout
         self.heartbeatInterval = heartbeatInterval
     }
@@ -101,14 +121,16 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         isDisconnecting = true
         closeCurrentConnection()
         isDisconnecting = false
+        let generation = connectionID
 
         do {
             let url = try HomeAssistantEndpointBuilder.webSocketURL(from: configuration.baseURLString)
-            let task = session.webSocketTask(with: url)
+            let task = makeTransport(url)
             webSocketTask = task
             task.resume()
 
             let authRequired = try await receiveIncomingMessage()
+            guard generation == connectionID else { throw CancellationError() }
             guard authRequired.type == HAWebSocketMessageType.authRequired else {
                 throw HAWebSocketError.unexpectedMessage(authRequired.type)
             }
@@ -116,9 +138,20 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
             try await send(.auth(accessToken: configuration.accessToken))
 
             let authResponse = try await receiveIncomingMessage()
+            guard generation == connectionID else { throw CancellationError() }
             switch authResponse.type {
             case HAWebSocketMessageType.authOK:
+                serverVersion = authResponse.haVersion ?? authRequired.haVersion
                 startReceiveLoop()
+                // HA requires this to be the first command, with id 1.
+                if HAWebSocketVersion.supports(serverVersion, year: 2022, month: 9) {
+                    // Keep subscription ids unique across reconnects so late cleanup
+                    // cannot unsubscribe a replacement camera/weather session.
+                    nextID = max(nextID, 2)
+                    do { _ = try await sendRequest(.supportedFeatures(id: 1), id: 1) }
+                    catch let error as HAWebSocketServerError where error.code == "unknown_command" { }
+                }
+                guard generation == connectionID else { throw CancellationError() }
                 startHeartbeatLoop()
             case HAWebSocketMessageType.authInvalid:
                 throw HAWebSocketError.authenticationFailed(authResponse.message)
@@ -126,6 +159,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
                 throw HAWebSocketError.unexpectedMessage(authResponse.type)
             }
         } catch {
+            guard generation == connectionID else { throw error }
             isDisconnecting = true
             closeCurrentConnection()
             isDisconnecting = false
@@ -139,6 +173,14 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     private func closeCurrentConnection() {
+        connectionID = UUID()
+        serverVersion = nil
+        usesCompactEntities = false
+        hasDeliveredCompactSnapshot = false
+        compactEntities = HACompactEntityStore()
+        let waiters = snapshotWaiters.values
+        snapshotWaiters.removeAll()
+        for waiter in waiters { waiter.resume(throwing: HAWebSocketError.notConnected) }
         receiveTask?.cancel()
         receiveTask = nil
         heartbeatTask?.cancel()
@@ -159,6 +201,26 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func fetchStates() async throws -> [HAEntityDTO] {
+        if usesCompactEntities {
+            if compactEntities.hasInitialSnapshot {
+                // A refresh also checks liveness without downloading all states again.
+                let generation = connectionID
+                if hasDeliveredCompactSnapshot { try await sendPing() }
+                guard generation == connectionID else { throw CancellationError() }
+                hasDeliveredCompactSnapshot = true
+                return Array(compactEntities.entitiesByID.values)
+            }
+            let waiterID = UUID()
+            let generation = connectionID
+            return try await withCheckedThrowingContinuation { continuation in
+                snapshotWaiters[waiterID] = continuation
+                Task {
+                    try? await Task.sleep(for: requestTimeout)
+                    guard generation == connectionID else { return }
+                    snapshotWaiters.removeValue(forKey: waiterID)?.resume(throwing: HAWebSocketError.requestTimedOut)
+                }
+            }
+        }
         let id = makeRequestID()
         let response = try await sendRequest(.getStates(id: id), id: id)
 
@@ -277,6 +339,22 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     func updateLocationName(_ locationName: String) async throws {
         let id = makeRequestID()
         _ = try await sendRequest(.updateCoreConfig(id: id, locationName: locationName), id: id)
+    }
+
+    func fetchStatisticsMetadata(entityID: String) async throws -> [HAStatisticMetadataDTO] {
+        let id = makeRequestID()
+        let response = try await sendRequest(.statisticsCommand(id: id, type: "recorder/get_statistics_metadata",
+            fields: ["statistic_ids": .array([.string(entityID)])]), id: id)
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return try result.decoded([HAStatisticMetadataDTO].self)
+    }
+
+    func fetchStatistics(request: HAStatisticsRequest) async throws -> [String: [HAStatisticRowDTO]] {
+        let id = makeRequestID()
+        let response = try await sendRequest(.statisticsCommand(id: id, type: "recorder/statistics_during_period",
+            fields: request.fields), id: id)
+        guard let result = response.result else { throw HAWebSocketError.missingResult }
+        return try result.decoded([String: [HAStatisticRowDTO]].self)
     }
 
     func fetchServices() async throws -> HAServiceRegistry {
@@ -422,19 +500,40 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     func subscribeToStateChanges() async throws {
+        let generation = connectionID
         guard stateChangeSubscriptionID == nil else {
             return
         }
 
+        if HAWebSocketVersion.supports(serverVersion, year: 2022, month: 4) {
+            let id = makeRequestID()
+            // Install routing before the server can send its initial event.
+            stateChangeSubscriptionID = id
+            usesCompactEntities = true
+            do {
+                _ = try await sendRequest(.subscribeEntities(id: id), id: id)
+                guard generation == connectionID else { throw CancellationError() }
+                return
+            } catch let error as HAWebSocketServerError where error.code == "unknown_command" {
+                guard generation == connectionID else { throw CancellationError() }
+                stateChangeSubscriptionID = nil
+                usesCompactEntities = false
+                compactEntities = HACompactEntityStore()
+            } catch {
+                guard generation == connectionID else { throw CancellationError() }
+                stateChangeSubscriptionID = nil
+                usesCompactEntities = false
+                throw error
+            }
+        }
         let id = makeRequestID()
-        _ = try await sendRequest(
-            .subscribeEvents(id: id, eventType: "state_changed"),
-            id: id
-        )
+        _ = try await sendRequest(.subscribeEvents(id: id, eventType: "state_changed"), id: id)
+        guard generation == connectionID else { throw CancellationError() }
         stateChangeSubscriptionID = id
     }
 
     func unsubscribeFromStateChanges() async throws {
+        let generation = connectionID
         guard let stateChangeSubscriptionID else {
             return
         }
@@ -444,26 +543,37 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
             .unsubscribeEvents(id: id, subscription: stateChangeSubscriptionID),
             id: id
         )
+        guard generation == connectionID else { throw CancellationError() }
         self.stateChangeSubscriptionID = nil
+        usesCompactEntities = false
+        compactEntities = HACompactEntityStore()
     }
 
     func subscribeToRegistryChanges() async throws {
+        let generation = connectionID
         let eventTypes = [
             "entity_registry_updated",
             "device_registry_updated",
             "area_registry_updated",
             "floor_registry_updated",
             "label_registry_updated",
-            "category_registry_updated"
+            "category_registry_updated",
+            "service_registered",
+            "service_removed",
+            "core_config_updated",
+            "component_loaded"
         ]
 
         for eventType in eventTypes where registryChangeSubscriptionIDs[eventType] == nil {
             let id = makeRequestID()
-            _ = try await sendRequest(
-                .subscribeEvents(id: id, eventType: eventType),
-                id: id
-            )
-            registryChangeSubscriptionIDs[eventType] = id
+            do {
+                _ = try await sendRequest(.subscribeEvents(id: id, eventType: eventType), id: id)
+                guard generation == connectionID else { throw CancellationError() }
+                registryChangeSubscriptionIDs[eventType] = id
+            } catch let error as HAWebSocketServerError where ["unauthorized", "not_allowed", "unknown_command"].contains(error.code ?? "") {
+                guard generation == connectionID else { throw CancellationError() }
+                continue
+            }
         }
     }
 
@@ -581,13 +691,16 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     private func sendRequest(_ request: HAWebSocketRequest, id: Int) async throws -> HAWebSocketIncomingMessage {
-        try await withCheckedThrowingContinuation { continuation in
+        let generation = connectionID
+        return try await withCheckedThrowingContinuation { continuation in
             pendingResults[id] = continuation
 
             Task {
+                guard generation == self.connectionID else { return }
                 do {
                     try await self.send(request)
                 } catch {
+                    guard generation == self.connectionID else { return }
                     self.resumePendingResult(id: id, throwing: error)
                 }
             }
@@ -595,6 +708,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
             Task {
                 do {
                     try await Task.sleep(for: requestTimeout)
+                    guard generation == self.connectionID else { return }
                     self.resumePendingResult(id: id, throwing: HAWebSocketError.requestTimedOut)
                 } catch {
                     return
@@ -606,13 +720,16 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     private func sendPing() async throws {
         let id = makeRequestID()
 
+        let generation = connectionID
         try await withCheckedThrowingContinuation { continuation in
             pendingPongs[id] = continuation
 
             Task {
                 do {
+                    guard generation == self.connectionID else { return }
                     try await self.send(.ping(id: id))
                 } catch {
+                    guard generation == self.connectionID else { return }
                     self.resumePendingPong(id: id, throwing: error)
                 }
             }
@@ -620,6 +737,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
             Task {
                 do {
                     try await Task.sleep(for: requestTimeout)
+                    guard generation == self.connectionID else { return }
                     self.resumePendingPong(id: id, throwing: HAWebSocketError.requestTimedOut)
                 } catch {
                     return
@@ -642,7 +760,17 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
     }
 
     private func receiveIncomingMessage() async throws -> HAWebSocketIncomingMessage {
-        guard let webSocketTask else {
+        guard let task = webSocketTask else { throw HAWebSocketError.notConnected }
+        let messages = try await receiveIncomingMessages(from: task)
+        guard messages.count == 1, let message = messages.first else {
+            throw HAWebSocketError.unexpectedMessage("Invalid authentication frame")
+        }
+        return message
+    }
+
+    private func receiveIncomingMessages(from task: any HAWebSocketTransport) async throws -> [HAWebSocketIncomingMessage] {
+        let webSocketTask = task
+        guard self.webSocketTask != nil else {
             throw HAWebSocketError.notConnected
         }
 
@@ -664,12 +792,12 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
             throw HAWebSocketError.unexpectedMessage("unknown payload")
         }
 
-        return try JSONDecoder().decode(HAWebSocketIncomingMessage.self, from: data)
+        return try HAWebSocketFrame.decode(data)
     }
 
     private func transportError(
         from error: Error,
-        task: URLSessionWebSocketTask
+        task: any HAWebSocketTransport
     ) -> HAWebSocketError {
         let nsError = error as NSError
         var details = [error.localizedDescription]
@@ -693,25 +821,29 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
 
     private func startReceiveLoop() {
         receiveTask?.cancel()
+        let generation = connectionID
+        guard let socket = webSocketTask else { return }
         receiveTask = Task { [weak self] in
-            await self?.receiveLoop()
+            await self?.receiveLoop(socket: socket, generation: generation)
         }
     }
 
     private func startHeartbeatLoop() {
         heartbeatTask?.cancel()
+        let generation = connectionID
         heartbeatTask = Task { [weak self] in
-            await self?.heartbeatLoop()
+            await self?.heartbeatLoop(generation: generation)
         }
     }
 
-    private func heartbeatLoop() async {
+    private func heartbeatLoop(generation: UUID) async {
         while !Task.isCancelled {
             do {
                 try await Task.sleep(for: heartbeatInterval)
+                guard generation == connectionID, !Task.isCancelled else { return }
                 try await sendPing()
             } catch {
-                guard !Task.isCancelled, !isDisconnecting else {
+                guard generation == connectionID, !Task.isCancelled, !isDisconnecting else {
                     return
                 }
 
@@ -722,32 +854,52 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         }
     }
 
-    private func receiveLoop() async {
+    private func receiveLoop(socket: any HAWebSocketTransport, generation: UUID) async {
         do {
-            while !Task.isCancelled {
-                let message = try await receiveIncomingMessage()
-                await handle(message)
+            while !Task.isCancelled, generation == connectionID {
+                let messages = try await receiveIncomingMessages(from: socket)
+                for message in messages {
+                    guard generation == connectionID, !Task.isCancelled else { return }
+                    try await handle(message)
+                }
             }
         } catch {
-            resumeAllPending(throwing: error)
-            resumeAllPongs(throwing: error)
-
-            guard !Task.isCancelled, !isDisconnecting else {
-                return
+            guard generation == connectionID, !Task.isCancelled, !isDisconnecting else { return }
+            closeCurrentConnection()
+            // A missing delta base or malformed frame requires a fresh snapshot,
+            // not a permanent command-validation failure.
+            if error is DecodingError {
+                await disconnectHandler?(HAWebSocketError.transportFailure("Invalid Home Assistant message; reconnecting."))
+            } else if case HAWebSocketError.unexpectedMessage(let message) = error {
+                await disconnectHandler?(HAWebSocketError.transportFailure(message))
+            } else {
+                await disconnectHandler?(error)
             }
-
-            await disconnectHandler?(error)
         }
     }
 
-    private func handle(_ message: HAWebSocketIncomingMessage) async {
+    private func handle(_ message: HAWebSocketIncomingMessage) async throws {
         switch message.type {
         case HAWebSocketMessageType.result:
             handleResult(message)
         case HAWebSocketMessageType.pong:
             handlePong(message)
         case HAWebSocketMessageType.event:
-            if let id = message.id, let signal = message.cameraSignal,
+            if usesCompactEntities, message.id == stateChangeSubscriptionID, let payload = message.eventPayload {
+                let changes = try compactEntities.apply(payload)
+                if !snapshotWaiters.isEmpty {
+                    let snapshot = Array(compactEntities.entitiesByID.values)
+                    let waiters = snapshotWaiters.values
+                    snapshotWaiters.removeAll()
+                    hasDeliveredCompactSnapshot = true
+                    for waiter in waiters { waiter.resume(returning: snapshot) }
+                }
+                let generation = connectionID
+                for change in changes {
+                    guard generation == connectionID else { return }
+                    await eventHandler?(HAEventDTO(stateChange: change))
+                }
+            } else if let id = message.id, let signal = message.cameraSignal,
                let handler = cameraSignalHandlers[id] {
                 await handler(signal)
             } else if let id = message.id,
@@ -770,7 +922,7 @@ actor HAWebSocketClient: HAWebSocketClientProtocol {
         }
 
         if message.success == false {
-            continuation.resume(throwing: HAWebSocketError.requestFailed(message.message ?? message.error?.message))
+            continuation.resume(throwing: HAWebSocketServerError(dto: message.error, fallbackMessage: message.message))
         } else {
             continuation.resume(returning: message)
         }
@@ -860,4 +1012,9 @@ extension HAWebSocketClientProtocol {
     func fetchCameraWebRTCConfiguration(entityID: String) async throws -> JSONValue { throw HAWebSocketError.requestFailed("WebRTC unavailable") }
     func subscribeCameraWebRTC(entityID: String, offer: String, handler: @escaping @Sendable (CameraWebRTCSignal) async -> Void) async throws -> Int { throw HAWebSocketError.requestFailed("WebRTC unavailable") }
     func sendCameraWebRTCCandidate(entityID: String, sessionID: String, candidate: JSONValue) async throws { throw HAWebSocketError.requestFailed("WebRTC unavailable") }
+}
+
+nonisolated extension HAWebSocketClientProtocol {
+    func fetchStatisticsMetadata(entityID: String) async throws -> [HAStatisticMetadataDTO] { [] }
+    func fetchStatistics(request: HAStatisticsRequest) async throws -> [String: [HAStatisticRowDTO]] { [:] }
 }

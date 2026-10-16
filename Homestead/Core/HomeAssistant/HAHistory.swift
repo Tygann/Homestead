@@ -159,11 +159,13 @@ nonisolated struct HAHistorySample: Identifiable, Equatable, Sendable {
     let id: String
     let occurredAt: Date
     let value: Double
+    let validUntil: Date?
 
-    init(occurredAt: Date, value: Double) {
+    init(occurredAt: Date, value: Double, validUntil: Date? = nil) {
         self.id = "\(occurredAt.timeIntervalSince1970)-\(value)"
         self.occurredAt = occurredAt
         self.value = value
+        self.validUntil = validUntil
     }
 }
 
@@ -175,6 +177,7 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
     let range: HAHistoryRangePreset
     let samples: [HAHistorySample]
     let requestedInterval: DateInterval?
+    let hourlyAveragesBefore: Date?
 
     init(
         entityID: String,
@@ -183,7 +186,8 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
         displayPrecision: Int? = nil,
         range: HAHistoryRangePreset,
         samples: [HAHistorySample],
-        requestedInterval: DateInterval? = nil
+        requestedInterval: DateInterval? = nil,
+        hourlyAveragesBefore: Date? = nil
     ) {
         self.entityID = entityID
         self.displayName = displayName
@@ -192,6 +196,7 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
         self.range = range
         self.samples = samples
         self.requestedInterval = requestedInterval
+        self.hourlyAveragesBefore = hourlyAveragesBefore
     }
 
     var isEmpty: Bool {
@@ -221,7 +226,8 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
 
         for (index, sample) in samples.enumerated() {
             let nextDate = index + 1 < samples.count ? samples[index + 1].occurredAt : coverageEnd
-            let duration = max(nextDate.timeIntervalSince(sample.occurredAt), 0)
+            let end = min(nextDate, sample.validUntil ?? nextDate, coverageEnd)
+            let duration = max(end.timeIntervalSince(sample.occurredAt), 0)
             weightedTotal += sample.value * duration
             coveredDuration += duration
         }
@@ -254,13 +260,25 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
     }
 
     var coverageNotice: String? {
-        guard let requestedInterval,
-              let firstSample = samples.first,
-              firstSample.occurredAt > requestedInterval.start.addingTimeInterval(range.duration * 0.05) else {
-            return nil
+        let aggregationNotice = hourlyAveragesBefore.map {
+            "History before \($0.formatted(date: .abbreviated, time: .omitted)) uses hourly averages."
         }
-
-        return "History available since \(firstSample.occurredAt.formatted(date: .abbreviated, time: .shortened))."
+        var notices = [aggregationNotice].compactMap { $0 }
+        guard let requestedInterval, let firstSample = samples.first else {
+            return notices.isEmpty ? nil : notices.joined(separator: " ")
+        }
+        if firstSample.occurredAt > requestedInterval.start.addingTimeInterval(range.duration * 0.05) {
+            notices.append("History available since \(firstSample.occurredAt.formatted(date: .abbreviated, time: .shortened)).")
+        }
+        if let last = samples.last, let end = last.validUntil, end < requestedInterval.end {
+            notices.append("History available until \(end.formatted(date: .abbreviated, time: .shortened)).")
+        }
+        if zip(samples, samples.dropFirst()).contains(where: { previous, next in
+            previous.validUntil.map { $0 < next.occurredAt } ?? false
+        }) {
+            notices.append("Some history in this period is unavailable.")
+        }
+        return notices.isEmpty ? nil : notices.joined(separator: " ")
     }
 
     var summaryText: String {
@@ -271,7 +289,8 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
             return "No recorded numeric history"
         }
 
-        return "Now \(formatValue(latestSample.value)) • Low \(formatValue(minimumValue)) • High \(formatValue(maximumValue))"
+        let latestLabel = latestSample.validUntil.map { $0 < (requestedInterval?.end ?? $0) } == true ? "Latest" : "Now"
+        return "\(latestLabel) \(formatValue(latestSample.value)) • Low \(formatValue(minimumValue)) • High \(formatValue(maximumValue))"
     }
 
     func formatValue(_ value: Double) -> String {
@@ -318,6 +337,18 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
 
         result.append(samples[samples.count - 1])
         return result
+    }
+
+    /// Hourly means describe a bounded interval, not a state that persists
+    /// until the next report. Separate marks prevent bridging missing buckets.
+    func chartSegments() -> [HAHistoryChartSegment] {
+        let hourly = samples.compactMap { sample -> HAHistoryChartSegment? in
+            guard let end = sample.validUntil else { return nil }
+            return HAHistoryChartSegment(id: sample.id, samples: [sample,
+                HAHistorySample(occurredAt: end, value: sample.value)])
+        }
+        let detailed = chartSamples().filter { $0.validUntil == nil }
+        return hourly + (detailed.isEmpty ? [] : [HAHistoryChartSegment(id: "detail", samples: detailed)])
     }
 
     static func make(
@@ -398,6 +429,11 @@ nonisolated struct HAHistoryChartSeries: Equatable, Sendable {
         guard lowerBound < upperBound else { return adaptiveDomain }
         return lowerBound...upperBound
     }
+}
+
+nonisolated struct HAHistoryChartSegment: Identifiable, Equatable, Sendable {
+    let id: String
+    let samples: [HAHistorySample]
 }
 
 nonisolated enum HAHistoryTimelineTone: Equatable, Sendable {

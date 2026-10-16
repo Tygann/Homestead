@@ -21,11 +21,15 @@ struct EntityDetailReferenceGallery: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            controls
-            Divider()
-            EntityDetailReferenceScene(family: family, variant: variant)
-                .id("\(family.rawValue)-\(variant.rawValue)")
+        if RuntimeEnvironment.dashboardCardReferenceState == "statistics" {
+            EntityNumericHistoryStatisticsReference()
+        } else {
+            VStack(spacing: 0) {
+                controls
+                Divider()
+                EntityDetailReferenceScene(family: family, variant: variant)
+                    .id("\(family.rawValue)-\(variant.rawValue)")
+            }
         }
     }
 

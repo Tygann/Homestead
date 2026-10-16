@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		A100000B2FBDFE43009A0E06 /* HomesteadWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000012FBDFE43009A0E06 /* HomesteadWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A50000012FC8000000000001 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = A50000022FC8000000000001 /* WebRTC */; };
+		A60000012FC8000000000001 /* Sodium in Frameworks */ = {isa = PBXBuildFile; productRef = A60000022FC8000000000001 /* Sodium */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -113,6 +114,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A50000012FC8000000000001 /* WebRTC in Frameworks */,
+				A60000012FC8000000000001 /* Sodium in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -188,6 +190,7 @@
 			name = Homestead;
 			packageProductDependencies = (
 				A50000022FC8000000000001 /* WebRTC */,
+				A60000022FC8000000000001 /* Sodium */,
 			);
 			productName = Homestead;
 			productReference = 2FE2DD592FBDFE42009A0E06 /* Homestead.app */;
@@ -299,6 +302,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A50000032FC8000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */,
+				A60000032FC8000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2FE2DD5A2FBDFE42009A0E06 /* Products */;
@@ -800,6 +804,14 @@
 				version = 155.0.0;
 			};
 		};
+		A60000032FC8000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jedisct1/swift-sodium.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.11.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -807,6 +819,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A50000032FC8000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */;
 			productName = WebRTC;
+		};
+		A60000022FC8000000000001 /* Sodium */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A60000032FC8000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */;
+			productName = Sodium;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
